@@ -18,6 +18,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -456,23 +457,14 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	if userId == 0 || err != nil {
 		return
 	}
-	appWorkflows, err := handler.appWorkflowService.FindAppWorkflows(appId)
+
+	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithExtraMetadata(ctx, appId, handler.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	for _, wf := range appWorkflows {
-		if wf.ArtifactPromotionMetadata != nil && wf.ArtifactPromotionMetadata.IsConfigured {
-			pendingCount, err := handler.appArtifactManager.GetPromotionRequestCountPendingForCurrentUser(wf.Id, handler.CheckImagePromoterBulkAuth, token)
-			if err != nil {
-				handler.Logger.Errorw("error in finding approval pending coount for current user", "wfId", wf.Id, "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			}
-			wf.ArtifactPromotionMetadata.IsApprovalPendingForPromotion = pendingCount > 0
-		}
-	}
-
 	ciPipelineViewData, err := handler.pipelineBuilder.GetTriggerViewCiPipeline(appId)
 	if err != nil {
 		if _, ok := err.(*util.ApiError); !ok {

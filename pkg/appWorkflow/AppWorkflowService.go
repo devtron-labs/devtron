@@ -18,6 +18,7 @@
 package appWorkflow
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
@@ -46,7 +47,7 @@ import (
 type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
-	//FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error)
+	FindAppWorkflowsWithExtraMetadata(ctx context.Context, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error)
 
 	FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
@@ -248,24 +249,11 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 		return nil, err
 	}
 
-	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMappong(appId, wfrIdVsMappings)
-	if err != nil {
-		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
-		return nil, err
-	}
-
 	for _, w := range appWorkflows {
-		isPromotionPolicyConfigured := false
-		if _, ok := workflowIdToPromotionPolicyConfiguredMapping[w.Id]; ok {
-			isPromotionPolicyConfigured = true
-		}
 		workflow := AppWorkflowDto{
 			Id:    w.Id,
 			Name:  w.Name,
 			AppId: w.AppId,
-			ArtifactPromotionMetadata: &ArtifactPromotionMetadata{
-				IsConfigured: isPromotionPolicyConfigured,
-			},
 		}
 		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
 		workflows = append(workflows, workflow)
@@ -274,7 +262,41 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMappong(appId int, wfrIdVsMappings map[int][]AppWorkflowMappingDto) (map[int]bool, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithExtraMetadata(ctx context.Context, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error) {
+	appWorkflows, err := impl.FindAppWorkflows(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
+		return nil, err
+	}
+	wfrIdVsMappings := make(map[int][]AppWorkflowMappingDto)
+	wfIds := make([]int, 0, len(appWorkflows))
+	for _, appWf := range appWorkflows {
+		wfrIdVsMappings[appWf.Id] = appWf.AppWorkflowMappingDto
+		wfIds = append(wfIds, appWf.Id)
+	}
+	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMapping(appId, wfrIdVsMappings)
+	if err != nil {
+		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
+		return nil, err
+	}
+	wfIdToPendingApprovalCountMapping, err := impl.appArtifactManager.GetPromotionRequestCountPendingForCurrentUser(ctx, wfIds, imagePromoterAuth)
+	if err != nil {
+		impl.Logger.Errorw("error in finding approval pending coount for current user", "wfIds", wfIds, "err", err)
+		return nil, err
+	}
+	for i, wf := range appWorkflows {
+		if isConfigured, ok := workflowIdToPromotionPolicyConfiguredMapping[wf.Id]; ok {
+			pendingApprovalCount := wfIdToPendingApprovalCountMapping[wf.Id]
+			appWorkflows[i].ArtifactPromotionMetadata = &ArtifactPromotionMetadata{
+				IsApprovalPendingForPromotion: pendingApprovalCount > 0,
+				IsConfigured:                  isConfigured,
+			}
+		}
+	}
+	return appWorkflows, nil
+}
+
+func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(appId int, wfrIdVsMappings map[int][]AppWorkflowMappingDto) (map[int]bool, error) {
 
 	cdPipelineIds := make([]int, 0)
 	cdPipelineIdToWorkflowIdMapping := make(map[int]int)
