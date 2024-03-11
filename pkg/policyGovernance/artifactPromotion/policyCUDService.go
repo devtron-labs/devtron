@@ -9,18 +9,21 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
 )
 
-const policyNotFoundErrMsg = "policy with name %s not found"
+const policyNotFoundErr = "policy with name %s not found"
+const policyAlreadyExistsErr = "policy name already exists, err: duplicate name"
+const policyupdationErr = "error in updating policy"
 
 type PolicyCUDService interface {
-	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
-	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
-	DeletePolicy(userId int32, profileName string) error
+	UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error
+	CreatePolicy(ctx *util2.RequestCtx, policyBean *bean.PromotionPolicy) error
+	DeletePolicy(ctx *util2.RequestCtx, profileName string) error
 	AddDeleteHook(hook func(tx *pg.Tx, policyId int) error)
 	AddUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
 }
@@ -61,9 +64,9 @@ func (impl *PromotionPolicyServiceImpl) AddUpdateHook(hook func(tx *pg.Tx, polic
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
-func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
+func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error {
 
-	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(userId)
+	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
 		return err
@@ -71,9 +74,9 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 
 	policyId, err := impl.globalPolicyDataManager.GetPolicyIdByName(policyName, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
 	if err != nil {
-		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
+		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", ctx.GetUserId(), "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			errMsg := fmt.Sprintf(policyNotFoundErrMsg, policyName)
+			errMsg := fmt.Sprintf(policyNotFoundErr, policyName)
 			return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 		return err
@@ -83,15 +86,15 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 	// todo: create a transaction manager
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
+		impl.logger.Errorw("error in starting the transaction", "userId", ctx.GetUserId(), "policyName", policyName, "err", err)
 		return err
 	}
 	defer impl.transactionManager.RollbackTx(tx)
 	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(tx, policyName, globalPolicyDataModel)
 	if err != nil {
-		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error in updating policy")
+		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage(policyupdationErr)
 		if strings.Contains(err.Error(), bean2.UniqueActiveNameConstraint) {
-			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("policy name already exists, err: duplicate name")
+			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage(policyAlreadyExistsErr)
 		}
 		return errResp
 	}
@@ -113,8 +116,8 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 	return nil
 }
 
-func (impl *PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error {
-	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(userId)
+func (impl *PromotionPolicyServiceImpl) CreatePolicy(ctx *util2.RequestCtx, policyBean *bean.PromotionPolicy) error {
+	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
 		return err
@@ -122,36 +125,36 @@ func (impl *PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *b
 
 	_, err = impl.globalPolicyDataManager.CreatePolicy(globalPolicyDataModel, nil)
 	if err != nil {
-		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error in updating policy")
+		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage(policyupdationErr)
 		if strings.Contains(err.Error(), bean2.UniqueActiveNameConstraint) {
-			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("policy name already exists, err: duplicate name")
+			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage(policyAlreadyExistsErr)
 		}
 		return errResp
 	}
 	return nil
 }
 
-func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
+func (impl *PromotionPolicyServiceImpl) DeletePolicy(ctx *util2.RequestCtx, policyName string) error {
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
+		impl.logger.Errorw("error in starting the transaction", "userId", ctx.GetUserId(), "policyName", policyName, "err", err)
 		return err
 	}
 
 	policyId, err := impl.globalPolicyDataManager.GetPolicyIdByName(policyName, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
 	if err != nil {
-		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
+		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", ctx.GetUserId(), "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			errMsg := fmt.Sprintf(policyNotFoundErrMsg, policyName)
+			errMsg := fmt.Sprintf(policyNotFoundErr, policyName)
 			return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 		return err
 	}
 
 	defer impl.transactionManager.RollbackTx(tx)
-	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
+	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, ctx.GetUserId())
 	if err != nil {
-		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
+		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", ctx.GetUserId(), "err", err)
 		return err
 	}
 	for _, hook := range impl.preDeleteHooks {

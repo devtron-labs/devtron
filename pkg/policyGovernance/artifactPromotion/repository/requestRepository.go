@@ -201,6 +201,9 @@ func (repo *RequestRepositoryImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) 
 }
 
 func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
+	if len(requestIds) == 0 {
+		return nil
+	}
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", constants.PROMOTED).
 		Set("updated_on = ?", time.Now()).

@@ -26,6 +26,7 @@ type CdWorkflowCommonService interface {
 	UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status, message string) error
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
+	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
 }
 
 type CdWorkflowCommonServiceImpl struct {
@@ -33,7 +34,7 @@ type CdWorkflowCommonServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
 
-	//TODO: remove below
+	// TODO: remove below
 	config                           *types.CdConfig
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
@@ -69,7 +70,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousDeploymentStatus(currentR
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	//update [n,n-1] statuses as failed if not terminal
+	// update [n,n-1] statuses as failed if not terminal
 	terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
 	previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 	if err != nil {
@@ -86,7 +87,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousDeploymentStatus(currentR
 			previousRunner.Status == pipelineConfig.WorkflowSucceeded ||
 			previousRunner.Status == pipelineConfig.WorkflowAborted ||
 			previousRunner.Status == pipelineConfig.WorkflowFailed {
-			//terminal status return
+			// terminal status return
 			impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			continue
 		}
@@ -121,7 +122,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousDeploymentStatus(currentR
 		impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
 		return err
 	}
-	//commit transaction
+	// commit transaction
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in db transaction commit", "err", err)
@@ -137,7 +138,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 		impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
 		return err
 	}
-	//update current WF with error status
+	// update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
 	runner.Message = util.GetGRPCErrorDetailedMessage(releaseErr)
@@ -282,4 +283,8 @@ func (impl *CdWorkflowCommonServiceImpl) canInitiateTrigger(natsMsgId string) (b
 		return false, errors.New("duplicate pre stage trigger request, this request was already processed")
 	}
 	return true, nil
+}
+
+func (impl *CdWorkflowCommonServiceImpl) IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error) {
+	return impl.cdWorkflowRepository.IsArtifactDeployedOnStage(ciArtifactId, pipelineId, runnerType)
 }

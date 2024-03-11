@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -53,13 +54,8 @@ func NewArtifactPromotionPolicyRestHandlerImpl(
 }
 
 func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 
@@ -67,7 +63,7 @@ func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Reque
 
 	promotionPolicy := &bean.PromotionPolicy{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(promotionPolicy)
+	err := decoder.Decode(promotionPolicy)
 	if err != nil {
 		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -80,7 +76,7 @@ func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.promotionPolicyCUDService.CreatePolicy(userId, promotionPolicy)
+	err = handler.promotionPolicyCUDService.CreatePolicy(ctx, promotionPolicy)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -89,13 +85,8 @@ func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -104,7 +95,7 @@ func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Reque
 	policyName := vars["name"]
 	promotionPolicy := &bean.PromotionPolicy{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(promotionPolicy)
+	err := decoder.Decode(promotionPolicy)
 	if err != nil {
 		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -118,7 +109,7 @@ func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = handler.promotionPolicyCUDService.UpdatePolicy(userId, policyName, promotionPolicy)
+	err = handler.promotionPolicyCUDService.UpdatePolicy(ctx, policyName, promotionPolicy)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -128,13 +119,8 @@ func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler RestHandlerImpl) DeletePolicy(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 
@@ -142,7 +128,7 @@ func (handler RestHandlerImpl) DeletePolicy(w http.ResponseWriter, r *http.Reque
 
 	vars := mux.Vars(r)
 	policyName := vars["name"]
-	err = handler.promotionPolicyCUDService.DeletePolicy(userId, policyName)
+	err := handler.promotionPolicyCUDService.DeletePolicy(ctx, policyName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -151,13 +137,8 @@ func (handler RestHandlerImpl) DeletePolicy(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 
@@ -191,18 +172,13 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 }
 
 func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	isSuperAdmin := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -219,18 +195,13 @@ func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Re
 }
 
 func (handler RestHandlerImpl) GetPolicyNamesForAutoComplete(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	ctx := util.NewRequestCtx(r.Context())
+	if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	isSuperAdmin := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return

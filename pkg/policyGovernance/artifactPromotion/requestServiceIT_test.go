@@ -151,9 +151,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 	cdPipelineConfigService := mocks.NewCdPipelineConfigService(t)
 	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, transactionManager)
 	service := NewApprovalRequestServiceImpl(
-		requestRepo,
 		logger,
-		nil,
 		nil,
 		nil,
 		nil,
@@ -163,12 +161,14 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 		nil,
 		nil,
 		nil,
-		nil,
 		promotionPolicyService,
 		nil,
 		nil,
 		resourceFilterEvalutionAuditService,
-		transactionManager)
+		transactionManager,
+		nil,
+		requestRepo,
+		nil)
 
 	return service, promotionPolicyService
 }

@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"log"
 	"net/http"
@@ -80,8 +81,8 @@ func NewApp(router *router.MuxRouter,
 	userService user.UserService,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
 ) *App {
-	//check argo connection
-	//todo - check argo-cd version on acd integration installation
+	// check argo connection
+	// todo - check argo-cd version on acd integration installation
 	app := &App{
 		MuxRouter:             router,
 		Logger:                Logger,
@@ -105,7 +106,7 @@ func (app *App) Start() {
 
 	app.checkAndSetupStatsviz()
 
-	port := 8080 //TODO: extract from environment variable
+	port := 8080 // TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
 
@@ -113,7 +114,7 @@ func (app *App) Start() {
 	tracerProvider := app.OtelTracingService.Init(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME)
 
 	app.MuxRouter.Init()
-	//authEnforcer := casbin2.Create()
+	// authEnforcer := casbin2.Create()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	idleTimeoutVal, present := os.LookupEnv("IDLE_TIMEOUT_SECS")
@@ -128,6 +129,7 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
+	app.MuxRouter.Router.Use(app.userContextMiddleware)
 
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
@@ -149,7 +151,7 @@ func (app *App) Start() {
 	} else {
 		err = server.ListenAndServe()
 	}
-	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
+	// err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
 	if err != nil {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
@@ -193,11 +195,27 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("error in closing db connection", "err", err)
 	}
-	//Close not needed if you Drain.
+	// Close not needed if you Drain.
 
 	if err != nil {
 		app.Logger.Errorw("Error in draining nats connection", "error", err)
 	}
 
 	app.Logger.Infow("housekeeping done. exiting now")
+}
+
+func (app *App) userContextMiddleware(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), "token", r.Header.Get("token"))
+		userId, err := app.userService.GetLoggedInUser(r)
+		if err != nil || userId == 0 {
+			common.WriteJsonResp(w, err, "unauthorized user", http.StatusUnauthorized)
+			return
+		}
+		ctx = context.WithValue(ctx, "userId", userId)
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
+
 }

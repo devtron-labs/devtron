@@ -102,12 +102,13 @@ type PromotionApprovalUserData struct {
 }
 
 type EnvironmentPromotionMetaData struct {
-	Name                       string                         `json:"name"` // environment name
+	Name                 string `json:"name"` // environment name
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
+
 	ApprovalCount              int                            `json:"approvalCount,omitempty"`
 	PromotionValidationState   bean2.PromotionValidationState `json:"promotionValidationState"`
 	PromotionValidationMessage bean2.PromotionValidationMsg   `json:"promotionValidationMessage"`
 	PromotionPossible          bool                           `json:"promotionPossible"`
-	IsVirtualEnvironment       bool                           `json:"isVirtualEnvironment"`
 }
 
 func (o EnvironmentPromotionMetaData) NoValidationIssue() bool {
@@ -411,7 +412,7 @@ func (r *RequestMetaData) GetWorkflowId() int {
 	return r.sourceMetaData.sourceWorkflowId
 }
 
-func (r *RequestMetaData) GetSourceType() bean2.SourceTypeStr {
+func (r *RequestMetaData) GetSourceTypeStr() bean2.SourceTypeStr {
 	return r.sourceMetaData.typeStr
 }
 

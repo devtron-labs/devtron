@@ -84,6 +84,29 @@ func (_m *CdPipelineConfigService) DeleteCdPipeline(_a0 *pipelineConfig.Pipeline
 	return r0, r1
 }
 
+// FindActiveByAppIdAndEnvNames provides a mock function with given fields: appId, envNames
+func (_m *CdPipelineConfigService) FindActiveByAppIdAndEnvNames(appId int, envNames []string) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(appId, envNames)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(int, []string) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(appId, envNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, []string) error); ok {
+		r1 = rf(appId, envNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindAppAndEnvDetailsByListFilter provides a mock function with given fields: filter
 func (_m *CdPipelineConfigService) FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error) {
 	ret := _m.Called(filter)
@@ -123,6 +146,52 @@ func (_m *CdPipelineConfigService) FindAppAndEnvDetailsByPipelineId(cdPipelineId
 	var r1 error
 	if rf, ok := ret.Get(1).(func(int) error); ok {
 		r1 = rf(cdPipelineId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAppAndEnvironmentAndProjectByPipelineIds provides a mock function with given fields: pipelineIds
+func (_m *CdPipelineConfigService) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(pipelineIds)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(pipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(pipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindByIdsIn provides a mock function with given fields: ids
+func (_m *CdPipelineConfigService) FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(ids)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(ids)
 	} else {
 		r1 = ret.Error(1)
 	}
