@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -21,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -37,64 +39,67 @@ type ApprovalRequestService interface {
 }
 
 type ApprovalRequestServiceImpl struct {
-	artifactPromotionApprovalRequestRepository repository.RequestRepository
-	logger                                     *zap.SugaredLogger
-	ciPipelineRepository                       pipelineConfig.CiPipelineRepository
-	pipelineRepository                         pipelineConfig.PipelineRepository
-	pipelineStageService                       pipeline.PipelineStageService
-	environmentService                         cluster.EnvironmentService
-	userService                                user.UserService
+	logger                               *zap.SugaredLogger
+	ciPipelineService                    pipeline.CiPipelineConfigService
+	cdPipelineService                    pipeline.CdPipelineConfigService
+	pipelineStageService                 pipeline.PipelineStageService
+	environmentService                   cluster.EnvironmentService
+	userService                          user.UserService
+	appWorkflowService                   appWorkflow2.AppWorkflowService
+	cdWorkflowService                    cd.CdWorkflowCommonService
+	resourceFilterConditionsEvaluator    resourceFilter.ResourceFilterEvaluator
+	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService
+	imageTaggingService                  pipeline.ImageTaggingService
+	promotionPolicyDataReadService       read.ArtifactPromotionDataReadService
+	workflowDagExecutor                  dag.WorkflowDagExecutor
+	transactionManager                   sql.TransactionWrapper
+
 	ciArtifactRepository                       repository2.CiArtifactRepository
-	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
-	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
-	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
-	resourceFilterEvaluationAuditService       resourceFilter.FilterEvaluationAuditService
-	imageTaggingService                        pipeline.ImageTaggingService
-	promotionPolicyDataReadService             read.ArtifactPromotionDataReadService
+	artifactPromotionApprovalRequestRepository repository.RequestRepository
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
-	workflowDagExecutor                        dag.WorkflowDagExecutor
-	transactionManager                         sql.TransactionWrapper
 }
 
 func NewApprovalRequestServiceImpl(
-	ArtifactPromotionApprovalRequestRepository repository.RequestRepository,
 	logger *zap.SugaredLogger,
-	CiPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineService pipeline.CiPipelineConfigService,
+	cdPipelineService pipeline.CdPipelineConfigService,
 	userService user.UserService,
-	ciArtifactRepository repository2.CiArtifactRepository,
-	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	appWorkflowService appWorkflow2.AppWorkflowService,
+	cdWorkflowService cd.CdWorkflowCommonService,
 	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService read.ArtifactPromotionDataReadService,
-	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	promotionPolicyCUDService PolicyCUDService,
 	pipelineStageService pipeline.PipelineStageService,
 	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
 	transactionManager sql.TransactionWrapper,
+
+	ciArtifactRepository repository2.CiArtifactRepository,
+	artifactPromotionApprovalRequestRepository repository.RequestRepository,
+	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 ) *ApprovalRequestServiceImpl {
 
 	artifactApprovalService := &ApprovalRequestServiceImpl{
-		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
 		logger:                               logger,
-		ciPipelineRepository:                 CiPipelineRepository,
-		pipelineRepository:                   pipelineRepository,
+		ciPipelineService:                    ciPipelineService,
+		cdPipelineService:                    cdPipelineService,
 		userService:                          userService,
-		ciArtifactRepository:                 ciArtifactRepository,
-		appWorkflowRepository:                appWorkflowRepository,
-		cdWorkflowRepository:                 cdWorkflowRepository,
+		appWorkflowService:                   appWorkflowService,
+		cdWorkflowService:                    cdWorkflowService,
 		resourceFilterConditionsEvaluator:    resourceFilterConditionsEvaluator,
 		imageTaggingService:                  imageTaggingService,
 		promotionPolicyDataReadService:       promotionPolicyService,
-		requestApprovalUserdataRepo:          requestApprovalUserdataRepo,
 		workflowDagExecutor:                  workflowDagExecutor,
 		pipelineStageService:                 pipelineStageService,
 		environmentService:                   environmentService,
 		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
 		transactionManager:                   transactionManager,
+
+		ciArtifactRepository:                       ciArtifactRepository,
+		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
+		requestApprovalUserdataRepo:                requestApprovalUserdataRepo,
 	}
 
 	// register hooks
@@ -170,6 +175,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 	if len(pipelineIdToDaoMapping) < len(destinationPipelineIds) {
 		deletedPipelines, err := impl.markRequestStale(pipelineIdToDaoMapping, destinationPipelineIds)
 		if err != nil {
+			// not returning by choice, dont block user flow if this operation is unsuccessful
 			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines)
 		}
 		if len(deletedPipelines) == len(promotionRequests) {
@@ -301,13 +307,13 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx context
 }
 
 func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId int) (*bean.SourceMetaData, []int, error) {
-	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
+	allAppWorkflowMappings, err := impl.appWorkflowService.FindAppWorkflowMapping(workflowId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings using appWorkflowId", "workflowId", workflowId, "err", err)
 		return nil, nil, err
 	}
 
-	sourcePipelineMapping := &appWorkflow.AppWorkflowMapping{}
+	sourcePipelineMapping := appWorkflow2.AppWorkflowMappingDto{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
 		if mapping.Type == appWorkflow.CDPIPELINE {
@@ -322,7 +328,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 	var sourceName string
 	var sourceType constants.SourceTypeStr
 	if sourcePipelineMapping.Type == appWorkflow.CIPIPELINE {
-		ciPipeline, err := impl.ciPipelineRepository.FindById(sourceId)
+		ciPipeline, err := impl.ciPipelineService.GetCiPipelineById(sourceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching ci pipeline by id", "ciPipelineId", sourceId, "err", err)
 			return nil, nil, err
@@ -346,7 +352,7 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 		impl.logger.Errorw("error in finding source info and pipelinesIds", "sourceInfo", sourceInfo, "pipelineIds", pipelineIds, "err", err)
 		return nil, err
 	}
-	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
+	pipelines, err := impl.cdPipelineService.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding pipelines", "pipelineIds", pipelineIds, "err", err)
 		return nil, err
@@ -728,7 +734,7 @@ func (impl *ApprovalRequestServiceImpl) updateWithDestinationMetadata(requestMet
 	requestMetaData.SetActiveEnvironments(request.EnvironmentNames, authorizedEnvironments, environments)
 
 	// set destination pipelines metadata
-	cdPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvNames(request.AppId, requestMetaData.GetActiveAuthorisedEnvNames())
+	cdPipelines, err := impl.cdPipelineService.FindActiveByAppIdAndEnvNames(request.AppId, requestMetaData.GetActiveAuthorisedEnvNames())
 	if err != nil {
 		impl.logger.Errorw("error in finding the cd pipelines using appID and environment names", "appId", request.AppId, "envNames", requestMetaData.GetActiveAuthorisedEnvNames(), "err", err)
 		return nil, err
@@ -741,7 +747,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 	sourceInfo := &bean.SourceMetaData{}
 	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType)
 	if sourceType == constants.SOURCE_TYPE_CI || sourceType == constants.SOURCE_TYPE_WEBHOOK {
-		appWorkflowMapping, err := impl.appWorkflowRepository.FindByWorkflowIdAndCiSource(workflowId)
+		appWorkflowMapping, err := impl.appWorkflowService.FindByCiSourceWorkflowMappingById(workflowId)
 		if err != nil {
 			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
 			if errors.Is(err, pg.ErrNoRows) {
@@ -753,7 +759,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 	} else {
 		// source type will be cd and source name will be envName.
 		// get pipeline using appId and env name and get the workflowMapping
-		pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvNames(appId, []string{sourceName})
+		pipelines, err := impl.cdPipelineService.FindActiveByAppIdAndEnvNames(appId, []string{sourceName})
 		if err != nil {
 			impl.logger.Errorw("error in getting the pipelines using appId and source environment name ", "workflowId", workflowId, "appId", appId, "source", sourceName, "err", err)
 			return nil, err
@@ -763,7 +769,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 		}
 
 		pipeline := pipelines[0]
-		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.CDPIPELINE, pipeline.Id)
+		appWorkflowMapping, err := impl.appWorkflowService.FindWFMappingByComponent(appWorkflow.CDPIPELINE, pipeline.Id)
 		if err != nil {
 			impl.logger.Errorw("error in getting the app workflow mapping using workflow id and cd component id", "workflowId", workflowId, "appId", appId, "pipelineId", pipeline.Id, "err", err)
 			if errors.Is(err, pg.ErrNoRows) {
@@ -782,7 +788,7 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("provided source is not linked to the given workflow").WithInternalMessage("provided source is not linked to the given workflow")
 	}
 
-	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(metadata.GetWorkflowId())
+	allAppWorkflowMappings, err := impl.appWorkflowService.FindAppWorkflowMapping(metadata.GetWorkflowId())
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings", "err", err)
 		return nil, err
@@ -812,7 +818,7 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 	return nil, nil
 }
 
-func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping) map[string]bean.EnvironmentPromotionMetaData {
+func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []appWorkflow2.AppWorkflowMappingDto) map[string]bean.EnvironmentPromotionMetaData {
 	tree := make(map[int][]int)
 	for _, appWorkflowMapping := range allAppWorkflowMappings {
 		// create the tree from the DAG excluding the ci source
@@ -1089,7 +1095,7 @@ func (impl *ApprovalRequestServiceImpl) checkIfDeployedAtSource(ciArtifactId int
 		workflowType = bean3.CD_WORKFLOW_TYPE_POST
 	}
 
-	deployed, err := impl.cdWorkflowRepository.IsArtifactDeployedOnStage(ciArtifactId, pipeline.Id, workflowType)
+	deployed, err := impl.cdWorkflowService.IsArtifactDeployedOnStage(ciArtifactId, pipeline.Id, workflowType)
 	if err != nil {
 		impl.logger.Errorw("error in finding if the artifact is successfully deployed on a pipeline", "ciArtifactId", ciArtifactId, "pipelineId", pipeline.Id, "workflowType", workflowType, "err", err)
 		return false, err
@@ -1140,7 +1146,7 @@ func (impl *ApprovalRequestServiceImpl) getRbacObjects(pipelineIdToDaoMapping ma
 }
 
 func (impl *ApprovalRequestServiceImpl) getPipelineIdToDaoMapping(destinationPipelineIds []int) (map[int]*pipelineConfig.Pipeline, error) {
-	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
+	pipelines, err := impl.cdPipelineService.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines by ids", "pipelineIds", destinationPipelineIds, "err", err)
 		return nil, err

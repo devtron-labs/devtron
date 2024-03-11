@@ -65,7 +65,7 @@ type AppWorkflowRepository interface {
 	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string, componentIdsFilter []int) error
 	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
 	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
-	FindByWorkflowIdAndCiSource(workflowId int) (*AppWorkflowMapping, error)
+	FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error)
 	FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error)
 }
 
@@ -100,7 +100,7 @@ type WorkflowDAG struct {
 	CdPipelines []int `json:"cdPipelines"`
 }
 
-func (impl AppWorkflowRepositoryImpl) FindByWorkflowIdAndCiSource(workflowId int) (*AppWorkflowMapping, error) {
+func (impl AppWorkflowRepositoryImpl) FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error) {
 	appWorkflowMapping := AppWorkflowMapping{}
 	err := impl.dbConnection.Model(&appWorkflowMapping).
 		Where("app_workflow_id = ?", workflowId).
