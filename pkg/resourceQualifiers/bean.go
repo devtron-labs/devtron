@@ -1,10 +1,10 @@
 package resourceQualifiers
 
 type Scope struct {
-	AppId     int `json:"appId"`
-	EnvId     int `json:"envId"`
-	ClusterId int `json:"clusterId"`
-
+	AppId          int             `json:"appId"`
+	EnvId          int             `json:"envId"`
+	ClusterId      int             `json:"clusterId"`
+	PipelineId     int             `json:"pipelineId"`
 	SystemMetadata *SystemMetadata `json:"-"`
 }
 
@@ -38,7 +38,8 @@ func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariabl
 type Qualifier int
 
 const (
-	GLOBAL_QUALIFIER Qualifier = 5
+	GLOBAL_QUALIFIER   Qualifier = 5
+	PIPELINE_QUALIFIER Qualifier = 6
 )
 
 var CompoundQualifiers []Qualifier

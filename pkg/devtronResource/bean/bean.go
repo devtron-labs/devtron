@@ -11,6 +11,7 @@ const (
 	DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID                     DevtronResourceSearchableKeyName = "APP_ID"
 	DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID                     DevtronResourceSearchableKeyName = "ENV_ID"
 	DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID                 DevtronResourceSearchableKeyName = "CLUSTER_ID"
+	DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID                DevtronResourceSearchableKeyName = "PIPELINE_ID"
 )
 
 func (n DevtronResourceSearchableKeyName) ToString() string {

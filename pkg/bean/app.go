@@ -26,8 +26,10 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"strings"
 	"time"
 )
 
@@ -80,6 +82,13 @@ type GitMaterial struct {
 	FilterPattern    []string `json:"filterPattern"`
 }
 
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
+	for strings.HasSuffix(m.Url, "/") {
+		m.Url = strings.TrimSuffix(m.Url, "/")
+	}
+}
+
 type CiMaterial struct {
 	Source          *SourceTypeConfig `json:"source,omitempty" validate:"dive,required"`   //branch for ci
 	Path            string            `json:"path,omitempty"`                              // defaults to root of git repo
@@ -100,6 +109,8 @@ type CiPipeline struct {
 	ParentCiPipeline         int                    `json:"parentCiPipeline"`
 	ParentAppId              int                    `json:"parentAppId"`
 	AppId                    int                    `json:"appId"`
+	AppName                  string                 `json:"appName,omitempty"`
+	AppType                  helper.AppType         `json:"appType,omitempty"`
 	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
 	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
 	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
@@ -112,7 +123,7 @@ type CiPipeline struct {
 	BeforeDockerBuildScripts []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
 	AfterDockerBuildScripts  []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
 	LinkedCount              int                    `json:"linkedCount"`
-	PipelineType             PipelineType           `json:"pipelineType,omitempty"`
+	PipelineType             bean.PipelineType      `json:"pipelineType,omitempty"`
 	ScanEnabled              bool                   `json:"scanEnabled,notnull"`
 	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
@@ -135,14 +146,14 @@ type DockerConfigOverride struct {
 }
 
 type CiPipelineMin struct {
-	Name             string       `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id               int          `json:"id,omitempty" `
-	Version          string       `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	IsExternal       bool         `json:"isExternal,omitempty"`
-	ParentCiPipeline int          `json:"parentCiPipeline"`
-	ParentAppId      int          `json:"parentAppId"`
-	PipelineType     PipelineType `json:"pipelineType,omitempty"`
-	ScanEnabled      bool         `json:"scanEnabled,notnull"`
+	Name             string            `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id               int               `json:"id,omitempty" `
+	Version          string            `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	IsExternal       bool              `json:"isExternal,omitempty"`
+	ParentCiPipeline int               `json:"parentCiPipeline"`
+	ParentAppId      int               `json:"parentAppId"`
+	PipelineType     bean.PipelineType `json:"pipelineType,omitempty"`
+	ScanEnabled      bool              `json:"scanEnabled,notnull"`
 }
 
 type CiScript struct {
@@ -184,14 +195,6 @@ const (
 	UPDATE_SOURCE             //update value of SourceTypeConfig
 	DELETE                    //delete this pipeline
 	//DEACTIVATE     //pause/deactivate this pipeline
-)
-
-const (
-	NORMAL    PipelineType = "NORMAL"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
-	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 const (
@@ -283,12 +286,12 @@ type CiPatchRequest struct {
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 
-	ParentCDPipeline               int          `json:"parentCDPipeline"`
-	DeployEnvId                    int          `json:"deployEnvId"`
-	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
-	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
-	SwitchFromCiPipelineType       PipelineType `json:"-"`
-	SwitchToCiPipelineType         PipelineType `json:"-"`
+	ParentCDPipeline               int               `json:"parentCDPipeline"`
+	DeployEnvId                    int               `json:"deployEnvId"`
+	SwitchFromCiPipelineId         int               `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int               `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       bean.PipelineType `json:"-"`
+	SwitchToCiPipelineType         bean.PipelineType `json:"-"`
 }
 
 func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
@@ -587,9 +590,12 @@ type CDPipelineConfigObject struct {
 	CustomTagObject               *CustomTagData                         `json:"customTag"`
 	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
+	IsGitOpsRepoNotConfigured     bool                                   `json:"isGitOpsRepoNotConfigured"`
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
 	ChildPipelineId               int                                    `json:"childPipelineId"`
+	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
+	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
 }
 
 type CDPipelineAddType string
@@ -632,6 +638,7 @@ type CdPipelines struct {
 	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
 	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
 	UserId            int32                     `json:"-"`
+	IsCloneAppReq     bool                      `json:"-"`
 	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
 }
 
@@ -660,27 +667,29 @@ const (
 )
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                 int            `json:"envId,omitempty" validate:"required"`
-	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
-	ExcludeApps           []int          `json:"excludeApps"`
-	IncludeApps           []int          `json:"includeApps"`
-	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
-	UserId                int32          `json:"-"`
+	EnvId                 int                  `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType bean3.DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int                `json:"excludeApps"`
+	IncludeApps           []int                `json:"includeApps"`
+	AutoTriggerDeployment bool                 `json:"autoTriggerDeployment"`
+	UserId                int32                `json:"-"`
 }
 
 type DeploymentChangeStatus struct {
-	Id      int    `json:"id,omitempty"`
-	AppId   int    `json:"appId,omitempty"`
-	AppName string `json:"appName,omitempty"`
-	EnvId   int    `json:"envId,omitempty"`
-	EnvName string `json:"envName,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Status  Status `json:"status,omitempty"`
+	PipelineId     int    `json:"pipelineId,omitempty"`
+	InstalledAppId int    `json:"installedAppId,omitempty"`
+	AppId          int    `json:"appId,omitempty"`
+	AppName        string `json:"appName,omitempty"`
+	EnvId          int    `json:"envId,omitempty"`
+	EnvName        string `json:"envName,omitempty"`
+	Error          string `json:"error,omitempty"`
+	Status         Status `json:"status,omitempty"`
 }
 
+// DeploymentAppTypeChangeResponse is used as response obj for migrating devtron apps as well as chart store apps
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
-	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	DesiredDeploymentType bean3.DeploymentType      `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
 	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
@@ -700,6 +709,10 @@ const (
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
 
+const (
+	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
+)
+
 func IsAcdApp(deploymentType string) bool {
 	return deploymentType == ArgoCd
 }
@@ -711,10 +724,11 @@ func IsHelmApp(deploymentType string) bool {
 type Status string
 
 const (
-	Success         Status = "Success"
-	Failed          Status = "Failed"
-	INITIATED       Status = "Migration initiated"
-	NOT_YET_DELETED Status = "Not yet deleted"
+	Success          Status = "Success"
+	Failed           Status = "Failed"
+	INITIATED        Status = "Migration initiated"
+	NOT_YET_DELETED  Status = "Not yet deleted"
+	PermissionDenied Status = "permission denied"
 )
 
 const RELEASE_NOT_EXIST = "release not exist"

@@ -8,9 +8,9 @@ Only one docker image can be created for multi-git repository applications as ex
 
 For **build configuration**, you must provide information in the sections as given below:
 
-* [Store Container Image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#store-container-image)
-* [Build the Container Image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#build-the-container-image)
-* [Advanced Options](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#advanced-options)
+* [Store Container Image](#store-container-image)
+* [Build the Container Image](#build-the-container-image)
+* [Advanced Options](#advanced-options)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-configuration-latest1.jpg)
 
@@ -22,7 +22,7 @@ The following fields are provided on the **Store Container Image** section:
 
 | Field | Description |
 | --- | --- |
-| **Container Registry** | Select the container registry from the drop-down list or you can click **Add Container Registry**. This registry will be used to [store docker images](../global-configurations/docker-registries.md). |
+| **Container Registry** | Select the container registry from the drop-down list or you can click **Add Container Registry**. This registry will be used to [store docker images](../global-configurations/container-registries.md). |
 | **Container Repository** | Enter the name of your container repository, preferably in the format `username/repo-name`. The repository that you specify here will store a collection of related docker images. Whenever an image is added here, it will be stored with a new tag version. |
 
 **If you are using docker hub account, you need to enter the repository name along with your username. For example - If my username is *kartik579* and repo name is *devtron-trial*, then enter kartik579/devtron-trial instead of only devtron-trial.**
@@ -47,7 +47,7 @@ A `Dockerfile` is a text document that contains all the commands which you can c
 
 | Field | Description |
 | --- | --- |
-| **Select repository containing Dockerfile** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section. |
+| **Select repository containing Dockerfile** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](../creating-application/git-material.md) section. |
 | **Dockerfile Path (Relative)** | Enter a relative file path where your docker file is located in Git repository. Ensure that the dockerfile is available on this path. This is a mandatory field. |
 
 ### Build Docker Image by creating Dockerfile
@@ -69,7 +69,7 @@ With the option **Build without Dockerfile**, you can use Buildpacks to automati
 
 | Field | Description |
 | --- | --- |
-| **Select repository containing code** | Select your code repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section.|
+| **Select repository containing code** | Select your code repository. This repository is the same which you defined on the [Git Repository](../creating-application/git-material.md) section.|
 | **Project Path (Relative)** | In case of monorepo, specify the path of the project from your Git repository.|
 | **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node`, `Ruby`, `PHP` etc.) from the drop-down list you want to build your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
 | **Version** | Select a language version from the drop-down list. If you do not find the version you need, then you can update the language version in `Build Env Arguments`. You can also select **Autodetect** in case if you want `Builder` to detect version by itself or its default version.|

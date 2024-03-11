@@ -6,7 +6,7 @@ import (
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	mocks3 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
@@ -65,7 +65,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 
 	deployedOnEnv := []*repository.DeploymentTemplateComparisonMetadata{
 		{
-			ChartId:                  1,
+			ChartRefId:               1,
 			ChartVersion:             "4.18.1",
 			EnvironmentId:            1,
 			PipelineConfigOverrideId: 5,
@@ -74,7 +74,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 			Status: "Succeeded",
 		},
 		{
-			ChartId:                  1,
+			ChartRefId:               1,
 			ChartVersion:             "4.18.1",
 			EnvironmentId:            1,
 			PipelineConfigOverrideId: 5,
@@ -83,7 +83,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 			Status: "Succeeded",
 		},
 		{
-			ChartId:                  1,
+			ChartRefId:               1,
 			ChartVersion:             "4.18.1",
 			EnvironmentId:            1,
 			PipelineConfigOverrideId: 5,
@@ -95,7 +95,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 
 	deployedOnOtherEnvs := []*repository.DeploymentTemplateComparisonMetadata{
 		{
-			ChartId:                  1,
+			ChartRefId:               1,
 			ChartVersion:             "4.18.1",
 			EnvironmentId:            2,
 			PipelineConfigOverrideId: 9,
@@ -121,7 +121,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 			},
 			want: []*repository.DeploymentTemplateComparisonMetadata{
 				{
-					ChartId:                  1,
+					ChartRefId:               1,
 					ChartVersion:             "v1.0.1",
 					ChartType:                "Deployment",
 					EnvironmentId:            0,
@@ -133,7 +133,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Type:                     1,
 				},
 				{
-					ChartId:                  2,
+					ChartRefId:               2,
 					ChartVersion:             "v1.0.2",
 					ChartType:                "Deployment",
 					EnvironmentId:            0,
@@ -144,7 +144,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "",
 					Type:                     1,
 				}, {
-					ChartId:                  3,
+					ChartRefId:               3,
 					ChartVersion:             "v1.0.3",
 					ChartType:                "Deployment",
 					EnvironmentId:            0,
@@ -155,7 +155,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "",
 					Type:                     1,
 				}, {
-					ChartId:                  2,
+					ChartRefId:               2,
 					ChartVersion:             "",
 					ChartType:                "",
 					EnvironmentId:            1,
@@ -166,7 +166,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "",
 					Type:                     2,
 				}, {
-					ChartId:                  1,
+					ChartRefId:               1,
 					ChartVersion:             "4.18.1",
 					ChartType:                "",
 					EnvironmentId:            1,
@@ -177,7 +177,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "Succeeded",
 					Type:                     3,
 				}, {
-					ChartId:                  1,
+					ChartRefId:               1,
 					ChartVersion:             "4.18.1",
 					ChartType:                "",
 					EnvironmentId:            1,
@@ -188,7 +188,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "Succeeded",
 					Type:                     3,
 				}, {
-					ChartId:                  1,
+					ChartRefId:               1,
 					ChartVersion:             "4.18.1",
 					ChartType:                "",
 					EnvironmentId:            1,
@@ -199,7 +199,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 					Status:                   "Succeeded",
 					Type:                     3,
 				}, {
-					ChartId:                  1,
+					ChartRefId:               1,
 					ChartVersion:             "v1.0.1",
 					ChartType:                "Deployment",
 					EnvironmentId:            2,

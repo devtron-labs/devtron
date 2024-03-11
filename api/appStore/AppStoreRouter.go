@@ -18,7 +18,7 @@
 package appStore
 
 import (
-	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
+	"github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -106,4 +106,9 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
+
+	configRouter.Path("/installed-app/migrate").
+		HandlerFunc(router.deployRestHandler.MigrateDeploymentTypeForChartStore).Methods("POST")
+	configRouter.Path("/installed-app/trigger").
+		HandlerFunc(router.deployRestHandler.TriggerChartStoreAppAfterMigration).Methods("POST")
 }

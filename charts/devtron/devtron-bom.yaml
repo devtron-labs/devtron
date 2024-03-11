@@ -9,13 +9,13 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.26"
+  release: "v0.6.27"
   image: "quay.io/devtron/inception"
-  tag: "44b30917-185-13275"
+  tag: "a9820f38-185-20840"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:0988ee6d-325-20037"
+    image: "quay.io/devtron/dashboard:796b9e98-325-20868"
     config:
       extraConfigs:
         USE_V2: "true"
@@ -24,23 +24,24 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
+        GLOBAL_API_TIMEOUT: "60000"
+        TRIGGER_API_TIMEOUT: "60000"
   devtron:
-    image: "quay.io/devtron/hyperion:24f51942-280-20082"
-    cicdImage: "quay.io/devtron/devtron:24f51942-434-20080"
+    image: "quay.io/devtron/hyperion:2feec2a7-280-20864"
+    cicdImage: "quay.io/devtron/devtron:2feec2a7-434-20865"
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d4dadb96-138-20830"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:d19ec7b6-564-20012"
+    image: "quay.io/devtron/kubelink:b3a017d2-564-20648"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
-      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
@@ -53,7 +54,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:4f3b9a14-200-19136"
+    image: "quay.io/devtron/git-sensor:7f704db3-200-20777"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
@@ -64,11 +65,12 @@ components:
       PG_USER: postgres
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
+      USE_GIT_CLI: "false"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:a0628f4f-333-19937"
+    image: "quay.io/devtron/lens:98130668-333-20295"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -119,7 +121,7 @@ workflowController:
 
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
+    image: "quay.io/devtron/image-scanner:28f95d21-334-20763"
 
 notifier:
-  image: "quay.io/devtron/notifier:1db5450e-372-20077"
+  image: "quay.io/devtron/notifier:e4ffc71a-372-20776"

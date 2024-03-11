@@ -23,12 +23,13 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -109,7 +110,7 @@ const (
 	WorkflowTypePost           = "POST"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, argoApplication.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
 
 func (a WorkflowStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "WF_STARTED", "DROPPED_STALE", "DEQUE_ERROR", "TRIGGER_ERROR"}[a]
@@ -155,6 +156,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
+	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )
 
 type CdWorkflowRunnerWithExtraFields struct {
@@ -184,6 +186,17 @@ type CdWorkflowRunner struct {
 	ReferenceId             *string              `sql:"reference_id"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
+}
+
+// TODO: move from here to adapter
+func GetTriggerMetricsFromRunnerObj(runner *CdWorkflowRunner) util4.CDMetrics {
+	return util4.CDMetrics{
+		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          runner.Status,
+		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+	}
 }
 
 func (c *CdWorkflowRunner) IsExternalRun() bool {

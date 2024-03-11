@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
@@ -26,9 +27,9 @@ type CiStatusUpdateCronImpl struct {
 
 func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppService,
 	ciWorkflowStatusUpdateConfig *CiWorkflowStatusUpdateConfig, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciHandler pipeline.CiHandler) *CiStatusUpdateCronImpl {
+	ciHandler pipeline.CiHandler, cronLogger *cron2.CronLoggerImpl) *CiStatusUpdateCronImpl {
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	impl := &CiStatusUpdateCronImpl{
 		logger:                       logger,

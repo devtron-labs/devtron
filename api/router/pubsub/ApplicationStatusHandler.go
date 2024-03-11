@@ -24,18 +24,21 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"k8s.io/utils/pointer"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/bean"
-	"k8s.io/utils/strings/slices"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -50,18 +53,20 @@ type ApplicationStatusHandlerImpl struct {
 	logger                    *zap.SugaredLogger
 	pubsubClient              *pubsub.PubSubClientServiceImpl
 	appService                app.AppService
-	workflowDagExecutor       pipeline.WorkflowDagExecutor
-	installedAppService       service.InstalledAppService
+	workflowDagExecutor       dag.WorkflowDagExecutor
+	installedAppService       FullMode.InstalledAppDBExtendedService
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineBuilder           pipeline.PipelineBuilder
 	pipelineRepository        pipelineConfig.PipelineRepository
 	installedAppRepository    repository4.InstalledAppRepository
+	cdWorkflowCommonService   cd.CdWorkflowCommonService
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService FullMode.InstalledAppDBExtendedService,
 	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
-	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository) *ApplicationStatusHandlerImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
+	cdWorkflowCommonService cd.CdWorkflowCommonService) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:                    logger,
 		pubsubClient:              pubsubClient,
@@ -72,6 +77,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineBuilder:           pipelineBuilder,
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
+		cdWorkflowCommonService:   cdWorkflowCommonService,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
@@ -109,25 +115,19 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			// if not found in pipeline table then search in installed_apps table
-			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
-			if err != nil && err == pg.ErrNoRows {
-				// no installed_apps found
+			//if not found in pipeline table then search in installed_apps table
+			installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
+			if err == pg.ErrNoRows {
+				//no installed_apps found
 				impl.logger.Errorw("no installed apps found", "err", err)
 				return
-			} else if err != nil {
+			}
+			if err != nil {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			var devtronGitOpsAppName string
-			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
-			if len(gitOpsRepoPrefix) > 0 {
-				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
-			} else {
-				devtronGitOpsAppName = app.ObjectMeta.Name
-			}
-			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
-				// app found in installed_apps table hence setting flag to true
+			if installedAppModel.Id > 0 {
+				//app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {
 				// app neither found in installed_apps nor in pipeline table hence returning
@@ -153,7 +153,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			triggerContext := pipeline.TriggerContext{
+			triggerContext := bean2.TriggerContext{
 				ReferenceId: pointer.String(msg.MsgId),
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
@@ -170,7 +170,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		return "", nil
 	}
 
-	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
