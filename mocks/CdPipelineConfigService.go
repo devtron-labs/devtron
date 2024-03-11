@@ -176,6 +176,29 @@ func (_m *CdPipelineConfigService) FindPipelineById(cdPipelineId int) (*pipeline
 	return r0, r1
 }
 
+// FindPipelineByIds provides a mock function with given fields: cdPipelineIds
+func (_m *CdPipelineConfigService) FindPipelineByIds(cdPipelineIds []int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(cdPipelineIds)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(cdPipelineIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(cdPipelineIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetAllCdPipelinesAndEnvDataLite provides a mock function with given fields: appId
 func (_m *CdPipelineConfigService) GetAllCdPipelinesAndEnvDataLite(appId int) ([]*bean.CdPipelineEnvDataResponseDto, error) {
 	ret := _m.Called(appId)

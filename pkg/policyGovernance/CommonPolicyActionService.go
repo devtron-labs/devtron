@@ -209,19 +209,22 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		impl.logger.Errorw("error in fetching the paginated app environment list using filter", "filter", filter, "err", err)
 		return nil, 0, err
 	}
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := make([]AppEnvPolicyContainer, 0)
+	for _, cdPipMeta := range paginatedAppEnvData {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
-		policyName := appIdEnvIdPolicyMap[key].Name
-		return AppEnvPolicyContainer{
+		policyName := ""
+		if policy, _ := appIdEnvIdPolicyMap[key]; policy != nil {
+			policyName = policy.Name
+		}
+		result = append(result, AppEnvPolicyContainer{
 			AppId:      cdPipMeta.AppId,
 			EnvId:      cdPipMeta.EnvId,
 			AppName:    cdPipMeta.AppName,
 			EnvName:    cdPipMeta.EnvironmentName,
 			PolicyName: policyName,
-		}
-	})
-
+		})
+	}
 	return result, totalCount, nil
 }
 
