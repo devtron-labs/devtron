@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -283,19 +282,20 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		policyMap[policy.Id] = policy.Name
 	}
 	totalCount := 0
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := make([]AppEnvPolicyContainer, 0, len(paginatedAppEnvData))
+	for _, cdPipMeta := range paginatedAppEnvData {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
 		policyId := appEnvPolicyMap[key]
 		policyName := policyMap[policyId]
-		return AppEnvPolicyContainer{
+		result = append(result, AppEnvPolicyContainer{
 			AppId:      cdPipMeta.AppId,
 			EnvId:      cdPipMeta.EnvId,
 			AppName:    cdPipMeta.AppName,
 			EnvName:    cdPipMeta.EnvironmentName,
 			PolicyName: policyName,
-		}
-	})
+		})
+	}
 
 	return result, totalCount, nil
 }
