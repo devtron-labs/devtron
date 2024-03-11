@@ -6,16 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
-	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -34,17 +32,15 @@ type MaterialRestHandler interface {
 }
 
 type RestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotion2.ApprovalRequestService
-	logger                                     *zap.SugaredLogger
-	userService                                user.UserService
-	enforcer                                   casbin.Enforcer
-	validator                                  *validator.Validate
-	userCommonService                          user.UserCommonService
-	enforcerUtil                               rbac.EnforcerUtil
-	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository repository2.RequestRepository
-	appArtifactManager                         pipeline.AppArtifactManager
-	CiArtifactRepository                       repository3.CiArtifactRepository
+	promotionApprovalRequestService artifactPromotion2.ApprovalRequestService
+	logger                          *zap.SugaredLogger
+	userService                     user.UserService
+	enforcer                        casbin.Enforcer
+	validator                       *validator.Validate
+	userCommonService               user.UserCommonService
+	enforcerUtil                    rbac.EnforcerUtil
+	environmentService              cluster.EnvironmentService
+	appArtifactManager              pipeline.AppArtifactManager
 }
 
 func NewRestHandlerImpl(
@@ -54,8 +50,7 @@ func NewRestHandlerImpl(
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
-	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository repository2.RequestRepository,
+	environmentService cluster.EnvironmentService,
 	appArtifactManager pipeline.AppArtifactManager,
 	enforcer casbin.Enforcer,
 ) *RestHandlerImpl {
@@ -66,10 +61,9 @@ func NewRestHandlerImpl(
 		validator:                       validator,
 		userCommonService:               userCommonService,
 		enforcerUtil:                    enforcerUtil,
-		environmentRepository:           environmentRepository,
-		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
-		appArtifactManager:                         appArtifactManager,
-		enforcer:                                   enforcer,
+		environmentService:              environmentService,
+		appArtifactManager:              appArtifactManager,
+		enforcer:                        enforcer,
 	}
 }
 
@@ -107,7 +101,9 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 
 	switch promotionRequest.Action {
 	case constants.ACTION_PROMOTE:
-
+		//if promotionRequest.AppId == 0 {
+		//	app, err := handler.appArtifactManager
+		//}
 		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_APPROVE:
@@ -256,9 +252,9 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 	} else if artifactPromotionMaterialRequest.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && !artifactPromotionMaterialRequest.PendingForCurrentUser {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(artifactPromotionMaterialRequest.AppId)
-		env, err := handler.environmentRepository.FindByName(artifactPromotionMaterialRequest.ResourceName)
+		env, err := handler.environmentService.FindOne(artifactPromotionMaterialRequest.ResourceName)
 		if err != nil {
-			handler.logger.Errorw("env not found for given envName", "envName", env.Name, "err", err)
+			handler.logger.Errorw("env not found for given envName", "envName", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
 			return
 		}
