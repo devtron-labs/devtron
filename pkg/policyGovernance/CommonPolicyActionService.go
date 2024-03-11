@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -19,7 +20,7 @@ import (
 
 type CommonPolicyActionsService interface {
 	ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error)
-	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
+	ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
 }
 
 type CommonPolicyActionsServiceImpl struct {
@@ -59,7 +60,7 @@ func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 
 }
 
-func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
+func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[applyIdentifiersRequest.PolicyType]
 	if !ok {
 		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
@@ -106,19 +107,19 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 	}
 	defer impl.transactionManager.RollbackTx(tx)
 
-	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, userId, referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, ctx.GetUserId(), referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
 		return err
 	}
 	// delete all the existing mappings for the updateToProfileId resource
-	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(userId), tx)
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(ctx.GetUserId()), tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
 	// create new mappings using resourceQualifierMapping
-	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err

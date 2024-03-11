@@ -1,7 +1,6 @@
 package artifactPromotionApprovalRequest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +26,7 @@ const unAuthorisedUser = "unauthorized user"
 type RestHandler interface {
 	HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request)
 	FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request)
-	FetchEnvironmentsList(w http.ResponseWriter, r *http.Request)
+	FetchWorkflowPromoteNodeList(w http.ResponseWriter, r *http.Request)
 }
 
 type MaterialRestHandler interface {
@@ -71,13 +70,9 @@ func NewRestHandlerImpl(
 }
 
 func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	// todo: set the token and userId in middleware and create the RequestContext in RH
+	ctx := util.NewRequestCtx(r.Context())
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -100,11 +95,6 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		return
 	}
 
-	ctx := util.RequestCtx{
-		Token:   token,
-		UserId:  userId,
-		Context: context.Background(),
-	}
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
@@ -112,11 +102,11 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		// if promotionRequest.AppId == 0 {
 		//	app, err := handler.appArtifactManager
 		// }
-		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
+		authorizedEnvironments = handler.promoteActionRbac(ctx.GetToken(), promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_APPROVE:
 
-		authorizedEnvironments = handler.approveActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
+		authorizedEnvironments = handler.approveActionRbac(ctx.GetToken(), promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_CANCEL:
 		// get this info from service layer
@@ -127,11 +117,11 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 			return
 		}
 		appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
+		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return
 		}
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
+		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
 			return
 		}
@@ -149,35 +139,20 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusUnauthorized)
-		return
-	}
+func (handler *RestHandlerImpl) FetchWorkflowPromoteNodeList(w http.ResponseWriter, r *http.Request) {
 
-	token := r.Header.Get("token")
-	ctx := util.RequestCtx{
-		Token:   token,
-		UserId:  userId,
-		Context: context.Background(),
-	}
-
-	queryParams := r.URL.Query()
-
+	ctx := util.NewRequestCtx(r.Context())
 	workflowId := 0
-	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
+	workflowId, err := common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
 	if err != nil {
-		handler.logger.Errorw("error in extracting workflowId from query param", "workflowIdStr", queryParams.Get("workflowId"), "err", err)
-		common.WriteJsonResp(w, errors.New("workflowId should be an integer value"), nil, http.StatusBadRequest)
+		handler.logger.Errorw("error in extracting workflowId from query param", "err", err)
 		return
 	}
 
 	artifactId := 0
 	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
 	if err != nil {
-		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
-		common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
+		handler.logger.Errorw("error in extracting artifactId from query param", "err", err)
 		return
 	}
 
@@ -195,14 +170,9 @@ func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *
 }
 
 func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
 
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "unauthorized user", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -224,12 +194,6 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 	environmentName := queryParams.Get("environmentName")
 
-	ctx := util.RequestCtx{
-		Token:   token,
-		UserId:  userId,
-		Context: context.Background(),
-	}
-
 	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(ctx, artifactId, environmentName, handler.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
@@ -242,13 +206,7 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
 
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusUnauthorized)
-		return
-	}
-
-	token := r.Header.Get("token")
+	ctx := util.NewRequestCtx(r.Context())
 
 	artifactPromotionMaterialRequest, err := handler.parsePromotionMaterialRequest(w, r)
 	if err != nil {
@@ -262,7 +220,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 	if artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CI) || artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CD) {
 		// check if user has trigger access for any one env for this app
-		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(token,
+		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(),
 			artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return
@@ -277,27 +235,22 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 			return
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, artifactPromotionMaterialRequest.AppId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
+		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
 			return
 		}
 
-		triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
-			handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
+		triggerAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
+			handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(artifactPromotionMaterialRequest.AppId, env.Id)
 
-		approverAccess := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
+		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
 			return
 		}
-	}
-	ctx := util.RequestCtx{
-		Token:   token,
-		UserId:  userId,
-		Context: context.Background(),
 	}
 
 	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.CheckImagePromoterBulkAuth)

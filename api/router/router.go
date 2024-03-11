@@ -489,7 +489,7 @@ func (r MuxRouter) Init() {
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 
-	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/common/policy").Subrouter()
+	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/global/policy").Subrouter()
 	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
 
 	artifactPromotionPolicyRouter := r.Router.PathPrefix("/orchestrator/artifact-promotion/policy").Subrouter()

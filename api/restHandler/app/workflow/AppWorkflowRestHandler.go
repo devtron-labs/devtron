@@ -18,7 +18,6 @@
 package workflow
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -425,7 +424,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
+	ctx := util2.NewRequestCtx(r.Context())
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting app details", "appId", appId, "err", err)
@@ -446,23 +445,12 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	handler.Logger.Debugw("rbac object for workflows view data", "object", object)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(ctx.GetToken(), object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	handler.Logger.Debugw("request by user", "userId", userId)
-	if userId == 0 || err != nil {
-		return
-	}
-
-	ctx := util2.RequestCtx{
-		Token:   token,
-		UserId:  userId,
-		Context: context.Background(),
-	}
 	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithExtraMetadata(ctx, appId, handler.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)

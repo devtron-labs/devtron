@@ -67,8 +67,8 @@ type AppArtifactManager interface {
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
 	GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error)
-	FetchMaterialForArtifactPromotion(ctx util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error)
-	GetPromotionRequestCountPendingForCurrentUser(ctx util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error)
+	FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error)
+	GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error)
 }
 
 type AppArtifactManagerImpl struct {
@@ -1579,7 +1579,7 @@ func (impl *AppArtifactManagerImpl) GetImageTagsAndComment(artifactId int) (repo
 	return imageComment, imageTagNames, nil
 }
 
-func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 
@@ -1611,11 +1611,11 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx util2.
 		ciArtifactResponse.AppReleaseTagNames = appTags
 
 	}
-	ciArtifactResponse.RequestedUserId = ctx.UserId
+	ciArtifactResponse.RequestedUserId = ctx.GetUserId()
 	return ciArtifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 	var err error
 
@@ -1882,7 +1882,7 @@ func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bea
 	return imagePromotionApproverEmails, err
 }
 
-func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(ctx util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error) {
+func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error) {
 
 	wfMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(workflowIds)
 	if err != nil {
@@ -1927,7 +1927,7 @@ func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(ct
 		pipelineIdToRbacObjMapping[pipelineDao.Id] = imagePromoterRbacObject
 	}
 
-	rbacResults := imagePromoterBulkAuth(ctx.Token, imagePromoterRbacObjects)
+	rbacResults := imagePromoterBulkAuth(ctx.GetToken(), imagePromoterRbacObjects)
 	authorizedPipelineIds := make([]int, 0, len(pipeline))
 	for pipelineId, rbacObj := range pipelineIdToRbacObjMapping {
 		if authorized := rbacResults[rbacObj]; authorized {
@@ -1944,7 +1944,7 @@ func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(ct
 	return wfIdToAuthorizedCDPipelineIds, nil
 }
 
-func (impl *AppArtifactManagerImpl) GetPromotionRequestCountPendingForCurrentUser(ctx util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error) {
+func (impl *AppArtifactManagerImpl) GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error) {
 	wfIdToAuthorizedCDPipelineIds, err := impl.getImagePromoterCDPipelineIdsByWorkflowId(ctx, workflowIds, imagePromoterBulkAuth)
 	if err != nil {
 		impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "workflowIds", workflowIds, "err", err)
