@@ -100,6 +100,9 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.R
 		}
 	}
 
+	if len(scopes) == 0 {
+		return util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(invalidAppEnvCombinations).WithInternalMessage(invalidAppEnvCombinations)
+	}
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
@@ -351,7 +354,7 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 	uniqueScopes := make(map[string]bool)
 	for _, appEnv := range applicationEnvironments {
 		key := fmt.Sprintf("%s,%s", appEnv.AppName, appEnv.EnvName)
-		if _, ok := uniqueScopes[key]; !ok {
+		if _, ok := uniqueScopes[key]; !ok && (appNameIdMap[appEnv.AppName] > 0 && envNameIdMap[appEnv.EnvName] > 0) {
 			scopes = append(scopes, &resourceQualifiers.Scope{
 				AppId: appNameIdMap[appEnv.AppName],
 				EnvId: envNameIdMap[appEnv.EnvName],
