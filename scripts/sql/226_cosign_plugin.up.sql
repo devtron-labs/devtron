@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Cosign v1.0.0','This plugin is used to Cosign to sign docker images.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/e8c5ec7cfae092cb85c98c2ff05cfc5e1ec169ca/assets/cosign-logo.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Cosign v1.0.0','This plugin is used to Cosign to sign docker images.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/cosign-logo.png',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='Cosign v1.0.0'), 0,'now()',1,'now()',1);
