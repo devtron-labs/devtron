@@ -86,20 +86,20 @@ func GetQualifierIdForSelector(selector QualifierSelector) Qualifier {
 	}
 }
 
-func GetValuesFromScope(selector QualifierSelector, scope *Scope) (int, string) {
-	if scope == nil {
-		scope = &Scope{}
+func GetValuesFromSelectionIdentifier(selector QualifierSelector, selectionIdentifier *SelectionIdentifier) (int, string) {
+	if selectionIdentifier == nil {
+		selectionIdentifier = &SelectionIdentifier{}
 	}
-	if scope.SystemMetadata == nil {
-		scope.SystemMetadata = &SystemMetadata{}
+	if selectionIdentifier.SelectionIdentifierName == nil {
+		selectionIdentifier.SelectionIdentifierName = &SelectionIdentifierName{}
 	}
 	switch selector {
 	case ApplicationSelector:
-		return scope.AppId, scope.SystemMetadata.AppName
+		return selectionIdentifier.AppId, selectionIdentifier.SelectionIdentifierName.AppName
 	case EnvironmentSelector:
-		return scope.EnvId, scope.SystemMetadata.EnvironmentName
+		return selectionIdentifier.EnvId, selectionIdentifier.SelectionIdentifierName.EnvironmentName
 	case ClusterSelector:
-		return scope.ClusterId, scope.SystemMetadata.ClusterName
+		return selectionIdentifier.ClusterId, selectionIdentifier.SelectionIdentifierName.ClusterName
 	default:
 		return 0, ""
 	}
@@ -114,12 +114,12 @@ func getAuditLog(userid int32) sql.AuditLog {
 	return auditLog
 }
 
-func (selection *ResourceMappingSelection) toResourceMapping(selector QualifierSelector, resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, valueInt int, valueString string, compositeString string, userId int32) *QualifierMapping {
+func (selection *ResourceMappingSelection) toResourceMapping(resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, valueInt int, valueString string, compositeString string, userId int32) *QualifierMapping {
 	return &QualifierMapping{
 		ResourceId:            selection.ResourceId,
 		ResourceType:          selection.ResourceType,
 		QualifierId:           int(GetQualifierIdForSelector(selection.QualifierSelector)),
-		IdentifierKey:         GetIdentifierKey(selector, resourceKeyMap),
+		IdentifierKey:         GetIdentifierKey(selection.QualifierSelector, resourceKeyMap),
 		IdentifierValueInt:    valueInt,
 		IdentifierValueString: valueString,
 		Active:                true,

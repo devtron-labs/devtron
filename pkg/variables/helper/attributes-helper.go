@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 )
 
@@ -78,4 +79,45 @@ func GetIdentifierValue(identifierType models.IdentifierType, identifierName str
 		return 0, fmt.Errorf("invalid identifierType")
 	}
 	return identifierValue, nil
+}
+
+func GetSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierSelector, attributeParams map[models.IdentifierType]string, attributesMapping *AttributesMappings) (*resourceQualifiers.SelectionIdentifier, error) {
+
+	var err error
+	var appId, envId, clusterId int
+	var appName, envName, clusterName string
+
+	switch selector {
+	case resourceQualifiers.ApplicationSelector:
+		appName = attributeParams[models.ApplicationName]
+		appId, err = GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
+
+	case resourceQualifiers.EnvironmentSelector:
+		envName = attributeParams[models.EnvName]
+		envId, err = GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
+	case resourceQualifiers.ApplicationEnvironmentSelector:
+		appName := attributeParams[models.ApplicationName]
+		appId, err = GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
+		envName = attributeParams[models.EnvName]
+		envId, err = GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
+	case resourceQualifiers.ClusterSelector:
+		clusterName = attributeParams[models.ClusterName]
+		clusterId, err = GetIdentifierValueV1(models.ClusterName, appName, attributesMapping)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	scope := &resourceQualifiers.SelectionIdentifier{
+		AppId:     appId,
+		EnvId:     envId,
+		ClusterId: clusterId,
+		SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
+			AppName:         appName,
+			EnvironmentName: envName,
+			ClusterName:     clusterName,
+		},
+	}
+
+	return scope, nil
 }

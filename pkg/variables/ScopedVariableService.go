@@ -40,7 +40,7 @@ type ScopedVariableServiceImpl struct {
 	VariableNameConfig                  *VariableConfig
 	VariableCache                       *cache.VariableCacheObj
 
-	//Enterprise only
+	// Enterprise only
 	appRepository         app.AppRepository
 	environmentRepository repository.EnvironmentRepository
 	clusterRepository     repository.ClusterRepository
@@ -54,7 +54,7 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
 
-		//Enterprise only
+		// Enterprise only
 		appRepository:                       appRepository,
 		environmentRepository:               environmentRepository,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
@@ -237,48 +237,6 @@ func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.P
 	return variableNameToId, nil
 }
 
-func (impl *ScopedVariableServiceImpl) setScopeForAttributes(selector resourceQualifiers.QualifierSelector, attributeParams map[models.IdentifierType]string, attributesMapping *helper.AttributesMappings) (*resourceQualifiers.Scope, error) {
-
-	var err error
-	var appId, envId, clusterId int
-	var appName, envName, clusterName string
-
-	switch selector {
-	case resourceQualifiers.ApplicationSelector:
-		appName = attributeParams[models.ApplicationName]
-		appId, err = helper.GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
-
-	case resourceQualifiers.EnvironmentSelector:
-		envName = attributeParams[models.EnvName]
-		envId, err = helper.GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
-		//scope.EnvId = envId
-	case resourceQualifiers.ApplicationEnvironmentSelector:
-		appName := attributeParams[models.ApplicationName]
-		appId, err = helper.GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
-		envName = attributeParams[models.EnvName]
-		envId, err = helper.GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
-	case resourceQualifiers.ClusterSelector:
-		clusterName = attributeParams[models.ClusterName]
-		clusterId, err = helper.GetIdentifierValueV1(models.ClusterName, appName, attributesMapping)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	scope := &resourceQualifiers.Scope{
-		AppId:     appId,
-		EnvId:     envId,
-		ClusterId: clusterId,
-		SystemMetadata: &resourceQualifiers.SystemMetadata{
-			AppName:         appName,
-			EnvironmentName: envName,
-			ClusterName:     clusterName,
-		},
-	}
-
-	return scope, nil
-}
-
 func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, userId int32, tx *pg.Tx) (map[int]string, error) {
 
 	attributesMappings, err := impl.getAttributesIdMapping(payload)
@@ -296,7 +254,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 				return nil, err
 			}
 			selector := helper.GetSelectorForAttributeType(value.AttributeType)
-			scope, err := impl.setScopeForAttributes(selector, value.AttributeParams, attributesMappings)
+			selection, err := helper.GetSelectionIdentifiersForAttributes(selector, value.AttributeParams, attributesMappings)
 			if err != nil {
 				impl.logger.Errorw("error in getting identifierValue", "err", err)
 				return nil, err
@@ -304,10 +262,10 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 			varScope := &models.VariableScope{
 				Data: varValue,
 				ResourceMappingSelection: &resourceQualifiers.ResourceMappingSelection{
-					ResourceType:      resourceQualifiers.Variable,
-					ResourceId:        variableId,
-					QualifierSelector: selector,
-					Scope:             scope,
+					ResourceType:        resourceQualifiers.Variable,
+					ResourceId:          variableId,
+					QualifierSelector:   selector,
+					SelectionIdentifier: selection,
 				},
 			}
 			variableScopes = append(variableScopes, varScope)
@@ -325,7 +283,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	}
 	scopeIdToVarData := make(map[int]string)
 	for _, savedSelection := range savedSelections {
-		scopeIdToVarData[savedSelection.Id] = varScopeToSelection[savedSelection].Data //parentVar.Data
+		scopeIdToVarData[savedSelection.Id] = varScopeToSelection[savedSelection].Data // parentVar.Data
 	}
 	return scopeIdToVarData, nil
 }
@@ -386,7 +344,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 		if scope.ParentIdentifier > 0 {
 			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
 		} else {
-			//is parent so collect IDs and put it in a map for easy retrieval
+			// is parent so collect IDs and put it in a map for easy retrieval
 			parentScopeIds = append(parentScopeIds, scope.Id)
 			parentScopeIdToScope[scope.Id] = scope
 		}
@@ -412,7 +370,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
-	//populating system variables from system metadata
+	// populating system variables from system metadata
 	var systemVariableData, allSystemVariables []*models.ScopedVariableData
 	if scope.SystemMetadata != nil {
 		systemVariableData, allSystemVariables = impl.getSystemVariablesData(scope.SystemMetadata, varNames)
@@ -431,7 +389,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
-		//Cache was not loaded and no active variables found
+		// Cache was not loaded and no active variables found
 		if len(allVariableDefinitions) == 0 {
 			return scopedVariableDataObj, nil
 		}
@@ -524,7 +482,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		}
 	}
 
-	//adding variable def for variables which don't have any scoped data defined
+	// adding variable def for variables which don't have any scoped data defined
 	// This only happens when passed var names is null (called from UI to get all variables with or without data)
 	if varNames == nil {
 		for _, definition := range allVariableDefinitions {
@@ -709,7 +667,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	}
 	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, nil, varDefnIds)
 	if err != nil {
-		//TODO KB: handle this
+		// TODO KB: handle this
 		return varIdVsScopeMappings, varScopeIds, err
 	}
 

@@ -185,7 +185,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		}
 	}
 
-	envIds := make([]int, len(pipelineIdToDaoMapping))
+	envIds := make([]int, 0, len(pipelineIdToDaoMapping))
 	for _, pipelineDao := range pipelineIdToDaoMapping {
 		envIds = append(envIds, pipelineDao.EnvironmentId)
 	}
@@ -212,6 +212,12 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		}
 		// TODO: fetch policies in bulk
 		policy := policiesMap[pipelineDao.Environment.Name]
+		if policy == nil {
+			environmentMetadata.ApprovalAllowed = false
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
+			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
+			continue
+		}
 		// TODO abstract logic to policyBean
 		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
@@ -500,9 +506,6 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx *util2.Requ
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByArtifactAndDestinationPipelineIds(request.ArtifactId, metadata.GetActiveAuthorisedPipelineIds())
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact promotion requests object by pipeline ids", "pipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "err", err)
-		if errors.Is(err, pg.ErrNoRows) {
-			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(constants.ArtifactPromotionRequestNotFoundErr)
-		}
 		return nil, err
 	}
 
@@ -570,6 +573,9 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util2.RequestCtx, m
 
 func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util2.RequestCtx, metadata *bean.RequestMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentPromotionMetaData, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 
+	if len(metadata.GetActiveAuthorisedEnvIds()) == 0 {
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnauthorized).WithUserMessage(constants.NoApprovePermissionOnEnvsErr).WithInternalMessage(constants.NoApprovePermissionOnEnvsErr)
+	}
 	pipelineIdVsEnvMap := metadata.GetActiveAuthorisedPipelineIdEnvMap()
 	staleRequestIds, validRequestIds, responses := impl.filterValidAndStaleRequests(promotionRequests, responses, pipelineIdVsEnvMap, policyIdMap)
 
