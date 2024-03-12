@@ -7,6 +7,7 @@ import (
 
 const NO_POLICY = "NA"
 const unknownPolicyTypeErr = "unsupported policy type"
+const invalidAppEnvCombinations = "invalid app and env combinations"
 
 type PathVariablePolicyType string
 
