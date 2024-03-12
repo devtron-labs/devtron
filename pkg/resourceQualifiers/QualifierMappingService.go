@@ -57,7 +57,7 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 			parentMappingsMap[parent.CompositeKey] = parent
 		} else {
 			intValue, stringValue := GetValuesFromSelectionIdentifier(selection.QualifierSelector, selection.SelectionIdentifier)
-			parent = selection.toResourceMapping(resourceKeyMap, intValue, stringValue, "", userId)
+			parent = selection.toResourceMapping(selection.QualifierSelector, resourceKeyMap, intValue, stringValue, "", userId)
 		}
 		mappingsToSelection[parent] = selection
 		parentMappings = append(parentMappings, parent)
