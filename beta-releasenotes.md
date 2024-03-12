@@ -22,6 +22,7 @@
 - fix: resource tree bad gateway handle (#4613)
 - fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
+- feat: Cosign plugin (#4543)
 - feat: added support for GCS  for image exporter plugin (#4625)
 - feat: Github Release Plugin  (#4761)
 - feat: User defined git repo for GitOps deployment (#4281)
