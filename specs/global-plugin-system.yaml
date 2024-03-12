@@ -111,7 +111,6 @@ paths:
       summary: "Manipulating the Global Plugin"
       description: |
         Allows for the management (creation, update, or deletion) of global plugins through a single endpoint. This endpoint is versatile and supports various actions based on the provided `action` field in the request payload. Before performing any action, ensure to retrieve detailed information about the plugin by its ID using the endpoint `/orchestrator/plugin/global/detail/{pluginId}`. The same or modified object retrieved can be used in the request payload for this endpoint.
-
       operationId: "PatchPlugin"
       requestBody:
         description: "A JSON Object containing the PluginMetaData fields, including the specific action to be performed."
@@ -254,7 +253,17 @@ components:
           description: A list of tags associated with the plugin for categorization and search.
         action:
           type: integer
-          description: Numeric code representing the action to be performed with this plugin metadata (e.g., 0 for createplugin,1 for updateplugin,2 for deleteplugin).
+          description: |
+            This field represents the action to be performed with this plugin metadata. 
+            - Use `0` to create a new plugin.
+            - Use `1` to update an existing plugin.
+            - Use `2` to delete a plugin.
+    
+           If you're opting to update an existing plugin (action `1`), 
+           please take note:
+           - Ensure that the request body parameters are accurate before updating.
+           - Your request body (payload) will discard all previous updates and be treated as final.
+
         pluginStage:
           type: string
           description: Optional. Specifies the stage of the CI/CD pipeline or both (CI/CD) where this plugin can be used.
