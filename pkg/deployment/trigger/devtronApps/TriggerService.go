@@ -329,8 +329,15 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	ciArtifactId := overrideRequest.CiArtifactId
 
-	//TODO ayush - test ci parent, skopeo image, post/deploy parent cases
-	isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, ciArtifactId, cdPipeline.CiPipelineId)
+	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return 0, "", err
+	}
+	// TODO ayush - test ci parent, skopeo image, post/deploy parent cases
+	isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, artifact)
 	if err != nil {
 		impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
 		return 0, "", err
@@ -338,14 +345,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	if !isArtifactAvailable {
 		return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
-	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return 0, "", err
 	}
 	// Migration of deprecated DataSource Type
 	if artifact.IsMigrationRequired() {
@@ -631,15 +630,17 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId, ciArtifactId int, ciPipelineId int) (bool, error) {
+func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciArtifact *repository3.CiArtifact) (bool, error) {
 
 	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipelineId, "err", err)
 		return false, err
 	}
+
 	if parentType == bean3.CI_WORKFLOW_TYPE {
-		if parentId == ciPipelineId {
+		// artifact can be created at post-ci aswell
+		if parentId == ciArtifact.PipelineId || (ciArtifact.DataSource == repository3.POST_CI && ciArtifact.ComponentId == parentId) {
 			return true, nil
 		} else {
 			return false, nil
@@ -651,9 +652,9 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId, ciArtifa
 		} else if parentType == pipelineConfig.WorkflowTypePost {
 			pluginStage = repository3.POST_CD
 		}
-		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipelineId, parentId, ciArtifactId, string(parentType), pluginStage)
+		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipelineId, parentId, ciArtifact.Id, string(parentType), pluginStage)
 		if err != nil {
-			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipelineId, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifactId, "err", err)
+			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipelineId, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifact.Id, "err", err)
 			return false, err
 		}
 		return artifactAvailable, nil

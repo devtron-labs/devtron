@@ -419,7 +419,6 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	return requestMetaData, nil
 }
 
-// todo: move this method away from this service to param Extractor service
 func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
 	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
@@ -1088,7 +1087,6 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util2.RequestCt
 				Context: context.Background(),
 			},
 		}
-		// todo: ayush
 		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 	}
 	return status, nil
