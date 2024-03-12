@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.28-rc.0"
+  release: "v0.6.28"
   image: "quay.io/devtron/inception"
   tag: "a9820f38-185-20840"
   
@@ -54,7 +54,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:c6b909da-200-21194"
+    image: "quay.io/devtron/git-sensor:4bacf5f7-200-21575"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
