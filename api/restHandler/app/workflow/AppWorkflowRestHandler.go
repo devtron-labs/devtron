@@ -262,6 +262,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		itr := 0
 		for _, val := range workflowIdToObjectMap {
 			rbacObjects = append(rbacObjects, val)
+			// not converting to lowercase objects as done in ossas we use custom enforcer which returns the map with given expected rbac objects
 			workNameObjectMap[val] = workflowsList[itr]
 			itr++
 		}
