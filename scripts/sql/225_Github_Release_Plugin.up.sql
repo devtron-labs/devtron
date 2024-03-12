@@ -104,6 +104,7 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
         if ! gh release view "$ReleaseTag" &>/dev/null; then
                 echo "Creating release $ReleaseTag"
                 GithubReleaseURL=$(gh release create --target "$TARGET" --title "$ReleaseTag" ${GithubReleaseNotesFile:+--notes-file "$GithubReleaseNotesFile"} "$ReleaseTag" --verify-tag)
+                 success_message="Github Tag $ReleaseTag and Release $ReleaseTag successfully created."
             if [ -n "$GithubReleaseUploadFolder" ]; then  
                 # Upload release assets if the release was created
                 for file in "$GithubReleaseUploadFolder"/*; do
@@ -112,7 +113,6 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
                         echo "Release assets uploaded successfully."
                     fi
                 done
-                 success_message="Github Tag $ReleaseTag and Release $ReleaseTag successfully created."
             else
                 echo "No release assets provided."
             fi
