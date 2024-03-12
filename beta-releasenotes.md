@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Not able to see workflow name in case of project with uppercase letters (#4776)
 - fix: provider nil fields (#4758)
 - fix: git material url sanitised (#4742)
 - fix: customTagService missing in workflowdagexec (#4741)
