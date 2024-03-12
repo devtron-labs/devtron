@@ -51,6 +51,15 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+  kubewatch:
+    image: "quay.io/devtron/kubewatch:91c2cece-419-21178"
+    imagePullPolicy: IfNotPresent
+    configs:
+      devtroncd_NAMESPACE: "devtron-ci"
+      CI_INFORMER: "true"
+      ACD_NAMESPACE: "devtroncd"
+      ACD_INFORMER: "true"
+      NATS_STREAM_MAX_AGE: "10800"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
