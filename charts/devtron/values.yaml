@@ -59,6 +59,7 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
+        ENABLE_EXTERNAL_ARGO_CD: "false"
     image: "quay.io/devtron/dashboard:9429b066-325-21529"
     imagePullPolicy: IfNotPresent
 
