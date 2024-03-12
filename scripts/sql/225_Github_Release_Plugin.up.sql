@@ -125,6 +125,7 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
                     fi
                 done
                 echo "Release assets uploaded successfully."
+                success_message="Github Tag $ReleaseTag and Release $ReleaseTag already exist, uploading assets to it."
             else
                 echo "No release assets provided."
             fi
