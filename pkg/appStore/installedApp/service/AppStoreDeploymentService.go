@@ -519,10 +519,9 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
-			// TODO Asutosh: here
 			HelmPackageName: adapter.GetGeneratedHelmPackageName(
 				installedApp.AppName,
-				installedApp.Environment.Environment,
+				installedApp.EnvironmentName,
 				installedApp.UpdatedOn),
 		}
 	}
