@@ -185,7 +185,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		}
 	}
 
-	envIds := make([]int, len(pipelineIdToDaoMapping))
+	envIds := make([]int, 0, len(pipelineIdToDaoMapping))
 	for _, pipelineDao := range pipelineIdToDaoMapping {
 		envIds = append(envIds, pipelineDao.EnvironmentId)
 	}
@@ -212,6 +212,12 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		}
 		// TODO: fetch policies in bulk
 		policy := policiesMap[pipelineDao.Environment.Name]
+		if policy == nil {
+			environmentMetadata.ApprovalAllowed = false
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
+			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
+			continue
+		}
 		// TODO abstract logic to policyBean
 		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
