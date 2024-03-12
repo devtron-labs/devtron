@@ -351,7 +351,7 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 	uniqueScopes := make(map[string]bool)
 	for _, appEnv := range applicationEnvironments {
 		key := fmt.Sprintf("%s,%s", appEnv.AppName, appEnv.EnvName)
-		if _, ok := uniqueScopes[key]; !ok {
+		if _, ok := uniqueScopes[key]; ok && (appNameIdMap[appEnv.AppName] > 0 && envNameIdMap[appEnv.EnvName] > 0) {
 			scopes = append(scopes, &resourceQualifiers.Scope{
 				AppId: appNameIdMap[appEnv.AppName],
 				EnvId: envNameIdMap[appEnv.EnvName],

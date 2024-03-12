@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -29,10 +30,11 @@ type PolicyCUDService interface {
 }
 
 type PromotionPolicyServiceImpl struct {
-	globalPolicyDataManager globalPolicy.GlobalPolicyDataManager
-	pipelineService         pipeline.CdPipelineConfigService
-	logger                  *zap.SugaredLogger
-	transactionManager      sql.TransactionWrapper
+	globalPolicyDataManager         globalPolicy.GlobalPolicyDataManager
+	pipelineService                 pipeline.CdPipelineConfigService
+	logger                          *zap.SugaredLogger
+	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
+	transactionManager              sql.TransactionWrapper
 
 	// hooks
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
@@ -41,18 +43,21 @@ type PromotionPolicyServiceImpl struct {
 
 func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
 	pipelineService pipeline.CdPipelineConfigService,
-	logger *zap.SugaredLogger, transactionManager sql.TransactionWrapper,
+	logger *zap.SugaredLogger,
+	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
+	transactionManager sql.TransactionWrapper,
 ) *PromotionPolicyServiceImpl {
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
 	preUpdateHooks := make([]func(tx *pg.Tx, policy *bean.PromotionPolicy) error, 0)
 
 	return &PromotionPolicyServiceImpl{
-		globalPolicyDataManager: globalPolicyDataManager,
-		pipelineService:         pipelineService,
-		logger:                  logger,
-		transactionManager:      transactionManager,
-		preDeleteHooks:          preDeleteHooks,
-		preUpdateHooks:          preUpdateHooks,
+		globalPolicyDataManager:         globalPolicyDataManager,
+		pipelineService:                 pipelineService,
+		logger:                          logger,
+		resourceQualifierMappingService: resourceQualifierMappingService,
+		transactionManager:              transactionManager,
+		preDeleteHooks:                  preDeleteHooks,
+		preUpdateHooks:                  preUpdateHooks,
 	}
 }
 
@@ -157,6 +162,8 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(ctx *util2.RequestCtx, poli
 		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", ctx.GetUserId(), "err", err)
 		return err
 	}
+
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.ImagePromotionPolicy, policyId, sql.NewDefaultAuditLog(ctx.GetUserId()), tx)
 	for _, hook := range impl.preDeleteHooks {
 		err = hook(tx, policyId)
 		if err != nil {
