@@ -74,7 +74,6 @@ func NewArtifactPromotionDataReadServiceImpl(
 	}
 }
 
-// todo: ayush
 func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error) {
 
 	promotionApprovalMetadata := make(map[int]*bean.PromotionApprovalMetaData)
