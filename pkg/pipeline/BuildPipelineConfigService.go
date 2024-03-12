@@ -112,6 +112,8 @@ type CiPipelineConfigService interface {
 
 	//GetCIRuntimeParams gets all ci pipeline needed runtime params. Currently only env variables are supported.
 	GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error)
+
+	GetCIPipelineByNameAndAppId(appId int, name string) (bean.CiPipelineMin, error)
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -2285,4 +2287,21 @@ func (impl *CiPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(a
 		return 0, nil, err
 	}
 	return externalCiPipeline.Id, appWorkflowMap, nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCIPipelineByNameAndAppId(appId int, name string) (bean.CiPipelineMin, error) {
+	ciPipeline, err := impl.ciPipelineRepository.FindByNameAndAppID(name, appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ci pipeline by name and appId", "name", name, "appId", appId, "err", err)
+		return bean.CiPipelineMin{}, err
+	}
+	return bean.CiPipelineMin{
+		Name:             ciPipeline.Name,
+		Id:               ciPipeline.Id,
+		Version:          ciPipeline.Version,
+		IsExternal:       ciPipeline.IsExternal,
+		ParentCiPipeline: ciPipeline.ParentCiPipeline,
+		PipelineType:     bean.PipelineType(ciPipeline.PipelineType),
+		ScanEnabled:      ciPipeline.ScanEnabled,
+	}, nil
 }

@@ -195,7 +195,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 
 	appId := pipelineIdToDaoMapping[promotionRequests[0].DestinationPipelineId].AppId
 
-	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", appId, "envIds", envIds, "err", err)
 		return nil, err
@@ -268,7 +268,7 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util2.
 	envMap := metadata.GetActiveEnvironmentsMap()
 	result := &bean.EnvironmentListingResponse{}
 	result.CiSource = metadata.GetSourceMetaData().GetCiSourceMeta()
-	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(metadata.GetAppId(), metadata.GetActiveAuthorisedEnvIds())
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, metadata.GetAppId(), metadata.GetActiveAuthorisedEnvIds())
 	if err != nil {
 		impl.logger.Errorw("error in getting the policies", "appId", metadata.GetAppId(), "envIds", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 		return nil, err
@@ -507,7 +507,7 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx *util2.Requ
 	}
 
 	// policies fetched form above policy ids
-	policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(request.AppId, metadata.GetActiveAuthorisedPipelineEnvIds())
+	policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, request.AppId, metadata.GetActiveAuthorisedPipelineEnvIds())
 	if err != nil {
 		impl.logger.Errorw("error in finding the promotionPolicy by appId and envId names", "appid", request.AppId, "envIds", metadata.GetActiveAuthorisedPipelineEnvIds(), "err", err)
 		return nil, err
@@ -900,7 +900,7 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx *util2.RequestCtx, r
 		responseMap[envName] = resp
 	}
 
-	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(request.AppId, metadata.GetActiveAuthorisedEnvIds())
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, request.AppId, metadata.GetActiveAuthorisedEnvIds())
 	if err != nil {
 		impl.logger.Errorw("error in getting policies for some environments in an app", "appName", request.AppName, "envNames", metadata.GetActiveAuthorisedEnvNames(), "err", err)
 		return nil, err

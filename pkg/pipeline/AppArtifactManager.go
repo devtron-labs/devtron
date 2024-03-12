@@ -18,13 +18,13 @@
 package pipeline
 
 import (
-	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -55,14 +55,14 @@ type AppArtifactManager interface {
 	// RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
-	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
+	RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
 	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error)
 
 	// FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
 
-	FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
+	FetchArtifactForRollbackV2(ctx *util2.RequestCtx, cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
 
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
@@ -93,6 +93,7 @@ type AppArtifactManagerImpl struct {
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService
 	teamService                      team.TeamService
 	appWorkflowDataReadService       read3.AppWorkflowDataReadService
+	ciPipelineConfigService          CiPipelineConfigService
 }
 
 func NewAppArtifactManagerImpl(
@@ -116,6 +117,7 @@ func NewAppArtifactManagerImpl(
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
 	teamService team.TeamService,
 	appWorkflowDataReadService read3.AppWorkflowDataReadService,
+	ciPipelineConfigService CiPipelineConfigService,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
@@ -143,6 +145,7 @@ func NewAppArtifactManagerImpl(
 		artifactPromotionDataReadService: artifactPromotionDataReadService,
 		teamService:                      teamService,
 		appWorkflowDataReadService:       appWorkflowDataReadService,
+		ciPipelineConfigService:          ciPipelineConfigService,
 	}
 }
 
@@ -377,7 +380,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 	return deployedCiArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(ctx *util2.RequestCtx, cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error) {
 	var deployedCiArtifactsResponse bean2.CiArtifactResponse
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
@@ -408,7 +411,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		return deployedCiArtifactsResponse, err
 	}
 
-	deployedCiArtifacts, err = impl.setPromotionArtifactMetadata(deployedCiArtifacts, artifactListingFilterOpts.PipelineId, constants.PROMOTED)
+	deployedCiArtifacts, err = impl.setPromotionArtifactMetadata(ctx, deployedCiArtifacts, artifactListingFilterOpts.PipelineId, constants.PROMOTED)
 	if err != nil {
 		impl.logger.Errorw("error in setting promotion artifact metadata for artifacts", "cdPipelineId", artifactListingFilterOpts.PipelineId, "err", err)
 		return deployedCiArtifactsResponse, err
@@ -929,7 +932,7 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 	return ciArtifactBeans
 }
 
-func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
 	parentId, parentType, parentCdId, err := impl.extractParentMetaDataByPipeline(pipeline, stage)
@@ -1000,7 +1003,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 	}
 
-	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, pipeline.Id, constants.PROMOTED)
+	ciArtifacts, err = impl.setPromotionArtifactMetadata(ctx, ciArtifacts, pipeline.Id, constants.PROMOTED)
 	if err != nil {
 		impl.logger.Errorw("error in setting promotion artifact metadata for given pipeline", "pipelineId", pipeline.Id, "err", err)
 		return ciArtifactsResponse, err
@@ -1359,7 +1362,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []bean2.CiArtifactBean, cdPipelineId int, status constants.ArtifactPromotionRequestStatus) ([]bean2.CiArtifactBean, error) {
+func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ctx *util2.RequestCtx, ciArtifacts []bean2.CiArtifactBean, cdPipelineId int, status constants.ArtifactPromotionRequestStatus) ([]bean2.CiArtifactBean, error) {
 	artifactIds := make([]int, 0)
 	for _, ciArtifact := range ciArtifacts {
 		artifactIds = append(artifactIds, ciArtifact.Id)
@@ -1586,7 +1589,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 
-	ciArtifactResponse, err := impl.handlePromotionNodeCiMaterialRequest(ctx, request, imagePromoterAuth)
+	ciArtifactResponse, err := impl.getPromotionArtifactsForResource(ctx, request, imagePromoterAuth)
 	if err != nil {
 		impl.logger.Errorw("error in getting ciArtifactResponse", "resource", request.Resource, "resourceName", request.ResourceName, "err", err)
 		return ciArtifactResponse, err
@@ -1618,7 +1621,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 	return ciArtifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 	var err error
 
@@ -1632,7 +1635,7 @@ func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *ut
 	switch request.Resource {
 	case string(constants.SOURCE_TYPE_CD):
 
-		ciArtifactResponse, err = impl.handleRequestForEnvironmentResource(request, imagePromoterAuthCDPipelineIds)
+		ciArtifactResponse, err = impl.handleRequestForEnvironmentResource(ctx, request, imagePromoterAuthCDPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in parsing fetch promotion artifact response", "resource", request.Resource, "ResourceName", request.ResourceName, "err", err)
 			return ciArtifactResponse, err
@@ -1640,7 +1643,7 @@ func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *ut
 
 	case string(constants.SOURCE_TYPE_CI):
 
-		ciArtifactResponse, err = impl.handleRequestForCIResource(request, imagePromoterAuthCDPipelineIds)
+		ciArtifactResponse, err = impl.handleRequestForCIResource(ctx, request, imagePromoterAuthCDPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in parsing fetch promotion artifact response", "resource", request.Resource, "ResourceName", request.ResourceName, "err", err)
 			return ciArtifactResponse, err
@@ -1648,7 +1651,7 @@ func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *ut
 
 	case string(constants.SOURCE_TYPE_WEBHOOK):
 
-		ciArtifactResponse, err = impl.handleRequestForExtCINode(request, imagePromoterAuthCDPipelineIds)
+		ciArtifactResponse, err = impl.handleRequestForExtCINode(ctx, request, imagePromoterAuthCDPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", request.Resource, "ResourceName", request.ResourceName, "err", err)
 			return ciArtifactResponse, err
@@ -1656,13 +1659,13 @@ func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *ut
 
 	case string(constants.PROMOTION_APPROVAL_PENDING_NODE):
 		if !request.PendingForCurrentUser {
-			ciArtifactResponse, err = impl.handleRequestForPromotionArtifactApprovalNode(request)
+			ciArtifactResponse, err = impl.handleRequestForPromotionArtifactApprovalNode(ctx, request)
 			if err != nil {
 				impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", request.Resource, "ResourceName", request.ResourceName, "err", err)
 				return ciArtifactResponse, err
 			}
 		} else {
-			ciArtifactResponse, err = impl.handleRequestPendingForCurrentUser(request, imagePromoterAuthCDPipelineIds)
+			ciArtifactResponse, err = impl.handleRequestPendingForCurrentUser(ctx, request, imagePromoterAuthCDPipelineIds)
 			if err != nil {
 				impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", request.Resource, "ResourceName", request.ResourceName, "err", err)
 				return ciArtifactResponse, err
@@ -1673,7 +1676,7 @@ func (impl *AppArtifactManagerImpl) handlePromotionNodeCiMaterialRequest(ctx *ut
 	return ciArtifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 
 	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(request.AppId, 0, request.ResourceName)
 	if err != nil {
@@ -1699,7 +1702,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(request 
 		return bean2.CiArtifactResponse{}, err
 	}
 
-	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(imagePromoterAuthCDPipelineIds)
+	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(ctx, imagePromoterAuthCDPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", imagePromoterAuthCDPipelineIds, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1713,8 +1716,8 @@ func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(request 
 	return artifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handleRequestForCIResource(request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
-	ciPipeline, err := impl.CiPipelineRepository.FindByNameAndAppID(request.ResourceName, request.AppId)
+func (impl *AppArtifactManagerImpl) handleRequestForCIResource(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
+	ciPipeline, err := impl.ciPipelineConfigService.GetCIPipelineByNameAndAppId(request.AppId, request.ResourceName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ciPipeline by name", "ciPipelineName", request.ResourceName, "err", err)
 		return bean2.CiArtifactResponse{}, &util.ApiError{
@@ -1736,7 +1739,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForCIResource(request bean2.Art
 		impl.logger.Errorw("error in fetching artifacts deployed on cdPipeline Node", "ciPipelineId", ciNodeRequest.CiPipelineId, "err", err)
 		return bean2.CiArtifactResponse{}, err
 	}
-	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(imagePromoterAuthCDPipelineIds)
+	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(ctx, imagePromoterAuthCDPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", imagePromoterAuthCDPipelineIds, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1749,7 +1752,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForCIResource(request bean2.Art
 	return artifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 	externalCiPipelineId, err := strconv.Atoi(request.ResourceName)
 	if err != nil {
 		impl.logger.Errorw("error in parsing externalCiPipelineId from resourceName", "resourceName", request.ResourceName, "err", err)
@@ -1772,7 +1775,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(request bean2.Arti
 		impl.logger.Errorw("error in fetching artifacts deployed on cdPipeline Node", "extCiPipelineId", extCiNodeRequest.ExternalCiPipelineId, "err", err)
 		return bean2.CiArtifactResponse{}, err
 	}
-	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(imagePromoterAuthCDPipelineIds)
+	artifactPendingForUserApprovalCount, err := impl.artifactPromotionDataReadService.FindArtifactsCountPendingForPromotionByPipelineIds(ctx, imagePromoterAuthCDPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", imagePromoterAuthCDPipelineIds, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1785,7 +1788,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(request bean2.Arti
 	return artifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNode(request bean2.ArtifactPromotionMaterialRequest) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNode(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest) (bean2.CiArtifactResponse, error) {
 
 	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(request.AppId, 0, request.ResourceName)
 	if err != nil {
@@ -1793,11 +1796,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 		return bean2.CiArtifactResponse{}, err
 	}
 	if len(cdPipeline.Pipelines) == 0 {
-		return bean2.CiArtifactResponse{}, &util.ApiError{
-			HttpStatusCode:  http.StatusUnprocessableEntity,
-			InternalMessage: fmt.Sprintf("cd pipeline not found for given app and env name - appId: %d envName: %s", request.AppId, request.ResourceName),
-			UserMessage:     fmt.Sprintf("cd pipeline not found for given app and env name - appId: %d envName: %s", request.AppId, request.ResourceName),
-		}
+		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants2.CDPipelineNotFoundErr)
 	}
 
 	pipeline := cdPipeline.Pipelines[0]
@@ -1828,7 +1827,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 	}
 
 	ciArtifacts := convertCiArtifactDaoToBean(ArtifactDaos)
-	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, pipeline.Id, constants.AWAITING_APPROVAL)
+	ciArtifacts, err = impl.setPromotionArtifactMetadata(ctx, ciArtifacts, pipeline.Id, constants.AWAITING_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in fetching promotion approval metadata for artifacts", "cdPipelineId", pipeline.Id, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1841,7 +1840,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 	}, nil
 }
 
-func (impl *AppArtifactManagerImpl) handleRequestPendingForCurrentUser(request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) handleRequestPendingForCurrentUser(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 	promotionPendingForCurrentUserReq := bean.ArtifactPromotionPendingForCurrentUserRequest{
 		ImagePromoterAccessCdPipelineIds: imagePromoterAuthCDPipelineIds,
 		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
@@ -1883,57 +1882,6 @@ func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bea
 		return nil, err
 	}
 	return imagePromotionApproverEmails, err
-}
-
-func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error) {
-
-	if len(workflowIds) == 0 {
-		return nil, nil
-	}
-	cdPipelineIds, cdPipelineIdToWorkflowIdMapping, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(workflowIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowIds", workflowIds, "err", err)
-		return nil, err
-	}
-
-	if len(cdPipelineIds) == 0 {
-		return nil, nil
-	}
-	pipeline, err := impl.cdPipelineConfigService.FindPipelineByIds(cdPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
-		return nil, err
-	}
-
-	teamDao, err := impl.teamService.FetchOne(pipeline[0].App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)
-		return nil, err
-	}
-
-	imagePromoterRbacObjects := make([]string, 0, len(pipeline))
-	pipelineIdToRbacObjMapping := make(map[int]string)
-	for _, pipelineDao := range pipeline {
-		imagePromoterRbacObject := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
-		imagePromoterRbacObjects = append(imagePromoterRbacObjects, imagePromoterRbacObject)
-		pipelineIdToRbacObjMapping[pipelineDao.Id] = imagePromoterRbacObject
-	}
-
-	rbacResults := imagePromoterBulkAuth(ctx.GetToken(), imagePromoterRbacObjects)
-	authorizedPipelineIds := make([]int, 0, len(pipeline))
-	for pipelineId, rbacObj := range pipelineIdToRbacObjMapping {
-		if authorized := rbacResults[rbacObj]; authorized {
-			authorizedPipelineIds = append(authorizedPipelineIds, pipelineId)
-		}
-	}
-
-	wfIdToAuthorizedCDPipelineIds := make(map[int][]int)
-	for _, pipelineId := range authorizedPipelineIds {
-		wfId := cdPipelineIdToWorkflowIdMapping[pipelineId]
-		wfIdToAuthorizedCDPipelineIds[wfId] = append(wfIdToAuthorizedCDPipelineIds[wfId], pipelineId)
-	}
-
-	return wfIdToAuthorizedCDPipelineIds, nil
 }
 
 func getImageSearchString(imagePath string) string {

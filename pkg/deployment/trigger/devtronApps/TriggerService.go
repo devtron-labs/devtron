@@ -631,26 +631,14 @@ func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPip
 			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipelineId, constants.PROMOTED)
 			if err != nil {
 				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipelineId)
-				return false, err
+				return true, err
 			}
 			if approvalMetadata, ok := promotionApprovalMetadata[artifactId]; ok {
 				approverIds := approvalMetadata.GetApprovalUserIds()
 				for _, id := range approverIds {
 					if id == userId {
 						impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
-						return true, &util.ApiError{
-							HttpStatusCode:    http.StatusForbidden,
-							InternalMessage:   "error in cd trigger, user who has approved the image for promotion cannot deploy",
-							UserMessage:       nil,
-							UserDetailMessage: "error in cd trigger, user who has approved the image for promotion cannot deploy",
-						}
-					} else if approvalMetadata.ApprovalRuntimeState != constants.PROMOTED.Status() {
-						return true, &util.ApiError{
-							HttpStatusCode:    http.StatusForbidden,
-							InternalMessage:   "error in cd trigger, image is not promoted",
-							UserMessage:       nil,
-							UserDetailMessage: "error in cd trigger, image is not promoted",
-						}
+						return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
 					}
 				}
 			}

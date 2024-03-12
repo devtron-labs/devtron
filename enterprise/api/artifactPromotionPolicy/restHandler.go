@@ -162,7 +162,7 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 		SortOrder: sortOrder,
 	}
 
-	policies, err := handler.artifactPromotionReadService.GetPoliciesMetadata(listFilter)
+	policies, err := handler.artifactPromotionReadService.GetPoliciesMetadata(ctx, listFilter)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -186,7 +186,7 @@ func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Re
 
 	vars := mux.Vars(r)
 	policyName := vars["name"]
-	policy, err := handler.artifactPromotionReadService.GetPromotionPolicyByName(policyName)
+	policy, err := handler.artifactPromotionReadService.GetPromotionPolicyByName(ctx, policyName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -207,7 +207,7 @@ func (handler RestHandlerImpl) GetPolicyNamesForAutoComplete(w http.ResponseWrit
 		return
 	}
 
-	policy, err := handler.artifactPromotionReadService.GetAllPoliciesNameForAutocomplete()
+	policy, err := handler.artifactPromotionReadService.GetAllPoliciesNameForAutocomplete(ctx)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

@@ -3,6 +3,7 @@ package read
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/constants"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -26,15 +27,13 @@ func NewAppWorkflowDataReadServiceImpl(
 }
 
 func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error) {
+
 	wfMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(wfIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowIds", wfIds, "err", err)
-		return nil, nil, &util.ApiError{
-			HttpStatusCode:  http.StatusUnprocessableEntity,
-			InternalMessage: "workflowMappings not found for given workflowId",
-			UserMessage:     "workflowMappings not found for given workflowId",
-		}
+		return nil, nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants.WORKFLOW_NOT_FOUND_ERR)
 	}
+
 	cdPipelineIds := make([]int, 0)
 	cdPipelineIdToWorkflowIdMapping := make(map[int]int)
 	for _, wfMapping := range wfMappings {

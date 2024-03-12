@@ -198,7 +198,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 		wfrIdVsMappings[appWf.Id] = appWf.AppWorkflowMappingDto
 		wfIds = append(wfIds, appWf.Id)
 	}
-	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMapping(appId, wfrIdVsMappings)
+	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMapping(ctx, appId, wfrIdVsMappings)
 	if err != nil {
 		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
 		return nil, err
@@ -220,7 +220,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 	return appWorkflows, nil
 }
 
-func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(appId int, wfrIdVsMappings map[int][]bean4.AppWorkflowMappingDto) (map[int]bool, error) {
+func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.RequestCtx, appId int, wfrIdVsMappings map[int][]bean4.AppWorkflowMappingDto) (map[int]bool, error) {
 
 	cdPipelineIds := make([]int, 0)
 	cdPipelineIdToWorkflowIdMapping := make(map[int]int)
@@ -250,7 +250,7 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(appId int, w
 			envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
 		}
 
-		promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
+		promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
 			return workflowIdToPromotionPolicyConfiguredMapping, err
