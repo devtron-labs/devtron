@@ -1129,32 +1129,17 @@ func (impl *ApprovalRequestServiceImpl) checkIfDeployedAtSource(ciArtifactId int
 }
 
 func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util2.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
-	// todo: accept environment name instead of requestId
-	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
-	if errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("artifact promotion approval request not found for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: constants.ArtifactPromotionRequestNotFoundErr,
-			UserMessage:     constants.ArtifactPromotionRequestNotFoundErr,
-		}
+	rowsUpdated, err := impl.artifactPromotionApprovalRequestRepository.MarkCancel(request.PromotionRequestId, ctx.GetUserId())
+	if err != nil {
+		impl.logger.Errorw("error in canceling promotion approval request for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
+		return nil, err
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, err
 	}
-
-	if artifactPromotionDao.CreatedBy != ctx.GetUserId() {
+	if rowsUpdated == 0 {
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(constants.UserCannotCancelRequest).WithUserMessage(constants.UserCannotCancelRequest)
-	}
-
-	artifactPromotionDao.Status = constants.CANCELED
-	artifactPromotionDao.UpdatedOn = time.Now()
-	artifactPromotionDao.UpdatedBy = ctx.GetUserId()
-	_, err = impl.artifactPromotionApprovalRequestRepository.Update(artifactPromotionDao)
-	if err != nil {
-		impl.logger.Errorw("error in updating artifact promotion approval request", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
-		return nil, err
 	}
 	return nil, nil
 }

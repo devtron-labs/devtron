@@ -51,6 +51,7 @@ type RequestRepository interface {
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error)
+	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
 }
 
 func (repo *RequestRepositoryImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -238,4 +239,14 @@ func (impl RequestRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelin
 		return 0, err
 	}
 	return count, nil
+}
+
+func (impl RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rowsAffected int, err error) {
+	res, err := impl.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", constants.CANCELED).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("id = ? and created_by != ? ", requestId, userId).
+		Update()
+	return res.RowsAffected(), err
 }
