@@ -297,10 +297,14 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util2.
 	}
 
 	for envName, policy := range policiesMap {
+		approvalCount := 0
+		if policy != nil {
+			approvalCount = policy.ApprovalMetaData.ApprovalCount
+		}
 		responseMap[envName] = bean.EnvironmentPromotionMetaData{
 			PromotionPossible:          true,
 			Name:                       envName,
-			ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
+			ApprovalCount:              approvalCount,
 			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
 			PromotionValidationMessage: constants.EMPTY,
 		}
