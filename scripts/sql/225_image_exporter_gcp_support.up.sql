@@ -1,8 +1,8 @@
 UPDATE plugin_pipeline_script SET script=E'#!/bin/bash
     set -eo pipefail
-if [[ $GoogleServiceAccount ]] 
+if [[ $GcpServiceAccountJson ]] 
 then   
-    echo $GoogleServiceAccount > output.txt
+    echo $GcpServiceAccountJson > output.txt
     cat output.txt| base64 -d > gcloud.json    
 fi
 architecture=$(uname -m)
@@ -46,9 +46,9 @@ docker save $ContainerImage > $file
 ls
 if [ $CloudProvider == "azure" ]
 then
-    docker run  --rm  -v $(pwd):/data  mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob upload --account-name $AzureAccountName --account-key $AzureAccountKey  --container-name $BucketName --name $file --file data/$file"
+    docker run --network=host   --rm  -v $(pwd):/data  mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob upload --account-name $AzureAccountName --account-key $AzureAccountKey  --container-name $BucketName --name $file --file data/$file"
     echo "docker run  --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $file --permissions r --expiry $future_date""
-    sas_token=$(docker run  --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $file --permissions r --expiry $future_date")
+    sas_token=$(docker run --network=host   --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $file --permissions r --expiry $future_date")
     token=$sas_token
     echo $token 
     token=$(echo $sas_token| tr -d \'"\')
@@ -64,8 +64,8 @@ fi
 if [ $CloudProvider == "gcp" ]
 then
     echo "gcp command"
-    docker run  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gcloud storage ls;gsutil cp data/$file gs://$BucketName/ ; gcloud storage ls gs://$BucketName/;"
-    link=$(docker run  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gsutil signurl -d $gcp_secs data/gcloud.json gs://$BucketName/$file "| awk \'{print $NF}\' )
+    docker run --network=host   --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gcloud storage ls;gsutil cp data/$file gs://$BucketName/ ; gcloud storage ls gs://$BucketName/;"
+    link=$(docker run --network=host  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gsutil signurl -d $gcp_secs data/gcloud.json gs://$BucketName/$file "| awk \'{print $NF}\' )
 fi
 echo "***Copy the below link to download the tar file***"
 echo $link
@@ -73,7 +73,7 @@ echo $link
 
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GoogleServiceAccount','STRING','Provide Google service account Creds/Use Scoped Variables ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpServiceAccountJson','STRING','Provide Gxoogle cloud service account json creds in base64 format/Use scoped variables',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpProjectName','STRING','Specify Google Account Project Name',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 UPDATE plugin_step_variable SET description='Provide which cloud storage provider you want to use: "aws" for Amazon S3 or "azure" for Azure Blob Storage or "gcp" for Google Cloud Storage' WHERE name='CloudProvider';
