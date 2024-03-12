@@ -145,17 +145,8 @@ if helmInstallation {
   kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
 }
 
-if !helmInstallation {
-  if !setupDevtronIngress {
-    kubeYamlEdit(devtron, "spec.type", "LoadBalancer", `/Service//devtron-service`);
-  }
-}
-
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
-
-kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
-log("executed kubewatch setup");
 
 ## Applying Housekeeping Job
 appHousekeeping = kubectl apply -n devtroncd devtronHousekeeping -u devtronHousekeepingOverride;
