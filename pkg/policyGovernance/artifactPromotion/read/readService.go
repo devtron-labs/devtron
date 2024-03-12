@@ -112,7 +112,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 			case constants.WEBHOOK:
 				promotedFrom = string(constants.SOURCE_TYPE_CI)
 			case constants.CD:
-				//TODO: remove repo
+				// TODO: remove repo
 				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 				if err != nil {
 					impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
@@ -173,12 +173,12 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
 
-	scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
+	scope := &resourceQualifiers.SelectionIdentifier{AppId: appId, EnvId: envId}
 	//
-	qualifierMapping, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(
+	qualifierMapping, err := impl.resourceQualifierMappingService.GetResourceMappingsForSelections(
 		resourceQualifiers.ImagePromotionPolicy,
 		resourceQualifiers.ApplicationEnvironmentSelector,
-		[]*resourceQualifiers.Scope{scope},
+		[]*resourceQualifiers.SelectionIdentifier{scope},
 	)
 	if err != nil {
 		impl.logger.Errorw("error in fetching resource qualifier mapping by scope", "resource", resourceQualifiers.ImagePromotionPolicy, "scope", scope, "err", err)
@@ -206,15 +206,15 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
-	scopes := make([]*resourceQualifiers.Scope, 0, len(envIds))
+	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(envIds))
 	for _, envId := range envIds {
-		scopes = append(scopes, &resourceQualifiers.Scope{
+		scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
 			AppId: appId,
 			EnvId: envId,
 		})
 	}
 
-	resourceQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(resourceQualifiers.ImagePromotionPolicy, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	resourceQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForSelections(resourceQualifiers.ImagePromotionPolicy, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in finding resource qualifier mappings from scope", "scopes", scopes, "err", err)
 		return nil, err
@@ -243,7 +243,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 
 	for _, mapping := range resourceQualifierMappings {
 		policy := policyIdVsPolicyMap[mapping.ResourceId]
-		envVsPolicyMap[mapping.Scope.SystemMetadata.EnvironmentName] = policy
+		envVsPolicyMap[mapping.SelectionIdentifier.SelectionIdentifierName.EnvironmentName] = policy
 		policyIds = append(policyIds, mapping.ResourceId)
 	}
 	return envVsPolicyMap, err
@@ -338,10 +338,10 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 	UniquePolicyInAppCount := make(map[string]*int, 0)
 	policyIdToAppIdMapping := make(map[int]int, 0)
 	for _, qualifierMapping := range qualifierMappings {
-		uniqueKey := fmt.Sprintf("%d-%d", qualifierMapping.Scope.AppId, qualifierMapping.ResourceId)
+		uniqueKey := fmt.Sprintf("%d-%d", qualifierMapping.SelectionIdentifier.AppId, qualifierMapping.ResourceId)
 		count := *UniquePolicyInAppCount[uniqueKey] + 1
 		UniquePolicyInAppCount[uniqueKey] = &count
-		policyIdToAppIdMapping[qualifierMapping.ResourceId] = qualifierMapping.Scope.AppId
+		policyIdToAppIdMapping[qualifierMapping.ResourceId] = qualifierMapping.SelectionIdentifier.AppId
 	}
 
 	for _, promotionPolicy := range promotionPolicies {
