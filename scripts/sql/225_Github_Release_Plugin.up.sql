@@ -65,7 +65,6 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
     
     GithubReleaseSourcePriority=$(echo "$GithubReleaseSourcePriority" | tr \'[:upper:]\' \'[:lower:]\')
     tag=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.extraEnvironmentVariables.GithubTag\')
-    echo "Githubtag:$tag"
   
     if [ -n "$tag" ] && [ "$tag" != "null" ]; then 
         ReleaseTag="$tag"
