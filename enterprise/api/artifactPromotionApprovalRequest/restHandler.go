@@ -188,7 +188,6 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
 	if err != nil {
 		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
-		common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -218,10 +217,10 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
+	// todo: ayush
 	if artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CI) || artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CD) {
 		// check if user has trigger access for any one env for this app
-		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(),
-			artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
+		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return
 		}
@@ -278,7 +277,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	pendingForCurrentUser, err := common.ExtractBooleanQueryParam(w, r, "pendingForCurrentUser", false)
 	if err != nil {
 		handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 
@@ -286,7 +284,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
 	if err != nil {
 		handler.logger.Errorw("error in parsing workflowId from string to int", "workflowId", queryParams.Get("workflowId"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 
@@ -294,7 +291,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	appId, err = common.ExtractIntQueryParam(w, r, "appId", &appId)
 	if err != nil {
 		handler.logger.Errorw("error in parsing appId from string to int", "workflowId", queryParams.Get("appId"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 
@@ -302,7 +298,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	offset, err := common.ExtractIntQueryParam(w, r, "offset", &offsetDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing offset from string to int", "workflowId", queryParams.Get("offset"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 
@@ -310,7 +305,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	limit, err := common.ExtractIntQueryParam(w, r, "size", &limitDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing limit from string to int", "workflowId", queryParams.Get("size"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 

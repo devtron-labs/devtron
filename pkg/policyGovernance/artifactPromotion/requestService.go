@@ -415,7 +415,6 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	return requestMetaData, nil
 }
 
-// todo: move this method away from this service to param Extractor service
 func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
 	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
@@ -1084,7 +1083,6 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util2.RequestCt
 				Context: context.Background(),
 			},
 		}
-		// todo: ayush
 		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 	}
 	return status, nil
@@ -1125,15 +1123,10 @@ func (impl *ApprovalRequestServiceImpl) checkIfDeployedAtSource(ciArtifactId int
 }
 
 func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util2.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
-	// todo: accept environment name instead of requestId
 	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
 	if errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("artifact promotion approval request not found for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: constants.ArtifactPromotionRequestNotFoundErr,
-			UserMessage:     constants.ArtifactPromotionRequestNotFoundErr,
-		}
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(constants.ArtifactPromotionRequestNotFoundErr).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
