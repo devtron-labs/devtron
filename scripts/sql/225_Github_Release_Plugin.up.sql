@@ -116,7 +116,7 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
                 echo "No release assets provided."
             fi
         else
-            echo " $Release already exist"  
+            echo "Release ${ReleaseTag} already exist"  
             if [ -n "$GithubReleaseUploadFolder" ]; then  
                 # Upload release assets if the release was created
                 for file in "$GithubReleaseUploadFolder"/*; do
