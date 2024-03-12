@@ -74,6 +74,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		AuthWireSet,
 		util4.NewK8sUtil,
+		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
