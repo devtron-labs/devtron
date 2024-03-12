@@ -48,6 +48,7 @@
 - doc: Fixed Redirections and Broken Links (#4634)
 - doc: Revamped Security Feature Doc (#4349)
 ## Others
+- misc: Updated new codeowners for migration scripts (#4781)
 - chore: nats common lib version upgrade (#4711)
 - chore: Refactoring dag app services  (#4612)
 - misc: Changed PR template (#4698)
