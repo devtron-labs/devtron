@@ -142,6 +142,7 @@ type CiArtifactRepository interface {
 	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ExtCiNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
 	FindArtifactsPendingForPromotion(request bean.ArtifacPromotionPendingNodeRequest) ([]CiArtifact, int, error)
 	FindArtifactsPendingForCurrentUser(request bean.ArtifactPromotionPendingForCurrentUserRequest) ([]CiArtifact, int, error)
+	IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string) (bool, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -1018,4 +1019,21 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForCurrentUser(request 
 	}
 	return ciArtifacts, totalCount, nil
 
+}
+
+func (impl CiArtifactRepositoryImpl) IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string) (bool, error) {
+	var Available bool
+	query := fmt.Sprintf("SELECT count(*)>0 as Available FROM ci_artifact "+
+		"WHERE ( id = %d AND id IN ( SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
+		"FROM cd_workflow_runner INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id   "+
+		" AND ( (cd_workflow.pipeline_id = %d OR cd_workflow.pipeline_id = %d) and cd_workflow.ci_artifact_id = %d)  "+
+		"WHERE ((cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = 'DEPLOY') "+
+		"OR  (cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s' AND cd_workflow_runner.status IN ('Healthy','Succeeded')) ))    "+
+		"OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ) OR id in ( select artifact_id from artifact_promotion_approval_request where status=%d and destination_pipeline_id = %d ))",
+		artifactId, pipelineId, parentPipelineId, artifactId, pipelineId, parentPipelineId, parentStage, parentPipelineId, pluginStage, constants.PROMOTED, pipelineId)
+	_, err := impl.dbConnection.Query(&Available, query)
+	if err != nil {
+		return false, err
+	}
+	return Available, nil
 }
