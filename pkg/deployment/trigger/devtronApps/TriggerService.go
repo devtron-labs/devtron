@@ -130,6 +130,7 @@ type TriggerServiceImpl struct {
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
 	artifactPromotionDataReadService    read2.ArtifactPromotionDataReadService
+	cdPipelineConfigService             pipeline.CdPipelineConfigService
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -185,6 +186,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
 	imageTaggingService pipeline.ImageTaggingService,
+
+	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
@@ -235,6 +238,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
 		artifactApprovalDataReadService:     artifactApprovalDataReadService,
+		cdPipelineConfigService:             cdPipelineConfigService,
+		artifactPromotionDataReadService:    artifactPromotionDataReadService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -265,7 +270,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
-		artifactPromotionDataReadService:    artifactPromotionDataReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -324,6 +328,18 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	ciArtifactId := overrideRequest.CiArtifactId
+
+	//TODO ayush - test ci parent, skopeo image, post/deploy parent cases
+	isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, ciArtifactId, cdPipeline.CiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
+		return 0, "", err
+	}
+
+	if !isArtifactAvailable {
+		return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
+	}
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	span.End()
@@ -613,6 +629,36 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		return 0, "", fmt.Errorf("invalid CdWorkflowType %s for the trigger request", string(overrideRequest.CdWorkflowType))
 	}
 	return releaseId, helmPackageName, err
+}
+
+func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId, ciArtifactId int, ciPipelineId int) (bool, error) {
+
+	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipelineId, "err", err)
+		return false, err
+	}
+	if parentType == bean3.CI_WORKFLOW_TYPE {
+		if parentId == ciPipelineId {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	} else {
+		var pluginStage string
+		if parentType == pipelineConfig.WorkflowTypePre {
+			pluginStage = repository3.PRE_CD
+		} else if parentType == pipelineConfig.WorkflowTypePost {
+			pluginStage = repository3.POST_CD
+		}
+		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipelineId, parentId, ciArtifactId, string(parentType), pluginStage)
+		if err != nil {
+			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipelineId, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifactId, "err", err)
+			return false, err
+		}
+		return artifactAvailable, nil
+	}
+
 }
 
 func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error) {
