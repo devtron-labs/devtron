@@ -1,32 +1,34 @@
 package artifactPromotionApprovalRequest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
-	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/strings/slices"
 	"net/http"
 )
 
+const unAuthorisedUser = "unauthorized user"
+
 type RestHandler interface {
 	HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request)
 	FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request)
-	FetchEnvironmentsList(w http.ResponseWriter, r *http.Request)
+	FetchWorkflowPromoteNodeList(w http.ResponseWriter, r *http.Request)
 }
 
 type MaterialRestHandler interface {
@@ -34,28 +36,27 @@ type MaterialRestHandler interface {
 }
 
 type RestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotion2.ApprovalRequestService
-	logger                                     *zap.SugaredLogger
-	userService                                user.UserService
-	enforcer                                   casbin.Enforcer
-	validator                                  *validator.Validate
-	userCommonService                          user.UserCommonService
-	enforcerUtil                               rbac.EnforcerUtil
-	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository repository2.RequestRepository
-	appArtifactManager                         pipeline.AppArtifactManager
-	CiArtifactRepository                       repository3.CiArtifactRepository
+	promotionApprovalRequestService artifactPromotion2.ApprovalRequestService
+	logger                          *zap.SugaredLogger
+	userService                     user.UserService
+	appService                      app.AppService
+	enforcer                        casbin.Enforcer
+	validator                       *validator.Validate
+	userCommonService               user.UserCommonService
+	enforcerUtil                    rbac.EnforcerUtil
+	environmentService              cluster.EnvironmentService
+	appArtifactManager              pipeline.AppArtifactManager
 }
 
 func NewRestHandlerImpl(
 	promotionApprovalRequestService artifactPromotion2.ApprovalRequestService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
+	appService app.AppService,
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
-	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository repository2.RequestRepository,
+	environmentService cluster.EnvironmentService,
 	appArtifactManager pipeline.AppArtifactManager,
 	enforcer casbin.Enforcer,
 ) *RestHandlerImpl {
@@ -63,24 +64,19 @@ func NewRestHandlerImpl(
 		promotionApprovalRequestService: promotionApprovalRequestService,
 		logger:                          logger,
 		userService:                     userService,
+		appService:                      appService,
 		validator:                       validator,
 		userCommonService:               userCommonService,
 		enforcerUtil:                    enforcerUtil,
-		environmentRepository:           environmentRepository,
-		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
-		appArtifactManager:                         appArtifactManager,
-		enforcer:                                   enforcer,
+		environmentService:              environmentService,
+		appArtifactManager:              appArtifactManager,
+		enforcer:                        enforcer,
 	}
 }
 
 func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	ctx := util.NewRequestCtx(r.Context())
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -89,46 +85,49 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	var promotionRequest bean.ArtifactPromotionRequest
+	promotionRequest := &bean.ArtifactPromotionRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&promotionRequest)
+	err = decoder.Decode(promotionRequest)
 	if err != nil {
 		handler.logger.Errorw("err in decoding request in promotionRequest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
+	err = promotionRequest.ValidateRequest()
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	app, err := handler.appService.FindAppById(promotionRequest.AppId)
+	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			common.WriteJsonResp(w, errors.New("app not found"), nil, http.StatusConflict)
+			return
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	promotionRequest.AppName = app.AppName
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
 	case constants.ACTION_PROMOTE:
 
-		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
+		authorizedEnvironments = handler.promoteActionRbac(ctx.GetToken(), promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_APPROVE:
 
-		authorizedEnvironments = handler.approveActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
+		authorizedEnvironments = handler.approveActionRbac(ctx.GetToken(), promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_CANCEL:
 		// get this info from service layer
-		artifactPromotionDao, err := handler.promotionApprovalRequestService.GetPromotionRequestById(promotionRequest.PromotionRequestId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching promotion request by id", "promotionRequestId", promotionRequest.PromotionRequestId, "err", err)
-			common.WriteJsonResp(w, errors.New("error in fetching promotion request "), nil, http.StatusInternalServerError)
-			return
-		}
-		appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		if ok := handler.cancelActionRbac(ctx.GetToken(), w, promotionRequest.PromotionRequestId); !ok {
 			return
 		}
 	}
 
-	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, &promotionRequest, authorizedEnvironments)
+	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, promotionRequest, authorizedEnvironments)
 	if err != nil {
 		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -140,31 +139,20 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
+func (handler *RestHandlerImpl) FetchWorkflowPromoteNodeList(w http.ResponseWriter, r *http.Request) {
 
-	token := r.Header.Get("token")
-	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
-
-	queryParams := r.URL.Query()
-
+	ctx := util.NewRequestCtx(r.Context())
 	workflowId := 0
-	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
+	workflowId, err := common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
 	if err != nil {
-		handler.logger.Errorw("error in extracting workflowId from query param", "workflowIdStr", queryParams.Get("workflowId"), "err", err)
-		common.WriteJsonResp(w, errors.New("workflowId should be an integer value"), nil, http.StatusBadRequest)
+		handler.logger.Errorw("error in extracting workflowId from query param", "err", err)
 		return
 	}
 
 	artifactId := 0
 	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
 	if err != nil {
-		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
-		common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
+		handler.logger.Errorw("error in extracting artifactId from query param", "err", err)
 		return
 	}
 
@@ -182,14 +170,9 @@ func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *
 }
 
 func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
 
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -211,7 +194,7 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 	environmentName := queryParams.Get("environmentName")
 
-	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(artifactId, environmentName, userId, token, handler.CheckImagePromoterBulkAuth)
+	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(ctx, artifactId, environmentName, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
 		return
@@ -222,6 +205,8 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 }
 
 func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
+
+	ctx := util.NewRequestCtx(r.Context())
 
 	artifactPromotionMaterialRequest, err := handler.parsePromotionMaterialRequest(w, r)
 	if err != nil {
@@ -235,40 +220,40 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 	if artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CI) || artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CD) {
 		// check if user has trigger access for any one env for this app
-		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(artifactPromotionMaterialRequest.Token,
+		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(),
 			artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return
 		}
 	} else if artifactPromotionMaterialRequest.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && !artifactPromotionMaterialRequest.PendingForCurrentUser {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(artifactPromotionMaterialRequest.AppId)
-		env, err := handler.environmentRepository.FindByName(artifactPromotionMaterialRequest.ResourceName)
+		env, err := handler.environmentService.FindOne(artifactPromotionMaterialRequest.ResourceName)
 		if err != nil {
-			handler.logger.Errorw("env not found for given envName", "envName", env.Name, "err", err)
+			handler.logger.Errorw("env not found for given envName", "envName", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
 			return
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, artifactPromotionMaterialRequest.AppId)
-		if ok := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
+			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
 			return
 		}
 
-		triggerAccess := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
-			handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
+		triggerAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
+			handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(artifactPromotionMaterialRequest.AppId, env.Id)
 
-		approverAccess := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
+		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
 
 		if !triggerAccess && !approverAccess {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
 			return
 		}
 	}
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(*artifactPromotionMaterialRequest, handler.CheckImagePromoterAuth)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -285,14 +270,6 @@ func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId in
 }
 
 func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWriter, r *http.Request) (*bean2.ArtifactPromotionMaterialRequest, error) {
-
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return nil, err
-	}
-
-	token := r.Header.Get("token")
 
 	queryParams := r.URL.Query()
 	resource := queryParams.Get("resource")
@@ -348,8 +325,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 		Limit:                 limit,
 		Offset:                offset,
 		ImageSearchRegex:      searchQueryParam,
-		UserId:                userId,
-		Token:                 token,
 	}
 
 	return artifactPromotionMaterialRequest, nil
@@ -415,10 +390,6 @@ func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object stri
 	return true
 }
 
-func (handler *RestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
-	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
-}
-
 func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
 	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
@@ -454,4 +425,23 @@ func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environ
 		authorizedEnvironments[env] = isAuthorised
 	}
 	return authorizedEnvironments
+}
+
+func (handler *RestHandlerImpl) cancelActionRbac(token string, w http.ResponseWriter, promotionRequestId int) bool {
+	artifactPromotionDao, err := handler.promotionApprovalRequestService.GetPromotionRequestById(promotionRequestId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching promotion request by id", "promotionRequestId", promotionRequestId, "err", err)
+		common.WriteJsonResp(w, errors.New("error in fetching promotion request "), nil, http.StatusInternalServerError)
+		return false
+	}
+	appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
+		common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
+		return false
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
+		common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
+		return false
+	}
+	return true
 }

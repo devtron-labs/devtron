@@ -19,7 +19,6 @@ package restHandler
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -1250,8 +1250,8 @@ func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.Response
 		EnvironmentNames: []string{requestClaims.EnvName},
 		WorkflowId:       requestClaims.WorkflowId,
 	}
-
-	res, err := impl.approvalRequestService.HandleArtifactPromotionRequest(context.Background(), artifactPromotionApprovalRequest, authorizedEnvironments)
+	ctx := util2.NewRequestCtx(r.Context())
+	res, err := impl.approvalRequestService.HandleArtifactPromotionRequest(ctx, artifactPromotionApprovalRequest, authorizedEnvironments)
 	if err != nil {
 		impl.logger.Errorw("error in handling promotion artifact request", "promotionRequest", artifactPromotionApprovalRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

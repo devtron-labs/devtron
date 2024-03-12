@@ -126,6 +126,7 @@ import (
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/read"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/build"
@@ -584,6 +585,9 @@ func InitializeApp() (*App, error) {
 
 		appWorkflow.NewAppWorkflowServiceImpl,
 		wire.Bind(new(appWorkflow.AppWorkflowService), new(*appWorkflow.AppWorkflowServiceImpl)),
+
+		read.NewAppWorkflowDataReadServiceImpl,
+		wire.Bind(new(read.AppWorkflowDataReadService), new(*read.AppWorkflowDataReadServiceImpl)),
 
 		appWorkflow2.NewAppWorkflowRepositoryImpl,
 		wire.Bind(new(appWorkflow2.AppWorkflowRepository), new(*appWorkflow2.AppWorkflowRepositoryImpl)),

@@ -19,6 +19,7 @@ package workflow
 
 import (
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,11 +63,13 @@ type AppWorkflowRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	appRepository      app.AppRepository
 	enforcerUtil       rbac.EnforcerUtil
+	appArtifactManager pipeline.AppArtifactManager
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
-	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
+	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil,
+	appArtifactManager pipeline.AppArtifactManager) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
@@ -76,6 +79,7 @@ func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService us
 		pipelineBuilder:    pipelineBuilder,
 		appRepository:      appRepository,
 		enforcerUtil:       enforcerUtil,
+		appArtifactManager: appArtifactManager,
 	}
 }
 
@@ -86,7 +90,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	if userId == 0 || err != nil {
 		return
 	}
-	var request appWorkflow.AppWorkflowDto
+	var request bean2.AppWorkflowDto
 
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -96,14 +100,14 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	}
 
 	token := r.Header.Get("token")
-	//rbac block starts from here
+	// rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rback block ends here
+	// rback block ends here
 	request.UserId = userId
 
 	res, err := handler.appWorkflowService.CreateAppWorkflow(request)
@@ -147,7 +151,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	}
 
 	token := r.Header.Get("token")
-	//rbac block starts from here
+	// rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
@@ -158,7 +162,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rback block ends here
+	// rback block ends here
 
 	err = handler.appWorkflowService.DeleteAppWorkflow(appWorkflowId, userId)
 	if err != nil {
@@ -210,7 +214,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	workflows := make(map[string]interface{})
 	workflowsList, err := impl.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
@@ -226,11 +230,11 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		triggerViewPayload := &appWorkflow.TriggerViewWorkflowConfig{
+		triggerViewPayload := &bean2.TriggerViewWorkflowConfig{
 			Workflows:   workflowsList,
 			CdPipelines: cdPipelineWfData,
 		}
-		//filter based on envIds
+		// filter based on envIds
 		response, err := impl.appWorkflowService.FilterWorkflows(triggerViewPayload, envIds)
 		if err != nil {
 			impl.Logger.Errorw("service err, FindAppWorkflow", "appId", appId, "envIds", envIds, "err", err)
@@ -247,9 +251,9 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 
 		var workflowNames []string
 		var workflowIds []int
-		var updatedWorkflowList []appWorkflow.AppWorkflowDto
+		var updatedWorkflowList []bean2.AppWorkflowDto
 		var rbacObjects []string
-		workNameObjectMap := make(map[string]appWorkflow.AppWorkflowDto)
+		workNameObjectMap := make(map[string]bean2.AppWorkflowDto)
 
 		for _, workflow := range workflowsList {
 			workflowNames = append(workflowNames, workflow.Name)
@@ -270,22 +274,15 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			}
 		}
 		if len(updatedWorkflowList) == 0 {
-			updatedWorkflowList = []appWorkflow.AppWorkflowDto{}
+			updatedWorkflowList = []bean2.AppWorkflowDto{}
 		}
 		workflows[bean3.Workflows] = updatedWorkflowList
 	} else if len(workflowsList) > 0 {
 		workflows[bean3.Workflows] = workflowsList
 	} else {
-		workflows[bean3.Workflows] = []appWorkflow.AppWorkflowDto{}
+		workflows[bean3.Workflows] = []bean2.AppWorkflowDto{}
 	}
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
-}
-
-func (handler AppWorkflowRestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
-		return false
-	}
-	return true
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
@@ -309,7 +306,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, "Unauthorized user", http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	resp, err := impl.appWorkflowService.FindAllWorkflowsComponentDetails(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting all wf component details by appId", "err", err, "appId", appId)
@@ -332,7 +329,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflowsForApps(w http.ResponseWr
 		return
 	}
 	//RBAC enforcer Ends
-	var request appWorkflow.WorkflowNamesRequest
+	var request bean2.WorkflowNamesRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
@@ -411,7 +408,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	if len(workflowsList) > 0 {
 		workflows["workflows"] = workflowsList
 	} else {
-		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
+		workflows["workflows"] = []bean2.AppWorkflowDto{}
 	}
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
@@ -424,7 +421,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
+	ctx := util2.NewRequestCtx(r.Context())
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting app details", "appId", appId, "err", err)
@@ -445,7 +442,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	handler.Logger.Debugw("rbac object for workflows view data", "object", object)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(ctx.GetToken(), object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
@@ -456,13 +453,13 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	if userId == 0 || err != nil {
 		return
 	}
-	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowWithImagePromotionMetadata(appId, userId, token, handler.CheckImagePromoterAuth)
+
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithAdditionalMetadata(ctx, appId, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	ciPipelineViewData, err := handler.pipelineBuilder.GetTriggerViewCiPipeline(appId)
 	if err != nil {
 		if _, ok := err.(*util.ApiError); !ok {
@@ -496,7 +493,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	response := &appWorkflow.TriggerViewWorkflowConfig{
+	response := &bean2.TriggerViewWorkflowConfig{
 		Workflows:        appWorkflows,
 		CiConfig:         ciPipelineViewData,
 		CdPipelines:      cdPipelinesForApp,
@@ -504,7 +501,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	}
 
 	if len(envIds) > 0 {
-		//filter based on envIds
+		// filter based on envIds
 		response, err = handler.appWorkflowService.FilterWorkflows(response, envIds)
 		if err != nil {
 			handler.Logger.Errorw("service err, FilterResponseOnEnvIds", "appId", appId, "envIds", envIds, "err", err)
@@ -528,7 +525,7 @@ func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(token string, appObjec
 	return appResult, envResult
 }
 
-func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []appWorkflow.AppWorkflowDto) bool {
+func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []bean2.AppWorkflowDto) bool {
 	for _, appWorkflowDto := range appWorkflows {
 		for _, workflowMappingDto := range appWorkflowDto.AppWorkflowMappingDto {
 			if workflowMappingDto.Type == appWorkflow2.WEBHOOK {

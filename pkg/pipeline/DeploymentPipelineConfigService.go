@@ -100,6 +100,9 @@ type CdPipelineConfigService interface {
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	// FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+
+	FindPipelineByIds(cdPipelineIds []int) ([]*pipelineConfig.Pipeline, error)
+
 	// FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error)
@@ -122,6 +125,9 @@ type CdPipelineConfigService interface {
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, userId int32, ctx context.Context) error
 	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineConfigObject, err error)
+	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
+	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
+	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -1423,6 +1429,10 @@ func (impl *CdPipelineConfigServiceImpl) FindPipelineById(cdPipelineId int) (*pi
 	return impl.pipelineRepository.FindById(cdPipelineId)
 }
 
+func (impl *CdPipelineConfigServiceImpl) FindPipelineByIds(cdPipelineId []int) ([]*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
+}
+
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error) {
 	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
 }
@@ -2541,4 +2551,16 @@ func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []in
 	}
 	return cdPipelines, nil
 
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindByIdsIn(ids)
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error) {
+	return impl.pipelineRepository.FindActiveByAppIdAndEnvNames(appId, envNames)
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
+	return impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds)
 }

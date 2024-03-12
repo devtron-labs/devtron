@@ -49,6 +49,9 @@ func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 	}, nil
 }
 
+const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
+const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
+
 func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error) {
 	err := tx.Insert(&qualifierMappings)
 	if err != nil {
@@ -97,16 +100,11 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	return qualifierMappings, nil
 }
 
-const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
-const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
-
 func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]int, identifierKey int) *orm.Query {
-	if _, ok := valuesMap[qualifier]; ok {
-		if len(valuesMap[qualifier][0]) > 0 {
-			query = query.WhereOr(condition,
-				qualifier, identifierKey, pg.In(valuesMap[qualifier][0]),
-			)
-		}
+	if values, ok := valuesMap[qualifier]; ok && len(values[0]) > 0 {
+		query = query.WhereOr(condition,
+			qualifier, identifierKey, pg.In(valuesMap[qualifier][0]),
+		)
 	}
 	return query
 }
@@ -114,14 +112,12 @@ func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]
 func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, drs map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 
 	q = q.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-		if _, ok := valuesMap[APP_AND_ENV_QUALIFIER]; ok {
-			if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
-				query = query.WhereOr(appEnvCondition,
-					drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
-					drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
-					APP_AND_ENV_QUALIFIER,
-				)
-			}
+		if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
+			query = query.WhereOr(appEnvCondition,
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
+				APP_AND_ENV_QUALIFIER,
+			)
 		}
 		query = addCond(query, APP_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID])
 		query = addCond(query, ENV_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID])
@@ -245,6 +241,9 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllByResourceTypeAndQualifier
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	if len(qualifierMappingIds) == 0 {
+		return nil
+	}
 	_, err := tx.Model(&QualifierMapping{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).

@@ -43,10 +43,12 @@ const (
 	PROMOTION_APPROVAL_PENDING_NODE SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
 )
 
+type RequestAction string
+
 const (
-	ACTION_PROMOTE = "PROMOTE"
-	ACTION_CANCEL  = "CANCEL"
-	ACTION_APPROVE = "APPROVE"
+	ACTION_PROMOTE RequestAction = "PROMOTE"
+	ACTION_CANCEL  RequestAction = "CANCEL"
+	ACTION_APPROVE RequestAction = "APPROVE"
 )
 
 func (sourceType SourceTypeStr) GetSourceType() SourceType {
@@ -132,3 +134,7 @@ const USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS = "user does not have image pr
 const ARTIFACT_NOT_FOUND_ERR = "artifact not found for given id"
 const ArtifactPromotionRequestNotFoundErr = "artifact promotion request not found"
 const UserCannotCancelRequest = "only user who has raised the promotion request can cancel it"
+const ArtifactFindErr = "error in finding artifact"
+const ArtifactNotFoundErr = "artifact not found"
+const WorkflowAndSourceMisMatchErr = "source pipeline not found in the given workflow"
+const NoApprovePermissionOnEnvsErr = "user do not have access to approve on the selected environments"

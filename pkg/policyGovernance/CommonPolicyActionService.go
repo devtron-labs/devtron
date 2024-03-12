@@ -12,15 +12,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type CommonPolicyActionsService interface {
 	ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error)
-	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
+	ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
 }
 
 type CommonPolicyActionsServiceImpl struct {
@@ -30,6 +30,7 @@ type CommonPolicyActionsServiceImpl struct {
 	appService                      app.AppService
 	environmentService              cluster.EnvironmentService
 	logger                          *zap.SugaredLogger
+	transactionManager              sql.TransactionWrapper
 }
 
 func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -37,7 +38,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	appService app.AppService,
 	environmentService cluster.EnvironmentService,
-	logger *zap.SugaredLogger,
+	logger *zap.SugaredLogger, transactionManager sql.TransactionWrapper,
 ) *CommonPolicyActionsServiceImpl {
 	return &CommonPolicyActionsServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
@@ -46,6 +47,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 		logger:                          logger,
 		appService:                      appService,
 		environmentService:              environmentService,
+		transactionManager:              transactionManager,
 	}
 }
 
@@ -58,7 +60,7 @@ func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 
 }
 
-func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
+func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[applyIdentifiersRequest.PolicyType]
 	if !ok {
 		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
@@ -72,7 +74,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		return errResp
 	}
 
-	var scopes []*resourceQualifiers.Scope
+	var scopes []*resourceQualifiers.SelectionIdentifier
 	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
 		scopes, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
 		if err != nil {
@@ -85,12 +87,12 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 			impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
 			return err
 		}
-		scopes = make([]*resourceQualifiers.Scope, 0, len(appEnvPolicyContainers))
+		scopes = make([]*resourceQualifiers.SelectionIdentifier, 0, len(appEnvPolicyContainers))
 		for _, appEnvPolicyContainer := range appEnvPolicyContainers {
-			scopes = append(scopes, &resourceQualifiers.Scope{
+			scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
 				AppId: appEnvPolicyContainer.AppId,
 				EnvId: appEnvPolicyContainer.EnvId,
-				SystemMetadata: &resourceQualifiers.SystemMetadata{
+				SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
 					AppName:         appEnvPolicyContainer.AppName,
 					EnvironmentName: appEnvPolicyContainer.EnvName,
 				},
@@ -98,31 +100,34 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		}
 	}
 
-	tx, err := impl.resourceQualifierMappingService.StartTx()
+	if len(scopes) == 0 {
+		return util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(invalidAppEnvCombinations).WithInternalMessage(invalidAppEnvCombinations)
+	}
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
 		return err
 	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 
-	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, userId, referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, ctx.GetUserId(), referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
 		return err
 	}
 	// delete all the existing mappings for the updateToProfileId resource
-	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(userId), tx)
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(ctx.GetUserId()), tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
 	// create new mappings using resourceQualifierMapping
-	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
 		return err
@@ -182,13 +187,13 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 	includeAppEnvIds := make([]string, len(includeQualifierMappings))
 	excludeAppEnvIds := make([]string, len(includeQualifierMappings))
 	for _, includeQualifierMapping := range includeQualifierMappings {
-		key := fmt.Sprintf("%d,%d", includeQualifierMapping.Scope.AppId, includeQualifierMapping.Scope.AppId)
+		key := fmt.Sprintf("%d,%d", includeQualifierMapping.SelectionIdentifier.AppId, includeQualifierMapping.SelectionIdentifier.AppId)
 		appIdEnvIdPolicyMap[key] = includedPoliciesMap[includeQualifierMapping.ResourceId]
 		includeAppEnvIds = append(includeAppEnvIds, key)
 	}
 
 	for _, excludeQualifierMapping := range excludeQualifierMappings {
-		key := fmt.Sprintf("%d,%d", excludeQualifierMapping.Scope.AppId, excludeQualifierMapping.Scope.AppId)
+		key := fmt.Sprintf("%d,%d", excludeQualifierMapping.SelectionIdentifier.AppId, excludeQualifierMapping.SelectionIdentifier.AppId)
 		excludeAppEnvIds = append(excludeAppEnvIds, key)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
@@ -207,19 +212,22 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		impl.logger.Errorw("error in fetching the paginated app environment list using filter", "filter", filter, "err", err)
 		return nil, 0, err
 	}
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := make([]AppEnvPolicyContainer, 0)
+	for _, cdPipMeta := range paginatedAppEnvData {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
-		policyName := appIdEnvIdPolicyMap[key].Name
-		return AppEnvPolicyContainer{
+		policyName := ""
+		if policy, _ := appIdEnvIdPolicyMap[key]; policy != nil {
+			policyName = policy.Name
+		}
+		result = append(result, AppEnvPolicyContainer{
 			AppId:      cdPipMeta.AppId,
 			EnvId:      cdPipMeta.EnvId,
 			AppName:    cdPipMeta.AppName,
 			EnvName:    cdPipMeta.EnvironmentName,
 			PolicyName: policyName,
-		}
-	})
-
+		})
+	}
 	return result, totalCount, nil
 }
 
@@ -245,15 +253,15 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		impl.logger.Errorw("error in fetching the paginated app environment list using filter", "filter", filter, "err", err)
 		return nil, 0, err
 	}
-	scopes := make([]*resourceQualifiers.Scope, 0, len(paginatedAppEnvData))
+	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(paginatedAppEnvData))
 	for _, appEnv := range paginatedAppEnvData {
-		scopes = append(scopes, &resourceQualifiers.Scope{
+		scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
 			AppId: appEnv.AppId,
 			EnvId: appEnv.EnvId,
 		})
 	}
 
-	qualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	qualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForSelections(referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app env mappings using scopes", "scopes", scopes, "policyType", referenceType, "qualifierSelector", resourceQualifiers.ApplicationEnvironmentSelector, "err", err)
 		return nil, 0, err
@@ -263,7 +271,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 	policyIds := make([]int, 0, len(qualifierMappings))
 	for _, qualifierMapping := range qualifierMappings {
 		policyIds = append(policyIds, qualifierMapping.ResourceId)
-		appEnvKey := fmt.Sprintf("%d,%d", qualifierMapping.Scope.AppId, qualifierMapping.Scope.EnvId)
+		appEnvKey := fmt.Sprintf("%d,%d", qualifierMapping.SelectionIdentifier.AppId, qualifierMapping.SelectionIdentifier.EnvId)
 		appEnvPolicyMap[appEnvKey] = qualifierMapping.ResourceId
 	}
 
@@ -278,19 +286,20 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		policyMap[policy.Id] = policy.Name
 	}
 	totalCount := 0
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := make([]AppEnvPolicyContainer, 0, len(paginatedAppEnvData))
+	for _, cdPipMeta := range paginatedAppEnvData {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
 		policyId := appEnvPolicyMap[key]
 		policyName := policyMap[policyId]
-		return AppEnvPolicyContainer{
+		result = append(result, AppEnvPolicyContainer{
 			AppId:      cdPipMeta.AppId,
 			EnvId:      cdPipMeta.EnvId,
 			AppName:    cdPipMeta.AppName,
 			EnvName:    cdPipMeta.EnvironmentName,
 			PolicyName: policyName,
-		}
-	})
+		})
+	}
 
 	return result, totalCount, nil
 }
@@ -303,7 +312,7 @@ func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, pol
 			return policies, err
 		}
 	}
-	policies, err := impl.globalPolicyDataManager.GetPolicyByNames(policyNames)
+	policies, err := impl.globalPolicyDataManager.GetPolicyByNames(policyNames, policyType)
 	if err != nil {
 		impl.logger.Errorw("error in finding the profiles with names", "profileNames", policyNames, "err", err)
 		return policies, err
@@ -311,7 +320,7 @@ func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, pol
 	return policies, err
 }
 
-func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.Scope, error) {
+func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.SelectionIdentifier, error) {
 	appNames := make([]string, 0, len(applicationEnvironments))
 	envNames := make([]string, 0, len(applicationEnvironments))
 	for _, appEnv := range applicationEnvironments {
@@ -341,15 +350,15 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 		envNameIdMap[env.Environment] = env.Id
 	}
 
-	scopes := make([]*resourceQualifiers.Scope, 0, len(applicationEnvironments))
+	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(applicationEnvironments))
 	uniqueScopes := make(map[string]bool)
 	for _, appEnv := range applicationEnvironments {
 		key := fmt.Sprintf("%s,%s", appEnv.AppName, appEnv.EnvName)
-		if _, ok := uniqueScopes[key]; !ok {
-			scopes = append(scopes, &resourceQualifiers.Scope{
+		if _, ok := uniqueScopes[key]; !ok && (appNameIdMap[appEnv.AppName] > 0 && envNameIdMap[appEnv.EnvName] > 0) {
+			scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
 				AppId: appNameIdMap[appEnv.AppName],
 				EnvId: envNameIdMap[appEnv.EnvName],
-				SystemMetadata: &resourceQualifiers.SystemMetadata{
+				SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
 					AppName:         appEnv.AppName,
 					EnvironmentName: appEnv.EnvName,
 				},

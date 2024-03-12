@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
@@ -49,6 +50,7 @@ func NewCommonPolicyRestHandlerImpl(commonPolicyActionService policyGovernance.C
 func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
+		// todo: create constant error message and resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -97,17 +99,8 @@ func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWr
 }
 
 func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
 
+	ctx := util.NewRequestCtx(r.Context())
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
@@ -118,7 +111,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 
 	payload := &policyGovernance.BulkPromotionPolicyApplyRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(payload)
+	err := decoder.Decode(payload)
 	if err != nil {
 		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -133,7 +126,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 		return
 	}
 
-	err = handler.commonPolicyActionService.ApplyPolicyToIdentifiers(userId, payload)
+	err = handler.commonPolicyActionService.ApplyPolicyToIdentifiers(ctx, payload)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

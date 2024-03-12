@@ -17,13 +17,43 @@ import (
 type ArtifactPromotionRequest struct {
 	SourceName         string              `json:"sourceName"`
 	SourceType         bean2.SourceTypeStr `json:"sourceType"`
-	Action             string              `json:"action"`
+	Action             bean2.RequestAction `json:"action"`
 	PromotionRequestId int                 `json:"promotionRequestId"`
 	ArtifactId         int                 `json:"artifactId"`
 	AppName            string              `json:"appName"`
 	EnvironmentNames   []string            `json:"destinationObjectNames"`
 	WorkflowId         int                 `json:"workflowId"`
 	AppId              int                 `json:"appId"`
+}
+
+func (r *ArtifactPromotionRequest) ValidateRequest() error {
+	switch r.Action {
+	case bean2.ACTION_APPROVE:
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if r.ArtifactId <= 0 {
+			return errors.New("artifactId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
+	case bean2.ACTION_PROMOTE:
+		if r.SourceType != bean2.SOURCE_TYPE_CI && r.SourceType != bean2.SOURCE_TYPE_WEBHOOK && r.SourceType != bean2.SOURCE_TYPE_CD && r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE {
+			return errors.New("invalid sourceType")
+		}
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
+	case bean2.ACTION_CANCEL:
+		if r.PromotionRequestId <= 0 {
+			return errors.New("promotionRequestId is required")
+		}
+	}
+	return nil
 }
 
 type ArtifactPromotionApprovalResponse struct {
@@ -72,12 +102,17 @@ type PromotionApprovalUserData struct {
 }
 
 type EnvironmentPromotionMetaData struct {
-	Name                       string                         `json:"name"` // environment name
+	Name                 string `json:"name"` // environment name
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
+
 	ApprovalCount              int                            `json:"approvalCount,omitempty"`
 	PromotionValidationState   bean2.PromotionValidationState `json:"promotionValidationState"`
 	PromotionValidationMessage bean2.PromotionValidationMsg   `json:"promotionValidationMessage"`
 	PromotionPossible          bool                           `json:"promotionPossible"`
-	IsVirtualEnvironment       bool                           `json:"isVirtualEnvironment"`
+}
+
+func (o EnvironmentPromotionMetaData) NoValidationIssue() bool {
+	return o.PromotionValidationMessage == bean2.EMPTY
 }
 
 type EnvironmentApprovalMetadata struct {
@@ -313,8 +348,10 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	pipelineIdPipelineDaoMap := make(map[int]*pipelineConfig.Pipeline)
 	pipelineEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
 	activeAuthorisedEnvNameVsPipelineIdMap := make(map[string]int)
+	activeAuthorisedEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
 	for _, pipeline := range activeAuthorisedPipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		activeAuthorisedEnvIds = append(activeAuthorisedEnvIds, pipeline.EnvironmentId)
 		pipelineIdEnvNameMap[pipeline.Id] = pipeline.Environment.Name
 		activeAuthorisedEnvNameVsPipelineIdMap[pipeline.Environment.Name] = pipeline.Id
 		pipelineIdPipelineDaoMap[pipeline.Id] = pipeline
@@ -322,6 +359,7 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	}
 
 	pipelineMetaData := &pipelinesMetaData{
+		pipelineEnvIds:                         activeAuthorisedEnvIds,
 		activeAuthorisedPipelineIds:            pipelineIds,
 		activeAuthorisedPipelineIdDaoMap:       pipelineIdPipelineDaoMap,
 		activeAuthorisedPipelineIdVsEnvNameMap: pipelineIdEnvNameMap,
@@ -383,7 +421,7 @@ func (r *RequestMetaData) GetWorkflowId() int {
 	return r.sourceMetaData.sourceWorkflowId
 }
 
-func (r *RequestMetaData) GetSourceType() bean2.SourceTypeStr {
+func (r *RequestMetaData) GetSourceTypeStr() bean2.SourceTypeStr {
 	return r.sourceMetaData.typeStr
 }
 

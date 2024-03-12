@@ -156,7 +156,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	if err != nil {
 		if policyViolated {
 			handler.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId)
-			common.WriteJsonResp(w, errors.New("blocking deployment as image promotion policy violated"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("blocking deployment - image promotion policy violated"), nil, http.StatusBadRequest)
 			return
 		}
 		handler.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)

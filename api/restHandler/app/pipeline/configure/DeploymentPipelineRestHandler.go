@@ -1376,6 +1376,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	var ciArtifactResponse *bean.CiArtifactResponse
 
 	pendingApprovalParam := r.URL.Query().Get("resource")
+
+	ctx := util2.NewRequestCtx(r.Context())
+
 	if isApprovalNode && pendingApprovalParam == "PENDING_APPROVAL" {
 		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
 			Limit:        limit,
@@ -1390,7 +1393,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				Offset:       offset,
 				SearchString: searchString,
 			}
-			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions, isApprovalNode)
+			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(ctx, pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions, isApprovalNode)
 		} else {
 			ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage), searchString, limit, isApprovalNode)
 		}
@@ -1734,10 +1737,11 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 	}
 	// rbac block ends here
 	// rbac for edit tags access
+	ctx := util2.NewRequestCtx(r.Context())
 	var ciArtifactResponse bean.CiArtifactResponse
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
-		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
+		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollbackV2(ctx, cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
 	} else {
 		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString, app, deploymentPipeline)
 	}

@@ -798,6 +798,9 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error) {
+	if len(envNames) == 0 {
+		return nil, nil
+	}
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
 		Where("pipeline.app_id = ?", appId).
@@ -807,75 +810,30 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNa
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
-	if true {
-		return impl.findAppAndEnvDetailsByListFilter(filter)
-	}
-	result := make([]CdPipelineMetaData, 0)
-	query := impl.dbConnection.Model(&Pipeline{}).
-		Column("pipeline.app_id", "pipeline.environment_id AS env_id", "App.app_name", "Environment.environment_name", "COUNT(pipeline.id) OVER() AS total_count")
-
-	if len(filter.IncludeAppEnvIds) > 0 {
-		query = query.Where("(pipeline.app_id,pipeline.environment_id) IN (?)", pg.InMulti(filter.IncludeAppEnvIds))
-	}
-	if len(filter.ExcludeAppEnvIds) > 0 {
-		query = query.Where("(pipeline.app_id,pipeline.environment_id) NOT IN (?)", pg.InMulti(filter.ExcludeAppEnvIds))
-	}
-	if len(filter.AppNames) > 0 {
-		query = query.Where("app_name IN (?)", pg.In(filter.AppNames))
-	}
-
-	if len(filter.EnvNames) > 0 {
-		query = query.Where("environment_name IN (?)", pg.In(filter.EnvNames))
-	}
-
-	query = query.Where("pipeline.deleted = ?", false)
-	orderBy := "app_name"
-	if filter.SortBy == "envName" {
-		orderBy = "env_name"
-	}
-
-	if filter.SortOrder == "DESC" {
-		orderBy += " DESC"
-	}
-	query = query.Order(orderBy)
-	if filter.Limit > 0 {
-		query = query.Limit(filter.Limit)
-	}
-
-	if filter.Offset > 0 {
-		query = query.Limit(filter.Offset)
-	}
-
-	err := query.Select(&result)
-	return result, err
-}
-
-func (impl PipelineRepositoryImpl) findAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
-	result := make([]CdPipelineMetaData, 0)
+func findAppAndEnvDetailsByListFilterQuery(filter CdPipelineListFilter) string {
 	query := "SELECT p.app_id ,p.environment_id AS env_id ,a.app_name, e.environment_name ,COUNT(p.id) OVER() as total_count" +
 		" FROM pipeline p INNER JOIN app a ON p.app_id = a.id AND a.active = true " +
 		" INNER JOIN environment e ON e.id = p.environment_id AND e.active = true "
 	where := " WHERE p.deleted = false"
 
 	if len(filter.IncludeAppEnvIds) > 0 {
-		where += fmt.Sprintf(" AND (p.app_id,pipeline.environment_id) IN (%s)", helper.GetCommaSeperatedForMulti(filter.IncludeAppEnvIds))
+		where += fmt.Sprintf(" AND (p.app_id,p.environment_id) IN (%s)", helper.GetCommaSeperatedForMulti(filter.IncludeAppEnvIds))
 	}
 	if len(filter.ExcludeAppEnvIds) > 0 {
 		where += fmt.Sprintf(" AND (p.app_id,p.environment_id) NOT IN (%s)", helper.GetCommaSeperatedForMulti(filter.ExcludeAppEnvIds))
 	}
 	if len(filter.AppNames) > 0 {
-		where += fmt.Sprintf(" AND app_name IN (%s)", helper.GetCommaSepratedString(filter.AppNames))
+		where += fmt.Sprintf(" AND app_name IN (%s)", helper.GetCommaSepratedStringWithComma(filter.AppNames))
 	}
 
 	if len(filter.EnvNames) > 0 {
-		where += fmt.Sprintf(" AND e.environment_name IN (%s)", helper.GetCommaSepratedString(filter.EnvNames))
+		where += fmt.Sprintf(" AND e.environment_name IN (%s)", helper.GetCommaSepratedStringWithComma(filter.EnvNames))
 	}
 
 	query += where
 	orderBy := "app_name"
 	if filter.SortBy == "envName" {
-		orderBy = "env_name"
+		orderBy = "environment_name"
 	}
 
 	if filter.SortOrder == "DESC" {
@@ -890,6 +848,12 @@ func (impl PipelineRepositoryImpl) findAppAndEnvDetailsByListFilter(filter CdPip
 		query += fmt.Sprintf(" OFFSET %d", filter.Offset)
 	}
 
+	return query
+}
+
+func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
+	result := make([]CdPipelineMetaData, 0)
+	query := findAppAndEnvDetailsByListFilterQuery(filter)
 	_, err := impl.dbConnection.Query(&result, query)
 	return result, err
 }

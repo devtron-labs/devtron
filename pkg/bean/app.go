@@ -911,8 +911,6 @@ type ArtifactPromotionMaterialRequest struct {
 	Limit                 int
 	Offset                int
 	ImageSearchRegex      string
-	UserId                int32
-	Token                 string
 	CiPipelineId          int
 	CdPipelineId          int
 	ExternalCiPipelineId  int

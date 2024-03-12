@@ -49,3 +49,5 @@ const (
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 	ManifestPush            DeploymentType = "manifest_push"
 )
+
+const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
