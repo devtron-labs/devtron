@@ -22,6 +22,7 @@
 - fix: resource tree bad gateway handle (#4613)
 - fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
+- feat: Github Release Plugin  (#4761)
 - feat: User defined git repo for GitOps deployment (#4281)
 - feat: change deployment type from gitops to non-gitops and vice-versa for chart store apps (#4666)
 - feat:version upgrade for authenticator (#4651)
