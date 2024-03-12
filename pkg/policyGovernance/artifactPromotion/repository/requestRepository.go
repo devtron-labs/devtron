@@ -96,7 +96,11 @@ func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineId(destinatio
 }
 
 func (repo *RequestRepositoryImpl) FindByArtifactAndDestinationPipelineIds(artifactId int, destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	if len(destinationPipelineIds) == 0 {
+		return models, nil
+	}
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
 		Where("artifact_id = ?", artifactId).

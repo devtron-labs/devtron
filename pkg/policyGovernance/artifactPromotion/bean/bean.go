@@ -342,8 +342,10 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	pipelineIdPipelineDaoMap := make(map[int]*pipelineConfig.Pipeline)
 	pipelineEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
 	activeAuthorisedEnvNameVsPipelineIdMap := make(map[string]int)
+	activeAuthorisedEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
 	for _, pipeline := range activeAuthorisedPipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		activeAuthorisedEnvIds = append(activeAuthorisedEnvIds, pipeline.EnvironmentId)
 		pipelineIdEnvNameMap[pipeline.Id] = pipeline.Environment.Name
 		activeAuthorisedEnvNameVsPipelineIdMap[pipeline.Environment.Name] = pipeline.Id
 		pipelineIdPipelineDaoMap[pipeline.Id] = pipeline
@@ -351,6 +353,7 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	}
 
 	pipelineMetaData := &pipelinesMetaData{
+		pipelineEnvIds:                         activeAuthorisedEnvIds,
 		activeAuthorisedPipelineIds:            pipelineIds,
 		activeAuthorisedPipelineIdDaoMap:       pipelineIdPipelineDaoMap,
 		activeAuthorisedPipelineIdVsEnvNameMap: pipelineIdEnvNameMap,

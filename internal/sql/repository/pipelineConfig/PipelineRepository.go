@@ -798,6 +798,9 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error) {
+	if len(envNames) == 0 {
+		return nil, nil
+	}
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
 		Where("pipeline.app_id = ?", appId).

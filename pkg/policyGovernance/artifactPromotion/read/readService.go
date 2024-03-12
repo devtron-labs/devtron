@@ -214,6 +214,10 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 		})
 	}
 
+	if len(scopes) == 0 {
+		return nil, nil
+	}
+
 	resourceQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForSelections(resourceQualifiers.ImagePromotionPolicy, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in finding resource qualifier mappings from scope", "scopes", scopes, "err", err)

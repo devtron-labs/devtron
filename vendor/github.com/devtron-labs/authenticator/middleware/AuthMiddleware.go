@@ -82,7 +82,9 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 					}
 
 					//setting user id in context
-					context.WithValue(r.Context(), "userId", userId)
+					ctx := context.WithValue(r.Context(), "userId", userId)
+					ctx = context.WithValue(ctx, "token", token)
+					r = r.WithContext(ctx)
 				}
 			}
 			if pass {

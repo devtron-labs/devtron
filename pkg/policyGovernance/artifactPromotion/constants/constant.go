@@ -137,3 +137,4 @@ const UserCannotCancelRequest = "only user who has raised the promotion request 
 const ArtifactFindErr = "error in finding artifact"
 const ArtifactNotFoundErr = "artifact not found"
 const WorkflowAndSourceMisMatchErr = "source pipeline not found in the given workflow"
+const NoApprovePermissionOnEnvsErr = "user do not have access to approve on the selected environments"

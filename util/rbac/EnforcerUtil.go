@@ -402,16 +402,16 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
 	envIdentifierByClusterAndNamespace := clusterName + "__" + namespace
-	if !env.IsVirtualEnvironment { //because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
+	if !env.IsVirtualEnvironment { // because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
 		if environmentIdentifier != envIdentifierByClusterAndNamespace { // for futuristic permission cluster name is not present in environment identifier
 			environmentIdentifier2 = envIdentifierByClusterAndNamespace
 		}
 	}
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -441,7 +441,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
 		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
@@ -452,7 +452,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName), ""
 	}
 
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -476,7 +476,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
@@ -491,7 +491,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", team.Name, environmentIdentifier, "*"), ""
 	}
 
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -523,7 +523,7 @@ func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, res
 	if groupName == "" {
 		groupName = casbin.ClusterEmptyGroupPlaceholder
 	}
-	if namespace == "" { //empty value means all namespace access would occur for non-namespace resources
+	if namespace == "" { // empty value means all namespace access would occur for non-namespace resources
 		namespace = "*"
 	}
 	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
@@ -768,7 +768,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACByAppNameAndEnvNames(appName string, envN
 
 func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string {
 	teamEnvRbacObjects := make(map[string]string)
-	app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app by app name", "appName", appName, "err", err)
 		return teamEnvRbacObjects
