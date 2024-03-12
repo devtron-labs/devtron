@@ -248,6 +248,9 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 
 	for _, mapping := range resourceQualifierMappings {
 		policy := policyIdVsPolicyMap[mapping.ResourceId]
+		if policy == nil {
+			continue
+		}
 		envVsPolicyMap[mapping.SelectionIdentifier.SelectionIdentifierName.EnvironmentName] = policy
 		policyIds = append(policyIds, mapping.ResourceId)
 	}
