@@ -74,7 +74,6 @@ func NewArtifactPromotionDataReadServiceImpl(
 	}
 }
 
-// todo: ayush
 func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error) {
 
 	promotionApprovalMetadata := make(map[int]*bean.PromotionApprovalMetaData)
@@ -88,88 +87,139 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 	if len(promotionApprovalRequest) > 0 {
 
 		var requestedUserIds []int32
+		var approvalRequestIds []int
 		for _, approvalRequest := range promotionApprovalRequest {
 			requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
+			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
 		}
 
-		userInfos, err := impl.userService.GetByIds(requestedUserIds)
+		requestIdToApprovalUserDataMapping, err := impl.getRequestIdToPromotionApprovalUserDataMap(approvalRequestIds)
 		if err != nil {
-			impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+			impl.logger.Errorw("error in fetching approval user data mapping for approval request ids", "approvalRequestIds", approvalRequestIds, "err", err)
 			return promotionApprovalMetadata, err
 		}
-		userInfoMap := make(map[int32]bean3.UserInfo)
-		for _, userInfo := range userInfos {
-			userId := userInfo.Id
-			userInfoMap[userId] = userInfo
+
+		userInfoMap, err := impl.getUserInfoMap(requestedUserIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting user info map by user ids", "requestedUserIds", requestedUserIds, "err", err)
+			return promotionApprovalMetadata, err
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-
-			var promotedFrom string
-
-			switch approvalRequest.SourceType {
-			case constants.CI:
-				promotedFrom = string(constants.SOURCE_TYPE_CI)
-			case constants.WEBHOOK:
-				promotedFrom = string(constants.SOURCE_TYPE_CI)
-			case constants.CD:
-				// TODO: remove repo
-				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-				if err != nil {
-					impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
-					return nil, err
-				}
-				promotedFrom = pipeline.Environment.Name
-			}
-
-			globalPolicyData, err := impl.globalPolicyDataManager.GetPolicyById(approvalRequest.PolicyId)
+			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipelineId, userInfoMap, requestIdToApprovalUserDataMapping)
 			if err != nil {
-				impl.logger.Errorw("error in fetching globalPolicy by id", "globalPolicyId", approvalRequest.PolicyId, "err", err)
-				return nil, err
+				impl.logger.Errorw("error in fetching approval metadata by pipelineId", "pipelineId", pipelineId, "err", err)
+				return promotionApprovalMetadata, err
 			}
-
-			policy := bean.PromotionPolicy{}
-			err = policy.UpdateWithGlobalPolicy(globalPolicyData)
-			if err != nil {
-				impl.logger.Errorw("error in parsing promotion policy from globalPolicy")
-				return nil, err
-			}
-
-			approvalMetadata := &bean.PromotionApprovalMetaData{
-				ApprovalRequestId:    approvalRequest.Id,
-				ApprovalRuntimeState: approvalRequest.Status.Status(),
-				PromotedFrom:         promotedFrom,
-				PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
-				Policy:               policy,
-			}
-
-			artifactId := approvalRequest.ArtifactId
-			requestedUserId := approvalRequest.CreatedBy
-			if userInfo, ok := userInfoMap[requestedUserId]; ok {
-				approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
-					UserId:         userInfo.Id,
-					UserEmail:      userInfo.EmailId,
-					UserActionTime: approvalRequest.CreatedOn,
-				}
-			}
-
-			promotionApprovalUserData, err := impl.requestApprovalUserdataRepo.FetchApprovedDataByApprovalId(approvalRequest.Id, repository2.ARTIFACT_PROMOTION_APPROVAL)
-			if err != nil {
-				impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestId", approvalRequest.Id)
-				return nil, err
-			}
-
-			for _, approvalUserData := range promotionApprovalUserData {
-				approvalMetadata.ApprovalUsersData = append(approvalMetadata.ApprovalUsersData, bean.PromotionApprovalUserData{
-					UserId:         approvalUserData.UserId,
-					UserEmail:      approvalUserData.User.EmailId,
-					UserActionTime: approvalUserData.CreatedOn,
-				})
-			}
-			promotionApprovalMetadata[artifactId] = approvalMetadata
+			promotionApprovalMetadata[approvalRequest.ArtifactId] = approvalMetadata
 		}
 	}
 	return promotionApprovalMetadata, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, pipelineId int, userInfoMap map[int32]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData) (*bean.PromotionApprovalMetaData, error) {
+	promotedFrom, err := impl.getSource(approvalRequest, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting data source", "err", err)
+		return &bean.PromotionApprovalMetaData{}, err
+	}
+
+	policy, err := impl.getPromotionPolicy(approvalRequest.PolicyId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching promotion policy by policy Id", "policyId", approvalRequest.PolicyId, "err", err)
+		return &bean.PromotionApprovalMetaData{}, err
+	}
+
+	approvalMetadata := &bean.PromotionApprovalMetaData{
+		ApprovalRequestId:    approvalRequest.Id,
+		ApprovalRuntimeState: approvalRequest.Status.Status(),
+		PromotedFrom:         promotedFrom,
+		PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
+		Policy:               policy,
+	}
+
+	if userInfo, ok := userInfoMap[approvalRequest.CreatedBy]; ok {
+		approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
+			UserId:         userInfo.Id,
+			UserEmail:      userInfo.EmailId,
+			UserActionTime: approvalRequest.CreatedOn,
+		}
+	}
+
+	promotionApprovalUserData := requestIdToApprovalUserDataMapping[approvalRequest.Id]
+	for _, approvalUserData := range promotionApprovalUserData {
+		approvalMetadata.ApprovalUsersData = append(approvalMetadata.ApprovalUsersData, bean.PromotionApprovalUserData{
+			UserId:         approvalUserData.UserId,
+			UserEmail:      approvalUserData.User.EmailId,
+			UserActionTime: approvalUserData.CreatedOn,
+		})
+	}
+
+	return approvalMetadata, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId int) (bean.PromotionPolicy, error) {
+	globalPolicyData, err := impl.globalPolicyDataManager.GetPolicyById(policyId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching globalPolicy by id", "globalPolicyId", policyId, "err", err)
+		return bean.PromotionPolicy{}, err
+	}
+
+	policy := bean.PromotionPolicy{}
+	err = policy.UpdateWithGlobalPolicy(globalPolicyData)
+	if err != nil {
+		impl.logger.Errorw("error in parsing promotion policy from globalPolicy")
+		return bean.PromotionPolicy{}, err
+	}
+	return policy, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) getRequestIdToPromotionApprovalUserDataMap(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
+	requestIdToApprovalUserDataMapping := make(map[int][]*pipelineConfig.RequestApprovalUserData)
+	promotionApprovalUserDatas, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	if err != nil {
+		impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestIds", approvalRequestIds)
+		return requestIdToApprovalUserDataMapping, err
+	}
+	for _, promotionApprovalUserData := range promotionApprovalUserDatas {
+		requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId] = append(
+			requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId],
+			promotionApprovalUserData)
+	}
+	return requestIdToApprovalUserDataMapping, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserIds []int32) (map[int32]bean3.UserInfo, error) {
+	userInfos, err := impl.userService.GetByIds(requestedUserIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+		return nil, err
+	}
+	userInfoMap := make(map[int32]bean3.UserInfo)
+	for _, userInfo := range userInfos {
+		userId := userInfo.Id
+		userInfoMap[userId] = userInfo
+	}
+	return nil, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, pipelineId int) (string, error) {
+	var promotedFrom string
+	switch approvalRequest.SourceType {
+	case constants.CI:
+		promotedFrom = string(constants.SOURCE_TYPE_CI)
+	case constants.WEBHOOK:
+		promotedFrom = string(constants.SOURCE_TYPE_CI)
+	case constants.CD:
+		// TODO: remove repo
+		pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
+			return promotedFrom, err
+		}
+		promotedFrom = pipeline.Environment.Name
+	}
+	return promotedFrom, nil
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
