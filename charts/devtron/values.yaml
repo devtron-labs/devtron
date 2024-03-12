@@ -11,7 +11,7 @@ installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.28"
   image: quay.io/devtron/inception
-  tag: a9820f38-185-20840
+  tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
