@@ -143,17 +143,17 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data
 func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:     installedApp.EnvironmentId,
-		InstalledAppId:    installedApp.Id,
-		AppId:             installedApp.AppId,
-		AppOfferingMode:   installedApp.App.AppOfferingMode,
-		ClusterId:         installedApp.Environment.ClusterId,
-		Namespace:         installedApp.Environment.Namespace,
-		AppName:           installedApp.App.AppName,
-		EnvironmentName:   installedApp.Environment.Name,
-		TeamId:            installedApp.App.TeamId,
-		TeamName:          installedApp.App.Team.Name,
-		DeploymentAppType: installedApp.DeploymentAppType,
+		EnvironmentId:        installedApp.EnvironmentId,
+		InstalledAppId:       installedApp.Id,
+		AppId:                installedApp.AppId,
+		AppOfferingMode:      installedApp.App.AppOfferingMode,
+		ClusterId:            installedApp.Environment.ClusterId,
+		Namespace:            installedApp.Environment.Namespace,
+		AppName:              installedApp.App.AppName,
+		EnvironmentName:      installedApp.Environment.Name,
+		TeamId:               installedApp.App.TeamId,
+		TeamName:             installedApp.App.Team.Name,
+		DeploymentAppType:    installedApp.DeploymentAppType,
 		IsVirtualEnvironment: installedApp.Environment.IsVirtualEnvironment,
 	}
 }
