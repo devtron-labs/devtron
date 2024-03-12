@@ -259,10 +259,10 @@ components:
             - Use `1` to update an existing plugin.
             - Use `2` to delete a plugin.
     
-           If you're opting to update an existing plugin (action `1`), 
-           please take note:
-           - Ensure that the request body parameters are accurate before updating.
-           - Your request body (payload) will discard all previous updates and be treated as final.
+            If you're opting to update an existing plugin (action `1`), 
+            please take note:
+            - Ensure that the request body parameters are accurate before updating.
+            - Your request body (payload) will discard all previous updates and be treated as final.
 
         pluginStage:
           type: string

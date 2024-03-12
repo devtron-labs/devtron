@@ -780,7 +780,6 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	if err == pg.ErrNoRows {
 		impl.logger.Infow("updatePlugin,no plugin steps found for this plugin", "pluginId", pluginUpdateReq.Id, "err", err)
 	}
-
 	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginUpdateReq.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("updatePlugin, error in getting pluginStepVariables", "pluginId", pluginUpdateReq.Id, "err", err)
@@ -816,15 +815,6 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	}
 
 	if len(pluginStepsToUpdate) > 0 {
-
-		//apply here the validations
-		//for _, value := range pluginUpdateReq.PluginSteps {
-		//	for _, value2 := range pluginSteps {
-		//		if value.RefPluginId != value2.PluginId {
-		//			return nil, err
-		//		}
-		//	}
-		//}
 		err = impl.updateDeepPluginStepData(pluginStepsToUpdate, pluginStepVariables, pluginStepConditions, pluginSteps, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in updateDeepPluginStepData", "pluginMetadataId", pluginMetaData.Id, "err", err)
