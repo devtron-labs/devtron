@@ -1082,18 +1082,12 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 			return false
 		}
 	}
-	monoRepoGitOpsRepoPattern := appStoreName + "$"
-	regex := regexp.MustCompile(monoRepoGitOpsRepoPattern)
 
-	var isGitOpsRepoMonoRepo bool
-	if regex.MatchString(gitOpsRepoName) {
-		isGitOpsRepoMonoRepo = true
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same
-	//and also appStoreName and current gitops repo name is same(it means it's mono repo) than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName && isGitOpsRepoMonoRepo {
+	appNameGitOpsRepoPattern := installedApp.App.AppName + "$"
+	regex := regexp.MustCompile(appNameGitOpsRepoPattern)
+
+	// if appName is not in the gitOpsRepoName consider it as mono repo
+	if !regex.MatchString(gitOpsRepoName) {
 		monoRepoMigrationRequired = true
 	}
 	return monoRepoMigrationRequired
