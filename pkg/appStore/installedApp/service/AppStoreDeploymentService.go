@@ -1082,7 +1082,6 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 			return false
 		}
 	}
-
 	appNameGitOpsRepoPattern := installedApp.App.AppName + "$"
 	regex := regexp.MustCompile(appNameGitOpsRepoPattern)
 
