@@ -726,7 +726,6 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	if len(pluginUpdateReq.Type) == 0 {
 		return nil, errors.New("invalid plugin type, should be of the type PRESET or SHARED")
 	}
-
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -781,6 +780,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	if err == pg.ErrNoRows {
 		impl.logger.Infow("updatePlugin,no plugin steps found for this plugin", "pluginId", pluginUpdateReq.Id, "err", err)
 	}
+
 	pluginStepVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginUpdateReq.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("updatePlugin, error in getting pluginStepVariables", "pluginId", pluginUpdateReq.Id, "err", err)
@@ -814,7 +814,17 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 			return nil, err
 		}
 	}
+
 	if len(pluginStepsToUpdate) > 0 {
+
+		//apply here the validations
+		//for _, value := range pluginUpdateReq.PluginSteps {
+		//	for _, value2 := range pluginSteps {
+		//		if value.RefPluginId != value2.PluginId {
+		//			return nil, err
+		//		}
+		//	}
+		//}
 		err = impl.updateDeepPluginStepData(pluginStepsToUpdate, pluginStepVariables, pluginStepConditions, pluginSteps, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in updateDeepPluginStepData", "pluginMetadataId", pluginMetaData.Id, "err", err)
@@ -1312,37 +1322,65 @@ func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemov
 }
 
 func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, pluginStepUpdateReq []*PluginStepsDto) ([]*PluginStepsDto, []*PluginStepsDto, []*PluginStepsDto) {
+	//newPluginStepsToCreate := make([]*PluginStepsDto, 0)
+	//pluginStepsToRemove := make([]*PluginStepsDto, 0)
+	//pluginStepsToUpdate := make([]*PluginStepsDto, 0)
+	//
+	//if len(pluginStepUpdateReq) > len(existingPluginStepsInDb) {
+	//	//new plugin step found
+	//	pluginIdMapping := make(map[int]bool)
+	//	for _, existingPluginStep := range existingPluginStepsInDb {
+	//		pluginIdMapping[existingPluginStep.Id] = true
+	//	}
+	//	for _, pluginStepReq := range pluginStepUpdateReq {
+	//		if _, ok := pluginIdMapping[pluginStepReq.Id]; !ok {
+	//			newPluginStepsToCreate = append(newPluginStepsToCreate, pluginStepReq)
+	//		} else {
+	//			pluginStepsToUpdate = append(pluginStepsToUpdate, pluginStepReq)
+	//		}
+	//	}
+	//} else if len(pluginStepUpdateReq) < len(existingPluginStepsInDb) {
+	//	pluginIdMapping := make(map[int]*PluginStepsDto)
+	//	for _, pluginStepReq := range pluginStepUpdateReq {
+	//		pluginIdMapping[pluginStepReq.Id] = pluginStepReq
+	//	}
+	//	for _, existingPluginStep := range existingPluginStepsInDb {
+	//		if _, ok := pluginIdMapping[existingPluginStep.Id]; !ok {
+	//			pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStep.Id})
+	//		} else {
+	//			pluginStepsToUpdate = append(pluginStepsToUpdate, pluginIdMapping[existingPluginStep.Id])
+	//		}
+	//	}
+	//} else {
+	//	return nil, nil, pluginStepUpdateReq
+	//}
+
 	newPluginStepsToCreate := make([]*PluginStepsDto, 0)
 	pluginStepsToRemove := make([]*PluginStepsDto, 0)
 	pluginStepsToUpdate := make([]*PluginStepsDto, 0)
 
-	if len(pluginStepUpdateReq) > len(existingPluginStepsInDb) {
-		//new plugin step found
-		pluginIdMapping := make(map[int]bool)
-		for _, existingPluginStep := range existingPluginStepsInDb {
-			pluginIdMapping[existingPluginStep.Id] = true
-		}
+	existingPluginStepsMap := make(map[int]bool)
+
+	for _, existingPluginStepInDb := range existingPluginStepsInDb {
+		existingPluginStepsMap[existingPluginStepInDb.Id] = false
+	}
+
+	if len(pluginStepUpdateReq) > 0 {
 		for _, pluginStepReq := range pluginStepUpdateReq {
-			if _, ok := pluginIdMapping[pluginStepReq.Id]; !ok {
-				newPluginStepsToCreate = append(newPluginStepsToCreate, pluginStepReq)
-			} else {
+			if _, exists := existingPluginStepsMap[pluginStepReq.Id]; exists {
 				pluginStepsToUpdate = append(pluginStepsToUpdate, pluginStepReq)
-			}
-		}
-	} else if len(pluginStepUpdateReq) < len(existingPluginStepsInDb) {
-		pluginIdMapping := make(map[int]*PluginStepsDto)
-		for _, pluginStepReq := range pluginStepUpdateReq {
-			pluginIdMapping[pluginStepReq.Id] = pluginStepReq
-		}
-		for _, existingPluginStep := range existingPluginStepsInDb {
-			if _, ok := pluginIdMapping[existingPluginStep.Id]; !ok {
-				pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStep.Id})
+				existingPluginStepsMap[pluginStepReq.Id] = true
+
 			} else {
-				pluginStepsToUpdate = append(pluginStepsToUpdate, pluginIdMapping[existingPluginStep.Id])
+				newPluginStepsToCreate = append(newPluginStepsToCreate, pluginStepReq)
 			}
 		}
-	} else {
-		return nil, nil, pluginStepUpdateReq
+	}
+
+	for existingPluginStepId, updated := range existingPluginStepsMap {
+		if !updated {
+			pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStepId})
+		}
 	}
 
 	return newPluginStepsToCreate, pluginStepsToRemove, pluginStepsToUpdate
