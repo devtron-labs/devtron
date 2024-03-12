@@ -130,8 +130,13 @@ if [ "$source_type" == "SOURCE_TYPE_BRANCH_FIXED" ]; then
                 echo "No release assets provided."
             fi
         fi
-      
+   if [ -z "$releaselink" ]; then
+    echo "$ReleaseTag already exists"
+  else 
+    echo "Release URL: $GithubReleaseURL"
+  fi    
  export GithubReleaseURL
+    
 echo "Release link: $GithubReleaseURL"
 if [ -n "$success_message" ]; then
     echo "$success_message"
