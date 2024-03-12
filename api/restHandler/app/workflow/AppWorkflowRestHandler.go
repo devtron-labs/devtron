@@ -454,7 +454,6 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		return
 	}
 
-	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
 	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithAdditionalMetadata(ctx, appId, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)

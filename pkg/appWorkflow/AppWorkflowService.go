@@ -186,7 +186,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]bean4.AppWorkf
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithExtraMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]bean4.AppWorkflowDto, error) {
 	appWorkflows, err := impl.FindAppWorkflows(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)

@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -323,7 +324,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 		return nil, nil, err
 	}
 
-	sourcePipelineMapping := appWorkflow2.AppWorkflowMappingDto{}
+	sourcePipelineMapping := bean4.AppWorkflowMappingDto{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
 		if mapping.Type == appWorkflow.CDPIPELINE {
@@ -830,7 +831,7 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 	return nil, nil
 }
 
-func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []appWorkflow2.AppWorkflowMappingDto) map[string]bean.EnvironmentPromotionMetaData {
+func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []bean4.AppWorkflowMappingDto) map[string]bean.EnvironmentPromotionMetaData {
 	tree := make(map[int][]int)
 	for _, appWorkflowMapping := range allAppWorkflowMappings {
 		// create the tree from the DAG excluding the ci source
