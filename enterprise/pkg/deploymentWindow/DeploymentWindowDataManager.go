@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
 	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 )
 
 func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
@@ -214,6 +215,8 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 		profileIdToModel[model.Id] = model
 	}
 
+	profileIds = lo.Keys(profileIdToModel)
+
 	//get windows
 	profileIdToWindowExpressions, err := impl.timeoutWindowMappingService.GetMappingsForResources(profileIds, repository.DeploymentWindowProfile)
 	if err != nil {
@@ -282,5 +285,10 @@ func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForScopes(scopes 
 	if err != nil {
 		return nil, nil, err
 	}
+	profileIds = lo.Keys(profileIdToProfile)
+
+	resources = lo.Filter(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) bool {
+		return slices.Contains(profileIds, item.ResourceId)
+	})
 	return resources, profileIdToProfile, nil
 }
