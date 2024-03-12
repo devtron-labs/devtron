@@ -506,9 +506,6 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx *util2.Requ
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByArtifactAndDestinationPipelineIds(request.ArtifactId, metadata.GetActiveAuthorisedPipelineIds())
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact promotion requests object by pipeline ids", "pipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "err", err)
-		if errors.Is(err, pg.ErrNoRows) {
-			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(constants.ArtifactPromotionRequestNotFoundErr)
-		}
 		return nil, err
 	}
 
@@ -576,6 +573,9 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util2.RequestCtx, m
 
 func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util2.RequestCtx, metadata *bean.RequestMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentPromotionMetaData, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 
+	if len(metadata.GetActiveAuthorisedEnvIds()) == 0 {
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnauthorized).WithUserMessage(constants.NoApprovePermissionOnEnvsErr).WithInternalMessage(constants.NoApprovePermissionOnEnvsErr)
+	}
 	pipelineIdVsEnvMap := metadata.GetActiveAuthorisedPipelineIdEnvMap()
 	staleRequestIds, validRequestIds, responses := impl.filterValidAndStaleRequests(promotionRequests, responses, pipelineIdVsEnvMap, policyIdMap)
 
