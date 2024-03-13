@@ -228,9 +228,11 @@ func (repo *RequestRepositoryImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*A
 
 func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	if len(pipelineIds) == 0 {
+		return models, nil
+	}
 	err = repo.dbConnection.Model(&models).
-		Where("destination_pipeline_id = ? ", pg.In(pipelineIds)).
-		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Where("destination_pipeline_id in (?) and status = ? ", pg.In(pipelineIds), constants.AWAITING_APPROVAL).
 		Select()
 	return models, err
 }

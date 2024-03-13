@@ -216,7 +216,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	if ok := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx); ok {
+	if ok := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx); !ok {
 		return
 	}
 

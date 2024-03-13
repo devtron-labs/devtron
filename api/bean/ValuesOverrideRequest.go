@@ -140,11 +140,6 @@ type CdNodeMaterialRequest struct {
 }
 
 type PromotionPendingNodeMaterialRequest struct {
-	ResourceCdPipelineId int
+	ResourceCdPipelineId []int
 	ListingOptions       util.ListingFilterOptions
-}
-
-type PromotionPendingForUserMaterialRequest struct {
-	ImagePromoterAccessCdPipelineIds []int
-	ListingOptions                   util.ListingFilterOptions
 }

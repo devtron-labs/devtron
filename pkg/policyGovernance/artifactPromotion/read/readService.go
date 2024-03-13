@@ -88,6 +88,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 
 		var requestedUserIds []int32
 		var approvalRequestIds []int
+
 		for _, approvalRequest := range promotionApprovalRequest {
 			requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
 			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
@@ -202,7 +203,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserIds
 		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
 		return nil, err
 	}
-	userInfoMap := util2.GetIdToObjectMap(userInfos, func(info bean3.UserInfo) int { return int(info.UserId) })
+	userInfoMap := util2.GetIdToObjectMap(userInfos, func(info bean3.UserInfo) int { return int(info.Id) })
 
 	return userInfoMap, nil
 }
@@ -504,7 +505,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsF
 		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
 		return nil, err
 	}
-
+	
 	teamDao, err := impl.teamService.FetchOne(pipeline[0].App.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)
