@@ -124,8 +124,8 @@ github.com/apparentlymart/go-textseg/textseg
 # github.com/apparentlymart/go-textseg/v13 v13.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/argoproj/argo-cd/v2 v2.6.15
-## explicit; go 1.18
+# github.com/argoproj/argo-cd/v2 v2.7.16
+## explicit; go 1.20
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
 github.com/argoproj/argo-cd/v2/pkg/apiclient/application
@@ -532,19 +532,9 @@ github.com/go-playground/locales/currency
 # github.com/go-playground/universal-translator v0.18.0
 ## explicit; go 1.13
 github.com/go-playground/universal-translator
-# github.com/go-redis/cache/v8 v8.4.2
+# github.com/go-redis/cache/v9 v9.0.0
 ## explicit; go 1.13
-github.com/go-redis/cache/v8
-# github.com/go-redis/redis/v8 v8.11.5
-## explicit; go 1.17
-github.com/go-redis/redis/v8
-github.com/go-redis/redis/v8/internal
-github.com/go-redis/redis/v8/internal/hashtag
-github.com/go-redis/redis/v8/internal/hscan
-github.com/go-redis/redis/v8/internal/pool
-github.com/go-redis/redis/v8/internal/proto
-github.com/go-redis/redis/v8/internal/rand
-github.com/go-redis/redis/v8/internal/util
+github.com/go-redis/cache/v9
 # github.com/go-resty/resty/v2 v2.7.0
 ## explicit; go 1.11
 github.com/go-resty/resty/v2
@@ -918,6 +908,16 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/redis/go-redis/v9 v9.0.2
+## explicit; go 1.17
+github.com/redis/go-redis/v9
+github.com/redis/go-redis/v9/internal
+github.com/redis/go-redis/v9/internal/hashtag
+github.com/redis/go-redis/v9/internal/hscan
+github.com/redis/go-redis/v9/internal/pool
+github.com/redis/go-redis/v9/internal/proto
+github.com/redis/go-redis/v9/internal/rand
+github.com/redis/go-redis/v9/internal/util
 # github.com/robfig/cron/v3 v3.0.1
 ## explicit; go 1.12
 github.com/robfig/cron/v3
@@ -973,7 +973,7 @@ github.com/valyala/bytebufferpool
 # github.com/valyala/fasttemplate v1.2.2
 ## explicit; go 1.12
 github.com/valyala/fasttemplate
-# github.com/vmihailenco/go-tinylfu v0.2.1
+# github.com/vmihailenco/go-tinylfu v0.2.2
 ## explicit; go 1.15
 github.com/vmihailenco/go-tinylfu
 # github.com/vmihailenco/msgpack/v5 v5.3.5
@@ -1165,7 +1165,6 @@ golang.org/x/crypto/ssh/knownhosts
 ## explicit; go 1.20
 golang.org/x/exp/constraints
 golang.org/x/exp/maps
-golang.org/x/exp/rand
 golang.org/x/exp/slices
 # golang.org/x/mod v0.12.0
 ## explicit; go 1.17
