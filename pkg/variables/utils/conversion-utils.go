@@ -3,6 +3,15 @@ package utils
 import mapset "github.com/deckarep/golang-set"
 
 // ToInterfaceArray converts an array of string to an array of interface{}
+func ToInterfaceArrayAny[T any](arr []T) []interface{} {
+	interfaceArr := make([]interface{}, len(arr))
+	for i, v := range arr {
+		interfaceArr[i] = v
+	}
+	return interfaceArr
+}
+
+// ToInterfaceArray converts an array of string to an array of interface{}
 func ToInterfaceArray(arr []string) []interface{} {
 	interfaceArr := make([]interface{}, len(arr))
 	for i, v := range arr {

@@ -147,7 +147,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		// if nothing is active then earliest starting maintenance will be shown
 
 		nonActiveMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
-			return item.IsActive
+			return !item.IsActive
 		})
 		appliedProfile = impl.getEarliestStartingProfile(nonActiveMaintenance)
 		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
@@ -210,7 +210,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		}
 		allProfiles[i].ExcludedUserEmails = emails
 
-		if profile.DeploymentWindowProfile.Id == appliedProfile.DeploymentWindowProfile.Id {
+		if appliedProfile != nil && profile.DeploymentWindowProfile.Id == appliedProfile.DeploymentWindowProfile.Id {
 			appliedProfile.ExcludedUserEmails = emails
 		}
 	}
@@ -240,7 +240,8 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 
 	if len(profiles[0].DeploymentWindowProfile.ExcludedUsersList) > 0 {
 		//userSet.Add(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
-		userSet = mapset.NewSet(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
+		users := profiles[0].DeploymentWindowProfile.ExcludedUsersList
+		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
 	}
 
 	isSuperAdminExcluded := true
@@ -257,7 +258,7 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 
 		profileUserSet := mapset.NewSet()
 		if len(users) > 0 {
-			profileUserSet = mapset.NewSet(users)
+			profileUserSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
 			allUsersSet = allUsersSet.Union(profileUserSet)
 		}
 
