@@ -103,9 +103,9 @@ spec:
 {{- if .resources }}
           resources:
 {{ toYaml .resources | indent 12 }}
+{{- end }}
       volumes: []
   revisionHistoryLimit: 3
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
