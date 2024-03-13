@@ -3,6 +3,28 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/autocomplete:
+    get:
+      description: Get environment names filter list for /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/view" API
+      parameters:
+        - name: ciPipelineId
+          description: source ci-pipeline id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully fetched the Linked-CI pipelines details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedCIPipelinesFiltersResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
+
   /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/view:
     get:
       description: Get Linked-CI pipelines info for a source ci-pipeline
@@ -58,10 +80,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LinkedCIPipelinesViewResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
 
 # Components
 components:
   schemas:
+    LinkedCIPipelinesFiltersResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          $ref: "#/components/schemas/LinkedCIPipelinesFilters"
+
+    LinkedCIPipelinesFilters:
+      type: object
+      properties:
+        envNames:
+          type: array
+          description: linked CI pipelines filter data
+          example:
+          - "staging"
+          - "production"
+          - "qa"
+          nullable: false
+          items:
+            $ref: "#/components/schemas/EnvironmentNameList"
+
+    EnvironmentNameList:
+      type: string
+
     LinkedCIPipelinesViewResponse:
       type: object
       properties:
@@ -97,7 +154,8 @@ components:
           example: 20
         data:
           type: array
-          description: status code
+          nullable: false
+          description: linked CI pipelines data
           items:
             $ref: "#/components/schemas/LinkedCIPipelineData"
 
