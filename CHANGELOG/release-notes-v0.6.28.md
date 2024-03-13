@@ -1,5 +1,3 @@
-## v0.6.28
-
 ## Bugs
 - fix: Not able to see workflow name in case of project with uppercase letters (#4776)
 - fix: provider nil fields (#4758)
