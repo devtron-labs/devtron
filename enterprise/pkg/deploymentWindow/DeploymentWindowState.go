@@ -338,7 +338,7 @@ func (impl DeploymentWindowServiceImpl) getActiveWindow(targetTimeWithZone time.
 				maxEndTimeStamp = timestamp
 				appliedWindow = window
 			}
-		} else if !isInside && !timestamp.IsZero() {
+		} else if !isActive && !isInside && !timestamp.IsZero() {
 			if timestamp.Before(minStartTimeStamp) {
 				minStartTimeStamp = timestamp
 				appliedWindow = window
