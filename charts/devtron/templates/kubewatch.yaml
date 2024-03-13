@@ -207,14 +207,14 @@ spec:
           - name: kubewatch-resources-config
             mountPath: /root/.kubewatch.yaml
             subPath: .kubewatch.yaml
+{{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
       volumes:
       - name: kubewatch-resources-config
         configMap:
           name: kubewatch-resources-cm
   revisionHistoryLimit: 3
-{{- if .resources }}
-          resources:
-{{ toYaml .resources | indent 12 }}
 {{- end }}
 {{- end }}
 {{- end }}
