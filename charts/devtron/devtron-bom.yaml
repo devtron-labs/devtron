@@ -35,7 +35,7 @@ components:
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:e414faff-393-21263"
+      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
     image: "quay.io/devtron/kubelink:7c66e0fc-564-21516"
     configs:
