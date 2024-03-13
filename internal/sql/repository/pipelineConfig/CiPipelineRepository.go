@@ -130,6 +130,7 @@ type CiPipelineRepository interface {
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
+	GetLinkedCiPipelines(ciPipelineId int) ([]*CiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -593,4 +594,16 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 		return 0, nil
 	}
 	return cnt, err
+}
+func (impl CiPipelineRepositoryImpl) GetLinkedCiPipelines(ciPipelineId int) ([]*CiPipeline, error) {
+	var linkedCIPipelines []*CiPipeline
+	err := impl.dbConnection.Model(linkedCIPipelines).
+		Where("parent_ci_pipeline = ?", ciPipelineId).
+		Where("ci_pipeline_type = ?", "!LINKED_CD").
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return linkedCIPipelines, nil
 }

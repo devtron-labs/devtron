@@ -92,6 +92,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
+	GetLinkedCIInfoFilters(sourceCiPipelineId int) (*bean.LinkedCIInfoFilters, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2076,4 +2077,37 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 		return nil, err
 	}
 	return createRequest, err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIInfoFilters(sourceCiPipelineId int) (*bean.LinkedCIInfoFilters, error) {
+	linkedCiPipelines, err := impl.ciPipelineRepository.GetLinkedCiPipelines(sourceCiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching linked Ci pipelines for given source Ci pipeline Id", err)
+		return nil, err
+	}
+	envNames, err := impl.getAllAttachedEnvNamesByIds(linkedCiPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment names for linked Ci pipelines", err)
+		return nil, err
+	}
+	res := &bean.LinkedCIInfoFilters{
+		EnvNames: envNames,
+	}
+	return res, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getAllAttachedEnvNamesByIds(linkedCiPipelines []*pipelineConfig.CiPipeline) ([]string, error) {
+	var CIPipelineIds []int
+	for _, CIPipeline := range linkedCiPipelines {
+		CIPipelineIds = append(CIPipelineIds, CIPipeline.Id)
+	}
+	Pipelines, err := impl.pipelineRepository.FindWithEnvironmentByCiIds(CIPipelineIds)
+	if err != nil {
+		return nil, err
+	}
+	var envNames []string
+	for _, Pipeline := range Pipelines {
+		envNames = append(envNames, Pipeline.Environment.Name)
+	}
+	return envNames, nil
 }

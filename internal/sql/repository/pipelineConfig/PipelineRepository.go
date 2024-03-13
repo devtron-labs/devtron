@@ -115,6 +115,7 @@ type PipelineRepository interface {
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
+	FindWithEnvironmentByCiIds(cIPipelineIds []int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -717,4 +718,15 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("ci_pipeline_id = ? ", oldCiPipelineId).
 		Where("deleted = ?", false).Update()
 	return err
+}
+func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(cIPipelineIds []int) ([]*Pipeline, error) {
+	var cDPipelines []*Pipeline
+	err := impl.dbConnection.Model(&cDPipelines).
+		Column("pipeline.*", "Environment").
+		Where("ci_pipeline_id in (?)", pg.In(cIPipelineIds)).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return cDPipelines, nil
 }
