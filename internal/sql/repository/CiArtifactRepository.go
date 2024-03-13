@@ -877,8 +877,9 @@ func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsLi
 	query := fmt.Sprintf(" select ci_artifact.*, count(ci_artifact.id) over() as total_count from ci_artifact where ci_artifact.id in "+
 		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.ResourceCdPipelineId)
 
-	if artifactsListingFilterOps.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.ListingOptions.SearchString)
+	searchRegex := artifactsListingFilterOps.ListingOptions.GetSearchStringRegex()
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", searchRegex)
 	}
 
 	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.ListingOptions.Limit, artifactsListingFilterOps.ListingOptions.Offset)
@@ -912,8 +913,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 	//query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
 	//	"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
 	//	"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", request.CiPipelineId)
-
-	if request.ListingOptions.SearchString != EmptyLikeRegex {
+	if request.ListingOptions.GetSearchStringRegex() != EmptyLikeRegex {
 		query = query.Where("ci_artifact.image like '?'", request.ListingOptions.SearchString)
 		//query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", request.ListingOptions.SearchString)
 	}
@@ -949,8 +949,9 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 		"INNER JOIN external_ci_pipeline excp ON excp.id = cia.external_ci_pipeline_id "+
 		"WHERE excp.active=true and excp.id = %v ORDER BY cia.id DESC", request.ExternalCiPipelineId)
 
-	if request.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", request.ListingOptions.SearchString)
+	searchRegex := request.ListingOptions.GetSearchStringRegex()
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", searchRegex)
 	}
 	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
 	query = query + limitOffSetQuery
@@ -979,10 +980,9 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 	var query string
 	query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 		" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d ) ", request.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
-
-	// TODO make common func of this
-	if request.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and cia.image like '%s' ", request.ListingOptions.SearchString)
+	searchRegex := request.ListingOptions.GetSearchStringRegex()
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and cia.image like '%s' ", searchRegex)
 	}
 	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
 	query = query + limitOffSetQuery
@@ -1013,8 +1013,9 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForCurrentUser(request 
 	//TODO: orm query
 	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 		" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d ) ", helper.GetCommaSepratedString(request.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
-	if request.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and cia.image like '%s' ", request.ListingOptions.SearchString)
+	searchRegex := request.ListingOptions.GetSearchStringRegex()
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and cia.image like '%s' ", searchRegex)
 	}
 	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
 	query = query + limitOffSetQuery

@@ -115,12 +115,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.R
 		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
 		return err
 	}
-	// delete all the existing mappings for the updateToProfileId resource
-	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(ctx.GetUserId()), tx)
-	if err != nil {
-		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
-		return err
-	}
+
 	// create new mappings using resourceQualifierMapping
 	err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
@@ -234,11 +229,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
 	if !ok {
-		return nil, 0, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: "unsupported policy type",
-			UserMessage:     "unsupported policy type",
-		}
+		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
 		SortOrder: listFilter.SortOrder,

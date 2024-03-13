@@ -334,6 +334,10 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 		return nil, nil, err
 	}
 
+	if len(allAppWorkflowMappings) == 0 {
+		return nil, nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowNotFoundErr)
+	}
+
 	sourcePipelineMapping := bean4.AppWorkflowMappingDto{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
@@ -962,6 +966,10 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx *util2.Req
 				responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 			}()
 
+			if metadata.GetSourceTypeStr() == constants.SOURCE_TYPE_CD && metadata.GetSourcePipelineId() == pipelineId {
+				EnvResponse.PromotionValidationMessage = constants.SameSourceAndDestinationErr
+				return
+			}
 			if promotedCountPerPipeline[pipelineId] > 0 {
 				EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
 				return

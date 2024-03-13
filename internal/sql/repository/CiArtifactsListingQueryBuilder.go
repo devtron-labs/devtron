@@ -188,7 +188,7 @@ func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsL
 	subQuery := "WITH approved_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM request_approval_user_data " +
-		fmt.Sprintf(" WHERE user_response is NULL AND request_id = %d", DEPLOYMENT_APPROVAL) +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approved_requests WHERE approval_count >= %v "

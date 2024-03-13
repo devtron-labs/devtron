@@ -236,7 +236,7 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 		// check if user has trigger access for any one env for this app
 		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.AppId); !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
-			return true
+			return false
 		}
 	} else if request.IsPromotionApprovalPendingNode() && !request.PendingForCurrentUser {
 		// check if either user has trigger access or artifact promoter access for this env
@@ -245,12 +245,12 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 		if err != nil {
 			handler.logger.Errorw("env not found for given envName", "envName", request.ResourceName, "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
-			return true
+			return false
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, request.AppId)
 		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return true
+			return false
 		}
 
 		triggerAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
@@ -262,10 +262,10 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
