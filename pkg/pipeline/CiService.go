@@ -37,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -65,34 +64,32 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
-	customTagService              CustomTagService
-	config                        *types.CiConfig
-	scopedVariableManager         variables.ScopedVariableManager
-	pluginInputVariableParser     PluginInputVariableParser
-	globalPluginService           plugin.GlobalPluginService
-	infraProvider                 infraProviders.InfraProvider
+	Logger                       *zap.SugaredLogger
+	workflowService              WorkflowService
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	eventClient                  client.EventClient
+	eventFactory                 client.EventFactory
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	pipelineStageService         PipelineStageService
+	userService                  user.UserService
+	ciTemplateService            CiTemplateService
+	appCrudOperationService      app.AppCrudOperationService
+	envRepository                repository1.EnvironmentRepository
+	appRepository                appRepository.AppRepository
+	customTagService             CustomTagService
+	config                       *types.CiConfig
+	scopedVariableManager        variables.ScopedVariableManager
+	pluginInputVariableParser    PluginInputVariableParser
+	globalPluginService          plugin.GlobalPluginService
+	infraProvider                infraProviders.InfraProvider
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
-	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	eventFactory client.EventFactory,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
@@ -103,26 +100,24 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	infraProvider infraProviders.InfraProvider,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                        Logger,
-		workflowService:               workflowService,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		eventClient:                   eventClient,
-		eventFactory:                  eventFactory,
-		mergeUtil:                     mergeUtil,
-		ciPipelineRepository:          ciPipelineRepository,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		userService:                   userService,
-		ciTemplateService:             ciTemplateService,
-		appCrudOperationService:       appCrudOperationService,
-		envRepository:                 envRepository,
-		appRepository:                 appRepository,
-		scopedVariableManager:         scopedVariableManager,
-		customTagService:              customTagService,
-		pluginInputVariableParser:     pluginInputVariableParser,
-		globalPluginService:           globalPluginService,
-		infraProvider:                 infraProvider,
+		Logger:                       Logger,
+		workflowService:              workflowService,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		ciWorkflowRepository:         ciWorkflowRepository,
+		eventClient:                  eventClient,
+		eventFactory:                 eventFactory,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineStageService:         pipelineStageService,
+		userService:                  userService,
+		ciTemplateService:            ciTemplateService,
+		appCrudOperationService:      appCrudOperationService,
+		envRepository:                envRepository,
+		appRepository:                appRepository,
+		scopedVariableManager:        scopedVariableManager,
+		customTagService:             customTagService,
+		pluginInputVariableParser:    pluginInputVariableParser,
+		globalPluginService:          globalPluginService,
+		infraProvider:                infraProvider,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {

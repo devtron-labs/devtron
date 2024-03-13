@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"path"
 	"regexp"
 	"strconv"
@@ -33,7 +34,7 @@ import (
 	"time"
 
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
-	bean4 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -102,19 +103,17 @@ type CiCdPipelineOrchestratorImpl struct {
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	GitSensorClient               gitSensor.Client
 	ciConfig                      *types.CiCdConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
 	attributesService             attributes.AttributesService
-	appListingRepository          repository.AppListingRepository
 	appLabelsService              app.AppCrudOperationService
 	userAuthService               user.UserAuthService
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	ciTemplateService             CiTemplateService
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
@@ -132,17 +131,15 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
-	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppCrudOperationService,
 	userAuthService user.UserAuthService,
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
@@ -159,18 +156,16 @@ func NewCiCdPipelineOrchestrator(
 		pipelineRepository:            pipelineRepository,
 		ciPipelineRepository:          ciPipelineRepository,
 		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
 		GitSensorClient:               GitSensorClient,
 		ciConfig:                      ciConfig,
 		appWorkflowRepository:         appWorkflowRepository,
 		envRepository:                 envRepository,
 		attributesService:             attributesService,
-		appListingRepository:          appListingRepository,
 		appLabelsService:              appLabelsService,
 		userAuthService:               userAuthService,
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
-		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
 		gitMaterialHistoryService:     gitMaterialHistoryService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
@@ -370,7 +365,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	//If customTagObject has been passed, create or update the resource
 	//Otherwise deleteIfExists
 	if createRequest.CustomTagObject != nil && len(createRequest.CustomTagObject.TagPattern) > 0 {
-		customTag := bean4.CustomTag{
+		customTag := apiBean.CustomTag{
 			EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
 			TagPattern:           createRequest.CustomTagObject.TagPattern,
@@ -382,7 +377,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	} else {
-		customTag := bean4.CustomTag{
+		customTag := apiBean.CustomTag{
 			EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
 			EntityValue: strconv.Itoa(ciPipelineObject.Id),
 			Enabled:     false,
@@ -837,7 +832,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		//If customTagObejct has been passed, save it
 		if !ciPipeline.EnableCustomTag {
-			err := impl.customTagService.DisableCustomTagIfExist(bean4.CustomTag{
+			err := impl.customTagService.DisableCustomTagIfExist(apiBean.CustomTag{
 				EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
 				EntityValue: strconv.Itoa(ciPipeline.Id),
 			})
@@ -845,7 +840,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				return nil, err
 			}
 		} else if ciPipeline.CustomTagObject != nil && len(ciPipeline.CustomTagObject.TagPattern) != 0 {
-			customTag := &bean4.CustomTag{
+			customTag := &apiBean.CustomTag{
 				EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
 				EntityValue:          strconv.Itoa(ciPipeline.Id),
 				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
@@ -2103,4 +2098,46 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 		return nil, err
 	}
 	return createRequest, err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(req *linkedCIView.LinkedCIDetailsReq) error {
+	if req.SourceCIPipeline == 0 {
+		return fmt.Errorf("")
+	}
+	linkedCIDetails, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(req.SourceCIPipeline, req.Size, req.Offset, req.Search, req.EnvName, req.Order)
+	if util.IsErrNoRows(err) {
+		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", req.SourceCIPipeline)
+		return nil
+	} else if err != nil {
+		impl.logger.Errorw("error in getting linked ci pipelines", "SourceCIPipeline", req.SourceCIPipeline, "err", err)
+		return err
+	}
+	var pipelineIds []int
+	for _, item := range linkedCIDetails {
+		if item.PipelineId != 0 {
+			pipelineIds = append(pipelineIds, item.PipelineId)
+		}
+	}
+	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
+	if util.IsErrNoRows(err) {
+		impl.logger.Info("no deployments have been triggered yet", "pipelineIds", pipelineIds)
+		return nil
+	} else if err != nil {
+		impl.logger.Errorw("error in getting last deployment status", "pipelineIds", pipelineIds, "err", err)
+		return err
+	}
+	cdWfrStatusMap := make(map[int]string)
+	for _, latestWfr := range latestWfrs {
+		cdWfrStatusMap[latestWfr.CdWorkflow.PipelineId] = latestWfr.Status
+	}
+	for _, item := range linkedCIDetails {
+		if item.PipelineId != 0 {
+			pipelineIds = append(pipelineIds, item.PipelineId)
+		}
+	}
+	//for _, latestWfr := range latestWfrs {
+	//	//latestWfr.CdWorkflow.Pipeline.Id
+	//	//latestWfr.CdWorkflow.Pipeline.AppId
+	//}
+	return nil
 }

@@ -1,0 +1,122 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/view:
+    get:
+      description: Get Linked-CI pipelines info for a source ci-pipeline
+      parameters:
+        - name: ciPipelineId
+          description: source ci-pipeline id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: order
+          description: app name sort order
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "ASC"
+            enum:
+              - "ASC"
+              - "DESC"
+        - name: offset
+          description: page offset value
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 0
+        - name: size
+          description: page size value
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 20
+        - name: envName
+          description: environment name filter
+          in: query
+          required: false
+          schema:
+            type: string
+            default: All environments
+        - name: search
+          description: application name filter
+          in: query
+          required: false
+          schema:
+            type: string
+            default: All applications
+      responses:
+        "200":
+          description: Successfully fetched the Linked-CI pipelines details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedCIPipelinesViewResponse"
+
+# Components
+components:
+  schemas:
+    LinkedCIPipelinesViewResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          $ref: "#/components/schemas/LinkedCIPipelinesInfo"
+
+    LinkedCIPipelinesInfo:
+      type: object
+      properties:
+        total:
+          type: number
+          description: Total results count
+          example: 1122
+        page:
+          type: number
+          description: Current page number
+          example: 2
+        lastPage:
+          type: number
+          description: Max page number
+          example: 5
+        size:
+          type: number
+          description: Current page size
+          example: 20
+        data:
+          type: array
+          description: status code
+          items:
+            $ref: "#/components/schemas/LinkedCIPipelineData"
+
+    LinkedCIPipelineData:
+      type: object
+      properties:
+        appName:
+          type: string
+          description: application name
+          example: "devtron-app"
+        environmentName:
+          type: string
+          description: deploys to environment name
+          example: "staging"
+        triggerMode:
+          type: string
+          description: pipeline trigger type
+          example: "AUTOMATIC"
+        deploymentStatus:
+          type: string
+          description: last deployment status of the pipeline
+          example: "Succeeded"

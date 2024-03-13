@@ -20,6 +20,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -132,6 +133,8 @@ type CiPipelineRepository interface {
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
+	GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
+		appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -483,7 +486,7 @@ func sqlIntSeq(ns []int) string {
 	return string(b)
 }
 
-func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error) {
+func (impl CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error) {
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.
 		Model(&ciPipelines).
@@ -607,4 +610,62 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 		return 0, nil
 	}
 	return cnt, err
+}
+
+type LinkedCIDetails struct {
+	AppName         string `sql:"app_name"`
+	EnvironmentName string `sql:"environment_name"`
+	TriggerMode     string `sql:"trigger_type"`
+	PipelineId      int    `sql:"pipeline_id"`
+	AppId           int    `sql:"app_id"`
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
+	appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, error) {
+	linkedCIDetails := make([]LinkedCIDetails, 0)
+	if limit == 0 {
+		limit = 20
+	}
+	if len(order) == 0 {
+		order = linkedCIView.Asc
+	}
+	query := impl.dbConnection.Model().
+		Table("ci_pipeline").
+		// added columns that has no duplicated reference across joined tables
+		Column("ci_pipeline.app_id",
+			"app_name",
+			"environment_name",
+			"trigger_type").
+		// added columns that has duplicated reference across joined tables and assign alias name
+		ColumnExpr("p.id as pipeline_id").
+		// join app table
+		Join("INNER JOIN app a").
+		JoinOn("a.id = ci_pipeline.app_id").
+		JoinOn("a.active = ?", true).
+		// join pipeline table
+		Join("LEFT JOIN pipeline p").
+		JoinOn("p.ci_pipeline_id = ci_pipeline.id").
+		JoinOn("p.deleted = ?", false).
+		// join environment table
+		Join("LEFT JOIN environment e").
+		JoinOn("e.id = p.environment_id").
+		JoinOn("e.active = ?", true).
+		// constrains
+		Where("ci_pipeline.parent_ci_pipeline = ?", sourceCiPipelineId).
+		Where("ci_pipeline.deleted = ?", false)
+	// app name filtering
+	if len(appNameMatch) != 0 {
+		query = query.Where("app_name LIKE '%?%'", appNameMatch)
+	}
+	// env name filtering
+	if len(envNameMatch) != 0 {
+		query = query.Where("environment_name = ?", envNameMatch)
+	}
+	// query execution
+	err := query.Order("app_name ?", string(order)).
+		Limit(limit).
+		Offset(offset).
+		Select(&linkedCIDetails)
+
+	return linkedCIDetails, err
 }
