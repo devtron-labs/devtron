@@ -38,5 +38,5 @@ type CdWorkflowWithArtifact struct {
 	AppliedFilters            []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
 	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
-	PromotionApprovalMetaData *bean.PromotionApprovalMetaData             `json:"promotionApprovalMetaData"`
+	PromotionApprovalMetadata *bean.PromotionApprovalMetaData             `json:"promotionApprovalMetadata"`
 }
