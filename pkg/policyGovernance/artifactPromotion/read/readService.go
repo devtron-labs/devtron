@@ -33,9 +33,9 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
-	GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error)
-	GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error)
-	FindArtifactsCountPendingForPromotionByPipelineIds(ctx *util2.RequestCtx, workflowIds []int) (int, error)
+	GetPromotionRequestCountPendingForUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int]int, error)
+	GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int][]int, error)
+	GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -81,7 +81,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds, status)
 	if err != nil {
 		impl.logger.Errorw("error in fetching promotion request for given pipelineId and artifactId", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
-		return promotionApprovalMetadata, nil
+		return promotionApprovalMetadata, err
 	}
 
 	if len(promotionApprovalRequest) > 0 {
@@ -93,7 +93,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
 		}
 
-		requestIdToApprovalUserDataMapping, err := impl.getRequestIdToPromotionApprovalUserDataMap(approvalRequestIds)
+		requestIdToApprovalUserDataMapping, err := impl.getPromotionApprovalUserMetadata(approvalRequestIds)
 		if err != nil {
 			impl.logger.Errorw("error in fetching approval user data mapping for approval request ids", "approvalRequestIds", approvalRequestIds, "err", err)
 			return promotionApprovalMetadata, err
@@ -105,8 +105,15 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 			return promotionApprovalMetadata, err
 		}
 
+		pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
+			return promotionApprovalMetadata, err
+		}
+
 		for _, approvalRequest := range promotionApprovalRequest {
-			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipelineId, userInfoMap, requestIdToApprovalUserDataMapping)
+			//TODO Need to revisit this as making db calls in Loop
+			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, userInfoMap, requestIdToApprovalUserDataMapping)
 			if err != nil {
 				impl.logger.Errorw("error in fetching approval metadata by pipelineId", "pipelineId", pipelineId, "err", err)
 				return promotionApprovalMetadata, err
@@ -117,10 +124,10 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 	return promotionApprovalMetadata, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, pipelineId int, userInfoMap map[int32]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData) (*bean.PromotionApprovalMetaData, error) {
-	promotedFrom, err := impl.getSource(approvalRequest, pipelineId)
+func (impl ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string, userInfoMap map[int]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData) (*bean.PromotionApprovalMetaData, error) {
+	promotedFrom, err := impl.getSource(approvalRequest, envName)
 	if err != nil {
-		impl.logger.Errorw("error in getting data source", "err", err)
+		impl.logger.Errorw("error in getting data source", "sourceType", approvalRequest.SourceType, "err", err)
 		return &bean.PromotionApprovalMetaData{}, err
 	}
 
@@ -132,13 +139,13 @@ func (impl ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(ap
 
 	approvalMetadata := &bean.PromotionApprovalMetaData{
 		ApprovalRequestId:    approvalRequest.Id,
-		ApprovalRuntimeState: approvalRequest.Status.Status(),
+		ApprovalRuntimeState: approvalRequest.Status,
 		PromotedFrom:         promotedFrom,
 		PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
 		Policy:               policy,
 	}
 
-	if userInfo, ok := userInfoMap[approvalRequest.CreatedBy]; ok {
+	if userInfo, ok := userInfoMap[int(approvalRequest.CreatedBy)]; ok {
 		approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
 			UserId:         userInfo.Id,
 			UserEmail:      userInfo.EmailId,
@@ -168,20 +175,20 @@ func (impl ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId int
 	policy := bean.PromotionPolicy{}
 	err = policy.UpdateWithGlobalPolicy(globalPolicyData)
 	if err != nil {
-		impl.logger.Errorw("error in parsing promotion policy from globalPolicy")
+		impl.logger.Errorw("error in parsing promotion policy from globalPolicy", "err", err)
 		return bean.PromotionPolicy{}, err
 	}
 	return policy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) getRequestIdToPromotionApprovalUserDataMap(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) getPromotionApprovalUserMetadata(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
 	requestIdToApprovalUserDataMapping := make(map[int][]*pipelineConfig.RequestApprovalUserData)
-	promotionApprovalUserDatas, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	promotionApprovalUserDataArray, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestIds", approvalRequestIds)
 		return requestIdToApprovalUserDataMapping, err
 	}
-	for _, promotionApprovalUserData := range promotionApprovalUserDatas {
+	for _, promotionApprovalUserData := range promotionApprovalUserDataArray {
 		requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId] = append(
 			requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId],
 			promotionApprovalUserData)
@@ -189,35 +196,25 @@ func (impl ArtifactPromotionDataReadServiceImpl) getRequestIdToPromotionApproval
 	return requestIdToApprovalUserDataMapping, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserIds []int32) (map[int32]bean3.UserInfo, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserIds []int32) (map[int]bean3.UserInfo, error) {
 	userInfos, err := impl.userService.GetByIds(requestedUserIds)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
 		return nil, err
 	}
-	userInfoMap := make(map[int32]bean3.UserInfo)
-	for _, userInfo := range userInfos {
-		userId := userInfo.Id
-		userInfoMap[userId] = userInfo
-	}
-	return nil, nil
+	userInfoMap := util2.GetIdToObjectMap(userInfos, func(info bean3.UserInfo) int { return int(info.UserId) })
+
+	return userInfoMap, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, pipelineId int) (string, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string) (string, error) {
 	var promotedFrom string
 	switch approvalRequest.SourceType {
 	case constants.CI:
-		promotedFrom = string(constants.SOURCE_TYPE_CI)
 	case constants.WEBHOOK:
 		promotedFrom = string(constants.SOURCE_TYPE_CI)
 	case constants.CD:
-		// TODO: remove repo
-		pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
-			return promotedFrom, err
-		}
-		promotedFrom = pipeline.Environment.Name
+		promotedFrom = envName
 	}
 	return promotedFrom, nil
 }
@@ -459,7 +456,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomple
 	return policyNames, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPendingForUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int]int, error) {
 	wfIdToAuthorizedCDPipelineIds, err := impl.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, workflowIds, imagePromoterBulkAuth)
 	if err != nil {
 		impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "workflowIds", workflowIds, "err", err)
@@ -468,23 +465,31 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPending
 	if len(wfIdToAuthorizedCDPipelineIds) == 0 {
 		return nil, nil
 	}
+
+	wfCdPipelineIds := make([]int, 0)
+	for _, pipelineIds := range wfIdToAuthorizedCDPipelineIds {
+		wfCdPipelineIds = append(wfCdPipelineIds, pipelineIds...)
+	}
+
+	pipelineIdToPendingRequestCount, err := impl.GetPromotionPendingRequestMapping(ctx, wfCdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", wfCdPipelineIds, "err", err)
+		return nil, err
+	}
+
 	wfIdToPendingCountMapping := make(map[int]int)
 	for wfId, cdPipelineIds := range wfIdToAuthorizedCDPipelineIds {
-		totalCount, err := impl.FindArtifactsCountPendingForPromotionByPipelineIds(ctx, cdPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", cdPipelineIds, "err", err)
-			return nil, err
+		for _, id := range cdPipelineIds {
+			wfIdToPendingCountMapping[wfId] = pipelineIdToPendingRequestCount[id] + wfIdToPendingCountMapping[wfId]
 		}
-		wfIdToPendingCountMapping[wfId] = totalCount
 	}
+
 	return wfIdToPendingCountMapping, err
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int][]int, error) {
+	//TOD: auth function in reader service ??
 
-	if len(workflowIds) == 0 {
-		return nil, nil
-	}
 	cdPipelineIds, cdPipelineIdToWorkflowIdMapping, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(workflowIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowIds", workflowIds, "err", err)
@@ -514,7 +519,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsF
 		pipelineIdToRbacObjMapping[pipelineDao.Id] = imagePromoterRbacObject
 	}
 
-	rbacResults := imagePromoterBulkAuth(ctx.GetToken(), imagePromoterRbacObjects)
+	rbacResults := imagePromoterBulkAuth(ctx, imagePromoterRbacObjects)
 	authorizedPipelineIds := make([]int, 0, len(pipeline))
 	for pipelineId, rbacObj := range pipelineIdToRbacObjMapping {
 		if authorized := rbacResults[rbacObj]; authorized {
@@ -531,11 +536,15 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsF
 	return wfIdToAuthorizedCDPipelineIds, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) FindArtifactsCountPendingForPromotionByPipelineIds(ctx *util2.RequestCtx, pipelineIds []int) (int, error) {
-	totalCount, err := impl.artifactPromotionApprovalRequestRepository.FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds)
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error) {
+	pipelineIdToCountMap := make(map[int]int)
+	requests, err := impl.artifactPromotionApprovalRequestRepository.FindPendingByDestinationPipelineIds(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding count of request pending for current user", "pipelineIds", pipelineIds, "err", err)
-		return 0, err
+		return pipelineIdToCountMap, err
 	}
-	return totalCount, nil
+	for _, request := range requests {
+		pipelineIdToCountMap[request.DestinationPipelineId] = pipelineIdToCountMap[request.DestinationPipelineId] + 1
+	}
+	return pipelineIdToCountMap, nil
 }

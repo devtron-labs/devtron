@@ -91,8 +91,6 @@ type TriggerService interface {
 
 	// TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
-
-	IsImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error)
 }
 
 type TriggerServiceImpl struct {
@@ -346,6 +344,15 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	if !isArtifactAvailable {
 		return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
 	}
+
+	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY {
+		_, err := impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
+			return 0, "", err
+		}
+	}
+
 	// Migration of deprecated DataSource Type
 	if artifact.IsMigrationRequired() {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
@@ -659,23 +666,23 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciAr
 	}
 }
 
-func (impl *TriggerServiceImpl) IsImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error) {
-	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
+	pipeline, err := impl.pipelineRepository.FindById(cdPipeline.Id)
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by cdPipelineId", "cdPipelineId", cdPipelineId, "err", err)
+		impl.logger.Errorw("error in fetching pipeline by cdPipelineId", "cdPipelineId", cdPipeline.Id, "err", err)
 		return false, err
 	}
-	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(appId, pipeline.EnvironmentId)
+	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipelineId, "err", err)
+		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
 		return false, err
 	}
 	if promotionPolicy != nil && promotionPolicy.Id > 0 {
 		if !promotionPolicy.ApprovalMetaData.AllowApproverFromDeploy {
-			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipelineId, constants.PROMOTED)
+			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipeline.Id, constants.PROMOTED)
 			if err != nil {
-				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipelineId)
-				return true, err
+				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id)
+				return false, err
 			}
 			if approvalMetadata, ok := promotionApprovalMetadata[artifactId]; ok {
 				approverIds := approvalMetadata.GetApprovalUserIds()

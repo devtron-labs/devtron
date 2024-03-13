@@ -37,7 +37,7 @@ type ApprovalRequestService interface {
 	HandleArtifactPromotionRequest(ctx *util2.RequestCtx, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetPromotionRequestById(promotionRequestId int) (*bean.ArtifactPromotionApprovalResponse, error)
 	FetchWorkflowPromoteNodeList(ctx *util2.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
-	FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
+	FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
 }
 
 type ApprovalRequestServiceImpl struct {
@@ -144,7 +144,7 @@ func (impl *ApprovalRequestServiceImpl) GetPromotionRequestById(promotionRequest
 	return artifactPromotionResponse, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
+func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
 
 	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
 
@@ -191,7 +191,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 	}
 
 	rbacObjects, pipelineIdToRbacObjMap := impl.getRbacObjects(pipelineIdToDaoMapping)
-	rbacResults := promotionApproverAuth(ctx.GetToken(), rbacObjects)
+	rbacResults := promotionApproverAuth(ctx, rbacObjects)
 
 	appId := pipelineIdToDaoMapping[promotionRequests[0].DestinationPipelineId].AppId
 
@@ -218,7 +218,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 			continue
 		}
-		// TODO abstract logic to policyBean
+
 		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
 			// TODO: reason constant
@@ -228,7 +228,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG)
 		}
-		// TODO: rbac batch
+
 		rbacObj := pipelineIdToRbacObjMap[request.DestinationPipelineId]
 		if isAuthorized := rbacResults[rbacObj]; !isAuthorized {
 			environmentMetadata.ApprovalAllowed = false

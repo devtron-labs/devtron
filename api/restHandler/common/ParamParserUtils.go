@@ -49,10 +49,11 @@ func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) 
 	return paramValues, nil
 }
 
+// TODO: fix nil case
 func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultVal *int) (int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
-	if len(paramValue) == 0 {
+	if len(paramValue) == 0 && defaultVal != nil {
 		return *defaultVal, nil
 	}
 	paramIntValue, err := convertToInt(w, paramValue)

@@ -124,27 +124,27 @@ type ArtifactsListFilterOptions struct {
 	UseCdStageQueryV2 bool
 }
 
-type CiNodePromotionArtifactsRequest struct {
+type CiNodeMaterialRequest struct {
 	CiPipelineId   int
 	ListingOptions util.ListingFilterOptions
 }
 
-type ExtCiNodePromotionArtifactsRequest struct {
+type ExtCiNodeMaterialRequest struct {
 	ExternalCiPipelineId int
 	ListingOptions       util.ListingFilterOptions
 }
 
-type CdNodePromotionArtifactsRequest struct {
+type CdNodeMaterialRequest struct {
 	ResourceCdPipelineId int
 	ListingOptions       util.ListingFilterOptions
 }
 
-type ArtifacPromotionPendingNodeRequest struct {
+type PromotionPendingNodeMaterialRequest struct {
 	ResourceCdPipelineId int
 	ListingOptions       util.ListingFilterOptions
 }
 
-type ArtifactPromotionPendingForCurrentUserRequest struct {
+type PromotionPendingForUserMaterialRequest struct {
 	ImagePromoterAccessCdPipelineIds []int
 	ListingOptions                   util.ListingFilterOptions
 }

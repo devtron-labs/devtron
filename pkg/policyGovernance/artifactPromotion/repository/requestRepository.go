@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -50,7 +49,7 @@ type RequestRepository interface {
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
-	FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error)
+	FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error)
 	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
 }
 
@@ -227,22 +226,17 @@ func (repo *RequestRepositoryImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*A
 	return nil
 }
 
-func (impl RequestRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
-	var count int
-	if len(pipelineIds) == 0 {
-		return 0, nil
-	}
-	query := fmt.Sprintf("select count(distinct(artifact_id)) as total_count from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d",
-		helper.GetCommaSepratedString(pipelineIds), constants.AWAITING_APPROVAL)
-	_, err := impl.dbConnection.Query(&count, query)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
+func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err = repo.dbConnection.Model(&models).
+		Where("destination_pipeline_id = ? ", pg.In(pipelineIds)).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Select()
+	return models, err
 }
 
-func (impl RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rowsAffected int, err error) {
-	res, err := impl.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+func (repo *RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rowsAffected int, err error) {
+	res, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", constants.CANCELED).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", userId).

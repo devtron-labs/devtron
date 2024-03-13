@@ -137,11 +137,11 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
-	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
-	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.CiNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
-	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ExtCiNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
-	FindArtifactsPendingForPromotion(request bean.ArtifacPromotionPendingNodeRequest) ([]CiArtifact, int, error)
-	FindArtifactsPendingForCurrentUser(request bean.ArtifactPromotionPendingForCurrentUserRequest) ([]CiArtifact, int, error)
+	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.CiNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsPendingForCurrentUser(request bean.PromotionPendingForUserMaterialRequest) ([]CiArtifact, int, error)
 	IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string) (bool, error)
 }
 
@@ -869,7 +869,7 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 	return ciArtifacts, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodePromotionArtifactsRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
@@ -900,38 +900,51 @@ func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsLi
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.CiNodePromotionArtifactsRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.CiNodeMaterialRequest) ([]CiArtifact, int, error) {
 	var ciArtifacts []CiArtifact
-	var ciArtifactsResp []CiArtifactWithExtraData
-	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
-		"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", request.CiPipelineId)
+	var ciArtifactArrResp []CiArtifactWithExtraData
+
+	query := impl.dbConnection.Model(&ciArtifactArrResp).
+		Column("ci_artifact.*, COUNT(ci_artifact.id) OVER() AS total_count").
+		Join("ci_pipeline ON ( ci_pipeline.id = ci_artifact.pipeline_id OR (ci_pipeline.id=ci_artifact.component_id AND ci_artifact.data_source= ? ) )", POST_CI).
+		Where("ci_pipeline.active=true and ci_pipeline.id = ? ", request.CiPipelineId)
+
+	//query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
+	//	"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
+	//	"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", request.CiPipelineId)
 
 	if request.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", request.ListingOptions.SearchString)
+		query = query.Where("ci_artifact.image like '?'", request.ListingOptions.SearchString)
+		//query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", request.ListingOptions.SearchString)
 	}
-	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
-	query = query + limitOffSetQuery
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
+	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
+	//limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
+	//query = query + limitOffSetQuery
+	//_, err := impl.dbConnection.Query(&ciArtifactArrResp, query)
+	//if err != nil {
+	//	impl.logger.Errorw("error in fetching deployed artifacts for ci pipeline node", "ciPipelineId", request.CiPipelineId, "err", err)
+	//	return ciArtifacts, 0, err
+	//}
+	err := query.Select()
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployed artifacts for ci pipeline node", "ciPipelineId", request.CiPipelineId, "err", err)
 		return ciArtifacts, 0, err
 	}
 	var totalCount int
-	if len(ciArtifactsResp) > 0 {
-		totalCount = ciArtifactsResp[0].TotalCount
+	if len(ciArtifactArrResp) > 0 {
+		totalCount = ciArtifactArrResp[0].TotalCount
 	}
-	for _, ciArtifact := range ciArtifactsResp {
-		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
+	for _, ciArtifactResp := range ciArtifactArrResp {
+		ciArtifacts = append(ciArtifacts, ciArtifactResp.CiArtifact)
 	}
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request bean.ExtCiNodePromotionArtifactsRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
-
+	//TODO: orm query
 	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN external_ci_pipeline excp ON excp.id = cia.external_ci_pipeline_id "+
 		"WHERE excp.active=true and excp.id = %v ORDER BY cia.id DESC", request.ExternalCiPipelineId)
@@ -958,7 +971,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.ArtifacPromotionPendingNodeRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
@@ -967,6 +980,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 	query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 		" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d ) ", request.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
 
+	// TODO make common func of this
 	if request.ListingOptions.SearchString != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and cia.image like '%s' ", request.ListingOptions.SearchString)
 	}
@@ -989,13 +1003,14 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForCurrentUser(request bean.ArtifactPromotionPendingForCurrentUserRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForCurrentUser(request bean.PromotionPendingForUserMaterialRequest) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	if len(request.ImagePromoterAccessCdPipelineIds) == 0 {
 		return ciArtifacts, 0, nil
 	}
 	var ciArtifactsResp []CiArtifactWithExtraData
+	//TODO: orm query
 	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 		" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d ) ", helper.GetCommaSepratedString(request.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
 	if request.ListingOptions.SearchString != EmptyLikeRegex {
