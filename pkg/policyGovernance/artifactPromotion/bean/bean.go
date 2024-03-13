@@ -284,8 +284,6 @@ type RequestMetaData struct {
 	ciArtifact   *repository.CiArtifact
 }
 
-// todo: naming can be better
-// todo: gireesh, make this method on RequestMetaData struct
 func (r *RequestMetaData) GetDefaultEnvironmentPromotionMetaDataResponseMap() map[string]EnvironmentPromotionMetaData {
 	response := make(map[string]EnvironmentPromotionMetaData)
 	for _, env := range r.GetUserGivenEnvNames() {
