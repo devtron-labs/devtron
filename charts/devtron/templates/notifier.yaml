@@ -100,11 +100,11 @@ spec:
           - secretRef:
               name: notifier-secret
           volumeMounts: []
-      volumes: []
-  revisionHistoryLimit: 3
 {{- if .resources }}
           resources:
 {{ toYaml .resources | indent 12 }}
+      volumes: []
+  revisionHistoryLimit: 3
 {{- end }}
 {{- end }}
 {{- end }}
