@@ -905,12 +905,14 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 	var ciArtifactsResp []CiArtifactWithExtraData
 	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
-		"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", request.CiPipelineId)
+		"WHERE cp.active=true and cp.id = %v", request.CiPipelineId)
 
-	if request.ListingOptions.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", request.ListingOptions.SearchString)
+	searchRegex := "%" + request.ListingOptions.SearchString + "%"
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", searchRegex)
 	}
 	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", request.ListingOptions.Limit, request.ListingOptions.Offset)
+	query = query + " ORDER BY cia.id DESC "
 	query = query + limitOffSetQuery
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
 	if err != nil {
