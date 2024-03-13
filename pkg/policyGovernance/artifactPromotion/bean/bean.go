@@ -70,7 +70,7 @@ type ArtifactPromotionApprovalResponse struct {
 type PromotionApprovalMetaData struct {
 	ApprovalRequestId    int                         `json:"approvalRequestId"`
 	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
-	ApprovalUsersData    []PromotionApprovalUserData `json:"approvalUsersData"`
+	ApprovalUsersData    []PromotionApprovalUserData `json:"approvedUsersData"`
 	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
 	PromotedFrom         string                      `json:"promotedFrom"`
 	PromotedFromType     string                      `json:"promotedFromType"`

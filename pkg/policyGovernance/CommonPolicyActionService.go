@@ -234,11 +234,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
 	if !ok {
-		return nil, 0, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: "unsupported policy type",
-			UserMessage:     "unsupported policy type",
-		}
+		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
 		SortOrder: listFilter.SortOrder,
