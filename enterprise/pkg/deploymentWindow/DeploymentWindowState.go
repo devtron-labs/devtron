@@ -20,7 +20,9 @@ func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime tim
 	actionState := Allowed
 	if state, ok := stateResponse.EnvironmentStateMap[envId]; ok {
 		actionState = state.UserActionState
-		appliedProfile = state.AppliedProfile.DeploymentWindowProfile
+		if state.AppliedProfile != nil {
+			appliedProfile = state.AppliedProfile.DeploymentWindowProfile
+		}
 	}
 	return appliedProfile, actionState, nil
 }
