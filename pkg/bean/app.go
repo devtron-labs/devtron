@@ -29,7 +29,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/pkg/util"
 	"strings"
 	"time"
 )
@@ -88,7 +87,7 @@ func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
 	for strings.HasSuffix(m.Url, "/") {
 		m.Url = strings.TrimSuffix(m.Url, "/")
 	}
-	m.Url = util.RemoveTrailingAndLeadingSpaces(m.Url)
+	m.Url = strings.TrimSpace(m.Url)
 }
 
 type CiMaterial struct {
