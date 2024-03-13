@@ -18,7 +18,7 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:98957687-150-19133"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:d0dcc590-373-21074"
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   USE_ARTIFACT_LISTING_API_V2: "true"
@@ -29,6 +29,7 @@ data:
   IMAGE_SCAN_MAX_RETRIES: "3"
   IMAGE_SCAN_RETRY_DELAY: "5"
   CONSUMER_CONFIG_JSON: '{"DEVTRON-CHART-INSTALL-DURABLE":{"natsMsgProcessingBatchSize":1}}'
+  USE_GIT_CLI : "true"
 {{- if $.Values.configs }}
 {{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
   BLOB_STORAGE_ENABLED: "true"
