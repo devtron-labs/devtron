@@ -115,12 +115,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.R
 		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
 		return err
 	}
-	// delete all the existing mappings for the updateToProfileId resource
-	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(ctx.GetUserId()), tx)
-	if err != nil {
-		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
-		return err
-	}
+
 	// create new mappings using resourceQualifierMapping
 	err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
