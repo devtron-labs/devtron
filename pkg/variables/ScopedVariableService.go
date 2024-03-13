@@ -15,7 +15,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"regexp"
@@ -273,10 +272,12 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	}
 
 	varScopeToSelection := make(map[*resourceQualifiers.ResourceMappingSelection]*models.VariableScope)
+	selections := make([]*resourceQualifiers.ResourceMappingSelection, 0)
 	for _, scope := range variableScopes {
 		varScopeToSelection[scope.ResourceMappingSelection] = scope
+		selections = append(selections, scope.ResourceMappingSelection)
 	}
-	selections := lo.Keys(varScopeToSelection)
+
 	savedSelections, err := impl.qualifierMappingService.CreateMappingsForSelections(tx, userId, selections)
 	if err != nil {
 		return nil, err

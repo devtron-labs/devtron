@@ -8,8 +8,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"time"
 )
@@ -90,7 +90,8 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 			return nil, err
 		}
 	}
-	return lo.Values(mappingsToSelection), nil
+
+	return maps.Values(mappingsToSelection), nil
 }
 
 func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {

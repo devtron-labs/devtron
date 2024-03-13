@@ -3,7 +3,7 @@ package resourceQualifiers
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 	"time"
 )
 
@@ -18,7 +18,7 @@ const (
 )
 
 func (selector QualifierSelector) isCompound() bool {
-	return lo.Contains(CompoundQualifiers, selector.toQualifier())
+	return slices.Contains(CompoundQualifiers, selector.toQualifier())
 }
 
 func (selector QualifierSelector) toQualifier() Qualifier {
