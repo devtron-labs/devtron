@@ -31,6 +31,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"strings"
 	"time"
 )
 
@@ -92,6 +93,13 @@ type GitMaterial struct {
 	FetchSubmodules  bool     `json:"fetchSubmodules"`
 	IsUsedInCiConfig bool     `json:"isUsedInCiConfig"`
 	FilterPattern    []string `json:"filterPattern"`
+}
+
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
+	for strings.HasSuffix(m.Url, "/") {
+		m.Url = strings.TrimSuffix(m.Url, "/")
+	}
 }
 
 type CiMaterial struct {

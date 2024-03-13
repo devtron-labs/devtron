@@ -45,7 +45,7 @@ Let's assume you are the application admin and you wish to edit the deployment t
     ![Figure 3: Changed Values](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/changed-values.jpg)
 
 {% hint style="info" %}
-If you are not a super-admin, you cannot modify the locked keys in deployment template. Refer [Lock Deployment Config](../global-configurations/lock-deployment-config.md) to know more. 
+If you are not a super-admin, you cannot modify the locked keys in deployment template. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more. 
 {% endhint %}
 
 4. If the configuration is protected, your changes won't be published right away. You can do either of the following:

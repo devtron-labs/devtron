@@ -125,7 +125,6 @@ type TriggerServiceImpl struct {
 	config                              *types.CdConfig
 	resourceFilterService               resourceFilter.ResourceFilterService
 	deploymentApprovalRepository        pipelineConfig.DeploymentApprovalRepository
-	appRepository                       appRepository.AppRepository
 	helmRepoPushService                 app.HelmRepoPushService
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
@@ -135,6 +134,7 @@ type TriggerServiceImpl struct {
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
+	appRepository                 appRepository.AppRepository
 	scanResultRepository          security.ImageScanResultRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -188,10 +188,10 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventClient client.EventClient,
 	imageTaggingService pipeline.ImageTaggingService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	globalEnvVariables *util3.GlobalEnvVariables,
+	appRepository appRepository.AppRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -244,11 +244,11 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		eventClient:                         eventClient,
 		imageTaggingService:                 imageTaggingService,
 		deploymentApprovalRepository:        deploymentApprovalRepository,
-		appRepository:                       appRepository,
 		helmRepoPushService:                 helmRepoPushService,
 		resourceFilterService:               resourceFilterService,
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
+		appRepository:                       appRepository,
 		scanResultRepository:                scanResultRepository,
 		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,

@@ -36,7 +36,7 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Filter Condition](filter-condition.md)
 
-[Lock Deployment Config](lock-deployment-config.md)
+[Lock Deployment Configuration](lock-deployment-config.md)
 
 [Build Infra](build-infra.md)
 
