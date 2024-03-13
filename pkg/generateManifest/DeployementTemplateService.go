@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -75,10 +74,8 @@ type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
 	chartService                     chart.ChartService
 	appListingService                app.AppListingService
-	appListingRepository             repository.AppListingRepository
 	deploymentTemplateRepository     repository.DeploymentTemplateRepository
 	helmAppService                   client.HelmAppService
-	chartRepository                  chartRepoRepository.ChartRepository
 	chartTemplateServiceImpl         util.ChartTemplateService
 	K8sUtil                          *k8s.K8sUtilExtended
 	helmAppClient                    gRPC.HelmAppClient
@@ -92,10 +89,8 @@ type DeploymentTemplateServiceImpl struct {
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
 	appListingService app.AppListingService,
-	appListingRepository repository.AppListingRepository,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
 	helmAppService client.HelmAppService,
-	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sUtilExtended,
@@ -109,10 +104,8 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		Logger:                           Logger,
 		chartService:                     chartService,
 		appListingService:                appListingService,
-		appListingRepository:             appListingRepository,
 		deploymentTemplateRepository:     deploymentTemplateRepository,
 		helmAppService:                   helmAppService,
-		chartRepository:                  chartRepository,
 		chartTemplateServiceImpl:         chartTemplateServiceImpl,
 		K8sUtil:                          K8sUtil,
 		helmAppClient:                    helmAppClient,

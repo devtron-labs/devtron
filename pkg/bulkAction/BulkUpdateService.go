@@ -28,16 +28,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
@@ -75,21 +71,17 @@ type BulkUpdateServiceImpl struct {
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              dag.WorkflowDagExecutor
 	pipelineBuilder                  pipeline.PipelineBuilder
 	enforcerUtil                     rbac.EnforcerUtil
 	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
 	appWorkflowService               appWorkflow2.AppWorkflowService
-	argoUserService                  argo.ArgoUserService
 	resourceProtectionService        protect.ResourceProtectionService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
-	cdTriggerService                 devtronApps.TriggerService
 	deployedAppService               deployedApp.DeployedAppService
-	cdWorkflowCommonService          cd.CdWorkflowCommonService
 	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 }
 
@@ -99,21 +91,18 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor dag.WorkflowDagExecutor,
+	configMapHistoryService history.ConfigMapHistoryService,
 	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,
 	ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
-	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
 	resourceProtectionService protect.ResourceProtectionService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	cdTriggerService devtronApps.TriggerService,
 	deployedAppService deployedApp.DeployedAppService,
-	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
@@ -123,21 +112,17 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		configMapHistoryService:          configMapHistoryService,
-		workflowDagExecutor:              workflowDagExecutor,
 		pipelineBuilder:                  pipelineBuilder,
 		enforcerUtil:                     enforcerUtil,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
 		appWorkflowService:               appWorkflowService,
-		argoUserService:                  argoUserService,
 		resourceProtectionService:        resourceProtectionService,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		chartRefService:                  chartRefService,
-		cdTriggerService:                 cdTriggerService,
 		deployedAppService:               deployedAppService,
-		cdWorkflowCommonService:          cdWorkflowCommonService,
 		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 	}
 
