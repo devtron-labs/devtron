@@ -1864,10 +1864,6 @@ func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bea
 	return imagePromotionApproverEmails, err
 }
 
-func getImageSearchString(imagePath string) string {
-	return "%" + imagePath + "%"
-}
-
 func getCiArtifactBean(artifactDao repository.CiArtifact) bean2.CiArtifactBean {
 	mInfo, err := parseMaterialInfo([]byte(artifactDao.MaterialInfo), artifactDao.DataSource)
 	if err != nil {

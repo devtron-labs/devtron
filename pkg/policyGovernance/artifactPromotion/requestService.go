@@ -962,6 +962,10 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx *util2.Req
 				responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 			}()
 
+			if metadata.GetSourceTypeStr() == constants.SOURCE_TYPE_CD && metadata.GetSourcePipelineId() == pipelineId {
+				EnvResponse.PromotionValidationMessage = constants.SameSourceAndDestinationErr
+				return
+			}
 			if promotedCountPerPipeline[pipelineId] > 0 {
 				EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
 				return
