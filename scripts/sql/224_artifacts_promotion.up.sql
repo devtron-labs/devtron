@@ -3,14 +3,14 @@ ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer NOT 
 
 --  drop the constraint as this is no longer valid
 ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_fkey;
+DROP INDEX deployment_approval_user_data_approval_request_id_user_id_key;
 
 -- rename deployment_approval_user_data table to request_approval_user_data
 ALTER TABLE deployment_approval_user_data RENAME TO request_approval_user_data;
 
 -- user can take action only once on any approval_request
 CREATE UNIQUE INDEX "unique_user_request_action"
-    ON request_approval_user_data(user_id,approval_request_id)
-    WHERE request_type = 1;
+    ON request_approval_user_data(user_id,approval_request_id,request_type);
 -- 1 for  resource_filter, 2 for artifact promotion policy filter evaluation
 ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 1;
 
