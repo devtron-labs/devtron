@@ -1672,7 +1672,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             bean.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             bean2.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 

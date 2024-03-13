@@ -1,8 +1,6 @@
 # Filter Condition
 
-[![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
-
-## Introduction
+## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 The [workflows](../creating-application/workflow/) you create in Devtron for managing the CI-CD of your application can be made flexible, for e.g., not all events (such as image builds) generated during the CI stage require progression to the CD stage. Therefore, instead of creating multiple pipelines that cater to complex requirements, Devtron provides you the option of creating filters to make your workflow efficient. 
 
