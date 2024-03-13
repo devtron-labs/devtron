@@ -256,7 +256,7 @@ func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []Profi
 	}
 
 	profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
-		return item.IsActive
+		return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
 	})
 
 	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
