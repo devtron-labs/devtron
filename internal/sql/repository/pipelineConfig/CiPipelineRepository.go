@@ -621,7 +621,7 @@ type LinkedCIDetails struct {
 }
 
 func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
-	appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, error) {
+	appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, int, error) {
 	linkedCIDetails := make([]LinkedCIDetails, 0)
 	if limit == 0 {
 		limit = 20
@@ -661,11 +661,18 @@ func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, l
 	if len(envNameMatch) != 0 {
 		query = query.Where("environment_name = ?", envNameMatch)
 	}
+	// get total response count
+	totalCount, err := query.Count()
+	if err != nil {
+		return nil, 0, err
+	}
 	// query execution
-	err := query.Order("app_name ?", string(order)).
+	err = query.Order("app_name ?", string(order)).
 		Limit(limit).
 		Offset(offset).
 		Select(&linkedCIDetails)
-
-	return linkedCIDetails, err
+	if err != nil {
+		return nil, 0, err
+	}
+	return linkedCIDetails, totalCount, err
 }
