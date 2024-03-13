@@ -55,8 +55,36 @@ type Config struct {
 	Config map[string]interface{} `json:"config"`
 }
 
-const ClientID = "clientID"
-const ClientSecret = "clientSecret"
+func (r Config) IsSsoLdap() bool {
+	return r.Name == LDAP
+}
+
+func (r Config) secureCredentials() {
+	secureCredentialValue(&r, ClientID)
+	secureCredentialValue(&r, ClientSecret)
+	if r.IsSsoLdap() {
+		secureCredentialValue(&r, LdapBindPW)
+		secureCredentialValue(&r, LdapUsernamePrompt)
+	}
+
+}
+
+func (r Config) updateCredentialsFromBase(configFromDb *Config) {
+	updateSecretFromBase(&r, configFromDb, ClientID)
+	updateSecretFromBase(&r, configFromDb, ClientSecret)
+	if r.IsSsoLdap() {
+		updateSecretFromBase(&r, configFromDb, LdapBindPW)
+		updateSecretFromBase(&r, configFromDb, LdapUsernamePrompt)
+	}
+}
+
+const (
+	ClientID           = "clientID"
+	ClientSecret       = "clientSecret"
+	LdapBindPW         = "bindPW"
+	LdapUsernamePrompt = "usernamePrompt"
+	LDAP               = "LDAP"
+)
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
@@ -184,8 +212,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
-	updateSecretFromBase(&configData, &modelConfigData, ClientID)
-	updateSecretFromBase(&configData, &modelConfigData, ClientSecret)
+	configData.updateCredentialsFromBase(&modelConfigData)
 	newConfigString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Errorw("error while Marshaling configData", "error", err)
@@ -360,8 +387,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
-	secureCredentialValue(&configData, ClientID)
-	secureCredentialValue(&configData, ClientSecret)
+	configData.secureCredentials()
 	configString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Errorw("error while Marshaling configData", "error", err)
