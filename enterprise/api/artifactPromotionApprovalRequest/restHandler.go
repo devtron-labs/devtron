@@ -217,12 +217,26 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	// todo: ayush
+	if ok := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx); !ok {
+		return
+	}
+
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
+	if err != nil {
+		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
+		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
+}
+
+func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, artifactPromotionMaterialRequest *bean2.ArtifactPromotionMaterialRequest, ctx *util.RequestCtx) bool {
 	if artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CI) || artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CD) {
 		// check if user has trigger access for any one env for this app
 		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
-			return
+			return true
 		}
 	} else if artifactPromotionMaterialRequest.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && !artifactPromotionMaterialRequest.PendingForCurrentUser {
 		// check if either user has trigger access or artifact promoter access for this env
@@ -231,12 +245,12 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		if err != nil {
 			handler.logger.Errorw("env not found for given envName", "envName", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
-			return
+			return true
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, artifactPromotionMaterialRequest.AppId)
 		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return
+			return true
 		}
 
 		triggerAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
@@ -248,18 +262,10 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return
+			return true
 		}
 	}
-
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
-	if err != nil {
-		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
-		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
+	return false
 }
 
 func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
@@ -310,15 +316,19 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 
 	searchQueryParam := r.URL.Query().Get("search") // image search string
 
+	listingFilterOptions := util.ListingFilterOptions{
+		Limit:        limit,
+		Offset:       offset,
+		SearchString: searchQueryParam,
+	}
+
 	artifactPromotionMaterialRequest := &bean2.ArtifactPromotionMaterialRequest{
 		Resource:              resource,
 		ResourceName:          resourceName,
 		AppId:                 appId,
 		WorkflowId:            workflowId,
 		PendingForCurrentUser: pendingForCurrentUser,
-		Limit:                 limit,
-		Offset:                offset,
-		ImageSearchRegex:      searchQueryParam,
+		ListingFilterOptions:  listingFilterOptions,
 	}
 
 	return artifactPromotionMaterialRequest, nil
@@ -339,7 +349,6 @@ func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.Response
 				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", request.Resource)), nil, http.StatusBadRequest)
 				return false
 			}
-
 		} else if request.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) {
 			if !request.PendingForCurrentUser {
 				if len(request.Resource) == 0 || request.AppId == 0 {
