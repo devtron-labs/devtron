@@ -245,7 +245,6 @@ type ClusterServiceImpl struct {
 	roleGroupRepository              repository2.RoleGroupRepository
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 	userService                      user.UserService
-	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -255,17 +254,13 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:   repository,
-		logger:              logger,
-		K8sUtil:             K8sUtil,
-		K8sInformerFactory:  K8sInformerFactory,
-		userAuthRepository:  userAuthRepository,
-		userRepository:      userRepository,
-		roleGroupRepository: roleGroupRepository,
-		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-			logger:      logger,
-			userService: userService,
-		},
+		clusterRepository:                repository,
+		logger:                           logger,
+		K8sUtil:                          K8sUtil,
+		K8sInformerFactory:               K8sInformerFactory,
+		userAuthRepository:               userAuthRepository,
+		userRepository:                   userRepository,
+		roleGroupRepository:              roleGroupRepository,
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
 		userService:                      userService,
 	}
