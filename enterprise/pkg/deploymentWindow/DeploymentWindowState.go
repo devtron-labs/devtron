@@ -91,7 +91,6 @@ func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime
 	response := &DeploymentWindowResponse{
 		EnvironmentStateMap: envIdToEnvironmentState,
 		Profiles:            resultProfiles,
-		//SuperAdmins:         superAdmins,
 	}
 	return response, nil
 }
@@ -337,7 +336,7 @@ func (impl DeploymentWindowServiceImpl) getActiveWindow(targetTimeWithZone time.
 	var appliedWindow *TimeWindow
 	for _, window := range windows {
 		timeRange := window.toTimeRange()
-		timestamp, isInside, err := timeRange.GetScheduleSpec(targetTimeWithZone)
+		timestamp, isInside, err := timeRange.GetTimeRangeWindow(targetTimeWithZone)
 		if err != nil {
 			impl.logger.Errorw("GetScheduleSpec failed", "timeRange", timeRange, "window", window, "time", targetTimeWithZone)
 			continue

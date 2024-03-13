@@ -2,7 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/common-lib/scheduler"
+	scheduler "github.com/devtron-labs/common-lib/timeRangeLib"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/samber/lo"
 	"time"
@@ -88,15 +88,15 @@ func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
 func (f Frequency) toTimeRangeFrequency() scheduler.Frequency {
 	switch f {
 	case Fixed:
-		return scheduler.FIXED
+		return scheduler.Fixed
 	case Daily:
-		return scheduler.DAILY
+		return scheduler.Daily
 	case Weekly:
-		return scheduler.WEEKLY
+		return scheduler.Weekly
 	case WeeklyRange:
-		return scheduler.WEEKLY_RANGE
+		return scheduler.WeeklyRange
 	case Monthly:
-		return scheduler.MONTHLY
+		return scheduler.Monthly
 	}
 	return ""
 }

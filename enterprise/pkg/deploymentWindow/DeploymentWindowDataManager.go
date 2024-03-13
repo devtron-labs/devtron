@@ -2,6 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
@@ -44,7 +45,12 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 
 func (impl DeploymentWindowServiceImpl) updateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error {
 
-	//TODO validate Windows
+	for _, window := range windows {
+		err := window.toTimeRange().ValidateTimeRange()
+		if err != nil {
+			return fmt.Errorf("validation falied %v", err)
+		}
+	}
 
 	windowExpressions := lo.Map(windows, func(window *TimeWindow, index int) timeoutWindow.TimeWindowExpression {
 		return timeoutWindow.TimeWindowExpression{
