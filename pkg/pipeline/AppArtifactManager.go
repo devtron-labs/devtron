@@ -1689,11 +1689,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(ctx *uti
 	}
 	cdMaterialsRequest := bean.CdNodePromotionArtifactsRequest{
 		ResourceCdPipelineId: cdPipeline.Pipelines[0].Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
-			Limit:        request.Limit,
-			Offset:       request.Offset,
-			SearchString: getImageSearchString(request.ImageSearchRegex),
-		},
+		ListingOptions:       request.ListingFilterOptions,
 	}
 
 	ArtifactDaos, totalCount, err := impl.ciArtifactRepository.FindDeployedArtifactsOnPipeline(cdMaterialsRequest)
@@ -1727,12 +1723,8 @@ func (impl *AppArtifactManagerImpl) handleRequestForCIResource(ctx *util2.Reques
 		}
 	}
 	ciNodeRequest := bean.CiNodePromotionArtifactsRequest{
-		CiPipelineId: ciPipeline.Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
-			Limit:        request.Limit,
-			Offset:       request.Offset,
-			SearchString: getImageSearchString(request.ImageSearchRegex),
-		},
+		CiPipelineId:   ciPipeline.Id,
+		ListingOptions: request.ListingFilterOptions,
 	}
 	ArtifactDaos, totalCount, err := impl.ciArtifactRepository.FindArtifactsByCIPipelineId(ciNodeRequest)
 	if err != nil {
@@ -1764,11 +1756,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(ctx *util2.Request
 	}
 	extCiNodeRequest := bean.ExtCiNodePromotionArtifactsRequest{
 		ExternalCiPipelineId: externalCiPipelineId,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
-			Limit:        request.Limit,
-			Offset:       request.Offset,
-			SearchString: getImageSearchString(request.ImageSearchRegex),
-		},
+		ListingOptions:       request.ListingFilterOptions,
 	}
 	ArtifactDaos, totalCount, err := impl.ciArtifactRepository.FindArtifactsByExternalCIPipelineId(extCiNodeRequest)
 	if err != nil {
@@ -1802,11 +1790,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 	pipeline := cdPipeline.Pipelines[0]
 	promotionPendingNodeReq := bean.ArtifacPromotionPendingNodeRequest{
 		ResourceCdPipelineId: pipeline.Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
-			Limit:        request.Limit,
-			Offset:       request.Offset,
-			SearchString: getImageSearchString(request.ImageSearchRegex),
-		},
+		ListingOptions:       request.ListingFilterOptions,
 	}
 
 	ArtifactDaos, totalCount, err := impl.ciArtifactRepository.FindArtifactsPendingForPromotion(promotionPendingNodeReq)
@@ -1843,11 +1827,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 func (impl *AppArtifactManagerImpl) handleRequestPendingForCurrentUser(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 	promotionPendingForCurrentUserReq := bean.ArtifactPromotionPendingForCurrentUserRequest{
 		ImagePromoterAccessCdPipelineIds: imagePromoterAuthCDPipelineIds,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
-			Limit:        request.Limit,
-			Offset:       request.Offset,
-			SearchString: getImageSearchString(request.ImageSearchRegex),
-		},
+		ListingOptions:                   request.ListingFilterOptions,
 	}
 	ArtifactDaos, totalCount, err := impl.ciArtifactRepository.FindArtifactsPendingForCurrentUser(promotionPendingForCurrentUserReq)
 	if err != nil {

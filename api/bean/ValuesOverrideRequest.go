@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type WorkflowType string
@@ -123,35 +124,27 @@ type ArtifactsListFilterOptions struct {
 	UseCdStageQueryV2 bool
 }
 
-type PromotionArtifactsListingFilterOptions struct {
-	//list filter data
-	Limit        int
-	Offset       int
-	SearchString string
-	Order        string
-}
-
 type CiNodePromotionArtifactsRequest struct {
 	CiPipelineId   int
-	ListingOptions PromotionArtifactsListingFilterOptions
+	ListingOptions util.ListingFilterOptions
 }
 
 type ExtCiNodePromotionArtifactsRequest struct {
 	ExternalCiPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
+	ListingOptions       util.ListingFilterOptions
 }
 
 type CdNodePromotionArtifactsRequest struct {
 	ResourceCdPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
+	ListingOptions       util.ListingFilterOptions
 }
 
 type ArtifacPromotionPendingNodeRequest struct {
 	ResourceCdPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
+	ListingOptions       util.ListingFilterOptions
 }
 
 type ArtifactPromotionPendingForCurrentUserRequest struct {
 	ImagePromoterAccessCdPipelineIds []int
-	ListingOptions                   PromotionArtifactsListingFilterOptions
+	ListingOptions                   util.ListingFilterOptions
 }

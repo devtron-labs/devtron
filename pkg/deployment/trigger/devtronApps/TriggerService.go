@@ -92,7 +92,7 @@ type TriggerService interface {
 	// TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 
-	BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error)
+	IsImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error)
 }
 
 type TriggerServiceImpl struct {
@@ -631,13 +631,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 }
 
 func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciArtifact *repository3.CiArtifact) (bool, error) {
-
 	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipelineId, "err", err)
 		return false, err
 	}
-
 	if parentType == bean3.CI_WORKFLOW_TYPE {
 		// artifact can be created at post-ci aswell
 		if parentId == ciArtifact.PipelineId || (ciArtifact.DataSource == repository3.POST_CI && ciArtifact.ComponentId == parentId) {
@@ -659,10 +657,9 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciAr
 		}
 		return artifactAvailable, nil
 	}
-
 }
 
-func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error) {
+func (impl *TriggerServiceImpl) IsImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error) {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by cdPipelineId", "cdPipelineId", cdPipelineId, "err", err)
