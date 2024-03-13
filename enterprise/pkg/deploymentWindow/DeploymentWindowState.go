@@ -254,6 +254,10 @@ func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []Profi
 		return nil
 	}
 
+	profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
+		return item.IsActive
+	})
+
 	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.After(profile.CalculatedTimestamp) {
 			return item
@@ -267,6 +271,10 @@ func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []Pr
 	if len(profiles) == 0 {
 		return nil
 	}
+
+	profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
+		return !item.IsActive
+	})
 
 	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.Before(profile.CalculatedTimestamp) {
