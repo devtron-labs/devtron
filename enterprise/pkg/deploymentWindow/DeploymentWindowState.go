@@ -137,23 +137,42 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	var isSuperAdminExcluded bool
 	if isBlackoutActive && isMaintenanceActive { //deployment is blocked, restriction through blackout
 		// if both are active then blackout takes precedence in overall calculation
-		appliedProfile = impl.getLongestEndingProfile(filteredBlackoutProfiles)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(filteredBlackoutProfiles)
+		activeBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
+			return item.IsActive
+		})
+		appliedProfile = impl.getLongestEndingProfile(activeBlackouts)
+		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(activeBlackouts)
 
 	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through maintenance
 		// if nothing is active then earliest starting maintenance will be shown
-		appliedProfile = impl.getEarliestStartingProfile(filteredMaintenanceProfiles)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(filteredMaintenanceProfiles)
+
+		nonActiveMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
+			return item.IsActive
+		})
+		appliedProfile = impl.getEarliestStartingProfile(nonActiveMaintenance)
+		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
 	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through both
 		// longest of restrictions coming from both blackout and maintenance
-		appliedProfile = impl.getLongestEndingProfile(allProfiles)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
+
+		restrictedProfiles := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
+			return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
+		})
+
+		appliedProfile = impl.getLongestEndingProfile(restrictedProfiles)
+		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(restrictedProfiles)
 
 	} else if !isBlackoutActive && isMaintenanceActive { //deployment not blocked
 		// applied profile here would be the longest running maintenance profile even if a blackout starts before that
-		appliedProfile = impl.getLongestEndingProfile(filteredMaintenanceProfiles)
+
+		activeMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
+			return item.IsActive
+		})
+		appliedProfile = impl.getLongestEndingProfile(activeMaintenance)
 		if appliedProfile == nil {
-			appliedProfile = impl.getEarliestStartingProfile(filteredBlackoutProfiles)
+			nonActiveBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
+				return !item.IsActive
+			})
+			appliedProfile = impl.getEarliestStartingProfile(nonActiveBlackouts)
 		}
 	}
 
@@ -224,14 +243,17 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 		userSet = mapset.NewSet(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
 	}
 
-	isSuperAdminExcluded := false
-	lo.ForEach(profiles, func(profile ProfileState, index int) {
+	isSuperAdminExcluded := true
+	for _, profile := range profiles {
+
 		var users []int32
 		if profile.DeploymentWindowProfile.IsUserExcluded {
 			users = profile.DeploymentWindowProfile.ExcludedUsersList
 		}
 
-		isSuperAdminExcluded = profile.DeploymentWindowProfile.IsSuperAdminExcluded
+		if !profile.DeploymentWindowProfile.IsSuperAdminExcluded {
+			isSuperAdminExcluded = false
+		}
 
 		profileUserSet := mapset.NewSet()
 		if len(users) > 0 {
@@ -240,7 +262,7 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 		}
 
 		userSet = userSet.Intersect(profileUserSet)
-	})
+	}
 
 	//if isSuperAdminExcluded && len(superAdmins) > 0 {
 	//	userSet = userSet.Union(mapset.NewSet(superAdmins))
@@ -255,9 +277,9 @@ func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []Profi
 		return nil
 	}
 
-	profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
-		return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
-	})
+	//profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
+	//	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
+	//})
 
 	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.After(profile.CalculatedTimestamp) {
@@ -273,9 +295,9 @@ func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []Pr
 		return nil
 	}
 
-	profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
-		return !item.IsActive
-	})
+	//profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
+	//	return !item.IsActive
+	//})
 
 	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.Before(profile.CalculatedTimestamp) {
