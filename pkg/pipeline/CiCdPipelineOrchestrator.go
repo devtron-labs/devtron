@@ -2103,6 +2103,7 @@ func (impl CiCdPipelineOrchestratorImpl) getAllAttachedEnvNamesByIds(linkedCiPip
 	}
 	Pipelines, err := impl.pipelineRepository.FindWithEnvironmentByCiIds(CIPipelineIds)
 	if err != nil {
+		impl.logger.Errorw("error in fetching environment by Ci Ids", err)
 		return nil, err
 	}
 	var envNames []string
