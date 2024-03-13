@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.28"
+  release: "v0.6.29-rc.0"
   image: "quay.io/devtron/inception"
   tag: "473deaa4-185-21582"
   
@@ -28,7 +28,7 @@ components:
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
   devtron:
-    image: "quay.io/devtron/hyperion:ca439071-280-21596"
+    image: "quay.io/devtron/hyperion:1426ad27-280-21598"
     cicdImage: "quay.io/devtron/devtron:ca439071-434-21597"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
