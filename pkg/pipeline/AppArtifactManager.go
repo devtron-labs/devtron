@@ -1689,7 +1689,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForEnvironmentResource(ctx *uti
 	}
 	cdMaterialsRequest := bean.CdNodePromotionArtifactsRequest{
 		ResourceCdPipelineId: cdPipeline.Pipelines[0].Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
+		ListingOptions: util2.ListingFilterOptions{
 			Limit:        request.Limit,
 			Offset:       request.Offset,
 			SearchString: getImageSearchString(request.ImageSearchRegex),
@@ -1728,7 +1728,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForCIResource(ctx *util2.Reques
 	}
 	ciNodeRequest := bean.CiNodePromotionArtifactsRequest{
 		CiPipelineId: ciPipeline.Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
+		ListingOptions: util2.ListingFilterOptions{
 			Limit:        request.Limit,
 			Offset:       request.Offset,
 			SearchString: getImageSearchString(request.ImageSearchRegex),
@@ -1764,7 +1764,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForExtCINode(ctx *util2.Request
 	}
 	extCiNodeRequest := bean.ExtCiNodePromotionArtifactsRequest{
 		ExternalCiPipelineId: externalCiPipelineId,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
+		ListingOptions: util2.ListingFilterOptions{
 			Limit:        request.Limit,
 			Offset:       request.Offset,
 			SearchString: getImageSearchString(request.ImageSearchRegex),
@@ -1802,7 +1802,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 	pipeline := cdPipeline.Pipelines[0]
 	promotionPendingNodeReq := bean.ArtifacPromotionPendingNodeRequest{
 		ResourceCdPipelineId: pipeline.Id,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
+		ListingOptions: util2.ListingFilterOptions{
 			Limit:        request.Limit,
 			Offset:       request.Offset,
 			SearchString: getImageSearchString(request.ImageSearchRegex),
@@ -1843,7 +1843,7 @@ func (impl *AppArtifactManagerImpl) handleRequestForPromotionArtifactApprovalNod
 func (impl *AppArtifactManagerImpl) handleRequestPendingForCurrentUser(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 	promotionPendingForCurrentUserReq := bean.ArtifactPromotionPendingForCurrentUserRequest{
 		ImagePromoterAccessCdPipelineIds: imagePromoterAuthCDPipelineIds,
-		ListingOptions: bean.PromotionArtifactsListingFilterOptions{
+		ListingOptions: util2.ListingFilterOptions{
 			Limit:        request.Limit,
 			Offset:       request.Offset,
 			SearchString: getImageSearchString(request.ImageSearchRegex),
