@@ -10,8 +10,6 @@ kubectl label clusterrolebinding kubewatch "app.kubernetes.io/managed-by=Helm" -
 kubectl annotate clusterrolebinding kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
 ```
 
-CHANGE RELEASE_NAME TO YOUR DEVTRON HELM RELEASE NAME BEFORE RUNNING THE ABOVE COMMANDS.
-
 > Ignore the message above if you are not using devtron with cicd mode
 
 > Contact Devtron team on [DISCORD](https://discord.devtron.ai) if you have any concerns.
