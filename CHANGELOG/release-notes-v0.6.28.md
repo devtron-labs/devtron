@@ -1,3 +1,5 @@
+## v0.6.28
+
 ## Bugs
 - fix: Not able to see workflow name in case of project with uppercase letters (#4776)
 - fix: provider nil fields (#4758)
@@ -59,3 +61,5 @@
 - chore: Update CODEOWNERS (#4630)
 - chore: Refactoring deployment template GitOps & AppStore (#4616)
 - chore: clean appListing api (#4628)
+
+
