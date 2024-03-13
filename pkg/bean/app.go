@@ -29,6 +29,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/util"
 	"strings"
 	"time"
 )
@@ -82,11 +83,12 @@ type GitMaterial struct {
 	FilterPattern    []string `json:"filterPattern"`
 }
 
-// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url
 func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
 	for strings.HasSuffix(m.Url, "/") {
 		m.Url = strings.TrimSuffix(m.Url, "/")
 	}
+	m.Url = util.RemoveTrailingAndLeadingSpaces(m.Url)
 }
 
 type CiMaterial struct {

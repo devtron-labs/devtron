@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
-	util4 "github.com/devtron-labs/devtron/pkg/util"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -405,7 +404,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := pipelineConfigBean.CiProjectDetails{
-			GitRepository:   util4.RemoveTrailingAndLeadingSpaces(ciMaterial.GitMaterial.Url),
+			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
 			FetchSubmodules: ciMaterial.GitMaterial.FetchSubmodules,
