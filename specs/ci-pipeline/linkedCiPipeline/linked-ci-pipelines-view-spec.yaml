@@ -66,13 +66,12 @@ paths:
           schema:
             type: string
             default: All environments
-        - name: search
+        - name: searchKey
           description: application name filter
           in: query
           required: false
           schema:
             type: string
-            default: All applications
       responses:
         "200":
           description: Successfully fetched the Linked-CI pipelines details.
@@ -136,7 +135,7 @@ components:
     LinkedCIPipelinesInfo:
       type: object
       properties:
-        total:
+        totalCount:
           type: number
           description: Total results count
           example: 1122
