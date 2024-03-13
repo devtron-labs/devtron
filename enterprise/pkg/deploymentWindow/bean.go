@@ -40,17 +40,17 @@ func (day DayOfWeek) toWeekday() time.Weekday {
 	case Sunday:
 		return time.Weekday(0)
 	case Monday:
-		return time.Weekday(0)
+		return time.Weekday(1)
 	case Tuesday:
-		return time.Weekday(0)
+		return time.Weekday(2)
 	case Wednesday:
-		return time.Weekday(0)
+		return time.Weekday(3)
 	case Thursday:
-		return time.Weekday(0)
+		return time.Weekday(4)
 	case Friday:
-		return time.Weekday(0)
+		return time.Weekday(5)
 	case Saturday:
-		return time.Weekday(0)
+		return time.Weekday(6)
 	}
 	return time.Weekday(-1)
 }
