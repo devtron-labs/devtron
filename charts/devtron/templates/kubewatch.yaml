@@ -210,12 +210,12 @@ spec:
 {{- if .resources }}
           resources:
 {{ toYaml .resources | indent 12 }}
+{{- end }}
       volumes:
       - name: kubewatch-resources-config
         configMap:
           name: kubewatch-resources-cm
   revisionHistoryLimit: 3
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
