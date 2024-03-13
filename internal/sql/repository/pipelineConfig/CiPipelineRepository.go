@@ -134,7 +134,7 @@ type CiPipelineRepository interface {
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 	GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
-		appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, error)
+		appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -618,6 +618,7 @@ type LinkedCIDetails struct {
 	TriggerMode     string `sql:"trigger_type"`
 	PipelineId      int    `sql:"pipeline_id"`
 	AppId           int    `sql:"app_id"`
+	EnvironmentId   int    `sql:"environment_id"`
 }
 
 func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
@@ -637,7 +638,7 @@ func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, l
 			"environment_name",
 			"trigger_type").
 		// added columns that has duplicated reference across joined tables and assign alias name
-		ColumnExpr("p.id as pipeline_id").
+		ColumnExpr("p.id as pipeline_id", "p.environment_id as environment_id").
 		// join app table
 		Join("INNER JOIN app a").
 		JoinOn("a.id = ci_pipeline.app_id").

@@ -5,6 +5,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -172,13 +173,39 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "", "LINKED")
+// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "LINKED") 207_ci_external.up
 // TODO migrate the deprecated values and maintain a consistent PipelineType
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType != string(pipelineConfigBean.LINKED_CD)
+	return ci.ParentCiPipeline != 0 &&
+		(ci.PipelineType == "CI_EXTERNAL" || ci.PipelineType == string(pipelineConfigBean.LINKED))
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
 func IsCIJob(ci pipelineConfig.CiPipeline) bool {
 	return ci.PipelineType == string(pipelineConfigBean.CI_JOB)
+}
+
+func GetLinkedCIInfoResponse(linkedCIDetails []pipelineConfig.LinkedCIDetails, latestWfrs ...pipelineConfig.CdWorkflowRunner) []linkedCIView.LinkedCIDetailsRes {
+	response := make([]linkedCIView.LinkedCIDetailsRes, 0)
+	cdWfrStatusMap := make(map[int]string)
+	for _, latestWfr := range latestWfrs {
+		cdWfrStatusMap[latestWfr.CdWorkflow.PipelineId] = latestWfr.Status
+	}
+	for _, item := range linkedCIDetails {
+		if item.PipelineId != 0 {
+			linkedCIDetailsRes := linkedCIView.LinkedCIDetailsRes{
+				AppName:          item.AppName,
+				AppId:            item.AppId,
+				EnvironmentName:  item.EnvironmentName,
+				EnvironmentId:    item.EnvironmentId,
+				TriggerMode:      item.TriggerMode,
+				DeploymentStatus: pipelineConfigBean.NotDeployed,
+			}
+			if status, ok := cdWfrStatusMap[item.PipelineId]; ok {
+				linkedCIDetailsRes.DeploymentStatus = status
+			}
+			response = append(response, linkedCIDetailsRes)
+		}
+	}
+	return response
 }

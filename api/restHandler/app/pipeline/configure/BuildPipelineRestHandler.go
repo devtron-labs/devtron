@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/gorilla/schema"
 	"io"
 	"net/http"
 	"strconv"
@@ -61,6 +63,7 @@ type DevtronAppBuildRestHandler interface {
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 
 	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
+	GetLinkedCIDetails(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
@@ -236,6 +239,49 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetLinkedCIDetails(w http.ResponseWriter, r *http.Request) {
+	decoder := schema.NewDecoder()
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciPipelineId, err := strconv.Atoi(vars["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	var req linkedCIView.LinkedCiInfoFilters
+	err = decoder.Decode(req, r.URL.Query())
+	if err != nil {
+		handler.Logger.Errorw("request err, GetAll", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(ciPipeline.App.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetLinkedCIDetails(ciPipelineId, &req)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "ciPipelineId", ciPipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, linkedCIDetails, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {

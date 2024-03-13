@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"path"
 	"regexp"
@@ -94,6 +95,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
+	GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2100,44 +2102,44 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	return createRequest, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(req *linkedCIView.LinkedCIDetailsReq) error {
-	if req.SourceCIPipeline == 0 {
-		return fmt.Errorf("")
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
+	response := linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
+	if sourceCIPipeline == 0 {
+		impl.logger.Errorw("invalid source ci pipeline", "sourceCIPipeline", sourceCIPipeline)
+		return response, fmt.Errorf("invalid source ci pipeline")
 	}
-	linkedCIDetails, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(req.SourceCIPipeline, req.Size, req.Offset, req.Search, req.EnvName, req.Order)
+
+	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
 	if util.IsErrNoRows(err) {
-		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", req.SourceCIPipeline)
-		return nil
+		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", sourceCIPipeline)
+		return response, nil
 	} else if err != nil {
-		impl.logger.Errorw("error in getting linked ci pipelines", "SourceCIPipeline", req.SourceCIPipeline, "err", err)
-		return err
+		impl.logger.Errorw("error in getting linked ci pipelines", "SourceCIPipeline", sourceCIPipeline, "err", err)
+		return response, err
 	}
+	response.UpdateTotalCount(totalCount)
+	response.UpdateOffset(req.Offset)
+	response.UpdateSize(req.Size)
+
 	var pipelineIds []int
 	for _, item := range linkedCIDetails {
 		if item.PipelineId != 0 {
 			pipelineIds = append(pipelineIds, item.PipelineId)
 		}
 	}
+
 	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no deployments have been triggered yet", "pipelineIds", pipelineIds)
-		return nil
+		// update the response with the pipelineConfig.LinkedCIDetails
+		data := adapter.GetLinkedCIInfoResponse(linkedCIDetails)
+		response.PushData(data...)
+		return response, nil
 	} else if err != nil {
 		impl.logger.Errorw("error in getting last deployment status", "pipelineIds", pipelineIds, "err", err)
-		return err
+		return response, err
 	}
-	cdWfrStatusMap := make(map[int]string)
-	for _, latestWfr := range latestWfrs {
-		cdWfrStatusMap[latestWfr.CdWorkflow.PipelineId] = latestWfr.Status
-	}
-	for _, item := range linkedCIDetails {
-		if item.PipelineId != 0 {
-			pipelineIds = append(pipelineIds, item.PipelineId)
-		}
-	}
-	//for _, latestWfr := range latestWfrs {
-	//	//latestWfr.CdWorkflow.Pipeline.Id
-	//	//latestWfr.CdWorkflow.Pipeline.AppId
-	//}
-	return nil
+	data := adapter.GetLinkedCIInfoResponse(linkedCIDetails, latestWfrs...)
+	response.PushData(data...)
+	return response, nil
 }
