@@ -334,6 +334,10 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 		return nil, nil, err
 	}
 
+	if len(allAppWorkflowMappings) == 0 {
+		return nil, nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowNotFoundErr)
+	}
+
 	sourcePipelineMapping := bean4.AppWorkflowMappingDto{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
