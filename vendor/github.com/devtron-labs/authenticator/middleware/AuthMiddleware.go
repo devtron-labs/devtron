@@ -50,7 +50,7 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				}
 			}
 
-			//users = append(users, "anonymous")
+			// users = append(users, "anonymous")
 			authEnabled := true
 			pass := false
 			config := GetConfig()
@@ -81,7 +81,7 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 						return
 					}
 
-					//setting user id in context
+					// setting user id in context
 					ctx := context.WithValue(r.Context(), "userId", userId)
 					ctx = context.WithValue(ctx, "token", token)
 					r = r.WithContext(ctx)

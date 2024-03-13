@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"log"
 	"net/http"
@@ -129,7 +128,6 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
-	app.MuxRouter.Router.Use(app.userContextMiddleware)
 
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
@@ -202,20 +200,4 @@ func (app *App) Stop() {
 	}
 
 	app.Logger.Infow("housekeeping done. exiting now")
-}
-
-func (app *App) userContextMiddleware(next http.Handler) http.Handler {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), "token", r.Header.Get("token"))
-		userId, err := app.userService.GetLoggedInUser(r)
-		if err != nil || userId == 0 {
-			common.WriteJsonResp(w, err, "unauthorized user", http.StatusUnauthorized)
-			return
-		}
-		ctx = context.WithValue(ctx, "userId", userId)
-		r = r.WithContext(ctx)
-		next.ServeHTTP(w, r)
-	})
-
 }
