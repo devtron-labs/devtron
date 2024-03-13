@@ -635,7 +635,7 @@ func (impl UserCommonServiceImpl) MergeCustomRoleFilters(roleFilters []bean.Role
 		if len(team) == 0 {
 			updatedRoleFilters = append(updatedRoleFilters, roleFilter)
 		} else {
-			roleKey := fmt.Sprintf("%s_%s_%s_%s_%s", roleFilter.Team, roleFilter.Environment, roleFilter.EntityName, roleFilter.Entity, roleFilter.AccessType)
+			roleKey := fmt.Sprintf("%s_%s_%s_%s_%s_%s_%s", roleFilter.Team, roleFilter.Environment, roleFilter.EntityName, roleFilter.Entity, roleFilter.AccessType, roleFilter.Status, roleFilter.TimeoutWindowExpression)
 			if filter, found := roleFilterMap[roleKey]; found {
 				filter.Action = fmt.Sprintf("%s,%s", filter.Action, roleFilter.Action)
 				roleFilterMap[roleKey] = filter
