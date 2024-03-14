@@ -2169,7 +2169,7 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIInfoFilters(w http.Respo
 	var resp *bean.LinkedCIInfoFilters
 	resp, err = handler.ciCdPipelineOrchestrator.GetLinkedCIInfoFilters(ciPipelineId)
 	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("error getting environment info for given source Ci pipeline id"), "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
