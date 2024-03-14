@@ -84,9 +84,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch-source").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdAndEnvironmentId).Methods("PATCH")
 	configRouter.Path("/ci-pipeline/bulk/branch-update").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdsAndEnvironmentId).Methods("PUT")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
-	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked/autocomplete").HandlerFunc(router.restHandler.GetLinkedCIInfoFilters).Methods("GET")
 
-	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked/view").HandlerFunc(router.restHandler.GetLinkedCIDetails).Methods("POST")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env").HandlerFunc(router.restHandler.GetSourceCiDownStreamFilters).Methods("GET")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd").HandlerFunc(router.restHandler.GetSourceCiDownStreamInfo).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")

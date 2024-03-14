@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	pg "github.com/go-pg/pg"
 	mock "github.com/stretchr/testify/mock"
 
@@ -48,19 +49,19 @@ func (_m *CiPipelineRepository) FetchCiPipelinesForDG(parentId int, childCiPipel
 }
 
 // FetchParentCiPipelinesForDG provides a mock function with given fields:
-func (_m *CiPipelineRepository) FetchParentCiPipelinesForDG() ([]*pipelineConfig.CiPipelinesMap, error) {
+func (_m *CiPipelineRepository) FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error) {
 	ret := _m.Called()
 
-	var r0 []*pipelineConfig.CiPipelinesMap
+	var r0 []*bean.CiPipelinesMap
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]*pipelineConfig.CiPipelinesMap, error)); ok {
+	if rf, ok := ret.Get(0).(func() ([]*bean.CiPipelinesMap, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []*pipelineConfig.CiPipelinesMap); ok {
+	if rf, ok := ret.Get(0).(func() []*bean.CiPipelinesMap); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.CiPipelinesMap)
+			r0 = ret.Get(0).([]*bean.CiPipelinesMap)
 		}
 	}
 

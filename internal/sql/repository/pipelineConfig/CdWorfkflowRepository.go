@@ -75,7 +75,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
-	FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error)
+	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -741,8 +741,10 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
-	latestWfrs := make([]CdWorkflowRunner, 0)
+func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FindLatestRunnerByPipelineIdsAndRunnerType")
+	defer span.End()
+	var latestWfrs []CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&latestWfrs).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
@@ -754,7 +756,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "pipelineIds", pipelineIds, "runnerType", runnerType)
-		return latestWfrs, err
+		return nil, err
 	}
 	return latestWfrs, err
 }

@@ -98,8 +98,8 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
-	GetLinkedCIInfoFilters(sourceCiPipelineId int) (*bean.LinkedCIInfoFilters, error)
-	GetLinkedCIDetails(ctx context.Context, sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
+	GetSourceCiDownStreamFilters(sourceCiPipelineId int) (*linkedCIView.LinkedCIInfoFilters, error)
+	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *linkedCIView.SourceCiDownStreamFilters) (pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse], error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2106,45 +2106,53 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	return createRequest, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIInfoFilters(sourceCiPipelineId int) (*bean.LinkedCIInfoFilters, error) {
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(sourceCiPipelineId int) (*linkedCIView.LinkedCIInfoFilters, error) {
 	linkedCiPipelines, err := impl.ciPipelineRepository.GetLinkedCiPipelines(sourceCiPipelineId)
 	if err != nil {
+		// TODO Komal: fix error logging
 		impl.logger.Errorw("error in fetching linked Ci pipelines for given source Ci pipeline Id", err)
 		return nil, err
 	}
-	envNames, err := impl.getAllAttachedEnvNamesByIds(linkedCiPipelines)
+	envNames, err := impl.getAttachedEnvNamesByCiIds(linkedCiPipelines)
 	if err != nil {
+		// TODO Komal: fix error logging
 		impl.logger.Errorw("error in fetching environment names for linked Ci pipelines", err)
 		return nil, err
 	}
-	res := &bean.LinkedCIInfoFilters{
+	res := &linkedCIView.LinkedCIInfoFilters{
 		EnvNames: envNames,
 	}
 	return res, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) getAllAttachedEnvNamesByIds(linkedCiPipelines []*pipelineConfig.CiPipeline) ([]string, error) {
+func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(linkedCiPipelines []*pipelineConfig.CiPipeline) ([]string, error) {
+	// TODO Komal: rename it to ciPipelineIds
 	var CIPipelineIds []int
 	for _, CIPipeline := range linkedCiPipelines {
 		CIPipelineIds = append(CIPipelineIds, CIPipeline.Id)
 	}
+	// TODO Komal: rename it to pipelines
 	Pipelines, err := impl.pipelineRepository.FindWithEnvironmentByCiIds(CIPipelineIds)
+	// TODO Komal: handle pg.ErrorNoRows case
 	if err != nil {
+		// TODO Komal: add meta data to error logs -> cIPipelineIds // refer to GetSourceCiDownStreamInfo error logging
 		impl.logger.Errorw("error in fetching environment by Ci Ids", err)
 		return nil, err
 	}
+	// TODO Komal: pipelines NIl case
 	var envNames []string
 	for _, Pipeline := range Pipelines {
 		envNames = append(envNames, Pipeline.Environment.Name)
 	}
 	return envNames, nil
 }
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(ctx context.Context, sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
-	response := pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
 
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.GetAllLinkedCIDetails")
-	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
-	span.End()
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *linkedCIView.SourceCiDownStreamFilters) (pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse], error) {
+	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamInfo")
+	defer span.End()
+	response := pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse]{}
+
+	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetDownStreamInfo(ctx, sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", sourceCIPipeline)
 		return response, nil
@@ -2163,20 +2171,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(ctx context.Context,
 		}
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(newCtx, "ciPipelineRepository.GetAllLinkedCIDetails")
-	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
-	span.End()
+	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(ctx, pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no deployments have been triggered yet", "pipelineIds", pipelineIds)
 		// update the response with the pipelineConfig.LinkedCIDetails
-		data := adapter.GetLinkedCIInfoResponse(linkedCIDetails)
+		data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails)
 		response.PushData(data...)
 		return response, nil
 	} else if err != nil {
 		impl.logger.Errorw("error in getting last deployment status", "pipelineIds", pipelineIds, "err", err)
 		return response, err
 	}
-	data := adapter.GetLinkedCIInfoResponse(linkedCIDetails, latestWfrs...)
+	data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails, latestWfrs...)
 	response.PushData(data...)
 	return response, nil
 }
