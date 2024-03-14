@@ -3,7 +3,9 @@ package timeoutWindow
 import (
 	"encoding/json"
 	scheduler "github.com/devtron-labs/common-lib/timeRangeLib"
-	"github.com/samber/lo"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"time"
 )
 
@@ -42,15 +44,15 @@ type TimeWindow struct {
 	Weekdays []DayOfWeek `json:"weekdays"`
 }
 
-func (window *TimeWindow) toJsonString() string {
-	marshal, err := json.Marshal(window)
+func (timeWindow *TimeWindow) toJsonString() string {
+	marshal, err := json.Marshal(timeWindow)
 	if err != nil {
 		return ""
 	}
 	return string(marshal)
 }
-func (window *TimeWindow) setFromJsonString(jsonString string) {
-	json.Unmarshal([]byte(jsonString), window)
+func (timeWindow *TimeWindow) setFromJsonString(jsonString string) {
+	json.Unmarshal([]byte(jsonString), timeWindow)
 }
 
 func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
@@ -63,9 +65,17 @@ func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
 		DayTo:          timeWindow.DayTo,
 		WeekdayFrom:    timeWindow.WeekdayFrom.toWeekday(),
 		WeekdayTo:      timeWindow.WeekdayTo.toWeekday(),
-		Weekdays:       lo.Map(timeWindow.Weekdays, func(item DayOfWeek, index int) time.Weekday { return item.toWeekday() }),
+		Weekdays:       timeWindow.getWeekdays(),
 		Frequency:      timeWindow.Frequency.toTimeRangeFrequency(),
 	}
+}
+
+func (timeWindow *TimeWindow) getWeekdays() []time.Weekday {
+	weekdays := make([]time.Weekday, 0)
+	for _, weekday := range timeWindow.Weekdays {
+		weekdays = append(weekdays, weekday.toWeekday())
+	}
+	return weekdays
 }
 
 func (f Frequency) toTimeRangeFrequency() scheduler.Frequency {
@@ -114,4 +124,22 @@ func (day DayOfWeek) toWeekday() time.Weekday {
 		return time.Weekday(6)
 	}
 	return time.Weekday(-1)
+}
+
+func (expr TimeWindowExpression) toTimeWindowDto(userId int32) *repository.TimeoutWindowConfiguration {
+	return &repository.TimeoutWindowConfiguration{
+		TimeoutWindowExpression: expr.TimeoutExpression,
+		ExpressionFormat:        expr.ExpressionFormat,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: userId,
+			UpdatedOn: time.Now(),
+			UpdatedBy: userId,
+		},
+	}
+}
+
+type TimeWindowExpression struct {
+	TimeoutExpression string
+	ExpressionFormat  bean.ExpressionFormat
 }

@@ -12,6 +12,15 @@ func ToInterfaceArrayAny[T any](arr []T) []interface{} {
 }
 
 // ToInterfaceArray converts an array of string to an array of interface{}
+func ToTypedArrayAny[T any](arr []interface{}) []T {
+	typedArr := make([]T, len(arr))
+	for i, v := range arr {
+		typedArr[i] = v
+	}
+	return typedArr
+}
+
+// ToInterfaceArray converts an array of string to an array of interface{}
 func ToInterfaceArray(arr []string) []interface{} {
 	interfaceArr := make([]interface{}, len(arr))
 	for i, v := range arr {
@@ -51,4 +60,9 @@ func FilterDuplicatesInStringArray(items []string) []string {
 	itemsSet := mapset.NewSetFromSlice(ToInterfaceArray(items))
 	uniqueItems := ToStringArray(itemsSet.ToSlice())
 	return uniqueItems
+}
+
+func FilterDuplicates[T any](items []T) []T {
+	set := mapset.NewSetFromSlice(ToInterfaceArrayAny(items))
+	return ToTypedArrayAny[T](set.ToSlice())
 }

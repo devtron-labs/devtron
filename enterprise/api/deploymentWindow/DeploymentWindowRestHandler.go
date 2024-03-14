@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/samber/lo"
 	"net/url"
 	"strconv"
 	"time"
@@ -338,9 +337,10 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 			common.WriteJsonResp(w, err, "error finding pipelines for app Id", http.StatusBadRequest)
 			return 0, nil, err
 		}
-		envIds := lo.Map(pipelines, func(item *pipelineConfig.Pipeline, index int) int {
-			return item.EnvironmentId
-		})
+		envIds := make([]int, 0)
+		for _, pipeline := range pipelines {
+			envIds = append(envIds, pipeline.EnvironmentId)
+		}
 		return appId, envIds, nil
 
 	}

@@ -3,7 +3,6 @@ package resourceFilter
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"sort"
 	"time"
@@ -116,9 +115,11 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetLatestByRefAndMultiSubjectAn
 	if err == pg.ErrNoRows {
 		return res, nil
 	}
-	subjectIdMap := lo.GroupBy(res, func(item *ResourceFilterEvaluationAudit) int {
-		return item.SubjectId
-	})
+
+	subjectIdMap := make(map[int][]*ResourceFilterEvaluationAudit)
+	for _, result := range res {
+		subjectIdMap[result.SubjectId] = append(subjectIdMap[result.SubjectId], result)
+	}
 
 	finalListWithLatest := make([]*ResourceFilterEvaluationAudit, 0)
 	for _, subjects := range subjectIdMap {

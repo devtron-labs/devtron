@@ -8,7 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
-	"github.com/samber/lo"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"sort"
 	"strings"
@@ -73,9 +73,15 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 }
 
 func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, filterForDays int, userId int32) (*DeploymentWindowResponse, error) {
-	envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
-		return item.EnvId
-	})
+
+	//envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
+	//	return item.EnvId
+	//})
+
+	envIdToProfileStates := make(map[int][]ProfileState)
+	for _, profile := range overview.Profiles {
+		envIdToProfileStates[profile.EnvId] = append(envIdToProfileStates[profile.EnvId], profile)
+	}
 
 	envIdToEnvironmentState := make(map[int]EnvironmentState)
 	resultProfiles := make([]ProfileState, 0)
@@ -142,50 +148,50 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	var isSuperAdminExcluded bool
 	if isBlackoutActive && isMaintenanceActive { //deployment is blocked, restriction through blackout
 		// if both are active then blackout takes precedence in overall calculation
-		activeBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
-			return impl.isRestricted(item)
-		})
-		appliedProfile = impl.getLongestEndingProfile(activeBlackouts)
+		//activeBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
+		//	return impl.isRestricted(item)
+		//})
+		appliedProfile = impl.getLongestEndingProfile(filteredBlackoutProfiles, true)
 		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(activeBlackouts)
 
 	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through maintenance
 		// if nothing is active then earliest starting maintenance will be shown
 
-		nonActiveMaintenance := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
-			return impl.isRestricted(item)
-		})
-		appliedProfile = impl.getEarliestStartingProfile(nonActiveMaintenance)
+		//nonActiveMaintenance := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
+		//	return impl.isRestricted(item)
+		//})
+		appliedProfile = impl.getEarliestStartingProfile(filteredMaintenanceProfiles, true)
 		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
 	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through both
 		// longest of restrictions coming from both blackout and maintenance
 
-		restrictedProfiles := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
-			return impl.isRestricted(item)
-		})
+		//restrictedProfiles := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
+		//	return impl.isRestricted(item)
+		//})
 
-		appliedProfile = impl.getLongestEndingProfile(restrictedProfiles)
+		appliedProfile = impl.getLongestEndingProfile(allProfiles, true)
 		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
 
 	} else if !isBlackoutActive && isMaintenanceActive { //deployment not blocked
 		// applied profile here would be the longest running maintenance profile even if a blackout starts before that
 
-		activeMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
-			return item.IsActive
-		})
-		appliedProfile = impl.getLongestEndingProfile(activeMaintenance)
+		//activeMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
+		//	return item.IsActive
+		//})
+		appliedProfile = impl.getLongestEndingProfile(filteredMaintenanceProfiles, false)
 		if appliedProfile == nil {
-			nonActiveBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
-				return !item.IsActive
-			})
-			appliedProfile = impl.getEarliestStartingProfile(nonActiveBlackouts)
+			//nonActiveBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
+			//	return !item.IsActive
+			//})
+			appliedProfile = impl.getEarliestStartingProfile(filteredBlackoutProfiles, false)
 		}
 	}
 
 	combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
 
 	if isSuperAdminExcluded {
-		combinedExcludedUsers = lo.Uniq(append(combinedExcludedUsers, superAdmins...))
-		allUserIds = lo.Uniq(append(allUserIds, superAdmins...))
+		combinedExcludedUsers = utils.FilterDuplicates(append(combinedExcludedUsers, superAdmins...))
+		allUserIds = utils.FilterDuplicates(append(allUserIds, superAdmins...))
 	}
 
 	allUserInfo, err := impl.userService.GetByIds(allUserIds)
@@ -207,7 +213,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		}
 
 		if profile.DeploymentWindowProfile.IsSuperAdminExcluded {
-			excludedIds = lo.Uniq(append(excludedIds, superAdmins...))
+			excludedIds = utils.FilterDuplicates(append(excludedIds, superAdmins...))
 		}
 		emails := make([]string, 0)
 		for _, id := range excludedIds {
@@ -238,7 +244,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	return allProfiles, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, canDeploy, nil
 }
 
-func (impl DeploymentWindowServiceImpl) isRestricted(item ProfileState) bool {
+func (item ProfileState) isRestricted() bool {
 	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
 }
 
@@ -252,7 +258,7 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 
 	profile := profiles[0]
 	excludedUsers := profile.DeploymentWindowProfile.ExcludedUsersList
-	if impl.isRestricted(profile) && len(excludedUsers) > 0 {
+	if profile.isRestricted() && len(excludedUsers) > 0 {
 		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(excludedUsers))
 	}
 
@@ -273,7 +279,7 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 		allUsersSet = allUsersSet.Union(profileUserSet)
 		//}
 
-		if impl.isRestricted(profile) {
+		if profile.isRestricted() {
 			userSet = userSet.Intersect(profileUserSet)
 		}
 	}
@@ -285,48 +291,54 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 	return utils.ToInt32Array(userSet.ToSlice()), utils.ToInt32Array(allUsersSet.ToSlice()), isSuperAdminExcluded
 }
 
-func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []ProfileState) *ProfileState {
+func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []ProfileState, filterRestricted bool) *ProfileState {
 
 	if len(profiles) == 0 {
 		return nil
 	}
 
-	//profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
-	//	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
-	//})
-
-	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
-		if item.CalculatedTimestamp.After(profile.CalculatedTimestamp) {
-			return item
+	var selectedProfile *ProfileState
+	for _, profile := range profiles {
+		if filterRestricted != profile.isRestricted() {
+			continue
 		}
-		return profile
-	}, profiles[0])
-	return &profile
+		if selectedProfile == nil || profile.CalculatedTimestamp.After(selectedProfile.CalculatedTimestamp) {
+			selectedProfile = &profile
+		}
+	}
+	return selectedProfile
 }
 
-func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []ProfileState) *ProfileState {
+func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []ProfileState, filterRestricted bool) *ProfileState {
 	if len(profiles) == 0 {
 		return nil
 	}
 
-	//profiles = lo.Filter(profiles, func(item ProfileState, index int) bool {
-	//	return !item.IsActive
-	//})
-
-	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
-		if item.CalculatedTimestamp.Before(profile.CalculatedTimestamp) {
-			return item
+	var selectedProfile *ProfileState
+	for _, profile := range profiles {
+		if filterRestricted != profile.isRestricted() {
+			continue
 		}
-		return profile
-	}, profiles[0])
-	return &profile
+		if selectedProfile == nil || profile.CalculatedTimestamp.Before(selectedProfile.CalculatedTimestamp) {
+			selectedProfile = &profile
+		}
+	}
+
+	return selectedProfile
 }
 
 func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType, filterForDays int) ([]ProfileState, bool, bool, error) {
 
-	filteredProfiles := lo.Filter(profileStates, func(item ProfileState, index int) bool {
-		return item.DeploymentWindowProfile.Type == profileType
-	})
+	//filteredProfiles := lo.Filter(profileStates, func(item ProfileState, index int) bool {
+	//	return item.DeploymentWindowProfile.Type == profileType
+	//})
+
+	filteredProfiles := make([]ProfileState, 0)
+	for _, state := range profileStates {
+		if state.DeploymentWindowProfile.Type == profileType {
+			filteredProfiles = append(filteredProfiles, state)
+		}
+	}
 
 	allActive := true
 	oneActive := false
@@ -485,18 +497,34 @@ func (impl DeploymentWindowServiceImpl) ListDeploymentWindowProfiles() ([]*Deplo
 		return nil, err
 	}
 
-	return lo.Map(policyModels, func(model *bean2.GlobalPolicyBaseModel, index int) *DeploymentWindowProfileMetadata {
+	allProfiles := make([]*DeploymentWindowProfileMetadata, 0)
+	for _, model := range policyModels {
 		policy, err := impl.getPolicyFromModel(model)
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		return &DeploymentWindowProfileMetadata{
+		allProfiles = append(allProfiles, &DeploymentWindowProfileMetadata{
 			Description: model.Description,
 			Id:          model.Id,
 			Name:        model.Name,
 			Type:        policy.Type,
-		}
-	}), nil
+		})
+
+	}
+	return allProfiles, nil
+
+	//return lo.Map(policyModels, func(model *bean2.GlobalPolicyBaseModel, index int) *DeploymentWindowProfileMetadata {
+	//	policy, err := impl.getPolicyFromModel(model)
+	//	if err != nil {
+	//		return nil
+	//	}
+	//	return &DeploymentWindowProfileMetadata{
+	//		Description: model.Description,
+	//		Id:          model.Id,
+	//		Name:        model.Name,
+	//		Type:        policy.Type,
+	//	}
+	//}), nil
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error) {
@@ -506,9 +534,14 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		return nil, err
 	}
 
-	envIdToMappings := lo.GroupBy(resources, func(item ProfileMapping) int {
-		return item.EnvId
-	})
+	//envIdToMappings := lo.GroupBy(resources, func(item ProfileMapping) int {
+	//	return item.EnvId
+	//})
+	envIdToMappings := make(map[int][]ProfileMapping)
+	for _, resource := range resources {
+		envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)
+	}
+
 	profileStates := impl.getProfileStates(envIdToMappings, profileIdToProfile)
 
 	return &DeploymentWindowResponse{
@@ -517,12 +550,20 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 }
 
 func (impl DeploymentWindowServiceImpl) getProfileMappingsForApp(appId int, envIds []int) ([]ProfileMapping, map[int]*DeploymentWindowProfile, error) {
-	selections := lo.Map(envIds, func(envId int, index int) *resourceQualifiers.SelectionIdentifier {
-		return &resourceQualifiers.SelectionIdentifier{
+	//selections := lo.Map(envIds, func(envId int, index int) *resourceQualifiers.SelectionIdentifier {
+	//	return &resourceQualifiers.SelectionIdentifier{
+	//		AppId: appId,
+	//		EnvId: envId,
+	//	}
+	//})
+
+	selections := make([]*resourceQualifiers.SelectionIdentifier, 0)
+	for _, envId := range envIds {
+		selections = append(selections, &resourceQualifiers.SelectionIdentifier{
 			AppId: appId,
 			EnvId: envId,
-		}
-	})
+		})
+	}
 
 	resources, profileIdToProfile, err := impl.getResourcesAndProfilesForSelections(selections)
 	if err != nil {
@@ -561,7 +602,7 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	}
 	//	}
 
-	profileIds = lo.Keys(profileIdToModel)
+	profileIds = maps.Keys(profileIdToModel)
 
 	profileIdToWindows, err := impl.timeWindowService.GetWindowsForResources(profileIds, repository.DeploymentWindowProfile)
 	if err != nil {
@@ -592,9 +633,14 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 
 	appIdToResponse := make(map[int]*DeploymentWindowResponse)
 	for appId, mappings := range appIdToMappings {
-		envIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
-			return item.EnvId
-		})
+		//envIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
+		//	return item.EnvId
+		//})
+		envIdToMappings := make(map[int][]ProfileMapping)
+		for _, resource := range mappings {
+			envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)
+		}
+
 		profileStates := impl.getProfileStates(envIdToMappings, profileIdToProfile)
 		appIdToResponse[appId] = &DeploymentWindowResponse{
 			Profiles: profileStates,
@@ -605,19 +651,33 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 }
 
 func (impl DeploymentWindowServiceImpl) getMappedResourcesForAppgroups(appEnvSelectors []AppEnvSelector) (map[int]*DeploymentWindowProfile, map[int][]ProfileMapping, error) {
-	selections := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.SelectionIdentifier {
-		return &resourceQualifiers.SelectionIdentifier{
-			AppId: appEnv.AppId,
-			EnvId: appEnv.EnvId,
-		}
-	})
+	//selections := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.SelectionIdentifier {
+	//	return &resourceQualifiers.SelectionIdentifier{
+	//		AppId: appEnv.AppId,
+	//		EnvId: appEnv.EnvId,
+	//	}
+	//})
+	selections := make([]*resourceQualifiers.SelectionIdentifier, 0)
+	for _, selector := range appEnvSelectors {
+		selections = append(selections, &resourceQualifiers.SelectionIdentifier{
+			AppId: selector.AppId,
+			EnvId: selector.EnvId,
+		})
+	}
+
 	mappings, profileIdToProfile, err := impl.getResourcesAndProfilesForSelections(selections)
 	if err != nil {
 		return nil, nil, err
 	}
-	appIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
-		return item.AppId
-	})
+	//appIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
+	//	return item.AppId
+	//})
+
+	appIdToMappings := make(map[int][]ProfileMapping)
+	for _, mapping := range mappings {
+		appIdToMappings[mapping.AppId] = append(appIdToMappings[mapping.AppId], mapping)
+	}
+
 	return profileIdToProfile, appIdToMappings, nil
 }
 
@@ -627,28 +687,41 @@ func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForSelections(sel
 		return nil, nil, err
 	}
 
-	profileIds := lo.Map(resources, func(mapping resourceQualifiers.ResourceQualifierMappings, index int) int {
-		return mapping.ResourceId
-	})
+	//profileIds := lo.Map(resources, func(mapping resourceQualifiers.ResourceQualifierMappings, index int) int {
+	//	return mapping.ResourceId
+	//})
+
+	profileIds := make([]int, 0)
+	for _, resource := range resources {
+		profileIds = append(profileIds, resource.ResourceId)
+	}
+
 	profileIdToProfile, err := impl.getProfileIdToProfile(profileIds)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	profileIds = lo.Keys(profileIdToProfile)
-
-	resources = lo.Filter(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) bool {
-		return slices.Contains(profileIds, item.ResourceId)
-	})
-
-	mappings := lo.Map(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) ProfileMapping {
-		return ProfileMapping{
-			ProfileId: item.ResourceId,
-			AppId:     item.SelectionIdentifier.AppId,
-			EnvId:     item.SelectionIdentifier.EnvId,
+	//profileIds = maps.Keys(profileIdToProfile)
+	//resources = lo.Filter(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) bool {
+	//	return slices.Contains(profileIds, item.ResourceId)
+	//})
+	//mappings := lo.Map(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) ProfileMapping {
+	//	return ProfileMapping{
+	//		ProfileId: item.ResourceId,
+	//		AppId:     item.SelectionIdentifier.AppId,
+	//		EnvId:     item.SelectionIdentifier.EnvId,
+	//	}
+	//})
+	mappings := make([]ProfileMapping, 0)
+	for _, resource := range resources {
+		if _, ok := profileIdToProfile[resource.ResourceId]; ok {
+			mappings = append(mappings, ProfileMapping{
+				ProfileId: resource.ResourceId,
+				AppId:     resource.SelectionIdentifier.AppId,
+				EnvId:     resource.SelectionIdentifier.EnvId,
+			})
 		}
-	})
+	}
 
 	return mappings, profileIdToProfile, nil
-	//}}
 }

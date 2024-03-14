@@ -4,7 +4,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"time"
 )
@@ -270,9 +269,13 @@ func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.Glob
 		impl.logger.Errorw("error in fetching global policy", "policyType", policyType, "err", err)
 		return nil, err
 	}
-	return lo.Map(globalPolicy, func(item *repository.GlobalPolicy, index int) *bean.GlobalPolicyBaseModel {
-		return item.GetGlobalPolicyBaseModel()
-	}), nil
+
+	baseModels := make([]*bean.GlobalPolicyBaseModel, 0)
+	for _, policy := range globalPolicy {
+		baseModels = append(baseModels, policy.GetGlobalPolicyBaseModel())
+	}
+	return baseModels, nil
+
 }
 func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error {
 	err := impl.globalPolicyRepository.DeletedById(policyId, userId)

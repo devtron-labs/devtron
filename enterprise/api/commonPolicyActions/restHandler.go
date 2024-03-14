@@ -8,8 +8,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/gorilla/mux"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
@@ -111,7 +111,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !slices.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}

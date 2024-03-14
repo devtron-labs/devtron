@@ -54,6 +54,11 @@ func (impl TimeWindowRepositoryImpl) GetWithExpressionAndFormat(expression strin
 // GetWithIds takes in timeout window ids and results rows corresponding to that id in db.
 func (impl TimeWindowRepositoryImpl) GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error) {
 	var model []*TimeoutWindowConfiguration
+
+	if len(ids) == 0 {
+		return model, nil
+	}
+
 	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Select()
 	if err != nil {
 		impl.logger.Errorw("error in GetWithIds", "err", err, "ids", ids)

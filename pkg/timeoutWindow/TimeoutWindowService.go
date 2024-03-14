@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"time"
 )
@@ -92,19 +91,31 @@ func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx
 }
 
 func (impl TimeWindowServiceImpl) GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error) {
+
+	if len(resourceIds) == 0 {
+		return make(map[int][]TimeWindowExpression), nil
+	}
+
 	resourceMappings, err := impl.timeWindowMappingRepository.GetWindowsForResources(resourceIds, resourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	resourceIdToMappings := lo.GroupBy(resourceMappings, func(item *repository.TimeoutWindowResourceMapping) int {
-		return item.ResourceId
-	})
+	resourceIdToMappings := make(map[int][]*repository.TimeoutWindowResourceMapping)
+	windowIds := make([]int, 0)
+	for _, mapping := range resourceMappings {
+		resourceIdToMappings[mapping.ResourceId] = append(resourceIdToMappings[mapping.ResourceId], mapping)
+		windowIds = append(windowIds, mapping.TimeoutWindowId)
+	}
 
-	windowIds := lo.Map(resourceMappings,
-		func(mapping *repository.TimeoutWindowResourceMapping, index int) int {
-			return mapping.TimeoutWindowId
-		})
+	//resourceIdToMappings = lo.GroupBy(resourceMappings, func(item *repository.TimeoutWindowResourceMapping) int {
+	//	return item.ResourceId
+	//})
+
+	//windowIds := lo.Map(resourceMappings,
+	//	func(mapping *repository.TimeoutWindowResourceMapping, index int) int {
+	//		return mapping.TimeoutWindowId
+	//	})
 
 	// length check inside
 
@@ -146,23 +157,32 @@ func (impl TimeWindowServiceImpl) CreateAndMapWithResource(tx *pg.Tx, timeWindow
 		return nil
 	}
 	// Create time window configurations and add new mappings for resource if provided
-	configurations := lo.Map(timeWindows,
-		func(timeWindow TimeWindowExpression, index int) *repository.TimeoutWindowConfiguration {
-			return timeWindow.toTimeWindowDto(userId)
-		})
+	configurations := make([]*repository.TimeoutWindowConfiguration, 0)
+	for _, window := range timeWindows {
+		configurations = append(configurations, window.toTimeWindowDto(userId))
+	}
 
 	configurations, err = impl.CreateForConfigurationList(tx, configurations)
 	if err != nil {
 		return err
 	}
 
-	mappings := lo.Map(configurations, func(conf *repository.TimeoutWindowConfiguration, index int) *repository.TimeoutWindowResourceMapping {
-		return &repository.TimeoutWindowResourceMapping{
+	mappings := make([]*repository.TimeoutWindowResourceMapping, 0)
+	for _, conf := range configurations {
+		mappings = append(mappings, &repository.TimeoutWindowResourceMapping{
 			TimeoutWindowId: conf.Id,
 			ResourceId:      resourceId,
 			ResourceType:    resourceType,
-		}
-	})
+		})
+	}
+
+	//mappings := lo.Map(configurations, func(conf *repository.TimeoutWindowConfiguration, index int) *repository.TimeoutWindowResourceMapping {
+	//	return &repository.TimeoutWindowResourceMapping{
+	//		TimeoutWindowId: conf.Id,
+	//		ResourceId:      resourceId,
+	//		ResourceType:    resourceType,
+	//	}
+	//})
 
 	_, err = impl.timeWindowMappingRepository.Create(tx, mappings)
 	return err
@@ -177,12 +197,13 @@ func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, us
 		}
 	}
 
-	windowExpressions := lo.Map(windows, func(window *TimeWindow, index int) TimeWindowExpression {
-		return TimeWindowExpression{
+	windowExpressions := make([]TimeWindowExpression, 0)
+	for _, window := range windows {
+		windowExpressions = append(windowExpressions, TimeWindowExpression{
 			TimeoutExpression: window.toJsonString(),
 			ExpressionFormat:  bean.RecurringTimeRange,
-		}
-	})
+		})
+	}
 
 	//create time windows and map
 	err = impl.CreateAndMapWithResource(tx, windowExpressions, userId, policyId, repository.DeploymentWindowProfile)
@@ -230,12 +251,18 @@ func (impl TimeWindowServiceImpl) GetWindowsForResources(resourceIds []int, reso
 	resourceIdToWindows := make(map[int][]*TimeWindow, 0)
 
 	for resourceId, expressions := range resourceIdToExpressions {
-		windows := lo.Map(expressions, func(expr TimeWindowExpression, index int) *TimeWindow {
-			window := &TimeWindow{}
-			window.setFromJsonString(expr.TimeoutExpression)
-			return window
-		})
-		resourceIdToWindows[resourceId] = windows
+		resourceIdToWindows[resourceId] = impl.toTimeWindow(expressions)
 	}
 	return resourceIdToWindows, nil
+}
+
+func (impl TimeWindowServiceImpl) toTimeWindow(expressions []TimeWindowExpression) []*TimeWindow {
+
+	windows := make([]*TimeWindow, 0)
+	for _, expr := range expressions {
+		window := &TimeWindow{}
+		window.setFromJsonString(expr.TimeoutExpression)
+		windows = append(windows, window)
+	}
+	return windows
 }
