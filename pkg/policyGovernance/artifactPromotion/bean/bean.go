@@ -77,12 +77,25 @@ type PromotionApprovalMetaData struct {
 	Policy               PromotionPolicy                      `json:"policy" validate:"dive"`
 }
 
-func (promotionApprovalMetaData PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
-	approvalUserIds := make([]int32, len(promotionApprovalMetaData.ApprovalUsersData))
-	for _, approvalUserData := range promotionApprovalMetaData.ApprovalUsersData {
+func (p PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
+	approvalUserIds := make([]int32, len(p.ApprovalUsersData))
+	for _, approvalUserData := range p.ApprovalUsersData {
 		approvalUserIds = append(approvalUserIds, approvalUserData.UserId)
 	}
 	return approvalUserIds
+}
+
+func (p PromotionApprovalMetaData) IsUserApprover(userId int32) bool {
+	approverUserIds := make([]int32, len(p.ApprovalUsersData))
+	for _, approvalUserData := range p.ApprovalUsersData {
+		approverUserIds = append(approverUserIds, approvalUserData.UserId)
+	}
+	for _, id := range approverUserIds {
+		if id == userId {
+			return true
+		}
+	}
+	return false
 }
 
 func (promotionApprovalMetaData PromotionApprovalMetaData) GetRequestedUserId() int32 {
@@ -140,6 +153,10 @@ func (p *PromotionPolicy) CanImageBuilderApprove(imageBuiltByUserId, approvingUs
 
 func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingUserId int32) bool {
 	return !p.ApprovalMetaData.AllowRequesterFromApprove && requestedUserId == approvingUserId
+}
+
+func (p *PromotionPolicy) CanImageApproverDeploy() bool {
+	return p.ApprovalMetaData.AllowApproverFromDeploy
 }
 
 func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {

@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"fmt"
 	"github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/pkg/bean"
 )
@@ -90,4 +91,12 @@ type WorkflowCloneRequest struct {
 type PipelineIdentifier struct {
 	PipelineType string
 	PipelineId   int
+}
+
+type WorkflowMappingsNotFoundError struct {
+	WorkflowIds []int
+}
+
+func (w WorkflowMappingsNotFoundError) Error() string {
+	return fmt.Sprintf("workflow not found %v not found", w.WorkflowIds)
 }

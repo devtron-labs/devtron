@@ -106,23 +106,22 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 		"           )"+
 		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
 
-	// plugin artifacts
-	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' )", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
-
-	// TODO: move constant. handle approval node
 	// promoted artifacts
 	// destination pipeline-id and artifact-id are indexed
 	if listingFilterOptions.ParentStageType != bean.CD_WORKFLOW_TYPE_PRE && listingFilterOptions.StageType != bean.CD_WORKFLOW_TYPE_POST {
-		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=%d and destination_pipeline_id = %d ) )", whereCondition, constants.PROMOTED, listingFilterOptions.PipelineId)
+		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=%d and destination_pipeline_id = %d)", whereCondition, constants.PROMOTED, listingFilterOptions.PipelineId)
 	}
+	// plugin artifacts
+	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
 
-	if listingFilterOptions.SearchString != EmptyLikeRegex {
-		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
-	}
 	if isApprovalNode {
 		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
 	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
 		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+	}
+
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
+		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
 	}
 
 	selectQuery := fmt.Sprintf(" SELECT ci_artifact.* ,COUNT(id) OVER() AS total_count " +

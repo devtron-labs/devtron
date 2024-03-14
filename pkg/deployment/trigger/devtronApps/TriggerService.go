@@ -334,26 +334,25 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("err", "err", err)
 		return 0, "", err
 	}
-	// TODO ayush - test ci parent, skopeo image, post/deploy parent cases
-	isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, artifact)
-	if err != nil {
-		impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-		return 0, "", err
-	}
+	if overrideRequest.IsDeployDeploymentType() {
+		// Migration of deprecated DataSource Type
+		// TODO ayush - test ci parent, link ci , skopeo image, post/deploy parent cases
+		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, artifact)
+		if err != nil {
+			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
+			return 0, "", err
+		}
+		if !isArtifactAvailable {
+			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
+		}
 
-	if !isArtifactAvailable {
-		return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
-	}
-
-	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY {
-		_, err := impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
+		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
 			return 0, "", err
 		}
 	}
 
-	// Migration of deprecated DataSource Type
 	if artifact.IsMigrationRequired() {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 		if migrationErr != nil {
@@ -667,31 +666,28 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciAr
 }
 
 func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
-	pipeline, err := impl.pipelineRepository.FindById(cdPipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by cdPipelineId", "cdPipelineId", cdPipeline.Id, "err", err)
-		return false, err
-	}
-	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, pipeline.EnvironmentId)
+
+	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
 		return false, err
 	}
 	if promotionPolicy != nil && promotionPolicy.Id > 0 {
-		if !promotionPolicy.ApprovalMetaData.AllowApproverFromDeploy {
-			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipeline.Id, constants.PROMOTED)
+		if !promotionPolicy.CanImageApproverDeploy() {
+
+			promotionApprovalMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipeline.Id, constants.PROMOTED)
 			if err != nil {
 				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id)
 				return false, err
 			}
-			if approvalMetadata, ok := promotionApprovalMetadata[artifactId]; ok {
-				approverIds := approvalMetadata.GetApprovalUserIds()
-				for _, id := range approverIds {
-					if id == userId {
-						impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
-						return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
-					}
+
+			if approvalMetadata, ok := promotionApprovalMetadataMap[artifactId]; ok {
+
+				if ok := approvalMetadata.IsUserApprover(userId); ok {
+					impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
+					return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
 				}
+
 			}
 		}
 	}

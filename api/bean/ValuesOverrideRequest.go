@@ -78,6 +78,10 @@ type ValuesOverrideRequest struct {
 	Image                                 string                      `json:"-"`
 }
 
+func (v ValuesOverrideRequest) IsDeployDeploymentType() bool {
+	return v.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY
+}
+
 type BulkCdDeployEvent struct {
 	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
 	UserId                int32                  `json:"userId"`

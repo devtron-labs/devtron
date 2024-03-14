@@ -912,7 +912,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 		query = query.Where("ci_artifact.image like ?", request.ListingOptions.SearchString)
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
-	ciArtifacts, totalCount, err := impl.executeCiArtifactQuery(query)
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
 	}
@@ -930,7 +930,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 		query = query.Where("ci_artifact.image like ?", request.ListingOptions.SearchString)
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
-	ciArtifacts, totalCount, err := impl.executeCiArtifactQuery(query)
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
 	}
@@ -939,12 +939,13 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 }
 
 func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
+
 	if len(request.ResourceCdPipelineId) == 0 {
-		return nil, 0, nil
+		return []CiArtifact{}, 0, nil
 	}
 	awaitingRequestQuery := impl.dbConnection.Model((*repository.ArtifactPromotionApprovalRequest)(nil)).
 		ColumnExpr("distinct(artifact_id)").
-		Where("destination_pipeline_id = (?) and status = ? ", pg.In(request.ResourceCdPipelineId), constants.AWAITING_APPROVAL)
+		Where("destination_pipeline_id in (?) and status = ? ", pg.In(request.ResourceCdPipelineId), constants.AWAITING_APPROVAL)
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
@@ -955,7 +956,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
 
-	ciArtifacts, totalCount, err := impl.executeCiArtifactQuery(query)
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
 	}
@@ -963,7 +964,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 
 }
 
-func (impl CiArtifactRepositoryImpl) executeCiArtifactQuery(query *orm.Query) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) executePromotionNodeQuery(query *orm.Query) ([]CiArtifact, int, error) {
 	var ciArtifactArrResp []CiArtifactWithExtraData
 	var ciArtifacts []CiArtifact
 	err := query.Select(&ciArtifactArrResp)
@@ -982,14 +983,41 @@ func (impl CiArtifactRepositoryImpl) executeCiArtifactQuery(query *orm.Query) ([
 
 func (impl CiArtifactRepositoryImpl) IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string) (bool, error) {
 	var Available bool
-	query := fmt.Sprintf("SELECT count(*)>0 as Available FROM ci_artifact "+
-		"WHERE ( id = %d AND id IN ( SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
-		"FROM cd_workflow_runner INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id   "+
-		" AND ( (cd_workflow.pipeline_id = %d OR cd_workflow.pipeline_id = %d) and cd_workflow.ci_artifact_id = %d)  "+
-		"WHERE ((cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = 'DEPLOY') "+
-		"OR  (cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s' AND cd_workflow_runner.status IN ('Healthy','Succeeded')) ))    "+
-		"OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ) OR id in ( select artifact_id from artifact_promotion_approval_request where status=%d and destination_pipeline_id = %d ))",
-		artifactId, pipelineId, parentPipelineId, artifactId, pipelineId, parentPipelineId, parentStage, parentPipelineId, pluginStage, constants.PROMOTED, pipelineId)
+
+	query := fmt.Sprintf(
+		`SELECT count(*) > 0 as Available
+    FROM ci_artifact 
+    WHERE (
+        id = %d 
+        AND id IN (
+            SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id 
+            FROM cd_workflow_runner 
+            INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id   
+            AND (
+                cd_workflow.pipeline_id in (%d,%d) AND cd_workflow.ci_artifact_id = %d
+            )  
+            WHERE (
+                (cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = 'DEPLOY') 
+                OR  
+                (
+                    cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s' AND cd_workflow_runner.status IN ('Healthy','Succeeded')
+                )
+            )
+        )
+    ) 
+    OR (
+        ci_artifact.id=%d
+        ci_artifact.component_id = %d  
+        AND ci_artifact.data_source = '%s' 
+    ) 
+    OR id IN (
+        SELECT artifact_id 
+        FROM artifact_promotion_approval_request 
+        WHERE status = %d 
+        AND destination_pipeline_id = %d and artifact_id=%d
+    )`,
+		artifactId, pipelineId, parentPipelineId, artifactId, pipelineId, parentPipelineId, parentStage, parentPipelineId, artifactId, pluginStage, constants.PROMOTED, pipelineId, artifactId)
+
 	_, err := impl.dbConnection.Query(&Available, query)
 	if err != nil {
 		return false, err

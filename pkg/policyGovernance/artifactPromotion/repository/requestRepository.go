@@ -45,6 +45,7 @@ type RequestRepository interface {
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
+	//TODO: combine below func based on status
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error

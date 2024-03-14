@@ -21,7 +21,6 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
@@ -1036,9 +1035,9 @@ func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtif
 
 func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(workflowId int, ciArtifacts []bean2.CiArtifactBean) (artifactIdToDeployedEnvMap map[int][]string, err error) {
 
-	wfCdPipelineIds, err := impl.getAllCdPipelineInWfByPipelineId(workflowId)
+	wfCdPipelineIds, _, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping([]int{workflowId})
 	if err != nil {
-		impl.logger.Errorw("error in getting all wfCDPipelineIds by workflowId", "workflowId", workflowId, "err", err)
+		impl.logger.Errorw("error in finding app wf mappings for given pipelineId", "workflowId", workflowId, "err", err)
 		return artifactIdToDeployedEnvMap, err
 	}
 
@@ -1090,23 +1089,6 @@ func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPip
 		artifactToDeployedPipelineIDMapping[workflowMetadata.CiArtifactId] = workflowMetadata.PipelineId
 	}
 	return artifactToDeployedPipelineIDMapping, nil
-}
-
-// TODO: should be moved to appWorkflowService
-func (impl *AppArtifactManagerImpl) getAllCdPipelineInWfByPipelineId(workflowId int) (wfCdPipelineIds []int, err error) {
-	appWfMappings, err := impl.appWorkflowRepository.FindByWorkflowId(workflowId)
-	if err != nil {
-		impl.logger.Errorw("error in finding app wf mappings for given pipelineId", "workflowId", workflowId, "err", err)
-		return wfCdPipelineIds, err
-	}
-
-	wfCdPipelineIds = util2.Map(appWfMappings, func(appWf *appWorkflow.AppWorkflowMapping) int {
-		if appWf.Type == bean4.CD_PIPELINE_TYPE {
-			return appWf.ComponentId
-		}
-		return 0
-	})
-	return wfCdPipelineIds, nil
 }
 
 func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, appId int) ([]bean2.CiArtifactBean, error) {
@@ -1626,12 +1608,12 @@ func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 	var err error
 
-	AuthWfIdToCDPipelineIds, err := impl.artifactPromotionDataReadService.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, []int{request.WorkflowId}, imagePromoterAuth)
+	authWfIdToCDPipelineIds, err := impl.artifactPromotionDataReadService.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, []int{request.WorkflowId}, imagePromoterAuth)
 	if err != nil {
 		impl.logger.Errorw("error in fetching current user image promoter auth cd pipeline ids", "err", err)
 		return ciArtifactResponse, err
 	}
-	imagePromoterAuthCDPipelineIds := AuthWfIdToCDPipelineIds[request.WorkflowId]
+	imagePromoterAuthCDPipelineIds := authWfIdToCDPipelineIds[request.WorkflowId]
 
 	switch request.Resource {
 	case string(constants.SOURCE_TYPE_CD):
