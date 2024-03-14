@@ -57,26 +57,38 @@ type Config struct {
 	Config map[string]interface{} `json:"config"`
 }
 
-func (r Config) IsSsoLdap() bool {
+func (r *Config) IsSsoLdap() bool {
 	return r.Name == LDAP
 }
 
-func (r Config) secureCredentials() {
-	secureCredentialValue(&r, ClientID)
-	secureCredentialValue(&r, ClientSecret)
+func (r *Config) secureCredentials() {
+	r.secureCredentialValue(r, ClientID)
+	r.secureCredentialValue(r, ClientSecret)
 	if r.IsSsoLdap() {
-		secureCredentialValue(&r, LdapBindPW)
-		secureCredentialValue(&r, LdapUsernamePrompt)
+		r.secureCredentialValue(r, LdapBindPW)
+		r.secureCredentialValue(r, LdapUsernamePrompt)
 	}
 
 }
 
-func (r Config) updateCredentialsFromBase(configFromDb *Config) {
-	updateSecretFromBase(&r, configFromDb, ClientID)
-	updateSecretFromBase(&r, configFromDb, ClientSecret)
+func (r *Config) updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
+	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
+		configData.Config[key] = baseConfigData.Config[key]
+	}
+}
+
+func (r *Config) secureCredentialValue(configData *Config, credentialKey string) {
+	if configData.Config[credentialKey] != nil {
+		configData.Config[credentialKey] = ""
+	}
+}
+
+func (r *Config) updateCredentialsFromBase(configFromDb *Config) {
+	r.updateSecretFromBase(r, configFromDb, ClientID)
+	r.updateSecretFromBase(r, configFromDb, ClientSecret)
 	if r.IsSsoLdap() {
-		updateSecretFromBase(&r, configFromDb, LdapBindPW)
-		updateSecretFromBase(&r, configFromDb, LdapUsernamePrompt)
+		r.updateSecretFromBase(r, configFromDb, LdapBindPW)
+		r.updateSecretFromBase(r, configFromDb, LdapUsernamePrompt)
 	}
 }
 
@@ -432,16 +444,4 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
-}
-
-func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
-		configData.Config[key] = baseConfigData.Config[key]
-	}
-}
-
-func secureCredentialValue(configData *Config, credentialKey string) {
-	if configData.Config[credentialKey] != nil {
-		configData.Config[credentialKey] = ""
-	}
 }
