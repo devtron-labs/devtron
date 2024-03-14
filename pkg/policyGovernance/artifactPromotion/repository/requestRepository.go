@@ -206,6 +206,9 @@ func (repo *RequestRepositoryImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) 
 }
 
 func (repo *RequestRepositoryImpl) MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error {
+	if len(commaSeperatedAppEnvIds) == 0 {
+		return nil
+	}
 	// example
 	// update artifact_promotion_approval_request
 	// set status = 3
