@@ -272,7 +272,10 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIDetails(w http.ResponseW
 	}
 	token := r.Header.Get("token")
 	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
-	if err != nil {
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
+		return
+	} else if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
