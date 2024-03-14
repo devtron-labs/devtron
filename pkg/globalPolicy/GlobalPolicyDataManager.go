@@ -26,7 +26,7 @@ type GlobalPolicyDataManager interface {
 
 	GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error)
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
-	GetAndSort(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
+	GetPolicyByCriteria(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error)
 }
@@ -312,7 +312,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(tx *pg.Tx, policyNam
 
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetAndSort(nameSearchString string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyByCriteria(nameSearchString string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error) {
 
 	nameSearchString = "%" + nameSearchString + "%"
 	orderByName := false

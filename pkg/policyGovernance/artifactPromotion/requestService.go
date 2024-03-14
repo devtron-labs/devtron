@@ -163,7 +163,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		return environmentApprovalMetadata, nil
 	}
 
-	destinationPipelineIds := make([]int, len(promotionRequests))
+	destinationPipelineIds := make([]int, 0, len(promotionRequests))
 	for i, request := range promotionRequests {
 		destinationPipelineIds[i] = request.DestinationPipelineId
 	}
@@ -175,7 +175,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 	}
 
 	if len(pipelineIdToDaoMapping) < len(destinationPipelineIds) {
-		deletedPipelines, err := impl.markRequestStale(pipelineIdToDaoMapping, destinationPipelineIds)
+		deletedPipelines, err := impl.markRequestAsStale(pipelineIdToDaoMapping, destinationPipelineIds)
 		if err != nil {
 			// not returning by choice, dont block user flow if this operation is unsuccessful
 			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines)
@@ -210,21 +210,17 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 			ApprovalAllowed: true,
 			Reasons:         make([]string, 0),
 		}
-		// TODO: fetch policies in bulk
+
 		policy := policiesMap[pipelineDao.Environment.Name]
 		if policy == nil {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
 			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 			continue
-		}
-
-		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
+		} else if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
-			// TODO: reason constant
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG)
-		}
-		if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
+		} else if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG)
 		}
@@ -240,7 +236,9 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 }
 
 // TODO : test
-func (impl *ApprovalRequestServiceImpl) markRequestStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
+func (impl *ApprovalRequestServiceImpl) markRequestAsStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
+	//TODO : add info log
+	impl.logger.Errorw("marking deleted pipeline policies stale", "deletedPipelineIds", destinationPipelineIds)
 	var deletedPipelines []int
 	for id := range destinationPipelineIds {
 		if _, ok := pipelineIdToDaoMapping[id]; !ok {
