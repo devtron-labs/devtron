@@ -37,7 +37,6 @@ type ResourceQualifierMappings struct {
 	ResourceId          int
 	ResourceType        ResourceType
 	SelectionIdentifier *SelectionIdentifier
-	//qualifierSelector QualifierSelector
 }
 
 type QualifierMapping struct {
@@ -52,8 +51,6 @@ type QualifierMapping struct {
 	IdentifierValueString string       `sql:"identifier_value_string"`
 	ParentIdentifier      int          `sql:"parent_identifier"`
 	CompositeKey          string       `sql:"-"`
-	// Data                  string   `sql:"-"`
-	// VariableData          *VariableData
 	sql.AuditLog
 }
 

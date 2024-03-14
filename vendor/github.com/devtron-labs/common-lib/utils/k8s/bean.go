@@ -77,7 +77,7 @@ type K8sRequestBean struct {
 	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
 	Patch              string             `json:"patch,omitempty"`
 	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
-	ForceDelete        bool               `json:"forceDelete,omitempty"`
+	ForceDelete        bool               `json:"-"`
 }
 
 type GetAllApiResourcesResponse struct {

@@ -14,11 +14,11 @@ func GetQualifierMappingsForCompoundQualifier(selection *ResourceMappingSelectio
 	}
 	return nil, nil
 }
-
 func GetMappingsForAppEnv(selection *ResourceMappingSelection, resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, userId int32) (*QualifierMapping, []*QualifierMapping) {
 	appId, appName := GetValuesFromSelectionIdentifier(ApplicationSelector, selection.SelectionIdentifier)
 	envId, envName := GetValuesFromSelectionIdentifier(EnvironmentSelector, selection.SelectionIdentifier)
 	compositeString := getCompositeString(selection.ResourceId, appId, envId)
+
 	parent := selection.toResourceMapping(ApplicationSelector, resourceKeyMap, appId, appName, compositeString, userId)
 	children := selection.toResourceMapping(EnvironmentSelector, resourceKeyMap, envId, envName, compositeString, userId)
 	return parent, []*QualifierMapping{children}

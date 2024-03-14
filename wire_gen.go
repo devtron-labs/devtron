@@ -380,7 +380,7 @@ func InitializeApp() (*App, error) {
 	}
 	helmAppClientImpl := gRPC.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, installedAppRepositoryImpl)
+	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	helmReleaseConfig, err := service.GetHelmReleaseConfig()
@@ -695,7 +695,7 @@ func InitializeApp() (*App, error) {
 	resourceProtectionServiceImpl := protect.NewResourceProtectionServiceImpl(sugaredLogger, resourceProtectionRepositoryImpl)
 	gitOpsManifestPushServiceImpl := app2.NewGitOpsManifestPushServiceImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, pipelineStatusTimelineRepositoryImpl, acdConfig, chartRefServiceImpl, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, argoClientWrapperServiceImpl)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sUtilExtended)
-	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, argoUserServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, artifactApprovalDataReadServiceImpl, utilMergeUtil, enforcerUtilImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, imageTaggingServiceImpl, deploymentApprovalRepositoryImpl, appRepositoryImpl, helmRepoPushServiceImpl, resourceFilterServiceImpl, globalEnvVariables, imageScanResultRepositoryImpl, cvePolicyRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryRepositoryImpl, imageScanDeployInfoRepositoryImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateServiceImpl, materialRepositoryImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl)
+	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, argoUserServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, artifactApprovalDataReadServiceImpl, utilMergeUtil, enforcerUtilImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, imageTaggingServiceImpl, deploymentApprovalRepositoryImpl, helmRepoPushServiceImpl, resourceFilterServiceImpl, globalEnvVariables, appRepositoryImpl, imageScanResultRepositoryImpl, cvePolicyRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryRepositoryImpl, imageScanDeployInfoRepositoryImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateServiceImpl, materialRepositoryImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -849,7 +849,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
-	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db)
+	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
 	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(sugaredLogger, ssoLoginRepositoryImpl, k8sUtilExtended, devtronSecretConfig, userAuthOidcHelperImpl, globalAuthorisationConfigServiceImpl)
 	ssoLoginRestHandlerImpl := sso2.NewSsoLoginRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := sso2.NewSsoLoginRouterImpl(ssoLoginRestHandlerImpl)
