@@ -1,6 +1,6 @@
 # Triggering CI Pipelines
 
-To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, clic the **Select Material** button present on the CI pipeline.
+To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, click the **Select Material** button present on the CI pipeline.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material-new.jpg)
 
