@@ -2135,22 +2135,30 @@ func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, actio
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetLinkedCIInfoFilters(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	vars := mux.Vars(r)
 	ciPipelineId, err := strconv.Atoi(vars["ciPipelineId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//RBAC
-	object := handler.enforcerUtil.GetTeamRbacObjectByCiPipelineId(ciPipelineId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
+		return
+	} else if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(ciPipeline.App.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC
@@ -2158,6 +2166,8 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIInfoFilters(w http.Respo
 	resp, err = handler.ciCdPipelineOrchestrator.GetLinkedCIInfoFilters(ciPipelineId)
 	if err != nil {
 		handler.Logger.Errorw("error getting environment info for given source Ci pipeline id", err)
+		common.WriteJsonResp(w, fmt.Errorf("error getting environment info for given source Ci pipeline id"), "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
