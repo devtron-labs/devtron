@@ -2139,7 +2139,7 @@ func (impl CiCdPipelineOrchestratorImpl) getAllAttachedEnvNamesByIds(linkedCiPip
 	}
 	return envNames, nil
 }
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(ctx context.Context, sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
 	response := pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
 
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.GetAllLinkedCIDetails")
