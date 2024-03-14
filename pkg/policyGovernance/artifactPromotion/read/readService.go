@@ -19,7 +19,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -113,7 +112,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-			//TODO Need to revisit this as making db calls in Loop
+			// TODO Need to revisit this as making db calls in Loop
 			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, userInfoMap, requestIdToApprovalUserDataMapping)
 			if err != nil {
 				impl.logger.Errorw("error in fetching approval metadata by pipelineId", "pipelineId", pipelineId, "err", err)
@@ -381,7 +380,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 		return nil, err
 	}
 
-	policyIds := lo.Map(promotionPolicies, func(policy *bean.PromotionPolicy, index int) int {
+	policyIds := util2.Map(promotionPolicies, func(policy *bean.PromotionPolicy) int {
 		return policy.Id
 	})
 
@@ -451,7 +450,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomple
 		impl.logger.Errorw("error in getting all global policies by type", "policyType", bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, "err", err)
 		return policyNames, err
 	}
-	policyNames = lo.Map(promotionPolicies, func(policy *repository3.GlobalPolicy, index int) string {
+	policyNames = util2.Map(promotionPolicies, func(policy *repository3.GlobalPolicy) string {
 		return policy.Name
 	})
 	return policyNames, nil
@@ -489,7 +488,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPending
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int][]int, error) {
-	//TOD: auth function in reader service ??
+	// TOD: auth function in reader service ??
 
 	cdPipelineIds, cdPipelineIdToWorkflowIdMapping, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(workflowIds)
 	if err != nil {
@@ -505,7 +504,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsF
 		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
 		return nil, err
 	}
-	
+
 	teamDao, err := impl.teamService.FetchOne(pipeline[0].App.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)

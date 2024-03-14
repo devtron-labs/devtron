@@ -601,54 +601,60 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util2.Reque
 			// not returning by choice, don't interrupt the user flow
 		}
 	}
-
-	// fetch all the approved users data for the valid requestIds
-	approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in finding the approved users data for a artifact promotion request", "promotionRequestIds", validRequestIds, "err", err)
-		return nil, err
-	}
-
-	// club the approved users(we just need count for now) per requestId
-	promotionRequestIdVsApprovedUserCount := make(map[int]int)
-	for _, _approvedUsersData := range approvedUsersData {
-		count := promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId]
-		promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId] = count + 1
-	}
-
-	// filter out promotable requests.
-	// we will promote if the current number approvals got for any request exceeds the current configured no of approvals in the policy
-	promotableRequestIds := make([]int, 0, len(validRequestIds))
-	for _, promotionRequest := range promotionRequests {
-		approvalCount := promotionRequestIdVsApprovedUserCount[promotionRequest.Id]
-		if policyIdMap[promotionRequest.PolicyId].CanBePromoted(approvalCount) {
-			promotableRequestIds = append(promotableRequestIds, promotionRequest.Id)
-		}
-	}
-
-	// promote the promotableRequestIds
-	err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds)
-	if err != nil {
-		impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
-		return nil, err
-	}
-
-	promotionRequestIdToDaoMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
-	for _, promotionRequest := range promotionRequests {
-		promotionRequestIdToDaoMap[promotionRequest.Id] = promotionRequest
-	}
-
-	if len(promotableRequestIds) > 0 {
-		err = impl.handleArtifactPromotionSuccess(promotableRequestIds, promotionRequestIdToDaoMap, metadata.GetActiveAuthorisedPipelineDaoMap())
-		if err != nil {
-			impl.logger.Errorw("error in handling the successful artifact promotion event for promotedRequests", "promotableRequestIds", promotableRequestIds, "err", err)
+	if len(validRequestIds) > 0 {
+		// fetch all the approved users data for the valid requestIds
+		approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in finding the approved users data for a artifact promotion request", "promotionRequestIds", validRequestIds, "err", err)
 			return nil, err
 		}
-	}
 
+		// club the approved users(we just need count for now) per requestId
+		promotionRequestIdVsApprovedUserCount := make(map[int]int)
+		for _, _approvedUsersData := range approvedUsersData {
+			count := promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId]
+			promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId] = count + 1
+		}
+
+		validRequestMap := make(map[int]bool)
+		for _, id := range validRequestIds {
+			validRequestMap[id] = true
+		}
+		// filter out promotable requests.
+		// we will promote if the current number approvals got for any request exceeds the current configured no of approvals in the policy
+		promotableRequestIds := make([]int, 0, len(validRequestIds))
+		for _, promotionRequest := range promotionRequests {
+			if validRequestMap[promotionRequest.Id] {
+				approvalCount := promotionRequestIdVsApprovedUserCount[promotionRequest.Id]
+				if policyIdMap[promotionRequest.PolicyId].CanBePromoted(approvalCount) {
+					promotableRequestIds = append(promotableRequestIds, promotionRequest.Id)
+				}
+			}
+		}
+
+		// promote the promotableRequestIds
+		err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds)
+		if err != nil {
+			impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
+			return nil, err
+		}
+
+		promotionRequestIdToDaoMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
+		for _, promotionRequest := range promotionRequests {
+			promotionRequestIdToDaoMap[promotionRequest.Id] = promotionRequest
+		}
+
+		if len(promotableRequestIds) > 0 {
+			err = impl.handleArtifactPromotionSuccess(promotableRequestIds, promotionRequestIdToDaoMap, metadata.GetActiveAuthorisedPipelineDaoMap())
+			if err != nil {
+				impl.logger.Errorw("error in handling the successful artifact promotion event for promotedRequests", "promotableRequestIds", promotableRequestIds, "err", err)
+				return nil, err
+			}
+		}
+	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing the transaction", "promotableRequestIds", promotableRequestIds, "err", err)
+		impl.logger.Errorw("error in committing the transaction", "validRequestIds", validRequestIds, "err", err)
 		return nil, err
 	}
 
@@ -809,9 +815,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 
 func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowId int, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	if requestedWorkflowId != metadata.GetWorkflowId() {
-		// handle throw api error with conflict status code
-		// todo: make the error msg as const
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("provided source is not linked to the given workflow").WithInternalMessage("provided source is not linked to the given workflow")
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
 	}
 
 	allAppWorkflowMappings, err := impl.appWorkflowService.FindAppWorkflowMapping(metadata.GetWorkflowId())
@@ -882,7 +886,6 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx *util2.RequestCtx, r
 	// fetch artifact
 
 	requestMetaData := &bean.RequestMetaData{}
-	// todo: can move to request builder
 	metadata, err := impl.updateWithSourceMetadata(requestMetaData, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting source metadata for the request", "request", request, "err", err)
