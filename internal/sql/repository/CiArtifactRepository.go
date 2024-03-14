@@ -939,9 +939,12 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 }
 
 func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
+	if len(request.ResourceCdPipelineId) > 0 {
+		return nil, 0, nil
+	}
 	awaitingRequestQuery := impl.dbConnection.Model((*repository.ArtifactPromotionApprovalRequest)(nil)).
 		ColumnExpr("distinct(artifact_id)").
-		Where("destination_pipeline_id = ? and status = ? ", pg.In(request.ResourceCdPipelineId), constants.AWAITING_APPROVAL)
+		Where("destination_pipeline_id = (?) and status = ? ", pg.In(request.ResourceCdPipelineId), constants.AWAITING_APPROVAL)
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
