@@ -939,7 +939,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 }
 
 func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
-	if len(request.ResourceCdPipelineId) > 0 {
+	if len(request.ResourceCdPipelineId) == 0 {
 		return nil, 0, nil
 	}
 	awaitingRequestQuery := impl.dbConnection.Model((*repository.ArtifactPromotionApprovalRequest)(nil)).
