@@ -23,7 +23,7 @@ body:
       label: "Affected areas"
       description: "What areas of Devtron are impacted by the issue?"
       options:
-        - Devtron dasboard completely down (100) Add URGENT
+        - Devtron dashboard completely down (100) Add URGENT
         - Login issues (50)
         - RBAC Issues (40)
         - CI (50)
@@ -40,7 +40,7 @@ body:
       label: "Additional affected areas"
       description: "Are there any additional affected areas?"
       options:
-        - Devtron dasboard completely down (100)
+        - Devtron dashboard completely down (100)
         - Login issues (50)
         - RBAC Issues (40)
         - CI (50)
