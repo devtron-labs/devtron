@@ -2104,10 +2104,6 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 
 func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
 	response := linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
-	if sourceCIPipeline == 0 {
-		impl.logger.Errorw("invalid source ci pipeline", "sourceCIPipeline", sourceCIPipeline)
-		return response, fmt.Errorf("invalid source ci pipeline")
-	}
 
 	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
 	if util.IsErrNoRows(err) {

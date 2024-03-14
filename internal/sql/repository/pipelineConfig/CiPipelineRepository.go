@@ -624,12 +624,6 @@ type LinkedCIDetails struct {
 func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
 	appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, int, error) {
 	linkedCIDetails := make([]LinkedCIDetails, 0)
-	if limit == 0 {
-		limit = 20
-	}
-	if len(order) == 0 {
-		order = linkedCIView.Asc
-	}
 	query := impl.dbConnection.Model().
 		Table("ci_pipeline").
 		// added columns that has no duplicated reference across joined tables

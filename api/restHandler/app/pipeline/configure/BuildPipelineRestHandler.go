@@ -262,7 +262,12 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIDetails(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	if req.Size == 0 {
+		req.Size = 20
+	}
+	if len(req.Order) == 0 {
+		req.Order = linkedCIView.Asc
+	}
 	token := r.Header.Get("token")
 	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
 	if err != nil {
