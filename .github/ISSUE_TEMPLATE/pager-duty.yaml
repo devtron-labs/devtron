@@ -18,15 +18,66 @@ body:
       description: "A clear and concise description of what the bug is."
       placeholder: "It bugs out when ..."
   - type: dropdown
-    id: criticality
+    id: affected-areas
     attributes:
-      label: "Criticality"
-      description: "How critical is the issue? Please include the impact in the  "
+      label: "Affected areas"
+      description: "What areas of Devtron are impacted by the issue?"
       options:
-        - P0 - Critical/Blocking
-        - P1 - High
-        - P2 - Medium
-        - P3 - Low
+        - Devtron dasboard completely down (100) Add URGENT
+        - Login issues (50)
+        - RBAC Issues (40)
+        - CI (50)
+        - CD (50)
+        - App creation (30)
+        - Deployment from Chart store (40)
+        - Security features (50)
+        - CI/CD Plugins (30)
+        - Other CRITICAL functionality (30)
+        - Other NON-CRITICAL functionality (20)
+  - type: dropdown
+    id: additional-affected-areas
+    attributes:
+      label: "Additional affected areas"
+      description: "Are there any additional affected areas?"
+      options:
+        - Devtron dasboard completely down (100)
+        - Login issues (50)
+        - RBAC Issues (40)
+        - CI (50)
+        - CD (50)
+        - App creation (30)
+        - Deployment from Chart store (40)
+        - Security features (50)
+        - CI/CD Plugins (30)
+        - Other CRITICAL functionality (30)
+        - Other NON-CRITICAL functionality (20)
+  - type: dropdown
+    id: prod-environment
+    attributes:
+      label: "Prod/Non-prod environments?"
+      description: "Is the issue affecting Prod environments?"
+      options:
+        - Yes (x2)
+        - No (x1)
+  - type: dropdown
+    id: user-unblocked
+    attributes:
+      label: "Is User unblocked?"
+      description: "Is the User unblocked?"
+      options:
+        - Yes (x1)
+        - No (x2)
+  - type: dropdown
+    id: user-unblocked-reason
+    attributes:
+      label: "How was the user un-blocked?"
+      description: "If the user was unblocked. How was the user un-blocked?"
+      options:
+        - TEMPORARILY - By disabling a CRITICAL functionality (x3) Add URGENT
+        - TEMPORARILY - By disabling a NON-CRITICAL functionality (x1.2)
+        - TEMPORARILY - By doing some changes from the backend/DB (x1)
+        - PERMANENTLY - By giving a workaround (From outside Devtron) (x2)
+        - PERMANENTLY - By giving a workaround (Within Devtron) (x1)
   - type: textarea
     id: impact
     validations:
@@ -91,14 +142,6 @@ body:
         - Something Else
     validations:
       required: true
-  - type: textarea
-    id: environment
-    validations:
-      required: false
-    attributes:
-      label: "🧱 Your Environment"
-      description: "Is your environment customized in any way? Provide your Browser version as well."
-      placeholder: "I use XYZ for ..."
   - type: textarea
     id: solution
     validations:
