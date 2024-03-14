@@ -1035,9 +1035,6 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		timeoutWindow.NewTimeoutWindowResourceMappingServiceImpl,
-		wire.Bind(new(timeoutWindow.TimeoutWindowResourceMappingService), new(*timeoutWindow.TimeoutWindowResourceMappingServiceImpl)),
-
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 	)

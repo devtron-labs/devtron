@@ -2,12 +2,14 @@ package resourceQualifiers
 
 import (
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"time"
 )
@@ -31,8 +33,8 @@ type QualifierMappingService interface {
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 
 	CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error)
-	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, scopes []*Scope) error
-	GetResourceMappingsForScopes(resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) ([]ResourceQualifierMappings, error)
+	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error
+	GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error)
 	GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error)
 	StartTx() (*pg.Tx, error)
 	RollbackTx(tx *pg.Tx) error
@@ -56,7 +58,7 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 			parent, children = GetQualifierMappingsForCompoundQualifier(selection, resourceKeyMap, userId)
 			parentMappingsMap[parent.CompositeKey] = parent
 		} else {
-			intValue, stringValue := GetValuesFromScope(selection.QualifierSelector, selection.Scope)
+			intValue, stringValue := GetValuesFromSelectionIdentifier(selection.QualifierSelector, selection.SelectionIdentifier)
 			parent = selection.toResourceMapping(selection.QualifierSelector, resourceKeyMap, intValue, stringValue, "", userId)
 		}
 		mappingsToSelection[parent] = selection
@@ -79,8 +81,8 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 	}
 
 	for _, childrenMapping := range childrenMappings {
-		if parentScope, ok := parentMappingsMap[childrenMapping.CompositeKey]; ok {
-			childrenMapping.ParentIdentifier = parentScope.Id
+		if mapping, ok := parentMappingsMap[childrenMapping.CompositeKey]; ok {
+			childrenMapping.ParentIdentifier = mapping.Id
 		}
 	}
 
@@ -91,18 +93,19 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 			return nil, err
 		}
 	}
-	return lo.Values(mappingsToSelection), nil
+
+	return maps.Values(mappingsToSelection), nil
 }
 
-func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, scopes []*Scope) error {
+func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {
 	mappings := make([]*ResourceMappingSelection, 0)
 	for _, id := range resourceIds {
-		for _, scope := range scopes {
+		for _, selectionIdentifier := range selectionIdentifiers {
 			mapping := &ResourceMappingSelection{
-				ResourceType:      resourceType,
-				ResourceId:        id,
-				QualifierSelector: qualifierSelector,
-				Scope:             scope,
+				ResourceType:        resourceType,
+				ResourceId:          id,
+				QualifierSelector:   qualifierSelector,
+				SelectionIdentifier: selectionIdentifier,
 			}
 			mappings = append(mappings, mapping)
 		}
@@ -111,46 +114,47 @@ func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, 
 	return err
 }
 
-func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector) [][]*QualifierMapping {
+func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector, composites mapset.Set) [][]*QualifierMapping {
 
 	numQualifiers := GetNumOfChildQualifiers(selector.toQualifier())
-	parentIdToChildScopes := make(map[int][]*QualifierMapping)
-	parentScopeIdToScope := make(map[int]*QualifierMapping, 0)
-	parentScopeIds := make([]int, 0)
-	for _, scope := range mappings {
-		// is not parent so append it to the list in the map with key as its parent scopeID
-		if scope.ParentIdentifier > 0 {
-			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
+	parentIdToChildMappings := make(map[int][]*QualifierMapping)
+	parentIdToMapping := make(map[int]*QualifierMapping, 0)
+	parentMappingIds := make([]int, 0)
+	for _, mapping := range mappings {
+		// is not parent so append it to the list in the map with key as its parent ID
+		if mapping.ParentIdentifier > 0 {
+			parentIdToChildMappings[mapping.ParentIdentifier] = append(parentIdToChildMappings[mapping.ParentIdentifier], mapping)
 		} else {
-			// is parent so collect IDs and put it in a map for easy retrieval
-			parentScopeIds = append(parentScopeIds, scope.Id)
-			parentScopeIdToScope[scope.Id] = scope
+			//is parent so collect IDs and put it in a map for easy retrieval
+			parentMappingIds = append(parentMappingIds, mapping.Id)
+			parentIdToMapping[mapping.Id] = mapping
 		}
 	}
 
-	for parentScopeId, _ := range parentIdToChildScopes {
+	for parentMappingId, _ := range parentIdToChildMappings {
 		// this deletes the keys in the map where the key does not exist in the collected IDs for parent
-		if !slices.Contains(parentScopeIds, parentScopeId) {
-			delete(parentIdToChildScopes, parentScopeId)
+		if !slices.Contains(parentMappingIds, parentMappingId) {
+			delete(parentIdToChildMappings, parentMappingId)
 		}
 	}
 
-	// selectedParentScopes :=  make([]*QualifierMapping,0)
 	groupedMappings := make([][]*QualifierMapping, 0)
-	for parentScopeId, childScopes := range parentIdToChildScopes {
-		if len(childScopes) == numQualifiers {
-			selectedParentScope := parentScopeIdToScope[parentScopeId]
-			// selectedParentScopes = append(selectedParentScopes, selectedParentScope)
-
-			mappingsGroup := []*QualifierMapping{selectedParentScope}
-			mappingsGroup = append(mappingsGroup, childScopes...)
+	for parentId, childMappings := range parentIdToChildMappings {
+		if len(childMappings) == numQualifiers {
+			selectedParentMapping := parentIdToMapping[parentId]
+			composite := getCompositeString(selectedParentMapping.IdentifierValueInt, childMappings[0].IdentifierValueInt)
+			if !composites.Contains(composite) {
+				break
+			}
+			mappingsGroup := []*QualifierMapping{selectedParentMapping}
+			mappingsGroup = append(mappingsGroup, childMappings...)
 			groupedMappings = append(groupedMappings, mappingsGroup)
 		}
 	}
 	return groupedMappings
 }
 
-func (impl QualifierMappingServiceImpl) getAppEnvScopeFromGroup(group []*QualifierMapping) *Scope {
+func (impl QualifierMappingServiceImpl) getAppEnvIdentifierFromGroup(group []*QualifierMapping) *SelectionIdentifier {
 	resourceKeyToName := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyIdNameMap()
 	var appId, envId int
 	var appName, envName string
@@ -158,40 +162,31 @@ func (impl QualifierMappingServiceImpl) getAppEnvScopeFromGroup(group []*Qualifi
 		field := resourceKeyToName[mapping.IdentifierKey]
 		switch field {
 		case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:
-			appId = mapping.IdentifierValueInt
-			appName = mapping.IdentifierValueString
+			appId, appName = mapping.GetIdValueAndName()
 		case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:
-			envId = mapping.IdentifierValueInt
-			envName = mapping.IdentifierValueString
+			envId, envName = mapping.GetIdValueAndName()
 		}
 	}
-	return &Scope{
-		AppId: appId,
-		EnvId: envId,
-		SystemMetadata: &SystemMetadata{
-			EnvironmentName: envName,
-			AppName:         appName,
-		},
-	}
+	return getSelectionIdentifierForAppEnv(appId, envId, getIdentifierNamesForAppEnv(envName, appName))
 }
 
-func (impl QualifierMappingServiceImpl) getScopesForAppEnvSelector(mappingGroups [][]*QualifierMapping) map[int][]*Scope {
+func (impl QualifierMappingServiceImpl) getSelectionIdentifierForAppEnvSelector(mappingGroups [][]*QualifierMapping) map[int][]*SelectionIdentifier {
 
-	resourceIdToScope := make(map[int][]*Scope)
+	resourceIdToIdentifier := make(map[int][]*SelectionIdentifier)
 	for _, group := range mappingGroups {
-		scope := impl.getAppEnvScopeFromGroup(group)
+		identifier := impl.getAppEnvIdentifierFromGroup(group)
 		resourceId := group[0].ResourceId
 
-		if _, ok := resourceIdToScope[resourceId]; ok {
-			resourceIdToScope[resourceId] = append(resourceIdToScope[resourceId], scope)
+		if _, ok := resourceIdToIdentifier[resourceId]; ok {
+			resourceIdToIdentifier[resourceId] = append(resourceIdToIdentifier[resourceId], identifier)
 		} else {
-			resourceIdToScope[resourceId] = []*Scope{scope}
+			resourceIdToIdentifier[resourceId] = []*SelectionIdentifier{identifier}
 		}
 	}
-	return resourceIdToScope
+	return resourceIdToIdentifier
 }
 
-func (impl QualifierMappingServiceImpl) GetResourceMappingsForScopes(resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) ([]ResourceQualifierMappings, error) {
+func (impl QualifierMappingServiceImpl) GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error) {
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
 	}
@@ -201,17 +196,17 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForScopes(resourceTyp
 	valuesMap := make(map[Qualifier][][]int)
 	appIds := make([]int, 0)
 	envIds := make([]int, 0)
-	for _, scope := range scopes {
-		appIds = append(appIds, scope.AppId)
-		envIds = append(envIds, scope.EnvId)
+	for _, selectionIdentifier := range selectionIdentifiers {
+		appIds = append(appIds, selectionIdentifier.AppId)
+		envIds = append(envIds, selectionIdentifier.EnvId)
 	}
 	valuesMap[qualifierSelector.toQualifier()] = [][]int{appIds, envIds}
 	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, valuesMap, keyMap, []int{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("error fetching resource mappings %v %v", resourceType, valuesMap))
 	}
 
-	return impl.processMappings(resourceType, mappings, qualifierSelector)
+	return impl.processMappings(resourceType, mappings, qualifierSelector, getCompositeStringsAppEnvSelection(selectionIdentifiers))
 }
 func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
 	mappings, err := impl.qualifierMappingRepository.GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType, resourceIds, int(qualifierSelector.toQualifier()))
@@ -219,24 +214,24 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resource
 		return nil, err
 	}
 
-	return impl.processMappings(resourceType, mappings, qualifierSelector)
+	return impl.processMappings(resourceType, mappings, qualifierSelector, mapset.NewSet())
 }
 
-func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
-	groups := impl.filterAndGroupMappings(mappings, qualifierSelector)
+func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector, composites mapset.Set) ([]ResourceQualifierMappings, error) {
+	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, composites)
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
 	}
-	resourceIdToScopes := impl.getScopesForAppEnvSelector(groups)
+	resourceIdToIdentifiers := impl.getSelectionIdentifierForAppEnvSelector(groups)
 
 	qualifierMappings := make([]ResourceQualifierMappings, 0)
 
-	for resourceId, scopes := range resourceIdToScopes {
-		for _, scope := range scopes {
+	for resourceId, identifier := range resourceIdToIdentifiers {
+		for _, identifier := range identifier {
 			qualifierMappings = append(qualifierMappings, ResourceQualifierMappings{
-				ResourceId:   resourceId,
-				ResourceType: resourceType,
-				Scope:        scope,
+				ResourceId:          resourceId,
+				ResourceType:        resourceType,
+				SelectionIdentifier: identifier,
 			})
 		}
 	}

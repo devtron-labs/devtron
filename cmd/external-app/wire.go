@@ -242,6 +242,9 @@ func InitializeApp() (*App, error) {
 		timeoutWindow.NewTimeWindowServiceImpl,
 		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
 
+		repository5.NewTimeoutWindowResourceMappingRepositoryImpl,
+		wire.Bind(new(repository5.TimeoutWindowResourceMappingRepository), new(*repository5.TimeoutWindowResourceMappingRepositoryImpl)),
+
 		repository5.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository5.TimeWindowRepository), new(*repository5.TimeWindowRepositoryImpl)),
 		timeoutWindow.NewTimeoutWindowResourceMappingServiceImpl,

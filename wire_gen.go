@@ -329,7 +329,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	timeWindowRepositoryImpl := repository6.NewTimeWindowRepositoryImpl(db, sugaredLogger)
-	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl)
+	timeoutWindowResourceMappingRepositoryImpl := repository6.NewTimeoutWindowResourceMappingRepositoryImpl(db, sugaredLogger)
+	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl, timeoutWindowResourceMappingRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl, timeWindowServiceImpl)
 	gitOpsConfigRepositoryImpl := repository2.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	globalEnvVariables, err := util2.GetGlobalEnvVariables()
@@ -379,7 +380,7 @@ func InitializeApp() (*App, error) {
 	}
 	helmAppClientImpl := gRPC.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, installedAppRepositoryImpl)
+	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	helmReleaseConfig, err := service.GetHelmReleaseConfig()
@@ -651,10 +652,8 @@ func InitializeApp() (*App, error) {
 	devtronAppCMCSServiceImpl := pipeline.NewDevtronAppCMCSServiceImpl(sugaredLogger, appServiceImpl, attributesRepositoryImpl)
 	repositoryServiceClientImpl := repository19.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	argoClientWrapperServiceImpl := argocdServer.NewArgoClientWrapperServiceImpl(sugaredLogger, applicationServiceClientImpl, acdConfig, repositoryServiceClientImpl, gitOpsConfigReadServiceImpl, gitOperationServiceImpl)
-	timeoutWindowResourceMappingRepositoryImpl := repository6.NewTimeoutWindowResourceMappingRepositoryImpl(db, sugaredLogger)
-	timeoutWindowResourceMappingServiceImpl := timeoutWindow.NewTimeoutWindowResourceMappingServiceImpl(sugaredLogger, timeoutWindowResourceMappingRepositoryImpl, timeWindowServiceImpl)
 	globalPolicyDataManagerImpl := globalPolicy.NewGlobalPolicyDataManagerImpl(sugaredLogger, globalPolicyRepositoryImpl, globalPolicySearchableFieldRepositoryImpl)
-	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeoutWindowResourceMappingServiceImpl, globalPolicyDataManagerImpl, db, userServiceImpl)
+	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeWindowServiceImpl, globalPolicyDataManagerImpl, db, userServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +700,7 @@ func InitializeApp() (*App, error) {
 	resourceProtectionServiceImpl := protect.NewResourceProtectionServiceImpl(sugaredLogger, resourceProtectionRepositoryImpl)
 	gitOpsManifestPushServiceImpl := app2.NewGitOpsManifestPushServiceImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, pipelineStatusTimelineRepositoryImpl, acdConfig, chartRefServiceImpl, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, argoClientWrapperServiceImpl)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sUtilExtended)
-	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, argoUserServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, artifactApprovalDataReadServiceImpl, utilMergeUtil, enforcerUtilImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, imageTaggingServiceImpl, deploymentApprovalRepositoryImpl, appRepositoryImpl, helmRepoPushServiceImpl, resourceFilterServiceImpl, filterEvaluationAuditServiceImpl, globalEnvVariables, imageScanResultRepositoryImpl, cvePolicyRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryRepositoryImpl, imageScanDeployInfoRepositoryImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateServiceImpl, materialRepositoryImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, deploymentWindowServiceImpl)
+	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, chartServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, argoUserServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, artifactApprovalDataReadServiceImpl, utilMergeUtil, enforcerUtilImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, imageTaggingServiceImpl, deploymentApprovalRepositoryImpl, helmRepoPushServiceImpl, resourceFilterServiceImpl, filterEvaluationAuditServiceImpl, globalEnvVariables, appRepositoryImpl, imageScanResultRepositoryImpl, cvePolicyRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryRepositoryImpl, imageScanDeployInfoRepositoryImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateServiceImpl, materialRepositoryImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, deploymentWindowServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -855,7 +854,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
-	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db)
+	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
 	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(sugaredLogger, ssoLoginRepositoryImpl, k8sUtilExtended, devtronSecretConfig, userAuthOidcHelperImpl, globalAuthorisationConfigServiceImpl)
 	ssoLoginRestHandlerImpl := sso2.NewSsoLoginRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := sso2.NewSsoLoginRouterImpl(ssoLoginRestHandlerImpl)

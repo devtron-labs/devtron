@@ -2,6 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"strconv"
 	"time"
 )
@@ -12,48 +13,6 @@ const (
 	Blackout    DeploymentWindowType = "BLACKOUT"
 	Maintenance DeploymentWindowType = "MAINTENANCE"
 )
-
-type Frequency string
-
-const (
-	Fixed       Frequency = "FIXED"
-	Daily       Frequency = "DAILY"
-	Monthly     Frequency = "MONTHLY"
-	Weekly      Frequency = "WEEKLY"
-	WeeklyRange Frequency = "WEEKLY_RANGE"
-)
-
-type DayOfWeek string
-
-const (
-	Sunday    DayOfWeek = "Sunday"
-	Monday    DayOfWeek = "Monday"
-	Tuesday   DayOfWeek = "Tuesday"
-	Wednesday DayOfWeek = "Wednesday"
-	Thursday  DayOfWeek = "Thursday"
-	Friday    DayOfWeek = "Friday"
-	Saturday  DayOfWeek = "Saturday"
-)
-
-func (day DayOfWeek) toWeekday() time.Weekday {
-	switch day {
-	case Sunday:
-		return time.Weekday(0)
-	case Monday:
-		return time.Weekday(1)
-	case Tuesday:
-		return time.Weekday(2)
-	case Wednesday:
-		return time.Weekday(3)
-	case Thursday:
-		return time.Weekday(4)
-	case Friday:
-		return time.Weekday(5)
-	case Saturday:
-		return time.Weekday(6)
-	}
-	return time.Weekday(-1)
-}
 
 type UserActionState string
 
@@ -84,13 +43,13 @@ type AppData struct {
 
 // DeploymentWindowProfile defines model for DeploymentWindowProfile.
 type DeploymentWindowProfile struct {
-	DeploymentWindowList []*TimeWindow `json:"deploymentWindowList,omitempty"`
-	Enabled              bool          `json:"enabled"`
-	TimeZone             string        `json:"timeZone"`
-	DisplayMessage       string        `json:"displayMessage"`
-	ExcludedUsersList    []int32       `json:"excludedUsersList"`
-	IsSuperAdminExcluded bool          `json:"isSuperAdminExcluded"`
-	IsUserExcluded       bool          `json:"isUserExcluded"`
+	DeploymentWindowList []*timeoutWindow.TimeWindow `json:"deploymentWindowList,omitempty"`
+	Enabled              bool                        `json:"enabled"`
+	TimeZone             string                      `json:"timeZone"`
+	DisplayMessage       string                      `json:"displayMessage"`
+	ExcludedUsersList    []int32                     `json:"excludedUsersList"`
+	IsSuperAdminExcluded bool                        `json:"isSuperAdminExcluded"`
+	IsUserExcluded       bool                        `json:"isUserExcluded"`
 	DeploymentWindowProfileMetadata
 }
 
@@ -146,42 +105,6 @@ type DeploymentWindowResponse struct {
 	EnvironmentStateMap map[int]EnvironmentState `json:"environmentStateMap,omitempty"`
 	Profiles            []ProfileState           `json:"profiles,omitempty"`
 	//SuperAdmins         []string                 `json:"superAdmins,omitempty"`
-}
-
-// TimeWindow defines model for TimeWindow.
-type TimeWindow struct {
-	//Id        int       `json:"id"`
-	Frequency Frequency `json:"frequency"`
-
-	// relevant for daily and monthly
-	DayFrom int `json:"dayFrom"`
-	DayTo   int `json:"dayTo"`
-
-	// relevant for
-	HourMinuteFrom string `json:"hourMinuteFrom"`
-	HourMinuteTo   string `json:"hourMinuteTo"`
-
-	// optional for frequencies other than FIXED, otherwise required
-	TimeFrom time.Time `json:"timeFrom"`
-	TimeTo   time.Time `json:"timeTo"`
-
-	// relevant for weekly range
-	WeekdayFrom DayOfWeek `json:"weekdayFrom"`
-	WeekdayTo   DayOfWeek `json:"weekdayTo"`
-
-	// relevant for weekly
-	Weekdays []DayOfWeek `json:"weekdays"`
-}
-
-func (window *TimeWindow) toJsonString() string {
-	marshal, err := json.Marshal(window)
-	if err != nil {
-		return ""
-	}
-	return string(marshal)
-}
-func (window *TimeWindow) setFromJsonString(jsonString string) {
-	json.Unmarshal([]byte(jsonString), window)
 }
 
 func (state UserActionState) GetBypassActionMessageForProfileAndState(profile *DeploymentWindowProfile) string {

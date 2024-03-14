@@ -39,15 +39,15 @@ type DeploymentWindowServiceImpl struct {
 	timeZoneMap  map[string]*time.Location
 	userService  user.UserService
 
-	resourceMappingService      resourceQualifiers.QualifierMappingService
-	timeoutWindowMappingService timeoutWindow.TimeoutWindowResourceMappingService
-	globalPolicyManager         globalPolicy.GlobalPolicyDataManager
+	resourceMappingService resourceQualifiers.QualifierMappingService
+	timeWindowService      timeoutWindow.TimeoutWindowService
+	globalPolicyManager    globalPolicy.GlobalPolicyDataManager
 }
 
 func NewDeploymentWindowServiceImpl(
 	logger *zap.SugaredLogger,
 	resourceMappingService resourceQualifiers.QualifierMappingService,
-	timeoutWindowMappingService timeoutWindow.TimeoutWindowResourceMappingService,
+	timeWindowService timeoutWindow.TimeoutWindowService,
 	globalPolicyManager globalPolicy.GlobalPolicyDataManager,
 	dbConnection *pg.DB,
 	userService user.UserService,
@@ -57,14 +57,14 @@ func NewDeploymentWindowServiceImpl(
 		return nil, err
 	}
 	return &DeploymentWindowServiceImpl{
-		cfg:                         cfg,
-		logger:                      logger,
-		resourceMappingService:      resourceMappingService,
-		timeoutWindowMappingService: timeoutWindowMappingService,
-		globalPolicyManager:         globalPolicyManager,
-		dbConnection:                dbConnection,
-		userService:                 userService,
-		timeZoneMap:                 make(map[string]*time.Location, 0),
+		cfg:                    cfg,
+		logger:                 logger,
+		resourceMappingService: resourceMappingService,
+		timeWindowService:      timeWindowService,
+		globalPolicyManager:    globalPolicyManager,
+		dbConnection:           dbConnection,
+		userService:            userService,
+		timeZoneMap:            make(map[string]*time.Location, 0),
 	}, nil
 }
 

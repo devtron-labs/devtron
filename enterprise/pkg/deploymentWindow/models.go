@@ -2,15 +2,11 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	scheduler "github.com/devtron-labs/common-lib/timeRangeLib"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
-	"github.com/samber/lo"
-	"time"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 )
 
 type DeploymentWindowProfilePolicy struct {
-	//DeploymentWindowList []*TimeWindow `json:"deploymentWindowList,omitempty"`
-	//Enabled              bool          `json:"enabled" searchFieldType:"boolean"`
 	TimeZone             string               `json:"timeZone"`
 	DisplayMessage       string               `json:"displayMessage"`
 	ExcludedUsersList    []int32              `json:"excludedUsersList"`
@@ -52,7 +48,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*
 	}, nil
 }
 
-func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*TimeWindow) *DeploymentWindowProfile {
+func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*timeoutWindow.TimeWindow) *DeploymentWindowProfile {
 	return &DeploymentWindowProfile{
 		DeploymentWindowList: windows,
 		Enabled:              policyModel.Enabled,
@@ -70,33 +66,8 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 	}
 }
 
-func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
-	return scheduler.TimeRange{
-		TimeFrom:       timeWindow.TimeFrom,
-		TimeTo:         timeWindow.TimeTo,
-		HourMinuteFrom: timeWindow.HourMinuteFrom,
-		HourMinuteTo:   timeWindow.HourMinuteTo,
-		DayFrom:        timeWindow.DayFrom,
-		DayTo:          timeWindow.DayTo,
-		WeekdayFrom:    timeWindow.WeekdayFrom.toWeekday(),
-		WeekdayTo:      timeWindow.WeekdayTo.toWeekday(),
-		Weekdays:       lo.Map(timeWindow.Weekdays, func(item DayOfWeek, index int) time.Weekday { return item.toWeekday() }),
-		Frequency:      timeWindow.Frequency.toTimeRangeFrequency(),
-	}
-}
-
-func (f Frequency) toTimeRangeFrequency() scheduler.Frequency {
-	switch f {
-	case Fixed:
-		return scheduler.Fixed
-	case Daily:
-		return scheduler.Daily
-	case Weekly:
-		return scheduler.Weekly
-	case WeeklyRange:
-		return scheduler.WeeklyRange
-	case Monthly:
-		return scheduler.Monthly
-	}
-	return ""
+type ProfileMapping struct {
+	ProfileId int
+	AppId     int
+	EnvId     int
 }

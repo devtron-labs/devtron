@@ -140,7 +140,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 Select **Create Pipeline**.
 
 {% hint style="info" %}
-The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case (refer [Build Infra](https://docs.devtron.ai/global-configurations/build-infra)).
+The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case (refer [Build Infra](../../global-configurations/build-infra.md)).
 {% endhint %}
 
 ##### Scan for Vulnerabilities
@@ -230,10 +230,10 @@ For CI pipeline, you can receive container images from an external services via 
 You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins or CircleCI. External CI feature can be used when the CI tool is hosted outside the Devtron platform. However, by using an external CI, you will not be able to use some of the Devtron features such as Image scanning and security policies, configuring pre-post CI stages etc. 
 
 
-* Create a [new](https://docs.devtron.ai/usage/applications/create-application) or [clone](https://docs.devtron.ai/usage/applications/cloning-application) an application.
+* Create a [new](../../create-application.md) or [clone](../../cloning-application.md) an application.
 * To configure `Git Repository`, you can add any Git repository account (e.g., dummy account) and click **Next**.
 * To configure the `Container Registry` and `Container Repository`, you can leave the fields blank or simply add any test repository and click **Save & Next**.
-* On the `Base Deployment Template` page, select the `Chart type` from the drop-down list and configure as per your [requirements](https://docs.devtron.ai/usage/applications/creating-application/deployment-template) and click **Save & Next**.
+* On the `Base Deployment Template` page, select the `Chart type` from the drop-down list and configure as per your [requirements](../../creating-application/deployment-template.md) and click **Save & Next**.
 * On the **Workflow Editor** page, click **New Workflow** and select **Deploy image from external service**.
 
 * On the **Deploy image from external source** page, provide the information in the following fields:

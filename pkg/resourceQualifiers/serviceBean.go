@@ -3,7 +3,7 @@ package resourceQualifiers
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 	"time"
 )
 
@@ -18,7 +18,7 @@ const (
 )
 
 func (selector QualifierSelector) isCompound() bool {
-	return lo.Contains(CompoundQualifiers, selector.toQualifier())
+	return slices.Contains(CompoundQualifiers, selector.toQualifier())
 }
 
 func (selector QualifierSelector) toQualifier() Qualifier {
@@ -86,20 +86,20 @@ func GetQualifierIdForSelector(selector QualifierSelector) Qualifier {
 	}
 }
 
-func GetValuesFromScope(selector QualifierSelector, scope *Scope) (int, string) {
-	if scope == nil {
-		scope = &Scope{}
+func GetValuesFromSelectionIdentifier(selector QualifierSelector, selectionIdentifier *SelectionIdentifier) (int, string) {
+	if selectionIdentifier == nil {
+		selectionIdentifier = &SelectionIdentifier{}
 	}
-	if scope.SystemMetadata == nil {
-		scope.SystemMetadata = &SystemMetadata{}
+	if selectionIdentifier.SelectionIdentifierName == nil {
+		selectionIdentifier.SelectionIdentifierName = &SelectionIdentifierName{}
 	}
 	switch selector {
 	case ApplicationSelector:
-		return scope.AppId, scope.SystemMetadata.AppName
+		return selectionIdentifier.AppId, selectionIdentifier.SelectionIdentifierName.AppName
 	case EnvironmentSelector:
-		return scope.EnvId, scope.SystemMetadata.EnvironmentName
+		return selectionIdentifier.EnvId, selectionIdentifier.SelectionIdentifierName.EnvironmentName
 	case ClusterSelector:
-		return scope.ClusterId, scope.SystemMetadata.ClusterName
+		return selectionIdentifier.ClusterId, selectionIdentifier.SelectionIdentifierName.ClusterName
 	default:
 		return 0, ""
 	}
