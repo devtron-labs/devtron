@@ -388,7 +388,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *A
 		ReleaseName:   app.ReleaseName,
 	}
 	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
-	if util.GetGRPCErrorDetailedMessage(err) == bean.ErrReleaseNotFound {
+	if util.GetClientErrorDetailedMessage(err) == bean.ErrReleaseNotFound {
 		err = &util.ApiError{
 			Code:            constants.HelmReleaseNotFound,
 			InternalMessage: bean.ErrReleaseNotFound,
@@ -551,16 +551,16 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
-		code, message := util.GetGRPCDetailedError(err)
+		code, message := util.GetClientDetailedError(err)
 		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
 				Code:           strconv.Itoa(http.StatusNotFound),
-				HttpStatusCode: 200,
+				HttpStatusCode: 200, //need to revisit the status code
 				UserMessage:    message,
 			}
 		}
 		impl.logger.Errorw("error in deleting helm application", "err", err)
-		return nil, errors.New(util.GetGRPCErrorDetailedMessage(err))
+		return nil, errors.New(util.GetClientErrorDetailedMessage(err))
 	}
 
 	response := &openapi.UninstallReleaseResponse{
@@ -961,9 +961,9 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
-		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
-		if grpcErrCode.IsInvalidArgumentCode() {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: errMsg, UserMessage: errMsg}
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
 	}

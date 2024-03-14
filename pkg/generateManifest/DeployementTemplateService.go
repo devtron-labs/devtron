@@ -365,9 +365,9 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in templating chart", "err", err)
-		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
-		if grpcErrCode.IsInvalidArgumentCode() {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: errMsg, UserMessage: errMsg}
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
 	}

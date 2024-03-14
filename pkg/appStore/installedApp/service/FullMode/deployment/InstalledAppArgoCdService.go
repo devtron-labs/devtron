@@ -110,8 +110,8 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
-		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
-		if grpcErrCode.IsFailedPreconditionCode() {
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsFailedPreconditionCode() {
 			return &util.ApiError{HttpStatusCode: http.StatusPreconditionFailed, Code: strconv.Itoa(http.StatusPreconditionFailed), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return err

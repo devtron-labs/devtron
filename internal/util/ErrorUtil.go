@@ -19,6 +19,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/errors"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -50,31 +51,15 @@ func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
 }
 
-type grpcCodeExtended struct {
-	Code codes.Code
-}
-
-func (r grpcCodeExtended) IsInvalidArgumentCode() bool {
-	return r.Code == codes.InvalidArgument
-}
-
-func (r grpcCodeExtended) IsNotFoundCode() bool {
-	return r.Code == codes.NotFound
-}
-
-func (r grpcCodeExtended) IsFailedPreconditionCode() bool {
-	return r.Code == codes.FailedPrecondition
-}
-
-func GetGRPCErrorDetailedMessage(err error) string {
+func GetClientErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()
 	}
 	return err.Error()
 }
 
-func GetGRPCDetailedError(err error) (grpcCodeExtended, string) {
-	grpcCode := grpcCodeExtended{Code: codes.Unknown}
+func GetClientDetailedError(err error) (*errors.ClientStatusCode, string) {
+	grpcCode := &errors.ClientStatusCode{Code: codes.Unknown}
 	if errStatus, ok := status.FromError(err); ok {
 		grpcCode.Code = errStatus.Code()
 		return grpcCode, errStatus.Message()

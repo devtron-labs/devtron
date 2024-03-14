@@ -7,28 +7,16 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	"net/http"
 	"strconv"
-	"strings"
 )
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
-
-const (
-	ClusterUnreachableErrorMsg  = "cluster unreachable"
-	CrdPreconditionErrorMsg     = "ensure CRDs are installed first"
-	ArrayStringMismatchErrorMsg = "got array expected string"
-	NamespaceNotFoundErrorMsg   = "not found"
-	InvalidValueErrorMsg        = "Invalid value"
-	OperationInProgressErrorMsg = "another operation (install/upgrade/rollback) is in progress"
-)
 
 func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
 	var volumes []v12.Volume
@@ -248,28 +236,6 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
-}
-
-func ExtractKnownErrorsFromGRPC(err error) *util2.ApiError {
-	errorHttpStatusCodeMap := map[string]int{
-		ClusterUnreachableErrorMsg:  http.StatusUnprocessableEntity,
-		CrdPreconditionErrorMsg:     http.StatusPreconditionFailed,
-		NamespaceNotFoundErrorMsg:   http.StatusConflict,
-		ArrayStringMismatchErrorMsg: http.StatusFailedDependency,
-		InvalidValueErrorMsg:        http.StatusFailedDependency,
-		OperationInProgressErrorMsg: http.StatusConflict,
-	}
-	for errMsg, statusCode := range errorHttpStatusCodeMap {
-		if strings.Contains(err.Error(), errMsg) {
-			return &util2.ApiError{
-				InternalMessage: err.Error(),
-				UserMessage:     err.Error(),
-				HttpStatusCode:  statusCode,
-				Code:            strconv.Itoa(statusCode),
-			}
-		}
-	}
-	return nil
 }
 
 const WorkflowCancel = "CANCELLED"
