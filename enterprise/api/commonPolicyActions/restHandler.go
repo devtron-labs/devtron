@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -63,7 +62,9 @@ func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWr
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !util.Contains(policyGovernance.ExistingPolicyTypes, func(typ policyGovernance.PathVariablePolicyType) bool {
+		return policyType == typ
+	}) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}
@@ -104,7 +105,9 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !util.Contains(policyGovernance.ExistingPolicyTypes, func(typ policyGovernance.PathVariablePolicyType) bool {
+		return policyType == typ
+	}) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}
