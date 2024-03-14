@@ -1092,7 +1092,7 @@ func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPip
 }
 
 func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, appId int) ([]bean2.CiArtifactBean, error) {
-	//TODO Extract out this logic to adapter
+	// TODO Extract out this logic to adapter
 	artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
 		artifactIds = append(artifactIds, artifact.Id)
@@ -1647,6 +1647,7 @@ func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.
 func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.RequestCtx, request bean2.PromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
 	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppAndEnv(request.AppId, 0, request.ResourceName)
 	if err != nil {
+		// TODO: make error constants and use builder pattern
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", request.AppId, "environmentId", request.ResourceName, "err", err)
 		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid environmentName/appId")
 	}
@@ -1669,7 +1670,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.Reque
 	}
 
 	artifactResponse := bean2.CiArtifactResponse{
-		CiArtifacts:                   bean2.ConvertArtifactEntityToModel(artifactEntities), //TODO: move this to adapter
+		CiArtifacts:                   bean2.ConvertArtifactEntityToModel(artifactEntities), // TODO: move this to adapter
 		TotalCount:                    totalCount,
 		IsArtifactPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
 	}

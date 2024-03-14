@@ -18,6 +18,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -72,7 +73,8 @@ func NewApprovalRequestServiceImpl(
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
-	promotionPolicyCUDService PolicyCUDService,
+	policyEventNotifier PolicyEventNotifier,
+	commonPoliyApplyEventNotifier policyGovernance.CommonPoliyApplyEventNotifier,
 	pipelineStageService pipeline.PipelineStageService,
 	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
@@ -105,8 +107,9 @@ func NewApprovalRequestServiceImpl(
 	}
 
 	// register hooks
-	promotionPolicyCUDService.AddDeleteHook(artifactApprovalService.onPolicyDelete)
-	promotionPolicyCUDService.AddUpdateHook(artifactApprovalService.onPolicyUpdate)
+	policyEventNotifier.AddDeleteEventObserver(artifactApprovalService.onPolicyDelete)
+	policyEventNotifier.AddUpdateEventObserver(artifactApprovalService.onPolicyUpdate)
+	commonPoliyApplyEventNotifier.AddApplyEventObserver(policyGovernance.ImagePromotion, artifactApprovalService.onApplyPolicy)
 	return artifactApprovalService
 }
 
@@ -444,11 +447,6 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	params, err := impl.computeFilterParams(metadata.GetCiArtifact())
-	if err != nil {
-		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
-		return nil, err
-	}
 	envMap := metadata.GetActiveEnvironmentsMap()
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 	for envName, resp := range responseMap {
@@ -459,29 +457,37 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		}
 	}
 
-	// can be concurrent
-	for envName, policy := range policiesMap {
-		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+	if len(policiesMap) > 0 {
+		// can be concurrent
+		params, err := impl.computeFilterParams(metadata.GetCiArtifact())
 		if err != nil {
-			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
-			responseMap[envName] = bean.EnvironmentPromotionMetaData{
-				Name:                       envName,
-				ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
-				PromotionPossible:          false,
-				PromotionValidationMessage: constants.POLICY_EVALUATION_ERRORED,
+			impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
+			return nil, err
+		}
+		for envName, policy := range policiesMap {
+			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+			if err != nil {
+				impl.logger.Errorw("policy evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
+				responseMap[envName] = bean.EnvironmentPromotionMetaData{
+					Name:                       envName,
+					ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
+					PromotionPossible:          false,
+					PromotionValidationMessage: constants.POLICY_EVALUATION_ERRORED,
+				}
+				continue
 			}
-			continue
+			envResp := responseMap[envName]
+			envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
+			envResp.PromotionValidationMessage = constants.EMPTY
+			envResp.PromotionPossible = evaluationResult
+			// checks on metadata not needed as this is just an evaluation flow (kinda validation)
+			if !evaluationResult {
+				envResp.PromotionValidationMessage = constants.BLOCKED_BY_POLICY
+			}
+			responseMap[envName] = envResp
 		}
-		envResp := responseMap[envName]
-		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-		envResp.PromotionValidationMessage = constants.EMPTY
-		envResp.PromotionPossible = evaluationResult
-		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
-		if !evaluationResult {
-			envResp.PromotionValidationMessage = constants.BLOCKED_BY_POLICY
-		}
-		responseMap[envName] = envResp
 	}
+
 	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		result = append(result, envResponse)
@@ -1265,4 +1271,8 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 
 	return requestsToBeUpdatedAsStaled, nil
 
+}
+
+func (impl *ApprovalRequestServiceImpl) onApplyPolicy(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error {
+	return impl.artifactPromotionApprovalRequestRepository.MarkStaleByAppEnvIds(tx, commaSeperatedAppEnvIds)
 }

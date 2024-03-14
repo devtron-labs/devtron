@@ -8,8 +8,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"time"
 )
@@ -91,7 +91,8 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 			return nil, err
 		}
 	}
-	return lo.Values(mappingsToSelection), nil
+
+	return maps.Values(mappingsToSelection), nil
 }
 
 func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {
@@ -140,7 +141,7 @@ func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*Qual
 		if len(childMappings) == numQualifiers {
 			selectedParentMapping := parentIdToMapping[parentId]
 			composite := getCompositeString(selectedParentMapping.IdentifierValueInt, childMappings[0].IdentifierValueInt)
-			if !composites.Contains(composite) {
+			if composites.Cardinality() > 0 && !composites.Contains(composite) {
 				break
 			}
 			mappingsGroup := []*QualifierMapping{selectedParentMapping}
@@ -202,9 +203,12 @@ func (impl QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.T
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("error fetching resource mappings %v %v", resourceType, valuesMap))
 	}
+	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, mapset.NewSet())
 	mappingIds := make([]int, 0, len(mappings))
-	for _, mapping := range mappings {
-		mappingIds = append(mappingIds, mapping.Id)
+	for _, group := range groups {
+		for _, mapping := range group {
+			mappingIds = append(mappingIds, mapping.Id)
+		}
 	}
 	return impl.DeleteAllByIds(mappingIds, userId, tx)
 
