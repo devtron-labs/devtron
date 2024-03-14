@@ -214,7 +214,7 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) error {
 			return err
 		}
 		if conflictingRolefilters {
-			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide non-conflicting role filters "}
+			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please correct role filters with different status"}
 			return err
 		}
 	}
