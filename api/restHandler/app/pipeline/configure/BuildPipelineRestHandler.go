@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
-	"github.com/devtron-labs/devtron/util/response/pagination"
-	"github.com/gorilla/schema"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/devtron-labs/devtron/util/response/pagination"
+	"github.com/gorilla/schema"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -2168,7 +2169,6 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIInfoFilters(w http.Respo
 	var resp *bean.LinkedCIInfoFilters
 	resp, err = handler.ciCdPipelineOrchestrator.GetLinkedCIInfoFilters(ciPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("error getting environment info for given source Ci pipeline id", err)
 		common.WriteJsonResp(w, fmt.Errorf("error getting environment info for given source Ci pipeline id"), "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
 		return
 	}
