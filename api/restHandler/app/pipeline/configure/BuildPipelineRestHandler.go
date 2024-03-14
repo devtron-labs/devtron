@@ -64,6 +64,7 @@ type DevtronAppBuildRestHandler interface {
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
+	GetLinkedCIInfoFilters(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -2078,4 +2079,32 @@ func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, actio
 		return false, errors.New(string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE))
 	}
 	return true, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetLinkedCIInfoFilters(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	ciPipelineId, err := strconv.Atoi(vars["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//RBAC
+	object := handler.enforcerUtil.GetTeamRbacObjectByCiPipelineId(ciPipelineId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+	var resp *bean.LinkedCIInfoFilters
+	resp, err = handler.ciCdPipelineOrchestrator.GetLinkedCIInfoFilters(ciPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error getting environment info for given source Ci pipeline id", err)
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }

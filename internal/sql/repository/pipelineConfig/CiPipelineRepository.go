@@ -588,6 +588,7 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 	pipeline := &CiPipeline{}
 	cnt, err := impl.dbConnection.Model(pipeline).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Where("deleted = ?", false).
 		Count()
 	if err == pg.ErrNoRows {
@@ -599,7 +600,7 @@ func (impl CiPipelineRepositoryImpl) GetLinkedCiPipelines(ciPipelineId int) ([]*
 	var linkedCIPipelines []*CiPipeline
 	err := impl.dbConnection.Model(linkedCIPipelines).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
-		Where("ci_pipeline_type = ?", "!LINKED_CD").
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Where("deleted = ?", false).
 		Select()
 	if err != nil {
