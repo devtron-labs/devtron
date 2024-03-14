@@ -6,6 +6,7 @@ type ListingFilterOptions struct {
 	Offset       int
 	SearchString string
 	Order        string
+	SortBy       string
 }
 
 func (opts ListingFilterOptions) GetSearchStringRegex() string {

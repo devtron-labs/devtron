@@ -3,6 +3,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -123,10 +124,12 @@ func TestFindAppAndEnvDetailsByListFilter(t *testing.T) {
 			EnvNames:         []string{"env1", "env2"},
 			ExcludeAppEnvIds: []string{"1,2", "1,3"},
 			IncludeAppEnvIds: []string{"1,2", "1,3"},
-			SortOrder:        "DESC",
-			SortBy:           "envName",
-			Limit:            10,
-			Offset:           1,
+			ListingFilterOptions: util2.ListingFilterOptions{
+				Order:  "DESC",
+				SortBy: "envName",
+				Limit:  10,
+				Offset: 1,
+			},
 		}
 
 		_, err = pipelineRepository.FindAppAndEnvDetailsByListFilter(filter)

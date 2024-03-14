@@ -192,10 +192,12 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		excludeAppEnvIds = append(excludeAppEnvIds, key)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
-		SortOrder:        listFilter.SortOrder,
-		SortBy:           listFilter.SortBy,
-		Limit:            listFilter.Size,
-		Offset:           listFilter.Offset,
+		ListingFilterOptions: util2.ListingFilterOptions{
+			Order:  listFilter.SortOrder,
+			SortBy: listFilter.SortBy,
+			Limit:  listFilter.Size,
+			Offset: listFilter.Offset,
+		},
 		IncludeAppEnvIds: includeAppEnvIds,
 		ExcludeAppEnvIds: excludeAppEnvIds,
 		EnvNames:         listFilter.EnvNames,
@@ -232,12 +234,14 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
-		SortOrder: listFilter.SortOrder,
-		SortBy:    listFilter.SortBy,
-		Limit:     listFilter.Size,
-		Offset:    listFilter.Offset,
-		EnvNames:  listFilter.EnvNames,
-		AppNames:  listFilter.AppNames,
+		ListingFilterOptions: util2.ListingFilterOptions{
+			Order:  listFilter.SortOrder,
+			SortBy: listFilter.SortBy,
+			Limit:  listFilter.Size,
+			Offset: listFilter.Offset,
+		},
+		EnvNames: listFilter.EnvNames,
+		AppNames: listFilter.AppNames,
 	}
 	paginatedAppEnvData, err := impl.pipelineService.FindAppAndEnvDetailsByListFilter(filter)
 	if err != nil {
