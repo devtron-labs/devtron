@@ -28,6 +28,7 @@ func NewAppWorkflowDataReadServiceImpl(
 
 func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error) {
 
+	//TODO: send wrapped error instead of api error, do we need error logging in reader service
 	wfMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(wfIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowIds", wfIds, "err", err)

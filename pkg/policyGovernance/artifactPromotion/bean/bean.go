@@ -10,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
-	"log"
+	errors2 "github.com/pkg/errors"
 	"time"
 )
 
@@ -68,13 +68,13 @@ type ArtifactPromotionApprovalResponse struct {
 }
 
 type PromotionApprovalMetaData struct {
-	ApprovalRequestId    int                         `json:"approvalRequestId"`
-	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
-	ApprovalUsersData    []PromotionApprovalUserData `json:"approvedUsersData"`
-	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
-	PromotedFrom         string                      `json:"promotedFrom"`
-	PromotedFromType     string                      `json:"promotedFromType"`
-	Policy               PromotionPolicy             `json:"policy" validate:"dive"`
+	ApprovalRequestId    int                                  `json:"approvalRequestId"`
+	ApprovalRuntimeState bean2.ArtifactPromotionRequestStatus `json:"approvalRuntimeState"`
+	ApprovalUsersData    []PromotionApprovalUserData          `json:"approvalUsersData"`
+	RequestedUserData    PromotionApprovalUserData            `json:"requestedUserData"`
+	PromotedFrom         string                               `json:"promotedFrom"`
+	PromotedFromType     string                               `json:"promotedFromType"`
+	Policy               PromotionPolicy                      `json:"policy" validate:"dive"`
 }
 
 func (promotionApprovalMetaData PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
@@ -180,8 +180,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPolicyBaseModel) error {
 	err := json.Unmarshal([]byte(rawPolicy.JsonData), policy)
 	if err != nil {
-		log.Printf("error in unmarshalling global policy json into promotionPolicy object, globalPolicy:%v,  err:%v", rawPolicy, err)
-		return errors.New("unable to extract promotion policies")
+		return errors2.Wrap(err, "unable to extract promotion policies")
 	}
 	policy.Name = rawPolicy.Name
 	policy.Id = rawPolicy.Id

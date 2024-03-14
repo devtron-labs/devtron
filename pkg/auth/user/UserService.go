@@ -2640,6 +2640,7 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 }
 
 func (impl UserServiceImpl) GetImagePromoterUserByEnv(appName, envName, team string) ([]string, error) {
+	// TODO: make common function
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetImagePromoterUsersByEnv(appName, envName, team)
 	if err != nil {
 		return emailIds, err

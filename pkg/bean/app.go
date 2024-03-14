@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
 	"time"
 )
@@ -903,7 +904,7 @@ type CiArtifactResponse struct {
 	IsArtifactPendingForPromotion bool                                 `json:"isArtifactPendingForPromotion"`
 }
 
-type ArtifactPromotionMaterialRequest struct {
+type PromotionMaterialRequest struct {
 	Resource              string // CI, CD, WEBHOOK, PROMOTION_APPROVAL_PENDING_NODE
 	ResourceName          string
 	AppId                 int
@@ -913,6 +914,26 @@ type ArtifactPromotionMaterialRequest struct {
 	CdPipelineId          int
 	ExternalCiPipelineId  int
 	util.ListingFilterOptions
+}
+
+func (p PromotionMaterialRequest) IsCINode() bool {
+	return p.Resource == string(constants.SOURCE_TYPE_CI)
+}
+
+func (p PromotionMaterialRequest) IsCDNode() bool {
+	return p.Resource == string(constants.SOURCE_TYPE_CD)
+}
+
+func (p PromotionMaterialRequest) IsWebhookNode() bool {
+	return p.Resource == string(constants.SOURCE_TYPE_WEBHOOK)
+}
+
+func (p PromotionMaterialRequest) IsPromotionApprovalPendingNode() bool {
+	return p.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE)
+}
+
+func (p PromotionMaterialRequest) IsPendingForUser() bool {
+	return p.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && p.PendingForCurrentUser
 }
 
 type ArtifactPromotionMaterialResponse struct {

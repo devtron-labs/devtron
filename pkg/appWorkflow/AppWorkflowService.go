@@ -48,7 +48,7 @@ import (
 type AppWorkflowService interface {
 	CreateAppWorkflow(req bean4.AppWorkflowDto) (bean4.AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]bean4.AppWorkflowDto, error)
-	FindAppWorkflowsWithAdditionalMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]bean4.AppWorkflowDto, error)
+	FindAppWorkflowsWithAdditionalMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean4.AppWorkflowDto, error)
 
 	FindAppWorkflowById(Id int, appId int) (bean4.AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
@@ -186,7 +186,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]bean4.AppWorkf
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]bean4.AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *util2.RequestCtx, appId int, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean4.AppWorkflowDto, error) {
 	appWorkflows, err := impl.FindAppWorkflows(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
@@ -203,7 +203,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
 		return nil, err
 	}
-	wfIdToPendingApprovalCountMapping, err := impl.artifactPromotionDataReadService.GetPromotionRequestCountPendingForCurrentUser(ctx, wfIds, imagePromoterAuth)
+	wfIdToPendingApprovalCountMapping, err := impl.artifactPromotionDataReadService.GetPromotionRequestCountPendingForUser(ctx, wfIds, imagePromoterAuth)
 	if err != nil {
 		impl.Logger.Errorw("error in finding approval pending coount for current user", "wfIds", wfIds, "err", err)
 		return nil, err
