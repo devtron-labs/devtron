@@ -14,13 +14,13 @@ An immutable blob of data generated as an output after the execution of a job, b
 
 A deployment template is a manifest of the application defining its runtime behavior. You can select one of the default deployment charts or custom deployment charts created by super-admin.
 
-It’s a single entry point for you to enter the values, so that when the application is deployed your filled values go to the respective template files (YAML), and accordingly the resources would be created. 
+It’s a single entry point for you to enter the values, so that when the application is deployed your filled values go to the respective template files (YAML), and accordingly the resources would be created.
 
 In Devtron, you get the option to select a base deployment template in the `App Configuration` tab at the time of creating an application. [Read More...](../user-guide/creating-application/deployment-template.md)
 
 ### Build Context
 
-For building a docker image we require a [Dockerfile](#dockerfile) and a build context. The Dockerfile contains the instructions to build. Context is the path where the build process may refer for getting the files required for build. 
+For building a docker image we require a [Dockerfile](#dockerfile) and a build context. The Dockerfile contains the instructions to build. Context is the path where the build process may refer for getting the files required for build.
 
 To build files from the root, use (.) as the build context. Or to refer a subdirectory, enter the path in the format `/myfolder` or `/myfolder/mysubfolder`. If the path is not set, the default path will be the root directory of selected git repository.
 
@@ -36,7 +36,7 @@ A place where all Helm charts are centrally listed for users to deploy applicati
 
 ### Cluster
 
-A cluster in Kubernetes refers to a set of connected computers (nodes) that collectively manage containerized applications using Kubernetes. It provides resources and services to run, manage, and scale applications. 
+A cluster in Kubernetes refers to a set of connected computers (nodes) that collectively manage containerized applications using Kubernetes. It provides resources and services to run, manage, and scale applications.
 
 In Devtron, you can view the list of clusters in ‘Global Configurations’ available in the left sidebar. [Read More...](../user-guide/clusters.md)
 
@@ -46,13 +46,13 @@ A unique identifier representing a specific version of source code in a Git [rep
 
 ### ConfigMaps
 
-Kubernetes objects used to store configuration data as key-value pairs. They allow separation of configuration from application code, making it easier to manage and update settings. 
+Kubernetes objects used to store configuration data as key-value pairs. They allow separation of configuration from application code, making it easier to manage and update settings.
 
 You can use different ConfigMaps for respective environments too. [Read More...](../user-guide/creating-application/config-maps.md)
 
 ### Container/OCI Registry
 
-It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](../user-guide/global-configurations/container-registries.md). 
+It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](../user-guide/global-configurations/container-registries.md).
 
 An OCI-compliant registry can also store artifacts (such as helm charts). Here, OCI stands for Open Container Initiative. It is an open industry standard for container formats and registries.
 
@@ -70,13 +70,13 @@ Devtron offers a variety of ready-made Helm charts for common tasks and function
 
 ### DaemonSet
 
-A Kubernetes object that ensures a specific pod runs on all or certain nodes within a cluster, often used for tasks such as logging or monitoring. 
+A Kubernetes object that ensures a specific pod runs on all or certain nodes within a cluster, often used for tasks such as logging or monitoring.
 
 In Devtron, you can view a list of DaemonSets by going to Resource Browser → (choose a cluster) → Workloads → DaemonSet.
 
 ### Deployment Strategy
 
-A defined approach for deploying updates or changes to applications. Devtron supports rolling updates, blue-green deployments, canary releases, and recreate strategy. 
+A defined approach for deploying updates or changes to applications. Devtron supports rolling updates, blue-green deployments, canary releases, and recreate strategy.
 
 In Devtron, you can choose a deployment strategy by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit deployment pipeline) → Deployment Strategy. [Read More...](../user-guide/creating-application/workflow/cd-pipeline.md#deployment-strategies)
 
@@ -90,20 +90,20 @@ Devtron Apps are the micro-services deployed using Kubernetes-native CI/CD with 
 
 ### Dockerfile
 
-A script that defines how to build a Docker [container image](#image). It includes instructions to assemble the image's base, dependencies, and application code. It's recommended that you include a Dockerfile with your source code. 
+A script that defines how to build a Docker [container image](#image). It includes instructions to assemble the image's base, dependencies, and application code. It's recommended that you include a Dockerfile with your source code.
 
 However, in case you don't have a Dockerfile, Devtron helps you create one. Go to Applications (choose your app) → App Configuration (tab) → Build Configuration. [Read More...](../user-guide/creating-application/docker-build-configuration.md#build-docker-image-by-creating-dockerfile)
 
 ### Draining
 
-Evacuating pods from a node before cordoning it, ensuring that running pods are gracefully rescheduled on other nodes. 
+Evacuating pods from a node before cordoning it, ensuring that running pods are gracefully rescheduled on other nodes.
 
 In Devtron, you can drain a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Drain (available in blue). [Read More...](../user-guide/clusters.md#drain-a-node)
 
 ### Environment
 
 You can deploy your application to one or more environments (e.g., development, testing, production). In Devtron, Environment = [Cluster](#cluster) + [Namespace](#namespace). For a given application, you cannot have multiple CD pipelines for an environment. For e.g., if an application named 'test-app' is deployed on an environment named 'test-environment', you cannot create another deployment (CD) pipeline for the same app and environment.
- 
+
 Your application can have different deployment configurations for respective environments. For e.g., the number of [ReplicaSet](#replicaset) could be 2 for staging environment, whereas it could be 5 for production.
 
 Similarly, the CPU and memory resources can be different for each environment. This is possible through Environment Overrides. [Read More...](../user-guide/creating-application/environment-overrides.md)
@@ -126,7 +126,7 @@ Packages that contain pre-configured Kubernetes resources and configurations. He
 
 ### Image
 
-A packaged and standalone software that contains the code and dependencies needed to run a containerized application. Using Devtron, you can build a container image of your application, push it to a container registry, and deploy it on your Kubernetes cluster. 
+A packaged and standalone software that contains the code and dependencies needed to run a containerized application. Using Devtron, you can build a container image of your application, push it to a container registry, and deploy it on your Kubernetes cluster.
 
 Since images are platform-agnostic, you don't have to worry about compiling your application to work on different systems. With Devtron, you can enable automatic image builds and vulnerability scanning whenever you make edits to your source code. [Read More...](../user-guide/creating-application/workflow/ci-pipeline.md)
 
@@ -134,19 +134,19 @@ You can also view the list of image builds while preparing your deployment in th
 
 ### Job
 
-In Devtron, there is a job that is very similar to Kubernetes job. A Kubernetes job is an object used to create one or more pods to complete a specific task or job and then terminate. 
+In Devtron, there is a job that is very similar to Kubernetes job. A Kubernetes job is an object used to create one or more pods to complete a specific task or job and then terminate.
 
 If you are a super-admin in Devtron, you can view Jobs in the sidebar.
 
 ### Load Balancer
 
-Distributes incoming network traffic across multiple instances or nodes to ensure efficient resource utilization and improved performance. In Kubernetes, Load Balancer is a service type. Behind the scenes, the managed Kubernetes service connects to the load balancer service of the respective cloud service provider and creates a load balancer, mapping it to the Kubernetes service. 
+Distributes incoming network traffic across multiple instances or nodes to ensure efficient resource utilization and improved performance. In Kubernetes, Load Balancer is a service type. Behind the scenes, the managed Kubernetes service connects to the load balancer service of the respective cloud service provider and creates a load balancer, mapping it to the Kubernetes service.
 
 GKE and AKS provide the public IP of the Load Balancer as the service endpoint, while in the case of EKS, it provides a non-customizable DNS name.
 
 ### Manifest
 
-A manifest is a YAML file that describes each component or resource of your Kubernetes object and the state you want your cluster to be in once applied. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest. 
+A manifest is a YAML file that describes each component or resource of your Kubernetes object and the state you want your cluster to be in once applied. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest.
 
 In Devtron, you can view the manifest of K8s resources under `App Details` and also under `Resource Browser`.
 
@@ -156,13 +156,13 @@ In Git Repo, the source code of your application in a given commit is referred a
 
 ### Namespace
 
-A namespace is a way to organize and isolate resources within a Kubernetes cluster. It provides a logical separation between different applications or environments within a cluster. 
+A namespace is a way to organize and isolate resources within a Kubernetes cluster. It provides a logical separation between different applications or environments within a cluster.
 
 In Devtron, you can view a list of namespaces by going to Resource Browser → (choose a cluster) → Namespaces.
 
 ### Node Taint
 
-A setting applied to a node that influences the scheduling of pods. Taints can restrict which pods are allowed to run on the node. 
+A setting applied to a node that influences the scheduling of pods. Taints can restrict which pods are allowed to run on the node.
 
 In Devtron, you can edit the taints of a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Edit taints (available in blue). [Read More...](../user-guide/clusters.md#taint-a-node)
 
@@ -172,43 +172,43 @@ A Kubernetes service type that exposes a port on each node in the cluster, makin
 
 ### Nodes
 
-The physical or virtual machines that make up a Kubernetes cluster, where containers are scheduled to run. 
+The physical or virtual machines that make up a Kubernetes cluster, where containers are scheduled to run.
 
 In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/clusters.md#nodes)
 
 ### Pod
 
-The smallest deployable unit in Kubernetes, consisting of one or more containers that share storage and network resources within the same context. 
+The smallest deployable unit in Kubernetes, consisting of one or more containers that share storage and network resources within the same context.
 
 In Devtron, you can view a list of Pods by going to Resource Browser → (choose a cluster) → Workloads → Pod. In Devtron, you can create a pod by going to Resource Browser → Create Resource (button).
 
 ### Pre-build
 
-Actions or processes performed before the actual image-building process in a containerized application's deployment pipeline, e.g., Jira Issue Validator. 
+Actions or processes performed before the actual image-building process in a containerized application's deployment pipeline, e.g., Jira Issue Validator.
 
 In Devtron, you can configure pre-build actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit build pipeline) → Pre-build stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/ci-build-pre-post-plugins.md#configuring-pre-post-build-tasks)
 
 ### Post-build
 
-Actions or processes performed after the [image](#image) building process in a containerized application's deployment pipeline, e.g., email notification about build status. 
+Actions or processes performed after the [image](#image) building process in a containerized application's deployment pipeline, e.g., email notification about build status.
 
 In Devtron, you can configure post-build actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit build pipeline) → Post-build stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/ci-build-pre-post-plugins.md#configuring-pre-post-build-tasks)
 
 ### Pre-deployment
 
-Steps, scripts, or configurations executed before deploying a new version of an application to a Kubernetes cluster. 
+Steps, scripts, or configurations executed before deploying a new version of an application to a Kubernetes cluster.
 
 In Devtron, you can configure pre-deployment actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit deployment pipeline) → Pre-deployment stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/cd-pipeline.md#3.-pre-deployment-stage)
 
 ### Post-deployment
 
-Actions, checks, or processes carried out after a new version of an application is successfully deployed to a Kubernetes cluster, e.g., Jira Issue Updater. 
+Actions, checks, or processes carried out after a new version of an application is successfully deployed to a Kubernetes cluster, e.g., Jira Issue Updater.
 
 In Devtron, you can configure post-deployment actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit deployment pipeline) → Post-deployment stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/cd-pipeline.md#post-deployment-stage)
 
 ### ReplicaSet
 
-A Kubernetes object responsible for maintaining a specified number of replica pods, ensuring high availability and desired scaling. 
+A Kubernetes object responsible for maintaining a specified number of replica pods, ensuring high availability and desired scaling.
 
 In Devtron, you can view the deployed ReplicaSet by going to Applications (choose your app) → App Details (tab) → K8s Resources (under Application Metrics section).
 
@@ -224,13 +224,13 @@ Abbreviation for "repository". It could either signify a Git repo, container rep
 
 ### Rollback
 
-The process of reverting a deployment to a previously known working version in case of errors or issues with the current version. 
+The process of reverting a deployment to a previously known working version in case of errors or issues with the current version.
 
 In Devtron, you can rollback a deployment by going to Applications (choose your app) → Build & Deploy (tab) → (click the rollback icon in the deployment pipeline). [Read More...](../user-guide/deploying-application/rollback-deployment.md)
 
 ### Secrets
 
-Kubernetes objects used to store sensitive information, such as passwords and API keys. Secrets are encoded and can be mounted as files or environment variables in pods. 
+Kubernetes objects used to store sensitive information, such as passwords and API keys. Secrets are encoded and can be mounted as files or environment variables in pods.
 
 In Devtron, you get the option to add secrets in the `App Configuration` tab of your application. You can use different secrets for respective environments too. [Read More...](../user-guide/creating-application/secrets.md)
 
@@ -240,16 +240,15 @@ A Kubernetes resource configuration that defines security settings and permissio
 
 ### StatefulSet
 
-A Kubernetes object designed for managing stateful applications, maintaining stable network identities and storage across pod rescheduling. 
+A Kubernetes object designed for managing stateful applications, maintaining stable network identities and storage across pod rescheduling.
 
 In Devtron, view the list of StatefulSets by going to Resource Browser → (choose a cluster) → Workloads → StatefulSet. [Read More...](../user-guide/creating-application/deployment-template/statefulset.md)
 
 ### Target Platform
 
-The operating system and architecture for which the [container image](#image) will be built, e.g., ubuntu/arm64, linux/amd64. The image will only be compatible to run only on the target platform chosen in the build configuration. 
+The operating system and architecture for which the [container image](#image) will be built, e.g., ubuntu/arm64, linux/amd64. The image will only be compatible to run only on the target platform chosen in the build configuration.
 
 In Devtron, you can choose the target platform by going to Applications (choose your app) → App Configuration (tab) → Build Configuration → (create build pipeline) → (click `Allow Override` button) → Target platform for the build (section). [Read More...](../user-guide/creating-application/docker-build-configuration.md)
-
 
 
 

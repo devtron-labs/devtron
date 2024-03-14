@@ -33,7 +33,7 @@ type UserInfo struct {
 	Id            int32        `json:"id" validate:"number,not-system-admin-userid"`
 	EmailId       string       `json:"email_id" validate:"required,not-system-admin-user"` // TODO : have to migrate json key to emailId and also handle backward compatibility
 	Roles         []string     `json:"roles,omitempty"`
-	AccessToken   string       `json:"access_token,omitempty"`
+	AccessToken   string       `json:"access_token,omitempty" log:"hide"`
 	RoleFilters   []RoleFilter `json:"roleFilters"`
 	Status        string       `json:"status,omitempty"`
 	Groups        []string     `json:"groups"` // this will be deprecated in future do not use
@@ -99,7 +99,7 @@ type SSOLoginDto struct {
 	Name   string          `json:"name,omitempty"`
 	Label  string          `json:"label,omitempty"`
 	Url    string          `json:"url,omitempty"`
-	Config json.RawMessage `json:"config,omitempty"`
+	Config json.RawMessage `json:"config,omitempty" log:"hide"`
 	Active bool            `json:"active"`
 	UserId int32           `json:"-"`
 }

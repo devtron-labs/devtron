@@ -1,5 +1,5 @@
 # Getting Started
- 
+
 This section includes information about the minimum requirements you need to install and use **Devtron**.
 
 Devtron is installed over a Kubernetes cluster. Once you create a Kubernetes cluster, Devtron can be installed standalone or along with CI/CD integration:
@@ -17,7 +17,7 @@ First, lets see what are the prerequisite requirements before you install Devtro
 
 
 ### Create a Kubernetes Cluster
- 
+
 You can create any [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s version 1.16 or higher) for installing Devtron.
 
 You can create a cluster using one of the following cloud providers as per your requirements:
@@ -60,7 +60,7 @@ The minimum requirements for installing `Helm Dashboard by Devtron` and `Devtron
 **Note:**
 * Please make sure that the recommended resources are available on your Kubernetes cluster before you proceed with Devtron installation.
 * It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation to experience consistency in performance.
- 
+
 
 ## Installation of Devtron
 
@@ -76,5 +76,4 @@ Choose one of the options as per your requirements:
 | **Upgrade Devtron to latest version** | You can upgrade Devtron in one of the following ways:<ul><li>[Upgrade Devtron using Helm](../../setup/upgrade/README.md#upgrade-devtron-using-helm)</ul></li><ul><li>[Upgrade Devtron from UI](../../setup/upgrade/upgrade-devtron-ui.md)</ul></li> |
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
-
 

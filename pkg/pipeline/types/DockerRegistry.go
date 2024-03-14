@@ -14,10 +14,10 @@ type DockerArtifactStoreBean struct {
 	IsPublic                bool                         `json:"isPublic"`
 	RepositoryList          []string                     `json:"repositoryList,omitempty"`
 	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
-	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
+	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty" log:"hide"`
 	AWSRegion               string                       `json:"awsRegion,omitempty"`
 	Username                string                       `json:"username,omitempty"`
-	Password                string                       `json:"password,omitempty"`
+	Password                string                       `json:"password,omitempty" log:"hide"`
 	IsDefault               bool                         `json:"isDefault"`
 	Connection              string                       `json:"connection"`
 	Cert                    string                       `json:"cert"`
@@ -30,7 +30,7 @@ type DockerArtifactStoreBean struct {
 type DockerRegistryIpsConfigBean struct {
 	Id                   int                                        `json:"id"`
 	CredentialType       repository.DockerRegistryIpsCredentialType `json:"credentialType,omitempty" validate:"oneof=SAME_AS_REGISTRY NAME CUSTOM_CREDENTIAL"`
-	CredentialValue      string                                     `json:"credentialValue,omitempty"`
+	CredentialValue      string                                     `json:"credentialValue,omitempty" log:"hide"`
 	AppliedClusterIdsCsv string                                     `json:"appliedClusterIdsCsv,omitempty"`
 	IgnoredClusterIdsCsv string                                     `json:"ignoredClusterIdsCsv,omitempty"`
 	Active               bool                                       `json:"active,omitempty"`
