@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -368,10 +367,11 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
-		if models.IsErrorWhileGeneratingManifest(err) {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusOK, Code: string(http.StatusOK), InternalMessage: err.Error(), UserMessage: err.Error()}
-		}
 		impl.Logger.Errorw("error in templating chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return nil, err
 	}
 	response := &openapi2.TemplateChartResponse{
