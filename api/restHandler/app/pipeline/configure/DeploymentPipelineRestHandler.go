@@ -1181,7 +1181,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 	}
 	stage := r.URL.Query().Get("stage")
 	if len(stage) == 0 {
-		stage = pipelineBean.WorklowTypePre
+		stage = pipelineBean.WorkflowTypePre
 	}
 	searchString := ""
 	search := r.URL.Query().Get("search")

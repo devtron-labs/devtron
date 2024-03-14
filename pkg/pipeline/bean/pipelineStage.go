@@ -96,9 +96,9 @@ type PortMap struct {
 const (
 	VULNERABILITY_SCANNING_PLUGIN string = "Vulnerability Scanning"
 
-	NotTriggered      string = "Not Triggered"
-	NotDeployed              = "Not Deployed"
-	WorklowTypeDeploy        = "DEPLOY"
-	WorklowTypePre           = "PRE"
-	WorklowTypePost          = "POST"
+	NotTriggered       string = "Not Triggered"
+	NotDeployed               = "Not Deployed"
+	WorkflowTypeDeploy        = "DEPLOY"
+	WorkflowTypePre           = "PRE"
+	WorkflowTypePost          = "POST"
 )

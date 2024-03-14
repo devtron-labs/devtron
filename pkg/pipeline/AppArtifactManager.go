@@ -829,9 +829,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			return ciArtifacts, 0, "", totalCount, err
 		}
 	} else {
-		if listingFilterOpts.ParentStageType == pipelineBean.WorklowTypePre {
+		if listingFilterOpts.ParentStageType == pipelineBean.WorkflowTypePre {
 			listingFilterOpts.PluginStage = repository.PRE_CD
-		} else if listingFilterOpts.ParentStageType == pipelineBean.WorklowTypePost {
+		} else if listingFilterOpts.ParentStageType == pipelineBean.WorkflowTypePost {
 			listingFilterOpts.PluginStage = repository.POST_CD
 		}
 		ciArtifacts, totalCount, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
