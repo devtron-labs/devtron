@@ -57,8 +57,8 @@ body:
       label: "Prod/Non-prod environments?"
       description: "Is the issue affecting Prod environments?"
       options:
-        - Yes (x2)
-        - No (x1)
+        - Prod (x2)
+        - Non-prod (x1)
   - type: dropdown
     id: user-unblocked
     attributes:
