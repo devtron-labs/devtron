@@ -210,7 +210,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 			ApprovalAllowed: true,
 			Reasons:         make([]string, 0),
 		}
-		// TODO: fetch policies in bulk
+
 		policy := policiesMap[pipelineDao.Environment.Name]
 		if policy == nil {
 			environmentMetadata.ApprovalAllowed = false
@@ -221,7 +221,6 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 
 		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
-			// TODO: reason constant
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG)
 		}
 		if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
