@@ -1,6 +1,8 @@
 package utils
 
-import mapset "github.com/deckarep/golang-set"
+import (
+	mapset "github.com/deckarep/golang-set"
+)
 
 // ToInterfaceArray converts an array of string to an array of interface{}
 func ToInterfaceArrayAny[T any](arr []T) []interface{} {
@@ -15,7 +17,7 @@ func ToInterfaceArrayAny[T any](arr []T) []interface{} {
 func ToTypedArrayAny[T any](arr []interface{}) []T {
 	typedArr := make([]T, len(arr))
 	for i, v := range arr {
-		typedArr[i] = v
+		typedArr[i] = v.(T)
 	}
 	return typedArr
 }
