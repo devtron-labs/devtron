@@ -126,7 +126,7 @@ type PromotionPolicy struct {
 	Name               string                   `json:"name" devtronSearchableField:"name" validate:"min=3,max=50,global-entity-name"`
 	Description        string                   `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                      `json:"-"`
-	Conditions         []util.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
+	Conditions         []util.ResourceCondition `json:"conditions" validate:"min=1,dive"`
 	ApprovalMetaData   ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
 	IdentifierCount    *int                     `json:"identifierCount,omitempty"`
 }

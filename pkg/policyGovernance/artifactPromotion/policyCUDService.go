@@ -3,6 +3,7 @@ package artifactPromotion
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
@@ -34,6 +35,7 @@ type PromotionPolicyServiceImpl struct {
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
+	celEvaluatorService             resourceFilter.CELEvaluatorService
 	transactionManager              sql.TransactionWrapper
 
 	// hooks
@@ -45,6 +47,7 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
+	celEvaluatorService resourceFilter.CELEvaluatorService,
 	transactionManager sql.TransactionWrapper,
 ) *PromotionPolicyServiceImpl {
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
@@ -55,6 +58,7 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 		pipelineService:                 pipelineService,
 		logger:                          logger,
 		resourceQualifierMappingService: resourceQualifierMappingService,
+		celEvaluatorService:             celEvaluatorService,
 		transactionManager:              transactionManager,
 		preDeleteHooks:                  preDeleteHooks,
 		preUpdateHooks:                  preUpdateHooks,
@@ -70,7 +74,11 @@ func (impl *PromotionPolicyServiceImpl) AddUpdateHook(hook func(tx *pg.Tx, polic
 }
 
 func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error {
-
+	validateResp, valid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
+	if valid {
+		err := errors.New("invalid filter conditions : " + fmt.Sprint(validateResp))
+		return util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid conditions statements : " + err.Error())
+	}
 	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
@@ -122,6 +130,11 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, poli
 }
 
 func (impl *PromotionPolicyServiceImpl) CreatePolicy(ctx *util2.RequestCtx, policyBean *bean.PromotionPolicy) error {
+	validateResp, valid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
+	if valid {
+		err := errors.New("invalid filter conditions : " + fmt.Sprint(validateResp))
+		return util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid conditions statements : " + err.Error())
+	}
 	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
