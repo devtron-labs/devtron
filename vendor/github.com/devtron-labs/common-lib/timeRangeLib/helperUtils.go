@@ -5,43 +5,12 @@ import (
 	"time"
 )
 
-func (tr TimeRange) isMonthOverlapping() bool {
-	dayFrom := tr.DayFrom
-	dayTo := tr.DayTo
-	if dayFrom > 0 && dayTo > 0 && dayTo < dayFrom {
-		return true
-	} else if dayFrom < 0 && dayTo > 0 {
-		return true
-	}
-	return false
-}
-
-func (tr TimeRange) isToHourMinuteBeforeWindowEnd(targetTime time.Time) bool {
+func isToHourMinuteBeforeWindowEnd(hourMinute string, targetTime time.Time) bool {
 
 	currentHourMinute, _ := time.Parse(hourMinuteFormat, targetTime.Format(hourMinuteFormat))
-
-	parsedHourTo, _ := time.Parse(hourMinuteFormat, tr.HourMinuteTo)
+	parsedHourTo, _ := time.Parse(hourMinuteFormat, hourMinute)
 
 	return currentHourMinute.Before(parsedHourTo)
-}
-
-func (tr TimeRange) getDaysCount(monthEnd int) int {
-
-	windowEndDay := tr.DayTo
-	if windowEndDay < 0 {
-		windowEndDay = monthEnd + 1 + windowEndDay
-	}
-
-	windowStartDay := tr.DayFrom
-	if windowStartDay < 0 {
-		windowStartDay = monthEnd + 1 + windowStartDay
-	}
-
-	totalDays := windowEndDay - windowStartDay
-	if tr.isMonthOverlapping() {
-		totalDays = totalDays + monthEnd
-	}
-	return totalDays
 }
 
 func getLastDayOfMonth(targetYear int, targetMonth time.Month) int {
@@ -64,4 +33,8 @@ func isToBeforeFrom(from, to string) bool {
 	parseHourFrom, _ := time.Parse(hourMinuteFormat, from)
 	parsedHourTo, _ := time.Parse(hourMinuteFormat, to)
 	return parsedHourTo.Before(parseHourFrom)
+}
+
+func isTimeInBetween(timeCurrent, periodStart, periodEnd time.Time) bool {
+	return (timeCurrent.After(periodStart) && timeCurrent.Before(periodEnd)) || timeCurrent.Equal(periodStart)
 }

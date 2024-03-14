@@ -168,20 +168,6 @@ func (impl TimeWindowServiceImpl) CreateAndMapWithResource(tx *pg.Tx, timeWindow
 	return err
 }
 
-//
-//func (expr TimeWindowExpression) toTimeWindowDto(userId int32) *repository.TimeoutWindowConfiguration {
-//	return &repository.TimeoutWindowConfiguration{
-//		TimeoutWindowExpression: expr.TimeoutExpression,
-//		ExpressionFormat:        expr.ExpressionFormat,
-//		AuditLog: sql.AuditLog{
-//			CreatedOn: time.Now(),
-//			CreatedBy: userId,
-//			UpdatedOn: time.Now(),
-//			UpdatedBy: userId,
-//		},
-//	}
-//}
-
 func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error {
 
 	for _, window := range windows {

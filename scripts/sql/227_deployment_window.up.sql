@@ -9,4 +9,5 @@ CREATE TABLE IF NOT EXISTS "public"."timeout_window_resource_mappings"
     CONSTRAINT timeout_window_configuration_id_fkey
         FOREIGN KEY("timeout_window_configuration_id")
             REFERENCES"public"."timeout_window_configuration" ("id")
+            ON DELETE CASCADE
 );
