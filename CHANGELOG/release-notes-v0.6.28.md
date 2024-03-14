@@ -1,20 +1,3 @@
-<!--upgrade-prerequisites-required-->
-> **= = = = = IMPORTANT = = = = =**
-
-IF YOU ARE UPGRADING FROM v0.6.24 OR BELOW VERSIONS, THEN RUN THE FOLLOWING COMMANDS AS A PRE-REQUISITE BEFORE UPGRADE:
-```
-export RELEASE_NAME=devtron
-kubectl label clusterrole kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
-kubectl annotate clusterrole kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
-kubectl label clusterrolebinding kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
-kubectl annotate clusterrolebinding kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
-```
-
-> Ignore the message above if you are not using devtron with cicd mode
-
-> Contact Devtron team on [DISCORD](https://discord.devtron.ai) if you have any concerns.
-<!--upgrade-prerequisites-required-->
-
 ## v0.6.28
 
 ## Bugs
