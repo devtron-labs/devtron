@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/devtron-labs/devtron/util/response/pagination"
 	"path"
 	"regexp"
 	"strconv"
@@ -95,7 +96,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
-	GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
+	GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2102,8 +2103,8 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	return createRequest, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
-	response := linkedCIView.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
+	response := pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
 
 	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
 	if util.IsErrNoRows(err) {

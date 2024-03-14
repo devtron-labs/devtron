@@ -20,8 +20,8 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -134,7 +134,7 @@ type CiPipelineRepository interface {
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 	GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
-		appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, int, error)
+		appNameMatch, envNameMatch string, order pagination.SortOrder) ([]LinkedCIDetails, int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -622,7 +622,7 @@ type LinkedCIDetails struct {
 }
 
 func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
-	appNameMatch, envNameMatch string, order linkedCIView.SortOrder) ([]LinkedCIDetails, int, error) {
+	appNameMatch, envNameMatch string, order pagination.SortOrder) ([]LinkedCIDetails, int, error) {
 	linkedCIDetails := make([]LinkedCIDetails, 0)
 	query := impl.dbConnection.Model().
 		Table("ci_pipeline").

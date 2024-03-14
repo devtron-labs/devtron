@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 	"io"
 	"net/http"
@@ -266,7 +267,7 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIDetails(w http.ResponseW
 		req.Size = 20
 	}
 	if len(req.Order) == 0 {
-		req.Order = linkedCIView.Asc
+		req.Order = pagination.Asc
 	}
 	token := r.Header.Get("token")
 	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
