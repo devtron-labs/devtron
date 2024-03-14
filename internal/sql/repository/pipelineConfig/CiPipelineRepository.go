@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -105,6 +106,8 @@ type CiPipelineRepository interface {
 	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
+	FindOneWithAppData(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -131,6 +134,8 @@ type CiPipelineRepository interface {
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 	GetLinkedCiPipelines(ciPipelineId int) ([]*CiPipeline, error)
+	GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
+		appNameMatch, envNameMatch string, order pagination.SortOrder) ([]LinkedCIDetails, int, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -326,6 +331,18 @@ func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err
 
 	return pipeline, err
 }
+
+// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
+func (impl CiPipelineRepositoryImpl) FindOneWithAppData(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "App").
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
 func (impl CiPipelineRepositoryImpl) FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error) {
 	ciEnvMapping := &CiEnvMapping{}
 	err := impl.dbConnection.Model(ciEnvMapping).
@@ -470,7 +487,7 @@ func sqlIntSeq(ns []int) string {
 	return string(b)
 }
 
-func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error) {
+func (impl CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error) {
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.
 		Model(&ciPipelines).
@@ -607,4 +624,64 @@ func (impl CiPipelineRepositoryImpl) GetLinkedCiPipelines(ciPipelineId int) ([]*
 		return nil, err
 	}
 	return linkedCIPipelines, nil
+}
+
+type LinkedCIDetails struct {
+	AppName         string `sql:"app_name"`
+	EnvironmentName string `sql:"environment_name"`
+	TriggerMode     string `sql:"trigger_type"`
+	PipelineId      int    `sql:"pipeline_id"`
+	AppId           int    `sql:"app_id"`
+	EnvironmentId   int    `sql:"environment_id"`
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllLinkedCIDetails(sourceCiPipelineId, limit, offset int,
+	appNameMatch, envNameMatch string, order pagination.SortOrder) ([]LinkedCIDetails, int, error) {
+	linkedCIDetails := make([]LinkedCIDetails, 0)
+	query := impl.dbConnection.Model().
+		Table("ci_pipeline").
+		// added columns that has no duplicated reference across joined tables
+		Column("ci_pipeline.app_id",
+			"app_name",
+			"environment_name",
+			"trigger_type").
+		// added columns that has duplicated reference across joined tables and assign alias name
+		ColumnExpr("p.id as pipeline_id", "p.environment_id as environment_id").
+		// join app table
+		Join("INNER JOIN app a").
+		JoinOn("a.id = ci_pipeline.app_id").
+		JoinOn("a.active = ?", true).
+		// join pipeline table
+		Join("LEFT JOIN pipeline p").
+		JoinOn("p.ci_pipeline_id = ci_pipeline.id").
+		JoinOn("p.deleted = ?", false).
+		// join environment table
+		Join("LEFT JOIN environment e").
+		JoinOn("e.id = p.environment_id").
+		JoinOn("e.active = ?", true).
+		// constrains
+		Where("ci_pipeline.parent_ci_pipeline = ?", sourceCiPipelineId).
+		Where("ci_pipeline.deleted = ?", false)
+	// app name filtering
+	if len(appNameMatch) != 0 {
+		query = query.Where("app_name LIKE '%?%'", appNameMatch)
+	}
+	// env name filtering
+	if len(envNameMatch) != 0 {
+		query = query.Where("environment_name = ?", envNameMatch)
+	}
+	// get total response count
+	totalCount, err := query.Count()
+	if err != nil {
+		return nil, 0, err
+	}
+	// query execution
+	err = query.Order("app_name ?", string(order)).
+		Limit(limit).
+		Offset(offset).
+		Select(&linkedCIDetails)
+	if err != nil {
+		return nil, 0, err
+	}
+	return linkedCIDetails, totalCount, err
 }

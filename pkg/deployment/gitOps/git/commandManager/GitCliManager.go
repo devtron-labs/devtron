@@ -98,7 +98,7 @@ func (impl *GitCliManagerImpl) commit(ctx GitContext, rootDir string, commitMsg 
 
 func (impl *GitCliManagerImpl) lastCommitHash(ctx GitContext, rootDir string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git log ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "log", "--pretty=format:'%h'", "-n", "1")
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "log", "--format=format:%H", "-n", "1")
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("git commit output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)

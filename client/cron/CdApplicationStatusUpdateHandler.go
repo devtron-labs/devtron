@@ -45,7 +45,6 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	appService                           app.AppService
 	workflowDagExecutor                  dag.WorkflowDagExecutor
 	installedAppService                  EAMode.InstalledAppDBService
-	CdHandler                            pipeline.CdHandler
 	AppStatusConfig                      *app.AppServiceConfig
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository

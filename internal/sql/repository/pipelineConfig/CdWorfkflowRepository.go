@@ -75,6 +75,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
+	FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -156,6 +157,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
+	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )
 
 type CdWorkflowRunnerWithExtraFields struct {
@@ -737,4 +739,22 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 		return false, nil
 	}
 	return exists, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
+	latestWfrs := make([]CdWorkflowRunner, 0)
+	err := impl.dbConnection.
+		Model(&latestWfrs).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		ColumnExpr("MAX(cd_workflow_runner.id)").
+		Where("cd_workflow.pipeline_id IN (?)", pg.In(pipelineIds)).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow__pipeline.deleted = ?", false).
+		Group("cd_workflow_runner.id", "cd_workflow.id", "cd_workflow__pipeline.id").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "pipelineIds", pipelineIds, "runnerType", runnerType)
+		return latestWfrs, err
+	}
+	return latestWfrs, err
 }
