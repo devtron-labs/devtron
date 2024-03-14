@@ -280,8 +280,9 @@ func (handler PipelineConfigRestHandlerImpl) GetLinkedCIDetails(w http.ResponseW
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetLinkedCIDetails(ciPipelineId, &req)
+	ctx, span := otel.Tracer("orchestrator").Start(r.Context(), "ciCdPipelineOrchestrator.GetLinkedCIDetails")
+	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetLinkedCIDetails(ctx, ciPipelineId, &req)
+	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "ciPipelineId", ciPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

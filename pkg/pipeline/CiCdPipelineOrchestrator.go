@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"github.com/devtron-labs/devtron/util/response/pagination"
+	"go.opentelemetry.io/otel"
 	"path"
 	"regexp"
 	"strconv"
@@ -96,7 +97,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
-	GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
+	GetLinkedCIDetails(ctx context.Context, sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2103,10 +2104,12 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	return createRequest, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
+func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(ctx context.Context, sourceCIPipeline int, req *linkedCIView.LinkedCiInfoFilters) (pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes], error) {
 	response := pagination.PaginatedResponse[linkedCIView.LinkedCIDetailsRes]{}
 
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.GetAllLinkedCIDetails")
 	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetAllLinkedCIDetails(sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
+	span.End()
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", sourceCIPipeline)
 		return response, nil
@@ -2125,7 +2128,9 @@ func (impl CiCdPipelineOrchestratorImpl) GetLinkedCIDetails(sourceCIPipeline int
 		}
 	}
 
+	_, span = otel.Tracer("orchestrator").Start(newCtx, "ciPipelineRepository.GetAllLinkedCIDetails")
 	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
+	span.End()
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no deployments have been triggered yet", "pipelineIds", pipelineIds)
 		// update the response with the pipelineConfig.LinkedCIDetails
