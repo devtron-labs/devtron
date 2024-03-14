@@ -203,9 +203,12 @@ func (impl QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.T
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("error fetching resource mappings %v %v", resourceType, valuesMap))
 	}
+	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, mapset.NewSet())
 	mappingIds := make([]int, 0, len(mappings))
-	for _, mapping := range mappings {
-		mappingIds = append(mappingIds, mapping.Id)
+	for _, group := range groups {
+		for _, mapping := range group {
+			mappingIds = append(mappingIds, mapping.Id)
+		}
 	}
 	return impl.DeleteAllByIds(mappingIds, userId, tx)
 
