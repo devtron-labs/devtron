@@ -338,7 +338,7 @@ func (_m *CdPipelineConfigService) GetCdPipelineById(pipelineId int) (*bean.CDPi
 }
 
 // GetCdPipelinesByAppIDAndEnvNameOrId provides a mock function with given fields: appId, envId, envName
-func (_m *CdPipelineConfigService) GetCdPipelinesByAppIDAndEnvNameOrId(appId int, envId int, envName string) (*bean.CdPipelines, error) {
+func (_m *CdPipelineConfigService) GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (*bean.CdPipelines, error) {
 	ret := _m.Called(appId, envId, envName)
 
 	var r0 *bean.CdPipelines

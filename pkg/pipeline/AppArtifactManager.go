@@ -1364,7 +1364,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ctx *util2.RequestCtx, ciArtifacts []bean2.CiArtifactBean, cdPipelineId int, status constants.ArtifactPromotionRequestStatus) ([]bean2.CiArtifactBean, error) {
 
-	artifactIds := util2.GetIds(ciArtifacts, func(artifact bean2.CiArtifactBean) int {
+	artifactIds := util2.GetArrayObject(ciArtifacts, func(artifact bean2.CiArtifactBean) int {
 		return artifact.Id
 	})
 
@@ -1664,8 +1664,7 @@ func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.
 }
 
 func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.RequestCtx, request bean2.PromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
-	//TODO: rename func GetCdPipelinesByAppAndEnv
-	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(request.AppId, 0, request.ResourceName)
+	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppAndEnv(request.AppId, 0, request.ResourceName)
 	if err != nil {
 		//TODO: make error constants and use builder pattern
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", request.AppId, "environmentId", request.ResourceName, "err", err)
@@ -1756,7 +1755,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForExtCINode(ctx *util2.Reques
 
 func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *util2.RequestCtx, request bean2.PromotionMaterialRequest) (bean2.CiArtifactResponse, error) {
 
-	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(request.AppId, 0, request.ResourceName)
+	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppAndEnv(request.AppId, 0, request.ResourceName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", request.AppId, "environmentId", request.ResourceName, "err", err)
 		return bean2.CiArtifactResponse{}, err

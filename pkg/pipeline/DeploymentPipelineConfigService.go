@@ -90,7 +90,7 @@ type CdPipelineConfigService interface {
 	// GetAllCdPipelinesAndEnvDataLite : get data of all cd pipelines in an app and the environment associated with it. Light api created for listing pipelines but to show env on UI
 	GetAllCdPipelinesAndEnvDataLite(appId int) ([]*bean.CdPipelineEnvDataResponseDto, error)
 	// GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
-	GetCdPipelinesByAppIDAndEnvNameOrId(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	// GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
 	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines *bean.CdPipelines, err error)
@@ -1221,7 +1221,7 @@ func (impl *CdPipelineConfigServiceImpl) GetAllCdPipelinesAndEnvDataLite(appId i
 	return resp, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByAppIDAndEnvNameOrId(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error) {
+func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error) {
 	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId, envName)
 }
 

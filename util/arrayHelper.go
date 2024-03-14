@@ -1,11 +1,11 @@
 package util
 
-func GetIds[T any](entities []T, getIdFunc func(entity T) int) []int {
-	var Ids []int
-	for _, entity := range entities {
-		Ids = append(Ids, getIdFunc(entity))
+func GetArrayObject[T any, R any](entities []T, getValFunc func(entity T) R) []R {
+	objArr := make([]R, 0, len(entities))
+	for i, _ := range entities {
+		objArr[i] = getValFunc(entities[i])
 	}
-	return Ids
+	return objArr
 }
 
 func GetIdToObjectMap[T any](entities []T, getIdFunc func(entity T) int) map[int]T {
