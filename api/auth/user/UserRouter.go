@@ -18,7 +18,6 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 )
 
@@ -28,7 +27,6 @@ type UserRouter interface {
 
 type UserRouterImpl struct {
 	userRestHandler UserRestHandler
-	cleanUpPolicies user.CleanUpPoliciesService
 }
 
 func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
