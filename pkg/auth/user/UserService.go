@@ -1634,6 +1634,8 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*be
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	// setting filter status type
 	impl.setStatusFilterType(request)
+	// Recording time here for overall consistency
+	request.CurrentTime = time.Now()
 	if request.ShowAll {
 		response, err := impl.getAllDetailedUsers(request)
 		if err != nil {
@@ -1642,9 +1644,6 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*be
 		}
 		return impl.getAllDetailedUsersAdapter(response), nil
 	}
-
-	// Recording time here for overall consistency
-	request.CurrentTime = time.Now()
 
 	// setting count check to true for only count
 	request.CountCheck = true
