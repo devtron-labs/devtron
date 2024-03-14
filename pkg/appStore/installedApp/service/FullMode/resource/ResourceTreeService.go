@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -51,6 +52,7 @@ type InstalledAppResourceServiceImpl struct {
 	appStatusService                     appStatus.AppStatusService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	K8sUtil                              k8s2.K8sService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -61,7 +63,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
 	appStatusService appStatus.AppStatusService,
-	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) *InstalledAppResourceServiceImpl {
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -75,6 +77,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		appStatusService:                     appStatusService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		K8sUtil:                              K8sUtil,
 	}
 }
 
