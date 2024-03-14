@@ -138,28 +138,28 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	if isBlackoutActive && isMaintenanceActive { //deployment is blocked, restriction through blackout
 		// if both are active then blackout takes precedence in overall calculation
 		activeBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
-			return item.IsActive
+			return impl.isRestricted(item)
 		})
 		appliedProfile = impl.getLongestEndingProfile(activeBlackouts)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(activeBlackouts)
+		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(activeBlackouts)
 
 	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through maintenance
 		// if nothing is active then earliest starting maintenance will be shown
 
-		nonActiveMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
-			return !item.IsActive
+		nonActiveMaintenance := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
+			return impl.isRestricted(item)
 		})
 		appliedProfile = impl.getEarliestStartingProfile(nonActiveMaintenance)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
+		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
 	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through both
 		// longest of restrictions coming from both blackout and maintenance
 
 		restrictedProfiles := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
-			return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
+			return impl.isRestricted(item)
 		})
 
 		appliedProfile = impl.getLongestEndingProfile(restrictedProfiles)
-		combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(restrictedProfiles)
+		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
 
 	} else if !isBlackoutActive && isMaintenanceActive { //deployment not blocked
 		// applied profile here would be the longest running maintenance profile even if a blackout starts before that
@@ -175,6 +175,8 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 			appliedProfile = impl.getEarliestStartingProfile(nonActiveBlackouts)
 		}
 	}
+
+	combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
 
 	if isSuperAdminExcluded {
 		combinedExcludedUsers = lo.Uniq(append(combinedExcludedUsers, superAdmins...))
@@ -209,6 +211,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 			}
 		}
 		allProfiles[i].ExcludedUserEmails = emails
+		allProfiles[i].DeploymentWindowProfile.ExcludedUsersList = excludedIds
 
 		if appliedProfile != nil && profile.DeploymentWindowProfile.Id == appliedProfile.DeploymentWindowProfile.Id {
 			appliedProfile.ExcludedUserEmails = emails
@@ -230,6 +233,10 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	return allProfiles, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, canDeploy, nil
 }
 
+func (impl DeploymentWindowServiceImpl) isRestricted(item ProfileState) bool {
+	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
+}
+
 func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileState) ([]int32, []int32, bool) {
 
 	if len(profiles) == 0 {
@@ -238,10 +245,10 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 	userSet := mapset.NewSet()
 	allUsersSet := mapset.NewSet()
 
-	if len(profiles[0].DeploymentWindowProfile.ExcludedUsersList) > 0 {
-		//userSet.Add(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
-		users := profiles[0].DeploymentWindowProfile.ExcludedUsersList
-		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
+	profile := profiles[0]
+	excludedUsers := profile.DeploymentWindowProfile.ExcludedUsersList
+	if impl.isRestricted(profile) && len(excludedUsers) > 0 {
+		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(excludedUsers))
 	}
 
 	isSuperAdminExcluded := true
@@ -256,13 +263,14 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 			isSuperAdminExcluded = false
 		}
 
-		profileUserSet := mapset.NewSet()
-		if len(users) > 0 {
-			profileUserSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
-			allUsersSet = allUsersSet.Union(profileUserSet)
-		}
+		//if len(users) > 0 {
+		profileUserSet := mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
+		allUsersSet = allUsersSet.Union(profileUserSet)
+		//}
 
-		userSet = userSet.Intersect(profileUserSet)
+		if impl.isRestricted(profile) {
+			userSet = userSet.Intersect(profileUserSet)
+		}
 	}
 
 	//if isSuperAdminExcluded && len(superAdmins) > 0 {
