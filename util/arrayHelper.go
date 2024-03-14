@@ -1,7 +1,7 @@
 package util
 
 func GetArrayObject[T any, R any](entities []T, getValFunc func(entity T) R) []R {
-	objArr := make([]R, 0, len(entities))
+	objArr := make([]R, len(entities))
 	for i, _ := range entities {
 		objArr[i] = getValFunc(entities[i])
 	}
