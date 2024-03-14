@@ -39,10 +39,6 @@ const (
 	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
 )
 
-type LinkedCIInfoFilters struct {
-	EnvNames []string `json:"envNames"`
-}
-
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value string                    `json:"value,omitempty" `

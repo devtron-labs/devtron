@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"context"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -28,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -115,7 +117,7 @@ type PipelineRepository interface {
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
-	FindWithEnvironmentByCiIds(cIPipelineIds []int) ([]*Pipeline, error)
+	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -719,7 +721,9 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("deleted = ?", false).Update()
 	return err
 }
-func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(cIPipelineIds []int) ([]*Pipeline, error) {
+func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FindWithEnvironmentByCiIds")
+	defer span.End()
 	var cDPipelines []*Pipeline
 	err := impl.dbConnection.Model(&cDPipelines).
 		Column("pipeline.*", "Environment").

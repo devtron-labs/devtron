@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -185,15 +186,15 @@ func IsCIJob(ci pipelineConfig.CiPipeline) bool {
 	return ci.PipelineType == string(pipelineConfigBean.CI_JOB)
 }
 
-func GetLinkedCIInfoResponse(linkedCIDetails []pipelineConfig.LinkedCIDetails, latestWfrs ...pipelineConfig.CdWorkflowRunner) []linkedCIView.LinkedCIDetailsRes {
-	response := make([]linkedCIView.LinkedCIDetailsRes, 0)
+func GetSourceCiDownStreamResponse(linkedCIDetails []bean.LinkedCIDetails, latestWfrs ...pipelineConfig.CdWorkflowRunner) []linkedCIView.SourceCiDownStreamResponse {
+	response := make([]linkedCIView.SourceCiDownStreamResponse, 0)
 	cdWfrStatusMap := make(map[int]string)
 	for _, latestWfr := range latestWfrs {
 		cdWfrStatusMap[latestWfr.CdWorkflow.PipelineId] = latestWfr.Status
 	}
 	for _, item := range linkedCIDetails {
 		if item.PipelineId != 0 {
-			linkedCIDetailsRes := linkedCIView.LinkedCIDetailsRes{
+			linkedCIDetailsRes := linkedCIView.SourceCiDownStreamResponse{
 				AppName:          item.AppName,
 				AppId:            item.AppId,
 				EnvironmentName:  item.EnvironmentName,

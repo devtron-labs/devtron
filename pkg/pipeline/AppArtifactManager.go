@@ -19,7 +19,7 @@ package pipeline
 
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
 	"strings"
 
@@ -829,9 +829,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			return ciArtifacts, 0, "", totalCount, err
 		}
 	} else {
-		if listingFilterOpts.ParentStageType == bean3.WorklowTypePre {
+		if listingFilterOpts.ParentStageType == pipelineBean.WorklowTypePre {
 			listingFilterOpts.PluginStage = repository.PRE_CD
-		} else if listingFilterOpts.ParentStageType == bean3.WorklowTypePost {
+		} else if listingFilterOpts.ParentStageType == pipelineBean.WorklowTypePost {
 			listingFilterOpts.PluginStage = repository.POST_CD
 		}
 		ciArtifacts, totalCount, err = impl.BuildArtifactsForCdStageV2(listingFilterOpts)
