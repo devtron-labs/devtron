@@ -79,7 +79,7 @@ func NewGlobalPolicyServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *GlobalPolicyServiceImpl) GetById(id int) (*bean.GlobalPolicyDto, error) {
-	//getting global policy entry
+	// getting global policy entry
 	globalPolicy, err := impl.globalPolicyRepository.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("error in getting policy by id", "err", err, "id", id)
@@ -94,7 +94,7 @@ func (impl *GlobalPolicyServiceImpl) GetById(id int) (*bean.GlobalPolicyDto, err
 }
 
 func (impl *GlobalPolicyServiceImpl) GetAllGlobalPolicies(policyOf bean.GlobalPolicyType, policyVersion bean.GlobalPolicyVersion) ([]*bean.GlobalPolicyDto, error) {
-	//getting all global policy entries
+	// getting all global policy entries
 	globalPolicies, err := impl.globalPolicyRepository.GetAllByPolicyOfAndVersion(policyOf, policyVersion)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting all policies", "err", err, "policyOf", policyOf, "policyVersion", policyVersion)
@@ -109,13 +109,13 @@ func (impl *GlobalPolicyServiceImpl) GetAllGlobalPolicies(policyOf bean.GlobalPo
 }
 
 func (impl *GlobalPolicyServiceImpl) CreateOrUpdateGlobalPolicy(policy *bean.GlobalPolicyDto) error {
-	//creating global policy entry
+	// creating global policy entry
 	err := impl.createOrUpdateGlobalPolicyInDb(policy)
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy entry, CreateOrUpdateGlobalPolicy", "err", err, "policy", policy)
 		return err
 	}
-	//creating global policy searchable fields entries
+	// creating global policy searchable fields entries
 	err = impl.createGlobalPolicySearchableFieldsInDbIfNeeded(policy)
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy searchable field entry, CreateOrUpdateGlobalPolicy", "err", err, "policy", policy)
@@ -135,7 +135,7 @@ func (impl *GlobalPolicyServiceImpl) DeleteGlobalPolicy(policyId int, userId int
 		impl.logger.Errorw("error, deleteGlobalPolicyAndSearchableFields", "err", err, "policyId", policyId)
 		return err
 	}
-	//creating history entry
+	// creating history entry
 	err = impl.globalPolicyHistoryService.CreateHistoryEntry(policyModel, bean3.HISTORY_OF_ACTION_DELETE)
 	if err != nil {
 		impl.logger.Warnw("error in creating global policy history", "err", err, "policyId", policyId)
@@ -144,7 +144,7 @@ func (impl *GlobalPolicyServiceImpl) DeleteGlobalPolicy(policyId int, userId int
 }
 
 func (impl *GlobalPolicyServiceImpl) GetPolicyOffendingPipelinesWfTree(policyId int) (*bean.PolicyOffendingPipelineWfTreeObject, error) {
-	//get all policies
+	// get all policies
 	globalPolicy, err := impl.globalPolicyRepository.GetById(policyId)
 	if err != nil {
 		impl.logger.Errorw("error in getting policy by Id", "err", err, "policyId", policyId)
@@ -153,7 +153,7 @@ func (impl *GlobalPolicyServiceImpl) GetPolicyOffendingPipelinesWfTree(policyId 
 	offendingPipelineWfTree := &bean.PolicyOffendingPipelineWfTreeObject{
 		PolicyId: policyId,
 	}
-	if globalPolicy.Enabled { //getting workflows only when policy is enabled, because disabled policies are not enforced and would not be having any offending pipelines
+	if globalPolicy.Enabled { // getting workflows only when policy is enabled, because disabled policies are not enforced and would not be having any offending pipelines
 		wfComponents, err := impl.getOffendingPipelineWfComponents(globalPolicy)
 		if err != nil {
 			impl.logger.Errorw("error, getOffendingPipelineWfComponents", "err", err, "globalPolicy", globalPolicy)
@@ -182,7 +182,7 @@ func (impl *GlobalPolicyServiceImpl) GetBlockageStateForACIPipelineTrigger(ciPip
 	}
 	isOffendingMandatoryPlugin := false
 	isCIPipelineTriggerBlocked := false
-	//getting all mandatory plugins for a ci pipeline
+	// getting all mandatory plugins for a ci pipeline
 	mandatoryPlugins, mandatoryPluginsBlockageState, err := impl.GetMandatoryPluginsForACiPipeline(ciPipelineIdToGetBlockageState, 0, branchValues, toOnlyGetBlockedStatePolicies)
 	if err != nil {
 		impl.logger.Errorw("error in getting mandatory plugins for a ci", "err", err, "ciPipelineId", ciPipelineId)
@@ -194,10 +194,10 @@ func (impl *GlobalPolicyServiceImpl) GetBlockageStateForACIPipelineTrigger(ciPip
 		definitions = mandatoryPlugins.Definitions
 	}
 	if len(definitions) == 0 {
-		//no mandatory plugins found
+		// no mandatory plugins found
 		return isOffendingMandatoryPlugin, isCIPipelineTriggerBlocked, nil, nil
 	}
-	//getting all configured plugins for ci pipeline
+	// getting all configured plugins for ci pipeline
 	configuredPlugins, err := impl.pipelineStageRepository.GetConfiguredPluginsForCIPipelines([]int{ciPipelineIdToGetBlockageState})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error, GetConfiguredPluginsForCIPipelines", "err", err, "ciPipelineId", ciPipelineIdToGetBlockageState)
@@ -224,7 +224,7 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 	haveAnyProductionEnv, ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, allClusterEnvNames, clusterMap :=
 		getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs)
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
-	//getting searchable keyId and value map for filtering all searchable fields in db
+	// getting searchable keyId and value map for filtering all searchable fields in db
 	searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup := getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames, branchValues,
 		haveAnyProductionEnv, toOnlyGetBlockedStatePolicies, searchableKeyNameIdMap)
 
@@ -239,14 +239,14 @@ func (impl *GlobalPolicyServiceImpl) GetMandatoryPluginsForACiPipeline(ciPipelin
 		return nil, nil, err
 	}
 	var globalPolicies []*repository.GlobalPolicy
-	if len(globalPolicyIds) > 0 { //getting global policies by ids
+	if len(globalPolicyIds) > 0 { // getting global policies by ids
 		globalPolicies, err = impl.globalPolicyRepository.GetEnabledPoliciesByIds(globalPolicyIds)
 		if err != nil {
 			impl.logger.Errorw("error in getting global policies by ids", "err", err, "globalPolicyIds", globalPolicyIds)
 			return nil, nil, err
 		}
 	}
-	//map of "pluginId/pluginApplyStage" and its sources
+	// map of "pluginId/pluginApplyStage" and its sources
 	mandatoryPluginDefinitionMap, mandatoryPluginBlockageMap, err := impl.getMandatoryPluginDefinitionAndBlockageMaps(globalPolicies, toOnlyGetBlockedStatePolicies,
 		allCiPipelineIds, ciPipelineId, ciPipelineIdProjectAppNameMap, ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap, branchValues, ciPipelineIdNameMap)
 	if err != nil {
@@ -282,13 +282,13 @@ func (impl *GlobalPolicyServiceImpl) deleteGlobalPolicyAndSearchableFields(polic
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
 		}
 	}()
-	//mark global policy entry deleted
+	// mark global policy entry deleted
 	err = impl.globalPolicyRepository.MarkDeletedById(policyId, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in marking global policy entry deleted", "err", err, "policyId", policyId)
 		return err
 	}
-	//deleting global policy searchable field entries deleted
+	// deleting global policy searchable field entries deleted
 	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(policyId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting searchable fields entry by global policy id", "err", err, "globalPolicyId", policyId)
@@ -307,7 +307,7 @@ func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps
 	ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap map[int][]*bean.PluginSourceCiPipelineEnvDetailDto,
 	branchValues []string, ciPipelineIdNameMap map[int]string) (map[string][]*bean.DefinitionSourceDto,
 	map[string]*bean.ConsequenceDto, error) {
-	//map of "pluginId/pluginApplyStage" and its sources
+	// map of "pluginId/pluginApplyStage" and its sources
 	mandatoryPluginDefinitionMap := make(map[string][]*bean.DefinitionSourceDto)
 	mandatoryPluginBlockageMap := make(map[string]*bean.ConsequenceDto)
 	for _, globalPolicy := range globalPolicies {
@@ -317,14 +317,14 @@ func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps
 			impl.logger.Errorw("error in un-marshaling global policy json", "err", err, "policyJson", globalPolicy.PolicyJson)
 			return nil, nil, err
 		}
-		consequence := globalPolicyDetailDto.Consequences[0] //hard coding to get only one consequence of all since only one supported in plugin
+		consequence := globalPolicyDetailDto.Consequences[0] // hard coding to get only one consequence of all since only one supported in plugin
 		isConsequenceBlocking := checkIfConsequenceIsBlocking(consequence)
-		if isConsequenceBlocking { //consequence not blocking, skipping this policy
+		if isConsequenceBlocking { // consequence not blocking, skipping this policy
 			consequence = &bean.ConsequenceDto{
 				Action: bean.CONSEQUENCE_ACTION_BLOCK,
 			}
 		} else if toOnlyGetBlockedStatePolicies {
-			continue //consequence is not blocking, and we need only blocked policies, so skipping
+			continue // consequence is not blocking, and we need only blocked policies, so skipping
 		}
 		definitionSourceDtos, err := impl.getDefinitionSourceDtos(globalPolicyDetailDto, allCiPipelineIds, ciPipelineId,
 			ciPipelineIdProjectAppNameMap, ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap, branchValues, globalPolicy.Name, ciPipelineIdNameMap)
@@ -379,17 +379,17 @@ func (impl *GlobalPolicyServiceImpl) getCiPipelineAppProjectObjs(ciPipelineId, a
 	var ciPipelineAppProjectObjs []*pipelineConfig.CiPipelineAppProject
 	var err error
 	if ciPipelineId != 0 {
-		//getting all linked ci pipelines and ciPipelineId along with appName and projectName
+		// getting all linked ci pipelines and ciPipelineId along with appName and projectName
 		ciPipelineAppProjectObjs, err = impl.ciPipelineRepository.GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in getting appName and projectName of parent and all linked ci", "err", err, "ciPipelineId", ciPipelineId)
 			return nil, err
 		}
 		if len(ciPipelineAppProjectObjs) == 0 {
-			//at least 1 obj is expected of the given ci pipeline
+			// at least 1 obj is expected of the given ci pipeline
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, ci pipeline not found"}
 		}
-	} else if appId != 0 { //ciPipeline is zero(ciPipeline create request), assuming ciPipelineId as zero and moving ahead
+	} else if appId != 0 { // ciPipeline is zero(ciPipeline create request), assuming ciPipelineId as zero and moving ahead
 		appObj, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 		if err != nil {
 			impl.logger.Errorw("error in getting app by id", "err", err, "appId", appId)
@@ -412,7 +412,7 @@ func (impl *GlobalPolicyServiceImpl) getCiPipelineEnvClusterObjs(allCiPipelineId
 	var ciPipelineEnvClusterObjs []*pipelineConfig.CiPipelineEnvCluster
 	var err error
 	if len(allCiPipelineIds) > 0 {
-		//getting all envName and clusterName of all linked and parent ci
+		// getting all envName and clusterName of all linked and parent ci
 		ciPipelineEnvClusterObjs, err = impl.ciPipelineRepository.GetAllCDsEnvAndClusterNameByCiPipelineIds(allCiPipelineIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting envName and clusterName by ciPipelineIds", "err", err, "ciPipelineIds", allCiPipelineIds)
@@ -435,12 +435,12 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPlugins(globalPo
 			return nil, nil, nil, err
 		}
 		if len(ciPipelineProjectAppNameObjs) == 0 {
-			//no pipelines found in given projects, no possible offending pipelines
+			// no pipelines found in given projects, no possible offending pipelines
 			return nil, nil, nil, nil
 		}
 	}
 
-	//getting pipelines to be filtered for project and app names
+	// getting pipelines to be filtered for project and app names
 	ciPipelinesToBeFiltered := getFilteredCiPipelinesByProjectAppObjs(ciPipelineProjectAppNameObjs, projectAppNameMap)
 	if isAnyEnvSelectorPresent {
 		ciPipelinesToBeFiltered, err = impl.getFilteredCIPipelinesForEnvSelector(ciPipelinesToBeFiltered, isProductionEnvFlag,
@@ -450,12 +450,12 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPlugins(globalPo
 			return nil, nil, nil, err
 		}
 		if len(ciPipelinesToBeFiltered) == 0 {
-			//no pipelines found in given environment selector, no possible offending pipelines
+			// no pipelines found in given environment selector, no possible offending pipelines
 			return nil, nil, nil, nil
 		}
 	}
 	var ciPipelinesForConfiguredPlugins []int
-	ciPipelineParentChildMap := make(map[int][]int) //map of parent ciPipelineId and (all linked ones + self)
+	ciPipelineParentChildMap := make(map[int][]int) // map of parent ciPipelineId and (all linked ones + self)
 	ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
 	if len(branchList) != 0 {
 		ciPipelinesForConfiguredPlugins, ciPipelineParentChildMap, ciPipelineMaterialMap, err =
@@ -466,7 +466,7 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPlugins(globalPo
 		}
 	} else {
 		ciPipelinesForConfiguredPlugins = ciPipelinesToBeFiltered
-		if len(ciPipelinesForConfiguredPlugins) > 0 { //getting all materials by ci pipeline Ids
+		if len(ciPipelinesForConfiguredPlugins) > 0 { // getting all materials by ci pipeline Ids
 			ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(ciPipelinesForConfiguredPlugins)
 			if err != nil {
 				impl.logger.Errorw("error in getting ciPipeline material by ciPipelineIds", "err", err, "ciPipelineIds", ciPipelinesForConfiguredPlugins)
@@ -499,10 +499,10 @@ func (impl *GlobalPolicyServiceImpl) getFilteredCIPipelinesForEnvSelector(ciPipe
 			return nil, err
 		}
 	}
-	//resetting filter pipelines, now will be updating on basis of cluster match
+	// resetting filter pipelines, now will be updating on basis of cluster match
 	ciPipelinesToBeFiltered = nil
 
-	//getting pipelines to be filtered for project and app names
+	// getting pipelines to be filtered for project and app names
 	ciPipelinesToBeFiltered = getFilteredCiPipelinesByClusterAndEnvObjs(ciPipelineClusterEnvNameObjs, isProductionEnvFlag, clusterEnvNameMap)
 
 	return ciPipelinesToBeFiltered, nil
@@ -516,7 +516,7 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPluginsForBranch
 		return nil, nil, nil, err
 	}
 	var ciPipelinesForConfiguredPlugins []int
-	ciPipelineParentChildMap := make(map[int][]int) //map of parent ciPipelineId and (all linked ones + self)
+	ciPipelineParentChildMap := make(map[int][]int) // map of parent ciPipelineId and (all linked ones + self)
 	ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
 	ciPipelinesFinalMap := make(map[int]bool, len(ciPipelineMaterials))
 	for _, ciPipelineMaterial := range ciPipelineMaterials {
@@ -539,8 +539,8 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelinesForConfiguredPluginsForBranch
 				}
 			}
 		} else {
-			//adding request ci pipeline again to this because it might be possible
-			//that we have entry of parent ci pipeline through one linked, but we need to append this ciPipeline too (might be linked) too
+			// adding request ci pipeline again to this because it might be possible
+			// that we have entry of parent ci pipeline through one linked, but we need to append this ciPipeline too (might be linked) too
 			ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins] =
 				append(ciPipelineParentChildMap[pipelineTobeUsedToFetchConfiguredPlugins], ciPipelineId)
 		}
@@ -568,18 +568,18 @@ func (impl *GlobalPolicyServiceImpl) getCIPipelineMaterialsByFilteredCIPipelineI
 }
 
 func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean.GlobalPolicyDto) error {
-	//getting policy entry by name
-	oldEntry, err := impl.globalPolicyRepository.GetByName(policy.Name)
+	// getting policy entry by name
+	oldEntry, err := impl.globalPolicyRepository.GetByName(policy.Name, bean.GLOBAL_POLICY_TYPE_PLUGIN)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting global policy by name", "err", err, "name", policy.Name)
 		return err
 	}
 	if oldEntry != nil && oldEntry.Id > 0 && policy.Id == 0 {
-		//bad create request since name already exists
+		// bad create request since name already exists
 		impl.logger.Errorw("error in creating global policy, policy already exists by name", "err", err, "name", policy.Name)
 		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "bad request, policy name already exists"}
 	}
-	//getting policy detail json
+	// getting policy detail json
 	policyDetailJson, err := json.Marshal(policy.GlobalPolicyDetailDto)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling globalPolicyDetailDto", "err", err, "policyId", policy.Id)
@@ -588,25 +588,25 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 	globalPolicyModel := globalPolicyDbAdapter(policy, string(policyDetailJson), oldEntry)
 	var historyAction bean3.HistoryOfAction
 	if policy.Id == 0 {
-		//create entry
-		err = impl.globalPolicyRepository.Create(globalPolicyModel)
+		// create entry
+		err = impl.globalPolicyRepository.Create(globalPolicyModel, nil)
 		if err != nil {
 			impl.logger.Errorw("error, createOrUpdateGlobalPolicyInDb", "err", err, "policyDto", policy)
 			return err
 		}
-		//setting id in policy dto
+		// setting id in policy dto
 		policy.Id = globalPolicyModel.Id
 		historyAction = bean3.HISTORY_OF_ACTION_CREATE
 	} else {
-		//update entry
-		err = impl.globalPolicyRepository.Update(globalPolicyModel)
+		// update entry
+		err = impl.globalPolicyRepository.Update(globalPolicyModel, nil)
 		if err != nil {
 			impl.logger.Errorw("error, createOrUpdateGlobalPolicyInDb", "err", err, "policyDto", policy)
 			return err
 		}
 		historyAction = bean3.HISTORY_OF_ACTION_UPDATE
 	}
-	//creating history entry
+	// creating history entry
 	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicyModel, historyAction)
 	if err != nil {
 		impl.logger.Warnw("error in creating global policy history", "err", err, "policyId", globalPolicyModel.Id)
@@ -615,7 +615,7 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 }
 
 func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDbIfNeeded(policy *bean.GlobalPolicyDto) error {
-	//initiating transaction
+	// initiating transaction
 	tx, err := impl.globalPolicyRepository.GetDbTransaction()
 	if err != nil {
 		impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -628,24 +628,24 @@ func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDbIfNee
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
 		}
 	}()
-	//first deleting old searchable entries, doing so even if policy is disabled to free indexes
+	// first deleting old searchable entries, doing so even if policy is disabled to free indexes
 	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(policy.Id, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting global policy searchable fields entries", "err", err, "policy", policy)
 		return err
 	}
 	if policy.Enabled {
-		//storing searchable fields only when policy is enabled; since no use of storing searchable fields
-		//when policy is disabled and not going to be enforced at all
+		// storing searchable fields only when policy is enabled; since no use of storing searchable fields
+		// when policy is disabled and not going to be enforced at all
 
-		//creating global policy searchable fields entries
+		// creating global policy searchable fields entries
 		err = impl.createGlobalPolicySearchableFieldsInDb(policy, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating global policy searchable field entry, CreateOrUpdateGlobalPolicy", "err", err, "policy", policy)
 			return err
 		}
 	}
-	//committing transaction
+	// committing transaction
 	err = impl.globalPolicyRepository.CommitTransaction(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err)
@@ -658,19 +658,19 @@ func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDb(poli
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	searchableKeyEntriesTotal := make([]*repository.GlobalPolicySearchableField, 0)
 
-	//no searchable fields in definitions for plugin story, TODO add if needed in further global policies
+	// no searchable fields in definitions for plugin story, TODO add if needed in further global policies
 
-	//getting searchable fields for selectors
+	// getting searchable fields for selectors
 	selectorSearchableKeyEntries := impl.getSearchableKeyIdValueEntriesFromSelectors(policy, searchableKeyNameIdMap)
 
-	//getting searchable fields for consequences
+	// getting searchable fields for consequences
 	consequenceSearchableKeyEntries := impl.getSearchableKeyIdValueEntriesFromConsequences(policy, searchableKeyNameIdMap)
 
-	//adding all searchable key entries
+	// adding all searchable key entries
 	searchableKeyEntriesTotal = append(searchableKeyEntriesTotal, selectorSearchableKeyEntries...)
 	searchableKeyEntriesTotal = append(searchableKeyEntriesTotal, consequenceSearchableKeyEntries...)
 
-	//saving entries in db
+	// saving entries in db
 	err := impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "policy", policy)
@@ -682,8 +682,8 @@ func (impl *GlobalPolicyServiceImpl) createGlobalPolicySearchableFieldsInDb(poli
 func (impl *GlobalPolicyServiceImpl) getSearchableKeyIdValueEntriesFromSelectors(policy *bean.GlobalPolicyDto,
 	searchableKeyNameIdMap map[bean2.DevtronResourceSearchableKeyName]int) []*repository.GlobalPolicySearchableField {
 	searchableFieldEntries := make([]*repository.GlobalPolicySearchableField, 0)
-	//getting attributes for plugin policy selectors from global var and then making searchable entries around them
-	//TODO: remove and derive from db when more policies are supported
+	// getting attributes for plugin policy selectors from global var and then making searchable entries around them
+	// TODO: remove and derive from db when more policies are supported
 	for _, attribute := range bean.GlobalPluginPolicySelectorAttributes {
 		searchableFieldEntriesForAttribute := impl.getSearchableKeyIdValueEntriesForASelectorAttribute(policy, attribute, searchableKeyNameIdMap)
 		searchableFieldEntries = append(searchableFieldEntries, searchableFieldEntriesForAttribute...)
@@ -697,8 +697,8 @@ func (impl *GlobalPolicyServiceImpl) getSearchableKeyIdValueEntriesFromConsequen
 	searchableFieldEntries := make([]*repository.GlobalPolicySearchableField, 0)
 	for _, consequence := range policy.Consequences {
 		searchableKeyId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_TRIGGER_ACTION]
-		//only passing action to searchable field for now and not metadata field
-		//since only plugin policies are supported as of now and only one of it has metadata field
+		// only passing action to searchable field for now and not metadata field
+		// since only plugin policies are supported as of now and only one of it has metadata field
 		searchableFieldEntries = append(searchableFieldEntries, globalPolicySearchableFieldDbAdapter(policy.Id,
 			searchableKeyId, consequence.Action.ToString(), false, policy.UserId, bean.GLOBAL_POLICY_COMPONENT_CONSEQUENCE))
 	}
@@ -724,7 +724,7 @@ func (impl *GlobalPolicyServiceImpl) findAllWorkflowsComponentDetailsForCiPipeli
 
 	}
 	var ciPipelines []*pipelineConfig.CiPipeline
-	if len(ciPipelineIds) > 0 { //getting all ciPipelines by ids
+	if len(ciPipelineIds) > 0 { // getting all ciPipelines by ids
 		ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(ciPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in getting ciPipelines by ids", "err", err, "ids", ciPipelineIds)
@@ -737,7 +737,7 @@ func (impl *GlobalPolicyServiceImpl) findAllWorkflowsComponentDetailsForCiPipeli
 		ciPipelineIdNameMap[ciPipeline.Id] = ciPipeline.Name
 	}
 	var cdPipelines []*pipelineConfig.Pipeline
-	if len(cdPipelineIds) > 0 { //getting all cdPipelines by ids
+	if len(cdPipelineIds) > 0 { // getting all cdPipelines by ids
 		cdPipelines, err = impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in getting cdPipelines by ids", "err", err, "ids", cdPipelineIds)
@@ -879,7 +879,7 @@ func (impl *GlobalPolicyServiceImpl) getDefinitionSourceDtos(globalPolicyDetailD
 		return nil, err
 	}
 	if len(branchList) > 0 && len(matchedBranchList) == 0 {
-		//we have some branch configured in policy, but we have got no matches so skipping this policy
+		// we have some branch configured in policy, but we have got no matches so skipping this policy
 		return nil, nil
 	}
 	selectors := &bean.SelectorDto{}
@@ -941,7 +941,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 		searchableKeyName := searchableKeyIdNameMap[searchableFieldsModel.SearchableKeyId]
 		globalPolicyId := searchableFieldsModel.GlobalPolicyId
 		if _, ok := globalPolicyIdsMap[globalPolicyId]; ok {
-			//policy already present, no need to process further
+			// policy already present, no need to process further
 			continue
 		}
 		value := searchableFieldsModel.Value
@@ -949,7 +949,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 		if searchableFieldsModel.IsRegex {
 			switch searchableKeyName {
 			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME:
-				//checking if project for this needed by us or not (we always keep project value, so if it matches then probably this is an entry for all apps)
+				// checking if project for this needed by us or not (we always keep project value, so if it matches then probably this is an entry for all apps)
 				if len(vals) > 0 {
 					if projectMap[vals[0]] {
 						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
@@ -957,7 +957,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 					}
 				}
 			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:
-				//checking if cluster for this needed by us or not (we always keep cluster value, so if it matches then probably this is an entry for all envs)
+				// checking if cluster for this needed by us or not (we always keep cluster value, so if it matches then probably this is an entry for all envs)
 				if len(vals) > 0 {
 					if clusterMap[vals[0]] {
 						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
@@ -983,7 +983,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 				}
 			}
 		} else {
-			//add global policy id directly
+			// add global policy id directly
 			globalPolicyIds = append(globalPolicyIds, globalPolicyId)
 			globalPolicyIdsMap[globalPolicyId] = true
 		}
@@ -1021,10 +1021,10 @@ func getDefinitionSourceDtosForACIPipeline(ciPipelineIdInObj, ciPipelineId int, 
 			ciPipelineIdProductionEnvDetailMap, ciPipelineIdEnvDetailMap, ciPipelineIdInObj, definitionSourceTemplate)
 		if len(definitionSourceTemplateForEnvs) > 0 {
 			return definitionSourceTemplateForEnvs
-		} else { //no env matched but needed to be matched, skipping this policy
+		} else { // no env matched but needed to be matched, skipping this policy
 			return nil
 		}
-	} else { //environment is not needed to be checked in policy, then only enforce on basis of app/branch
+	} else { // environment is not needed to be checked in policy, then only enforce on basis of app/branch
 		return []*bean.DefinitionSourceDto{&definitionSourceTemplate}
 	}
 }
@@ -1039,7 +1039,7 @@ func getUpdatedWfComponentDetailsWithCIAndCDInfo(appWorkflowMappings []*appWorkf
 
 			if appWfMapping.Type == appWorkflow.CIPIPELINE {
 				ciPipelineId := appWfMapping.ComponentId
-				//getting all materials from map for this ci pipeline
+				// getting all materials from map for this ci pipeline
 				ciPipelineMaterials := ciPipelineMaterialMap[ciPipelineId]
 				wfComponentDetails[index].CiPipelineId = ciPipelineId
 				wfComponentDetails[index].CiMaterials = ciPipelineMaterials
@@ -1076,7 +1076,7 @@ func getWfComponentDetailsAndMap(appWorkflowMappings []*appWorkflow.AppWorkflowM
 				Name:  appWfMapping.AppWorkflow.Name,
 			}
 			wfComponentDetails = append(wfComponentDetails, wfComponentDetail)
-			wfIdAndComponentDtoIndexMap[appWorkflowId] = len(wfComponentDetails) - 1 //index of wfComponentDetail's latest addition
+			wfIdAndComponentDtoIndexMap[appWorkflowId] = len(wfComponentDetails) - 1 // index of wfComponentDetail's latest addition
 		}
 	}
 	return wfComponentDetails, wfIdAndComponentDtoIndexMap, appIds, cdPipelineIds
@@ -1148,7 +1148,7 @@ func getAppProjectDetailsFromCiPipelineProjectAppObjs(ciPipelineAppProjectObjs [
 func getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs []*pipelineConfig.CiPipelineEnvCluster) (bool,
 	map[int][]*bean.PluginSourceCiPipelineEnvDetailDto, map[int][]*bean.PluginSourceCiPipelineEnvDetailDto, []string, map[string]bool) {
 	haveAnyProductionEnv := false
-	//map of ciPipelineId with all productionEnv present in that ciPipeline's workflow
+	// map of ciPipelineId with all productionEnv present in that ciPipeline's workflow
 	ciPipelineIdProductionEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
 	ciPipelineIdEnvDetailMap := make(map[int][]*bean.PluginSourceCiPipelineEnvDetailDto)
 	allClusterEnvNames := make([]string, 0, len(ciPipelineEnvClusterObjs))
@@ -1160,7 +1160,7 @@ func getEnvClusterDetailsFromCIPipelineEnvClusterObjs(ciPipelineEnvClusterObjs [
 		clusterMap[clusterName] = true
 		envDetailDto := getCIPipelineEnvDetailDto(clusterName, envName)
 		if ciPipelineEnvClusterObj.IsProductionEnv {
-			haveAnyProductionEnv = true //setting flag for having at least one production env to true to filter global policies query using this
+			haveAnyProductionEnv = true // setting flag for having at least one production env to true to filter global policies query using this
 			ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj] = append(ciPipelineIdProductionEnvDetailMap[ciPipelineIdInObj],
 				envDetailDto)
 		}
@@ -1190,7 +1190,7 @@ func getBlockageStateDetails(definitions []*bean.MandatoryPluginDefinitionDto, c
 					blockageStateFinal = blockageState
 				}
 			}
-			//mandatory plugin not found in configured plugin, marking block state as true
+			// mandatory plugin not found in configured plugin, marking block state as true
 			isOffendingMandatoryPlugin = true
 			isBlockingConsequence := checkIfConsequenceIsBlocking(blockageState)
 			if isBlockingConsequence {
@@ -1232,7 +1232,7 @@ func getOffendingCIPipelineIds(ciPipelinesForConfiguredPlugins []int, ciPipeline
 				pluginIdApplyStage := getSlashSeparatedString(pluginIdStr, pluginApplyStage.ToString())
 
 				if _, ok2 := configuredPluginMap[pluginIdApplyStage]; !ok2 {
-					//all linked and self pipeline id fetch for this ci pipeline id
+					// all linked and self pipeline id fetch for this ci pipeline id
 					selfAndAllLinkedPipelineIds := ciPipelineParentChildMap[ciPipelineId]
 					offendingCiPipelineIds = append(offendingCiPipelineIds, selfAndAllLinkedPipelineIds...)
 					break
@@ -1246,7 +1246,7 @@ func getOffendingCIPipelineIds(ciPipelinesForConfiguredPlugins []int, ciPipeline
 }
 
 func getCIPipelineConfiguredPluginMap(configuredPlugins []*repository2.PipelineStageStep) map[int]map[string]bool {
-	//map of {ciPipelineId: map of {pluginIdStage : bool} }
+	// map of {ciPipelineId: map of {pluginIdStage : bool} }
 	ciPipelineConfiguredPluginMap := make(map[int]map[string]bool)
 	for _, configuredPlugin := range configuredPlugins {
 		ciPipelineId := configuredPlugin.PipelineStage.CiPipelineId
@@ -1312,27 +1312,27 @@ func getSearchableKeyIdValueMapForFilter(allProjectAppNames, allClusterEnvNames,
 	searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup := make(map[int][]string), make(map[int][]string)
 
 	if len(allProjectAppNames) > 0 {
-		//for app
+		// for app
 		appSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_APP_NAME]
 		searchableKeyIdValueMapWhereOrGroup[appSearchableId] = allProjectAppNames
 	}
 	if len(allClusterEnvNames) > 0 {
-		//for env
+		// for env
 		envSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME]
 		searchableKeyIdValueMapWhereOrGroup[envSearchableId] = allClusterEnvNames
 	}
 	if haveAnyProductionEnv {
-		//for production env
+		// for production env
 		productionEnvSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_IS_ALL_PRODUCTION_ENV]
 		searchableKeyIdValueMapWhereOrGroup[productionEnvSearchableId] = []string{bean.TRUE_STRING}
 	}
 	if len(branchValues) > 0 {
-		//for branch
+		// for branch
 		branchSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH]
 		searchableKeyIdValueMapWhereOrGroup[branchSearchableId] = branchValues
 	}
 	if toOnlyGetBlockedStatePolicies {
-		//setting blocking actions in filter map
+		// setting blocking actions in filter map
 		ciPipelineTriggerActionSearchableId := searchableKeyNameIdMap[bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_TRIGGER_ACTION]
 		searchableKeyIdValueMapWhereAndGroup[ciPipelineTriggerActionSearchableId] = []string{bean.CONSEQUENCE_ACTION_BLOCK.ToString(),
 			bean.CONSEQUENCE_ACTION_ALLOW_UNTIL_TIME.ToString()}
@@ -1515,7 +1515,7 @@ func checkIfConsequenceIsBlocking(consequence *bean.ConsequenceDto) bool {
 		MetadataField: time.Now(),
 	}
 	sev := minimumSevereConsequenceToBlock.GetSeverity(consequence)
-	if sev != bean.SEVERITY_MORE_SEVERE { //if time for allowing is not passed then skip this policy for getting mandatory plugins in blockage state
+	if sev != bean.SEVERITY_MORE_SEVERE { // if time for allowing is not passed then skip this policy for getting mandatory plugins in blockage state
 		isBlocking = false
 	}
 	return isBlocking

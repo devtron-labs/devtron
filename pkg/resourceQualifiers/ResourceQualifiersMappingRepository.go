@@ -241,6 +241,9 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllByResourceTypeAndQualifier
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	if len(qualifierMappingIds) == 0 {
+		return nil
+	}
 	_, err := tx.Model(&QualifierMapping{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).

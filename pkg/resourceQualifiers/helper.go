@@ -14,6 +14,7 @@ func GetQualifierMappingsForCompoundQualifier(selection *ResourceMappingSelectio
 	}
 	return nil, nil
 }
+
 func GetMappingsForAppEnv(selection *ResourceMappingSelection, resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, userId int32) (*QualifierMapping, []*QualifierMapping) {
 	appId, appName := GetValuesFromSelectionIdentifier(ApplicationSelector, selection.SelectionIdentifier)
 	envId, envName := GetValuesFromSelectionIdentifier(EnvironmentSelector, selection.SelectionIdentifier)

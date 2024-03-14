@@ -19,11 +19,13 @@ package pipelineConfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -35,7 +37,7 @@ import (
 )
 
 type PipelineType string
-type TriggerType string //HOW pipeline should be triggered
+type TriggerType string // HOW pipeline should be triggered
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"
@@ -59,7 +61,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
-	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` // helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	UserApprovalConfig            string      `sql:"user_approval_config"`
@@ -135,6 +137,7 @@ type PipelineRepository interface {
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*Pipeline, error)
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
+	FindByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]*Pipeline, error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
@@ -144,14 +147,16 @@ type PipelineRepository interface {
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
+	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error)
+	FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error)
 }
 
 type CiArtifactDTO struct {
 	Id           int    `json:"id"`
-	PipelineId   int    `json:"pipelineId"` //id of the ci pipeline from which this webhook was triggered
+	PipelineId   int    `json:"pipelineId"` // id of the ci pipeline from which this webhook was triggered
 	Image        string `json:"image"`
 	ImageDigest  string `json:"imageDigest"`
-	MaterialInfo string `json:"materialInfo"` //git material metadata json array string
+	MaterialInfo string `json:"materialInfo"` // git material metadata json array string
 	DataSource   string `json:"dataSource"`
 	WorkflowId   *int   `json:"workflowId"`
 }
@@ -160,6 +165,25 @@ type DeploymentObject struct {
 	DeploymentType models.DeploymentType `sql:"deployment_type"`
 	PipelineId     int                   `sql:"pipeline_id"`
 	Status         string                `sql:"status"`
+}
+
+type CdPipelineMetaData struct {
+	AppId           int
+	EnvId           int
+	AppName         string
+	EnvironmentName string
+	TotalCount      int
+}
+
+type CdPipelineListFilter struct {
+	IncludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	ExcludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	SortBy           string
+	SortOrder        string
+	Limit            int
+	Offset           int
+	AppNames         []string
+	EnvNames         []string
 }
 
 type PipelineRepositoryImpl struct {
@@ -644,6 +668,16 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 	return pipelines, nil
 }
 
+func (impl PipelineRepositoryImpl) FindByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		Where("app_id IN (?)", pg.In(appIds)).
+		Where("environment_id IN (?)", pg.In(environmentIds)).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
 func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
 	var pipelineIds []int
 	query := "select id from pipeline where app_id in (?) and environment_id in (?) and deleted = ?;"
@@ -705,6 +739,9 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines [
 }
 
 func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
+	if len(pipelineIds) == 0 {
+		return pipelines, nil
+	}
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment", "App.Team").
 		Where("pipeline.id in(?)", pg.In(pipelineIds)).
 		Where("pipeline.deleted = ?", false).
@@ -758,4 +795,65 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("ci_pipeline_id = ? ", oldCiPipelineId).
 		Where("deleted = ?", false).Update()
 	return err
+}
+
+func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error) {
+	if len(envNames) == 0 {
+		return nil, nil
+	}
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*", "Environment", "App").
+		Where("pipeline.app_id = ?", appId).
+		Where("environment.environment_name IN (?)", pg.In(envNames)).
+		Where("pipeline.deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func findAppAndEnvDetailsByListFilterQuery(filter CdPipelineListFilter) string {
+	query := "SELECT p.app_id ,p.environment_id AS env_id ,a.app_name, e.environment_name ,COUNT(p.id) OVER() as total_count" +
+		" FROM pipeline p INNER JOIN app a ON p.app_id = a.id AND a.active = true " +
+		" INNER JOIN environment e ON e.id = p.environment_id AND e.active = true "
+	where := " WHERE p.deleted = false"
+
+	if len(filter.IncludeAppEnvIds) > 0 {
+		where += fmt.Sprintf(" AND (p.app_id,p.environment_id) IN (%s)", helper.GetCommaSeperatedForMulti(filter.IncludeAppEnvIds))
+	}
+	if len(filter.ExcludeAppEnvIds) > 0 {
+		where += fmt.Sprintf(" AND (p.app_id,p.environment_id) NOT IN (%s)", helper.GetCommaSeperatedForMulti(filter.ExcludeAppEnvIds))
+	}
+	if len(filter.AppNames) > 0 {
+		where += fmt.Sprintf(" AND app_name IN (%s)", helper.GetCommaSepratedStringWithComma(filter.AppNames))
+	}
+
+	if len(filter.EnvNames) > 0 {
+		where += fmt.Sprintf(" AND e.environment_name IN (%s)", helper.GetCommaSepratedStringWithComma(filter.EnvNames))
+	}
+
+	query += where
+	orderBy := "app_name"
+	if filter.SortBy == "envName" {
+		orderBy = "environment_name"
+	}
+
+	if filter.SortOrder == "DESC" {
+		orderBy += " DESC"
+	}
+	query += " ORDER BY " + orderBy
+	if filter.Limit > 0 {
+		query += fmt.Sprintf(" Limit %d", filter.Limit)
+	}
+
+	if filter.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d", filter.Offset)
+	}
+
+	return query
+}
+
+func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
+	result := make([]CdPipelineMetaData, 0)
+	query := findAppAndEnvDetailsByListFilterQuery(filter)
+	_, err := impl.dbConnection.Query(&result, query)
+	return result, err
 }

@@ -1,17 +1,22 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
+	"time"
 )
 
 type GlobalPolicySearchableFieldRepository interface {
 	CreateInBatchWithTxn(models []*GlobalPolicySearchableField, tx *pg.Tx) error
 	DeleteByPolicyId(policyId int, tx *pg.Tx) error
 	GetSearchableFields(searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup map[int][]string) ([]*GlobalPolicySearchableField, error)
+	GetSearchableFieldByIds(policyId []int) ([]*GlobalPolicySearchableField, error)
+	GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error)
 }
 
 type GlobalPolicySearchableFieldRepositoryImpl struct {
@@ -30,9 +35,12 @@ func NewGlobalPolicySearchableFieldRepositoryImpl(logger *zap.SugaredLogger,
 type GlobalPolicySearchableField struct {
 	tableName       struct{}                   `sql:"global_policy_searchable_field" pg:",discard_unknown_columns"`
 	Id              int                        `sql:"id,pk"`
+	FieldName       string                     `sql:"field_name"`
 	GlobalPolicyId  int                        `sql:"global_policy_id"`
 	SearchableKeyId int                        `sql:"searchable_key_id"`
 	Value           string                     `sql:"value"`
+	ValueInt        int                        `sql:"value_int"`
+	ValueTimeStamp  time.Time                  `sql:"value_time_stamp"`
 	IsRegex         bool                       `sql:"is_regex,notnull"`
 	PolicyComponent bean.GlobalPolicyComponent `sql:"policy_component"`
 	sql.AuditLog
@@ -70,14 +78,14 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFields(searc
 		}
 		return q, nil
 	})
-	//for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
+	// for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
 	//	q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
 	//		q = q.Where("searchable_key_id = ?", searchableKeyId).
 	//			Where("value in (?)", pg.In(searchableKeyValues))
 	//		return q, nil
 	//	})
-	//}
-	//adding is_regex fields always
+	// }
+	// adding is_regex fields always
 	q.WhereOr("is_regex = ?", true)
 	err := q.Select()
 	if err != nil {
@@ -110,4 +118,43 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFields(searc
 	}
 
 	return finalResult, nil
+}
+func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFieldByIds(policyIds []int) ([]*GlobalPolicySearchableField, error) {
+	var models []*GlobalPolicySearchableField
+	err := repo.dbConnection.Model(&models).
+		Where("global_policy_id IN (?)", pg.In(policyIds)).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in fetching GlobalPolicySearchableField", "policyIds", policyIds, "err", err)
+		return nil, err
+	}
+	return models, err
+}
+
+func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error) {
+
+	var models []*GlobalPolicySearchableField
+
+	var orderExp string
+	switch sortKey.FieldType {
+	case util.NumericType:
+		orderExp = "value"
+	case util.StringType:
+		orderExp = "value_int"
+	case util.DateTimeType:
+		orderExp = "value_time_stamp"
+	}
+	if sortOrderDesc {
+		orderExp = fmt.Sprintf("%s DESC", orderExp)
+	}
+	err := repo.dbConnection.Model(&models).
+		Where("global_policy_id IN (?)", pg.In(policyId)).
+		Where("field_name = ? ", sortKey.FieldName).
+		OrderExpr(orderExp).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in fetching GlobalPolicySearchableField", "policyIds", policyId, "err", err)
+		return nil, err
+	}
+	return models, nil
 }
