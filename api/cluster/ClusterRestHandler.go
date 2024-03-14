@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"net/http"
 	"strconv"
@@ -241,6 +242,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		} else {
 			bean.AgentInstallationStage = 0
 		}*/
+	adapter.ConvertNewClusterBeanToOldClusterBean(bean)
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -354,6 +356,7 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	var result []*bean2.ClusterBean
 	for _, item := range clusterList {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
+			adapter.ConvertNewClusterBeanToOldClusterBean(item)
 			result = append(result, item)
 		}
 	}
@@ -385,7 +388,7 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	//RBAC enforcer Ends
-
+	adapter.ConvertNewClusterBeanToOldClusterBean(bean)
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -487,7 +490,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	adapter.ConvertNewClusterBeanToOldClusterBean(&bean)
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -642,6 +645,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	token := r.Header.Get("token")
 	start = time.Now()
 	for _, item := range clusterList {
+		adapter.ConvertNewClusterBeanToOldClusterBean(&item)
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
 				result = append(result, item)

@@ -61,6 +61,24 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.Clu
 	return clusterBean
 }
 
+func ConvertNewClusterBeanToOldClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
+	if clusterBean.ServerConnectionConfig != nil {
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy &&
+			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
+			clusterBean.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
+		}
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
+			clusterBean.ToConnectWithSSHTunnel = true
+			clusterBean.SSHTunnelConfig.SSHServerAddress = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
+			clusterBean.SSHTunnelConfig.User = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername
+			clusterBean.SSHTunnelConfig.Password = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword
+			clusterBean.SSHTunnelConfig.AuthKey = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey
+		}
+	}
+	return clusterBean
+}
+
 func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}

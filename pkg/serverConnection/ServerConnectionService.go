@@ -1,7 +1,6 @@
 package serverConnection
 
 import (
-	"fmt"
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/adapter"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
@@ -62,7 +61,8 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 
 func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (*bean.ServerConnectionConfigBean, error) {
 	model, err := impl.serverConnectionRepository.GetById(id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching server connection config", "err", err, "serverConnectionConfigId", id)
 		return nil, err
 	}
 	serverConnectionConfig := adapter.GetServerConnectionConfigBean(model)
@@ -70,7 +70,6 @@ func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (
 }
 
 func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigByDockerId(dockerId string) (*bean.ServerConnectionConfigBean, error) {
-	fmt.Println("hi")
 	dockerRegistry, err := impl.dockerArtifactStoreRepository.FindOne(dockerId)
 	if err != nil {
 		return nil, err
