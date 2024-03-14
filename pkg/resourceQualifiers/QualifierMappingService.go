@@ -36,6 +36,9 @@ type QualifierMappingService interface {
 	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error
 	GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error)
 	GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error)
+	StartTx() (*pg.Tx, error)
+	RollbackTx(tx *pg.Tx) error
+	CommitTx(tx *pg.Tx) error
 }
 
 func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error) {
@@ -324,4 +327,16 @@ func (impl QualifierMappingServiceImpl) GetResourceIdsByIdentifier(resourceType 
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
 	return impl.qualifierMappingRepository.GetQualifierMappingsWithIdentifierFilter(resourceType, resourceId, identifierKey, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery, limit, offset, needTotalCount)
+}
+
+func (impl QualifierMappingServiceImpl) RollbackTx(tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.RollbackTx(tx)
+}
+
+func (impl QualifierMappingServiceImpl) CommitTx(tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.CommitTx(tx)
+}
+
+func (impl QualifierMappingServiceImpl) StartTx() (*pg.Tx, error) {
+	return impl.qualifierMappingRepository.StartTx()
 }
