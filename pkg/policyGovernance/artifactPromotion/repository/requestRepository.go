@@ -215,11 +215,12 @@ func (repo *RequestRepositoryImpl) MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperate
 	// from pipeline p
 	// where (p.app_id,p.environment_id) IN ((4,2)) and p.id = artifact_promotion_approval_request.destination_pipeline_id
 	res, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
+		Table("pipeline").
 		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
-		Join("inner join pipeline p on p.id = artifact_promotion_approval_request.destination_pipeline_id").
-		Where("(p.app_id,p.environment_id) IN (?)", pg.InMulti(commaSeperatedAppEnvIds)).
-		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Where("(pipeline.app_id,pipeline.environment_id) IN ?", pg.InMulti(commaSeperatedAppEnvIds)).
+		Where("pipeline.id = artifact_promotion_approval_request.destination_pipeline_id").
+		Where("artifact_promotion_approval_request.status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	if res != nil {
 		fmt.Println("rows affected : ", res.RowsAffected())

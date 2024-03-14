@@ -27,7 +27,7 @@ func TestAddApplyEventObserver(t *testing.T) {
 	assert.Equal(t, true, added)
 	added = cps.AddApplyEventObserver(ImagePromotion, observer2)
 	assert.Equal(t, true, added)
-	observers := cps.applyEventListners[ImagePromotion]
+	observers := cps.applyEventObservers[ImagePromotion]
 	assert.Equal(t, len(observers), len(observerNames))
 	containsObserver1 := util2.Contains(observers, func(observer ApplyObserver) bool {
 		err := observer(nil, nil)

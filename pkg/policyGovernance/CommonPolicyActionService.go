@@ -38,7 +38,7 @@ type CommonPolicyActionsServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	transactionManager              sql.TransactionWrapper
 
-	applyEventListners map[PathVariablePolicyType][]ApplyObserver
+	applyEventObservers map[PathVariablePolicyType][]ApplyObserver
 }
 
 func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -57,7 +57,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 		appService:                      appService,
 		environmentService:              environmentService,
 		transactionManager:              transactionManager,
-		applyEventListners:              applyEventListners,
+		applyEventObservers:             applyEventListners,
 	}
 }
 
@@ -132,10 +132,35 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
+	err = impl.notifyApplyEventObservers(tx, scopes)
+	if err != nil {
+		impl.logger.Errorw("error in notifying policy apply event for all the observers for given scopes", "scopes", scopes, "err", err)
+		return err
+	}
+
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
 		return err
+	}
+	return nil
+}
+
+func (impl *CommonPolicyActionsServiceImpl) notifyApplyEventObservers(tx *pg.Tx, scopes []*resourceQualifiers.SelectionIdentifier) error {
+	appEnvIds := make([][]int, 0, len(scopes))
+	for _, scope := range scopes {
+		appEnvIds = append(appEnvIds, []int{scope.AppId, scope.EnvId})
+	}
+
+	for policyType, observers := range impl.applyEventObservers {
+		impl.logger.Debugw(" notifying policy apply event for all the observers", "policyType", policyType)
+		for _, observer := range observers {
+			err := observer(tx, appEnvIds)
+			if err != nil {
+				impl.logger.Errorw("error occured when observer handling policy apply events fo given appEnvIds", "appEnvIds", appEnvIds, "err", err)
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -381,11 +406,11 @@ func (impl *CommonPolicyActionsServiceImpl) AddApplyEventObserver(policyType Pat
 		return false
 	}
 
-	observers, ok := impl.applyEventListners[policyType]
+	observers, ok := impl.applyEventObservers[policyType]
 	if !ok {
 		observers = make([]ApplyObserver, 0)
 	}
 	observers = append(observers, observerFunc)
-	impl.applyEventListners[policyType] = observers
+	impl.applyEventObservers[policyType] = observers
 	return true
 }
