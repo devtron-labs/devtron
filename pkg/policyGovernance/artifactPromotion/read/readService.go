@@ -390,12 +390,12 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 		return nil, err
 	}
 
-	UniquePolicyInAppCount := make(map[string]*int, 0)
+	UniquePolicyInAppCount := make(map[string]int, 0)
 	policyIdToAppIdMapping := make(map[int]int, 0)
 	for _, qualifierMapping := range qualifierMappings {
 		uniqueKey := fmt.Sprintf("%d-%d", qualifierMapping.SelectionIdentifier.AppId, qualifierMapping.ResourceId)
-		count := *UniquePolicyInAppCount[uniqueKey] + 1
-		UniquePolicyInAppCount[uniqueKey] = &count
+		count := UniquePolicyInAppCount[uniqueKey] + 1
+		UniquePolicyInAppCount[uniqueKey] = count
 		policyIdToAppIdMapping[qualifierMapping.ResourceId] = qualifierMapping.SelectionIdentifier.AppId
 	}
 
@@ -403,7 +403,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 		identifierCount := 0
 		if appId, ok := policyIdToAppIdMapping[promotionPolicy.Id]; ok {
 			uniqueKey := fmt.Sprintf("%d-%d", appId, promotionPolicy.Id)
-			identifierCount = *UniquePolicyInAppCount[uniqueKey]
+			identifierCount = UniquePolicyInAppCount[uniqueKey]
 		}
 		promotionPolicy.IdentifierCount = &identifierCount
 	}
