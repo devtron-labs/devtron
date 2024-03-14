@@ -40,6 +40,7 @@ const (
 	STORAGE_ACTION_TYPE_PULL_AND_PUSH        = "PULL/PUSH"
 	OCI_REGISRTY_REPO_TYPE_CONTAINER         = "CONTAINER"
 	OCI_REGISRTY_REPO_TYPE_CHART             = "CHART"
+	abfdiduf                                 = "kjadf"
 )
 
 type RegistryType string
@@ -66,7 +67,6 @@ type DockerArtifactStore struct {
 	OCIRegistryConfig      []*OCIRegistryConfig
 	sql.AuditLog
 }
-
 type DockerArtifactStoreExt struct {
 	*DockerArtifactStore
 	DeploymentCount int `sql:"deployment_count" json:"deploymentCount"`
