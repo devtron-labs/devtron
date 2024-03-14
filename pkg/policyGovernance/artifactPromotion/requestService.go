@@ -18,6 +18,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -72,7 +73,8 @@ func NewApprovalRequestServiceImpl(
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
-	promotionPolicyCUDService PolicyCUDService,
+	policyEventNotifier PolicyEventNotifier,
+	commonPoliyApplyEventNotifier policyGovernance.CommonPoliyApplyEventNotifier,
 	pipelineStageService pipeline.PipelineStageService,
 	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
@@ -105,8 +107,9 @@ func NewApprovalRequestServiceImpl(
 	}
 
 	// register hooks
-	promotionPolicyCUDService.AddDeleteHook(artifactApprovalService.onPolicyDelete)
-	promotionPolicyCUDService.AddUpdateHook(artifactApprovalService.onPolicyUpdate)
+	policyEventNotifier.AddDeleteEventObserver(artifactApprovalService.onPolicyDelete)
+	policyEventNotifier.AddUpdateEventObserver(artifactApprovalService.onPolicyUpdate)
+	commonPoliyApplyEventNotifier.AddApplyEventObserver(policyGovernance.ImagePromotion, artifactApprovalService.onApplyPolicy)
 	return artifactApprovalService
 }
 
@@ -1269,4 +1272,8 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 
 	return requestsToBeUpdatedAsStaled, nil
 
+}
+
+func (impl *ApprovalRequestServiceImpl) onApplyPolicy(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error {
+	return impl.artifactPromotionApprovalRequestRepository.MarkStaleByAppEnvIds(tx, commaSeperatedAppEnvIds)
 }

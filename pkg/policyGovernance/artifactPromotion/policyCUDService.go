@@ -26,8 +26,11 @@ type PolicyCUDService interface {
 	UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(ctx *util2.RequestCtx, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(ctx *util2.RequestCtx, profileName string) error
-	AddDeleteHook(hook func(tx *pg.Tx, policyId int) error)
-	AddUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
+}
+
+type PolicyEventNotifier interface {
+	AddDeleteEventObserver(hook func(tx *pg.Tx, policyId int) error)
+	AddUpdateEventObserver(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
 }
 
 type PromotionPolicyServiceImpl struct {
@@ -65,11 +68,11 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	}
 }
 
-func (impl *PromotionPolicyServiceImpl) AddDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
+func (impl *PromotionPolicyServiceImpl) AddDeleteEventObserver(hook func(tx *pg.Tx, policyId int) error) {
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-func (impl *PromotionPolicyServiceImpl) AddUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
+func (impl *PromotionPolicyServiceImpl) AddUpdateEventObserver(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 

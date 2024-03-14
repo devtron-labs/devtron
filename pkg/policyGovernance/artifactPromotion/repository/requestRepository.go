@@ -48,6 +48,7 @@ type RequestRepository interface {
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
+	MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error)
 	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
@@ -201,6 +202,25 @@ func (repo *RequestRepositoryImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) 
 		Where("policy_id = ?", policyId).
 		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
+	return err
+}
+
+func (repo *RequestRepositoryImpl) MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error {
+	// example
+	// update artifact_promotion_approval_request
+	// set status = 3
+	// from pipeline p
+	// where (p.app_id,p.environment_id) IN ((4,2)) and p.id = artifact_promotion_approval_request.destination_pipeline_id
+	res, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", constants.STALE).
+		Set("updated_on = ?", time.Now()).
+		Join("inner join pipeline p on p.id = artifact_promotion_approval_request.destination_pipeline_id").
+		Where("(p.app_id,p.environment_id) IN (?)", pg.InMulti(commaSeperatedAppEnvIds)).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Update()
+	if res != nil {
+		fmt.Println("rows affected : ", res.RowsAffected())
+	}
 	return err
 }
 

@@ -159,7 +159,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
+	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -221,7 +222,8 @@ func InitializeApp() (*App, error) {
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
-		policyGovernance.PolicyGovernanceWireSet,
+		artifactApproval.ArtifactApprovalWireSet,
+		artifactPromotion2.ArtifactPromotionWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
