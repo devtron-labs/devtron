@@ -102,8 +102,12 @@ type CdPipelineConfigService interface {
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	// FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+
+	FindPipelineByIds(cdPipelineIds []int) ([]*pipelineConfig.Pipeline, error)
+
 	// FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
+	FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error)
 	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
 	// Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
 	// It first fetches the workflow details from the appWorkflow repository.
@@ -1446,8 +1450,16 @@ func (impl *CdPipelineConfigServiceImpl) FindPipelineById(cdPipelineId int) (*pi
 	return impl.pipelineRepository.FindById(cdPipelineId)
 }
 
+func (impl *CdPipelineConfigServiceImpl) FindPipelineByIds(cdPipelineId []int) ([]*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
+}
+
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error) {
 	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error) {
+	return impl.pipelineRepository.FindAppAndEnvDetailsByListFilter(filter)
 }
 
 func (impl *CdPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
