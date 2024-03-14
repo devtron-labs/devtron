@@ -45,7 +45,7 @@ type RequestRepository interface {
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
-	//TODO: combine below func based on status
+	// TODO: combine below func based on status
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
@@ -215,6 +215,7 @@ func (repo *RequestRepositoryImpl) MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperate
 	// set status = 3
 	// from pipeline p
 	// where (p.app_id,p.environment_id) IN ((4,2)) and p.id = artifact_promotion_approval_request.destination_pipeline_id
+
 	res, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Table("pipeline").
 		Set("status = ?", constants.STALE).
