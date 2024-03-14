@@ -179,16 +179,16 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 	}
 
 	appIdEnvIdPolicyMap := make(map[string]*bean2.GlobalPolicyBaseModel)
-	includeAppEnvIds := make([]string, len(includeQualifierMappings))
-	excludeAppEnvIds := make([]string, len(includeQualifierMappings))
+	includeAppEnvIds := make([]string, 0, len(includeQualifierMappings))
+	excludeAppEnvIds := make([]string, 0, len(includeQualifierMappings))
 	for _, includeQualifierMapping := range includeQualifierMappings {
-		key := fmt.Sprintf("%d,%d", includeQualifierMapping.SelectionIdentifier.AppId, includeQualifierMapping.SelectionIdentifier.AppId)
+		key := fmt.Sprintf("%d,%d", includeQualifierMapping.SelectionIdentifier.AppId, includeQualifierMapping.SelectionIdentifier.EnvId)
 		appIdEnvIdPolicyMap[key] = includedPoliciesMap[includeQualifierMapping.ResourceId]
 		includeAppEnvIds = append(includeAppEnvIds, key)
 	}
 
 	for _, excludeQualifierMapping := range excludeQualifierMappings {
-		key := fmt.Sprintf("%d,%d", excludeQualifierMapping.SelectionIdentifier.AppId, excludeQualifierMapping.SelectionIdentifier.AppId)
+		key := fmt.Sprintf("%d,%d", excludeQualifierMapping.SelectionIdentifier.AppId, excludeQualifierMapping.SelectionIdentifier.EnvId)
 		excludeAppEnvIds = append(excludeAppEnvIds, key)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
