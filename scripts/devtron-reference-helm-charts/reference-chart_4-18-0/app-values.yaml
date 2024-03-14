@@ -79,6 +79,7 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  grpc: {}
 
 ReadinessProbe:
   Path: ""
@@ -94,6 +95,7 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  grpc: {}
 
 StartupProbe:
   Path: ""
@@ -106,6 +108,7 @@ StartupProbe:
   httpHeaders: []
   command: []
   tcp: false
+  grpc: {}
 
 ingress:
   enabled: false
