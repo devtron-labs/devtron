@@ -238,9 +238,8 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserId
 func (impl *ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string) (string, error) {
 	var promotedFrom string
 	switch approvalRequest.SourceType {
-	case constants.CI:
-	case constants.WEBHOOK:
-		promotedFrom = string(constants.SOURCE_TYPE_CI)
+	case constants.CI, constants.WEBHOOK:
+		promotedFrom = string(approvalRequest.SourceType.GetSourceTypeStr())
 	case constants.CD:
 		promotedFrom = envName
 	}
