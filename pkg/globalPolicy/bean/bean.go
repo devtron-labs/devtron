@@ -230,15 +230,16 @@ func (consequence1 *ConsequenceDto) GetSeverity(consequence2 *ConsequenceDto) Se
 }
 
 type GlobalPolicyBaseModel struct {
-	Id            int
-	Name          string
-	Description   string
-	Enabled       bool
-	PolicyOf      GlobalPolicyType
-	PolicyVersion GlobalPolicyVersion
-	JsonData      string
-	Active        bool
-	UserId        int32
+	Id              int
+	Name            string
+	Description     string
+	Enabled         bool
+	PolicyOf        GlobalPolicyType
+	PolicyVersion   GlobalPolicyVersion
+	JsonData        string
+	Active          bool
+	UserId          int32
+	LatestHistoryId int
 }
 
 type GlobalPolicyDataModel struct {

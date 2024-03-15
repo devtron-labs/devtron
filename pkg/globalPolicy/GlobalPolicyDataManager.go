@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/history"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/history/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/globalPolicy/history/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -31,6 +32,8 @@ type GlobalPolicyDataManager interface {
 	GetPolicyByCriteria(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error)
+	GetPoliciesByHistoryIds(historyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
+	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -408,6 +411,21 @@ func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicyIdToDaoMapping(globalPol
 	return globalPolicyIdToDaoMap
 }
 
+func getBaseModelFromHistories(globalPolicyHistories []*repository2.GlobalPolicyHistory) []*bean.GlobalPolicyBaseModel {
+	globalBaseModels := make([]*bean.GlobalPolicyBaseModel, 0, len(globalPolicyHistories))
+	for _, globalPolicyHistory := range globalPolicyHistories {
+		globalBaseModels = append(globalBaseModels, &bean.GlobalPolicyBaseModel{
+			Id:              globalPolicyHistory.GlobalPolicyId,
+			PolicyOf:        bean.GlobalPolicyType(globalPolicyHistory.PolicyOf),
+			Description:     globalPolicyHistory.Description,
+			Enabled:         globalPolicyHistory.Enabled,
+			JsonData:        globalPolicyHistory.PolicyData,
+			LatestHistoryId: globalPolicyHistory.Id,
+		})
+	}
+	return globalBaseModels
+}
+
 func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicySortedOrder(globalPolicies []*repository.GlobalPolicy, sortRequest *bean.SortByRequest) ([]*repository.GlobalPolicySearchableField, error) {
 	globalPolicyIds := make([]int, 0)
 	for _, globalPolicy := range globalPolicies {
@@ -428,4 +446,16 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyIdByName(name string, policyTy
 
 func (impl *GlobalPolicyDataManagerImpl) GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error) {
 	return impl.globalPolicyRepository.GetAllActiveByType(policyType)
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetPoliciesByHistoryIds(historyIds []int) ([]*bean.GlobalPolicyBaseModel, error) {
+	historyObjects, err := impl.globalPolicyHistoryService.GetByIds(historyIds)
+	if err != nil {
+		return nil, err
+	}
+	return getBaseModelFromHistories(historyObjects), nil
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error) {
+	return impl.globalPolicyHistoryService.GetIdsByPolicyIds(policyIds)
 }

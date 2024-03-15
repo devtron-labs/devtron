@@ -10,6 +10,8 @@ import (
 
 type GlobalPolicyHistoryService interface {
 	CreateHistoryEntry(globalPolicy *repository2.GlobalPolicy, action bean.HistoryOfAction) error
+	GetByIds(ids []int) ([]*repository.GlobalPolicyHistory, error)
+	GetIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type GlobalPolicyHistoryServiceImpl struct {
@@ -48,4 +50,12 @@ func (impl *GlobalPolicyHistoryServiceImpl) CreateHistoryEntry(globalPolicy *rep
 		return err
 	}
 	return nil
+}
+
+func (impl *GlobalPolicyHistoryServiceImpl) GetByIds(ids []int) ([]*repository.GlobalPolicyHistory, error) {
+	return impl.globalPolicyHistoryRepository.GetByIds(ids)
+}
+
+func (impl *GlobalPolicyHistoryServiceImpl) GetIdsByPolicyIds(policyIds []int) ([]int, error) {
+	return impl.globalPolicyHistoryRepository.GetIdsByPolicyIds(policyIds)
 }

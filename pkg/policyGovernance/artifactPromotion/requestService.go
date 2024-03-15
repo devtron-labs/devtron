@@ -1051,7 +1051,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util2.RequestCt
 		return constants.BLOCKED_BY_POLICY, nil
 	}
 
-	evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, promotionPolicy)
+	evaluationAuditJsonString, err := impl.evaluationJsonString(evaluationResult, promotionPolicy)
 	if err != nil {
 		return constants.ERRORED, err
 	}
@@ -1112,10 +1112,25 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util2.RequestCt
 
 }
 
-func evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
-	evaluationAudit := make(map[string]interface{})
-	evaluationAudit["result"] = evaluationResult
-	evaluationAudit["policy"] = promotionPolicy
+func (impl *ApprovalRequestServiceImpl) evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
+	state := resourceFilter.ALLOW
+	if !evaluationResult {
+		state = resourceFilter.BLOCK
+	}
+
+	histories, err := impl.promotionPolicyDataReadService.GetPolicyHistoryIdsByPolicyIds([]int{promotionPolicy.Id})
+	if err != nil {
+		impl.logger.Errorw("error in fetching the latest promotion policy audit history", "err", err, "policyId", promotionPolicy.Id)
+		return "", err
+	}
+	if len(histories) == 0 {
+		return "", errors.New(fmt.Sprintf("no audit history found for the policy : %s", promotionPolicy.Name))
+	}
+
+	evaluationAudit := resourceFilter.FilterHistoryObject{
+		State:           state,
+		FilterHistoryId: histories[0],
+	}
 	evaluationAuditJsonBytes, err := json.Marshal(&evaluationAudit)
 	if err != nil {
 		return "", err
@@ -1294,7 +1309,7 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 
 		// policy is blocking the request, so need to update these as staled requests
 		if !evaluationResult {
-			evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, policy)
+			evaluationAuditJsonString, err := impl.evaluationJsonString(evaluationResult, policy)
 			if err != nil {
 				impl.logger.Errorw("error in creating evaluation audit json for a policy ", "policy", policy, "err", err)
 				continue

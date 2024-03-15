@@ -9,6 +9,8 @@ import (
 
 type GlobalPolicyHistoryRepository interface {
 	Save(model *GlobalPolicyHistory) error
+	GetByIds(policyIds []int) ([]*GlobalPolicyHistory, error)
+	GetIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type GlobalPolicyHistoryRepositoryImpl struct {
@@ -44,4 +46,21 @@ func (repo *GlobalPolicyHistoryRepositoryImpl) Save(model *GlobalPolicyHistory) 
 		return err
 	}
 	return nil
+}
+
+func (repo *GlobalPolicyHistoryRepositoryImpl) GetByIds(ids []int) ([]*GlobalPolicyHistory, error) {
+	models := make([]*GlobalPolicyHistory, 0)
+	if len(ids) == 0 {
+		return models, nil
+	}
+	err := repo.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).Select()
+	return models, err
+}
+
+func (repo *GlobalPolicyHistoryRepositoryImpl) GetIdsByPolicyIds(policyIds []int) ([]int, error) {
+	ids := make([]int, 0)
+	err := repo.dbConnection.Model((*GlobalPolicyHistory)(nil)).
+		Column("MAX(id)").
+		Where("global_policy_id IN (?)", pg.In(policyIds)).Select(&ids)
+	return ids, err
 }

@@ -224,6 +224,7 @@ func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPoli
 	policy.Name = rawPolicy.Name
 	policy.Id = rawPolicy.Id
 	policy.Description = rawPolicy.Description
+	policy.PolicyEvaluationId = rawPolicy.HistoryId
 	return nil
 }
 

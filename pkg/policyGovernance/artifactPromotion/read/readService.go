@@ -33,6 +33,7 @@ type ArtifactPromotionDataReadService interface {
 	GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
 	GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
+	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -123,13 +124,13 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(promotionApprovalRequest []*repository.ArtifactPromotionApprovalRequest) (map[int]*bean.PromotionPolicy, error) {
-	policyIds := util2.GetArrayObject(promotionApprovalRequest, func(service *repository.ArtifactPromotionApprovalRequest) int {
-		return service.PolicyId
+	policyEvaluationIds := util2.GetArrayObject(promotionApprovalRequest, func(service *repository.ArtifactPromotionApprovalRequest) int {
+		return service.PolicyEvaluationAuditId
 	})
 
-	rawPolicies, err := impl.globalPolicyDataManager.GetPolicyByIds(policyIds)
+	rawPolicies, err := impl.globalPolicyDataManager.GetPoliciesByHistoryIds(policyEvaluationIds)
 	if err != nil {
-		impl.logger.Errorw("error in fetching global policies by ids", "policyIds", policyIds)
+		impl.logger.Errorw("error in fetching global policies by policyEvaluationIds", "policyEvaluationIds", policyEvaluationIds, "err", err)
 		return nil, err
 	}
 
@@ -480,4 +481,8 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPendingRequestMapp
 		pipelineIdToCountMap[request.DestinationPipelineId] = pipelineIdToCountMap[request.DestinationPipelineId] + 1
 	}
 	return pipelineIdToCountMap, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error) {
+	return impl.globalPolicyDataManager.GetPolicyHistoryIdsByPolicyIds(policyIds)
 }
