@@ -281,7 +281,7 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	resourceName := queryParams.Get("resourceName")
 
 	resourceIdDefault := 0
-	resourceId, err := common.ExtractIntQueryParam(w, r, "size", &resourceIdDefault)
+	resourceId, err := common.ExtractIntQueryParam(w, r, "resourceId", &resourceIdDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing limit from string to int", "resourceId", queryParams.Get("resourceId"))
 		return nil, err
