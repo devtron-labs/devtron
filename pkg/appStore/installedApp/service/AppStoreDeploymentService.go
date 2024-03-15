@@ -1054,7 +1054,7 @@ func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppV
 }
 
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps, appStoreName string) bool {
+func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps) bool {
 	monoRepoMigrationRequired := false
 	if !util.IsAcdApp(installedApp.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
 		return false
@@ -1210,7 +1210,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
-		monoRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(installedApp, installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
+		monoRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(installedApp)
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 
