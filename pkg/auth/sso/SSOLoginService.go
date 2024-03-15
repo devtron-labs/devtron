@@ -69,15 +69,6 @@ func (r Config) secureCredentials() {
 
 }
 
-func (r Config) updateCredentialsFromBase(configFromDb *Config) {
-	updateSecretFromBase(&r, configFromDb, ClientID)
-	updateSecretFromBase(&r, configFromDb, ClientSecret)
-	if r.IsSsoLdap() {
-		updateSecretFromBase(&r, configFromDb, LdapBindPW)
-		updateSecretFromBase(&r, configFromDb, LdapUsernamePrompt)
-	}
-}
-
 const (
 	ClientID           = "clientID"
 	ClientSecret       = "clientSecret"
@@ -212,7 +203,6 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
-	configData.updateCredentialsFromBase(&modelConfigData)
 	newConfigString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Errorw("error while Marshaling configData", "error", err)
@@ -408,12 +398,6 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
-}
-
-func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
-		configData.Config[key] = baseConfigData.Config[key]
-	}
 }
 
 func secureCredentialValue(configData *Config, credentialKey string) {
