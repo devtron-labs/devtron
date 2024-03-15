@@ -18,8 +18,8 @@
 package pipeline
 
 import (
-	"encoding/json"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"sort"
 	"strings"
@@ -885,22 +885,17 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 	return ciArtifactBeans
 }
 
-func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int, stage bean.WorkflowType) (map[int]map[string]interface{}, error) {
+func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int, stage bean.WorkflowType) (map[int]deploymentWindow.DeploymentWindowAuditData, error) {
 
 	referenceType := getResourceTypeForWorkflowType(stage)
 	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, pipelineId, resourceFilter.Artifact, artifactIds, resourceFilter.DEPLOYMENT_WINDOW)
 	if err != nil {
 		return nil, err
 	}
-	dataMap := make(map[int]map[string]interface{})
+	dataMap := make(map[int]deploymentWindow.DeploymentWindowAuditData)
 	for _, filter := range filters {
-		data := make(map[string]interface{})
 		if !(filter == nil || len(filter.FilterHistoryObjects) == 0) {
-			err = json.Unmarshal([]byte(filter.FilterHistoryObjects), &data)
-			if err != nil {
-				impl.logger.Errorw("error in unmarshalling deployment window audit data", "err", err, "filter", filter)
-			}
-			dataMap[filter.SubjectId] = data
+			dataMap[filter.SubjectId] = deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
 		}
 	}
 	return dataMap, nil
@@ -1026,6 +1021,7 @@ func (impl *AppArtifactManagerImpl) setDeploymentWindowMetadata(ciArtifacts []be
 	for i, _ := range ciArtifacts {
 		if data, ok := deploymentWindowDataMap[ciArtifacts[i].Id]; ok {
 			ciArtifacts[i].DeploymentWindowArtifactMetadata = data
+			ciArtifacts[i].AppliedFiltersTimestamp = data.TriggeredAt
 		}
 	}
 	return ciArtifacts, nil

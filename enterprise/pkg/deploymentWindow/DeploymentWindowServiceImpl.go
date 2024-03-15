@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
+	"github.com/go-pg/pg"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"sort"
@@ -338,6 +339,12 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 			profile.IsActive = isActive
 			profile.CalculatedTimestamp = windowTimeStamp
 			profile.DeploymentWindowProfile.DeploymentWindowList = []*timeoutWindow.TimeWindow{window}
+		} else {
+			//this means all windows in this profile are expired
+			//therefore we're updating the isExpired flag in the policy so that expired profiles are filtered
+			//out for further evaluations, until an update operation happens on this profile
+			profile.DeploymentWindowProfile.isExpired = true
+			impl.updatePolicy(profile.DeploymentWindowProfile, 1, nil)
 		}
 
 		calculatedProfiles = append(calculatedProfiles, profile)
@@ -373,7 +380,7 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 func (impl DeploymentWindowServiceImpl) filterForType(profileStates []ProfileState, profileType DeploymentWindowType) []ProfileState {
 	filteredProfiles := make([]ProfileState, 0)
 	for _, state := range profileStates {
-		if state.DeploymentWindowProfile.Type == profileType {
+		if state.DeploymentWindowProfile.Type == profileType && !state.DeploymentWindowProfile.isExpired {
 			filteredProfiles = append(filteredProfiles, state)
 		}
 	}
@@ -381,14 +388,14 @@ func (impl DeploymentWindowServiceImpl) filterForType(profileStates []ProfileSta
 }
 
 func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
-	tx, err := impl.StartATransaction()
+	tx, err := impl.resourceMappingService.StartTx()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
 	// create policy
-	policy, err := profile.convertToPolicyDataModel(userId)
+	policy, err := profile.convertToPolicyDataModel(userId, false)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +409,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	err = impl.CommitATransaction(tx)
+	err = impl.resourceMappingService.CommitTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -411,18 +418,14 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 }
 
 func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
-	tx, err := impl.StartATransaction()
+	tx, err := impl.resourceMappingService.StartTx()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	// create policy
-	policy, err := profile.convertToPolicyDataModel(userId)
-	if err != nil {
-		return nil, err
-	}
-	policy, err = impl.globalPolicyManager.UpdatePolicy(policy, tx)
+	// update policy
+	policy, err := impl.updatePolicy(profile, userId, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -430,15 +433,27 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	err = impl.CommitATransaction(tx)
+	err = impl.resourceMappingService.CommitTx(tx)
 	if err != nil {
 		return nil, err
 	}
 	return profile, err
 }
 
+func (impl DeploymentWindowServiceImpl) updatePolicy(profile *DeploymentWindowProfile, userId int32, tx *pg.Tx) (*bean2.GlobalPolicyDataModel, error) {
+	policy, err := profile.convertToPolicyDataModel(userId, false)
+	if err != nil {
+		return policy, err
+	}
+	policy, err = impl.globalPolicyManager.UpdatePolicy(policy, tx)
+	if err != nil {
+		return policy, err
+	}
+	return policy, nil
+}
+
 func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profileId int, userId int32) error {
-	tx, err := impl.StartATransaction()
+	tx, err := impl.resourceMappingService.StartTx()
 	if err != nil {
 		return err
 	}
@@ -452,7 +467,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	if err != nil {
 		return err
 	}
-	err = impl.CommitATransaction(tx)
+	err = impl.resourceMappingService.CommitTx(tx)
 	if err != nil {
 		return err
 	}
@@ -576,12 +591,10 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	if err != nil {
 		return nil, err
 	}
-	//	}
 	profileIdToModel := make(map[int]*bean2.GlobalPolicyBaseModel)
 	for _, model := range models {
 		profileIdToModel[model.Id] = model
 	}
-	//	}
 
 	profileIds = maps.Keys(profileIdToModel)
 
@@ -614,9 +627,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 
 	appIdToResponse := make(map[int]*DeploymentWindowResponse)
 	for appId, mappings := range appIdToMappings {
-		//envIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
-		//	return item.EnvId
-		//})
+
 		envIdToMappings := make(map[int][]ProfileMapping)
 		for _, resource := range mappings {
 			envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)

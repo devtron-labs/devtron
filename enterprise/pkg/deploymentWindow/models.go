@@ -13,10 +13,11 @@ type DeploymentWindowProfilePolicy struct {
 	ExcludedUsersList    []int32              `json:"excludedUsersList"`
 	IsSuperAdminExcluded bool                 `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool                 `json:"isUserExcluded"`
-	Type                 DeploymentWindowType `json:"type" isSearchField:"true"`
+	Type                 DeploymentWindowType `json:"type"`
+	IsExpired            bool                 `json:"isExpired"`
 }
 
-func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy {
+func (profile DeploymentWindowProfile) toPolicy(isExpired bool) DeploymentWindowProfilePolicy {
 	return DeploymentWindowProfilePolicy{
 		TimeZone:             profile.TimeZone,
 		DisplayMessage:       profile.DisplayMessage,
@@ -24,12 +25,13 @@ func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy 
 		IsSuperAdminExcluded: profile.IsSuperAdminExcluded,
 		IsUserExcluded:       profile.IsUserExcluded,
 		Type:                 profile.Type,
+		IsExpired:            isExpired,
 	}
 }
 
-func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*bean.GlobalPolicyDataModel, error) {
+func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32, isExpired bool) (*bean.GlobalPolicyDataModel, error) {
 
-	policyBytes, err := json.Marshal(profile.toPolicy())
+	policyBytes, err := json.Marshal(profile.toPolicy(isExpired))
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +65,7 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 			Id:          policyModel.Id,
 			Name:        policyModel.Name,
 			Type:        profilePolicy.Type,
+			isExpired:   profilePolicy.IsExpired,
 		},
 	}
 }

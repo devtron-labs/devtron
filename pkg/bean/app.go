@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -137,7 +138,7 @@ type CiPipeline struct {
 	BeforeDockerBuildScripts   []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
 	AfterDockerBuildScripts    []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
 	LinkedCount                int                    `json:"linkedCount"`
-	PipelineType               bean.PipelineType           `json:"pipelineType,omitempty"`
+	PipelineType               bean.PipelineType      `json:"pipelineType,omitempty"`
 	ScanEnabled                bool                   `json:"scanEnabled,notnull"`
 	AppWorkflowId              int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage              *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
@@ -855,7 +856,7 @@ type CiArtifactBean struct {
 	CredentialsSourceType   string                               `json:"-"`
 	CredentialsSourceValue  string                               `json:"-"`
 
-	DeploymentWindowArtifactMetadata map[string]interface{} `json:"deploymentWindowArtifactMetadata"`
+	DeploymentWindowArtifactMetadata deploymentWindow.DeploymentWindowAuditData `json:"deploymentWindowArtifactMetadata"`
 }
 
 type CiArtifactResponse struct {

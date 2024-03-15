@@ -57,15 +57,16 @@ type DeploymentWindowProfile struct {
 	DeploymentWindowProfileMetadata
 }
 
-func (state *EnvironmentState) GetSerializedAuditData() string {
+func (state *EnvironmentState) GetSerializedAuditData(triggerMessage string) string {
 	if state == nil {
 		return "{}"
 	}
 	profile := state.AppliedProfile
 
 	audit := DeploymentWindowAuditData{
-		Audit:       state,
-		TriggeredAt: state.CalculatedAt,
+		Audit:          state,
+		TriggeredAt:    state.CalculatedAt,
+		TriggerMessage: triggerMessage,
 	}
 	if profile != nil {
 		audit.Name = profile.DeploymentWindowProfile.Name
@@ -76,12 +77,19 @@ func (state *EnvironmentState) GetSerializedAuditData() string {
 	return string(dataJson)
 }
 
+func GetAuditDataFromSerializedValue(data string) DeploymentWindowAuditData {
+	audit := DeploymentWindowAuditData{}
+	json.Unmarshal([]byte(data), &audit)
+	return audit
+}
+
 type DeploymentWindowAuditData struct {
-	Name        string            `json:"name"`
-	Id          int               `json:"id"`
-	Type        string            `json:"type"`
-	Audit       *EnvironmentState `json:"audit"`
-	TriggeredAt time.Time         `json:"triggeredAt"`
+	Name           string            `json:"name"`
+	Id             int               `json:"id"`
+	Type           string            `json:"type"`
+	Audit          *EnvironmentState `json:"audit"`
+	TriggeredAt    time.Time         `json:"triggeredAt"`
+	TriggerMessage string            `json:"triggerMessage"`
 }
 
 // DeploymentWindowProfileMetadata defines model for DeploymentWindowProfileMetadata.
@@ -90,6 +98,7 @@ type DeploymentWindowProfileMetadata struct {
 	Id          int                  `json:"id"`
 	Name        string               `json:"name"`
 	Type        DeploymentWindowType `json:"type"`
+	isExpired   bool
 }
 
 // DeploymentWindowProfileRequest defines model for DeploymentWindowProfileRequest.
@@ -123,7 +132,6 @@ type ProfileState struct {
 type DeploymentWindowResponse struct {
 	EnvironmentStateMap map[int]EnvironmentState `json:"environmentStateMap,omitempty"`
 	Profiles            []ProfileState           `json:"profiles,omitempty"`
-	//SuperAdmins         []string                 `json:"superAdmins,omitempty"`
 }
 
 func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *EnvironmentState) string {

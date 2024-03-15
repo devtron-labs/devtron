@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -92,6 +93,7 @@ type CdHandlerImpl struct {
 	customTagService             CustomTagService
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
 	resourceFilterService        resourceFilter.ResourceFilterService
+	resourceFilterAuditService   resourceFilter.FilterEvaluationAuditService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -105,7 +107,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	resourceFilterService resourceFilter.ResourceFilterService) *CdHandlerImpl {
+	resourceFilterService resourceFilter.ResourceFilterService,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
 		userService:                  userService,
@@ -126,6 +130,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		customTagService:             customTagService,
 		deploymentApprovalRepository: deploymentApprovalRepository,
 		resourceFilterService:        resourceFilterService,
+		resourceFilterAuditService:   resourceFilterAuditService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -689,6 +694,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 
+	var triggerMetadata string
+	// Currently storing deployment window related info here,
+	//in future it could be expanded to hold more details
+	triggerMetadata, err = impl.getDeploymentWindowAuditMessage(workflow.CiArtifactId, pipelineId, workflowR.WorkflowType)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching DeploymentWindowAuditMessage", "cdWorkflowRunnerId", workflowR.Id, "err", err)
+	}
+
 	workflowResponse := types.WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
@@ -712,7 +725,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
-		TriggerMetadata:      workflow.TriggerMetadata,
+		TriggerMetadata:      triggerMetadata,
 	}
 
 	if showAppliedFilters {
@@ -839,7 +852,6 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bea
 			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
 		}
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
-		workflow.TriggerMetadata = wfr.TriggerMetadata
 	}
 	return workflow
 }
@@ -1270,4 +1282,23 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 
 func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+}
+
+func (impl *CdHandlerImpl) getDeploymentWindowAuditMessage(artifactId int, pipelineId int, stage bean.WorkflowType) (string, error) {
+
+	referenceType := getResourceTypeForWorkflowType(stage)
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, pipelineId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return "", err
+	}
+	if len(filters) != 1 {
+		return "", nil
+	}
+	filter := filters[0]
+
+	if filter == nil || len(filter.FilterHistoryObjects) == 0 {
+		return "", nil
+	}
+	auditData := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+	return auditData.TriggerMessage, nil
 }
