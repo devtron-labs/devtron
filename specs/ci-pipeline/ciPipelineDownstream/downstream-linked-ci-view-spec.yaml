@@ -3,9 +3,9 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
-  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/autocomplete:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}//linked-ci/downstream/env:
     get:
-      description: Get environment names filter list for /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/view" API
+      description: Get down stream environment names for filter list
       parameters:
         - name: ciPipelineId
           description: source ci-pipeline id
@@ -15,7 +15,7 @@ paths:
             type: integer
       responses:
         "200":
-          description: Successfully fetched the Linked-CI pipelines details.
+          description: Successfully fetched the down stream environments for the source CI pipeline.
           content:
             application/json:
               schema:
@@ -25,9 +25,9 @@ paths:
         "403":
           description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
 
-  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked/view:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}//linked-ci/downstream/cd:
     get:
-      description: Get Linked-CI pipelines info for a source ci-pipeline
+      description: Get the down stream deployment details for the source CI pipeline.
       parameters:
         - name: ciPipelineId
           description: source ci-pipeline id
@@ -74,7 +74,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Successfully fetched the Linked-CI pipelines details.
+          description: Successfully fetched the down stream deployment details for the source CI pipeline.
           content:
             application/json:
               schema:
@@ -106,17 +106,15 @@ components:
       properties:
         envNames:
           type: array
-          description: linked CI pipelines filter data
+          description: Down stream environment names
           example:
           - "staging"
           - "production"
           - "qa"
           nullable: false
+          uniqueItems: true
           items:
-            $ref: "#/components/schemas/EnvironmentNameList"
-
-    EnvironmentNameList:
-      type: string
+            type: string
 
     LinkedCIPipelinesViewResponse:
       type: object
@@ -139,14 +137,10 @@ components:
           type: number
           description: Total results count
           example: 1122
-        page:
+        offset:
           type: number
           description: Current page number
           example: 2
-        lastPage:
-          type: number
-          description: Max page number
-          example: 5
         size:
           type: number
           description: Current page size
@@ -154,26 +148,38 @@ components:
         data:
           type: array
           nullable: false
-          description: linked CI pipelines data
+          description: Down stream deployments data
           items:
             $ref: "#/components/schemas/LinkedCIPipelineData"
 
     LinkedCIPipelineData:
       type: object
+      required:
+        - appName
+        - appId
       properties:
         appName:
           type: string
           description: application name
           example: "devtron-app"
+        appId:
+          type: number
+          description: application id
+          example: 1
         environmentName:
           type: string
           description: deploys to environment name
           example: "staging"
+        environmentId:
+          type: number
+          description: deploys to environment id
+          example: 1
         triggerMode:
           type: string
           description: pipeline trigger type
           example: "AUTOMATIC"
         deploymentStatus:
           type: string
+          default: "Not Deployed"
           description: last deployment status of the pipeline
           example: "Succeeded"
