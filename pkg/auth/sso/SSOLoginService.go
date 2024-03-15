@@ -70,21 +70,6 @@ func (r *Config) secureCredentials() {
 	}
 }
 
-func (r *Config) updateCredentialsFromBase(configFromDb *Config) {
-	r.updateSecretFromBase(r, configFromDb, ClientID)
-	r.updateSecretFromBase(r, configFromDb, ClientSecret)
-	if r.IsSsoLdap() {
-		r.updateSecretFromBase(r, configFromDb, LdapBindPW)
-		r.updateSecretFromBase(r, configFromDb, LdapUsernamePrompt)
-	}
-}
-
-func (r *Config) updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
-		configData.Config[key] = baseConfigData.Config[key]
-	}
-}
-
 func (r *Config) secureCredentialValue(configData *Config, credentialKey string) {
 	if configData.Config[credentialKey] != nil {
 		configData.Config[credentialKey] = ""
