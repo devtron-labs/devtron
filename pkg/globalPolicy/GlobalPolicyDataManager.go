@@ -19,7 +19,7 @@ type GlobalPolicyDataManager interface {
 	GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByNames(policyNames []string, policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
-
+	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 	UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
 
@@ -303,6 +303,18 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyById(policyId int) (*bean.Glob
 		return nil, err
 	}
 	return globalPolicy.GetGlobalPolicyBaseModel(), nil
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
+	policies, err := impl.globalPolicyRepository.GetAllActiveByType(policyType)
+	if err != nil {
+		return nil, err
+	}
+	baseModels := util.Map(policies, func(policy *repository.GlobalPolicy) *bean.GlobalPolicyBaseModel {
+		return policy.GetGlobalPolicyBaseModel()
+	})
+
+	return baseModels, nil
 }
 
 func (impl *GlobalPolicyDataManagerImpl) GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error) {
