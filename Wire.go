@@ -142,6 +142,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	globalPolicy2 "github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
@@ -219,7 +220,7 @@ func InitializeApp() (*App, error) {
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
-		commonPolicyActions.CommonPolicyActionWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -1032,6 +1033,11 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
+
+		globalPolicy2.NewGlobalPolicyDataManagerImpl,
+		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
+
+		commonPolicyActions.CommonPolicyActionWireSet,
 	)
 	return &App{}, nil
 }
