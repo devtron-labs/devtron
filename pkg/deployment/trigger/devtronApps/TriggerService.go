@@ -330,7 +330,7 @@ func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest
 
 func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
 	triggerTime := time.Now()
-	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
+	actionState, deploymentWindowProfile, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
 	if err != nil {
 		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
 	}

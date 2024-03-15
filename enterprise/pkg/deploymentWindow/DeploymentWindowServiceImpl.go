@@ -15,10 +15,11 @@ import (
 	"time"
 )
 
-func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, UserActionState, error) {
+func (impl DeploymentWindowServiceImpl) GetStateForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (UserActionState, *DeploymentWindowProfile, error) {
+
 	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, 0, userId)
 	if err != nil {
-		return nil, Allowed, err
+		return Allowed, nil, err
 	}
 
 	var appliedProfile *DeploymentWindowProfile
@@ -29,7 +30,7 @@ func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime tim
 			appliedProfile = state.AppliedProfile.DeploymentWindowProfile
 		}
 	}
-	return appliedProfile, actionState, nil
+	return actionState, appliedProfile, nil
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, filterForDays int, userId int32) (*DeploymentWindowAppGroupResponse, error) {

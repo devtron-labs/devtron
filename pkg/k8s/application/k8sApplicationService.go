@@ -1052,7 +1052,7 @@ func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean
 	if identifier == nil {
 		return nil
 	}
-	_, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), identifier.AppId, identifier.EnvId, userid)
+	actionState, _, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), identifier.AppId, identifier.EnvId, userid)
 	if err != nil || !actionState.IsActionAllowed() {
 		return fmt.Errorf("action not allowed %v", err)
 	}
