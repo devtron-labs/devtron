@@ -2138,7 +2138,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 
-	var req CiPipeline.SourceCiDownStreamFilters
+	req := &CiPipeline.SourceCiDownStreamFilters{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSourceCiDownStreamInfo", "err", err, "payload", req)
@@ -2167,7 +2167,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 	// RBAC enforcer Ends
-	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamInfo(r.Context(), ciPipelineId, &req)
+	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamInfo(r.Context(), ciPipelineId, req)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "ciPipelineId", ciPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

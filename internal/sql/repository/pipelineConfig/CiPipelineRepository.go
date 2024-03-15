@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -636,12 +637,13 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 	query := impl.dbConnection.Model().
 		Table("ci_pipeline").
 		// added columns that has no duplicated reference across joined tables
-		Column("ci_pipeline.app_id",
-			"app_name",
-			"environment_name",
-			"trigger_type").
+		Column("ci_pipeline.app_id").
 		// added columns that has duplicated reference across joined tables and assign alias name
-		ColumnExpr("p.id as pipeline_id", "p.environment_id as environment_id").
+		ColumnExpr("a.app_name as app_name").
+		ColumnExpr("e.environment_name as environment_name").
+		ColumnExpr("p.id as pipeline_id").
+		ColumnExpr("p.trigger_type as trigger_mode").
+		ColumnExpr("p.environment_id as environment_id").
 		// join app table
 		Join("INNER JOIN app a").
 		JoinOn("a.id = ci_pipeline.app_id").
@@ -659,11 +661,11 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		Where("ci_pipeline.deleted = ?", false)
 	// app name filtering
 	if len(appNameMatch) != 0 {
-		query = query.Where("app_name LIKE '%?%'", appNameMatch)
+		query = query.Where("a.app_name LIKE '%?%'", appNameMatch)
 	}
 	// env name filtering
 	if len(envNameMatch) != 0 {
-		query = query.Where("environment_name = ?", envNameMatch)
+		query = query.Where("e.environment_name = ?", envNameMatch)
 	}
 	// get total response count
 	totalCount, err := query.Count()
@@ -671,7 +673,7 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		return nil, 0, err
 	}
 	// query execution
-	err = query.Order("app_name ?", string(order)).
+	err = query.Order(fmt.Sprintf("a.app_name %s", string(order))).
 		Limit(limit).
 		Offset(offset).
 		Select(&linkedCIDetails)
