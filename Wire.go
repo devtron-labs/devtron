@@ -92,6 +92,7 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -218,6 +219,7 @@ func InitializeApp() (*App, error) {
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
+		commonPolicyActions.CommonPolicyActionWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -450,11 +452,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		//app.GetConfig,
+		// app.GetConfig,
 
 		pipeline4.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
@@ -791,7 +793,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		//history starts
+		// history starts
 		history.NewPipelineHistoryRestHandlerImpl,
 		wire.Bind(new(history.PipelineHistoryRestHandler), new(*history.PipelineHistoryRestHandlerImpl)),
 
@@ -855,7 +857,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewPipelineStageService,
 		wire.Bind(new(pipeline4.PipelineStageService), new(*pipeline4.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
