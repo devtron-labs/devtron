@@ -887,7 +887,6 @@ func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsLi
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
 	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", artifactsListingFilterOps.ResourceCdPipelineId, "err", err)
 		return ciArtifacts, 0, err
 	}
 

@@ -22,7 +22,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -30,7 +32,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -1610,7 +1611,7 @@ func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.
 
 	authWfIdToCDPipelineIds, err := impl.artifactPromotionDataReadService.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, []int{request.WorkflowId}, imagePromoterAuth)
 	if err != nil {
-		impl.logger.Errorw("error in fetching current user image promoter auth cd pipeline ids", "err", err)
+		impl.logger.Errorw("error in fetching current user image promoter auth cd pipeline ids", "workflowId", request.WorkflowId, "err", err)
 		return ciArtifactResponse, err
 	}
 	imagePromoterAuthCDPipelineIds := authWfIdToCDPipelineIds[request.WorkflowId]
@@ -1649,7 +1650,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.Reque
 	if err != nil {
 		// TODO: make error constants and use builder pattern
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", request.AppId, "environmentId", request.ResourceName, "err", err)
-		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid environmentName/appId")
+		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants2.CDPipelineNotFoundErr).WithInternalMessage(constants2.CDPipelineNotFoundErr)
 	}
 
 	cdMaterialsRequest := bean.CdNodeMaterialRequest{
@@ -1707,13 +1708,9 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCIResource(ctx *util2.Reque
 }
 
 func (impl *AppArtifactManagerImpl) fetchArtifactsForExtCINode(ctx *util2.RequestCtx, request bean2.PromotionMaterialRequest, imagePromoterAuthCDPipelineIds []int) (bean2.CiArtifactResponse, error) {
-	externalCiPipelineId, err := strconv.Atoi(request.ResourceName)
-	if err != nil {
-		impl.logger.Errorw("error in parsing externalCiPipelineId from resourceName", "resourceName", request.ResourceName, "err", err)
-		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage("error in parsing externalCiPipelineId")
-	}
+
 	extCiNodeRequest := bean.ExtCiNodeMaterialRequest{
-		ExternalCiPipelineId: externalCiPipelineId,
+		ExternalCiPipelineId: request.ResourceId,
 		ListingOptions:       request.ListingFilterOptions,
 	}
 	artifactEntities, totalCount, err := impl.ciArtifactRepository.FindArtifactsByExternalCIPipelineId(extCiNodeRequest)
@@ -1800,7 +1797,7 @@ func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bea
 		impl.logger.Errorw("error in fetching team by id", "teamId", teamObj.Id, "err", err)
 		return nil, err
 	}
-	imagePromotionApproverEmails, err := impl.userService.GetImagePromoterUserByEnv(pipeline.AppName, pipeline.EnvironmentName, teamObj.Name)
+	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentName, teamObj.Name, bean3.ArtifactPromoter)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promotion approver emails allowed on env", "envName", pipeline.EnvironmentName, "appName", pipeline.AppName, "err", err)
 		return nil, err

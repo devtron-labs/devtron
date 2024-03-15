@@ -710,7 +710,7 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 
 func (impl CiPipelineRepositoryImpl) FindByNameAndAppID(name string, appId int) (*CiPipeline, error) {
 	pipeline := &CiPipeline{}
-	err := impl.dbConnection.Model(pipeline).Where("name = ? and app_id=?", name, appId).Select()
+	err := impl.dbConnection.Model(pipeline).Where("name = ? and app_id=? and active=true ", name, appId).Select()
 	if err != nil {
 		impl.logger.Errorw("error in finding pipeline by name and appId", "name", name, "appId", appId, "err", err)
 		return nil, err
