@@ -24,8 +24,7 @@ const (
 	PodNameV1 PodNameVersion = "v1"
 	// PodNameV2 is the v2 name that uses node id combined with
 	// the template name
-	PodNameV2             PodNameVersion = "v2"
-	DefaultPodNameVersion PodNameVersion = PodNameV2
+	PodNameV2 PodNameVersion = "v2"
 )
 
 // String stringifies the pod name version
@@ -41,7 +40,7 @@ func GetPodNameVersion() PodNameVersion {
 	case "v1":
 		return PodNameV1
 	default:
-		return DefaultPodNameVersion
+		return PodNameV1
 	}
 }
 
@@ -60,9 +59,7 @@ func PodName(workflowName, nodeName, templateName, nodeID string, version PodNam
 
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(nodeName))
-
 	return fmt.Sprintf("%s-%v", prefix, h.Sum32())
-
 }
 
 func ensurePodNamePrefixLength(prefix string) string {
@@ -81,12 +78,9 @@ func GetWorkflowPodNameVersion(wf *v1alpha1.Workflow) PodNameVersion {
 	annotations := wf.GetAnnotations()
 	version := annotations[common.AnnotationKeyPodNameVersion]
 
-	switch version {
-	case PodNameV1.String():
-		return PodNameV1
-	case PodNameV2.String():
+	if version == PodNameV2.String() {
 		return PodNameV2
-	default:
-		return DefaultPodNameVersion
 	}
+
+	return PodNameV1
 }

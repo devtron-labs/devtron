@@ -59,16 +59,19 @@ func isResourceQuotaConflictErr(err error) bool {
 
 func isTransientNetworkErr(err error) bool {
 	switch err.(type) {
-	case *net.DNSError, *net.OpError, net.UnknownNetworkError:
-		return true
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+			return true
+		case *url.Error:
+			// For a URL error, where it replies back "connection closed"
+			// retry again.
+			return strings.Contains(err.Error(), "Connection closed by foreign host")
+		}
 	}
 
 	errorString := generateErrorString(err)
-	if strings.Contains(errorString, "Connection closed by foreign host") {
-		// For a URL error, where it replies back "connection closed"
-		// retry again.
-		return true
-	} else if strings.Contains(errorString, "net/http: TLS handshake timeout") {
+	if strings.Contains(errorString, "net/http: TLS handshake timeout") {
 		// If error is - tlsHandshakeTimeoutError, retry.
 		return true
 	} else if strings.Contains(errorString, "i/o timeout") {
@@ -76,12 +79,6 @@ func isTransientNetworkErr(err error) bool {
 		return true
 	} else if strings.Contains(errorString, "connection timed out") {
 		// If err is a net.Dial timeout, retry.
-		return true
-	} else if strings.Contains(errorString, "connection reset by peer") {
-		// If err is a ECONNRESET, retry.
-		return true
-	} else if _, ok := err.(*url.Error); ok && strings.Contains(errorString, "EOF") {
-		// If err is EOF, retry.
 		return true
 	}
 

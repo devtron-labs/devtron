@@ -9,6 +9,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -29,11 +30,15 @@ type Repository struct {
 	Has_wiki    bool
 	Mainbranch  RepositoryBranch
 	Type        string
-	CreatedOn   string `mapstructure:"created_on"`
-	UpdatedOn   string `mapstructure:"updated_on"`
-	Owner       map[string]interface{}
-	Links       map[string]interface{}
-	Parent      *Repository
+	// Deprecated: CreatedOn is deprecated use CreatedOnTime
+	CreatedOn string `mapstructure:"created_on"`
+	// Deprecated: UpdatedOn is deprecated use UpdatedOnTime
+	UpdatedOn     string `mapstructure:"updated_on"`
+	Owner         map[string]interface{}
+	Links         map[string]interface{}
+	Parent        *Repository
+	CreatedOnTime *time.Time `mapstructure:"created_on"`
+	UpdatedOnTime *time.Time `mapstructure:"updated_on"`
 }
 
 type RepositoryFile struct {
@@ -249,6 +254,8 @@ type UserPermissions struct {
 	UserPermissions []UserPermission
 }
 
+var stringToTimeHookFunc = mapstructure.StringToTimeHookFunc("2006-01-02T15:04:05.000000+00:00")
+
 func (r *Repository) Create(ro *RepositoryOptions) (*Repository, error) {
 	data, err := r.buildRepositoryBody(ro)
 	if err != nil {
@@ -324,7 +331,7 @@ func (r *Repository) ListFiles(ro *RepositoryFilesOptions) ([]RepositoryFile, er
 		return nil, err
 	}
 
-	response, err := r.c.executePaginated("GET", urlStr, "")
+	response, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +529,7 @@ func (r *Repository) ListTags(rbo *RepositoryTagOptions) (*RepositoryTags, error
 	}
 
 	urlStr := r.c.requestUrl("/repositories/%s/%s/refs/tags?%s", rbo.Owner, rbo.RepoSlug, params.Encode())
-	response, err := r.c.executePaginated("GET", urlStr, "")
+	response, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -578,18 +585,18 @@ func (r *Repository) Delete(ro *RepositoryOptions) (interface{}, error) {
 
 func (r *Repository) ListWatchers(ro *RepositoryOptions) (interface{}, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/watchers", ro.Owner, ro.RepoSlug)
-	return r.c.executePaginated("GET", urlStr, "")
+	return r.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (r *Repository) ListForks(ro *RepositoryOptions) (interface{}, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/forks", ro.Owner, ro.RepoSlug)
-	return r.c.executePaginated("GET", urlStr, "")
+	return r.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (r *Repository) ListDefaultReviewers(ro *RepositoryOptions) (*DefaultReviewers, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/default-reviewers?pagelen=1", ro.Owner, ro.RepoSlug)
 
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -893,7 +900,7 @@ func (r *Repository) UpdateDeploymentVariable(opt *RepositoryDeploymentVariableO
 func (r *Repository) ListGroupPermissions(ro *RepositoryOptions) (*GroupPermissions, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/permissions-config/groups?pagelen=1", ro.Owner, ro.RepoSlug)
 
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -924,7 +931,7 @@ func (r *Repository) DeleteGroupPermissions(rgo *RepositoryGroupPermissionsOptio
 func (r *Repository) GetGroupPermissions(rgo *RepositoryGroupPermissionsOptions) (*GroupPermission, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/permissions-config/groups/%s", rgo.Owner, rgo.RepoSlug, rgo.Group)
 
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -934,7 +941,7 @@ func (r *Repository) GetGroupPermissions(rgo *RepositoryGroupPermissionsOptions)
 func (r *Repository) ListUserPermissions(ro *RepositoryOptions) (*UserPermissions, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/permissions-config/users?pagelen=1", ro.Owner, ro.RepoSlug)
 
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -965,7 +972,7 @@ func (r *Repository) DeleteUserPermissions(rgo *RepositoryUserPermissionsOptions
 func (r *Repository) GetUserPermissions(rgo *RepositoryUserPermissionsOptions) (*UserPermission, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/permissions-config/users/%s", rgo.Owner, rgo.RepoSlug, rgo.User)
 
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,7 +1197,15 @@ func decodeRepository(repoResponse interface{}) (*Repository, error) {
 	}
 
 	var repository = new(Repository)
-	err := mapstructure.Decode(repoMap, repository)
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Metadata:   nil,
+		Result:     repository,
+		DecodeHook: stringToTimeHookFunc,
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = decoder.Decode(repoMap)
 	if err != nil {
 		return nil, err
 	}
