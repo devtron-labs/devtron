@@ -8,7 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
-	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
 	errors2 "github.com/pkg/errors"

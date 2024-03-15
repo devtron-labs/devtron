@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -171,7 +171,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		}
 
 		if ciPipeline.IsDockerConfigOverridden {
-			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
+			// set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
 			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(pipelineConfigBean.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
