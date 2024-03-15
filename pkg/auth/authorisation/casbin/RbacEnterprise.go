@@ -582,7 +582,10 @@ func isPolicyActive(policyRole string, subjects []string, recordedTime time.Time
 							fmt.Println("error in hasFilteredPoliciesExpired", "err", err)
 							continue
 						}
-						return isActive
+						// Doing this as user can get permissions from group which can be active and direct permissions are inactive, will iterate in every roleMapping
+						if isActive {
+							return isActive
+						}
 					}
 				}
 			}
