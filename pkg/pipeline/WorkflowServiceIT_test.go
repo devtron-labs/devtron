@@ -49,20 +49,20 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	newEnvConfigOverrideRepository := chartConfig.NewEnvConfigOverrideRepository(dbConnection)
 	newConfigMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(logger, dbConnection)
 	newChartRepository := chartRepoRepository.NewChartRepository(dbConnection)
-	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
+	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, nil, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
 	mergeUtil := util.MergeUtil{Logger: logger}
-	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, nil, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, "", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	runTimeConfig, _ := client.GetRuntimeConfig()
 	k8sUtil := k8s.NewK8sUtil(logger, runTimeConfig)
 	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(dbConnection, logger)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(logger, v, runTimeConfig, k8sUtil)
 	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService, nil)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
-	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl)
+	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil)
 	return workflowServiceImpl
 }
 func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
