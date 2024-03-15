@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -14,6 +16,7 @@ type GlobalPolicySearchableFieldRepository interface {
 	DeleteByPolicyId(policyId int, tx *pg.Tx) error
 	GetSearchableFields(searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup map[int][]string) ([]*GlobalPolicySearchableField, error)
 	GetSearchableFieldByIds(policyId []int) ([]*GlobalPolicySearchableField, error)
+	GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error)
 }
 
 type GlobalPolicySearchableFieldRepositoryImpl struct {
@@ -44,9 +47,6 @@ type GlobalPolicySearchableField struct {
 }
 
 func (repo *GlobalPolicySearchableFieldRepositoryImpl) CreateInBatchWithTxn(models []*GlobalPolicySearchableField, tx *pg.Tx) error {
-	if len(models) == 0 {
-		return nil
-	}
 	err := tx.Insert(&models)
 	if err != nil {
 		repo.logger.Errorw("error in creating global policy searchable fields", "err", err, "models", models)
@@ -78,14 +78,14 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFields(searc
 		}
 		return q, nil
 	})
-	//for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
+	// for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
 	//	q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
 	//		q = q.Where("searchable_key_id = ?", searchableKeyId).
 	//			Where("value in (?)", pg.In(searchableKeyValues))
 	//		return q, nil
 	//	})
-	//}
-	//adding is_regex fields always
+	// }
+	// adding is_regex fields always
 	q.WhereOr("is_regex = ?", true)
 	err := q.Select()
 	if err != nil {
@@ -129,4 +129,32 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFieldByIds(p
 		return nil, err
 	}
 	return models, err
+}
+
+func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error) {
+
+	var models []*GlobalPolicySearchableField
+
+	var orderExp string
+	switch sortKey.FieldType {
+	case util.NumericType:
+		orderExp = "value"
+	case util.StringType:
+		orderExp = "value_int"
+	case util.DateTimeType:
+		orderExp = "value_time_stamp"
+	}
+	if sortOrderDesc {
+		orderExp = fmt.Sprintf("%s DESC", orderExp)
+	}
+	err := repo.dbConnection.Model(&models).
+		Where("global_policy_id IN (?)", pg.In(policyId)).
+		Where("field_name = ? ", sortKey.FieldName).
+		OrderExpr(orderExp).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in fetching GlobalPolicySearchableField", "policyIds", policyId, "err", err)
+		return nil, err
+	}
+	return models, nil
 }

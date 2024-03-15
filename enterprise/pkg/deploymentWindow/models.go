@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type DeploymentWindowProfilePolicy struct {
@@ -44,7 +45,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*
 			Active:        true,
 			UserId:        userId,
 		},
-		SearchableFields: GetSearchableFields(profile),
+		SearchableFields: []util.SearchableField{},
 	}, nil
 }
 

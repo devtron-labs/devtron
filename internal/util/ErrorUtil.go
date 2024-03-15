@@ -32,6 +32,33 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
+func NewApiError() *ApiError {
+	return &ApiError{}
+}
+
+func (e *ApiError) WithHttpStatusCode(httpStatusCode int) *ApiError {
+	e.HttpStatusCode = httpStatusCode
+	return e
+}
+
+func (e *ApiError) WithCode(code string) *ApiError {
+	e.Code = code
+	return e
+}
+func (e *ApiError) WithInternalMessage(InternalMessage string) *ApiError {
+	e.InternalMessage = InternalMessage
+	return e
+}
+func (e *ApiError) WithUserMessage(userMessage interface{}) *ApiError {
+	e.UserMessage = userMessage
+	return e
+}
+
+func (e *ApiError) WithUserDetailMessage(UserDetailMessage string) *ApiError {
+	e.UserDetailMessage = UserDetailMessage
+	return e
+}
+
 func (e *ApiError) Error() string {
 	return e.InternalMessage
 }

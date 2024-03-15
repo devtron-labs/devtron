@@ -445,7 +445,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	}
 	defer tx.Rollback()
 
-	err = impl.globalPolicyManager.DeletePolicyById(tx, profileId, userId)
+	err = impl.globalPolicyManager.DeletePolicyById(profileId, userId)
 	if err != nil {
 		return err
 	}
@@ -655,7 +655,7 @@ func (impl DeploymentWindowServiceImpl) getMappedResourcesForAppgroups(appEnvSel
 }
 
 func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForSelections(selections []*resourceQualifiers.SelectionIdentifier) ([]ProfileMapping, map[int]*DeploymentWindowProfile, error) {
-	resources, err := impl.resourceMappingService.GetResourceMappingsForSelections(resourceQualifiers.DeploymentWindowProfile, resourceQualifiers.ApplicationEnvironmentSelector, selections)
+	resources, err := impl.resourceMappingService.GetResourceMappingsForSelections(resourceQualifiers.DeploymentWindow, resourceQualifiers.ApplicationEnvironmentSelector, selections)
 	if err != nil {
 		return nil, nil, err
 	}

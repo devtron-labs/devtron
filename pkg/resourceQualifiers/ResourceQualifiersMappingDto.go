@@ -7,12 +7,13 @@ import (
 type ResourceType int
 
 const (
-	Variable                ResourceType = 0
-	Filter                  ResourceType = 1
-	ImageDigest             ResourceType = 2
-	ImageDigestResourceId                = -1 // for ImageDigest resource id will is constant unlike filter and variables
-	InfraProfile            ResourceType = 3
-	DeploymentWindowProfile ResourceType = 4
+	Variable              ResourceType = 0
+	Filter                ResourceType = 1
+	ImageDigest           ResourceType = 2
+	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
+	InfraProfile          ResourceType = 3
+	ImagePromotionPolicy  ResourceType = 4
+	DeploymentWindow      ResourceType = 5
 )
 
 const (

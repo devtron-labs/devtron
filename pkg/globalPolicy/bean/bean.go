@@ -3,6 +3,7 @@ package bean
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/util"
 	"time"
 )
 
@@ -34,8 +35,9 @@ const (
 type GlobalPolicyType string
 
 const (
-	GLOBAL_POLICY_TYPE_PLUGIN            GlobalPolicyType = "PLUGIN"
-	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW GlobalPolicyType = "DEPLOYMENT_WINDOW"
+	GLOBAL_POLICY_TYPE_PLUGIN                 GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW      GlobalPolicyType = "DEPLOYMENT_WINDOW"
+	GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY GlobalPolicyType = "IMAGE_PROMOTION"
 )
 
 func (t GlobalPolicyType) ToString() string {
@@ -64,7 +66,7 @@ func (a ConsequenceAction) ToString() string {
 	return string(a)
 }
 
-func (a ConsequenceAction) ToPriorityInt() int { //greater value, more priority
+func (a ConsequenceAction) ToPriorityInt() int { // greater value, more priority
 	switch a {
 	case CONSEQUENCE_ACTION_ALLOW_FOREVER:
 		return 0
@@ -134,12 +136,12 @@ type DefinitionDataDto struct {
 
 type ProjectAppDto struct {
 	ProjectName string   `json:"projectName" validate:"required"`
-	AppNames    []string `json:"appNames,omitempty"` //if all applications(existing and future) then this array will be empty
+	AppNames    []string `json:"appNames,omitempty"` // if all applications(existing and future) then this array will be empty
 }
 
 type ClusterEnvDto struct {
 	ClusterName string   `json:"clusterName" validate:"required"` // for all prod environments expecting this to be 0 and below array should contain -1
-	EnvNames    []string `json:"envNames,omitempty"`              //if all environments(existing and future) then this array will be empty
+	EnvNames    []string `json:"envNames,omitempty"`              // if all environments(existing and future) then this array will be empty
 }
 
 type BranchDto struct {
@@ -240,18 +242,22 @@ type GlobalPolicyBaseModel struct {
 }
 
 type GlobalPolicyDataModel struct {
+	// todo: make it pointer
 	GlobalPolicyBaseModel
-	SearchableFields []SearchableField
+	SearchableFields []util.SearchableField
 }
 
-type SearchableField struct {
-	FieldName  string
-	FieldValue interface{}
-	FieldType  FieldType
-}
-type FieldType int
+const UniqueActiveNameConstraint = "idx_unique_policy_name_policy_of"
 
-const NumericType FieldType = 1
-const StringType FieldType = 2
-const DateTimeType FieldType = 3
-const BooleanType FieldType = 4
+type GlobalPolicyFieldType int
+
+const (
+	GlobalPolicySearchableField GlobalPolicyFieldType = iota
+	GlobalPolicyColumnField
+)
+
+type SortByRequest struct {
+	SortByType      GlobalPolicyFieldType // if true sort by searchable field
+	SearchableField util.SearchableField  // name of searchable field by which results should be sorted
+	SortOrderDesc   bool
+}
