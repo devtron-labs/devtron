@@ -166,7 +166,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		return environmentApprovalMetadata, nil
 	}
 
-	destinationPipelineIds := make([]int, 0, len(promotionRequests))
+	destinationPipelineIds := make([]int, len(promotionRequests))
 	for i, request := range promotionRequests {
 		destinationPipelineIds[i] = request.DestinationPipelineId
 	}

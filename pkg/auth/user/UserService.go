@@ -87,13 +87,12 @@ type UserService interface {
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
-	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
 	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
-	GetImagePromoterUserByEnv(appName, envName, team string) ([]string, error)
+	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -1449,18 +1448,6 @@ func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, user
 	return allowed
 }
 
-func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error) {
-	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName, team)
-	if err != nil {
-		return emailIds, err
-	}
-	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
-	if err != nil {
-		return emailIds, err
-	}
-	return finalEmails, nil
-}
-
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
 	if err != nil {
@@ -2632,9 +2619,9 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 	return isInactive, userId, nil
 }
 
-func (impl UserServiceImpl) GetImagePromoterUserByEnv(appName, envName, team string) ([]string, error) {
+func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error) {
 	// TODO: make common function
-	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetImagePromoterUsersByEnv(appName, envName, team)
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
 	if err != nil {
 		return emailIds, err
 	}

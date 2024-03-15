@@ -117,7 +117,6 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-			// TODO Need to revisit this as making db calls in Loop
 			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
 			if err != nil {
 				impl.logger.Errorw("error in fetching approval metadata by pipelineId", "pipelineId", pipelineId, "err", err)
@@ -375,8 +374,8 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(ctx *
 		if errors.Is(err, pg.ErrNoRows) {
 			return nil, &util.ApiError{
 				HttpStatusCode:  http.StatusFound,
-				InternalMessage: "policy not found",
-				UserMessage:     "policy not found",
+				InternalMessage: constants.PolicyNotFoundErr,
+				UserMessage:     constants.PolicyNotFoundErr,
 			}
 		}
 		return nil, err

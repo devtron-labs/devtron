@@ -106,7 +106,6 @@ const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationMsg = "source 
 const POLICY_EVALUATION_ERRORED PromotionValidationMsg = "server unable to evaluate the policy"
 const BLOCKED_BY_POLICY PromotionValidationMsg = "blocked by the policy "
 const ERRORED_APPROVAL PromotionValidationMsg = "error occurred in submitting the approval"
-
 const SENT_FOR_APPROVAL PromotionValidationMsg = "sent for approval"
 
 const APPROVED PromotionValidationMsg = "approved"
@@ -140,3 +139,4 @@ const WorkflowAndSourceMisMatchErr = "source pipeline not found in the given wor
 const NoApprovePermissionOnEnvsErr = "user do not have access to approve on the selected environments"
 const SameSourceAndDestinationErr = "source and the destination cannot be same"
 const WorkflowNotFoundErr = "workflow not found"
+const PolicyNotFoundErr = "policy not found"

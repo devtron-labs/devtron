@@ -910,6 +910,7 @@ type CiArtifactResponse struct {
 type PromotionMaterialRequest struct {
 	Resource              string // CI, CD, WEBHOOK, PROMOTION_APPROVAL_PENDING_NODE
 	ResourceName          string
+	ResourceId            int
 	AppId                 int
 	WorkflowId            int
 	PendingForCurrentUser bool

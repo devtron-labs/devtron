@@ -280,6 +280,13 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	resource := queryParams.Get("resource")
 	resourceName := queryParams.Get("resourceName")
 
+	resourceIdDefault := 0
+	resourceId, err := common.ExtractIntQueryParam(w, r, "size", &resourceIdDefault)
+	if err != nil {
+		handler.logger.Errorw("error in parsing limit from string to int", "resourceId", queryParams.Get("resourceId"))
+		return nil, err
+	}
+
 	pendingForCurrentUser, err := common.ExtractBooleanQueryParam(w, r, "pendingForCurrentUser", false)
 	if err != nil {
 		handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
@@ -325,6 +332,7 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	artifactPromotionMaterialRequest := &bean2.PromotionMaterialRequest{
 		Resource:              resource,
 		ResourceName:          resourceName,
+		ResourceId:            resourceId,
 		AppId:                 appId,
 		WorkflowId:            workflowId,
 		PendingForCurrentUser: pendingForCurrentUser,
@@ -340,20 +348,25 @@ func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.Response
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
 		return false
 	} else {
-		if request.IsCDNode() || request.IsCINode() || request.IsWebhookNode() {
+		if request.IsCDNode() || request.IsCINode() {
 			if len(request.ResourceName) == 0 || request.AppId == 0 {
 				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", request.Resource)), nil, http.StatusBadRequest)
 				return false
 			}
+		} else if request.IsWebhookNode() {
+			if request.ResourceId == 0 || request.AppId == 0 {
+				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceId/appId is required field for resource = %s ", request.Resource)), nil, http.StatusBadRequest)
+				return false
+			}
 		} else if request.IsPromotionApprovalPendingNode() {
 			if request.IsPendingForUser() {
-				if len(request.Resource) == 0 || request.AppId == 0 {
-					common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s if pendingForCurrentUser is false", request.Resource)), nil, http.StatusBadRequest)
+				if request.WorkflowId == 0 {
+					common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
 					return false
 				}
 			} else {
-				if request.WorkflowId == 0 {
-					common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
+				if len(request.ResourceName) == 0 || request.AppId == 0 {
+					common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s if pendingForCurrentUser is false", request.Resource)), nil, http.StatusBadRequest)
 					return false
 				}
 			}

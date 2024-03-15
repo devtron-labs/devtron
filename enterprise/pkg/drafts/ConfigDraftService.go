@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"time"
 
@@ -691,7 +692,7 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []str
 		}
 		envIdentifier = env.EnvironmentIdentifier
 	}
-	approvers, err = impl.userService.GetConfigApprovalUsersByEnv(appName, envIdentifier, application.Team.Name)
+	approvers, err = impl.userService.GetUsersByEnvAndAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}
