@@ -1251,13 +1251,21 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	approvbleRequestIds := make([]int, 0, len(unStaledRequestsIds))
 	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
 	approverCountForRequests := make(map[int]int)
+	for _, unStaledRequestsId := range unStaledRequestsIds {
+		approverCountForRequests[unStaledRequestsId] = 0
+	}
+
 	for _, userData := range approvedUserData {
 		count := approverCountForRequests[userData.ApprovalRequestId]
 		approverCountForRequests[userData.ApprovalRequestId] = count + 1
-		if approverCountForRequests[userData.ApprovalRequestId] >= policy.ApprovalMetaData.ApprovalCount {
-			approvbleRequestIds = append(approvbleRequestIds, userData.ApprovalRequestId)
+	}
+
+	for _, unStaledRequestsId := range unStaledRequestsIds {
+		if approverCountForRequests[unStaledRequestsId] >= policy.ApprovalMetaData.ApprovalCount {
+			approvbleRequestIds = append(approvbleRequestIds, unStaledRequestsId)
 		}
 	}
+
 	err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, approvbleRequestIds, 1)
 	if err != nil {
 		impl.logger.Errorw("error in marking status of artifact promotion requests to approved as these requests already got approvals that the updated policy count", "policyId", policy.Id, "newApproverCount", policy.ApprovalMetaData.ApprovalCount, "requestIds", approvbleRequestIds, "err", err)
