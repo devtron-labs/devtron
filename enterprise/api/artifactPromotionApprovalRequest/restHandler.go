@@ -395,13 +395,6 @@ func (handler *RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId 
 	return false
 }
 
-func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
-		return false
-	}
-	return true
-}
-
 func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
 	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)

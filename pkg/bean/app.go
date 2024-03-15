@@ -904,7 +904,7 @@ type CiArtifactResponse struct {
 	CanApproverDeploy             bool                                 `json:"canApproverDeploy"`
 	DeployedOnEnvironments        []string                             `json:"deployedOnEnvironments,omitempty"`
 	ImagePromotionApproverEmails  []string                             `json:"imagePromotionApproverEmails,omitempty"`
-	IsArtifactPendingForPromotion bool                                 `json:"isArtifactPendingForPromotion"`
+	IsApprovalPendingForPromotion bool                                 `json:"isApprovalPendingForPromotion"`
 }
 
 type PromotionMaterialRequest struct {

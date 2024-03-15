@@ -1673,7 +1673,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.Reque
 	artifactResponse := bean2.CiArtifactResponse{
 		CiArtifacts:                   bean2.ConvertArtifactEntityToModel(artifactEntities), // TODO: move this to adapter
 		TotalCount:                    totalCount,
-		IsArtifactPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
+		IsApprovalPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
 	}
 	return artifactResponse, nil
 }
@@ -1702,7 +1702,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCIResource(ctx *util2.Reque
 	artifactResponse := bean2.CiArtifactResponse{
 		CiArtifacts:                   bean2.ConvertArtifactEntityToModel(artifactEntities),
 		TotalCount:                    totalCount,
-		IsArtifactPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
+		IsApprovalPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
 	}
 	return artifactResponse, nil
 }
@@ -1726,7 +1726,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForExtCINode(ctx *util2.Reques
 	artifactResponse := bean2.CiArtifactResponse{
 		CiArtifacts:                   bean2.ConvertArtifactEntityToModel(artifactEntities),
 		TotalCount:                    totalCount,
-		IsArtifactPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
+		IsApprovalPendingForPromotion: len(pipelineIdToRequestMapping) > 0,
 	}
 	return artifactResponse, nil
 }
@@ -1794,7 +1794,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.Requ
 func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bean2.CDPipelineConfigObject) ([]string, error) {
 	teamObj, err := impl.teamService.FetchOne(pipeline.TeamId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching team by id", "teamId", teamObj.Id, "err", err)
+		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
 		return nil, err
 	}
 	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentName, teamObj.Name, bean3.ArtifactPromoter)
