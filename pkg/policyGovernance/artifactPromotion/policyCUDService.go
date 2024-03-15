@@ -173,7 +173,7 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(ctx *util2.RequestCtx, poli
 	}
 
 	defer impl.transactionManager.RollbackTx(tx)
-	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, ctx.GetUserId())
+	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", ctx.GetUserId(), "err", err)
 		return err
