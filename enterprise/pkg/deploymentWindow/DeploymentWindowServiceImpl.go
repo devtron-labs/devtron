@@ -399,7 +399,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}
 	profile.Id = policy.Id
 
-	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, err, tx, policy.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +427,7 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, err, tx, policy.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +449,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	if err != nil {
 		return err
 	}
-	err = impl.timeWindowService.UpdateWindowMappings([]*timeoutWindow.TimeWindow{}, userId, err, tx, profileId)
+	err = impl.timeWindowService.UpdateWindowMappings([]*timeoutWindow.TimeWindow{}, "", userId, err, tx, profileId)
 	if err != nil {
 		return err
 	}

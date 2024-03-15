@@ -21,7 +21,7 @@ type TimeoutWindowService interface {
 	CreateAndMapWithResource(tx *pg.Tx, timeWindows []TimeWindowExpression, userid int32, resourceId int, resourceType repository.ResourceType) error
 	GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error)
 
-	UpdateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error
+	UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, err error, tx *pg.Tx, policyId int) error
 	GetActiveWindow(targetTime time.Time, timeZone string, windows []*TimeWindow) (bool, time.Time, *TimeWindow, error)
 	GetWindowsForResources(resourceId []int, resourceType repository.ResourceType) (map[int][]*TimeWindow, error)
 }
@@ -172,13 +172,11 @@ func (impl TimeWindowServiceImpl) CreateAndMapWithResource(tx *pg.Tx, timeWindow
 	return err
 }
 
-func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error {
+func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, err error, tx *pg.Tx, policyId int) error {
 
-	for _, window := range windows {
-		err := window.toTimeRange().ValidateTimeRange()
-		if err != nil {
-			return fmt.Errorf("validation falied %v", err)
-		}
+	err = impl.validateWindowsAndTimeZone(windows, timeZone)
+	if err != nil {
+		return err
 	}
 
 	windowExpressions := make([]TimeWindowExpression, 0)
@@ -192,6 +190,23 @@ func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, us
 	//create time windows and map
 	err = impl.CreateAndMapWithResource(tx, windowExpressions, userId, policyId, repository.DeploymentWindowProfile)
 	return err
+}
+
+func (impl TimeWindowServiceImpl) validateWindowsAndTimeZone(windows []*TimeWindow, timeZone string) error {
+	if len(timeZone) != 0 {
+		_, err := impl.getTimeZoneData(timeZone)
+		if err != nil {
+			return fmt.Errorf("invalid timezone %v", err)
+		}
+	}
+
+	for _, window := range windows {
+		err := window.toTimeRange().ValidateTimeRange()
+		if err != nil {
+			return fmt.Errorf("validation falied %v", err)
+		}
+	}
+	return nil
 }
 
 func (impl TimeWindowServiceImpl) GetActiveWindow(targetTime time.Time, timeZone string, windows []*TimeWindow) (bool, time.Time, *TimeWindow, error) {
