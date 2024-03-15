@@ -692,6 +692,12 @@ func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPa
 	} else if cdPipelines.NonCascadeDelete {
 		deleteAction = bean.NON_CASCADE_DELETE
 	}
+
+	pipeline, err := impl.getPipelineAndCheckAction(cdPipelines, pipelineRequest)
+	if err != nil {
+		return pipelineRequest, err
+	}
+
 	switch cdPipelines.Action {
 	case bean.CD_CREATE:
 		return impl.CreateCdPipelines(pipelineRequest, ctx)
@@ -699,26 +705,35 @@ func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPa
 		err := impl.updateCdPipeline(ctx, cdPipelines.AppId, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
-		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
-			return pipelineRequest, err
-		}
 		deleteResponse, err := impl.DeleteCdPipeline(pipeline, ctx, deleteAction, false, cdPipelines.UserId)
 		pipelineRequest.AppDeleteResponse = deleteResponse
 		return pipelineRequest, err
 	case bean.CD_DELETE_PARTIAL:
-		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
-			return pipelineRequest, err
-		}
 		deleteResponse, err := impl.DeleteCdPipelinePartial(pipeline, ctx, deleteAction, cdPipelines.UserId)
 		pipelineRequest.AppDeleteResponse = deleteResponse
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
+}
+
+// only gets pipeline for any delete action and checks of the action is allowed
+// pipeline will be nil for non delete actions
+func (impl *CdPipelineConfigServiceImpl) getPipelineAndCheckAction(cdPipelines *bean.CDPatchRequest, pipelineRequest *bean.CdPipelines) (*pipelineConfig.Pipeline, error) {
+	var pipeline *pipelineConfig.Pipeline
+	var err error
+	if cdPipelines.Action == bean.CD_DELETE || cdPipelines.Action == bean.CD_DELETE_PARTIAL {
+		pipeline, err = impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
+			return nil, err
+		}
+		err := impl.checkForDeploymentWindow(pipeline, cdPipelines.UserId)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pipeline, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
@@ -732,18 +747,16 @@ func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineI
 
 func (impl *CdPipelineConfigServiceImpl) checkForDeploymentWindow(pipeline *pipelineConfig.Pipeline, userId int32) error {
 	actionState, _, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), pipeline.AppId, pipeline.EnvironmentId, userId)
-	if err != nil || !actionState.IsActionAllowed() {
+	if err != nil {
+		return fmt.Errorf("error in getting deployment window state %v", err)
+	}
+	if !actionState.IsActionAllowedWithBypass() {
 		return fmt.Errorf("action not allowed %v", err)
 	}
 	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, deleteFromAcd bool, userId int32) (*bean.AppDeleteResponseDTO, error) {
-
-	err := impl.checkForDeploymentWindow(pipeline, userId)
-	if err != nil {
-		return nil, err
-	}
 
 	cascadeDelete := true
 	forceDelete := false

@@ -23,6 +23,10 @@ const (
 )
 
 func (action UserActionState) IsActionAllowed() bool {
+	return action == Allowed
+}
+
+func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
 

@@ -317,10 +317,10 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 }
 
 func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
-	if request.TriggerContext.TriggerType != bean.Automatic {
-		return nil
+	if request.TriggerContext.IsAutoTrigger() {
+		go impl.writeBlockedTriggerEvent(request)
 	}
-	go impl.writeBlockedTriggerEvent(request)
+
 	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)
 	if err != nil {
 		return fmt.Errorf("audit data entry for blocked trigger failed %v %v", request, err)
@@ -336,7 +336,7 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
 	triggerRequest.DeploymentProfile = deploymentWindowProfile
-	if !actionState.IsActionAllowed() || isBypassedForAuto(triggerRequest, actionState) {
+	if !isDeploymentAllowed(triggerRequest, actionState) {
 		err := impl.handleBlockedTrigger(triggerRequest, stage)
 		if err != nil {
 			return triggerRequest, err
@@ -353,8 +353,12 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 	return triggerRequest, nil
 }
 
-func isBypassedForAuto(triggerRequest bean.TriggerRequest, actionState deploymentWindow.UserActionState) bool {
-	return triggerRequest.TriggerContext.TriggerType == bean.Automatic && actionState == deploymentWindow.Partial
+func isDeploymentAllowed(triggerRequest bean.TriggerRequest, actionState deploymentWindow.UserActionState) bool {
+
+	if triggerRequest.TriggerContext.IsAutoTrigger() {
+		return actionState.IsActionAllowed()
+	}
+	return actionState.IsActionAllowedWithBypass()
 }
 
 // TODO: write a wrapper to handle auto and manual trigger

@@ -53,6 +53,10 @@ const (
 	Manual    TriggerType = 2
 )
 
+func (context TriggerContext) IsAutoTrigger() bool {
+	return context.TriggerType == Automatic
+}
+
 type DeploymentType = string
 
 const (
