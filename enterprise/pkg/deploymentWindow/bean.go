@@ -116,3 +116,7 @@ func (state UserActionState) GetBypassActionMessageForProfileAndState(profile *D
 	}
 	return "Initiated outside maintenance window"
 }
+
+func (item ProfileState) isRestricted() bool {
+	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
+}

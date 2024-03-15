@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/go-pg/pg"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 	_ "time/tzdata"
@@ -36,8 +35,8 @@ type DeploymentWindowServiceImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 	cfg          *DeploymentWindowConfig
-	timeZoneMap  map[string]*time.Location
-	userService  user.UserService
+	//timeZoneMap  map[string]*time.Location
+	userService user.UserService
 
 	resourceMappingService resourceQualifiers.QualifierMappingService
 	timeWindowService      timeoutWindow.TimeoutWindowService
@@ -64,7 +63,7 @@ func NewDeploymentWindowServiceImpl(
 		globalPolicyManager:    globalPolicyManager,
 		dbConnection:           dbConnection,
 		userService:            userService,
-		timeZoneMap:            make(map[string]*time.Location, 0),
+		//timeZoneMap:            make(map[string]*time.Location),
 	}, nil
 }
 
@@ -96,17 +95,17 @@ func (impl DeploymentWindowServiceImpl) CommitATransaction(tx *pg.Tx) error {
 	return nil
 }
 
-func (impl DeploymentWindowServiceImpl) getTimeZoneData(timeZone string) (*time.Location, error) {
-	var location *time.Location
-	var err error
-	if data, ok := impl.timeZoneMap[timeZone]; ok && data != nil {
-		return data, nil
-	} else {
-		location, err = time.LoadLocation(timeZone)
-		if err != nil {
-			return nil, errors.Wrap(err, "error in fetching location for timezone: "+timeZone)
-		}
-		impl.timeZoneMap[timeZone] = location
-	}
-	return location, nil
-}
+//func (impl DeploymentWindowServiceImpl) getTimeZoneData(timeZone string) (*time.Location, error) {
+//	var location *time.Location
+//	var err error
+//	if data, ok := impl.timeZoneMap[timeZone]; ok && data != nil {
+//		return data, nil
+//	} else {
+//		location, err = time.LoadLocation(timeZone)
+//		if err != nil {
+//			return nil, errors.Wrap(err, "error in fetching location for timezone: "+timeZone)
+//		}
+//		impl.timeZoneMap[timeZone] = location
+//	}
+//	return location, nil
+//}

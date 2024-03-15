@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
@@ -21,7 +22,7 @@ type TimeoutWindowService interface {
 	GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error)
 
 	UpdateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error
-	GetActiveWindow(targetTimeWithZone time.Time, windows []*TimeWindow) (bool, time.Time, *TimeWindow)
+	GetActiveWindow(targetTime time.Time, timeZone string, windows []*TimeWindow) (bool, time.Time, *TimeWindow, error)
 	GetWindowsForResources(resourceId []int, resourceType repository.ResourceType) (map[int][]*TimeWindow, error)
 }
 
@@ -33,6 +34,7 @@ type TimeWindowServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	timeWindowRepository        repository.TimeWindowRepository
 	timeWindowMappingRepository repository.TimeoutWindowResourceMappingRepository
+	timeZoneMap                 map[string]*time.Location
 }
 
 func NewTimeWindowServiceImpl(logger *zap.SugaredLogger,
@@ -43,6 +45,7 @@ func NewTimeWindowServiceImpl(logger *zap.SugaredLogger,
 		logger:                      logger,
 		timeWindowRepository:        timeWindowRepository,
 		timeWindowMappingRepository: timeWindowMappingRepository,
+		timeZoneMap:                 make(map[string]*time.Location),
 	}
 	return timeoutWindowServiceImpl
 }
@@ -108,17 +111,6 @@ func (impl TimeWindowServiceImpl) GetMappingsForResources(resourceIds []int, res
 		windowIds = append(windowIds, mapping.TimeoutWindowId)
 	}
 
-	//resourceIdToMappings = lo.GroupBy(resourceMappings, func(item *repository.TimeoutWindowResourceMapping) int {
-	//	return item.ResourceId
-	//})
-
-	//windowIds := lo.Map(resourceMappings,
-	//	func(mapping *repository.TimeoutWindowResourceMapping, index int) int {
-	//		return mapping.TimeoutWindowId
-	//	})
-
-	// length check inside
-
 	allConfigurations, err := impl.GetAllWithIds(windowIds)
 	if err != nil {
 		return nil, err
@@ -176,14 +168,6 @@ func (impl TimeWindowServiceImpl) CreateAndMapWithResource(tx *pg.Tx, timeWindow
 		})
 	}
 
-	//mappings := lo.Map(configurations, func(conf *repository.TimeoutWindowConfiguration, index int) *repository.TimeoutWindowResourceMapping {
-	//	return &repository.TimeoutWindowResourceMapping{
-	//		TimeoutWindowId: conf.Id,
-	//		ResourceId:      resourceId,
-	//		ResourceType:    resourceType,
-	//	}
-	//})
-
 	_, err = impl.timeWindowMappingRepository.Create(tx, mappings)
 	return err
 }
@@ -210,7 +194,14 @@ func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, us
 	return err
 }
 
-func (impl TimeWindowServiceImpl) GetActiveWindow(targetTimeWithZone time.Time, windows []*TimeWindow) (bool, time.Time, *TimeWindow) {
+func (impl TimeWindowServiceImpl) GetActiveWindow(targetTime time.Time, timeZone string, windows []*TimeWindow) (bool, time.Time, *TimeWindow, error) {
+
+	loc, err := impl.getTimeZoneData(timeZone)
+	if err != nil {
+		return false, time.Time{}, nil, err
+	}
+	targetTimeWithZone := targetTime.In(loc)
+
 	isActive := false
 	maxEndTimeStamp := time.Time{}
 	minStartTimeStamp := time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
@@ -219,8 +210,7 @@ func (impl TimeWindowServiceImpl) GetActiveWindow(targetTimeWithZone time.Time, 
 		timeRange := window.toTimeRange()
 		timestamp, isInside, err := timeRange.GetTimeRangeWindow(targetTimeWithZone)
 		if err != nil {
-			impl.logger.Errorw("GetTimeRangeWindow failed", "timeRange", timeRange, "window", window, "time", targetTimeWithZone)
-			continue
+			return false, time.Time{}, nil, err
 		}
 		if isInside && !timestamp.IsZero() {
 			isActive = true
@@ -236,9 +226,9 @@ func (impl TimeWindowServiceImpl) GetActiveWindow(targetTimeWithZone time.Time, 
 		}
 	}
 	if isActive {
-		return true, maxEndTimeStamp, appliedWindow
+		return true, maxEndTimeStamp, appliedWindow, nil
 	}
-	return false, minStartTimeStamp, appliedWindow
+	return false, minStartTimeStamp, appliedWindow, nil
 }
 
 func (impl TimeWindowServiceImpl) GetWindowsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]*TimeWindow, error) {
@@ -265,4 +255,19 @@ func (impl TimeWindowServiceImpl) toTimeWindow(expressions []TimeWindowExpressio
 		windows = append(windows, window)
 	}
 	return windows
+}
+
+func (impl TimeWindowServiceImpl) getTimeZoneData(timeZone string) (*time.Location, error) {
+	var location *time.Location
+	var err error
+	if data, ok := impl.timeZoneMap[timeZone]; ok && data != nil {
+		return data, nil
+	} else {
+		location, err = time.LoadLocation(timeZone)
+		if err != nil {
+			return nil, errors.Wrap(err, "error in fetching location for timezone: "+timeZone)
+		}
+		impl.timeZoneMap[timeZone] = location
+	}
+	return location, nil
 }

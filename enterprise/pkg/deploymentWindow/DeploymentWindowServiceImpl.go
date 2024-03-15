@@ -38,15 +38,18 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 	if err != nil {
 		return nil, err
 	}
-	//superAdmins, err := impl.userService.GetSuperAdmins()
-	//if err != nil {
-	//	superAdmins = make([]int32, 0)
-	//}
 
+	superAdmins, userEmailMap, err := impl.getUserInfoMap(err, appIdsToOverview)
+	if err != nil {
+		return nil, err
+	}
+
+	cachedStates := make(map[int]ProfileState)
 	appGroupData := make([]AppData, 0)
+	var envResponse *DeploymentWindowResponse
 	for appId, overview := range appIdsToOverview {
 
-		envResponse, err := impl.calculateStateForEnvironments(targetTime, overview, filterForDays, userId)
+		envResponse, cachedStates, err = impl.calculateStateForEnvironments(targetTime, overview, filterForDays, cachedStates, superAdmins, userEmailMap, userId)
 		if err != nil {
 			return nil, err
 		}
@@ -59,24 +62,54 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 	return &DeploymentWindowAppGroupResponse{AppData: appGroupData}, nil
 }
 
+func (impl DeploymentWindowServiceImpl) getUserInfoMap(err error, appIdsToOverview map[int]*DeploymentWindowResponse) ([]int32, map[int32]string, error) {
+	superAdmins, err := impl.userService.GetSuperAdminIds()
+	if err != nil {
+		return nil, nil, err
+	}
+	allExcludedUserIds := make([]int32, 0)
+	for _, response := range appIdsToOverview {
+		for _, profile := range response.Profiles {
+			deploymentProfile := profile.DeploymentWindowProfile
+			if deploymentProfile.IsUserExcluded {
+				allExcludedUserIds = append(allExcludedUserIds, deploymentProfile.ExcludedUsersList...)
+			}
+		}
+	}
+	allUserIds := utils.FilterDuplicates(append(allExcludedUserIds, superAdmins...))
+	allUserInfo, err := impl.userService.GetByIds(allUserIds)
+	if err != nil {
+		return nil, nil, err
+	}
+	userInfoMap := make(map[int32]string, 0)
+	for _, user := range allUserInfo {
+		if strings.Contains(user.EmailId, "@") {
+			userInfoMap[user.Id] = user.EmailId
+		}
+	}
+
+	return superAdmins, userInfoMap, nil
+}
+
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, filterForDays int, userId int32) (*DeploymentWindowResponse, error) {
 	overview, err := impl.GetDeploymentWindowProfileOverview(appId, envIds)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := impl.calculateStateForEnvironments(targetTime, overview, filterForDays, userId)
+	superAdmins, userEmailMap, err := impl.getUserInfoMap(err, map[int]*DeploymentWindowResponse{0: overview})
+	if err != nil {
+		return nil, err
+	}
+
+	response, _, err := impl.calculateStateForEnvironments(targetTime, overview, filterForDays, make(map[int]ProfileState), superAdmins, userEmailMap, userId)
 	if err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
-func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, filterForDays int, userId int32) (*DeploymentWindowResponse, error) {
-
-	//envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
-	//	return item.EnvId
-	//})
+func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, filterForDays int, calculatedStates map[int]ProfileState, superAdmins []int32, userEmailMap map[int32]string, userId int32) (*DeploymentWindowResponse, map[int]ProfileState, error) {
 
 	envIdToProfileStates := make(map[int][]ProfileState)
 	for _, profile := range overview.Profiles {
@@ -84,31 +117,48 @@ func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime
 	}
 
 	envIdToEnvironmentState := make(map[int]EnvironmentState)
-	resultProfiles := make([]ProfileState, 0)
+
+	var filteredProfileStates []ProfileState
+	var appliedProfile *ProfileState
+	var excludedUsers []int32
+	var excludedUsersEmail []string
+	var isAllowed bool
+	var err error
 	for envId, profileStates := range envIdToProfileStates {
-		filteredProfileStates, appliedProfile, excludedUsers, excludedUsersEmail, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates, filterForDays)
+
+		filteredProfileStates, calculatedStates, appliedProfile, isAllowed, err = impl.evaluateProfileStates(targetTime, profileStates, calculatedStates, filterForDays)
 		if err != nil {
-			return nil, err
+			return nil, calculatedStates, err
 		}
+
+		filteredProfileStates, excludedUsers, excludedUsersEmail, err = impl.evaluateExcludedUsers(filteredProfileStates, appliedProfile, superAdmins, userEmailMap)
+		if err != nil {
+			return nil, calculatedStates, err
+		}
+
+		// sorting to keep active profiles first
+		sort.SliceStable(filteredProfileStates, func(i, j int) bool {
+			return filteredProfileStates[i].IsActive
+		})
+
 		envState := EnvironmentState{
 			ExcludedUsers:      excludedUsers,
 			ExcludedUserEmails: excludedUsersEmail,
 			AppliedProfile:     appliedProfile,
-			UserActionState:    getUserActionStateForUser(canDeploy, excludedUsers, userId),
+			UserActionState:    getUserActionStateForUser(isAllowed, excludedUsers, userId),
 		}
 		envIdToEnvironmentState[envId] = envState
-		resultProfiles = append(resultProfiles, filteredProfileStates...)
 	}
 	response := &DeploymentWindowResponse{
 		EnvironmentStateMap: envIdToEnvironmentState,
-		Profiles:            resultProfiles,
+		Profiles:            filteredProfileStates,
 	}
-	return response, nil
+	return response, calculatedStates, nil
 }
 
-func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int32) UserActionState {
+func getUserActionStateForUser(isAllowed bool, excludedUsers []int32, userId int32) UserActionState {
 	userActionState := Allowed
-	if !canDeploy {
+	if !isAllowed {
 		if slices.Contains(excludedUsers, userId) {
 			userActionState = Partial
 		} else {
@@ -118,91 +168,49 @@ func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int
 	return userActionState
 }
 
-func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState, filterForDays int) ([]ProfileState, *ProfileState, []int32, []string, bool, error) {
-
+func (impl DeploymentWindowServiceImpl) evaluateProfileStates(targetTime time.Time, profileStates []ProfileState, calculatedStates map[int]ProfileState, filterForDays int) ([]ProfileState, map[int]ProfileState, *ProfileState, bool, error) {
 	var appliedProfile *ProfileState
-	var combinedExcludedUsers, allUserIds []int32
-	combinedExcludedUserEmails := make([]string, 0)
-
-	superAdmins, err := impl.userService.GetSuperAdminIds()
+	filteredBlackoutProfiles, calculatedStates, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout, calculatedStates, filterForDays)
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
+		return nil, calculatedStates, appliedProfile, false, err
 	}
 
-	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout, filterForDays)
+	filteredMaintenanceProfiles, calculatedStates, isMaintenanceActive, _, err := impl.calculateStateForProfiles(targetTime, profileStates, Maintenance, calculatedStates, filterForDays)
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
-	}
-
-	filteredMaintenanceProfiles, isMaintenanceActive, _, err := impl.calculateStateForProfiles(targetTime, profileStates, Maintenance, filterForDays)
-	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
+		return nil, calculatedStates, appliedProfile, false, err
 	}
 
 	if len(filteredBlackoutProfiles) == 0 && len(filteredMaintenanceProfiles) == 0 {
-		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, true, nil
+		return nil, calculatedStates, appliedProfile, true, nil
 	}
 
-	canDeploy := !isBlackoutActive && isMaintenanceActive
+	isAllowed := !isBlackoutActive && isMaintenanceActive
 	allProfiles := append(filteredBlackoutProfiles, filteredMaintenanceProfiles...)
-	var isSuperAdminExcluded bool
-	if isBlackoutActive && isMaintenanceActive { //deployment is blocked, restriction through blackout
+	if isBlackoutActive && isMaintenanceActive { //action is blocked, restriction through blackout
 		// if both are active then blackout takes precedence in overall calculation
-		//activeBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
-		//	return impl.isRestricted(item)
-		//})
 		appliedProfile = impl.getLongestEndingProfile(filteredBlackoutProfiles, true)
-		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(activeBlackouts)
-
-	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through maintenance
+	} else if !isBlackoutActive && !isMaintenanceActive { //action is blocked, restriction through maintenance
 		// if nothing is active then earliest starting maintenance will be shown
-
-		//nonActiveMaintenance := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
-		//	return impl.isRestricted(item)
-		//})
 		appliedProfile = impl.getEarliestStartingProfile(filteredMaintenanceProfiles, true)
-		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(nonActiveMaintenance)
-	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through both
+	} else if isBlackoutActive && !isMaintenanceActive { //action is blocked, restriction through both
 		// longest of restrictions coming from both blackout and maintenance
-
-		//restrictedProfiles := lo.Filter(allProfiles, func(item ProfileState, index int) bool {
-		//	return impl.isRestricted(item)
-		//})
-
 		appliedProfile = impl.getLongestEndingProfile(allProfiles, true)
-		//combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
-
-	} else if !isBlackoutActive && isMaintenanceActive { //deployment not blocked
+	} else if !isBlackoutActive && isMaintenanceActive { //action not blocked
 		// applied profile here would be the longest running maintenance profile even if a blackout starts before that
-
-		//activeMaintenance := lo.Filter(filteredMaintenanceProfiles, func(item ProfileState, index int) bool {
-		//	return item.IsActive
-		//})
 		appliedProfile = impl.getLongestEndingProfile(filteredMaintenanceProfiles, false)
 		if appliedProfile == nil {
-			//nonActiveBlackouts := lo.Filter(filteredBlackoutProfiles, func(item ProfileState, index int) bool {
-			//	return !item.IsActive
-			//})
 			appliedProfile = impl.getEarliestStartingProfile(filteredBlackoutProfiles, false)
 		}
 	}
 
-	combinedExcludedUsers, allUserIds, isSuperAdminExcluded = impl.getCombinedUserIds(allProfiles)
+	return allProfiles, calculatedStates, appliedProfile, isAllowed, nil
+}
+
+func (impl DeploymentWindowServiceImpl) evaluateExcludedUsers(allProfiles []ProfileState, appliedProfile *ProfileState, superAdmins []int32, userEmailMap map[int32]string) ([]ProfileState, []int32, []string, error) {
+	combinedExcludedUsers, isSuperAdminExcluded := impl.getCombinedUserIds(allProfiles)
 
 	if isSuperAdminExcluded {
 		combinedExcludedUsers = utils.FilterDuplicates(append(combinedExcludedUsers, superAdmins...))
-		allUserIds = utils.FilterDuplicates(append(allUserIds, superAdmins...))
-	}
-
-	allUserInfo, err := impl.userService.GetByIds(allUserIds)
-	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, true, nil
-	}
-	userInfoMap := make(map[int32]string, 0)
-	for _, user := range allUserInfo {
-		if strings.Contains(user.EmailId, "@") {
-			userInfoMap[user.Id] = user.EmailId
-		}
 	}
 
 	for i, profile := range allProfiles {
@@ -217,7 +225,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		}
 		emails := make([]string, 0)
 		for _, id := range excludedIds {
-			if email, ok := userInfoMap[id]; ok {
+			if email, ok := userEmailMap[id]; ok {
 				emails = append(emails, email)
 			}
 		}
@@ -229,32 +237,22 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		}
 	}
 
-	sort.SliceStable(allProfiles, func(i, j int) bool {
-		return allProfiles[i].IsActive
-	})
-
 	emails := make([]string, 0)
 	for _, userId := range combinedExcludedUsers {
-		if email, ok := userInfoMap[userId]; ok {
+		if email, ok := userEmailMap[userId]; ok {
 			emails = append(emails, email)
 		}
 	}
-	combinedExcludedUserEmails = emails
 
-	return allProfiles, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, canDeploy, nil
+	return allProfiles, combinedExcludedUsers, emails, nil
 }
 
-func (item ProfileState) isRestricted() bool {
-	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
-}
-
-func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileState) ([]int32, []int32, bool) {
+func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileState) ([]int32, bool) {
 
 	if len(profiles) == 0 {
-		return []int32{}, []int32{}, false
+		return []int32{}, false
 	}
 	userSet := mapset.NewSet()
-	allUsersSet := mapset.NewSet()
 
 	profile := profiles[0]
 	excludedUsers := profile.DeploymentWindowProfile.ExcludedUsersList
@@ -274,21 +272,13 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 			isSuperAdminExcluded = false
 		}
 
-		//if len(users) > 0 {
 		profileUserSet := mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(users))
-		allUsersSet = allUsersSet.Union(profileUserSet)
-		//}
-
 		if profile.isRestricted() {
 			userSet = userSet.Intersect(profileUserSet)
 		}
 	}
 
-	//if isSuperAdminExcluded && len(superAdmins) > 0 {
-	//	userSet = userSet.Union(mapset.NewSet(superAdmins))
-	//}
-
-	return utils.ToInt32Array(userSet.ToSlice()), utils.ToInt32Array(allUsersSet.ToSlice()), isSuperAdminExcluded
+	return utils.ToInt32Array(userSet.ToSlice()), isSuperAdminExcluded
 }
 
 func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []ProfileState, filterRestricted bool) *ProfileState {
@@ -327,44 +317,47 @@ func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []Pr
 	return selectedProfile
 }
 
-func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType, filterForDays int) ([]ProfileState, bool, bool, error) {
+func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType, calculatedStates map[int]ProfileState, filterForDays int) ([]ProfileState, map[int]ProfileState, bool, bool, error) {
 
-	//filteredProfiles := lo.Filter(profileStates, func(item ProfileState, index int) bool {
-	//	return item.DeploymentWindowProfile.Type == profileType
-	//})
+	filteredProfiles := impl.filterForType(profileStates, profileType)
 
-	filteredProfiles := make([]ProfileState, 0)
-	for _, state := range profileStates {
-		if state.DeploymentWindowProfile.Type == profileType {
-			filteredProfiles = append(filteredProfiles, state)
+	calculatedProfiles := make([]ProfileState, 0)
+	for _, profile := range filteredProfiles {
+		// to avoid recomputing states for profiles which have been already computed
+		if profileState, ok := calculatedStates[profile.DeploymentWindowProfile.Id]; ok {
+			calculatedProfiles = append(calculatedProfiles, profileState)
+			continue
 		}
+
+		zone := profile.DeploymentWindowProfile.TimeZone
+		isActive, windowTimeStamp, window, err := impl.timeWindowService.GetActiveWindow(targetTime, zone, profile.DeploymentWindowProfile.DeploymentWindowList)
+		if err != nil {
+			impl.logger.Errorw("error in getting active window", "err", err, "targetTime", targetTime, "zone", zone, "profile", profile)
+		}
+		if window != nil {
+			profile.IsActive = isActive
+			profile.CalculatedTimestamp = windowTimeStamp
+			profile.DeploymentWindowProfile.DeploymentWindowList = []*timeoutWindow.TimeWindow{window}
+		}
+
+		calculatedProfiles = append(calculatedProfiles, profile)
+		calculatedStates[profile.DeploymentWindowProfile.Id] = profile
 	}
 
 	allActive := true
 	oneActive := false
 	finalProfileStates := make([]ProfileState, 0)
-
 	for _, profile := range filteredProfiles {
-		loc, err := impl.getTimeZoneData(profile.DeploymentWindowProfile.TimeZone)
-		if err != nil {
-			return nil, false, false, err
-		}
-		timeWithZone := targetTime.In(loc)
-		isActive, windowTimeStamp, window := impl.timeWindowService.GetActiveWindow(timeWithZone, profile.DeploymentWindowProfile.DeploymentWindowList)
 
-		if window == nil {
+		if len(profile.DeploymentWindowProfile.DeploymentWindowList) == 0 {
 			// doing nothing if no window is returned
 			// this means that no relevant window in the profile was found therefore skipping this profile
 			continue
 		}
-
-		if filterForDays > 0 && windowTimeStamp.Sub(timeWithZone) > time.Duration(filterForDays)*time.Hour*24 {
+		isActive := profile.IsActive
+		if filterForDays > 0 && !isActive && profile.CalculatedTimestamp.Sub(targetTime) > time.Duration(filterForDays)*time.Hour*24 {
 			continue
 		}
-
-		profile.IsActive = isActive
-		profile.CalculatedTimestamp = windowTimeStamp
-		profile.DeploymentWindowProfile.DeploymentWindowList = []*timeoutWindow.TimeWindow{window}
 
 		if !oneActive && isActive {
 			oneActive = true
@@ -374,7 +367,17 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 		}
 		finalProfileStates = append(finalProfileStates, profile)
 	}
-	return finalProfileStates, allActive, oneActive, nil
+	return finalProfileStates, calculatedStates, allActive, oneActive, nil
+}
+
+func (impl DeploymentWindowServiceImpl) filterForType(profileStates []ProfileState, profileType DeploymentWindowType) []ProfileState {
+	filteredProfiles := make([]ProfileState, 0)
+	for _, state := range profileStates {
+		if state.DeploymentWindowProfile.Type == profileType {
+			filteredProfiles = append(filteredProfiles, state)
+		}
+	}
+	return filteredProfiles
 }
 
 func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
@@ -512,19 +515,6 @@ func (impl DeploymentWindowServiceImpl) ListDeploymentWindowProfiles() ([]*Deplo
 
 	}
 	return allProfiles, nil
-
-	//return lo.Map(policyModels, func(model *bean2.GlobalPolicyBaseModel, index int) *DeploymentWindowProfileMetadata {
-	//	policy, err := impl.getPolicyFromModel(model)
-	//	if err != nil {
-	//		return nil
-	//	}
-	//	return &DeploymentWindowProfileMetadata{
-	//		Description: model.Description,
-	//		Id:          model.Id,
-	//		Name:        model.Name,
-	//		Type:        policy.Type,
-	//	}
-	//}), nil
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error) {
@@ -534,9 +524,6 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		return nil, err
 	}
 
-	//envIdToMappings := lo.GroupBy(resources, func(item ProfileMapping) int {
-	//	return item.EnvId
-	//})
 	envIdToMappings := make(map[int][]ProfileMapping)
 	for _, resource := range resources {
 		envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)
@@ -550,12 +537,6 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 }
 
 func (impl DeploymentWindowServiceImpl) getProfileMappingsForApp(appId int, envIds []int) ([]ProfileMapping, map[int]*DeploymentWindowProfile, error) {
-	//selections := lo.Map(envIds, func(envId int, index int) *resourceQualifiers.SelectionIdentifier {
-	//	return &resourceQualifiers.SelectionIdentifier{
-	//		AppId: appId,
-	//		EnvId: envId,
-	//	}
-	//})
 
 	selections := make([]*resourceQualifiers.SelectionIdentifier, 0)
 	for _, envId := range envIds {
@@ -651,12 +632,6 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 }
 
 func (impl DeploymentWindowServiceImpl) getMappedResourcesForAppgroups(appEnvSelectors []AppEnvSelector) (map[int]*DeploymentWindowProfile, map[int][]ProfileMapping, error) {
-	//selections := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.SelectionIdentifier {
-	//	return &resourceQualifiers.SelectionIdentifier{
-	//		AppId: appEnv.AppId,
-	//		EnvId: appEnv.EnvId,
-	//	}
-	//})
 	selections := make([]*resourceQualifiers.SelectionIdentifier, 0)
 	for _, selector := range appEnvSelectors {
 		selections = append(selections, &resourceQualifiers.SelectionIdentifier{
@@ -669,9 +644,6 @@ func (impl DeploymentWindowServiceImpl) getMappedResourcesForAppgroups(appEnvSel
 	if err != nil {
 		return nil, nil, err
 	}
-	//appIdToMappings := lo.GroupBy(mappings, func(item ProfileMapping) int {
-	//	return item.AppId
-	//})
 
 	appIdToMappings := make(map[int][]ProfileMapping)
 	for _, mapping := range mappings {
@@ -687,10 +659,6 @@ func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForSelections(sel
 		return nil, nil, err
 	}
 
-	//profileIds := lo.Map(resources, func(mapping resourceQualifiers.ResourceQualifierMappings, index int) int {
-	//	return mapping.ResourceId
-	//})
-
 	profileIds := make([]int, 0)
 	for _, resource := range resources {
 		profileIds = append(profileIds, resource.ResourceId)
@@ -701,17 +669,6 @@ func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForSelections(sel
 		return nil, nil, err
 	}
 
-	//profileIds = maps.Keys(profileIdToProfile)
-	//resources = lo.Filter(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) bool {
-	//	return slices.Contains(profileIds, item.ResourceId)
-	//})
-	//mappings := lo.Map(resources, func(item resourceQualifiers.ResourceQualifierMappings, index int) ProfileMapping {
-	//	return ProfileMapping{
-	//		ProfileId: item.ResourceId,
-	//		AppId:     item.SelectionIdentifier.AppId,
-	//		EnvId:     item.SelectionIdentifier.EnvId,
-	//	}
-	//})
 	mappings := make([]ProfileMapping, 0)
 	for _, resource := range resources {
 		if _, ok := profileIdToProfile[resource.ResourceId]; ok {
