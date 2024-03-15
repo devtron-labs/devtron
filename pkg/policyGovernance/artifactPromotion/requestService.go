@@ -639,7 +639,7 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util2.Reque
 		}
 
 		// promote the promotableRequestIds
-		err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds)
+		err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds, ctx.GetUserId())
 		if err != nil {
 			impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
 			return nil, err
@@ -1232,6 +1232,35 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	err = impl.artifactPromotionApprovalRequestRepository.UpdateInBulk(tx, requestsToBeUpdatedAsStaled)
 	if err != nil {
 		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policy.Id, "err", err)
+		return err
+	}
+
+	unStaledRequestsIds := make([]int, 0, len(existingRequests))
+	for _, existingRequest := range existingRequests {
+		found := false
+		for _, staleRequest := range requestsToBeUpdatedAsStaled {
+			if staleRequest.Id == existingRequest.Id {
+				found = true
+			}
+		}
+		if !found {
+			unStaledRequestsIds = append(unStaledRequestsIds, existingRequest.Id)
+		}
+	}
+
+	approvbleRequestIds := make([]int, 0, len(unStaledRequestsIds))
+	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	approverCountForRequests := make(map[int]int)
+	for _, userData := range approvedUserData {
+		count := approverCountForRequests[userData.ApprovalRequestId]
+		approverCountForRequests[userData.ApprovalRequestId] = count + 1
+		if approverCountForRequests[userData.ApprovalRequestId] >= policy.ApprovalMetaData.ApprovalCount {
+			approvbleRequestIds = append(approvbleRequestIds, userData.ApprovalRequestId)
+		}
+	}
+	err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, approvbleRequestIds, 1)
+	if err != nil {
+		impl.logger.Errorw("error in marking status of artifact promotion requests to approved as these requests already got approvals that the updated policy count", "policyId", policy.Id, "newApproverCount", policy.ApprovalMetaData.ApprovalCount, "requestIds", approvbleRequestIds, "err", err)
 	}
 	return err
 }
