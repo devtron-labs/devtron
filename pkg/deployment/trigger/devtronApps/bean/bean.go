@@ -30,7 +30,7 @@ type TriggerRequest struct {
 	TriggeredBy           int32
 	RefCdWorkflowRunnerId int
 	TriggerMessage        string
-	DeploymentProfile     *deploymentWindow.DeploymentWindowProfile
+	DeploymentWindowState *deploymentWindow.EnvironmentState
 	TriggerContext
 }
 

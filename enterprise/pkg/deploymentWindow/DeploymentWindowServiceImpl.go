@@ -15,22 +15,21 @@ import (
 	"time"
 )
 
-func (impl DeploymentWindowServiceImpl) GetStateForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (UserActionState, *DeploymentWindowProfile, error) {
+func (impl DeploymentWindowServiceImpl) GetStateForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (UserActionState, *EnvironmentState, error) {
 
 	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, 0, userId)
 	if err != nil {
 		return Allowed, nil, err
 	}
 
-	var appliedProfile *DeploymentWindowProfile
+	var envState *EnvironmentState
 	actionState := Allowed
 	if state, ok := stateResponse.EnvironmentStateMap[envId]; ok {
 		actionState = state.UserActionState
-		if state.AppliedProfile != nil {
-			appliedProfile = state.AppliedProfile.DeploymentWindowProfile
-		}
+		envState = &state
+		envState.CalculatedAt = targetTime
 	}
-	return actionState, appliedProfile, nil
+	return actionState, envState, nil
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, filterForDays int, userId int32) (*DeploymentWindowAppGroupResponse, error) {

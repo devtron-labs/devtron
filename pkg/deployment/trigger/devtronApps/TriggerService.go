@@ -330,12 +330,12 @@ func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest
 
 func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
 	triggerTime := time.Now()
-	actionState, deploymentWindowProfile, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
 	if err != nil {
 		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
 	}
-	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
-	triggerRequest.DeploymentProfile = deploymentWindowProfile
+	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(envState)
+	triggerRequest.DeploymentWindowState = envState
 	if !isDeploymentAllowed(triggerRequest, actionState) {
 		err := impl.handleBlockedTrigger(triggerRequest, stage)
 		if err != nil {
@@ -907,7 +907,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
 	if request.TriggerMessage != "" {
-		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData(), resourceFilter.DEPLOYMENT_WINDOW)
+		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentWindowState.GetSerializedAuditData(), resourceFilter.DEPLOYMENT_WINDOW)
 		if err != nil {
 			return err
 		}

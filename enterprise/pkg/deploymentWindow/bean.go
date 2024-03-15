@@ -57,17 +57,31 @@ type DeploymentWindowProfile struct {
 	DeploymentWindowProfileMetadata
 }
 
-func (profile *DeploymentWindowProfile) GetSerializedAuditData() string {
-	if profile == nil {
-		return ""
+func (state *EnvironmentState) GetSerializedAuditData() string {
+	if state == nil {
+		return "{}"
 	}
-	data := make(map[string]interface{})
-	data["name"] = profile.Name
-	data["id"] = profile.Id
-	data["type"] = profile.Type
+	profile := state.AppliedProfile
 
-	dataJson, _ := json.Marshal(data)
+	audit := DeploymentWindowAuditData{
+		Audit:       state,
+		TriggeredAt: state.CalculatedAt,
+	}
+	if profile != nil {
+		audit.Name = profile.DeploymentWindowProfile.Name
+		audit.Id = profile.DeploymentWindowProfile.Id
+		audit.Type = string(profile.DeploymentWindowProfile.Type)
+	}
+	dataJson, _ := json.Marshal(audit)
 	return string(dataJson)
+}
+
+type DeploymentWindowAuditData struct {
+	Name        string            `json:"name"`
+	Id          int               `json:"id"`
+	Type        string            `json:"type"`
+	Audit       *EnvironmentState `json:"audit"`
+	TriggeredAt time.Time         `json:"triggeredAt"`
 }
 
 // DeploymentWindowProfileMetadata defines model for DeploymentWindowProfileMetadata.
@@ -94,6 +108,7 @@ type EnvironmentState struct {
 
 	// UserActionState describes the  eventual action state for the user
 	UserActionState UserActionState `json:"userActionState"`
+	CalculatedAt    time.Time       `json:"calculatedAt"`
 }
 
 type ProfileState struct {
@@ -111,14 +126,21 @@ type DeploymentWindowResponse struct {
 	//SuperAdmins         []string                 `json:"superAdmins,omitempty"`
 }
 
-func (state UserActionState) GetBypassActionMessageForProfileAndState(profile *DeploymentWindowProfile) string {
+func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *EnvironmentState) string {
 	if state == Allowed {
 		return ""
 	}
+	var profile *DeploymentWindowProfile
+	if envState != nil && envState.AppliedProfile != nil {
+		profile = envState.AppliedProfile.DeploymentWindowProfile
+	}
+
 	if profile != nil && profile.Type == Blackout {
 		return "Initiated during blackout window " + strconv.Quote(profile.Name)
+	} else if profile != nil && profile.Type == Maintenance {
+		return "Initiated outside maintenance window"
 	}
-	return "Initiated outside maintenance window"
+	return ""
 }
 
 func (item ProfileState) isRestricted() bool {
