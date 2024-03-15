@@ -1250,6 +1250,10 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 
 	approvbleRequestIds := make([]int, 0, len(unStaledRequestsIds))
 	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	if err != nil {
+		impl.logger.Errorw("error in fetching approved user data for some artifact promotion requestIds", "unStaledRequestsIds", unStaledRequestsIds, "err", err)
+		return err
+	}
 	approverCountForRequests := make(map[int]int)
 	for _, unStaledRequestsId := range unStaledRequestsIds {
 		approverCountForRequests[unStaledRequestsId] = 0
@@ -1305,7 +1309,7 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 			request.UpdatedOn = time.Now()
 			request.Status = constants.STALE
 			request.PolicyEvaluationAuditId = evaluationAuditEntry.Id
-			requestsToBeUpdatedAsStaled = append(requestsToBeUpdatedAsStaled)
+			requestsToBeUpdatedAsStaled = append(requestsToBeUpdatedAsStaled, request)
 		}
 
 	}
