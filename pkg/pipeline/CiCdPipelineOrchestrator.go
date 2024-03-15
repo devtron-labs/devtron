@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
 
@@ -86,7 +86,7 @@ type CiCdPipelineOrchestrator interface {
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
 	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
-	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *pipelineConfigBean.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
+	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -98,8 +98,8 @@ type CiCdPipelineOrchestrator interface {
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
-	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*linkedCIView.LinkedCIInfoFilters, error)
-	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *linkedCIView.SourceCiDownStreamFilters) (pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse], error)
+	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error)
+	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -287,7 +287,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(pipelineConfigBean.LINKED_CD):
+	case string(CiPipeline.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"
@@ -741,7 +741,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipelineAndCiEnvMappings(tx *pg
 	return err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *pipelineConfigBean.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean {
+func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean {
 	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
 		CiTemplate: nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
@@ -768,7 +768,7 @@ func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32,
 	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
 		CiTemplate:         nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
-		CiBuildConfig:      &pipelineConfigBean.CiBuildConfigBean{},
+		CiBuildConfig:      &CiPipeline.CiBuildConfigBean{},
 		UserId:             userId,
 	}
 	err := impl.ciPipelineHistoryService.SaveHistory(pipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
@@ -1390,7 +1390,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string
 	displayName := name
 	appName := name
 	if appType == helper.Job {
-		appName = name + "-" + util2.Generate(8) + "J" + pipelineConfigBean.UniquePlaceHolderForAppName
+		appName = name + "-" + util2.Generate(8) + "J" + CiPipeline.UniquePlaceHolderForAppName
 	}
 	pg := &app2.App{
 		Active:      true,
@@ -2106,7 +2106,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 	return createRequest, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*linkedCIView.LinkedCIInfoFilters, error) {
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error) {
 	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamFilters")
 	defer span.End()
 	linkedCiPipelines, err := impl.ciPipelineRepository.GetLinkedCiPipelines(ctx, sourceCiPipelineId)
@@ -2119,7 +2119,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(ctx contex
 		impl.logger.Errorw("error in fetching environment names for linked Ci pipelines", "linkedCiPipelines", linkedCiPipelines, "err", err)
 		return nil, err
 	}
-	res := &linkedCIView.LinkedCIInfoFilters{
+	res := &CiPipeline.SourceCiDownStreamEnv{
 		EnvNames: envNames,
 	}
 	return res, nil
@@ -2151,10 +2151,10 @@ func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(ctx context.
 	return envNames, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *linkedCIView.SourceCiDownStreamFilters) (pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse], error) {
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error) {
 	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamInfo")
 	defer span.End()
-	response := pagination.PaginatedResponse[linkedCIView.SourceCiDownStreamResponse]{}
+	response := pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse]{}
 
 	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetDownStreamInfo(ctx, sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
 	if util.IsErrNoRows(err) {

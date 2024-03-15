@@ -1,4 +1,4 @@
-package linkedCIView
+package CiPipeline
 
 import "github.com/devtron-labs/devtron/util/response/pagination"
 
@@ -16,6 +16,6 @@ type SourceCiDownStreamResponse struct {
 	DeploymentStatus string `json:"deploymentStatus"`
 }
 
-type LinkedCIInfoFilters struct {
+type SourceCiDownStreamEnv struct {
 	EnvNames []string `json:"envNames"`
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	ciPipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/go-pg/pg"
@@ -136,7 +137,7 @@ type CiPipelineRepository interface {
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
-	GetLinkedCiPipelines(ctx context.Context,ciPipelineId int) ([]*CiPipeline, error)
+	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
 	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId, limit, offset int, appNameMatch, envNameMatch string, order pagination.SortOrder) ([]bean.LinkedCIDetails, int, error)
 }
 
@@ -604,7 +605,7 @@ func (impl *CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, 
 	pipeline := &CiPipeline{}
 	cnt, err := impl.dbConnection.Model(pipeline).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
-		Where("ci_pipeline_type != ?", "LINKED_CD").
+		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("deleted = ?", false).
 		Count()
 	if err == pg.ErrNoRows {
@@ -613,13 +614,13 @@ func (impl *CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, 
 	return cnt, err
 }
 
-func (impl *CiPipelineRepositoryImpl) GetLinkedCiPipelines(ctx context.Context,ciPipelineId int) ([]*CiPipeline, error) {
+func (impl *CiPipelineRepositoryImpl) GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "GetLinkedCiPipelines")
 	defer span.End()
 	var linkedCIPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&linkedCIPipelines).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
-		Where("ci_pipeline_type != ?", "LINKED_CD").
+		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("deleted = ?", false).
 		Select()
 	if err != nil {

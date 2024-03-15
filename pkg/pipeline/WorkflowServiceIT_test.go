@@ -18,6 +18,7 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
@@ -153,13 +154,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -289,13 +290,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -468,7 +469,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "job/f1851uikJ",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,
@@ -665,7 +666,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,

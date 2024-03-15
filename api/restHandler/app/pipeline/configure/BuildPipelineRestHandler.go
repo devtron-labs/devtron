@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/linkedCIView"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 
@@ -417,8 +417,8 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &CiPipeline.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = CiPipeline.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -439,7 +439,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -2116,7 +2116,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamFilters(w htt
 		return
 	}
 	// RBAC enforcer Ends
-	resp, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamFilters(r.Context(),ciPipelineId)
+	resp, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamFilters(r.Context(), ciPipelineId)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("error getting environment info for given source Ci pipeline id"), "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
 		return
@@ -2138,7 +2138,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 
-	var req linkedCIView.SourceCiDownStreamFilters
+	var req CiPipeline.SourceCiDownStreamFilters
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSourceCiDownStreamInfo", "err", err, "payload", req)
