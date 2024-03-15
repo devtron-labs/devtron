@@ -100,7 +100,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 
-	materialInfos, err := cdWf.CiArtifact.GetMaterialInfo()
+	materialInfos, err := artifact.GetMaterialInfo()
 	if err != nil {
 		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
 		return err
