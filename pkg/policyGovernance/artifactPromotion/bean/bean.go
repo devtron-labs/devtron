@@ -157,13 +157,12 @@ type EnvironmentApprovalMetadata struct {
 }
 
 type PromotionPolicy struct {
-	Id                 int                      `json:"id" `
-	Name               string                   `json:"name" devtronSearchableField:"name" validate:"min=3,max=50,global-entity-name"`
-	Description        string                   `json:"description" validate:"max=300"`
-	PolicyEvaluationId int                      `json:"-"`
-	Conditions         []util.ResourceCondition `json:"conditions" validate:"min=1,dive"`
-	ApprovalMetaData   ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
-	IdentifierCount    *int                     `json:"identifierCount,omitempty"`
+	Id               int                      `json:"id" `
+	Name             string                   `json:"name" devtronSearchableField:"name" validate:"min=3,max=50,global-entity-name"`
+	Description      string                   `json:"description" validate:"max=300"`
+	Conditions       []util.ResourceCondition `json:"conditions" validate:"min=1,dive"`
+	ApprovalMetaData ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
+	IdentifierCount  *int                     `json:"identifierCount,omitempty"`
 }
 
 func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
@@ -224,7 +223,6 @@ func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPoli
 	policy.Name = rawPolicy.Name
 	policy.Id = rawPolicy.Id
 	policy.Description = rawPolicy.Description
-	policy.PolicyEvaluationId = rawPolicy.HistoryId
 	return nil
 }
 

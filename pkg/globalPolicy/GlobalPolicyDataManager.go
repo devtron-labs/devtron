@@ -415,12 +415,11 @@ func getBaseModelFromHistories(globalPolicyHistories []*repository2.GlobalPolicy
 	globalBaseModels := make([]*bean.GlobalPolicyBaseModel, 0, len(globalPolicyHistories))
 	for _, globalPolicyHistory := range globalPolicyHistories {
 		globalBaseModels = append(globalBaseModels, &bean.GlobalPolicyBaseModel{
-			Id:              globalPolicyHistory.GlobalPolicyId,
-			PolicyOf:        bean.GlobalPolicyType(globalPolicyHistory.PolicyOf),
-			Description:     globalPolicyHistory.Description,
-			Enabled:         globalPolicyHistory.Enabled,
-			JsonData:        globalPolicyHistory.PolicyData,
-			LatestHistoryId: globalPolicyHistory.Id,
+			Id:          globalPolicyHistory.GlobalPolicyId,
+			PolicyOf:    bean.GlobalPolicyType(globalPolicyHistory.PolicyOf),
+			Description: globalPolicyHistory.Description,
+			Enabled:     globalPolicyHistory.Enabled,
+			JsonData:    globalPolicyHistory.PolicyData,
 		})
 	}
 	return globalBaseModels

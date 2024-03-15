@@ -220,7 +220,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -230,7 +230,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
 }
 
-func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean2.PromotionMaterialRequest, ctx *util.RequestCtx) bool {
+func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request bean2.PromotionMaterialRequest, ctx *util.RequestCtx) bool {
 
 	if request.IsCINode() || request.IsCDNode() {
 		// check if user has trigger access for any one env for this app
@@ -274,7 +274,7 @@ func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId in
 	return rbacObjects[0], rbacObjects[1]
 }
 
-func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWriter, r *http.Request) (*bean2.PromotionMaterialRequest, error) {
+func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWriter, r *http.Request) (bean2.PromotionMaterialRequest, error) {
 
 	queryParams := r.URL.Query()
 	resource := queryParams.Get("resource")
@@ -284,41 +284,41 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	resourceId, err := common.ExtractIntQueryParam(w, r, "resourceId", &resourceIdDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing limit from string to int", "resourceId", queryParams.Get("resourceId"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	pendingForCurrentUser, err := common.ExtractBooleanQueryParam(w, r, "pendingForCurrentUser", false)
 	if err != nil {
 		handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	workflowId := 0
 	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
 	if err != nil {
 		handler.logger.Errorw("error in parsing workflowId from string to int", "workflowId", queryParams.Get("workflowId"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	appId := 0
 	appId, err = common.ExtractIntQueryParam(w, r, "appId", &appId)
 	if err != nil {
 		handler.logger.Errorw("error in parsing appId from string to int", "workflowId", queryParams.Get("appId"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	offsetDefault := 0
 	offset, err := common.ExtractIntQueryParam(w, r, "offset", &offsetDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing offset from string to int", "workflowId", queryParams.Get("offset"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	limitDefault := 20
 	limit, err := common.ExtractIntQueryParam(w, r, "size", &limitDefault)
 	if err != nil {
 		handler.logger.Errorw("error in parsing limit from string to int", "workflowId", queryParams.Get("size"))
-		return nil, err
+		return bean2.PromotionMaterialRequest{}, err
 	}
 
 	searchQueryParam := r.URL.Query().Get("search") // image search string
@@ -329,7 +329,7 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 		SearchString: searchQueryParam,
 	}
 
-	artifactPromotionMaterialRequest := &bean2.PromotionMaterialRequest{
+	artifactPromotionMaterialRequest := bean2.PromotionMaterialRequest{
 		Resource:              resource,
 		ResourceName:          resourceName,
 		ResourceId:            resourceId,
@@ -342,7 +342,7 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 	return artifactPromotionMaterialRequest, nil
 }
 
-func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.ResponseWriter, request *bean2.PromotionMaterialRequest) bool {
+func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.ResponseWriter, request bean2.PromotionMaterialRequest) bool {
 
 	if len(request.Resource) == 0 {
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
