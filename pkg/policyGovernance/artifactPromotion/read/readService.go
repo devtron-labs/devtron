@@ -32,8 +32,6 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
-	GetPromotionRequestCountPendingForUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int]int, error)
-	GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int][]int, error)
 	GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
 }
 
@@ -483,91 +481,11 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocompl
 	return policyNames, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPendingForUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int]int, error) {
-	wfIdToAuthorizedCDPipelineIds, err := impl.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, workflowIds, imagePromoterBulkAuth)
-	if err != nil {
-		impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "workflowIds", workflowIds, "err", err)
-		return nil, err
-	}
-	if len(wfIdToAuthorizedCDPipelineIds) == 0 {
-		return nil, nil
-	}
-
-	wfCdPipelineIds := make([]int, 0)
-	for _, pipelineIds := range wfIdToAuthorizedCDPipelineIds {
-		wfCdPipelineIds = append(wfCdPipelineIds, pipelineIds...)
-	}
-
-	pipelineIdToPendingRequestCount, err := impl.GetPromotionPendingRequestMapping(ctx, wfCdPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", wfCdPipelineIds, "err", err)
-		return nil, err
-	}
-
-	wfIdToPendingCountMapping := make(map[int]int)
-	for wfId, cdPipelineIds := range wfIdToAuthorizedCDPipelineIds {
-		for _, id := range cdPipelineIds {
-			wfIdToPendingCountMapping[wfId] = pipelineIdToPendingRequestCount[id] + wfIdToPendingCountMapping[wfId]
-		}
-	}
-
-	return wfIdToPendingCountMapping, err
-}
-
-func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(*util2.RequestCtx, []string) map[string]bool) (map[int][]int, error) {
-	// TOD: auth function in reader service ??
-
-	cdPipelineIds, cdPipelineIdToWorkflowIdMapping, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(workflowIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowIds", workflowIds, "err", err)
-		return nil, err
-	}
-
-	if len(cdPipelineIds) == 0 {
-		return nil, nil
-	}
-	pipeline, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
-		return nil, err
-	}
-
-	teamDao, err := impl.teamService.FetchOne(pipeline[0].App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)
-		return nil, err
-	}
-
-	imagePromoterRbacObjects := make([]string, 0, len(pipeline))
-	pipelineIdToRbacObjMapping := make(map[int]string)
-	for _, pipelineDao := range pipeline {
-		imagePromoterRbacObject := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
-		imagePromoterRbacObjects = append(imagePromoterRbacObjects, imagePromoterRbacObject)
-		pipelineIdToRbacObjMapping[pipelineDao.Id] = imagePromoterRbacObject
-	}
-
-	rbacResults := imagePromoterBulkAuth(ctx, imagePromoterRbacObjects)
-	authorizedPipelineIds := make([]int, 0, len(pipeline))
-	for pipelineId, rbacObj := range pipelineIdToRbacObjMapping {
-		if authorized := rbacResults[rbacObj]; authorized {
-			authorizedPipelineIds = append(authorizedPipelineIds, pipelineId)
-		}
-	}
-
-	wfIdToAuthorizedCDPipelineIds := make(map[int][]int)
-	for _, pipelineId := range authorizedPipelineIds {
-		wfId := cdPipelineIdToWorkflowIdMapping[pipelineId]
-		wfIdToAuthorizedCDPipelineIds[wfId] = append(wfIdToAuthorizedCDPipelineIds[wfId], pipelineId)
-	}
-
-	return wfIdToAuthorizedCDPipelineIds, nil
-}
-
 func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error) {
 	pipelineIdToCountMap := make(map[int]int)
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindPendingByDestinationPipelineIds(pipelineIds)
 	if err != nil {
-		impl.logger.Errorw("error in finding count of request pending for current user", "pipelineIds", pipelineIds, "err", err)
+		impl.logger.Errorw("error in finding pending requests on pipeline", "pipelineIds", pipelineIds, "err", err)
 		return pipelineIdToCountMap, err
 	}
 	for _, request := range requests {

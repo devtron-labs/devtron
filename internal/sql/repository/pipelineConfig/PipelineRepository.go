@@ -199,6 +199,9 @@ func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
 
 func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
+	if len(ids) == 0 {
+		return pipelines, nil
+	}
 	err := impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "App", "Environment", "Environment.Cluster").
 		Join("inner join app a on pipeline.app_id = a.id").

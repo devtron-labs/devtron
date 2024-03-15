@@ -195,24 +195,39 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		return nil, err
 	}
+
 	wfrIdVsMappings := make(map[int][]bean4.AppWorkflowMappingDto)
 	wfIds := make([]int, 0, len(appWorkflows))
 	for _, appWf := range appWorkflows {
 		wfrIdVsMappings[appWf.Id] = appWf.AppWorkflowMappingDto
 		wfIds = append(wfIds, appWf.Id)
 	}
-	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMapping(ctx, appId, wfrIdVsMappings)
+
+	cdPipelineIds := make([]int, 0)
+	cdPipelineIdToWfIdMap := make(map[int]int)
+	for _, wfMappings := range wfrIdVsMappings {
+		for _, wfMapping := range wfMappings {
+			if wfMapping.Type == appWorkflow.CDPIPELINE {
+				cdPipelineIds = append(cdPipelineIds, wfMapping.ComponentId)
+				cdPipelineIdToWfIdMap[wfMapping.ComponentId] = wfMapping.AppWorkflowId
+			}
+		}
+	}
+
+	wfIdToPromotionPolicyMapping, err := impl.getWfIdToPolicyConfiguredMapping(ctx, appId, cdPipelineIds, cdPipelineIdToWfIdMap)
 	if err != nil {
 		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
 		return nil, err
 	}
-	wfIdToPendingApprovalCountMapping, err := impl.artifactPromotionDataReadService.GetPromotionRequestCountPendingForUser(ctx, wfIds, imagePromoterAuth)
+
+	wfIdToPendingApprovalCountMapping, err := impl.getWfIdToPendingApprovalCount(ctx, err, cdPipelineIds, cdPipelineIdToWfIdMap)
 	if err != nil {
-		impl.Logger.Errorw("error in finding approval pending coount for current user", "wfIds", wfIds, "err", err)
+		impl.Logger.Errorw("error in getting wfIdToPendingApprovalCountMapping for pipelineId", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
+
 	for i, wf := range appWorkflows {
-		if isConfigured, ok := workflowIdToPromotionPolicyConfiguredMapping[wf.Id]; ok {
+		if isConfigured, ok := wfIdToPromotionPolicyMapping[wf.Id]; ok {
 			pendingApprovalCount := wfIdToPendingApprovalCountMapping[wf.Id]
 			appWorkflows[i].ArtifactPromotionMetadata = &bean4.ArtifactPromotionMetadata{
 				IsApprovalPendingForPromotion: pendingApprovalCount > 0,
@@ -220,57 +235,61 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 			}
 		}
 	}
+
 	return appWorkflows, nil
 }
 
-func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.RequestCtx, appId int, wfrIdVsMappings map[int][]bean4.AppWorkflowMappingDto) (map[int]bool, error) {
+func (impl AppWorkflowServiceImpl) getWfIdToPendingApprovalCount(ctx *util2.RequestCtx, err error, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]int, error) {
+	pipelineIdToRequestCountMap, err := impl.artifactPromotionDataReadService.GetPromotionPendingRequestMapping(ctx, cdPipelineIds)
+	if err != nil {
+		return nil, err
+	}
 
-	cdPipelineIds := make([]int, 0)
-	cdPipelineIdToWorkflowIdMapping := make(map[int]int)
-	for _, wfMappings := range wfrIdVsMappings {
-		for _, wfMapping := range wfMappings {
-			if wfMapping.Type == appWorkflow.CDPIPELINE {
-				cdPipelineIds = append(cdPipelineIds, wfMapping.ComponentId)
-				cdPipelineIdToWorkflowIdMapping[wfMapping.ComponentId] = wfMapping.AppWorkflowId
+	wfIdToPendingApprovalCountMapping := make(map[int]int)
+	for cdPipelineId, wfId := range cdPipelineIdToWfIdMap {
+		pendingCount := pipelineIdToRequestCountMap[cdPipelineId]
+		wfIdToPendingApprovalCountMapping[wfId] = wfIdToPendingApprovalCountMapping[wfId] + pendingCount
+	}
+	return wfIdToPendingApprovalCountMapping, nil
+}
+
+func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.RequestCtx, appId int, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]bool, error) {
+
+	wfIdToPolicyMapping := make(map[int]bool)
+
+	cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
+		return wfIdToPolicyMapping, err
+	}
+	if len(cdPipelines) == 0 {
+		return wfIdToPolicyMapping, err
+	}
+
+	envIds := make([]int, len(cdPipelines))
+	envIdToNameMap := make(map[int]string)
+	for i, cdPipeline := range cdPipelines {
+		envIds[i] = cdPipeline.EnvironmentId
+		envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
+	}
+
+	promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
+		return wfIdToPolicyMapping, err
+	}
+
+	for _, cdPipeline := range cdPipelines {
+		envName := cdPipeline.Environment.Name
+		if _, ok := promotionPolicies[envName]; ok {
+			if _, cdPipelineOk := cdPipelineIdToWfIdMap[cdPipeline.Id]; cdPipelineOk {
+				workflowId := cdPipelineIdToWfIdMap[cdPipeline.Id]
+				wfIdToPolicyMapping[workflowId] = true
 			}
 		}
 	}
 
-	workflowIdToPromotionPolicyConfiguredMapping := make(map[int]bool)
-
-	if len(cdPipelineIds) > 0 {
-
-		cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
-			return workflowIdToPromotionPolicyConfiguredMapping, err
-		}
-
-		envIds := make([]int, len(cdPipelines))
-		envIdToNameMap := make(map[int]string)
-		for i, cdPipeline := range cdPipelines {
-			envIds[i] = cdPipeline.EnvironmentId
-			envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
-		}
-
-		promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
-			return workflowIdToPromotionPolicyConfiguredMapping, err
-		}
-
-		for _, cdPipeline := range cdPipelines {
-			envName := cdPipeline.Environment.Name
-			if _, ok := promotionPolicies[envName]; ok {
-				if _, cdPipelineOk := cdPipelineIdToWorkflowIdMapping[cdPipeline.Id]; cdPipelineOk {
-					workflowId := cdPipelineIdToWorkflowIdMapping[cdPipeline.Id]
-					workflowIdToPromotionPolicyConfiguredMapping[workflowId] = true
-				}
-			}
-		}
-
-	}
-	return workflowIdToPromotionPolicyConfiguredMapping, nil
+	return wfIdToPolicyMapping, nil
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (bean4.AppWorkflowDto, error) {

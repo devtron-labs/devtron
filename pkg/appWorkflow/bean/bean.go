@@ -16,7 +16,7 @@ type AppWorkflowDto struct {
 	Name                      string                     `json:"name"`
 	AppId                     int                        `json:"appId"`
 	AppWorkflowMappingDto     []AppWorkflowMappingDto    `json:"tree,omitempty"`
-	ArtifactPromotionMetadata *ArtifactPromotionMetadata `json:"artifactPromotionMetadata,omitempty"`
+	ArtifactPromotionMetadata *ArtifactPromotionMetadata `json:"artifactPromotionMetadata"`
 	UserId                    int32                      `json:"-"`
 }
 

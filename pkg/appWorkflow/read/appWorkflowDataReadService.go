@@ -7,7 +7,7 @@ import (
 )
 
 type AppWorkflowDataReadService interface {
-	FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error)
+	FindCDPipelineIdsAndCdPipelineIdToWfIdMapping(wfIds []int) ([]int, map[int]int, error)
 }
 
 type AppWorkflowDataReadServiceImpl struct {
@@ -24,7 +24,7 @@ func NewAppWorkflowDataReadServiceImpl(
 	}
 }
 
-func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error) {
+func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdToWfIdMapping(wfIds []int) ([]int, map[int]int, error) {
 
 	wfMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(wfIds)
 	if err != nil {

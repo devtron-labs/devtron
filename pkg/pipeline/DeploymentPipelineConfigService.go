@@ -2514,13 +2514,13 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
 
-	Pipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	pipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
 
-	for _, pipeline := range Pipelines {
+	for _, pipeline := range pipelines {
 		cdPipeline := &bean.CDPipelineConfigObject{
 			Id:                         pipeline.Id,
 			EnvironmentId:              pipeline.EnvironmentId,
