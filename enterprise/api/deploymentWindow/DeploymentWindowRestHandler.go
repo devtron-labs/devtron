@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	util2 "github.com/devtron-labs/devtron/util"
+	"golang.org/x/exp/maps"
 	"net/url"
 	"strconv"
 	"time"
@@ -39,7 +40,7 @@ type DeploymentWindowRestHandlerImpl struct {
 	enforcerUtil            rbac.EnforcerUtil
 	validator               *validator.Validate
 	deploymentWindowService deploymentWindow.DeploymentWindowService
-	pipelineRepository      pipelineConfig.PipelineRepository
+	pipelineConfigService   pipeline.CdPipelineConfigService
 }
 
 func NewDeploymentWindowRestHandlerImpl(
@@ -49,7 +50,7 @@ func NewDeploymentWindowRestHandlerImpl(
 	enforcerUtil rbac.EnforcerUtil,
 	validator *validator.Validate,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
-	pipelineRepository pipelineConfig.PipelineRepository,
+	pipelineConfigService pipeline.CdPipelineConfigService,
 ) *DeploymentWindowRestHandlerImpl {
 	return &DeploymentWindowRestHandlerImpl{
 		logger:                  logger,
@@ -58,7 +59,7 @@ func NewDeploymentWindowRestHandlerImpl(
 		enforcerUtil:            enforcerUtil,
 		validator:               validator,
 		deploymentWindowService: deploymentWindowService,
-		pipelineRepository:      pipelineRepository,
+		pipelineConfigService:   pipelineConfigService,
 	}
 }
 
@@ -233,25 +234,13 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileAppOve
 		return
 	}
 
-	objects, envObjectToName := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
-	var rbacObjectArr []string
-	for _, object := range objects {
-		rbacObjectArr = append(rbacObjectArr, object)
-	}
-	unauthorizedResources := make([]string, 0)
-	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArr)
-	for _, resourceId := range envIds {
-		resourceObject := objects[resourceId]
-		if !results[resourceObject] {
-			unauthorizedResources = append(unauthorizedResources, envObjectToName[resourceObject])
-		}
-	}
-	if len(unauthorizedResources) > 0 {
+	authorizedEnvs := handler.filterAuthorizedResources(envIds, appId, token)
+	if len(authorizedEnvs) == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileOverview(appId, envIds)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileOverview(appId, authorizedEnvs)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileOverview", "err", err, "appId", appId, "envIds", envIds, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -280,26 +269,14 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
-	objects, envObjectToName := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
-	var rbacObjectArr []string
-	for _, object := range objects {
-		rbacObjectArr = append(rbacObjectArr, object)
-	}
-	unauthorizedResources := make([]string, 0)
-	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArr)
-	for _, resourceId := range envIds {
-		resourceObject := objects[resourceId]
-		if !results[resourceObject] {
-			unauthorizedResources = append(unauthorizedResources, envObjectToName[resourceObject])
-		}
-	}
-	if len(unauthorizedResources) > 0 {
+	authorizedEnvs := handler.filterAuthorizedResources(envIds, appId, token)
+	if len(authorizedEnvs) == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	requestTime := time.Now()
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, envIds, days, userId)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, authorizedEnvs, days, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileState", "err", err, "request time", requestTime, "appId", appId, "envIds", envIds, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -307,6 +284,50 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	}
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 
+}
+
+func (handler *DeploymentWindowRestHandlerImpl) filterAuthorizedResourcesForGroup(appEnvs []deploymentWindow.AppEnvSelector, token string) []deploymentWindow.AppEnvSelector {
+
+	appToEnvs := make(map[int][]int)
+	for _, appEnv := range appEnvs {
+		appToEnvs[appEnv.AppId] = append(appToEnvs[appEnv.AppId], appEnv.EnvId)
+	}
+	rbacObjectToAppEnv := make(map[string]deploymentWindow.AppEnvSelector)
+	rbacObjects := make([]string, 0)
+	for appId, envIds := range appToEnvs {
+		objectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
+		rbacObjects = append(rbacObjects, maps.Values(objectMap)...)
+		for _, envId := range envIds {
+			rbacObjectToAppEnv[objectMap[envId]] = deploymentWindow.AppEnvSelector{
+				AppId: appId,
+				EnvId: envId,
+			}
+		}
+	}
+	authorizedAppEnvSelectors := make([]deploymentWindow.AppEnvSelector, 0)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, rbacObjects)
+	for object, isAllowed := range results {
+		if isAllowed {
+			authorizedAppEnvSelectors = append(authorizedAppEnvSelectors, rbacObjectToAppEnv[object])
+		}
+	}
+
+	return authorizedAppEnvSelectors
+}
+
+func (handler *DeploymentWindowRestHandlerImpl) filterAuthorizedResources(envIds []int, appId int, token string) []int {
+	objects, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
+	rbacObjectArr := maps.Values(objects)
+
+	authorizedResourceIds := make([]int, 0)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, rbacObjectArr)
+	for _, resourceId := range envIds {
+		resourceObject := objects[resourceId]
+		if results[resourceObject] {
+			authorizedResourceIds = append(authorizedResourceIds, resourceId)
+		}
+	}
+	return authorizedResourceIds
 }
 
 func (handler *DeploymentWindowRestHandlerImpl) getFilterDays(w http.ResponseWriter, v url.Values) (int, error) {
@@ -332,17 +353,12 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 	}
 	envIdsString := v.Get("envIds")
 	if len(envIdsString) == 0 {
-		pipelines, err := handler.pipelineRepository.FindActiveByAppId(appId)
+		envIds, err := handler.pipelineConfigService.GetPipelineEnvironmentsForApplication(appId)
 		if err != nil {
 			common.WriteJsonResp(w, err, "error finding pipelines for app Id", http.StatusBadRequest)
 			return 0, nil, err
 		}
-		envIds := make([]int, 0)
-		for _, pipeline := range pipelines {
-			envIds = append(envIds, pipeline.EnvironmentId)
-		}
 		return appId, envIds, nil
-
 	}
 	envIds, err := util2.SplitCommaSeparatedIntValues(envIdsString)
 	if err != nil {
@@ -388,24 +404,10 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
-	appIds := make([]int, 0)
-	for _, selector := range request {
-		appIds = append(appIds, selector.AppId)
-	}
-
-	objects := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
-	var rbacObjectArr []string
-	for _, object := range objects {
-		rbacObjectArr = append(rbacObjectArr, object)
-	}
-
-	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArr)
-	for _, resourceId := range appIds {
-		resourceObject := objects[resourceId]
-		if !results[resourceObject] {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-			return
-		}
+	request = handler.filterAuthorizedResourcesForGroup(request, token)
+	if len(request) == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
 	}
 
 	requestTime := time.Now()

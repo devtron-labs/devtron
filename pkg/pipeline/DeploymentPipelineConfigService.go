@@ -131,6 +131,7 @@ type CdPipelineConfigService interface {
 	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
+	GetPipelineEnvironmentsForApplication(appId int) ([]int, error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -2566,4 +2567,16 @@ func (impl *CdPipelineConfigServiceImpl) FindActiveByAppIdAndEnvNames(appId int,
 
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
 	return impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds)
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetPipelineEnvironmentsForApplication(appId int) ([]int, error) {
+	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
+	envIds := make([]int, 0)
+	for _, pipeline := range pipelines {
+		envIds = append(envIds, pipeline.EnvironmentId)
+	}
+	return envIds, nil
 }

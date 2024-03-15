@@ -1007,7 +1007,7 @@ func InitializeApp() (*App, error) {
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enterpriseEnforcerImpl)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
-	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl, pipelineRepositoryImpl)
+	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl, cdPipelineConfigServiceImpl)
 	deploymentWindowRouterImpl := deploymentWindow2.NewDeploymentWindowRouterImpl(deploymentWindowRestHandlerImpl)
 	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
 	commonPolicyActionsServiceImpl := policyGovernance.NewCommonPolicyActionsService(globalPolicyDataManagerImpl, qualifierMappingServiceImpl, cdPipelineConfigServiceImpl, appServiceImpl, environmentServiceImpl, sugaredLogger, transactionUtilImpl)
