@@ -1600,24 +1600,24 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 			impl.logger.Errorw("error in setting environments on which artifact is deployed", "workflowId", request.WorkflowId, "err", err)
 			return ciArtifactResponse, err
 		}
-
-		appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(request.AppId)
-		if err != nil {
-			impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", request.AppId)
-			return ciArtifactResponse, err
-		}
-
-		pipelineIdToRequestMapping, err := impl.artifactPromotionDataReadService.GetPromotionPendingRequestMapping(ctx, wfMetadata.GetCdPipelineIds())
-		if err != nil {
-			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", wfMetadata.GetCdPipelineIds(), "err", err)
-			return bean2.CiArtifactResponse{}, err
-		}
-
-		ciArtifactResponse.AppReleaseTagNames = appTags
-		ciArtifactResponse.IsApprovalPendingForPromotion = len(pipelineIdToRequestMapping) > 0
-
 	}
+
+	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(request.AppId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", request.AppId)
+		return ciArtifactResponse, err
+	}
+
+	pipelineIdToRequestMapping, err := impl.artifactPromotionDataReadService.GetPromotionPendingRequestMapping(ctx, wfMetadata.GetCdPipelineIds())
+	if err != nil {
+		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", wfMetadata.GetCdPipelineIds(), "err", err)
+		return bean2.CiArtifactResponse{}, err
+	}
+
+	ciArtifactResponse.AppReleaseTagNames = appTags
+	ciArtifactResponse.IsApprovalPendingForPromotion = len(pipelineIdToRequestMapping) > 0
 	ciArtifactResponse.RequestedUserId = ctx.GetUserId()
+
 	return ciArtifactResponse, nil
 }
 
