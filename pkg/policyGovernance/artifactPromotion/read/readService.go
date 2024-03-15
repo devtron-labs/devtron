@@ -163,7 +163,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(a
 		return &bean.PromotionApprovalMetaData{}, err
 	}
 
-	policy := requestIdToPolicyMapping[approvalRequest.PolicyId]
+	policy := requestIdToPolicyMapping[approvalRequest.Id]
 
 	approvalMetadata := &bean.PromotionApprovalMetaData{
 		ApprovalRequestId:    approvalRequest.Id,

@@ -108,6 +108,8 @@ type CiPipelineRepository interface {
 	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
+	FindOneWithAppData(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -331,6 +333,18 @@ func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err
 		Relation("CiPipelineMaterials", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("(ci_pipeline_material.active=true)"), nil
 		}).
+		Where("ci_pipeline.id= ?", id).
+		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
+func (impl CiPipelineRepositoryImpl) FindOneWithAppData(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "App").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()

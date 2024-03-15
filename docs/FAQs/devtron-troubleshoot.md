@@ -566,7 +566,7 @@ Edit the following field:
 ```yaml
 spec:
     capacity:
-        storage: 10Gi # increase as per convinience
+        storage: 10Gi # increase as per convenience
 ```
 
 **Increase the PVC size as per your requirement. This will resolve the issue. If not, then try to bounce the pod using the following command.**

@@ -1,6 +1,6 @@
 # Container/OCI Registry
 
-While [container registries](https://docs.devtron.ai/resources/glossary#container-registry) are typically used for storing [images](https://docs.devtron.ai/resources/glossary#image) built by the CI Pipeline, an OCI registry can store container images as well as other artifacts such as [helm charts](https://docs.devtron.ai/resources/glossary#helm-charts-packages). In other words, all container registries are OCI registries, but not all OCI registries are container registries.
+While [container registries](../../reference/glossary.md#container-registry) are typically used for storing [images](../../reference/glossary.md#image) built by the CI Pipeline, an OCI registry can store container images as well as other artifacts such as [helm charts](../../reference/glossary.md#helm-charts-packages). In other words, all container registries are OCI registries, but not all OCI registries are container registries.
 
 You can configure a container registry using any registry provider of your choice. It allows you to build, deploy, and manage your container images or charts with easy-to-use UI. 
 
@@ -25,7 +25,7 @@ You can configure a container registry using any registry provider of your choic
 
     | Fields | Description |
     | --- | --- |
-    | **Name** | Provide a name to your registry, this name will appear in the **Container Registry** drop-down list available within the [Build Configuration](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration) section of your application|
+    | **Name** | Provide a name to your registry, this name will appear in the **Container Registry** drop-down list available within the [Build Configuration](../creating-application/docker-build-configuration.md) section of your application|
     | **Registry URL** | Provide the URL of your registry in case it doesn't come prefilled (do not include `oci://`, `http://`, or `/https://` in the URL) |
     | **Authentication Type** | The credential input fields may differ depending on the registry provider, check [Registry Providers](#supported-registry-providers) |
     | **Push container images** | Tick this checkbox if you wish to use the repository to push container images. This comes selected by default and you may untick it if you don't intend to push container images after a CI build. If you wish to to use the same repository to pull container images too, read [Registry Credential Access](#registry-credential-access). |
@@ -128,7 +128,7 @@ You can use any registry which can be authenticated using `docker login -u <user
 
 ## Registry Credential Access
 
-You can create a Pod that uses a [Secret](https://docs.devtron.ai/resources/glossary#secrets) to pull an image from a private container registry. You can use any private container registry of your choice, for e.g., [Docker Hub](https://www.docker.com/products/docker-hub).
+You can create a Pod that uses a [Secret](../../reference/glossary.md#secrets) to pull an image from a private container registry. You can use any private container registry of your choice, for e.g., [Docker Hub](https://www.docker.com/products/docker-hub).
 
 Super-admin users can decide if they want to auto-inject registry credentials or use a secret to pull an image for deployment to environments on specific clusters.
 

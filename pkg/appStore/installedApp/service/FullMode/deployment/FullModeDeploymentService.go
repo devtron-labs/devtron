@@ -12,6 +12,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"time"
@@ -80,6 +81,7 @@ type FullModeDeploymentServiceImpl struct {
 	acdConfig                            *argocdServer.ACDConfig
 	gitOperationService                  git.GitOperationService
 	gitOpsConfigReadService              config.GitOpsConfigReadService
+	gitOpsValidationService              validation.GitOpsValidationService
 	environmentRepository                repository5.EnvironmentRepository
 }
 
@@ -103,6 +105,7 @@ func NewFullModeDeploymentServiceImpl(
 	acdConfig *argocdServer.ACDConfig,
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsValidationService validation.GitOpsValidationService,
 	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
@@ -124,6 +127,7 @@ func NewFullModeDeploymentServiceImpl(
 		acdConfig:                            acdConfig,
 		gitOperationService:                  gitOperationService,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
+		gitOpsValidationService:              gitOpsValidationService,
 		environmentRepository:                environmentRepository,
 	}
 }
@@ -132,13 +136,13 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//STEP 4: registerInArgo
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err
 	}
 	//STEP 5: createInArgo
-	err = impl.CreateInArgo(chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
+	err = impl.createInArgo(chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in create in argo", "err", err)
 		return nil, err
@@ -235,7 +239,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
-	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
+	installedApp.GitOpsRepoURL = installedAppVersion.InstalledApp.GitOpsRepoUrl
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 
 	//create an entry in version history table

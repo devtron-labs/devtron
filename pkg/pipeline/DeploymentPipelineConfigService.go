@@ -24,6 +24,7 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -39,6 +40,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -49,7 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -123,7 +125,7 @@ type CdPipelineConfigService interface {
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
-	RegisterInACD(gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, userId int32, ctx context.Context) error
+	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
 	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineConfigObject, err error)
 	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
@@ -166,6 +168,7 @@ type CdPipelineConfigServiceImpl struct {
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	gitOperationService              git.GitOperationService
+	chartService                     chart.ChartService
 	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
 }
 
@@ -205,6 +208,7 @@ func NewCdPipelineConfigServiceImpl(
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService,
+	chartService chart.ChartService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
@@ -233,6 +237,7 @@ func NewCdPipelineConfigServiceImpl(
 		application:                      application,
 		manifestPushConfigRepository:     manifestPushConfigRepository,
 		pipelineConfigListenerService:    pipelineConfigListenerService,
+		chartService:                     chartService,
 		devtronAppCMCSService:            devtronAppCMCSService,
 		ciPipelineConfigService:          ciPipelineConfigService,
 		customTagService:                 customTagService,
@@ -347,12 +352,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	var customTag *bean.CustomTagData
 	var customTagStage repository5.PipelineStageType
 	var customTagEnabled bool
-	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(pipelineId))
+	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
 	}
-	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(pipelineId))
+	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
@@ -419,8 +424,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		TeamId:                        dbPipeline.App.TeamId,
 		EnvironmentIdentifier:         environment.EnvironmentIdentifier,
 	}
-	var preDeployStage *bean3.PipelineStageDto
-	var postDeployStage *bean3.PipelineStageDto
+	var preDeployStage *pipelineConfigBean.PipelineStageDto
+	var postDeployStage *pipelineConfigBean.PipelineStageDto
 	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
@@ -434,8 +439,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
-	// Validation for checking deployment App type
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	//Validation for checking deployment App type
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 
 	virtualEnvironmentMap, err := impl.GetVirtualEnvironmentMap(pipelineCreateRequest)
 	if err != nil {
@@ -453,7 +458,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		if err != nil {
 			return nil, err
 		}
-		err = impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, virtualEnvironmentMap, deploymentConfig)
+		err = impl.SetPipelineDeploymentAppType(pipelineCreateRequest, gitOpsConfigurationStatus.IsGitOpsConfigured, virtualEnvironmentMap, deploymentConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -469,30 +474,43 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
-	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequiredForCD, virtualEnvironmentMap)
+	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, gitOpsConfigurationStatus.IsGitOpsConfigured, isGitOpsRequiredForCD, virtualEnvironmentMap)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if isGitOpsConfigured && isGitOpsRequiredForCD {
-
-		gitopsRepoName, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
+		chart, err := impl.chartService.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
-			impl.logger.Errorw("error in creating git repo", "err", err)
+			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
 			return nil, err
 		}
-
-		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in registering app in acd", "err", err)
-			return nil, err
-		}
-
-		err = impl.updateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr, pipelineCreateRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-			return nil, err
+		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
+				apiErr := &util.ApiError{
+					HttpStatusCode:  http.StatusConflict,
+					UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+					InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				}
+				return nil, apiErr
+			}
+			_, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating git repo", "err", err)
+				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
+			}
+			err = impl.RegisterInACD(ctx, chartGitAttr, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in registering app in acd", "err", err)
+				return nil, err
+			}
+			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
+			err = impl.chartService.ConfigureGitOpsRepoUrl(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+				return nil, err
+			}
 		}
 	}
 
@@ -650,11 +668,11 @@ func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineRequ
 func getEntityTypeByPipelineStageType(pipelineStageType repository5.PipelineStageType) (customTagEntityType int) {
 	switch pipelineStageType {
 	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
-		customTagEntityType = bean3.EntityTypePreCD
+		customTagEntityType = pipelineConfigBean.EntityTypePreCD
 	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
-		customTagEntityType = bean3.EntityTypePostCD
+		customTagEntityType = pipelineConfigBean.EntityTypePostCD
 	default:
-		customTagEntityType = bean3.EntityNull
+		customTagEntityType = pipelineConfigBean.EntityNull
 	}
 	return customTagEntityType
 }
@@ -701,7 +719,7 @@ func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPa
 }
 
 func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(bean.LINKED_CD))
+	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(pipelineConfigBean.LINKED_CD))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
 		return true, err
@@ -891,7 +909,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	if cdPipelinePluginDeleteReq.PreDeployStage != nil {
 		tag := bean2.CustomTag{
-			EntityKey:   bean3.EntityTypePreCD,
+			EntityKey:   pipelineConfigBean.EntityTypePreCD,
 			EntityValue: strconv.Itoa(pipeline.Id),
 		}
 		err = impl.customTagService.DeleteCustomTagIfExists(tag)
@@ -901,7 +919,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	if cdPipelinePluginDeleteReq.PostDeployStage != nil {
 		tag := bean2.CustomTag{
-			EntityKey:   bean3.EntityTypePostCD,
+			EntityKey:   pipelineConfigBean.EntityTypePostCD,
 			EntityValue: strconv.Itoa(pipeline.Id),
 		}
 		err = impl.customTagService.DeleteCustomTagIfExists(tag)
@@ -1125,12 +1143,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
 		var customTagEnabled bool
-		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
 		}
-		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
@@ -1305,12 +1323,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	for _, dbPipeline := range authorizedPipelines {
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
-		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
 		}
-		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
@@ -1325,6 +1343,11 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 				CounterX: customTagPostCD.AutoIncreasingNumber,
 			}
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+		}
+		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart details for app by appId")
+			return nil, err
 		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
@@ -1351,6 +1374,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			PostDeployStage:               dbPipeline.PostDeployStage,
 			CustomTagObject:               customTag,
 			CustomTagStage:                &customTagStage,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1813,29 +1837,12 @@ func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreat
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, userId int32, ctx context.Context) error {
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
+func (impl *CdPipelineConfigServiceImpl) RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error {
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, userId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
-		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-			// - found empty repository, create some file in repository
-			err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
-			if err != nil {
-				impl.logger.Errorw("error in creating file in git repo", "err", err)
-				return err
-			}
-			// - retry register in argo
-			err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
-			if err != nil {
-				impl.logger.Errorw("error in re-try register in argo", "err", err)
-				return err
-			}
-		} else {
-			return err
-		}
+		return err
 	}
-
 	return nil
 }
 
@@ -2360,26 +2367,6 @@ func (impl *CdPipelineConfigServiceImpl) handleImagePolicyOperations(tx *pg.Tx, 
 		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations", "envId", envId, "pipelineId", pipelineId)
 	}
 	return resourceQualifierId, nil
-}
-
-func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *commonBean.ChartGitAttribute, userId int32) error {
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
-			ch.GitRepoUrl = chartGitAttribute.RepoUrl
-			ch.ChartLocation = chartGitAttribute.ChartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, userId int32) (*bean.AppDeleteResponseDTO, error) {

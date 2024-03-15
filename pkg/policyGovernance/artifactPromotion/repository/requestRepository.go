@@ -268,7 +268,7 @@ func (repo *RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rows
 		Set("status = ?", constants.CANCELED).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", userId).
-		Where("id = ? and created_by != ? ", requestId, userId).
+		Where("id = ? and created_by = ? ", requestId, userId).
 		Update()
 	return res.RowsAffected(), err
 }

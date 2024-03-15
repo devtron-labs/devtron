@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -80,6 +81,7 @@ type AppWorkflowServiceImpl struct {
 	appRepository                    appRepository.AppRepository
 	enforcerUtil                     rbac.EnforcerUtil
 	userAuthService                  user.UserAuthService
+	chartService                     chart.ChartService
 	appArtifactManager               pipeline.AppArtifactManager
 	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 	appWorkflowDataReadService       read2.AppWorkflowDataReadService
@@ -89,10 +91,10 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
 	appRepository appRepository.AppRepository, userAuthService user.UserAuthService,
+	chartService chart.ChartService,
 	appArtifactManager pipeline.AppArtifactManager,
 	artifactPromotionDataReadService read.ArtifactPromotionDataReadService,
-	appWorkflowDataReadService read2.AppWorkflowDataReadService,
-) *AppWorkflowServiceImpl {
+	appWorkflowDataReadService read2.AppWorkflowDataReadService) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                           logger,
 		appWorkflowRepository:            appWorkflowRepository,
@@ -103,6 +105,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		resourceGroupService:             resourceGroupService,
 		appRepository:                    appRepository,
 		userAuthService:                  userAuthService,
+		chartService:                     chartService,
 		appArtifactManager:               appArtifactManager,
 		artifactPromotionDataReadService: artifactPromotionDataReadService,
 		appWorkflowDataReadService:       appWorkflowDataReadService,
@@ -859,17 +862,25 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	cdPipelines := &bean.CdPipelines{
 		AppId: appId,
 	}
+
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest chart details for app by appId")
+		return nil, err
+	}
+
 	for _, pipeline := range dbPipelines {
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
-			Id:                pipeline.Id,
-			EnvironmentId:     pipeline.EnvironmentId,
-			EnvironmentName:   pipeline.Environment.Name,
-			CiPipelineId:      pipeline.CiPipelineId,
-			TriggerType:       pipeline.TriggerType,
-			Name:              pipeline.Name,
-			DeploymentAppType: pipeline.DeploymentAppType,
-			AppName:           pipeline.DeploymentAppName,
-			AppId:             pipeline.AppId,
+			Id:                        pipeline.Id,
+			EnvironmentId:             pipeline.EnvironmentId,
+			EnvironmentName:           pipeline.Environment.Name,
+			CiPipelineId:              pipeline.CiPipelineId,
+			TriggerType:               pipeline.TriggerType,
+			Name:                      pipeline.Name,
+			DeploymentAppType:         pipeline.DeploymentAppType,
+			AppName:                   pipeline.DeploymentAppName,
+			AppId:                     pipeline.AppId,
+			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
 		}
 		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
 	}

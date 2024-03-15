@@ -240,7 +240,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 
 // TODO : test
 func (impl *ApprovalRequestServiceImpl) markRequestAsStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
-	//TODO : add info log
+	// TODO : add info log
 	impl.logger.Errorw("marking deleted pipeline policies stale", "deletedPipelineIds", destinationPipelineIds)
 	var deletedPipelines []int
 	for id := range destinationPipelineIds {
@@ -574,10 +574,12 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util2.RequestCtx, m
 			} else {
 				resp.PromotionValidationMessage = constants.ERRORED_APPROVAL
 			}
+			responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]] = resp
 			continue
 		}
 
 		resp.PromotionValidationMessage = constants.APPROVED
+		responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]] = resp
 	}
 	return responses
 }
@@ -674,7 +676,9 @@ func (impl *ApprovalRequestServiceImpl) filterValidAndStaleRequests(promotionReq
 	validRequestIds := make([]int, 0)
 	for _, promotionRequest := range promotionRequests {
 		resp := responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]]
-		_, ok := policyIdMap[promotionRequest.PolicyId]
+		_, policyFound := policyIdMap[promotionRequest.PolicyId]
+		_, destinationPipelineFoud := pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]
+		ok := policyFound && destinationPipelineFoud
 		if ok {
 			validRequestIds = append(validRequestIds, promotionRequest.Id)
 		}
@@ -687,7 +691,7 @@ func (impl *ApprovalRequestServiceImpl) filterValidAndStaleRequests(promotionReq
 
 			// also set the response messages
 			resp.PromotionPossible = false
-			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
+			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline or the pipeline was deleted on which this request was raised, state: stale"
 		} else if promotionRequest.Status != constants.AWAITING_APPROVAL {
 			resp.PromotionValidationMessage = constants.PromotionValidationMsg(fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status()))
 		}
