@@ -1,9 +1,11 @@
 package read
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -43,6 +45,7 @@ type ArtifactPromotionDataReadServiceImpl struct {
 	userService                                user.UserService
 	pipelineRepository                         pipelineConfig.PipelineRepository
 	resourceQualifierMappingService            resourceQualifiers.QualifierMappingService
+	resourceFilterEvaluationAuditService       resourceFilter.FilterEvaluationAuditService
 	globalPolicyDataManager                    globalPolicy.GlobalPolicyDataManager
 	appWorkflowDataReadService                 read.AppWorkflowDataReadService
 	teamService                                team.TeamService
@@ -58,17 +61,19 @@ func NewArtifactPromotionDataReadServiceImpl(
 	globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
 	appWorkflowDataReadService read.AppWorkflowDataReadService,
 	teamService team.TeamService,
+	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
 ) *ArtifactPromotionDataReadServiceImpl {
 	return &ArtifactPromotionDataReadServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
-		logger:                          logger,
-		requestApprovalUserdataRepo:     requestApprovalUserdataRepo,
-		userService:                     userService,
-		pipelineRepository:              pipelineRepository,
-		resourceQualifierMappingService: resourceQualifierMappingService,
-		globalPolicyDataManager:         globalPolicyDataManager,
-		appWorkflowDataReadService:      appWorkflowDataReadService,
-		teamService:                     teamService,
+		logger:                               logger,
+		requestApprovalUserdataRepo:          requestApprovalUserdataRepo,
+		userService:                          userService,
+		pipelineRepository:                   pipelineRepository,
+		resourceQualifierMappingService:      resourceQualifierMappingService,
+		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
+		globalPolicyDataManager:              globalPolicyDataManager,
+		appWorkflowDataReadService:           appWorkflowDataReadService,
+		teamService:                          teamService,
 	}
 }
 
@@ -128,7 +133,24 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(pr
 		return service.PolicyEvaluationAuditId
 	})
 
-	rawPolicies, err := impl.globalPolicyDataManager.GetPoliciesByHistoryIds(policyEvaluationIds)
+	policyAuditHistoryIds := make([]int, 0, len(policyEvaluationIds))
+
+	filterEvaluationAudits, err := impl.resourceFilterEvaluationAuditService.GetByIds(policyEvaluationIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching policy filter evaluation audits using policyEvaluationIds", "policyEvaluationIds", policyEvaluationIds, "err", err)
+		return nil, err
+	}
+	for _, filterEvaluationAudit := range filterEvaluationAudits {
+		historyObj := resourceFilter.FilterHistoryObject{}
+		err = json.Unmarshal([]byte(filterEvaluationAudit.FilterHistoryObjects), &historyObj)
+		if err != nil {
+			impl.logger.Errorw("error in un-marshaling policy evaluation audits filterHistory object", "filterHistoryObjects", filterEvaluationAudit.FilterHistoryObjects, "err", err)
+			return nil, err
+		}
+		policyAuditHistoryIds = append(policyAuditHistoryIds, historyObj.FilterHistoryId)
+	}
+
+	rawPolicies, err := impl.globalPolicyDataManager.GetPoliciesByHistoryIds(policyAuditHistoryIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policies by policyEvaluationIds", "policyEvaluationIds", policyEvaluationIds, "err", err)
 		return nil, err
@@ -161,7 +183,11 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(a
 		ApprovalRuntimeState: approvalRequest.Status,
 		PromotedFrom:         promotedFrom,
 		PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
-		Policy:               *policy,
+	}
+
+	// don't want to block if policy not found.
+	if policy != nil {
+		approvalMetadata.Policy = *policy
 	}
 
 	if userInfo, ok := userInfoMap[int(approvalRequest.CreatedBy)]; ok {
