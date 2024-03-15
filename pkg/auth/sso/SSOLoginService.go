@@ -55,18 +55,24 @@ type Config struct {
 	Config map[string]interface{} `json:"config"`
 }
 
-func (r Config) IsSsoLdap() bool {
+func (r *Config) IsSsoLdap() bool {
 	return r.Name == LDAP
 }
 
-func (r Config) secureCredentials() {
-	secureCredentialValue(&r, ClientID)
-	secureCredentialValue(&r, ClientSecret)
+func (r *Config) secureCredentials() {
+	r.secureCredentialValue(r, ClientID)
+	r.secureCredentialValue(r, ClientSecret)
 	if r.IsSsoLdap() {
-		secureCredentialValue(&r, LdapBindPW)
-		secureCredentialValue(&r, LdapUsernamePrompt)
+		r.secureCredentialValue(r, LdapBindPW)
+		r.secureCredentialValue(r, LdapUsernamePrompt)
 	}
 
+}
+
+func (r *Config) secureCredentialValue(configData *Config, credentialKey string) {
+	if configData.Config[credentialKey] != nil {
+		configData.Config[credentialKey] = ""
+	}
 }
 
 const (
@@ -398,10 +404,4 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
-}
-
-func secureCredentialValue(configData *Config, credentialKey string) {
-	if configData.Config[credentialKey] != nil {
-		configData.Config[credentialKey] = ""
-	}
 }
