@@ -925,7 +925,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
-		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
+		Column("ci_artifact.*").ColumnExpr("COUNT(ci_artifact.id) OVER() AS total_count").
 		Join("join external_ci_pipeline on external_ci_pipeline.id = ci_artifact.external_ci_pipeline_id ").
 		Where("external_ci_pipeline.active=true and external_ci_pipeline.id = ? ", request.ExternalCiPipelineId)
 
