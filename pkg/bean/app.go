@@ -95,11 +95,12 @@ type GitMaterial struct {
 	FilterPattern    []string `json:"filterPattern"`
 }
 
-// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url
 func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
 	for strings.HasSuffix(m.Url, "/") {
 		m.Url = strings.TrimSuffix(m.Url, "/")
 	}
+	m.Url = strings.TrimSpace(m.Url)
 }
 
 type CiMaterial struct {
