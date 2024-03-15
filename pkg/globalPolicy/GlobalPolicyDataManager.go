@@ -19,7 +19,6 @@ type GlobalPolicyDataManager interface {
 	GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByNames(policyNames []string, policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
-	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 
 	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 	UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
@@ -320,10 +319,6 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByIds(policyIds []int) ([]*bea
 		GlobalPolicyBaseModels = append(GlobalPolicyBaseModels, policy.GetGlobalPolicyBaseModel())
 	}
 	return GlobalPolicyBaseModels, nil
-}
-
-func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
-	return nil, nil
 }
 
 func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId int32) error {
