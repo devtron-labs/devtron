@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
-  /orchestrator/app/ci-pipeline/{ciPipelineId}//linked-ci/downstream/env:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env:
     get:
       description: Get down stream environment names for filter list
       parameters:
@@ -25,7 +25,7 @@ paths:
         "403":
           description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
 
-  /orchestrator/app/ci-pipeline/{ciPipelineId}//linked-ci/downstream/cd:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd:
     get:
       description: Get the down stream deployment details for the source CI pipeline.
       parameters:
