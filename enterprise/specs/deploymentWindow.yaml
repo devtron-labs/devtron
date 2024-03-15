@@ -1,0 +1,410 @@
+openapi: 3.0.0
+info:
+  title: Orchestrator App Deployment Window API
+  version: 1.0.0
+paths:
+  /orchestrator/deployment-window/overview:
+    get:
+      summary: Retrieve deployment window information for a specific application and list of environment
+      parameters:
+        - name: appId
+          in: query
+          description: The application ID.
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Array of environment IDs.
+          required: false
+          schema:
+            type: array
+            items:
+              type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentWindowResponse"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description: will get this response if entity requested does not exist
+
+
+  /orchestrator/deployment-window/state/appgroup:
+    post:
+      summary: Retrieve deployment window information for list of applications  calculated based on current time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppEnvSelectors"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentWindowAppGroupResponse"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description: will get this response if entity requested does not exist
+  /orchestrator/deployment-window/state:
+    get:
+      summary: Retrieve deployment window information for a specific application and list of environment Ids calculated based on current time
+      parameters:
+        - name: appId
+          in: query
+          description: The application ID.
+          required: true
+          schema:
+            type: integer
+        - name: envId
+          in: query
+          description: Array of environment IDs.
+          required: false
+          schema:
+            type: array
+            items:
+              type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                # type: array
+                # items:
+                $ref: "#/components/schemas/DeploymentWindowResponse"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description: will get this response if entity requested does not exist
+  /orchestrator/deployment-window/profile/list:
+    get:
+      responses:
+        "200":
+          description: gets all deployment window profiles with metadata.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentWindowProfileMetadata'
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description: will get this response if entity requested does not exist
+
+  /orchestrator/deployment-window/profile:
+    get:
+      summary: Get  deployment window profile for id
+      parameters:
+        - name: id
+          in: query
+          description: Profile ID.
+          required: true
+          schema:
+            type: integer
+      description: Get DeploymentWindow Profile by id
+      responses:
+        "200":
+          description: gets DeploymentWindo config  profile by its Id.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeploymentWindowProfile"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description: will get this response if entity requested does not exist
+    post:
+      summary: Create a deployment window profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentWindowProfileRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    $ref: "#/components/schemas/DeploymentWindowProfileRequest"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '422':
+          description: will get this response if the rquest could not be processed due to some external reasons
+        '409':
+          description: will get this response if request cannot be processed due to some conflict with the current state of data
+    put:
+      summary:  Update  deployment window profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentWindowProfileRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    $ref: "#/components/schemas/DeploymentWindowProfileRequest"
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '422':
+          description: will get this response if the rquest could not be processed due to some external reasons
+        '409':
+          description: will get this response if request cannot be processed due to some conflict with the current state of data
+    delete:
+      summary: Delete deployment profile.
+      parameters:
+        - name: id
+          in: query
+          description: Profile ID.
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+        '500':
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
+        '403':
+          description: will get this response if user doesn't view access  permission for the app or env
+        '422':
+          description: will get this response if the rquest could not be processed due to some external reasons
+        '409':
+          description: will get this response if request cannot be processed due to some conflict with the current state of data
+components:
+  schemas:
+    AppEnvSelectors:
+      type : array
+      items:
+        type: object
+        properties:
+          appId:
+            type: integer
+          envId:
+            type: integer
+    DeploymentWindowAppGroupResponse:
+      type : object
+      properties:
+        appData:
+          type: array
+          items:
+            type: object
+            properties:
+              deploymentProfileList:
+                $ref: "#/components/schemas/DeploymentWindowResponse"
+              appId:
+                type: integer
+    DeploymentWindowResponse:
+      type: object
+      properties:
+        superAdmins:
+          type: array
+          items:
+            type: integer
+        profiles:
+          type: array
+          items:
+            type: object
+            properties:
+              deploymentWindowProfile:
+                $ref: "#/components/schemas/DeploymentWindowProfile"
+              envId:
+                type: integer
+              isActive:
+                type: boolean
+              calculatedTimestamp:
+                type: integer
+                format: date-Time
+                description: calculated timestamp based on the profile type and current time (wil be either the end of current ongoing restriction or the time for next starting window)
+        environmentStateMap:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              appliedProfile:
+                # type:
+                $ref: "#/components/schemas/DeploymentWindowProfile"
+              timestamp:
+                type: integer
+                format: date-time
+                description: Timestamp indicating the window end or next window start timestamp based on current time and
+              userActionState:
+                type: string
+                enum: ["ALLOWED", "BLOCKED", "PARTIAL"]
+                description: describes the  eventual action state for the user
+              excludedUsers:
+                type: array
+                items:
+                  type: integer
+                description: final calculated list of user ids including superadmins who are excluded.
+                  # isBlocked:
+                  #   type: boolean
+                  #   description: Boolean indicating if the environment is blocked
+                  # canUserDeploy:
+                  #   type: boolean
+                  #   description: user has access to bypass
+
+    DeploymentWindowProfileRequest:
+      type: object
+      properties:
+        deploymentWindowProfile:
+          $ref: "#/components/schemas/DeploymentWindowProfile"
+
+    DeploymentWindowProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the deployment window profile.
+        name:
+          type: string
+          maxLength: 50
+          description: Name of the deployment window profile.
+        description:
+          type: string
+          maxLength: 300
+          description: Description of the deployment window profile.
+        displayMessage:
+          type: string
+          description: Display message for the deployment window profile.
+        excludedUsersList:
+          type: array
+          items:
+            type: integer
+          description: List of users ids allowed to override the deployment window.
+        isUserExcluded:
+          type: boolean
+        isSuperAdminExcluded:
+          type: boolean
+
+        Type:
+          $ref: "#/components/schemas/DeploymentWindow"
+        DeploymentWindowList:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeWindow"
+        TimeZone:
+          type: string
+          description: Time zone of the deployment window profile.
+        Enabled:
+          type: boolean
+          description: Indicates whether the deployment window profile is enabled.
+    TimeWindow:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the time window.
+        timeFrom:
+          type: string
+          format: date-time
+          description: Start time of the time window.
+        hourMinuteFrom:
+          type: string
+          description: Start hour and minute of the time window.
+        hourMinuteTo:
+          type: string
+          description: End hour and minute of the time window.
+        dayFrom:
+          type: integer
+          description: Start day of the time window.
+        dayTo:
+          type: integer
+          description: End day of the time window.
+        timeTo:
+          type: string
+          format: date-time
+          description: End time of the time window.
+        weekdayFrom:
+          $ref: "#/components/schemas/DayOfWeek"
+          # description: Start weekday of the time window.
+        weekdayTo:
+          $ref: "#/components/schemas/DayOfWeek"
+          # description: End weekday of the time window.
+        frequency:
+          $ref: "#/components/schemas/Frequency"
+        weekdays:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayOfWeek"
+          description: List of weekdays for the time window.
+    DeploymentWindow:
+      type: string
+      enum: ["Blackout", "Maintenance"]
+      description: Type of deployment window (Blackout or Maintenance).
+    Frequency:
+      type: string
+      enum: ["HOURLY", "DAILY", "WEEKLY", "WEEKLY_RANGE", "MONTHLY"]
+      description: Frequency of the time window.
+    DayOfWeek:
+      type: string
+      enum: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+      description: Day of week.
+    DeploymentWindowProfileMetadata:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the deployment window profile.
+        name:
+          type: string
+          maxLength: 50
+          description: Name of the deployment window profile.
+        description:
+          type: string
+          maxLength: 300
+          description: Description of the deployment window profile.
+        type:
+          $ref: "#/components/schemas/DeploymentWindow"
