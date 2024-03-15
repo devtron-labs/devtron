@@ -76,7 +76,7 @@ type CdWorkflowRepository interface {
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
-	FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error)
+	FindLatestSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -744,7 +744,7 @@ func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pi
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
+func (impl *CdWorkflowRepositoryImpl) FindLatestSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
 	var cdWorkflow []*CdWorkflowMetadata
 	if len(cdPipelineIds) == 0 {
 		return cdWorkflow, nil

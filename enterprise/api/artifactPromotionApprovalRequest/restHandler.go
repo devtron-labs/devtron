@@ -8,9 +8,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
@@ -220,7 +220,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -231,7 +231,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 }
 
 func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean2.PromotionMaterialRequest, ctx *util.RequestCtx) bool {
-	//TODO: function on resource for getting resource type
+
 	if request.IsCINode() || request.IsCDNode() {
 		// check if user has trigger access for any one env for this app
 		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.AppId); !hasTriggerAccess {
@@ -359,7 +359,7 @@ func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.Response
 				return false
 			}
 		} else if request.IsPromotionApprovalPendingNode() {
-			if request.IsPendingForUser() {
+			if request.IsPendingForUserRequest() {
 				if request.WorkflowId == 0 {
 					common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
 					return false

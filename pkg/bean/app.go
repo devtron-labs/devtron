@@ -33,8 +33,6 @@ import (
 	constants1 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
-	"github.com/devtron-labs/devtron/util"
 	"strings"
 	"time"
 )
@@ -906,49 +904,6 @@ type CiArtifactResponse struct {
 	DeployedOnEnvironments        []string                             `json:"deployedOnEnvironments,omitempty"`
 	ImagePromotionApproverEmails  []string                             `json:"imagePromotionApproverEmails,omitempty"`
 	IsApprovalPendingForPromotion bool                                 `json:"isApprovalPendingForPromotion"`
-}
-
-type PromotionMaterialRequest struct {
-	Resource              string // CI, CD, WEBHOOK, PROMOTION_APPROVAL_PENDING_NODE
-	ResourceName          string
-	ResourceId            int
-	AppId                 int
-	WorkflowId            int
-	PendingForCurrentUser bool
-	CiPipelineId          int
-	CdPipelineId          int
-	ExternalCiPipelineId  int
-	util.ListingFilterOptions
-}
-
-func (p PromotionMaterialRequest) IsCINode() bool {
-	return p.Resource == string(constants.SOURCE_TYPE_CI) || p.Resource == string(constants.SOURCE_TYPE_LINKED_CD) || p.Resource == string(constants.SOURCE_TYPE_JOB_CI) || p.Resource == string(constants.SOURCE_TYPE_LINKED_CI)
-}
-
-func (p PromotionMaterialRequest) IsCDNode() bool {
-	return p.Resource == string(constants.SOURCE_TYPE_CD)
-}
-
-func (p PromotionMaterialRequest) IsWebhookNode() bool {
-	return p.Resource == string(constants.SOURCE_TYPE_WEBHOOK)
-}
-
-func (p PromotionMaterialRequest) IsPromotionApprovalPendingNode() bool {
-	return p.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE)
-}
-
-func (p PromotionMaterialRequest) IsPendingForUser() bool {
-	return p.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && p.PendingForCurrentUser
-}
-
-type ArtifactPromotionMaterialResponse struct {
-	ImagePromotionApproverEmails  []string           `json:"imagePromotionApproverEmails"`
-	HideImageTaggingHardDelete    bool               `json:"hideImageTaggingHardDelete"`
-	TagsEditable                  bool               `json:"tagsEditable"`
-	AppReleaseTagNames            []string           `json:"appReleaseTagNames"`
-	CiArtifacts                   CiArtifactResponse `json:"ciArtifacts"`
-	TotalCount                    int                `json:"totalCount"`
-	IsApprovalPendingForPromotion bool               `json:"isApprovalPendingForPromotion"`
 }
 
 type AppLabelsDto struct {
