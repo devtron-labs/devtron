@@ -337,7 +337,7 @@ func (_m *CdPipelineConfigService) GetCdPipelineById(pipelineId int) (*bean.CDPi
 	return r0, r1
 }
 
-// GetCdPipelinesByAppIDAndEnvNameOrId provides a mock function with given fields: appId, envId, envName
+// GetCdPipelinesByAppAndEnv provides a mock function with given fields: appId, envId, envName
 func (_m *CdPipelineConfigService) GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (*bean.CdPipelines, error) {
 	ret := _m.Called(appId, envId, envName)
 
@@ -577,13 +577,13 @@ func (_m *CdPipelineConfigService) PerformBulkActionOnCdPipelines(dto *bean.CdBu
 	return r0, r1
 }
 
-// RegisterInACD provides a mock function with given fields: gitOpsRepoName, chartGitAttr, userId, ctx
-func (_m *CdPipelineConfigService) RegisterInACD(gitOpsRepoName string, chartGitAttr *commonbean.ChartGitAttribute, userId int32, ctx context.Context) error {
-	ret := _m.Called(gitOpsRepoName, chartGitAttr, userId, ctx)
+// RegisterInACD provides a mock function with given fields: ctx, chartGitAttr, userId
+func (_m *CdPipelineConfigService) RegisterInACD(ctx context.Context, chartGitAttr *commonbean.ChartGitAttribute, userId int32) error {
+	ret := _m.Called(ctx, chartGitAttr, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *commonbean.ChartGitAttribute, int32, context.Context) error); ok {
-		r0 = rf(gitOpsRepoName, chartGitAttr, userId, ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, *commonbean.ChartGitAttribute, int32) error); ok {
+		r0 = rf(ctx, chartGitAttr, userId)
 	} else {
 		r0 = ret.Error(0)
 	}

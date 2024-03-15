@@ -13,16 +13,6 @@ const UniquePlaceHolderForAppName = "$etron"
 
 const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
 
-type PipelineType string
-
-const (
-	NORMAL    PipelineType = "NORMAL"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
-	LINKED_CD PipelineType = "LINKED_CD"
-)
-
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`

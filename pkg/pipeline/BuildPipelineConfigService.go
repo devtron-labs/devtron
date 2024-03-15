@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -496,7 +497,7 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds [
 
 func (impl *CiPipelineConfigServiceImpl) setCiPipelineBlockageState(ciPipeline *bean.CiPipeline, branchesForCheckingBlockageState []string, toOnlyGetBlockedStatePolicies bool) error {
 
-	if ciPipeline.PipelineType == pipelineConfigBean.LINKED_CD {
+	if ciPipeline.PipelineType == constants.LINKED_CD {
 		return nil
 	}
 
@@ -674,7 +675,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+			PipelineType:             constants.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -830,7 +831,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+		PipelineType:             constants.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -968,7 +969,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+			PipelineType:             constants.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -1345,7 +1346,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
-			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(pipelineConfigBean.CI_JOB) {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(constants.CI_JOB) {
 				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
@@ -1401,7 +1402,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
-	if request.CiPipeline.PipelineType == pipelineConfigBean.CI_JOB {
+	if request.CiPipeline.PipelineType == constants.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
@@ -1623,17 +1624,17 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := pipelineConfigBean.NORMAL
+		pipelineType := constants.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = pipelineConfigBean.LINKED
+			pipelineType = constants.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = pipelineConfigBean.EXTERNAL
-		} else if pipeline.PipelineType == string(pipelineConfigBean.CI_JOB) {
-			pipelineType = pipelineConfigBean.CI_JOB
-		} else if pipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
-			pipelineType = pipelineConfigBean.LINKED_CD
+			pipelineType = constants.EXTERNAL
+		} else if pipeline.PipelineType == string(constants.CI_JOB) {
+			pipelineType = constants.CI_JOB
+		} else if pipeline.PipelineType == string(constants.LINKED_CD) {
+			pipelineType = constants.LINKED_CD
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1870,7 +1871,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-				PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+				PipelineType:             constants.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {
@@ -2301,7 +2302,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCIPipelineByNameAndAppId(appId int, 
 		Version:          ciPipeline.Version,
 		IsExternal:       ciPipeline.IsExternal,
 		ParentCiPipeline: ciPipeline.ParentCiPipeline,
-		PipelineType:     pipelineConfigBean.PipelineType(ciPipeline.PipelineType),
+		PipelineType:     constants.PipelineType(ciPipeline.PipelineType),
 		ScanEnabled:      ciPipeline.ScanEnabled,
 	}, nil
 }

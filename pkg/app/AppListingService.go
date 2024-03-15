@@ -22,7 +22,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,7 +59,7 @@ type AppListingService interface {
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
-	//------------------
+	// ------------------
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
@@ -783,7 +783,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
@@ -814,7 +814,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }
@@ -825,7 +825,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
@@ -859,7 +859,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }

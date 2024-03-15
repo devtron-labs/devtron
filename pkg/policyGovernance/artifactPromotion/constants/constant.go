@@ -29,9 +29,12 @@ func (status ArtifactPromotionRequestStatus) Status() string {
 type SourceType int
 
 const (
-	CI      SourceType = 1
-	WEBHOOK SourceType = 2
-	CD      SourceType = 3
+	CI        SourceType = 1
+	WEBHOOK   SourceType = 2
+	CD        SourceType = 3
+	LINKED_CI SourceType = 4
+	JOB_CI    SourceType = 5
+	LINKED_CD SourceType = 6
 )
 
 type SourceTypeStr string
@@ -39,6 +42,9 @@ type SourceTypeStr string
 const (
 	SOURCE_TYPE_CI                  SourceTypeStr = "CI"
 	SOURCE_TYPE_WEBHOOK             SourceTypeStr = "WEBHOOK"
+	SOURCE_TYPE_LINKED_CI           SourceTypeStr = "LINKED-CI"
+	SOURCE_TYPE_JOB_CI              SourceTypeStr = "CI-JOB"
+	SOURCE_TYPE_LINKED_CD           SourceTypeStr = "LINKED-CD"
 	SOURCE_TYPE_CD                  SourceTypeStr = "ENVIRONMENT"
 	PROMOTION_APPROVAL_PENDING_NODE SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
 )
@@ -55,6 +61,9 @@ func (sourceType SourceTypeStr) GetSourceType() SourceType {
 	switch sourceType {
 	case SOURCE_TYPE_CI:
 		return CI
+	case SOURCE_TYPE_LINKED_CI:
+	case SOURCE_TYPE_JOB_CI:
+	case SOURCE_TYPE_LINKED_CD:
 	case SOURCE_TYPE_WEBHOOK:
 		return WEBHOOK
 	case SOURCE_TYPE_CD:
@@ -69,6 +78,12 @@ func (sourceType SourceType) GetSourceTypeStr() SourceTypeStr {
 		return SOURCE_TYPE_CI
 	case WEBHOOK:
 		return SOURCE_TYPE_WEBHOOK
+	case LINKED_CI:
+		return SOURCE_TYPE_LINKED_CI
+	case JOB_CI:
+		return SOURCE_TYPE_JOB_CI
+	case LINKED_CD:
+		return SOURCE_TYPE_LINKED_CD
 	case CD:
 		return SOURCE_TYPE_CD
 	}

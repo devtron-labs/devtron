@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
 	errors2 "github.com/pkg/errors"
@@ -26,6 +27,21 @@ type ArtifactPromotionRequest struct {
 	AppId              int                 `json:"appId"`
 }
 
+func GetSourceTypeFromPipelineType(pipelineType bean4.PipelineType) bean2.SourceTypeStr {
+	switch pipelineType {
+	case bean4.NORMAL:
+		return bean2.SOURCE_TYPE_CI
+	case bean4.LINKED:
+		return bean2.SOURCE_TYPE_LINKED_CI
+	case bean4.EXTERNAL:
+		return bean2.SOURCE_TYPE_WEBHOOK
+	case bean4.CI_JOB:
+		return bean2.SOURCE_TYPE_JOB_CI
+	case bean4.LINKED_CD:
+		return bean2.SOURCE_TYPE_LINKED_CD
+	}
+	return bean2.SOURCE_TYPE_CI
+}
 func (r *ArtifactPromotionRequest) ValidateRequest() error {
 	switch r.Action {
 	case bean2.ACTION_APPROVE:
@@ -39,7 +55,13 @@ func (r *ArtifactPromotionRequest) ValidateRequest() error {
 			return errors.New("destinationObjectNames are required")
 		}
 	case bean2.ACTION_PROMOTE:
-		if r.SourceType != bean2.SOURCE_TYPE_CI && r.SourceType != bean2.SOURCE_TYPE_WEBHOOK && r.SourceType != bean2.SOURCE_TYPE_CD && r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE {
+		if r.SourceType != bean2.SOURCE_TYPE_CI &&
+			r.SourceType != bean2.SOURCE_TYPE_WEBHOOK &&
+			r.SourceType != bean2.SOURCE_TYPE_CD &&
+			r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE &&
+			r.SourceType != bean2.SOURCE_TYPE_LINKED_CI &&
+			r.SourceType != bean2.SOURCE_TYPE_LINKED_CD &&
+			r.SourceType != bean2.SOURCE_TYPE_JOB_CI {
 			return errors.New("invalid sourceType")
 		}
 		if r.AppId <= 0 {
