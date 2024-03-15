@@ -658,7 +658,7 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		JoinOn("e.active = ?", true).
 		// constrains
 		Where("ci_pipeline.parent_ci_pipeline = ?", sourceCiPipelineId).
-		Where("ci_pipeline.pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline.ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("ci_pipeline.deleted = ?", false)
 	// app name filtering
 	if len(appNameMatch) != 0 {
