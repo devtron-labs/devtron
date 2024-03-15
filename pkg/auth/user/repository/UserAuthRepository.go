@@ -980,7 +980,7 @@ func (impl UserAuthRepositoryImpl) GetUsersByEnvAndAction(appName, envName, team
 		"AND (r.environment IS NULL OR r.environment = ?) " +
 		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
 
-	_, err = impl.dbConnection.Query(&roleGroups, action, roleGroupQuery, envName, appName, team)
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, action, envName, appName, team)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
 	}
