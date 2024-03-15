@@ -921,7 +921,7 @@ type PromotionMaterialRequest struct {
 }
 
 func (p PromotionMaterialRequest) IsCINode() bool {
-	return p.Resource == string(constants.SOURCE_TYPE_CI)
+	return p.Resource == string(constants.SOURCE_TYPE_CI) || p.Resource == string(constants.SOURCE_TYPE_LINKED_CD) || p.Resource == string(constants.SOURCE_TYPE_JOB_CI) || p.Resource == string(constants.SOURCE_TYPE_LINKED_CI)
 }
 
 func (p PromotionMaterialRequest) IsCDNode() bool {

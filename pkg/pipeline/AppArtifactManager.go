@@ -1621,7 +1621,7 @@ func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.
 
 		ciArtifactResponse, err = impl.fetchArtifactsForCDResource(ctx, request, imagePromoterAuthCDPipelineIds)
 
-	case string(constants.SOURCE_TYPE_CI):
+	case string(constants.SOURCE_TYPE_CI), string(constants.SOURCE_TYPE_LINKED_CI), string(constants.SOURCE_TYPE_LINKED_CD), string(constants.SOURCE_TYPE_JOB_CI):
 
 		ciArtifactResponse, err = impl.fetchArtifactsForCIResource(ctx, request, imagePromoterAuthCDPipelineIds)
 

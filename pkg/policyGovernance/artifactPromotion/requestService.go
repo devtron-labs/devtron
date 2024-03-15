@@ -360,7 +360,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 			return nil, nil, err
 		}
 		sourceName = ciPipeline.Name
-		sourceType = constants.SOURCE_TYPE_CI
+		sourceType = bean.GetSourceTypeFromPipelineType(ciPipeline.PipelineType)
 	} else if sourcePipelineMapping.Type == appWorkflow.WEBHOOK {
 		sourceType = constants.SOURCE_TYPE_WEBHOOK
 	}
@@ -785,17 +785,7 @@ func (impl *ApprovalRequestServiceImpl) updateWithDestinationMetadata(requestMet
 func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourceType constants.SourceTypeStr, appId int, workflowId int) (*bean.SourceMetaData, error) {
 	sourceInfo := &bean.SourceMetaData{}
 	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType)
-	if sourceType == constants.SOURCE_TYPE_CI || sourceType == constants.SOURCE_TYPE_WEBHOOK {
-		appWorkflowMapping, err := impl.appWorkflowService.FindByCiSourceWorkflowMappingById(workflowId)
-		if err != nil {
-			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
-			if errors.Is(err, pg.ErrNoRows) {
-				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
-			}
-			return nil, err
-		}
-		sourceInfo = sourceInfo.WithId(appWorkflowMapping.ComponentId).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId)
-	} else {
+	if sourceType == constants.SOURCE_TYPE_CD {
 		// source type will be cd and source name will be envName.
 		// get pipeline using appId and env name and get the workflowMapping
 		pipelines, err := impl.cdPipelineService.FindActiveByAppIdAndEnvNames(appId, []string{sourceName})
@@ -817,6 +807,16 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 			return nil, err
 		}
 		sourceInfo = sourceInfo.WithId(pipeline.Id).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId).WithCdPipeline(pipeline)
+	} else {
+		appWorkflowMapping, err := impl.appWorkflowService.FindByCiSourceWorkflowMappingById(workflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
+			}
+			return nil, err
+		}
+		sourceInfo = sourceInfo.WithId(appWorkflowMapping.ComponentId).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId)
 	}
 	return sourceInfo, nil
 }

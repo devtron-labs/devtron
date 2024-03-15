@@ -117,11 +117,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-			approvalMetadata, err := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
-			if err != nil {
-				impl.logger.Errorw("error in fetching approval metadata by pipelineId", "pipelineId", pipelineId, "err", err)
-				return promotionApprovalMetadata, err
-			}
+			approvalMetadata := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
 			promotionApprovalMetadata[approvalRequest.ArtifactId] = approvalMetadata
 		}
 	}
@@ -156,12 +152,8 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(pr
 	return requestIdToPolicyMapping, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string, userInfoMap map[int]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData, requestIdToPolicyMapping map[int]*bean.PromotionPolicy) (*bean.PromotionApprovalMetaData, error) {
-	promotedFrom, err := impl.getSource(approvalRequest, envName)
-	if err != nil {
-		impl.logger.Errorw("error in getting data source", "sourceType", approvalRequest.SourceType, "err", err)
-		return &bean.PromotionApprovalMetaData{}, err
-	}
+func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string, userInfoMap map[int]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData, requestIdToPolicyMapping map[int]*bean.PromotionPolicy) *bean.PromotionApprovalMetaData {
+	promotedFrom := impl.getSource(approvalRequest, envName)
 
 	policy := requestIdToPolicyMapping[approvalRequest.Id]
 
@@ -190,7 +182,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(a
 		})
 	}
 
-	return approvalMetadata, nil
+	return approvalMetadata
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId int) (bean.PromotionPolicy, error) {
@@ -235,15 +227,12 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserId
 	return userInfoMap, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string) (string, error) {
-	var promotedFrom string
-	switch approvalRequest.SourceType {
-	case constants.CI, constants.WEBHOOK:
-		promotedFrom = string(approvalRequest.SourceType.GetSourceTypeStr())
-	case constants.CD:
-		promotedFrom = envName
+func (impl *ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string) string {
+
+	if approvalRequest.SourceType == constants.CD {
+		return envName
 	}
-	return promotedFrom, nil
+	return string(approvalRequest.SourceType.GetSourceTypeStr())
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {

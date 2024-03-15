@@ -1,6 +1,7 @@
 package artifactPromotion
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/mocks"
@@ -41,7 +42,9 @@ func TestPolicyHooks(t *testing.T) {
 				ApprovalCount: 1,
 			},
 		}
-		err := policyCUDService.CreatePolicy(1, policy)
+		ctx := context.WithValue(context.Background(), "userId", 2)
+		rctx := deploymentStatus.NewRequestCtx(ctx)
+		err := policyCUDService.CreatePolicy(rctx, policy)
 		if err != nil {
 			t.Fail()
 		}
@@ -104,7 +107,7 @@ func TestPolicyHooks(t *testing.T) {
 			t.Fail()
 		}
 		// delete policies
-		err = policyCUDService.DeletePolicy(2, policyName)
+		err = policyCUDService.DeletePolicy(rctx, policyName)
 		if err != nil {
 			t.Fail()
 		}
@@ -149,7 +152,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 	globalPolicySearchableKeyRepo := repository2.NewGlobalPolicySearchableFieldRepositoryImpl(logger, dbConnection)
 	globalPolicyManager := globalPolicy.NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableKeyRepo)
 	cdPipelineConfigService := mocks.NewCdPipelineConfigService(t)
-	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, transactionManager)
+	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, nil, celService, transactionManager)
 	service := NewApprovalRequestServiceImpl(
 		logger,
 		nil,
@@ -162,6 +165,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 		nil,
 		nil,
 		promotionPolicyService,
+		nil,
 		nil,
 		nil,
 		resourceFilterEvalutionAuditService,
