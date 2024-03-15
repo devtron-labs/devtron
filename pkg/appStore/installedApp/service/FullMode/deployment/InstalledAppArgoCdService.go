@@ -27,11 +27,9 @@ type InstalledAppArgoCdService interface {
 	// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
 	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
-	CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	gitOpsRepoName := ""
 	//this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
@@ -41,16 +39,7 @@ func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName strin
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
-	acdApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
-	if err != nil {
-		impl.Logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
-		return "", err
-	}
-	if acdApplication != nil {
-		gitOpsRepoUrl := acdApplication.Spec.Source.RepoURL
-		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-	}
-	return gitOpsRepoName, nil
+	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
 }
 
 func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -159,7 +148,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"
@@ -188,7 +177,7 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return err

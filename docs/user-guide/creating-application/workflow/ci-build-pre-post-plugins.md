@@ -26,7 +26,7 @@ You can create a task either by selecting one of the available preset plugins or
 
 | Stage | Task |
 | :--- | :--- |
-| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins) integrated in Devtron:<ul><li>[K6 Load testing](#k6-load-testing)</li><li>[Sonarqube](#sonarqube)</li><li>[Dependency track for Python](#dependency-track-for-python)</li><li>[Dependency track for NodeJs](#dependency-track-for-nodejs)</li><li>[Dependency track for Maven and Gradle](#dependency-track-for-maven--gradle)</li><li>[Semgrep](#semgrep)</li><li>[Codacy](#codacy)</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
+| Pre-Build/Post-Build | <ol><li>Create a task using one of the [Preset Plugins](#preset-plugins) integrated in Devtron:<ul><li>[K6 Load testing](../../plugins/k6-load-testing.md)</li><li>[Sonarqube](../../plugins/sonarqube.md)</li><li>[Dependency track for Python](../../plugins/dependency-track-python.md)</li><li>[Dependency track for NodeJs](#dependency-track-for-nodejs)</li><li>[Dependency track for Maven and Gradle](../../plugins/dependency-track-maven-gradle.md)</li><li>[Semgrep](../../plugins/semgrep.md)</li><li>[Codacy](../../plugins/codacy.md)</li></ul></li><li>Create a task from [Execute Custom script](#execute-custom-script) which you can customize your script with:<ul><li>[Custom script - Shell](#custom-script-shell)</li><li>Or, [Custom script - Container image](#custom-script-container-image)</li></ul></li></ol> | 
 
 
 ## Creating Pre/Post-build Tasks

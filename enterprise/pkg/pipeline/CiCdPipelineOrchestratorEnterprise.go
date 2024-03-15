@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -71,14 +72,15 @@ func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppR
 	configMapService pipeline.ConfigMapService,
 	genericNoteService genericNotes.GenericNoteService,
 	customTagService pipeline.CustomTagService,
-	devtronResourceService devtronResource.DevtronResourceService) *CiCdPipelineOrchestratorEnterpriseImpl {
+	devtronResourceService devtronResource.DevtronResourceService,
+	chartService chart.ChartService) *CiCdPipelineOrchestratorEnterpriseImpl {
 	return &CiCdPipelineOrchestratorEnterpriseImpl{
 		CiCdPipelineOrchestratorImpl: pipeline.NewCiCdPipelineOrchestrator(pipelineGroupRepository, logger, materialRepository, pipelineRepository,
 			ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService,
 			appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService,
 			pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService,
-			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService, customTagService, genericNoteService,
-			devtronResourceService),
+			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService,
+			customTagService, genericNoteService, devtronResourceService, chartService),
 		globalTagService: globalTagService,
 	}
 }

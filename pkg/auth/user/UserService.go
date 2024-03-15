@@ -1996,16 +1996,9 @@ func (impl UserServiceImpl) IsSuperAdminForDevtronManaged(userId int) (bool, err
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
 	// TODO Kripansh: passing empty token in not allowed for Active directory, fix this
-	userCasbinRoles, err := impl.CheckUserRoles(int32(userId), "")
+	isSuperAdmin, err := impl.IsSuperAdmin(userId, "")
 	if err != nil {
 		return isSuperAdmin, err
-	}
-	//if user which going to updated is super admin, action performing user also be super admin
-	for _, item := range userCasbinRoles {
-		if item == bean.SUPERADMIN {
-			isSuperAdmin = true
-			break
-		}
 	}
 	return isSuperAdmin, nil
 }
@@ -2342,7 +2335,7 @@ func (impl UserServiceImpl) IsUserAdminOrManagerForAnyApp(userId int32, token st
 	isAuthorised := false
 
 	//checking superAdmin access
-	isAuthorised, err := impl.IsSuperAdminForDevtronManaged(int(userId))
+	isAuthorised, err := impl.IsSuperAdmin(int(userId), token)
 	if err != nil {
 		impl.logger.Errorw("error in checking superAdmin access of user", "err", err, "userId", userId)
 		return false, err

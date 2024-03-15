@@ -22,38 +22,35 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/util"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/variables"
-	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"go.opentelemetry.io/otel"
-
-	//"github.com/devtron-labs/devtron/pkg/pipeline"
-
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
-
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	variablesRepository "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/go-pg/pg"
+	"github.com/juju/errors"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap"
+	"k8s.io/helm/pkg/proto/hapi/chart"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/util"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/go-pg/pg"
-	"github.com/juju/errors"
-	"go.uber.org/zap"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"sigs.k8s.io/yaml"
 )
 
 type ChartService interface {
@@ -69,9 +66,13 @@ type ChartService interface {
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 
-	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*bean2.ChartRefAutocompleteResponse, error)
+	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
-	UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error
+	ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) error
+	OverrideGitOpsRepoUrl(appId int, repoUrl string, userId int32) error
+
+	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
+	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
 }
 
 type ChartServiceImpl struct {
@@ -90,6 +91,7 @@ type ChartServiceImpl struct {
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	gitOpsConfigReadService             config.GitOpsConfigReadService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -107,7 +109,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	chartRefService chartRef.ChartRefService,
 	lockedConfigService lockConfiguration.LockConfigurationService,
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
-) *ChartServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:                     chartRepository,
 		logger:                              logger,
@@ -124,14 +126,15 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		chartRefService:                     chartRefService,
 		lockedConfigService:                 lockedConfigService,
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
+		gitOpsConfigReadService:             gitOpsConfigReadService,
 	}
 }
 
-func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
+func (impl *ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, newChartType)
 }
 
-func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateResponse, error) {
+func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateResponse, error) {
 	err := impl.chartRefService.CheckChartExists(templateRequest.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
@@ -144,7 +147,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	//save chart
 	// 1. create chart, 2. push in repo, 3. add value of chart variable 4. save chart
-	chartRepo, err := impl.getChartRepo(templateRequest)
+	charRepository, err := impl.getChartRepo(templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart repo detail", "req", templateRequest)
 		return nil, err
@@ -166,9 +169,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// STARTS
-	gitRepoUrl := ""
+	gitRepoUrl := apiGitOpsBean.GIT_REPO_NOT_CONFIGURED
 
-	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
+	version, err := impl.getNewVersion(charRepository.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
@@ -240,17 +243,34 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
 		//step 2
-		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
+		tx, err := impl.chartRepository.StartTx()
+		if err != nil {
+			impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+			return nil, err
+		}
+		defer impl.chartRepository.RollbackTx(tx)
+
+		noLatestCharts, dbErr := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
+		if dbErr != nil && !util.IsErrNoRows(dbErr) {
+			impl.logger.Errorw("error in getting non-latest charts", "appId", templateRequest.AppId, "err", err)
+			return nil, err
+		}
+		var updatedCharts []*chartRepoRepository.Chart
 		for _, noLatestChart := range noLatestCharts {
 			if noLatestChart.Id != templateRequest.Id {
-
 				noLatestChart.Latest = false // these are already false by d way
 				noLatestChart.Previous = false
-				err = impl.chartRepository.Update(noLatestChart)
-				if err != nil {
-					return nil, err
-				}
+				updatedCharts = append(updatedCharts, noLatestChart)
 			}
+		}
+		err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+		if err != nil {
+			return nil, err
+		}
+		err = impl.chartRepository.CommitTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+			return nil, err
 		}
 
 		impl.logger.Debug("now going to update latest entry in db to false and previous flag = true")
@@ -261,7 +281,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		if err != nil {
 			return nil, err
 		}
-		gitRepoUrl = currentLatestChart.GitRepoUrl
+		if currentLatestChart.GitRepoUrl != "" {
+			gitRepoUrl = currentLatestChart.GitRepoUrl
+		}
 	}
 	// ENDS
 
@@ -279,15 +301,15 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	override = dst.Bytes()
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
-		ChartRepoId:             chartRepo.Id,
+		ChartRepoId:             charRepository.Id,
 		Values:                  string(merged),
 		GlobalOverride:          string(override),
 		ReleaseOverride:         chartValues.ReleaseOverrides, //image descriptor template
 		PipelineOverride:        chartValues.PipelineOverrides,
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
-		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:            chartRepo.Url,
+		ChartRepo:               charRepository.Name,
+		ChartRepoUrl:            charRepository.Url,
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
@@ -317,7 +339,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, variablesRepository.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +363,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}, err
 }
 
-func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.chartRefService.CheckChartExists(templateRequest.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
@@ -357,7 +379,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 	//save chart
 	// 1. create chart, 2. push in repo, 3. add value of chart variable 4. save chart
-	chartRepo, err := impl.getChartRepo(templateRequest)
+	chartRepository, err := impl.getChartRepo(templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart repo detail", "req", templateRequest, "err", err)
 		return nil, err
@@ -374,7 +396,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
-	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
+	version, err := impl.getNewVersion(chartRepository.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
@@ -388,8 +410,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	chartLocation := filepath.Join(templateName, version)
-	gitRepoUrl := ""
-	if currentLatestChart.Id > 0 {
+	gitRepoUrl := apiGitOpsBean.GIT_REPO_NOT_CONFIGURED
+	if currentLatestChart.Id > 0 && currentLatestChart.GitRepoUrl != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
@@ -413,15 +435,15 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	override = dst.Bytes()
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
-		ChartRepoId:             chartRepo.Id,
+		ChartRepoId:             chartRepository.Id,
 		Values:                  string(merged),
 		GlobalOverride:          string(override),
 		ReleaseOverride:         chartValues.ReleaseOverrides,
 		PipelineOverride:        chartValues.PipelineOverrides,
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
-		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:            chartRepo.Url,
+		ChartRepo:               chartRepository.Name,
+		ChartRepoUrl:            chartRepository.Url,
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
@@ -448,7 +470,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, variablesRepository.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -458,11 +480,15 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 }
 
 // converts db object to bean
-func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isAppMetricsEnabled bool) (*TemplateRequest, error) {
+func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isAppMetricsEnabled bool) (*TemplateRequest, error) {
 	if chart == nil || chart.Id == 0 {
 		return &TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
 	}
-	return &TemplateRequest{
+	gitRepoUrl := ""
+	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+		gitRepoUrl = chart.GitRepoUrl
+	}
+	templateRequest := &TemplateRequest{
 		RefChartTemplate:        chart.ReferenceTemplate,
 		Id:                      chart.Id,
 		AppId:                   chart.AppId,
@@ -474,10 +500,16 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isAp
 		IsAppMetricsEnabled:     isAppMetricsEnabled,
 		IsBasicViewLocked:       chart.IsBasicViewLocked,
 		CurrentViewEditor:       chart.CurrentViewEditor,
-	}, nil
+		GitRepoUrl:              gitRepoUrl,
+		IsCustomGitRepository:   chart.IsCustomGitRepository,
+	}
+	if chart.Latest {
+		templateRequest.LatestChartVersion = chart.ChartVersion
+	}
+	return templateRequest, nil
 }
 
-func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (*chart.Metadata, error) {
+func (impl *ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (*chart.Metadata, error) {
 	pg, err := impl.pipelineGroupRepository.FindById(templateRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pg", "id", templateRequest.AppId, "err", err)
@@ -488,7 +520,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 	return metadata, err
 }
 
-func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartRepoRepository.ChartRepo, error) {
 	if templateRequest.ChartRepositoryId == 0 {
 		chartRepo, err := impl.repoRepository.GetDefault()
 		if err != nil {
@@ -506,13 +538,13 @@ func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*cha
 	}
 }
 
-func (impl ChartServiceImpl) getParentChartVersion(childVersion string) string {
+func (impl *ChartServiceImpl) getParentChartVersion(childVersion string) string {
 	placeholders := strings.Split(childVersion, ".")
 	return fmt.Sprintf("%s.%s.0", placeholders[0], placeholders[1])
 }
 
 // this method is not thread safe
-func (impl ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocation string) (string, error) {
+func (impl *ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocation string) (string, error) {
 	parentVersion, err := impl.chartTemplateService.GetChartVersion(refChartLocation)
 	if err != nil {
 		return "", err
@@ -536,7 +568,26 @@ func (impl ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocatio
 	return placeholders[0] + "." + placeholders[1] + "." + strconv.FormatInt(count, 10), nil
 }
 
-func (impl ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
+func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error) {
+	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if util.IsErrNoRows(err) {
+		return false, nil
+	} else if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+		return false, err
+	}
+	if !gitOpsConfigStatus.AllowCustomRepository {
+		return true, nil
+	}
+	latestChartConfiguredInApp, err := impl.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+		return false, err
+	}
+	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl), nil
+}
+
+func (impl *ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
@@ -551,7 +602,7 @@ func (impl ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTempl
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error) {
+func (impl *ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error) {
 	chart, err := impl.chartRepository.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
@@ -566,7 +617,7 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateResponse, error) {
+func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateResponse, error) {
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
@@ -634,21 +685,39 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 
 		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
 		//step 3
+		tx, err := impl.chartRepository.StartTx()
+		if err != nil {
+			impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+			return nil, err
+		}
+		defer impl.chartRepository.RollbackTx(tx)
+
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindNoLatestChartForAppByAppId")
-		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
+		noLatestCharts, dbErr := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
 		span.End()
+		if dbErr != nil && !util.IsErrNoRows(dbErr) {
+			impl.logger.Errorw("error in getting non-latest charts", "appId", templateRequest.AppId, "err", err)
+			return nil, err
+		}
+		var updatedCharts []*chartRepoRepository.Chart
 		for _, noLatestChart := range noLatestCharts {
 			if noLatestChart.Id != templateRequest.Id {
-
 				noLatestChart.Latest = false // these are already false by d way
 				noLatestChart.Previous = false
-				_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update")
-				err = impl.chartRepository.Update(noLatestChart)
-				span.End()
-				if err != nil {
-					return nil, err
-				}
+				updatedCharts = append(updatedCharts, noLatestChart)
 			}
+		}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update")
+		err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+		span.End()
+		if err != nil {
+			return nil, err
+		}
+
+		err = impl.chartRepository.CommitTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+			return nil, err
 		}
 
 		impl.logger.Debug("now going to update latest entry in db to false and previous flag = true")
@@ -703,7 +772,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.scopedVariableManager.ExtractAndMapVariables(template.GlobalOverride, template.Id, repository5.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy, nil)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(template.GlobalOverride, template.Id, variablesRepository.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -741,7 +810,7 @@ type IsReady struct {
 	Message string `json:"message"`
 }
 
-func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error) {
+func (impl *ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error) {
 	isReady := IsReady{Flag: false}
 	envOverride, err := impl.envOverrideRepository.ActiveEnvConfigOverride(appId, envId)
 	if err != nil {
@@ -772,9 +841,9 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 	return isReady, nil
 }
 
-func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*bean2.ChartRefAutocompleteResponse, error) {
-	chartRefResponse := &bean2.ChartRefAutocompleteResponse{}
-	var chartRefs []bean2.ChartRefAutocompleteDto
+func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error) {
+	chartRefResponse := &chartRefBean.ChartRefAutocompleteResponse{}
+	var chartRefs []chartRefBean.ChartRefAutocompleteDto
 
 	results, err := impl.chartRefService.GetAll()
 	if err != nil {
@@ -790,7 +859,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 	chartRefResponse.ChartsMetadata = resultsMetadataMap
 	var LatestAppChartRef int
 	for _, result := range results {
-		chartRefs = append(chartRefs, bean2.ChartRefAutocompleteDto{
+		chartRefs = append(chartRefs, chartRefBean.ChartRefAutocompleteDto{
 			Id:                    result.Id,
 			Version:               result.Version,
 			Name:                  result.Name,
@@ -827,7 +896,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 	return chartRefResponse, nil
 }
 
-func (impl ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
+func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error) {
 	chart, err := impl.chartRepository.FindPreviousChartByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
@@ -837,7 +906,7 @@ func (impl ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error) {
+func (impl *ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error) {
 
 	currentChart, err := impl.FindLatestChartForAppByAppId(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -916,7 +985,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			return false, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy, nil)
+		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, variablesRepository.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy, nil)
 		if err != nil {
 			return false, err
 		}
@@ -925,7 +994,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	return true, nil
 }
 
-func (impl ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, error) {
+func (impl *ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, error) {
 	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(id)
 	if err != nil {
 		return false, err
@@ -937,22 +1006,78 @@ func (impl ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, e
 	return chartData.UserUploaded, err
 }
 
-func (impl *ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error {
+func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) error {
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
+	if err != nil && !util.IsErrNoRows(err) {
 		return err
 	}
+	tx, err := impl.chartRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+		return err
+	}
+	defer impl.chartRepository.RollbackTx(tx)
+	var updatedCharts []*chartRepoRepository.Chart
 	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
+		if apiGitOpsBean.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
 			ch.GitRepoUrl = repoUrl
+			ch.IsCustomGitRepository = isCustomRepo
 			ch.ChartLocation = chartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
+			ch.UpdateAuditLog(userId)
+			updatedCharts = append(updatedCharts, ch)
 		}
 	}
+	err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+	if err != nil {
+		return err
+	}
+	err = impl.chartRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+		return err
+	}
 	return nil
+}
+
+func (impl *ChartServiceImpl) OverrideGitOpsRepoUrl(appId int, repoUrl string, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && util.IsErrNoRows(err) {
+		return err
+	}
+	tx, err := impl.chartRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+		return err
+	}
+	defer impl.chartRepository.RollbackTx(tx)
+	var updatedCharts []*chartRepoRepository.Chart
+	for _, ch := range charts {
+		if !ch.IsCustomGitRepository {
+			ch.GitRepoUrl = repoUrl
+			ch.UpdateAuditLog(userId)
+			updatedCharts = append(updatedCharts, ch)
+		}
+	}
+	err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+	if err != nil {
+		return err
+	}
+	err = impl.chartRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error) {
+	chartModel, err := impl.chartRepository.FindChartByGitRepoUrl(gitOpsRepoUrl)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching chartModel", "repoUrl", gitOpsRepoUrl, "err", err)
+		return true, err
+	} else if util.IsErrNoRows(err) {
+		return false, nil
+	}
+	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)
+	return true, nil
 }

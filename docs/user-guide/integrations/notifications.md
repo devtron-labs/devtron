@@ -1,6 +1,6 @@
 # Notifications
  
- **Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+ **Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](../integrations/build-and-deploy-ci-cd.md).
 
 With Notifications integration, you can receive alerts for build and deployment pipelines on trigger, success, and failure events. An alert will be sent to your desired slack channel and email address (supports SES and SMTP configurations) with the required information to take up the actions, if required.
  
