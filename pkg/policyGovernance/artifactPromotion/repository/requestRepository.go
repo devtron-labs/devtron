@@ -45,13 +45,14 @@ type RequestRepository interface {
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error)
+
 	// TODO: combine below func based on status
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
-	MarkPromoted(tx *pg.Tx, requestIds []int) error
-	FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error)
+	MarkPromoted(tx *pg.Tx, requestIds []int, userId int32) error
 	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
 }
 
@@ -230,7 +231,7 @@ func (repo *RequestRepositoryImpl) MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperate
 	return err
 }
 
-func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
+func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int, userId int32) error {
 	if len(requestIds) == 0 {
 		return nil
 	}
