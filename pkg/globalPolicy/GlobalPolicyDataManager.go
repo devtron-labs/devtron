@@ -13,26 +13,25 @@ import (
 )
 
 type GlobalPolicyDataManager interface {
-	CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
-
 	GetPolicyById(policyId int) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByNames(policyNames []string, policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
 	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
-	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
-	UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
-
-	DeletePolicyById(policyId int, userId int32) error
-	DeletePolicyByName(tx *pg.Tx, policyName string, policyType bean.GlobalPolicyType, userId int32) error
-
 	GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error)
-	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
 	GetPolicyByCriteria(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error)
 	GetPoliciesByHistoryIds(historyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
+
+	CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
+
+	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
+	UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
+
+	DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error
+	DeletePolicyByName(tx *pg.Tx, policyName string, policyType bean.GlobalPolicyType, userId int32) error
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -84,7 +83,7 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 		return nil, err
 	}
 
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy creation history", "policy", globalPolicy, "action", "create", "err", err)
 		return nil, err
@@ -132,7 +131,7 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 		return nil, err
 	}
 
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicy, bean2.HISTORY_OF_ACTION_UPDATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_UPDATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy creation history", "policy", globalPolicy, "action", "update", "err", err)
 		return nil, err
@@ -171,7 +170,7 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicyByName(tx *pg.Tx, PolicyNam
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
 		return nil, err
 	}
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy creation history", "policy", globalPolicy, "action", "update", "err", err)
 		return nil, err
@@ -333,7 +332,7 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByIds(policyIds []int) ([]*bea
 	return GlobalPolicyBaseModels, nil
 }
 
-func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId int32) error {
+func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error {
 	globalPolicy, err := impl.globalPolicyRepository.GetById(policyId)
 	if err != nil {
 		impl.logger.Errorw("error in getting policy by id", "err", err, "policyId", policyId)
@@ -345,7 +344,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId i
 		return err
 	}
 
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy action history", "policy", globalPolicy, "action", "delete", "err", err)
 		return err
@@ -364,7 +363,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(tx *pg.Tx, policyNam
 		impl.logger.Errorw("error in deleting policies", "err", err, "policyName", policyName)
 		return err
 	}
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy action history", "policy", globalPolicy, "action", "delete", "err", err)
 		return err
