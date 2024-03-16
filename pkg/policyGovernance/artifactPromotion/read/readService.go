@@ -156,7 +156,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(pr
 		return nil, err
 	}
 
-	globalPolicies, err := impl.parsePromotionPolicyFromGlobalPolicy(rawPolicies)
+	globalPolicies, err := parsePromotionPolicyFromGlobalPolicy(rawPolicies)
 	if err != nil {
 		impl.logger.Errorw("error in parsing promotion policy from global policy", "err", err)
 		return nil, err
@@ -415,7 +415,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2
 		return nil, err
 	}
 
-	promotionPolicies, err = impl.parsePromotionPolicyFromGlobalPolicy(globalPolicies)
+	promotionPolicies, err = parsePromotionPolicyFromGlobalPolicy(globalPolicies)
 	if err != nil {
 		impl.logger.Errorw("error in parsing global policy from promotion policy", "globalPolicy", globalPolicies, "err", err)
 		return nil, err
@@ -467,20 +467,6 @@ func (impl *ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetad
 		}
 	}
 	return sortRequest
-}
-
-func (impl *ArtifactPromotionDataReadServiceImpl) parsePromotionPolicyFromGlobalPolicy(globalPolicies []*bean2.GlobalPolicyBaseModel) ([]*bean.PromotionPolicy, error) {
-	promotionPolicies := make([]*bean.PromotionPolicy, 0)
-	for _, rawPolicy := range globalPolicies {
-		policy := &bean.PromotionPolicy{}
-		err := policy.UpdateWithGlobalPolicy(rawPolicy)
-		if err != nil {
-			impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", rawPolicy.Id, "err", err)
-			return nil, err
-		}
-		promotionPolicies = append(promotionPolicies, policy)
-	}
-	return promotionPolicies, nil
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error) {

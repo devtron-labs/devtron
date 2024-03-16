@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -239,6 +240,13 @@ type GlobalPolicyBaseModel struct {
 	JsonData      string
 	Active        bool
 	UserId        int32
+}
+
+// ParseJsonInto parses the JsonData field into given dest object.
+// throws error if JsonData cannot be Unmarshaled into dest struct or dest is not a pointer
+func (model *GlobalPolicyBaseModel) ParseJsonInto(dest interface{}) error {
+	err := json.Unmarshal([]byte(model.JsonData), dest)
+	return err
 }
 
 type GlobalPolicyDataModel struct {
