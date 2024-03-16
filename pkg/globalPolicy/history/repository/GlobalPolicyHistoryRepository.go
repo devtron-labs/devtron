@@ -60,7 +60,7 @@ func (repo *GlobalPolicyHistoryRepositoryImpl) GetByIds(ids []int) ([]*GlobalPol
 func (repo *GlobalPolicyHistoryRepositoryImpl) GetIdsByPolicyIds(policyIds []int) ([]int, error) {
 	ids := make([]int, 0)
 	err := repo.dbConnection.Model((*GlobalPolicyHistory)(nil)).
-		Column("MAX(id)").
+		ColumnExpr("MAX(id)").
 		Where("global_policy_id IN (?)", pg.In(policyIds)).Select(&ids)
 	return ids, err
 }
