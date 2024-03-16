@@ -58,6 +58,7 @@ type FilterEvaluationAuditRepository interface {
 	GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	GetByMultiRefAndMultiSubject(referenceType ReferenceType, referenceIds []int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	UpdateRefTypeAndRefId(id int, refType ReferenceType, refId int) error
+	GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error)
 }
 
 type FilterEvaluationAuditRepositoryImpl struct {
@@ -129,4 +130,16 @@ func (repo *FilterEvaluationAuditRepositoryImpl) UpdateRefTypeAndRefId(id int, r
 		Where("resource_type = ?", FILTER_CONDITION).
 		Update()
 	return err
+}
+
+func (repo *FilterEvaluationAuditRepositoryImpl) GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	models := make([]*ResourceFilterEvaluationAudit, 0)
+	err := repo.dbConnection.Model(&models).
+		Where("id IN (?)", pg.In(ids)).
+		Select()
+
+	return models, err
 }
