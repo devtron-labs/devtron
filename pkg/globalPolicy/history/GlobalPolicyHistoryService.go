@@ -5,11 +5,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/history/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type GlobalPolicyHistoryService interface {
-	CreateHistoryEntry(globalPolicy *repository2.GlobalPolicy, action bean.HistoryOfAction) error
+	CreateHistoryEntry(tx *pg.Tx, globalPolicy *repository2.GlobalPolicy, action bean.HistoryOfAction) error
 	GetByIds(ids []int) ([]*repository.GlobalPolicyHistory, error)
 	GetIdsByPolicyIds(policyIds []int) ([]int, error)
 }
@@ -27,7 +28,7 @@ func NewGlobalPolicyHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *GlobalPolicyHistoryServiceImpl) CreateHistoryEntry(globalPolicy *repository2.GlobalPolicy, action bean.HistoryOfAction) error {
+func (impl *GlobalPolicyHistoryServiceImpl) CreateHistoryEntry(tx *pg.Tx, globalPolicy *repository2.GlobalPolicy, action bean.HistoryOfAction) error {
 	history := &repository.GlobalPolicyHistory{
 		GlobalPolicyId:  globalPolicy.Id,
 		Enabled:         globalPolicy.Enabled,
@@ -44,7 +45,7 @@ func (impl *GlobalPolicyHistoryServiceImpl) CreateHistoryEntry(globalPolicy *rep
 		},
 	}
 
-	err := impl.globalPolicyHistoryRepository.Save(history)
+	err := impl.globalPolicyHistoryRepository.Save(tx, history)
 	if err != nil {
 		impl.logger.Errorw("error in saving globalPolicy history", "err", err, "policy", globalPolicy)
 		return err

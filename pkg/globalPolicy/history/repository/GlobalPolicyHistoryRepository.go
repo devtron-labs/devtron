@@ -8,7 +8,7 @@ import (
 )
 
 type GlobalPolicyHistoryRepository interface {
-	Save(model *GlobalPolicyHistory) error
+	Save(tx *pg.Tx, model *GlobalPolicyHistory) error
 	GetByIds(policyIds []int) ([]*GlobalPolicyHistory, error)
 	GetIdsByPolicyIds(policyIds []int) ([]int, error)
 }
@@ -39,8 +39,14 @@ type GlobalPolicyHistory struct {
 	sql.AuditLog
 }
 
-func (repo *GlobalPolicyHistoryRepositoryImpl) Save(model *GlobalPolicyHistory) error {
-	err := repo.dbConnection.Insert(model)
+func (repo *GlobalPolicyHistoryRepositoryImpl) Save(tx *pg.Tx, model *GlobalPolicyHistory) error {
+
+	var err error
+	if tx != nil {
+		err = tx.Insert(model)
+	} else {
+		err = repo.dbConnection.Insert(model)
+	}
 	if err != nil {
 		repo.logger.Errorw("error in saving history entry for global policy", "err", err, "globalPolicyId", model.GlobalPolicyId)
 		return err
