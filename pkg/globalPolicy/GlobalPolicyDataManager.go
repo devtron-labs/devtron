@@ -170,7 +170,7 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicyByName(tx *pg.Tx, PolicyNam
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
 		return nil, err
 	}
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_UPDATE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy creation history", "policy", globalPolicy, "action", "update", "err", err)
 		return nil, err
@@ -344,7 +344,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(tx *pg.Tx, policyId in
 		return err
 	}
 
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_DELETE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy action history", "policy", globalPolicy, "action", "delete", "err", err)
 		return err
@@ -363,7 +363,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(tx *pg.Tx, policyNam
 		impl.logger.Errorw("error in deleting policies", "err", err, "policyName", policyName)
 		return err
 	}
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_DELETE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(tx, globalPolicy, bean2.HISTORY_OF_ACTION_CREATE)
 	if err != nil {
 		impl.logger.Errorw("error in creating policy action history", "policy", globalPolicy, "action", "delete", "err", err)
 		return err
