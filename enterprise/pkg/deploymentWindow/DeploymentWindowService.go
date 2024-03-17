@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"go.uber.org/zap"
 	"time"
@@ -36,6 +37,7 @@ type DeploymentWindowServiceImpl struct {
 	resourceMappingService resourceQualifiers.QualifierMappingService
 	timeWindowService      timeoutWindow.TimeoutWindowService
 	globalPolicyManager    globalPolicy.GlobalPolicyDataManager
+	tx                     sql.TransactionWrapper
 }
 
 func NewDeploymentWindowServiceImpl(
@@ -44,6 +46,7 @@ func NewDeploymentWindowServiceImpl(
 	timeWindowService timeoutWindow.TimeoutWindowService,
 	globalPolicyManager globalPolicy.GlobalPolicyDataManager,
 	userService user.UserService,
+	transaction sql.TransactionWrapper,
 ) (*DeploymentWindowServiceImpl, error) {
 	cfg, err := GetDeploymentWindowConfig()
 	if err != nil {
@@ -56,11 +59,13 @@ func NewDeploymentWindowServiceImpl(
 		timeWindowService:      timeWindowService,
 		globalPolicyManager:    globalPolicyManager,
 		userService:            userService,
+		tx:                     transaction,
 	}, nil
 }
 
 type DeploymentWindowConfig struct {
-	DeploymentWindowFetchDays int `env:"DEPLOYMENT_WINDOW_FETCH_DAYS" envDefault:"90"`
+	DeploymentWindowFetchDaysBlackout    int `env:"DEPLOYMENT_WINDOW_FETCH_DAYS_BLACKOUT" envDefault:"90"`
+	DeploymentWindowFetchDaysMaintenance int `env:"DEPLOYMENT_WINDOW_FETCH_DAYS_MAINTENANCE" envDefault:"90"`
 }
 
 func GetDeploymentWindowConfig() (*DeploymentWindowConfig, error) {

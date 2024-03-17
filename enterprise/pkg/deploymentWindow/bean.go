@@ -42,12 +42,11 @@ type DeploymentWindowAppGroupResponse struct {
 type AppData struct {
 	AppId                 int                       `json:"appId"`
 	DeploymentProfileList *DeploymentWindowResponse `json:"deploymentProfileList,omitempty"`
-	//DeploymentWindowResponse
 }
 
 // DeploymentWindowProfile defines model for DeploymentWindowProfile.
 type DeploymentWindowProfile struct {
-	DeploymentWindowList []*timeoutWindow.TimeWindow `json:"deploymentWindowList,omitempty"`
+	DeploymentWindowList []*timeoutWindow.TimeWindow `json:"deploymentWindowList,omitempty" validate:"required,min=1"`
 	Enabled              bool                        `json:"enabled"`
 	TimeZone             string                      `json:"timeZone"`
 	DisplayMessage       string                      `json:"displayMessage"`
@@ -113,25 +112,29 @@ type EnvironmentState struct {
 
 	//// Timestamp indicating the window end or next window start timestamp based on current time and
 	//Timestamp time.Time `json:"timestamp"`
-	AppliedProfile *ProfileState `json:"appliedProfile"`
+	AppliedProfile *ProfileWrapper `json:"appliedProfile"`
 
 	// UserActionState describes the  eventual action state for the user
 	UserActionState UserActionState `json:"userActionState"`
 	CalculatedAt    time.Time       `json:"calculatedAt"`
 }
 
-type ProfileState struct {
-	CalculatedTimestamp     time.Time                `json:"calculatedTimestamp"`
+type ProfileWrapper struct {
 	DeploymentWindowProfile *DeploymentWindowProfile `json:"deploymentWindowProfile,omitempty"`
-	EnvId                   int                      `json:"envId"`
-	IsActive                bool                     `json:"isActive"`
-	ExcludedUserEmails      []string                 `json:"excludedUserEmails"`
+	ProfileStateData
+	EnvId int `json:"envId"`
+}
+
+type ProfileStateData struct {
+	CalculatedTimestamp time.Time `json:"calculatedTimestamp"`
+	IsActive            bool      `json:"isActive"`
+	ExcludedUserEmails  []string  `json:"excludedUserEmails"`
 }
 
 // DeploymentWindowResponse defines model for DeploymentWindowResponse.
 type DeploymentWindowResponse struct {
 	EnvironmentStateMap map[int]EnvironmentState `json:"environmentStateMap,omitempty"`
-	Profiles            []ProfileState           `json:"profiles,omitempty"`
+	Profiles            []ProfileWrapper         `json:"profiles,omitempty"`
 }
 
 func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *EnvironmentState) string {
@@ -151,6 +154,6 @@ func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *
 	return ""
 }
 
-func (item ProfileState) isRestricted() bool {
+func (item ProfileWrapper) isRestricted() bool {
 	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
 }

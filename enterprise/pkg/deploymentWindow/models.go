@@ -29,12 +29,9 @@ func (profile DeploymentWindowProfile) toPolicy(isExpired bool) DeploymentWindow
 	}
 }
 
-func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32, isExpired bool) (*bean.GlobalPolicyDataModel, error) {
+func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32, isExpired bool) *bean.GlobalPolicyDataModel {
 
-	policyBytes, err := json.Marshal(profile.toPolicy(isExpired))
-	if err != nil {
-		return nil, err
-	}
+	policyBytes, _ := json.Marshal(profile.toPolicy(isExpired))
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
 			Id:            profile.Id,
@@ -48,7 +45,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32, is
 			UserId:        userId,
 		},
 		SearchableFields: []util.SearchableField{},
-	}, nil
+	}
 }
 
 func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*timeoutWindow.TimeWindow) *DeploymentWindowProfile {
