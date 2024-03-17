@@ -29,7 +29,6 @@ const (
 )
 
 type TimeoutWindowResourceMappingRepository interface {
-	//GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
 	Create(tx *pg.Tx, mappings []*TimeoutWindowResourceMapping) ([]*TimeoutWindowResourceMapping, error)
 	GetWindowsForResources(resourceIds []int, resourceType ResourceType) ([]*TimeoutWindowResourceMapping, error)
 	DeleteAllForResource(tx *pg.Tx, resourceId int, resourceType ResourceType) error
@@ -46,14 +45,10 @@ func (impl TimeoutWindowResourceMappingRepositoryImpl) GetWindowsForResources(re
 		Where("resource_id IN (?)", pg.In(resourceIds)).
 		Where("resource_type = ?", resourceType).
 		Select()
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return []*TimeoutWindowResourceMapping{}, nil
-		}
-		return nil, err
+	if err == pg.ErrNoRows {
+		return []*TimeoutWindowResourceMapping{}, nil
 	}
-
-	return mappings, nil
+	return mappings, err
 }
 
 func (impl TimeoutWindowResourceMappingRepositoryImpl) DeleteAllForResource(tx *pg.Tx, resourceId int, resourceType ResourceType) error {

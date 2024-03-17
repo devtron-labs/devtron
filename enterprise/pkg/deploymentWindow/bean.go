@@ -110,8 +110,6 @@ type EnvironmentState struct {
 	ExcludedUsers      []int32  `json:"excludedUsers"`
 	ExcludedUserEmails []string `json:"excludedUserEmails"`
 
-	//// Timestamp indicating the window end or next window start timestamp based on current time and
-	//Timestamp time.Time `json:"timestamp"`
 	AppliedProfile *ProfileWrapper `json:"appliedProfile"`
 
 	// UserActionState describes the  eventual action state for the user

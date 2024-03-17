@@ -2635,16 +2635,3 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 func (impl UserServiceImpl) GetSuperAdminIds() ([]int32, error) {
 	return impl.userRepository.GetSuperAdmins()
 }
-
-//func (impl UserServiceImpl) GetSuperAdmins() ([]string, []int32, error) {
-//	ids, err := impl.userRepository.GetSuperAdmins()
-//	if err != nil {
-//		return nil, ids, fmt.Errorf("error in fetching ids for super admins %v", err)
-//	}
-//
-//	emails, err := impl.userRepository.GetEmailByIds(ids)
-//	if err != nil {
-//		return nil, ids, fmt.Errorf("error in fetching emails for super admins %v", err)
-//	}
-//	return emails, ids, nil
-//}

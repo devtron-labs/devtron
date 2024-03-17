@@ -90,6 +90,8 @@ type UserRoleModel struct {
 	sql.AuditLog
 }
 
+const SuperAdminAction = "super-admin"
+
 func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {
 	err := tx.Insert(userModel)
 	if err != nil {
@@ -205,12 +207,7 @@ func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
 		" INNER JOIN roles r ON r.id = ur.role_id" +
 		" WHERE r.action = ?"
 
-	_, err := impl.dbConnection.Query(&userIds, query, "super-admin")
-	//err := impl.dbConnection.Model((*UserRoleModel)(nil)).
-	//	Column("user_id").
-	//	Join("inner join roles AS r ON r.id = user_roles.role_id").
-	//	Where("r.action = ?", "super-admin").
-	//	Select(&userIds)
+	_, err := impl.dbConnection.Query(&userIds, query, SuperAdminAction)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return userIds, err

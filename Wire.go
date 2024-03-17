@@ -1040,8 +1040,6 @@ func InitializeApp() (*App, error) {
 		globalPolicy2.NewGlobalPolicyDataManagerImpl,
 		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
 
-		commonPolicyActions.CommonPolicyActionWireSet,
-
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 	)
