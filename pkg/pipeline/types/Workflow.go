@@ -210,8 +210,10 @@ func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]b
 
 func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+	case bean.CI_WORKFLOW_PIPELINE_TYPE:
 		return bean.CiStage
+	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return bean.JobStage
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CdStage
 	default:
