@@ -138,8 +138,8 @@ type MuxRouter struct {
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
-	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
 	commonPolicyRouter                 commonPolicyActions.CommonPolicyRouter
+	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -490,8 +490,10 @@ func (r MuxRouter) Init() {
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 
+	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/global/policy").Subrouter()
+	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
+
+
 	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
 	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
-	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/common").Subrouter()
-	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
 }
