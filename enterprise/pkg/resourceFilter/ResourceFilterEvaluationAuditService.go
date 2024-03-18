@@ -3,6 +3,7 @@ package resourceFilter
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -18,6 +19,8 @@ type FilterEvaluationAuditService interface {
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
+	SaveFilterEvaluationAudit(tx *pg.Tx, subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType, userId int32, filterHistoryObjects string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
+	GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error)
 }
 
 type FilterEvaluationAuditServiceImpl struct {
@@ -36,6 +39,21 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
+// todo: complete this
+func (impl *FilterEvaluationAuditServiceImpl) GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error) {
+	return impl.filterEvaluationAuditRepo.GetByIds(ids)
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) SaveFilterEvaluationAudit(tx *pg.Tx, subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType, userId int32, filterHistoryObjects string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error) {
+	evaluationAudit := NewResourceFilterEvaluationAudit(&referenceType, referenceId, filterHistoryObjects, &subjectType, subjectId, sql.NewDefaultAuditLog(userId), filterType)
+	createdEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(tx, &evaluationAudit)
+	if err != nil {
+		impl.logger.Errorw("error in saving evaluation audit", "evaluationAudit", evaluationAudit, "err", err)
+		return nil, err
+	}
+	return createdEvaluationAudit, nil
+}
+
 func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
 	filterHistoryObjectsStr, err := impl.extractFilterHistoryObjects(filters, filterIdVsState)
 	if err != nil {
@@ -49,8 +67,8 @@ func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType
 		CreatedBy: 1,
 	}
 
-	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog)
-	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(&filterEvaluationAudit)
+	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog, FILTER_CONDITION)
+	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(nil, &filterEvaluationAudit)
 	if err != nil {
 		impl.logger.Errorw("error in saving resource filter evaluation result in resource_filter_evaluation_audit table", "err", err, "filterEvaluationAudit", filterEvaluationAudit)
 		return savedFilterEvaluationAudit, err
@@ -123,7 +141,7 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 
 func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (string, error) {
 	filterIds := make([]int, 0)
-	//store filtersMap here, later will help to identify filters that doesn't have filterAudit
+	// store filtersMap here, later will help to identify filters that doesn't have filterAudit
 	filtersMap := make(map[int]*FilterMetaDataBean)
 	filterHistoryObjectMap := make(map[int]*FilterHistoryObject)
 	for _, filter := range filters {
@@ -149,12 +167,12 @@ func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filter
 		if filterHistoryObject, ok := filterHistoryObjectMap[resourceFilterEvaluationAudit.FilterId]; ok {
 			filterHistoryObject.FilterHistoryId = resourceFilterEvaluationAudit.Id
 
-			//delete filter from filtersMap for which we found filter audit
+			// delete filter from filtersMap for which we found filter audit
 			delete(filtersMap, resourceFilterEvaluationAudit.FilterId)
 		}
 	}
 
-	//if filtersMap is not empty ,there are some filters for which we never stored audit entry, so create filter audit for those
+	// if filtersMap is not empty ,there are some filters for which we never stored audit entry, so create filter audit for those
 	if len(filtersMap) > 0 {
 		filterHistoryObjectMap, err = impl.createFilterAuditForMissingFilters(filtersMap, filterHistoryObjectMap)
 		if err != nil {
@@ -194,7 +212,7 @@ func (impl *FilterEvaluationAuditServiceImpl) createFilterAuditForMissingFilters
 			return filterHistoryObjectMap, err
 		}
 		action := Create
-		userId := int32(1) //system user
+		userId := int32(1) // system user
 		filterAudit := NewResourceFilterAudit(filter.Id, conditionsStr, filter.TargetObject, &action, userId)
 		savedFilterAudit, err := impl.filterAuditRepo.CreateResourceFilterAudit(tx, &filterAudit)
 		if err != nil {
