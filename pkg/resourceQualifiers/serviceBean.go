@@ -3,7 +3,7 @@ package resourceQualifiers
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 	"time"
 )
 
@@ -18,7 +18,7 @@ const (
 )
 
 func (selector QualifierSelector) isCompound() bool {
-	return lo.Contains(CompoundQualifiers, selector.toQualifier())
+	return slices.Contains(CompoundQualifiers, selector.toQualifier())
 }
 
 func (selector QualifierSelector) toQualifier() Qualifier {
@@ -114,12 +114,12 @@ func getAuditLog(userid int32) sql.AuditLog {
 	return auditLog
 }
 
-func (selection *ResourceMappingSelection) toResourceMapping(resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, valueInt int, valueString string, compositeString string, userId int32) *QualifierMapping {
+func (selection *ResourceMappingSelection) toResourceMapping(selector QualifierSelector, resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int, valueInt int, valueString string, compositeString string, userId int32) *QualifierMapping {
 	return &QualifierMapping{
 		ResourceId:            selection.ResourceId,
 		ResourceType:          selection.ResourceType,
 		QualifierId:           int(GetQualifierIdForSelector(selection.QualifierSelector)),
-		IdentifierKey:         GetIdentifierKey(selection.QualifierSelector, resourceKeyMap),
+		IdentifierKey:         GetIdentifierKey(selector, resourceKeyMap),
 		IdentifierValueInt:    valueInt,
 		IdentifierValueString: valueString,
 		Active:                true,

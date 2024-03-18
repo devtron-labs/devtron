@@ -41,7 +41,7 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 
 // todo: complete this
 func (impl *FilterEvaluationAuditServiceImpl) GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error) {
-	return nil, nil
+	return impl.filterEvaluationAuditRepo.GetByIds(ids)
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) SaveFilterEvaluationAudit(tx *pg.Tx, subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType, userId int32, filterHistoryObjects string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error) {

@@ -76,7 +76,7 @@ type CdWorkflowRepository interface {
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
-	FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error)
+	FindLatestSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -158,6 +158,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
+	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )
 
 type CdWorkflowRunnerWithExtraFields struct {
@@ -743,15 +744,27 @@ func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pi
 	return exists, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
+func (impl *CdWorkflowRepositoryImpl) FindLatestSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
 	var cdWorkflow []*CdWorkflowMetadata
 	if len(cdPipelineIds) == 0 {
 		return cdWorkflow, nil
 	}
-	query := "with workflow as " +
-		"(Select max(cw.id) as cdw_id from cd_workflow cw inner join cd_workflow_runner cwr on cw.id=cwr.cd_workflow_id where ( cw.pipeline_id in (?) and cwr.workflow_type='DEPLOY' and cwr.status in ('Succeeded', 'Healthy') ) group by cw.pipeline_id ) " +
-		"select id, pipeline_id, ci_artifact_id  from cd_workflow where id in (select cdw_id from workflow)"
-
+	query := `
+			WITH workflow AS (
+				SELECT MAX(cw.id) AS cdw_id
+				FROM cd_workflow cw
+				INNER JOIN cd_workflow_runner cwr ON cw.id = cwr.cd_workflow_id
+				WHERE (
+					cw.pipeline_id IN (?)
+					AND cwr.workflow_type = 'DEPLOY'
+					AND cwr.status IN ('Succeeded', 'Healthy')
+				)
+				GROUP BY cw.pipeline_id
+			)
+			SELECT id, pipeline_id, ci_artifact_id
+			FROM cd_workflow
+			WHERE id IN (SELECT cdw_id FROM workflow)
+			`
 	_, err := impl.dbConnection.Query(&cdWorkflow, query, pg.In(cdPipelineIds))
 	if err != nil {
 		impl.logger.Errorw("error in finding all workflows for given artifactIds and cdPipelineIds", "cdPipelineIds", cdPipelineIds, "err", err)

@@ -8,9 +8,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
-	"log"
+	errors2 "github.com/pkg/errors"
 	"time"
 )
 
@@ -26,6 +27,21 @@ type ArtifactPromotionRequest struct {
 	AppId              int                 `json:"appId"`
 }
 
+func GetSourceTypeFromPipelineType(pipelineType bean4.PipelineType) bean2.SourceTypeStr {
+	switch pipelineType {
+	case bean4.NORMAL:
+		return bean2.SOURCE_TYPE_CI
+	case bean4.LINKED:
+		return bean2.SOURCE_TYPE_LINKED_CI
+	case bean4.EXTERNAL:
+		return bean2.SOURCE_TYPE_WEBHOOK
+	case bean4.CI_JOB:
+		return bean2.SOURCE_TYPE_JOB_CI
+	case bean4.LINKED_CD:
+		return bean2.SOURCE_TYPE_LINKED_CD
+	}
+	return bean2.SOURCE_TYPE_CI
+}
 func (r *ArtifactPromotionRequest) ValidateRequest() error {
 	switch r.Action {
 	case bean2.ACTION_APPROVE:
@@ -39,7 +55,13 @@ func (r *ArtifactPromotionRequest) ValidateRequest() error {
 			return errors.New("destinationObjectNames are required")
 		}
 	case bean2.ACTION_PROMOTE:
-		if r.SourceType != bean2.SOURCE_TYPE_CI && r.SourceType != bean2.SOURCE_TYPE_WEBHOOK && r.SourceType != bean2.SOURCE_TYPE_CD && r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE {
+		if r.SourceType != bean2.SOURCE_TYPE_CI &&
+			r.SourceType != bean2.SOURCE_TYPE_WEBHOOK &&
+			r.SourceType != bean2.SOURCE_TYPE_CD &&
+			r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE &&
+			r.SourceType != bean2.SOURCE_TYPE_LINKED_CI &&
+			r.SourceType != bean2.SOURCE_TYPE_LINKED_CD &&
+			r.SourceType != bean2.SOURCE_TYPE_JOB_CI {
 			return errors.New("invalid sourceType")
 		}
 		if r.AppId <= 0 {
@@ -68,21 +90,34 @@ type ArtifactPromotionApprovalResponse struct {
 }
 
 type PromotionApprovalMetaData struct {
-	ApprovalRequestId    int                         `json:"approvalRequestId"`
-	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
-	ApprovalUsersData    []PromotionApprovalUserData `json:"approvalUsersData"`
-	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
-	PromotedFrom         string                      `json:"promotedFrom"`
-	PromotedFromType     string                      `json:"promotedFromType"`
-	Policy               PromotionPolicy             `json:"policy" validate:"dive"`
+	ApprovalRequestId    int                                  `json:"approvalRequestId"`
+	ApprovalRuntimeState bean2.ArtifactPromotionRequestStatus `json:"approvalRuntimeState"`
+	ApprovalUsersData    []PromotionApprovalUserData          `json:"approvedUsersData"`
+	RequestedUserData    PromotionApprovalUserData            `json:"requestedUserData"`
+	PromotedFrom         string                               `json:"promotedFrom"`
+	PromotedFromType     string                               `json:"promotedFromType"`
+	Policy               PromotionPolicy                      `json:"policy" validate:"dive"`
 }
 
-func (promotionApprovalMetaData PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
-	approvalUserIds := make([]int32, len(promotionApprovalMetaData.ApprovalUsersData))
-	for _, approvalUserData := range promotionApprovalMetaData.ApprovalUsersData {
+func (p PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
+	approvalUserIds := make([]int32, len(p.ApprovalUsersData))
+	for _, approvalUserData := range p.ApprovalUsersData {
 		approvalUserIds = append(approvalUserIds, approvalUserData.UserId)
 	}
 	return approvalUserIds
+}
+
+func (p PromotionApprovalMetaData) IsUserApprover(userId int32) bool {
+	approverUserIds := make([]int32, len(p.ApprovalUsersData))
+	for _, approvalUserData := range p.ApprovalUsersData {
+		approverUserIds = append(approverUserIds, approvalUserData.UserId)
+	}
+	for _, id := range approverUserIds {
+		if id == userId {
+			return true
+		}
+	}
+	return false
 }
 
 func (promotionApprovalMetaData PromotionApprovalMetaData) GetRequestedUserId() int32 {
@@ -122,13 +157,12 @@ type EnvironmentApprovalMetadata struct {
 }
 
 type PromotionPolicy struct {
-	Id                 int                      `json:"id" `
-	Name               string                   `json:"name" devtronSearchableField:"name" validate:"min=3,max=50,global-entity-name"`
-	Description        string                   `json:"description" validate:"max=300"`
-	PolicyEvaluationId int                      `json:"-"`
-	Conditions         []util.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
-	ApprovalMetaData   ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
-	IdentifierCount    *int                     `json:"identifierCount,omitempty"`
+	Id               int                      `json:"id" `
+	Name             string                   `json:"name" devtronSearchableField:"name" validate:"min=3,max=50,global-entity-name"`
+	Description      string                   `json:"description" validate:"max=300"`
+	Conditions       []util.ResourceCondition `json:"conditions" validate:"min=1,dive"`
+	ApprovalMetaData ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
+	IdentifierCount  *int                     `json:"identifierCount,omitempty"`
 }
 
 func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
@@ -140,6 +174,10 @@ func (p *PromotionPolicy) CanImageBuilderApprove(imageBuiltByUserId, approvingUs
 
 func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingUserId int32) bool {
 	return !p.ApprovalMetaData.AllowRequesterFromApprove && requestedUserId == approvingUserId
+}
+
+func (p *PromotionPolicy) CanImageApproverDeploy() bool {
+	return p.ApprovalMetaData.AllowApproverFromDeploy
 }
 
 func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {
@@ -180,8 +218,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPolicyBaseModel) error {
 	err := json.Unmarshal([]byte(rawPolicy.JsonData), policy)
 	if err != nil {
-		log.Printf("error in unmarshalling global policy json into promotionPolicy object, globalPolicy:%v,  err:%v", rawPolicy, err)
-		return errors.New("unable to extract promotion policies")
+		return errors2.Wrap(err, "unable to extract promotion policies")
 	}
 	policy.Name = rawPolicy.Name
 	policy.Id = rawPolicy.Id
@@ -285,8 +322,6 @@ type RequestMetaData struct {
 	ciArtifact   *repository.CiArtifact
 }
 
-// todo: naming can be better
-// todo: gireesh, make this method on RequestMetaData struct
 func (r *RequestMetaData) GetDefaultEnvironmentPromotionMetaDataResponseMap() map[string]EnvironmentPromotionMetaData {
 	response := make(map[string]EnvironmentPromotionMetaData)
 	for _, env := range r.GetUserGivenEnvNames() {

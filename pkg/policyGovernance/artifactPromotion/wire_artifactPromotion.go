@@ -16,6 +16,7 @@ var ArtifactPromotionWireSet = wire.NewSet(
 
 	NewPromotionPolicyServiceImpl,
 	wire.Bind(new(PolicyCUDService), new(*PromotionPolicyServiceImpl)),
+	wire.Bind(new(PolicyEventNotifier), new(*PromotionPolicyServiceImpl)),
 
 	repository.NewRequestRepositoryImpl,
 	wire.Bind(new(repository.RequestRepository), new(*repository.RequestRepositoryImpl)),

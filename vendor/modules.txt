@@ -391,7 +391,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240216091211-80e10a80ce7b
+# github.com/devtron-labs/authenticator v0.4.35-0.20240313095124-d00f3ff035b6
 ## explicit; go 1.18
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -988,9 +988,6 @@ github.com/robfig/cron/v3
 # github.com/russross/blackfriday/v2 v2.1.0
 ## explicit
 github.com/russross/blackfriday/v2
-# github.com/samber/lo v1.39.0
-## explicit; go 1.18
-github.com/samber/lo
 # github.com/satori/go.uuid v1.2.0
 ## explicit
 github.com/satori/go.uuid

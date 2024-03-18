@@ -4,12 +4,6 @@ import (
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 )
 
-type ChartProxyReqDto struct {
-	GitOpsRepoName string `json:"gitOpsRepoName"`
-	AppName        string `json:"appName,omitempty"`
-	UserId         int32  `json:"-"`
-}
-
 type GitConfig struct {
 	GitlabGroupId        string //local
 	GitlabGroupPath      string //local

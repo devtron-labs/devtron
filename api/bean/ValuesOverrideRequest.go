@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/util"
 )
 
 type WorkflowType string
@@ -77,6 +78,10 @@ type ValuesOverrideRequest struct {
 	Image                                 string                      `json:"-"`
 }
 
+func (v ValuesOverrideRequest) IsDeployDeploymentType() bool {
+	return v.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY
+}
+
 type BulkCdDeployEvent struct {
 	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
 	UserId                int32                  `json:"userId"`
@@ -123,35 +128,22 @@ type ArtifactsListFilterOptions struct {
 	UseCdStageQueryV2 bool
 }
 
-type PromotionArtifactsListingFilterOptions struct {
-	//list filter data
-	Limit        int
-	Offset       int
-	SearchString string
-	Order        string
-}
-
-type CiNodePromotionArtifactsRequest struct {
+type CiNodeMaterialRequest struct {
 	CiPipelineId   int
-	ListingOptions PromotionArtifactsListingFilterOptions
+	ListingOptions util.ListingFilterOptions
 }
 
-type ExtCiNodePromotionArtifactsRequest struct {
+type ExtCiNodeMaterialRequest struct {
 	ExternalCiPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
+	ListingOptions       util.ListingFilterOptions
 }
 
-type CdNodePromotionArtifactsRequest struct {
+type CdNodeMaterialRequest struct {
 	ResourceCdPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
+	ListingOptions       util.ListingFilterOptions
 }
 
-type ArtifacPromotionPendingNodeRequest struct {
-	ResourceCdPipelineId int
-	ListingOptions       PromotionArtifactsListingFilterOptions
-}
-
-type ArtifactPromotionPendingForCurrentUserRequest struct {
-	ImagePromoterAccessCdPipelineIds []int
-	ListingOptions                   PromotionArtifactsListingFilterOptions
+type PromotionPendingNodeMaterialRequest struct {
+	ResourceCdPipelineId []int
+	ListingOptions       util.ListingFilterOptions
 }

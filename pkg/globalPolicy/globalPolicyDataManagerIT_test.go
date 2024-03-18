@@ -4,7 +4,10 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy/history"
+	repository2 "github.com/devtron-labs/devtron/pkg/globalPolicy/history/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -41,7 +44,7 @@ func TestCreatePolicyIntegration(t *testing.T) {
 	db, err := setupTestDatabase()
 	defer db.Close()
 	if err != nil {
-
+		t.Fail()
 	}
 	logger, err := util.NewSugardLogger()
 	if err != nil {
@@ -50,8 +53,9 @@ func TestCreatePolicyIntegration(t *testing.T) {
 
 	globalPolicyRepo := repository.NewGlobalPolicyRepositoryImpl(logger, db)
 	globalPolicySearchableFieldRepo := repository.NewGlobalPolicySearchableFieldRepositoryImpl(logger, db)
-
-	globalPolicyManager := NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableFieldRepo)
+	globalPolicyHistoryRepository := repository2.NewGlobalPolicyHistoryRepositoryImpl(logger, db)
+	globalPolicyHistoryService := history.NewGlobalPolicyHistoryServiceImpl(logger, globalPolicyHistoryRepository)
+	globalPolicyManager := NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableFieldRepo, globalPolicyHistoryService)
 
 	testPolicy := &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
@@ -63,10 +67,10 @@ func TestCreatePolicyIntegration(t *testing.T) {
 			Active:        true,
 			UserId:        1,
 		},
-		SearchableFields: []bean.SearchableField{
+		SearchableFields: []util2.SearchableField{
 
 			{
-				FieldName: "Name", FieldValue: "Random Name", FieldType: bean.StringType,
+				FieldName: "Name", FieldValue: "Random Name", FieldType: util2.StringType,
 			},
 		},
 	}

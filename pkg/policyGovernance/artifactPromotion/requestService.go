@@ -20,6 +20,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -40,8 +41,8 @@ import (
 type ApprovalRequestService interface {
 	HandleArtifactPromotionRequest(ctx *util3.RequestCtx, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetPromotionRequestById(promotionRequestId int) (*bean.ArtifactPromotionApprovalResponse, error)
-	FetchWorkflowPromoteNodeList(ctx *util3.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
-	FetchApprovalAllowedEnvList(ctx *util3.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
+	FetchWorkflowPromoteNodeList(ctx *util2.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
+	FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
 }
 
 type ApprovalRequestServiceImpl struct {
@@ -79,7 +80,8 @@ func NewApprovalRequestServiceImpl(
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
-	promotionPolicyCUDService PolicyCUDService,
+	policyEventNotifier PolicyEventNotifier,
+	commonPoliyApplyEventNotifier policyGovernance.CommonPoliyApplyEventNotifier,
 	pipelineStageService pipeline.PipelineStageService,
 	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
@@ -118,8 +120,9 @@ func NewApprovalRequestServiceImpl(
 	}
 
 	// register hooks
-	promotionPolicyCUDService.AddDeleteHook(artifactApprovalService.onPolicyDelete)
-	promotionPolicyCUDService.AddUpdateHook(artifactApprovalService.onPolicyUpdate)
+	policyEventNotifier.AddDeleteEventObserver(artifactApprovalService.onPolicyDelete)
+	policyEventNotifier.AddUpdateEventObserver(artifactApprovalService.onPolicyUpdate)
+	commonPoliyApplyEventNotifier.AddApplyEventObserver(policyGovernance.ImagePromotion, artifactApprovalService.onApplyPolicy)
 	return artifactApprovalService
 }
 
@@ -157,7 +160,7 @@ func (impl *ApprovalRequestServiceImpl) GetPromotionRequestById(promotionRequest
 	return artifactPromotionResponse, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
+func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
 
 	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
 
@@ -167,11 +170,12 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants.ARTIFACT_NOT_FOUND_ERR).WithInternalMessage(constants.ARTIFACT_NOT_FOUND_ERR)
 	}
 
-	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactIdAndEnvName(artifactId, environmentName, constants.AWAITING_APPROVAL)
+	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactAndOptionalEnv(artifactId, environmentName, constants.AWAITING_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId", "artifactId", artifactId, "err", err)
 		return nil, err
 	}
+
 	if len(promotionRequests) == 0 {
 		return environmentApprovalMetadata, nil
 	}
@@ -188,10 +192,10 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 	}
 
 	if len(pipelineIdToDaoMapping) < len(destinationPipelineIds) {
-		deletedPipelines, err := impl.markRequestStale(pipelineIdToDaoMapping, destinationPipelineIds)
+		deletedPipelines, err := impl.markRequestAsStale(pipelineIdToDaoMapping, destinationPipelineIds)
 		if err != nil {
 			// not returning by choice, dont block user flow if this operation is unsuccessful
-			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines)
+			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines, "err", err)
 		}
 		if len(deletedPipelines) == len(promotionRequests) {
 			return environmentApprovalMetadata, nil
@@ -204,7 +208,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 	}
 
 	rbacObjects, pipelineIdToRbacObjMap := impl.getRbacObjects(pipelineIdToDaoMapping)
-	rbacResults := promotionApproverAuth(ctx.GetToken(), rbacObjects)
+	rbacResults := promotionApproverAuth(ctx, rbacObjects)
 
 	appId := pipelineIdToDaoMapping[promotionRequests[0].DestinationPipelineId].AppId
 
@@ -223,25 +227,21 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 			ApprovalAllowed: true,
 			Reasons:         make([]string, 0),
 		}
-		// TODO: fetch policies in bulk
+
 		policy := policiesMap[pipelineDao.Environment.Name]
 		if policy == nil {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
 			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 			continue
-		}
-		// TODO abstract logic to policyBean
-		if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
+		} else if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
-			// TODO: reason constant
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG)
-		}
-		if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
+		} else if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG)
 		}
-		// TODO: rbac batch
+
 		rbacObj := pipelineIdToRbacObjMap[request.DestinationPipelineId]
 		if isAuthorized := rbacResults[rbacObj]; !isAuthorized {
 			environmentMetadata.ApprovalAllowed = false
@@ -253,7 +253,9 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 }
 
 // TODO : test
-func (impl *ApprovalRequestServiceImpl) markRequestStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
+func (impl *ApprovalRequestServiceImpl) markRequestAsStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
+	// TODO : add info log
+	impl.logger.Errorw("marking deleted pipeline policies stale", "deletedPipelineIds", destinationPipelineIds)
 	var deletedPipelines []int
 	for id := range destinationPipelineIds {
 		if _, ok := pipelineIdToDaoMapping[id]; !ok {
@@ -347,6 +349,10 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 		return nil, nil, err
 	}
 
+	if len(allAppWorkflowMappings) == 0 {
+		return nil, nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowNotFoundErr)
+	}
+
 	sourcePipelineMapping := bean4.AppWorkflowMappingDto{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
@@ -368,7 +374,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 			return nil, nil, err
 		}
 		sourceName = ciPipeline.Name
-		sourceType = constants.SOURCE_TYPE_CI
+		sourceType = bean.GetSourceTypeFromPipelineType(ciPipeline.PipelineType)
 	} else if sourcePipelineMapping.Type == appWorkflow.WEBHOOK {
 		sourceType = constants.SOURCE_TYPE_WEBHOOK
 	}
@@ -432,7 +438,6 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	return requestMetaData, nil
 }
 
-// todo: move this method away from this service to param Extractor service
 func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
 	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
@@ -456,11 +461,6 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	params, err := impl.computeFilterParams(metadata.GetCiArtifact())
-	if err != nil {
-		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
-		return nil, err
-	}
 	envMap := metadata.GetActiveEnvironmentsMap()
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 	for envName, resp := range responseMap {
@@ -471,29 +471,37 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		}
 	}
 
-	// can be concurrent
-	for envName, policy := range policiesMap {
-		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+	if len(policiesMap) > 0 {
+		// can be concurrent
+		params, err := impl.computeFilterParams(metadata.GetCiArtifact())
 		if err != nil {
-			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
-			responseMap[envName] = bean.EnvironmentPromotionMetaData{
-				Name:                       envName,
-				ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
-				PromotionPossible:          false,
-				PromotionValidationMessage: constants.POLICY_EVALUATION_ERRORED,
+			impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
+			return nil, err
+		}
+		for envName, policy := range policiesMap {
+			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+			if err != nil {
+				impl.logger.Errorw("policy evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
+				responseMap[envName] = bean.EnvironmentPromotionMetaData{
+					Name:                       envName,
+					ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
+					PromotionPossible:          false,
+					PromotionValidationMessage: constants.POLICY_EVALUATION_ERRORED,
+				}
+				continue
 			}
-			continue
+			envResp := responseMap[envName]
+			envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
+			envResp.PromotionValidationMessage = constants.EMPTY
+			envResp.PromotionPossible = evaluationResult
+			// checks on metadata not needed as this is just an evaluation flow (kinda validation)
+			if !evaluationResult {
+				envResp.PromotionValidationMessage = constants.BLOCKED_BY_POLICY
+			}
+			responseMap[envName] = envResp
 		}
-		envResp := responseMap[envName]
-		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-		envResp.PromotionValidationMessage = constants.EMPTY
-		envResp.PromotionPossible = evaluationResult
-		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
-		if !evaluationResult {
-			envResp.PromotionValidationMessage = constants.BLOCKED_BY_POLICY
-		}
-		responseMap[envName] = envResp
 	}
+
 	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		result = append(result, envResponse)
@@ -580,10 +588,12 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util3.RequestCtx, m
 			} else {
 				resp.PromotionValidationMessage = constants.ERRORED_APPROVAL
 			}
+			responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]] = resp
 			continue
 		}
 
 		resp.PromotionValidationMessage = constants.APPROVED
+		responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]] = resp
 	}
 	return responses
 }
@@ -611,54 +621,60 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util3.Reque
 			// not returning by choice, don't interrupt the user flow
 		}
 	}
-
-	// fetch all the approved users data for the valid requestIds
-	approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in finding the approved users data for a artifact promotion request", "promotionRequestIds", validRequestIds, "err", err)
-		return nil, err
-	}
-
-	// club the approved users(we just need count for now) per requestId
-	promotionRequestIdVsApprovedUserCount := make(map[int]int)
-	for _, _approvedUsersData := range approvedUsersData {
-		count := promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId]
-		promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId] = count + 1
-	}
-
-	// filter out promotable requests.
-	// we will promote if the current number approvals got for any request exceeds the current configured no of approvals in the policy
-	promotableRequestIds := make([]int, 0, len(validRequestIds))
-	for _, promotionRequest := range promotionRequests {
-		approvalCount := promotionRequestIdVsApprovedUserCount[promotionRequest.Id]
-		if policyIdMap[promotionRequest.PolicyId].CanBePromoted(approvalCount) {
-			promotableRequestIds = append(promotableRequestIds, promotionRequest.Id)
-		}
-	}
-
-	// promote the promotableRequestIds
-	err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds)
-	if err != nil {
-		impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
-		return nil, err
-	}
-
-	promotionRequestIdToDaoMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
-	for _, promotionRequest := range promotionRequests {
-		promotionRequestIdToDaoMap[promotionRequest.Id] = promotionRequest
-	}
-
-	if len(promotableRequestIds) > 0 {
-		err = impl.handleArtifactPromotionSuccess(promotableRequestIds, promotionRequestIdToDaoMap, metadata.GetActiveAuthorisedPipelineDaoMap())
-		if err != nil {
-			impl.logger.Errorw("error in handling the successful artifact promotion event for promotedRequests", "promotableRequestIds", promotableRequestIds, "err", err)
+	if len(validRequestIds) > 0 {
+		// fetch all the approved users data for the valid requestIds
+		approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in finding the approved users data for a artifact promotion request", "promotionRequestIds", validRequestIds, "err", err)
 			return nil, err
 		}
-	}
 
+		// club the approved users(we just need count for now) per requestId
+		promotionRequestIdVsApprovedUserCount := make(map[int]int)
+		for _, _approvedUsersData := range approvedUsersData {
+			count := promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId]
+			promotionRequestIdVsApprovedUserCount[_approvedUsersData.ApprovalRequestId] = count + 1
+		}
+
+		validRequestMap := make(map[int]bool)
+		for _, id := range validRequestIds {
+			validRequestMap[id] = true
+		}
+		// filter out promotable requests.
+		// we will promote if the current number approvals got for any request exceeds the current configured no of approvals in the policy
+		promotableRequestIds := make([]int, 0, len(validRequestIds))
+		for _, promotionRequest := range promotionRequests {
+			if validRequestMap[promotionRequest.Id] {
+				approvalCount := promotionRequestIdVsApprovedUserCount[promotionRequest.Id]
+				if policyIdMap[promotionRequest.PolicyId].CanBePromoted(approvalCount) {
+					promotableRequestIds = append(promotableRequestIds, promotionRequest.Id)
+				}
+			}
+		}
+
+		// promote the promotableRequestIds
+		err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, promotableRequestIds, ctx.GetUserId())
+		if err != nil {
+			impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
+			return nil, err
+		}
+
+		promotionRequestIdToDaoMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
+		for _, promotionRequest := range promotionRequests {
+			promotionRequestIdToDaoMap[promotionRequest.Id] = promotionRequest
+		}
+
+		if len(promotableRequestIds) > 0 {
+			err = impl.handleArtifactPromotionSuccess(promotableRequestIds, promotionRequestIdToDaoMap, metadata.GetActiveAuthorisedPipelineDaoMap())
+			if err != nil {
+				impl.logger.Errorw("error in handling the successful artifact promotion event for promotedRequests", "promotableRequestIds", promotableRequestIds, "err", err)
+				return nil, err
+			}
+		}
+	}
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing the transaction", "promotableRequestIds", promotableRequestIds, "err", err)
+		impl.logger.Errorw("error in committing the transaction", "validRequestIds", validRequestIds, "err", err)
 		return nil, err
 	}
 
@@ -674,7 +690,9 @@ func (impl *ApprovalRequestServiceImpl) filterValidAndStaleRequests(promotionReq
 	validRequestIds := make([]int, 0)
 	for _, promotionRequest := range promotionRequests {
 		resp := responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]]
-		_, ok := policyIdMap[promotionRequest.PolicyId]
+		_, policyFound := policyIdMap[promotionRequest.PolicyId]
+		_, destinationPipelineFoud := pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]
+		ok := policyFound && destinationPipelineFoud
 		if ok {
 			validRequestIds = append(validRequestIds, promotionRequest.Id)
 		}
@@ -687,7 +705,7 @@ func (impl *ApprovalRequestServiceImpl) filterValidAndStaleRequests(promotionReq
 
 			// also set the response messages
 			resp.PromotionPossible = false
-			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
+			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline or the pipeline was deleted on which this request was raised, state: stale"
 		} else if promotionRequest.Status != constants.AWAITING_APPROVAL {
 			resp.PromotionValidationMessage = constants.PromotionValidationMsg(fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status()))
 		}
@@ -781,17 +799,7 @@ func (impl *ApprovalRequestServiceImpl) updateWithDestinationMetadata(requestMet
 func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourceType constants.SourceTypeStr, appId int, workflowId int) (*bean.SourceMetaData, error) {
 	sourceInfo := &bean.SourceMetaData{}
 	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType)
-	if sourceType == constants.SOURCE_TYPE_CI || sourceType == constants.SOURCE_TYPE_WEBHOOK {
-		appWorkflowMapping, err := impl.appWorkflowService.FindByCiSourceWorkflowMappingById(workflowId)
-		if err != nil {
-			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
-			if errors.Is(err, pg.ErrNoRows) {
-				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
-			}
-			return nil, err
-		}
-		sourceInfo = sourceInfo.WithId(appWorkflowMapping.ComponentId).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId)
-	} else {
+	if sourceType == constants.SOURCE_TYPE_CD {
 		// source type will be cd and source name will be envName.
 		// get pipeline using appId and env name and get the workflowMapping
 		pipelines, err := impl.cdPipelineService.FindActiveByAppIdAndEnvNames(appId, []string{sourceName})
@@ -813,15 +821,23 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 			return nil, err
 		}
 		sourceInfo = sourceInfo.WithId(pipeline.Id).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId).WithCdPipeline(pipeline)
+	} else {
+		appWorkflowMapping, err := impl.appWorkflowService.FindByCiSourceWorkflowMappingById(workflowId)
+		if err != nil {
+			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
+			}
+			return nil, err
+		}
+		sourceInfo = sourceInfo.WithId(appWorkflowMapping.ComponentId).WithSourceWorkflowId(appWorkflowMapping.AppWorkflowId)
 	}
 	return sourceInfo, nil
 }
 
 func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowId int, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	if requestedWorkflowId != metadata.GetWorkflowId() {
-		// handle throw api error with conflict status code
-		// todo: make the error msg as const
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("provided source is not linked to the given workflow").WithInternalMessage("provided source is not linked to the given workflow")
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.WorkflowAndSourceMisMatchErr).WithInternalMessage(constants.WorkflowAndSourceMisMatchErr)
 	}
 
 	allAppWorkflowMappings, err := impl.appWorkflowService.FindAppWorkflowMapping(metadata.GetWorkflowId())
@@ -892,7 +908,6 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx *util3.RequestCtx, r
 	// fetch artifact
 
 	requestMetaData := &bean.RequestMetaData{}
-	// todo: can move to request builder
 	metadata, err := impl.updateWithSourceMetadata(requestMetaData, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting source metadata for the request", "request", request, "err", err)
@@ -976,6 +991,10 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx *util3.Req
 				responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 			}()
 
+			if metadata.GetSourceTypeStr() == constants.SOURCE_TYPE_CD && metadata.GetSourcePipelineId() == pipelineId {
+				EnvResponse.PromotionValidationMessage = constants.SameSourceAndDestinationErr
+				return
+			}
 			if promotedCountPerPipeline[pipelineId] > 0 {
 				EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
 				return
@@ -1046,7 +1065,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 		return constants.BLOCKED_BY_POLICY, nil
 	}
 
-	evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, promotionPolicy)
+	evaluationAuditJsonString, err := impl.evaluationJsonString(evaluationResult, promotionPolicy)
 	if err != nil {
 		return constants.ERRORED, err
 	}
@@ -1101,7 +1120,6 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 				Context: context.Background(),
 			},
 		}
-		// todo: ayush
 		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 	} else if promotionRequest.Status == constants.AWAITING_APPROVAL {
 		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.Value("userId").(int32))
@@ -1178,10 +1196,26 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 	return artifactPromotionNotificationRequest
 }
 
-func evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
-	evaluationAudit := make(map[string]interface{})
-	evaluationAudit["result"] = evaluationResult
-	evaluationAudit["policy"] = promotionPolicy
+
+func (impl *ApprovalRequestServiceImpl) evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
+	state := resourceFilter.ALLOW
+	if !evaluationResult {
+		state = resourceFilter.BLOCK
+	}
+
+	histories, err := impl.promotionPolicyDataReadService.GetPolicyHistoryIdsByPolicyIds([]int{promotionPolicy.Id})
+	if err != nil {
+		impl.logger.Errorw("error in fetching the latest promotion policy audit history", "err", err, "policyId", promotionPolicy.Id)
+		return "", err
+	}
+	if len(histories) == 0 {
+		return "", errors.New(fmt.Sprintf("no audit history found for the policy : %s", promotionPolicy.Name))
+	}
+
+	evaluationAudit := resourceFilter.FilterHistoryObject{
+		State:           state,
+		FilterHistoryId: histories[0],
+	}
 	evaluationAuditJsonBytes, err := json.Marshal(&evaluationAudit)
 	if err != nil {
 		return "", err
@@ -1211,33 +1245,18 @@ func (impl *ApprovalRequestServiceImpl) checkIfDeployedAtSource(ciArtifactId int
 	return deployed, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util3.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
-	// todo: accept environment name instead of requestId
-	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
-	if errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("artifact promotion approval request not found for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: constants.ArtifactPromotionRequestNotFoundErr,
-			UserMessage:     constants.ArtifactPromotionRequestNotFoundErr,
-		}
+func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util2.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
+	rowsUpdated, err := impl.artifactPromotionApprovalRequestRepository.MarkCancel(request.PromotionRequestId, ctx.GetUserId())
+	if err != nil {
+		impl.logger.Errorw("error in canceling promotion approval request for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
+		return nil, err
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, err
 	}
-
-	if artifactPromotionDao.CreatedBy != ctx.GetUserId() {
+	if rowsUpdated == 0 {
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(constants.UserCannotCancelRequest).WithUserMessage(constants.UserCannotCancelRequest)
-	}
-
-	artifactPromotionDao.Status = constants.CANCELED
-	artifactPromotionDao.UpdatedOn = time.Now()
-	artifactPromotionDao.UpdatedBy = ctx.GetUserId()
-	_, err = impl.artifactPromotionApprovalRequestRepository.Update(artifactPromotionDao)
-	if err != nil {
-		impl.logger.Errorw("error in updating artifact promotion approval request", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
-		return nil, err
 	}
 	return nil, nil
 }
@@ -1313,6 +1332,47 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	err = impl.artifactPromotionApprovalRequestRepository.UpdateInBulk(tx, requestsToBeUpdatedAsStaled)
 	if err != nil {
 		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policy.Id, "err", err)
+		return err
+	}
+
+	unStaledRequestsIds := make([]int, 0, len(existingRequests))
+	for _, existingRequest := range existingRequests {
+		found := false
+		for _, staleRequest := range requestsToBeUpdatedAsStaled {
+			if staleRequest.Id == existingRequest.Id {
+				found = true
+			}
+		}
+		if !found {
+			unStaledRequestsIds = append(unStaledRequestsIds, existingRequest.Id)
+		}
+	}
+
+	approvbleRequestIds := make([]int, 0, len(unStaledRequestsIds))
+	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	if err != nil {
+		impl.logger.Errorw("error in fetching approved user data for some artifact promotion requestIds", "unStaledRequestsIds", unStaledRequestsIds, "err", err)
+		return err
+	}
+	approverCountForRequests := make(map[int]int)
+	for _, unStaledRequestsId := range unStaledRequestsIds {
+		approverCountForRequests[unStaledRequestsId] = 0
+	}
+
+	for _, userData := range approvedUserData {
+		count := approverCountForRequests[userData.ApprovalRequestId]
+		approverCountForRequests[userData.ApprovalRequestId] = count + 1
+	}
+
+	for _, unStaledRequestsId := range unStaledRequestsIds {
+		if approverCountForRequests[unStaledRequestsId] >= policy.ApprovalMetaData.ApprovalCount {
+			approvbleRequestIds = append(approvbleRequestIds, unStaledRequestsId)
+		}
+	}
+
+	err = impl.artifactPromotionApprovalRequestRepository.MarkPromoted(tx, approvbleRequestIds, 1)
+	if err != nil {
+		impl.logger.Errorw("error in marking status of artifact promotion requests to approved as these requests already got approvals that the updated policy count", "policyId", policy.Id, "newApproverCount", policy.ApprovalMetaData.ApprovalCount, "requestIds", approvbleRequestIds, "err", err)
 	}
 	return err
 }
@@ -1334,7 +1394,7 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 
 		// policy is blocking the request, so need to update these as staled requests
 		if !evaluationResult {
-			evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, policy)
+			evaluationAuditJsonString, err := impl.evaluationJsonString(evaluationResult, policy)
 			if err != nil {
 				impl.logger.Errorw("error in creating evaluation audit json for a policy ", "policy", policy, "err", err)
 				continue
@@ -1349,11 +1409,15 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 			request.UpdatedOn = time.Now()
 			request.Status = constants.STALE
 			request.PolicyEvaluationAuditId = evaluationAuditEntry.Id
-			requestsToBeUpdatedAsStaled = append(requestsToBeUpdatedAsStaled)
+			requestsToBeUpdatedAsStaled = append(requestsToBeUpdatedAsStaled, request)
 		}
 
 	}
 
 	return requestsToBeUpdatedAsStaled, nil
 
+}
+
+func (impl *ApprovalRequestServiceImpl) onApplyPolicy(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error {
+	return impl.artifactPromotionApprovalRequestRepository.MarkStaleByAppEnvIds(tx, commaSeperatedAppEnvIds)
 }

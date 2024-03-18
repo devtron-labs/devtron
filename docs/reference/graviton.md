@@ -7,7 +7,7 @@ We are thrilled to announce that Devtron seamlessly supports Graviton instances,
 
 ## Installation
 
-To install Devtron on graviton-cluster, refer this [link](https://docs.devtron.ai/install/install-devtron-with-cicd#install-multi-architecture-nodes-arm-and-amd)
+To install Devtron on graviton-cluster, refer this [link](../setup/install/install-devtron-with-cicd.md#install-multi-architecture-nodes-arm-and-amd)
 
 ## Inferences
 

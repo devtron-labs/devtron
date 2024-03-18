@@ -2,14 +2,12 @@ package read
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appWorkflow/constants"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type AppWorkflowDataReadService interface {
-	FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error)
+	FindCDPipelineIdsAndCdPipelineIdToWfIdMapping(wfIds []int) ([]int, map[int]int, error)
 }
 
 type AppWorkflowDataReadServiceImpl struct {
@@ -26,12 +24,12 @@ func NewAppWorkflowDataReadServiceImpl(
 	}
 }
 
-func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(wfIds []int) ([]int, map[int]int, error) {
+func (impl AppWorkflowDataReadServiceImpl) FindCDPipelineIdsAndCdPipelineIdToWfIdMapping(wfIds []int) ([]int, map[int]int, error) {
 
 	wfMappings, err := impl.appWorkflowRepository.FindByWorkflowIds(wfIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowIds", wfIds, "err", err)
-		return nil, nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants.WORKFLOW_NOT_FOUND_ERR)
+		return nil, nil, bean.WorkflowMappingsNotFoundError{WorkflowIds: wfIds}
 	}
 
 	cdPipelineIds := make([]int, 0)

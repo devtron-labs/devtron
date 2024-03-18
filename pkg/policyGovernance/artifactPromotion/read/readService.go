@@ -1,9 +1,11 @@
 package read
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -19,7 +21,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -33,9 +34,8 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
-	GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error)
-	GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error)
-	FindArtifactsCountPendingForPromotionByPipelineIds(ctx *util2.RequestCtx, workflowIds []int) (int, error)
+	GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
+	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -45,6 +45,7 @@ type ArtifactPromotionDataReadServiceImpl struct {
 	userService                                user.UserService
 	pipelineRepository                         pipelineConfig.PipelineRepository
 	resourceQualifierMappingService            resourceQualifiers.QualifierMappingService
+	resourceFilterEvaluationAuditService       resourceFilter.FilterEvaluationAuditService
 	globalPolicyDataManager                    globalPolicy.GlobalPolicyDataManager
 	appWorkflowDataReadService                 read.AppWorkflowDataReadService
 	teamService                                team.TeamService
@@ -60,118 +61,206 @@ func NewArtifactPromotionDataReadServiceImpl(
 	globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
 	appWorkflowDataReadService read.AppWorkflowDataReadService,
 	teamService team.TeamService,
+	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
 ) *ArtifactPromotionDataReadServiceImpl {
 	return &ArtifactPromotionDataReadServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
-		logger:                          logger,
-		requestApprovalUserdataRepo:     requestApprovalUserdataRepo,
-		userService:                     userService,
-		pipelineRepository:              pipelineRepository,
-		resourceQualifierMappingService: resourceQualifierMappingService,
-		globalPolicyDataManager:         globalPolicyDataManager,
-		appWorkflowDataReadService:      appWorkflowDataReadService,
-		teamService:                     teamService,
+		logger:                               logger,
+		requestApprovalUserdataRepo:          requestApprovalUserdataRepo,
+		userService:                          userService,
+		pipelineRepository:                   pipelineRepository,
+		resourceQualifierMappingService:      resourceQualifierMappingService,
+		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
+		globalPolicyDataManager:              globalPolicyDataManager,
+		appWorkflowDataReadService:           appWorkflowDataReadService,
+		teamService:                          teamService,
 	}
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error) {
 
 	promotionApprovalMetadata := make(map[int]*bean.PromotionApprovalMetaData)
 
 	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds, status)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in fetching promotion request for given pipelineId and artifactId", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
-		return promotionApprovalMetadata, nil
+		return promotionApprovalMetadata, err
 	}
 
 	if len(promotionApprovalRequest) > 0 {
 
 		var requestedUserIds []int32
+		var approvalRequestIds []int
+
 		for _, approvalRequest := range promotionApprovalRequest {
 			requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
+			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
 		}
 
-		userInfos, err := impl.userService.GetByIds(requestedUserIds)
+		requestIdToApprovalUserDataMapping, err := impl.getPromotionApprovalUserMetadata(approvalRequestIds)
 		if err != nil {
-			impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+			impl.logger.Errorw("error in fetching approval user data mapping for approval request ids", "approvalRequestIds", approvalRequestIds, "err", err)
 			return promotionApprovalMetadata, err
 		}
-		userInfoMap := make(map[int32]bean3.UserInfo)
-		for _, userInfo := range userInfos {
-			userId := userInfo.Id
-			userInfoMap[userId] = userInfo
+
+		requestedUserInfoMap, err := impl.getUserInfoMap(requestedUserIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting user info map by user ids", "requestedUserIds", requestedUserIds, "err", err)
+			return promotionApprovalMetadata, err
+		}
+
+		pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
+			return promotionApprovalMetadata, err
+		}
+
+		requestIdToPolicyMapping, err := impl.getRequestIdToPolicyMapping(promotionApprovalRequest)
+		if err != nil {
+			return promotionApprovalMetadata, err
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-
-			var promotedFrom string
-
-			switch approvalRequest.SourceType {
-			case constants.CI:
-				promotedFrom = string(constants.SOURCE_TYPE_CI)
-			case constants.WEBHOOK:
-				promotedFrom = string(constants.SOURCE_TYPE_CI)
-			case constants.CD:
-				// TODO: remove repo
-				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-				if err != nil {
-					impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
-					return nil, err
-				}
-				promotedFrom = pipeline.Environment.Name
-			}
-
-			globalPolicyData, err := impl.globalPolicyDataManager.GetPolicyById(approvalRequest.PolicyId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching globalPolicy by id", "globalPolicyId", approvalRequest.PolicyId, "err", err)
-				return nil, err
-			}
-
-			policy := bean.PromotionPolicy{}
-			err = policy.UpdateWithGlobalPolicy(globalPolicyData)
-			if err != nil {
-				impl.logger.Errorw("error in parsing promotion policy from globalPolicy")
-				return nil, err
-			}
-
-			approvalMetadata := &bean.PromotionApprovalMetaData{
-				ApprovalRequestId:    approvalRequest.Id,
-				ApprovalRuntimeState: approvalRequest.Status.Status(),
-				PromotedFrom:         promotedFrom,
-				PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
-				Policy:               policy,
-			}
-
-			artifactId := approvalRequest.ArtifactId
-			requestedUserId := approvalRequest.CreatedBy
-			if userInfo, ok := userInfoMap[requestedUserId]; ok {
-				approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
-					UserId:         userInfo.Id,
-					UserEmail:      userInfo.EmailId,
-					UserActionTime: approvalRequest.CreatedOn,
-				}
-			}
-
-			promotionApprovalUserData, err := impl.requestApprovalUserdataRepo.FetchApprovedDataByApprovalId(approvalRequest.Id, repository2.ARTIFACT_PROMOTION_APPROVAL)
-			if err != nil {
-				impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestId", approvalRequest.Id)
-				return nil, err
-			}
-
-			for _, approvalUserData := range promotionApprovalUserData {
-				approvalMetadata.ApprovalUsersData = append(approvalMetadata.ApprovalUsersData, bean.PromotionApprovalUserData{
-					UserId:         approvalUserData.UserId,
-					UserEmail:      approvalUserData.User.EmailId,
-					UserActionTime: approvalUserData.CreatedOn,
-				})
-			}
-			promotionApprovalMetadata[artifactId] = approvalMetadata
+			approvalMetadata := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
+			promotionApprovalMetadata[approvalRequest.ArtifactId] = approvalMetadata
 		}
 	}
 	return promotionApprovalMetadata, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(promotionApprovalRequest []*repository.ArtifactPromotionApprovalRequest) (map[int]*bean.PromotionPolicy, error) {
+	policyEvaluationIds := util2.GetArrayObject(promotionApprovalRequest, func(service *repository.ArtifactPromotionApprovalRequest) int {
+		return service.PolicyEvaluationAuditId
+	})
+
+	policyAuditHistoryIds := make([]int, 0, len(policyEvaluationIds))
+
+	filterEvaluationAudits, err := impl.resourceFilterEvaluationAuditService.GetByIds(policyEvaluationIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching policy filter evaluation audits using policyEvaluationIds", "policyEvaluationIds", policyEvaluationIds, "err", err)
+		return nil, err
+	}
+	for _, filterEvaluationAudit := range filterEvaluationAudits {
+		historyObj := resourceFilter.FilterHistoryObject{}
+		err = json.Unmarshal([]byte(filterEvaluationAudit.FilterHistoryObjects), &historyObj)
+		if err != nil {
+			impl.logger.Errorw("error in un-marshaling policy evaluation audits filterHistory object", "filterHistoryObjects", filterEvaluationAudit.FilterHistoryObjects, "err", err)
+			return nil, err
+		}
+		policyAuditHistoryIds = append(policyAuditHistoryIds, historyObj.FilterHistoryId)
+	}
+
+	rawPolicies, err := impl.globalPolicyDataManager.GetPoliciesByHistoryIds(policyAuditHistoryIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global policies by policyEvaluationIds", "policyEvaluationIds", policyEvaluationIds, "err", err)
+		return nil, err
+	}
+
+	globalPolicies, err := parsePromotionPolicyFromGlobalPolicy(rawPolicies)
+	if err != nil {
+		impl.logger.Errorw("error in parsing promotion policy from global policy", "err", err)
+		return nil, err
+	}
+
+	policyIdToPolicyMapping := util2.GetIdToObjectMap(globalPolicies, func(policy *bean.PromotionPolicy) int {
+		return policy.Id
+	})
+
+	requestIdToPolicyMapping := make(map[int]*bean.PromotionPolicy)
+	for _, approvalRequest := range promotionApprovalRequest {
+		requestIdToPolicyMapping[approvalRequest.Id] = policyIdToPolicyMapping[approvalRequest.PolicyId]
+	}
+	return requestIdToPolicyMapping, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalMetadata(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string, userInfoMap map[int]bean3.UserInfo, requestIdToApprovalUserDataMapping map[int][]*pipelineConfig.RequestApprovalUserData, requestIdToPolicyMapping map[int]*bean.PromotionPolicy) *bean.PromotionApprovalMetaData {
+	promotedFrom := impl.getSource(approvalRequest, envName)
+
+	policy := requestIdToPolicyMapping[approvalRequest.Id]
+
+	approvalMetadata := &bean.PromotionApprovalMetaData{
+		ApprovalRequestId:    approvalRequest.Id,
+		ApprovalRuntimeState: approvalRequest.Status,
+		PromotedFrom:         promotedFrom,
+		PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
+	}
+
+	// don't want to block if policy not found.
+	if policy != nil {
+		approvalMetadata.Policy = *policy
+	}
+
+	if userInfo, ok := userInfoMap[int(approvalRequest.CreatedBy)]; ok {
+		approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
+			UserId:         userInfo.Id,
+			UserEmail:      userInfo.EmailId,
+			UserActionTime: approvalRequest.CreatedOn,
+		}
+	}
+
+	promotionApprovalUserData := requestIdToApprovalUserDataMapping[approvalRequest.Id]
+	for _, approvalUserData := range promotionApprovalUserData {
+		approvalMetadata.ApprovalUsersData = append(approvalMetadata.ApprovalUsersData, bean.PromotionApprovalUserData{
+			UserId:         approvalUserData.UserId,
+			UserEmail:      approvalUserData.User.EmailId,
+			UserActionTime: approvalUserData.CreatedOn,
+		})
+	}
+
+	return approvalMetadata
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId int) (bean.PromotionPolicy, error) {
+	globalPolicyData, err := impl.globalPolicyDataManager.GetPolicyById(policyId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching globalPolicy by id", "globalPolicyId", policyId, "err", err)
+		return bean.PromotionPolicy{}, err
+	}
+
+	policy := bean.PromotionPolicy{}
+	err = policy.UpdateWithGlobalPolicy(globalPolicyData)
+	if err != nil {
+		impl.logger.Errorw("error in parsing promotion policy from globalPolicy", "err", err)
+		return bean.PromotionPolicy{}, err
+	}
+	return policy, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalUserMetadata(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
+	requestIdToApprovalUserDataMapping := make(map[int][]*pipelineConfig.RequestApprovalUserData)
+	promotionApprovalUserDataArray, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	if err != nil {
+		impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestIds", approvalRequestIds)
+		return requestIdToApprovalUserDataMapping, err
+	}
+	for _, promotionApprovalUserData := range promotionApprovalUserDataArray {
+		requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId] = append(
+			requestIdToApprovalUserDataMapping[promotionApprovalUserData.ApprovalRequestId],
+			promotionApprovalUserData)
+	}
+	return requestIdToApprovalUserDataMapping, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) getUserInfoMap(requestedUserIds []int32) (map[int]bean3.UserInfo, error) {
+	userInfos, err := impl.userService.GetByIds(requestedUserIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
+		return nil, err
+	}
+	userInfoMap := util2.GetIdToObjectMap(userInfos, func(info bean3.UserInfo) int { return int(info.Id) })
+
+	return userInfoMap, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) getSource(approvalRequest *repository.ArtifactPromotionApprovalRequest, envName string) string {
+
+	if approvalRequest.SourceType == constants.CD {
+		return envName
+	}
+	return string(approvalRequest.SourceType.GetSourceTypeStr())
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
 
 	scope := &resourceQualifiers.SelectionIdentifier{AppId: appId, EnvId: envId}
 	//
@@ -205,7 +294,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 	return policy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
 	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(envIds))
 	for _, envId := range envIds {
 		scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
@@ -256,7 +345,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 	return envVsPolicyMap, err
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ctx *util2.RequestCtx, ids []int) ([]*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ctx *util2.RequestCtx, ids []int) ([]*bean.PromotionPolicy, error) {
 	globalPolicies, err := impl.globalPolicyDataManager.GetPolicyByIds(ids)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policies by ids", "policyids", ids, "err", err)
@@ -276,7 +365,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ctx *ut
 	return promotionPolicies, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(ctx *util2.RequestCtx, id int) (*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(ctx *util2.RequestCtx, id int) (*bean.PromotionPolicy, error) {
 	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyById(id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy by id", "policyid", id, "err", err)
@@ -291,15 +380,15 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(ctx *uti
 	return policy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error) {
 	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(name, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy by name", "name", name, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
 			return nil, &util.ApiError{
 				HttpStatusCode:  http.StatusFound,
-				InternalMessage: "policy not found",
-				UserMessage:     "policy not found",
+				InternalMessage: constants.PolicyNotFoundErr,
+				UserMessage:     constants.PolicyNotFoundErr,
 			}
 		}
 		return nil, err
@@ -315,24 +404,24 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(ctx *u
 	return promotionPolicy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
 
 	promotionPolicies := make([]*bean.PromotionPolicy, 0)
 
 	sortRequest := impl.parseSortByRequest(policyMetadataRequest)
-	globalPolicies, err := impl.globalPolicyDataManager.GetAndSort(policyMetadataRequest.Search, sortRequest)
+	globalPolicies, err := impl.globalPolicyDataManager.GetPolicyByCriteria(policyMetadataRequest.Search, sortRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policies by name search string", "policyMetadataRequest", policyMetadataRequest, "err", err)
 		return nil, err
 	}
 
-	promotionPolicies, err = impl.parsePromotionPolicyFromGlobalPolicy(globalPolicies)
+	promotionPolicies, err = parsePromotionPolicyFromGlobalPolicy(globalPolicies)
 	if err != nil {
 		impl.logger.Errorw("error in parsing global policy from promotion policy", "globalPolicy", globalPolicies, "err", err)
 		return nil, err
 	}
 
-	policyIds := lo.Map(promotionPolicies, func(policy *bean.PromotionPolicy, index int) int {
+	policyIds := util2.Map(promotionPolicies, func(policy *bean.PromotionPolicy) int {
 		return policy.Id
 	})
 
@@ -341,13 +430,12 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 		impl.logger.Errorw("error in finding the app env mappings using policy ids", "policyIds", policyIds, "err", err)
 		return nil, err
 	}
-
-	UniquePolicyInAppCount := make(map[string]*int, 0)
+	uniquePolicyInAppCount := make(map[string]int, 0)
 	policyIdToAppIdMapping := make(map[int]int, 0)
 	for _, qualifierMapping := range qualifierMappings {
 		uniqueKey := fmt.Sprintf("%d-%d", qualifierMapping.SelectionIdentifier.AppId, qualifierMapping.ResourceId)
-		count := *UniquePolicyInAppCount[uniqueKey] + 1
-		UniquePolicyInAppCount[uniqueKey] = &count
+		count := uniquePolicyInAppCount[uniqueKey] + 1
+		uniquePolicyInAppCount[uniqueKey] = count
 		policyIdToAppIdMapping[qualifierMapping.ResourceId] = qualifierMapping.SelectionIdentifier.AppId
 	}
 
@@ -355,7 +443,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 		identifierCount := 0
 		if appId, ok := policyIdToAppIdMapping[promotionPolicy.Id]; ok {
 			uniqueKey := fmt.Sprintf("%d-%d", appId, promotionPolicy.Id)
-			identifierCount = *UniquePolicyInAppCount[uniqueKey]
+			identifierCount = uniquePolicyInAppCount[uniqueKey]
 		}
 		promotionPolicy.IdentifierCount = &identifierCount
 	}
@@ -363,7 +451,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2.
 	return promotionPolicies, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
+func (impl *ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
 
 	sortRequest := &bean2.SortByRequest{
 		SortOrderDesc: policyMetadataRequest.SortOrder == constants.DESC,
@@ -381,110 +469,32 @@ func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetada
 	return sortRequest
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) parsePromotionPolicyFromGlobalPolicy(globalPolicies []*bean2.GlobalPolicyBaseModel) ([]*bean.PromotionPolicy, error) {
-	promotionPolicies := make([]*bean.PromotionPolicy, 0)
-	for _, rawPolicy := range globalPolicies {
-		policy := &bean.PromotionPolicy{}
-		err := policy.UpdateWithGlobalPolicy(rawPolicy)
-		if err != nil {
-			impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", rawPolicy.Id, "err", err)
-			return nil, err
-		}
-		promotionPolicies = append(promotionPolicies, policy)
-	}
-	return promotionPolicies, nil
-}
-
-func (impl ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error) {
 	policyNames := make([]string, 0)
 	promotionPolicies, err := impl.globalPolicyDataManager.GetAllActivePoliciesByType(bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
 	if err != nil {
 		impl.logger.Errorw("error in getting all global policies by type", "policyType", bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, "err", err)
 		return policyNames, err
 	}
-	policyNames = lo.Map(promotionPolicies, func(policy *repository3.GlobalPolicy, index int) string {
+	policyNames = util2.Map(promotionPolicies, func(policy *repository3.GlobalPolicy) string {
 		return policy.Name
 	})
 	return policyNames, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionRequestCountPendingForCurrentUser(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int]int, error) {
-	wfIdToAuthorizedCDPipelineIds, err := impl.GetImagePromoterCDPipelineIdsForWorkflowIds(ctx, workflowIds, imagePromoterBulkAuth)
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error) {
+	pipelineIdToCountMap := make(map[int]int)
+	requests, err := impl.artifactPromotionApprovalRequestRepository.FindPendingByDestinationPipelineIds(pipelineIds)
 	if err != nil {
-		impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "workflowIds", workflowIds, "err", err)
-		return nil, err
+		impl.logger.Errorw("error in finding pending requests on pipeline", "pipelineIds", pipelineIds, "err", err)
+		return pipelineIdToCountMap, err
 	}
-	if len(wfIdToAuthorizedCDPipelineIds) == 0 {
-		return nil, nil
+	for _, request := range requests {
+		pipelineIdToCountMap[request.DestinationPipelineId] = pipelineIdToCountMap[request.DestinationPipelineId] + 1
 	}
-	wfIdToPendingCountMapping := make(map[int]int)
-	for wfId, cdPipelineIds := range wfIdToAuthorizedCDPipelineIds {
-		totalCount, err := impl.FindArtifactsCountPendingForPromotionByPipelineIds(ctx, cdPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", cdPipelineIds, "err", err)
-			return nil, err
-		}
-		wfIdToPendingCountMapping[wfId] = totalCount
-	}
-	return wfIdToPendingCountMapping, err
+	return pipelineIdToCountMap, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) GetImagePromoterCDPipelineIdsForWorkflowIds(ctx *util2.RequestCtx, workflowIds []int, imagePromoterBulkAuth func(string, []string) map[string]bool) (map[int][]int, error) {
-
-	if len(workflowIds) == 0 {
-		return nil, nil
-	}
-	cdPipelineIds, cdPipelineIdToWorkflowIdMapping, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdTowfIdMapping(workflowIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowIds", workflowIds, "err", err)
-		return nil, err
-	}
-
-	if len(cdPipelineIds) == 0 {
-		return nil, nil
-	}
-	pipeline, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
-		return nil, err
-	}
-
-	teamDao, err := impl.teamService.FetchOne(pipeline[0].App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)
-		return nil, err
-	}
-
-	imagePromoterRbacObjects := make([]string, 0, len(pipeline))
-	pipelineIdToRbacObjMapping := make(map[int]string)
-	for _, pipelineDao := range pipeline {
-		imagePromoterRbacObject := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
-		imagePromoterRbacObjects = append(imagePromoterRbacObjects, imagePromoterRbacObject)
-		pipelineIdToRbacObjMapping[pipelineDao.Id] = imagePromoterRbacObject
-	}
-
-	rbacResults := imagePromoterBulkAuth(ctx.GetToken(), imagePromoterRbacObjects)
-	authorizedPipelineIds := make([]int, 0, len(pipeline))
-	for pipelineId, rbacObj := range pipelineIdToRbacObjMapping {
-		if authorized := rbacResults[rbacObj]; authorized {
-			authorizedPipelineIds = append(authorizedPipelineIds, pipelineId)
-		}
-	}
-
-	wfIdToAuthorizedCDPipelineIds := make(map[int][]int)
-	for _, pipelineId := range authorizedPipelineIds {
-		wfId := cdPipelineIdToWorkflowIdMapping[pipelineId]
-		wfIdToAuthorizedCDPipelineIds[wfId] = append(wfIdToAuthorizedCDPipelineIds[wfId], pipelineId)
-	}
-
-	return wfIdToAuthorizedCDPipelineIds, nil
-}
-
-func (impl ArtifactPromotionDataReadServiceImpl) FindArtifactsCountPendingForPromotionByPipelineIds(ctx *util2.RequestCtx, pipelineIds []int) (int, error) {
-	totalCount, err := impl.artifactPromotionApprovalRequestRepository.FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in finding count of request pending for current user", "pipelineIds", pipelineIds, "err", err)
-		return 0, err
-	}
-	return totalCount, nil
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error) {
+	return impl.globalPolicyDataManager.GetPolicyHistoryIdsByPolicyIds(policyIds)
 }

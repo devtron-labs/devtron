@@ -1,12 +1,14 @@
 package artifactPromotion
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/mocks"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
@@ -41,7 +43,10 @@ func TestPolicyHooks(t *testing.T) {
 				ApprovalCount: 1,
 			},
 		}
-		err := policyCUDService.CreatePolicy(1, policy)
+		ctx, _ := context.WithCancel(context.Background())
+		ctx = context.WithValue(ctx, deploymentStatus.UserId, int32(2))
+		rctx := deploymentStatus.NewRequestCtx(ctx)
+		err := policyCUDService.CreatePolicy(rctx, policy)
 		if err != nil {
 			t.Fail()
 		}
@@ -104,7 +109,7 @@ func TestPolicyHooks(t *testing.T) {
 			t.Fail()
 		}
 		// delete policies
-		err = policyCUDService.DeletePolicy(2, policyName)
+		err = policyCUDService.DeletePolicy(rctx, policyName)
 		if err != nil {
 			t.Fail()
 		}
@@ -149,7 +154,8 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 	globalPolicySearchableKeyRepo := repository2.NewGlobalPolicySearchableFieldRepositoryImpl(logger, dbConnection)
 	globalPolicyManager := globalPolicy.NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableKeyRepo)
 	cdPipelineConfigService := mocks.NewCdPipelineConfigService(t)
-	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, transactionManager)
+	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, nil, celService, transactionManager)
+	commonPolicyservice := policyGovernance.NewCommonPolicyActionsService(globalPolicyManager, nil, cdPipelineConfigService, nil, nil, logger, transactionManager)
 	service := NewApprovalRequestServiceImpl(
 		logger,
 		nil,
@@ -162,6 +168,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 		nil,
 		nil,
 		promotionPolicyService,
+		commonPolicyservice,
 		nil,
 		nil,
 		resourceFilterEvalutionAuditService,

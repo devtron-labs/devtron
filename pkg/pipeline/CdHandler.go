@@ -473,7 +473,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
 		}
 		if promotionMetadata, ok := artifactIdToPromotionApporvalMetadata[item.CiArtifactId]; ok {
-			item.PromotionApprovalMetaData = promotionMetadata
+			item.PromotionApprovalMetadata = promotionMetadata
 		}
 		cdWorkflowArtifact[i] = item
 	}

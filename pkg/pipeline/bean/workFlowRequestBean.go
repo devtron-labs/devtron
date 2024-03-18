@@ -16,8 +16,6 @@ const (
 	IMAGE_SCANNER_ENDPOINT    = "IMAGE_SCANNER_ENDPOINT"
 )
 
-const CI_JOB string = "CI_JOB"
-
 type WorkflowPipelineType string
 
 const (
