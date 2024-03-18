@@ -1,9 +1,13 @@
 package helper
 
 import (
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"golang.org/x/exp/slices"
+	"time"
 )
 
 func IsSystemOrAdminUser(userId int32) bool {
@@ -23,7 +27,7 @@ func IsSystemOrAdminUserByEmail(email string) bool {
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
 	validated := CheckIfUserDevtronManagedOnly(userIds)
 	if !validated {
-		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "cannot update status for system or admin user"}
+		err := &util.ApiError{Code: "422", HttpStatusCode: 422, UserMessage: "cannot update status for system or admin user"}
 		return err
 	}
 	return nil
@@ -42,4 +46,36 @@ func CheckIfUserIdsExists(userIds []int32) error {
 		return err
 	}
 	return nil
+}
+
+func GetActualStatusFromExpressionAndStatus(status bean2.Status, timeoutWindowExpression time.Time) bean2.Status {
+	if status == bean2.Active && timeoutWindowExpression.IsZero() {
+		return bean2.Active
+	} else if status == bean2.Inactive {
+		return bean2.Inactive
+	} else if status == bean2.Active && !timeoutWindowExpression.IsZero() {
+		return bean2.TemporaryAccess
+	}
+	return bean2.Active
+
+}
+
+func HasTimeWindowChanged(status bean2.Status, expression time.Time, timeWindowConfiguration *repository.TimeoutWindowConfiguration) bool {
+	var timeZero time.Time
+	isTimeWindowConfigurationNil := timeWindowConfiguration == nil
+	if isTimeWindowConfigurationNil && !(status == bean2.Active) {
+		return true
+	} else if isTimeWindowConfigurationNil && status == bean2.Active {
+		return false
+	} else if status == bean2.Inactive && (timeWindowConfiguration.TimeoutWindowExpression == timeZero.String() && timeWindowConfiguration.ExpressionFormat == bean3.TimeZeroFormat) {
+		return false
+	} else if status == bean2.TemporaryAccess && (timeWindowConfiguration.TimeoutWindowExpression == expression.String() && timeWindowConfiguration.ExpressionFormat == bean3.TimeStamp) {
+		return false
+	}
+	return true
+}
+
+// HasTimeWindowChangedForUserRoleGroup returns true if timeout has changed or false
+func HasTimeWindowChangedForUserRoleGroup(item bean2.UserRoleGroup, val bean2.UserRoleGroup) bool {
+	return !(item.TimeoutWindowExpression == val.TimeoutWindowExpression && item.Status == val.Status)
 }
