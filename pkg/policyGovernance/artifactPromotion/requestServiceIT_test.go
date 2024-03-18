@@ -152,7 +152,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 
 	globalPolicyRepo := repository2.NewGlobalPolicyRepositoryImpl(logger, dbConnection)
 	globalPolicySearchableKeyRepo := repository2.NewGlobalPolicySearchableFieldRepositoryImpl(logger, dbConnection)
-	globalPolicyManager := globalPolicy.NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableKeyRepo)
+	globalPolicyManager := globalPolicy.NewGlobalPolicyDataManagerImpl(logger, globalPolicyRepo, globalPolicySearchableKeyRepo, nil)
 	cdPipelineConfigService := mocks.NewCdPipelineConfigService(t)
 	promotionPolicyService := NewPromotionPolicyServiceImpl(globalPolicyManager, cdPipelineConfigService, logger, nil, celService, transactionManager)
 	commonPolicyservice := policyGovernance.NewCommonPolicyActionsService(globalPolicyManager, nil, cdPipelineConfigService, nil, nil, logger, transactionManager)
