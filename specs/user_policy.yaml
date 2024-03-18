@@ -9,7 +9,7 @@ paths:
     get:
       summary: Returns all users
       description: all the template users
-      operationId: findAllUsers
+      operationId: GetAllV2
       parameters:
         - name: status
           in: query
@@ -196,9 +196,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/User'
         default:
           description: unexpected error
           content:
@@ -223,7 +221,7 @@ paths:
                   items:
                     type: integer
                   example: [ 10, 14 ]
-                status:
+                userStatus:
                   type: string
                   enum: ["active", "inactive"]
                   example: "active"
@@ -232,7 +230,7 @@ paths:
                   format: date-time
                   example: "2009-11-10T23:00:00Z"
                 listingRequest:
-                  $ref: '#/components/schemas/FetchListingRequest'
+                  $ref: '#/components/schemas/ListingRequest'
 
       responses:
         '200':
@@ -289,10 +287,10 @@ components:
         emailId:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        groups:
+        userRoleGroups:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
@@ -318,7 +316,7 @@ components:
       properties:
         users:
           items:
-            $ref: '#/components/schemas/AllUsers'
+            $ref: '#/components/schemas/AllUsersV2'
           description: role filters objects
         totalCount:
           type: integer
@@ -343,6 +341,33 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/emptyRoleFilter'
+          description: role filters objects
+        userStatus:
+          type: string
+          description: user current status (active,inactive)
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+        timeoutWindowExpression:
+          type: string
+          format: date-time
+          description: user time to live status
+    AllUsersV2:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        userRoleGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleGroupItem'
           description: role filters objects
         userStatus:
           type: string
@@ -386,6 +411,11 @@ components:
           type: string
           enum: ["", "helm-app"]
           description: accessType difine permission type "devtron-app"=devtron app work flow, "helm-app"=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth section.
+        status:
+          $ref: '#/components/schemas/Status'
+        timeoutWindowExpression:
+          type: string
+          format: date-time
 
     emptyRoleFilter:
       type: object
@@ -451,6 +481,29 @@ components:
         - temporaryAccess
       description: Status types
 
+    UserRoleGroupItem:
+      type: object
+      properties:
+        roleGroup:
+          $ref: '#/components/schemas/RoleGroup'
+        status:
+          $ref: '#/components/schemas/Status'
+        timeoutWindowExpression:
+          type: string
+          format: date-time
+    RoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: The ID of the role group
+        name:
+          type: string
+          description: The name of the role group
+        description:
+          type: string
+          description: The description of the role group
 
     Error:
       required:

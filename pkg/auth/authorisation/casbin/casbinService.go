@@ -2,15 +2,16 @@ package casbin
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/client"
 	"go.uber.org/zap"
 )
 
 type CasbinService interface {
-	AddPolicy(policies []Policy) error
+	AddPolicy(policies []bean.Policy) error
 	LoadPolicy()
-	RemovePolicy(policies []Policy) ([]Policy, error)
+	RemovePolicy(policies []bean.Policy) ([]bean.Policy, error)
 	GetAllSubjects() ([]string, error)
 	DeleteRoleForUser(user, role string) (bool, error)
 	GetRolesForUser(user string) ([]string, error)
@@ -32,7 +33,7 @@ func NewCasbinServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CasbinServiceImpl) AddPolicy(policies []Policy) error {
+func (impl *CasbinServiceImpl) AddPolicy(policies []bean.Policy) error {
 	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{
@@ -63,7 +64,7 @@ func (impl *CasbinServiceImpl) LoadPolicy() {
 	return
 }
 
-func (impl *CasbinServiceImpl) RemovePolicy(policies []Policy) ([]Policy, error) {
+func (impl *CasbinServiceImpl) RemovePolicy(policies []bean.Policy) ([]bean.Policy, error) {
 	convertedPolicies := make([]*client.Policy, 0, len(policies))
 	for _, policy := range policies {
 		convertedPolicy := &client.Policy{

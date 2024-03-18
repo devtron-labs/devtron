@@ -20,6 +20,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"net/http"
 	"strings"
 
@@ -147,7 +148,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	//for START in Casbin Object Ends Here
 	//loading policy for safety
 	casbin.LoadPolicy()
-	var policies []casbin.Policy
+	var policies []bean2.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
