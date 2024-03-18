@@ -53,7 +53,7 @@ func (repo *ServerConnectionRepositoryImpl) GetById(id int) (*ServerConnectionCo
 		Where("id = ?", id).
 		Where("deleted = ?", false).
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		repo.logger.Errorw("error in getting server connection config", "err", err, "id", id)
 		return nil, err
 	}
