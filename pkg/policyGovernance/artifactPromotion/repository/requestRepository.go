@@ -42,7 +42,7 @@ type RequestRepository interface {
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByStatusesForDestinationPipelines(pipelineId []int, artifactId int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
-	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
+	FindRequestsByArtifactAndOptionalEnv(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPendingByDestinationPipelineIds(pipelineIds []int) (PromotionRequest []*ArtifactPromotionApprovalRequest, err error)
 
@@ -153,7 +153,7 @@ func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int
 	return model, err
 }
 
-func (repo *RequestRepositoryImpl) FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindRequestsByArtifactAndOptionalEnv(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 
 	query := fmt.Sprintf("select * from artifact_promotion_approval_request apar"+

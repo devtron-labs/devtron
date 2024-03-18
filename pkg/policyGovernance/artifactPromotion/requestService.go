@@ -157,11 +157,12 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants.ARTIFACT_NOT_FOUND_ERR).WithInternalMessage(constants.ARTIFACT_NOT_FOUND_ERR)
 	}
 
-	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactIdAndEnvName(artifactId, environmentName, constants.AWAITING_APPROVAL)
+	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactAndOptionalEnv(artifactId, environmentName, constants.AWAITING_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId", "artifactId", artifactId, "err", err)
 		return nil, err
 	}
+
 	if len(promotionRequests) == 0 {
 		return environmentApprovalMetadata, nil
 	}
@@ -181,7 +182,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.R
 		deletedPipelines, err := impl.markRequestAsStale(pipelineIdToDaoMapping, destinationPipelineIds)
 		if err != nil {
 			// not returning by choice, dont block user flow if this operation is unsuccessful
-			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines)
+			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines, "err", err)
 		}
 		if len(deletedPipelines) == len(promotionRequests) {
 			return environmentApprovalMetadata, nil
