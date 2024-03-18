@@ -91,10 +91,14 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 
 		var requestedUserIds []int32
 		var approvalRequestIds []int
-
+		var sourcePipelineIds []int
+		var sourcePipelinesMap map[int]*pipelineConfig.Pipeline
 		for _, approvalRequest := range promotionApprovalRequest {
 			requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
 			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
+			if approvalRequest.SourceType == constants.CD {
+				sourcePipelineIds = append(sourcePipelineIds, approvalRequest.SourcePipelineId)
+			}
 		}
 
 		requestIdToApprovalUserDataMapping, err := impl.getPromotionApprovalUserMetadata(approvalRequestIds)
@@ -109,19 +113,26 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 			return promotionApprovalMetadata, err
 		}
 
-		pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+		sourcePipelines, err := impl.pipelineRepository.FindByIdsIn(sourcePipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
 			return promotionApprovalMetadata, err
 		}
 
+		for _, sourcePipeline := range sourcePipelines {
+			sourcePipelinesMap[sourcePipeline.Id] = sourcePipeline
+		}
 		requestIdToPolicyMapping, err := impl.getRequestIdToPolicyMapping(promotionApprovalRequest)
 		if err != nil {
 			return promotionApprovalMetadata, err
 		}
 
 		for _, approvalRequest := range promotionApprovalRequest {
-			approvalMetadata := impl.getPromotionApprovalMetadata(approvalRequest, pipeline.Environment.Name, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
+			envName := ""
+			if pipeline := sourcePipelinesMap[approvalRequest.SourcePipelineId]; pipeline != nil {
+				envName = pipeline.Environment.Name
+			}
+			approvalMetadata := impl.getPromotionApprovalMetadata(approvalRequest, envName, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
 			promotionApprovalMetadata[approvalRequest.ArtifactId] = approvalMetadata
 		}
 	}
