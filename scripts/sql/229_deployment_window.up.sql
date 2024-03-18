@@ -11,8 +11,3 @@ CREATE TABLE IF NOT EXISTS "public"."timeout_window_resource_mappings"
             REFERENCES"public"."timeout_window_configuration" ("id")
             ON DELETE CASCADE
 );
-
-CREATE UNIQUE INDEX idx_unique_policy_name_policy_of
-    ON global_policy (name,policy_of)
-    WHERE deleted = false;
-ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 1;
