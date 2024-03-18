@@ -337,7 +337,8 @@ func InitializeApp() (*App, error) {
 	globalPolicyRepositoryImpl := repository12.NewGlobalPolicyRepositoryImpl(sugaredLogger, db)
 	globalPolicySearchableFieldRepositoryImpl := repository12.NewGlobalPolicySearchableFieldRepositoryImpl(sugaredLogger, db)
 	globalPolicyDataManagerImpl := globalPolicy.NewGlobalPolicyDataManagerImpl(sugaredLogger, globalPolicyRepositoryImpl, globalPolicySearchableFieldRepositoryImpl)
-	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeWindowServiceImpl, globalPolicyDataManagerImpl, db, userServiceImpl)
+	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
+	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeWindowServiceImpl, globalPolicyDataManagerImpl, userServiceImpl, transactionUtilImpl)
 	if err != nil {
 		return nil, err
 	}

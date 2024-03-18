@@ -59,6 +59,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	devtronResource2 "github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository3 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	globalPolicy2 "github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -259,6 +260,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(devtronResource2.DevtronResourceSearchableKeyService), new(*devtronResource2.DevtronResourceSearchableKeyServiceImpl)),
 		repository3.NewDevtronResourceSearchableKeyRepositoryImpl,
 		wire.Bind(new(repository3.DevtronResourceSearchableKeyRepository), new(*repository3.DevtronResourceSearchableKeyRepositoryImpl)),
+		globalPolicy2.NewGlobalPolicyDataManagerImpl,
+		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
 	)
 	return &App{}, nil
 }
