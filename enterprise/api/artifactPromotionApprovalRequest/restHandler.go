@@ -220,7 +220,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)

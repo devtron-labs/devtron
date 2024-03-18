@@ -68,7 +68,7 @@ type AppArtifactManager interface {
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
 
-	FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error)
+	FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) (bean2.CiArtifactResponse, error)
 }
 
 type AppArtifactManagerImpl struct {
@@ -1549,7 +1549,7 @@ func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repositor
 	return filterState
 }
 
-func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean2.ArtifactPromotionMaterialRequest, imagePromoterAuth func(string, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 

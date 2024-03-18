@@ -16,6 +16,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -41,8 +42,8 @@ import (
 type ApprovalRequestService interface {
 	HandleArtifactPromotionRequest(ctx *util3.RequestCtx, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetPromotionRequestById(promotionRequestId int) (*bean.ArtifactPromotionApprovalResponse, error)
-	FetchWorkflowPromoteNodeList(ctx *util2.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
-	FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
+	FetchWorkflowPromoteNodeList(ctx *util3.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
+	FetchApprovalAllowedEnvList(ctx *util3.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util3.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
 }
 
 type ApprovalRequestServiceImpl struct {
@@ -64,9 +65,9 @@ type ApprovalRequestServiceImpl struct {
 	ciArtifactRepository                       repository2.CiArtifactRepository
 	artifactPromotionApprovalRequestRepository repository.RequestRepository
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
-	teamRepository                             team.TeamRepository
 	eventFactory                               client.EventFactory
 	eventClient                                client.EventClient
+	teamService                                team.TeamService
 }
 
 func NewApprovalRequestServiceImpl(
@@ -90,9 +91,9 @@ func NewApprovalRequestServiceImpl(
 	ciArtifactRepository repository2.CiArtifactRepository,
 	artifactPromotionApprovalRequestRepository repository.RequestRepository,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
-	teamRepository team.TeamRepository,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
+	teamService team.TeamService,
 ) *ApprovalRequestServiceImpl {
 
 	artifactApprovalService := &ApprovalRequestServiceImpl{
@@ -114,9 +115,9 @@ func NewApprovalRequestServiceImpl(
 		ciArtifactRepository:                       ciArtifactRepository,
 		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
 		requestApprovalUserdataRepo:                requestApprovalUserdataRepo,
-		teamRepository:                             teamRepository,
 		eventFactory:                               eventFactory,
 		eventClient:                                eventClient,
+		teamService:                                teamService,
 	}
 
 	// register hooks
@@ -160,7 +161,7 @@ func (impl *ApprovalRequestServiceImpl) GetPromotionRequestById(promotionRequest
 	return artifactPromotionResponse, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util2.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util2.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
+func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.RequestCtx, artifactId int, environmentName string, promotionApproverAuth func(*util3.RequestCtx, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
 
 	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
 
@@ -1154,13 +1155,13 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 
 func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, userId int32) (client.ArtifactPromotionNotificationRequest, error) {
 
-	team, err := impl.teamRepository.FindOne(pipeline.App.TeamId)
+	team, err := impl.teamService.FetchOne(pipeline.App.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.App.TeamId)
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
 
-	imagePromoterEmails, err := impl.userService.GetImagePromoterUserByEnv(pipeline.App.AppName, pipeline.Environment.Name, team.Name)
+	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.Name, team.Name, bean5.ArtifactPromoter)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promoter access emails", "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err
@@ -1195,7 +1196,6 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 	}
 	return artifactPromotionNotificationRequest
 }
-
 
 func (impl *ApprovalRequestServiceImpl) evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
 	state := resourceFilter.ALLOW
@@ -1245,7 +1245,7 @@ func (impl *ApprovalRequestServiceImpl) checkIfDeployedAtSource(ciArtifactId int
 	return deployed, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util2.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
+func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx *util3.RequestCtx, request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
 	rowsUpdated, err := impl.artifactPromotionApprovalRequestRepository.MarkCancel(request.PromotionRequestId, ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in canceling promotion approval request for given id", "promotionRequestId", request.PromotionRequestId, "err", err)

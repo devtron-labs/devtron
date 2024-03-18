@@ -444,11 +444,14 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event {
+	var events []Event
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
-	var events []Event
+	if defaultSesConfig.Id == 0 && defaultSmtpConfig.Id == 0 {
+		return events
+	}
 	if request.UserId == 0 {
 		return events
 	}
@@ -477,7 +480,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event,
 			impl.logger.Errorw("error in building image promotion approval link", "err", err)
 			continue
 		}
-		payload.ArtifactPromotionApprovalLink = artifactPromotionApprovalLink
+		newPayload.ArtifactPromotionApprovalLink = artifactPromotionApprovalLink
 		newPayload.TriggeredBy = user.EmailId
 		event.Payload = &newPayload
 		events = append(events, event)
