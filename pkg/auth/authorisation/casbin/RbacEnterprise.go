@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/authenticator/jwt"
+	util2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"k8s.io/utils/strings/slices"
 	"strings"
 	"time"
 
@@ -494,6 +497,10 @@ func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subjects []string, resource
 	for i := range subjects {
 		rm.checkAndUpdateSubjectRolesCache(subjects[i])
 	}
+	// recording time here for overall consistency in policies parsing timings
+	recordedTime := time.Now()
+	roleMappings := getRoleMappings()
+	groupRoleMap := getGroupRolesMap(roleMappings)
 	for _, policy := range policies {
 		role := policy[0]
 		policyResource := policy[1]
@@ -506,10 +513,86 @@ func (e *EnterpriseEnforcerImpl) GetFilteredPolicies(subjects []string, resource
 			if !MatchKeyByPart(resource, policyResource) {
 				continue
 			}
+
+			isActive := isPolicyActive(role, subjects, recordedTime, roleMappings, groupRoleMap)
+			if !isActive {
+				continue
+			}
 			filteredPolicies = append(filteredPolicies, policy)
 		}
 	}
 	return filteredPolicies
+}
+
+// getRoleMappings gets all g type mappings from cache
+func getRoleMappings() [][]string {
+	roleMappings := make([][]string, 0)
+	if isV2() {
+		roleMappings = e2.GetModel()["g"]["g"].Policy
+	} else {
+		roleMappings = e.GetModel()["g"]["g"].Policy
+	}
+	return roleMappings
+}
+
+// getGroupRolesMap takes roleMappings and returns casbin-group role vs all roles mapped to that group policy.
+func getGroupRolesMap(roleMappings [][]string) map[string][]string {
+	groupRolesMap := make(map[string][]string)
+	// capturing all group roles here to check user group status
+	for _, roleMappingDetail := range roleMappings {
+		groupInRole := roleMappingDetail[0]
+		roleAttached := roleMappingDetail[1]
+		isGroup := strings.Contains(groupInRole, bean.GroupPrefix)
+		if isGroup {
+			groupRolesMap[groupInRole] = append(groupRolesMap[groupInRole], roleAttached)
+		}
+	}
+	return groupRolesMap
+}
+
+// isPolicyActive checks if user is mapped to policyRole if yes checks that status, if inactive returns false
+func isPolicyActive(policyRole string, subjects []string, recordedTime time.Time, roleMappings [][]string, groupRolesMap map[string][]string) bool {
+	//fallback is set to false, as it has passed hasLink and be default assuming it to be inactive, as data can be corrupted which is assumed to be inactive.
+	isActive := false
+	for _, user := range subjects {
+		for _, roleMappingDetail := range roleMappings {
+			lenOfRoleMapping := len(roleMappingDetail)
+			if lenOfRoleMapping < 2 {
+				//invalid case
+				continue
+			} else {
+				userInRole := roleMappingDetail[0]
+				if userInRole == user { //checking user
+					role := roleMappingDetail[1]
+					doesGroupContainsRole := false
+					// checking if role matches the group roles
+					if val, ok := groupRolesMap[role]; ok && slices.Contains(val, policyRole) {
+						doesGroupContainsRole = true
+					}
+					// checking if role matches
+					isPolicyRoleSame := role == policyRole
+					if isPolicyRoleSame || doesGroupContainsRole {
+						expression, format, isExpressionValid := util2.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
+						if !isExpressionValid {
+							continue
+						}
+						// check by expression and format wrt to recorded time
+						isActive, err := util2.IsGroupPolicyActive(expression, format, recordedTime)
+						if err != nil {
+							fmt.Println("error in hasFilteredPoliciesExpired", "err", err)
+							continue
+						}
+						// Doing this as user can get permissions from group which can be active and direct permissions are inactive, will iterate in every roleMapping
+						if isActive {
+							return isActive
+						}
+					}
+				}
+			}
+		}
+	}
+	return isActive
+
 }
 
 type enforceParameters struct {
