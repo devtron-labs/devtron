@@ -42,6 +42,10 @@ type DeploymentWindowServiceImpl struct {
 	tx                     sql.TransactionWrapper
 }
 
+func NewDeploymentWindowServiceImplEA() *DeploymentWindowServiceImpl {
+	return nil
+}
+
 func NewDeploymentWindowServiceImpl(
 	logger *zap.SugaredLogger,
 	resourceMappingService resourceQualifiers.QualifierMappingService,

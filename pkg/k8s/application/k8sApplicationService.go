@@ -87,7 +87,9 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
-	deploymentWindowService      deploymentWindow.DeploymentWindowService
+
+	// nil for EA mode
+	deploymentWindowService deploymentWindow.DeploymentWindowService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
@@ -1049,7 +1051,8 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 }
 
 func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean3.DevtronAppIdentifier, userid int32) error {
-	if identifier == nil {
+
+	if impl.deploymentWindowService == nil || identifier == nil {
 		return nil
 	}
 	actionState, _, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), identifier.AppId, identifier.EnvId, userid)
