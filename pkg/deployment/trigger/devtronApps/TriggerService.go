@@ -1276,9 +1276,9 @@ func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplat
 			return false
 		}
 	}
-	//here will set new git repo name if required to migrate
+	// here will set new git repo name if required to migrate
 	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
+	// checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 	if newGitOpsRepoName != gitOpsRepoName {
 		monoRepoMigrationRequired = true
 	}
@@ -1287,7 +1287,7 @@ func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplat
 
 // getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 func (impl *TriggerServiceImpl) getAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	//this method should only call in case of argo-integration and gitops configured
+	// this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
