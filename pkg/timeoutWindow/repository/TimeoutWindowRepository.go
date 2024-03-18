@@ -9,11 +9,11 @@ import (
 )
 
 type TimeWindowRepository interface {
-	Create(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
-	Update(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
+	Create(tx *pg.Tx, model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
+	Update(tx *pg.Tx, model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
 	CreateInBatch(tx *pg.Tx, models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
 	UpdateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
-	GetWithExpressionAndFormat(expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error)
+	GetWithExpressionAndFormat(tx *pg.Tx, expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error)
 	GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error)
 	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat, loggedInUserId int32) error
 }
@@ -39,16 +39,19 @@ func NewTimeWindowRepositoryImpl(dbConnection *pg.DB,
 }
 
 // GetWithExpressionAndFormat takes expression and format as input and return corresponding db entry matching it else return pg no rows
-func (impl TimeWindowRepositoryImpl) GetWithExpressionAndFormat(expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error) {
-	var model *TimeoutWindowConfiguration
-	err := impl.dbConnection.Model(model).
+func (impl TimeWindowRepositoryImpl) GetWithExpressionAndFormat(tx *pg.Tx, expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error) {
+	var model TimeoutWindowConfiguration
+	//using transaction here as to get the just created timeoutWindowConfig
+	err := tx.Model(&model).
 		Where("timeout_window_expression = ?", expression).
-		Where("timeout_window_expression_format", format).Select()
+		Where("timeout_window_expression_format = ?", format).
+		Order("id desc").Limit(1).
+		Select()
 	if err != nil {
 		impl.logger.Errorw("error in GetWithExpressionAndFormat", "err", err)
 		return nil, err
 	}
-	return model, nil
+	return &model, nil
 }
 
 // GetWithIds takes in timeout window ids and results rows corresponding to that id in db.
@@ -69,8 +72,8 @@ func (impl TimeWindowRepositoryImpl) GetWithIds(ids []int) ([]*TimeoutWindowConf
 }
 
 // Create takes timeModel in input and create it in db.
-func (impl TimeWindowRepositoryImpl) Create(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error) {
-	err := impl.dbConnection.Insert(&model)
+func (impl TimeWindowRepositoryImpl) Create(tx *pg.Tx, model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error) {
+	err := tx.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("error in CreateInBatch time window", "err", err)
 		return nil, err
@@ -79,8 +82,8 @@ func (impl TimeWindowRepositoryImpl) Create(model *TimeoutWindowConfiguration) (
 }
 
 // Update updates the time window model in db, returns the updated model
-func (impl TimeWindowRepositoryImpl) Update(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error) {
-	_, err := impl.dbConnection.Model(&model).Update()
+func (impl TimeWindowRepositoryImpl) Update(tx *pg.Tx, model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error) {
+	_, err := tx.Model(&model).Update()
 	if err != nil {
 		impl.logger.Errorw("error in Update time window", "err", err)
 		return nil, err

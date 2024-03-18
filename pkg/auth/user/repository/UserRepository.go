@@ -36,6 +36,7 @@ type UserRepository interface {
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
 	GetById(id int32) (*UserModel, error)
+	GetByIdWithTimeoutWindowConfig(id int32) (*UserModel, error)
 	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
@@ -50,12 +51,15 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error
+	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32, tx *pg.Tx) error
 	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
+	UpdateWindowIdForIds(userIds []int32, loggedInUserID int32, twcId int, tx *pg.Tx) error
 	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
+	GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error)
+	GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error)
 	GetSuperAdmins() ([]int32, error)
 }
 
@@ -82,11 +86,14 @@ type UserModel struct {
 }
 
 type UserRoleModel struct {
-	TableName struct{} `sql:"user_roles"`
-	Id        int      `sql:"id,pk"`
-	UserId    int32    `sql:"user_id,notnull"`
-	RoleId    int      `sql:"role_id,notnull"`
-	User      UserModel
+	TableName                    struct{} `sql:"user_roles" pg:",discard_unknown_columns"`
+	Id                           int      `sql:"id,pk"`
+	UserId                       int32    `sql:"user_id,notnull"`
+	RoleId                       int      `sql:"role_id,notnull"`
+	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
+	User                         UserModel
+	Role                         RoleModel
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
 	sql.AuditLog
 }
 
@@ -132,6 +139,14 @@ func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, log
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	return &model, err
+}
+
+func (impl UserRepositoryImpl) GetByIdWithTimeoutWindowConfig(id int32) (*UserModel, error) {
+	var model UserModel
+	err := impl.dbConnection.Model(&model).
+		Column("user_model.*", "TimeoutWindowConfiguration").
+		Where("user_model.id = ?", id).Where("user_model.active = ?", true).Select()
 	return &model, err
 }
 
@@ -282,9 +297,33 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error {
+func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32, tx *pg.Tx) error {
 	var model []UserModel
-	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+	if tx == nil {
+		_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+			Set("updated_on = ?", time.Now()).
+			Set("updated_by = ?", loggedInUserID).
+			Where("id in (?)", pg.In(userIds)).Update()
+		if err != nil {
+			impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+			return err
+		}
+	} else {
+		_, err := tx.Model(&model).Set("timeout_window_configuration_id = null").
+			Set("updated_on = ?", time.Now()).
+			Set("updated_by = ?", loggedInUserID).
+			Where("id in (?)", pg.In(userIds)).Update()
+		if err != nil {
+			impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateWindowIdForIds(userIds []int32, loggedInUserID int32, twcId int, tx *pg.Tx) error {
+	var model []UserModel
+	_, err := tx.Model(&model).Set("timeout_window_configuration_id = ?", twcId).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", loggedInUserID).
 		Where("id in (?)", pg.In(userIds)).Update()
@@ -361,4 +400,29 @@ func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration(emailId str
 		return &model, err
 	}
 	return &model, nil
+}
+
+func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error) {
+	var model []*UserRoleModel
+	err := impl.dbConnection.Model(&model).
+		Column("user_role_model.*", "Role", "TimeoutWindowConfiguration").
+		Where("user_role_model.user_id = ?", userId).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetUserWithTimeoutWindowConfiguration", "err", err, "userId", userId)
+		return model, err
+	}
+	return model, nil
+}
+
+func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error) {
+	var models []*UserRoleModel
+	err := impl.dbConnection.Model(&models).
+		Column("user_role_model.*", "Role", "TimeoutWindowConfiguration").
+		Where("Role.entity = ?", entityType).
+		Where("user_role_model.user_id = ?", userId).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return models, err
+	}
+	return models, nil
 }
