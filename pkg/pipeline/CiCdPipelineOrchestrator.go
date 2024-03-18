@@ -2155,8 +2155,13 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.C
 	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamInfo")
 	defer span.End()
 	response := pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse]{}
-
-	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetDownStreamInfo(ctx, sourceCIPipeline, req.Size, req.Offset, req.SearchKey, req.EnvName, req.Order)
+	queryReq := &pagination.RepositoryRequest{
+		Order:  req.SortOrder,
+		SortBy: req.SortBy,
+		Limit:  req.Size,
+		Offset: req.Offset,
+	}
+	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetDownStreamInfo(ctx, sourceCIPipeline, req.SearchKey, req.EnvName, queryReq)
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", sourceCIPipeline)
 		return response, nil

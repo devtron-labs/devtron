@@ -1,17 +1,29 @@
 package pagination
 
 type SortOrder string
+type SortBy string
 
 const (
 	Asc  SortOrder = "ASC"
 	Desc SortOrder = "DESC"
 )
 
+const (
+	AppName SortBy = "app_name"
+)
+
 type QueryParams struct {
-	Order     SortOrder `json:"order"`
+	SortOrder SortOrder `json:"sortOrder"`
+	SortBy    SortBy    `json:"sortBy"`
 	Offset    int       `json:"offset"`
 	Size      int       `json:"size"`
 	SearchKey string    `json:"searchKey"`
+}
+
+type RepositoryRequest struct {
+	Order         SortOrder
+	SortBy        SortBy
+	Limit, Offset int
 }
 
 type PaginatedResponse[T any] struct {

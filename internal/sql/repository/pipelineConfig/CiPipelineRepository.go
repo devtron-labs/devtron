@@ -139,7 +139,8 @@ type CiPipelineRepository interface {
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
-	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId, limit, offset int, appNameMatch, envNameMatch string, order pagination.SortOrder) ([]bean.LinkedCIDetails, int, error)
+	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
+		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error)
 }
 
 type CiPipelineRepositoryImpl struct {
@@ -630,7 +631,8 @@ func (impl *CiPipelineRepositoryImpl) GetLinkedCiPipelines(ctx context.Context, 
 	return linkedCIPipelines, nil
 }
 
-func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sourceCiPipelineId, limit, offset int, appNameMatch, envNameMatch string, order pagination.SortOrder) ([]bean.LinkedCIDetails, int, error) {
+func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
+	appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "GetDownStreamInfo")
 	defer span.End()
 	linkedCIDetails := make([]bean.LinkedCIDetails, 0)
@@ -661,8 +663,8 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		Where("ci_pipeline.ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("ci_pipeline.deleted = ?", false)
 	// app name filtering
-	if len(appNameMatch) != 0 {
-		query = query.Where("a.app_name LIKE '%?%'", appNameMatch)
+	if len(appNameMatch) != 0 && req != nil && len(req.SortBy) != 0 {
+		query = query.Where("a.app_name LIKE ?", "%"+appNameMatch+"%")
 	}
 	// env name filtering
 	if len(envNameMatch) != 0 {
@@ -674,10 +676,12 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		return nil, 0, err
 	}
 	// query execution
-	err = query.Order(fmt.Sprintf("a.app_name %s", string(order))).
-		Limit(limit).
-		Offset(offset).
-		Select(&linkedCIDetails)
+	if req != nil {
+		query = query.Order(fmt.Sprintf("%s %s", req.SortBy, string(req.Order))).
+			Limit(req.Limit).
+			Offset(req.Offset)
+	}
+	err = query.Select(&linkedCIDetails)
 	if err != nil {
 		return nil, 0, err
 	}

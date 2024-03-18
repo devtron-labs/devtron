@@ -2145,11 +2145,12 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	req.SortBy = pagination.AppName
 	if req.Size == 0 {
 		req.Size = 20
 	}
-	if len(req.Order) == 0 {
-		req.Order = pagination.Asc
+	if len(req.SortOrder) == 0 {
+		req.SortOrder = pagination.Asc
 	}
 	token := r.Header.Get("token")
 	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
