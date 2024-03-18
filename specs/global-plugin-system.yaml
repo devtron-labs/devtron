@@ -16,7 +16,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
           description: Unique identifier of the plugin
 
       responses:

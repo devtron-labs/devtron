@@ -76,6 +76,8 @@ type AppNameTypeIdContainerDBResponse struct {
 }
 
 type LastDeployed struct {
+	ParentCiArtifact  int    `sql:"parent_ci_artifact_id"`
+	CiArtifactId      int    `sql:"ci_artifact_id"`
 	LastDeployedBy    string `sql:"last_deployed_by"`
 	LastDeployedImage string `sql:"last_deployed_image"`
 }
@@ -86,6 +88,11 @@ type AppListingRepositoryImpl struct {
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
 	environmentRepository            repository2.EnvironmentRepository
 	gitOpsRepository                 GitOpsConfigRepository
+}
+
+type CiWorkflowRepositoryImpl struct {
+	dbConnection *pg.DB
+	logger       *zap.SugaredLogger
 }
 
 func NewAppListingRepositoryImpl(
@@ -157,7 +164,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
 	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
-	query := `select ca.image as last_deployed_image, 
+	query := `select ca.id as ci_artifact_id, ca.parent_ci_artifact as parent_ci_artifact_id, ca.image as last_deployed_image, 
 			    case
 					when u.active = false then u.email_id || ' (inactive)'
 					else u.email_id
@@ -605,7 +612,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	//TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
        			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
-      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
+      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status, ca.id as ci_artifact_id, ca.parent_ci_artifact as parent_ci_artifact_id
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
                   	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
