@@ -21,7 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240216091211-80e10a80ce7b
-	github.com/devtron-labs/common-lib v0.0.16-0.20240304102639-17132681584e
+	github.com/devtron-labs/common-lib v0.0.16-0.20240318063710-69cb957d019a
 	github.com/devtron-labs/common-lib-private v0.0.13
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/evanphx/json-patch v5.6.0+incompatible
@@ -33,7 +33,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/google/cel-go v0.12.7
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github v17.0.0+incompatible
@@ -80,7 +80,7 @@ require (
 	golang.org/x/oauth2 v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/go-playground/validator.v9 v9.30.0
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
 	gopkg.in/yaml.v2 v2.4.0
