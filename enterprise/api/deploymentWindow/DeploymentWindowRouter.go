@@ -28,12 +28,10 @@ func (router *DeploymentWindowRouterImpl) InitDeploymentWindowRouter(configRoute
 	configRouter.
 		Path("/profile").
 		HandlerFunc(router.DeploymentWindowRestHandler.DeleteDeploymentWindowProfile).
-		Queries("profileId", "{profileId}").
 		Methods("DELETE")
 	configRouter.
 		Path("/profile").
 		HandlerFunc(router.DeploymentWindowRestHandler.GetDeploymentWindowProfile).
-		Queries("profileId", "{profileId}").
 		Methods("GET")
 	configRouter.
 		Path("/profile/list").

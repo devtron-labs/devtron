@@ -491,6 +491,15 @@ func (impl DeploymentWindowServiceImpl) updatePolicy(profile *DeploymentWindowPr
 	return policy, nil
 }
 
+func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForName(profileName string, userId int32) error {
+	policyModel, err := impl.globalPolicyManager.GetPolicyByName(profileName, bean2.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW)
+	if err != nil {
+		impl.logger.Errorw("error in getting policy model", "err", err, "profileName", profileName)
+		return err
+	}
+	return impl.DeleteDeploymentWindowProfileForId(policyModel.Id, userId)
+}
+
 func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profileId int, userId int32) error {
 	tx, err := impl.tx.StartTx()
 	if err != nil {
@@ -523,6 +532,16 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	return err
 }
 
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForName(profileName string) (*DeploymentWindowProfile, error) {
+	//get policy
+	policyModel, err := impl.globalPolicyManager.GetPolicyByName(profileName, bean2.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW)
+	if err != nil {
+		impl.logger.Errorw("error in getting policy model", "err", err, "profileName", profileName)
+		return nil, err
+	}
+	return impl.getProfileWithWindows(policyModel)
+}
+
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForId(profileId int) (*DeploymentWindowProfile, error) {
 	//get policy
 	policyModel, err := impl.globalPolicyManager.GetPolicyById(profileId)
@@ -531,13 +550,17 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForId(profileI
 		return nil, err
 	}
 
-	idToWindows, err := impl.timeWindowService.GetWindowsForResources([]int{profileId}, repository.DeploymentWindowProfile)
+	return impl.getProfileWithWindows(policyModel)
+}
+
+func (impl DeploymentWindowServiceImpl) getProfileWithWindows(policyModel *bean2.GlobalPolicyBaseModel) (*DeploymentWindowProfile, error) {
+	idToWindows, err := impl.timeWindowService.GetWindowsForResources([]int{policyModel.Id}, repository.DeploymentWindowProfile)
 	if err != nil {
-		impl.logger.Errorw("error in getting GetWindowsForResources", "err", err, "profileId", profileId)
+		impl.logger.Errorw("error in getting GetWindowsForResources", "err", err, "profileId", policyModel.Id)
 		return nil, err
 	}
 
-	windows, ok := idToWindows[profileId]
+	windows, ok := idToWindows[policyModel.Id]
 	if !ok {
 		return nil, nil
 	}

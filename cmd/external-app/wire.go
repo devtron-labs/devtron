@@ -57,13 +57,9 @@ import (
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
-	devtronResource2 "github.com/devtron-labs/devtron/pkg/devtronResource"
-	repository3 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
-	globalPolicy2 "github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -243,25 +239,8 @@ func InitializeApp() (*App, error) {
 		timeoutWindow.NewTimeWindowServiceImpl,
 		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
 
-		//repository5.NewTimeoutWindowResourceMappingRepositoryImpl,
-		//wire.Bind(new(repository5.TimeoutWindowResourceMappingRepository), new(*repository5.TimeoutWindowResourceMappingRepositoryImpl)),
-
 		repository5.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository5.TimeWindowRepository), new(*repository5.TimeWindowRepositoryImpl)),
-
-		repository5.NewTimeoutWindowResourceMappingRepositoryImpl,
-		wire.Bind(new(repository5.TimeoutWindowResourceMappingRepository), new(*repository5.TimeoutWindowResourceMappingRepositoryImpl)),
-		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
-		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
-
-		resourceQualifiers.NewQualifierMappingServiceImpl,
-		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
-		devtronResource2.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource2.DevtronResourceSearchableKeyService), new(*devtronResource2.DevtronResourceSearchableKeyServiceImpl)),
-		repository3.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository3.DevtronResourceSearchableKeyRepository), new(*repository3.DevtronResourceSearchableKeyRepositoryImpl)),
-		globalPolicy2.NewGlobalPolicyDataManagerImpl,
-		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
 	)
 	return &App{}, nil
 }

@@ -155,11 +155,23 @@ func (handler *DeploymentWindowRestHandlerImpl) DeleteDeploymentWindowProfile(w 
 		return
 	}
 	v := r.URL.Query()
+	profileName := v.Get("profileName")
+	if len(profileName) != 0 {
+		err = handler.deploymentWindowService.DeleteDeploymentWindowProfileForName(profileName, userId)
+		if err != nil {
+			handler.logger.Errorw("error occurred updating DeploymentWindowProfile", "err", err, "profileName", profileName)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, "", http.StatusOK)
+	}
+
 	id, err := strconv.Atoi(v.Get("profileId"))
 	if err != nil {
 		common.WriteJsonResp(w, err, "please provide valid profileId", http.StatusBadRequest)
 		return
 	}
+
 	err = handler.deploymentWindowService.DeleteDeploymentWindowProfileForId(id, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred updating DeploymentWindowProfile", "err", err, "id", id)
@@ -184,6 +196,18 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfile(w htt
 	}
 
 	v := r.URL.Query()
+
+	profileName := v.Get("profileName")
+	if len(profileName) != 0 {
+		response, err := handler.deploymentWindowService.GetDeploymentWindowProfileForName(profileName)
+		if err != nil {
+			handler.logger.Errorw("error occurred fetching DeploymentWindowProfile", "err", err, "profileName", profileName)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+	}
+
 	id, err := strconv.Atoi(v.Get("profileId"))
 	if err != nil {
 		common.WriteJsonResp(w, err, "please provide valid profileId", http.StatusBadRequest)

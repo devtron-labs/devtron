@@ -17,7 +17,10 @@ type DeploymentWindowService interface {
 	CreateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error)
 	UpdateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error)
 	GetDeploymentWindowProfileForId(profileId int) (*DeploymentWindowProfile, error)
+	GetDeploymentWindowProfileForName(profileName string) (*DeploymentWindowProfile, error)
+
 	DeleteDeploymentWindowProfileForId(profileId int, userId int32) error
+	DeleteDeploymentWindowProfileForName(profileName string, userId int32) error
 	ListDeploymentWindowProfiles() ([]*DeploymentWindowProfileMetadata, error)
 
 	//Overview
