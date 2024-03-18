@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"go.uber.org/zap"
 	"time"
-	_ "time/tzdata"
 )
 
 type DeploymentWindowService interface {
@@ -26,8 +25,8 @@ type DeploymentWindowService interface {
 
 	//State
 	GetStateForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (UserActionState, *EnvironmentState, error)
-	GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, filterForDays int, userId int32) (*DeploymentWindowResponse, error)
-	GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, filterForDays int, userId int32) (*DeploymentWindowAppGroupResponse, error)
+	GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error)
+	GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error)
 }
 
 type DeploymentWindowServiceImpl struct {

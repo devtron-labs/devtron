@@ -21,14 +21,14 @@ type GlobalPolicyDataManager interface {
 	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 	UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
 
-	DeletePolicyById(policyId int, userId int32) error
+	DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error
 	DeletePolicyByName(tx *pg.Tx, policyName string, userId int32) error
 
 	GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error)
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
 	GetAndSort(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
-	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error)
+	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -47,9 +47,10 @@ func NewGlobalPolicyDataManagerImpl(logger *zap.SugaredLogger, globalPolicyRepos
 	}
 }
 
-func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, rtx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx == nil {
+	tx := rtx
+	if rtx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -58,6 +59,9 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 	}
 	// Rollback tx on error.
 	defer func() {
+		if rtx != nil {
+			return
+		}
 		err = impl.globalPolicyRepository.RollBackTransaction(tx)
 		if err != nil {
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
@@ -77,17 +81,21 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 		// TODO KB: Why are not we returning from here ??
 		return nil, err
 	}
-	err = impl.globalPolicyRepository.CommitTransaction(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err)
-		return globalPolicyDataModel, err
+	if rtx == nil {
+		err = impl.globalPolicyRepository.CommitTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return globalPolicyDataModel, err
+		}
 	}
+
 	globalPolicyDataModel.Id = globalPolicy.Id
 	return globalPolicyDataModel, nil
 }
-func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, rtx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx == nil {
+	tx := rtx
+	if rtx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -96,6 +104,9 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 	}
 	// Rollback tx on error.
 	defer func() {
+		if rtx != nil {
+			return
+		}
 		err = impl.globalPolicyRepository.RollBackTransaction(tx)
 		if err != nil {
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
@@ -119,11 +130,14 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
 		return nil, err
 	}
-	err = impl.globalPolicyRepository.CommitTransaction(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err)
-		return globalPolicyDataModel, err
+	if rtx == nil {
+		err = impl.globalPolicyRepository.CommitTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return globalPolicyDataModel, err
+		}
 	}
+
 	globalPolicyDataModel.Id = globalPolicy.Id
 	return globalPolicyDataModel, nil
 }
@@ -296,8 +310,8 @@ func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.Glob
 	return nil, nil
 }
 
-func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId int32) error {
-	err := impl.globalPolicyRepository.DeletedById(policyId, userId)
+func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error {
+	err := impl.globalPolicyRepository.DeletedById(tx, policyId, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies", "err", err, "policyId", policyId)
 	}
@@ -375,6 +389,15 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyIdByName(name string, policyTy
 	return impl.globalPolicyRepository.GetIdByName(name, policyType)
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error) {
-	return impl.globalPolicyRepository.GetAllActiveByType(policyType)
+func (impl *GlobalPolicyDataManagerImpl) GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
+	models, err := impl.globalPolicyRepository.GetAllActiveByType(policyType)
+	if err != nil {
+		return nil, err
+	}
+	baseModels := make([]*bean.GlobalPolicyBaseModel, 0)
+	for _, model := range models {
+		baseModels = append(baseModels, model.GetGlobalPolicyBaseModel())
+	}
+	return baseModels, nil
+
 }

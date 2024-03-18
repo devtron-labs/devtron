@@ -2,13 +2,16 @@ package timeoutWindow
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"net/http"
 	"time"
+	_ "time/tzdata"
 )
 
 // rename to timewindowservice
@@ -176,7 +179,11 @@ func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, ti
 
 	err = impl.validateWindowsAndTimeZone(windows, timeZone)
 	if err != nil {
-		return err
+		return &util.ApiError{
+			Code:           "400",
+			HttpStatusCode: http.StatusBadRequest,
+			UserMessage:    err.Error(),
+		}
 	}
 
 	windowExpressions := make([]TimeWindowExpression, 0)

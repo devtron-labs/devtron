@@ -264,11 +264,6 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
-	days, err := handler.getFilterDays(w, v)
-	if err != nil {
-		return
-	}
-
 	authorizedEnvs := handler.filterAuthorizedResources(envIds, appId, token)
 	if len(authorizedEnvs) == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -276,7 +271,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	}
 
 	requestTime := time.Now()
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, authorizedEnvs, days, userId)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, authorizedEnvs, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileState", "err", err, "request time", requestTime, "appId", appId, "envIds", envIds, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -398,12 +393,6 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
-	v := r.URL.Query()
-	days, err := handler.getFilterDays(w, v)
-	if err != nil {
-		return
-	}
-
 	request = handler.filterAuthorizedResourcesForGroup(request, token)
 	if len(request) == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -411,7 +400,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	}
 
 	requestTime := time.Now()
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileStateAppGroup(requestTime, request, days, userId)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileStateAppGroup(requestTime, request, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileState", "err", err, "request time", requestTime, "request", request, userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
