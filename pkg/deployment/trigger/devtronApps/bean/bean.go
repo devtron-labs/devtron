@@ -57,6 +57,13 @@ func (context TriggerContext) IsAutoTrigger() bool {
 	return context.TriggerType == Automatic
 }
 
+func (context TriggerContext) ToTriggerTypeString() string {
+	if context.IsAutoTrigger() {
+		return "AUTO"
+	}
+	return "MANUAL"
+}
+
 type DeploymentType = string
 
 const (

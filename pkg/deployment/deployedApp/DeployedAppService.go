@@ -109,12 +109,12 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 }
 
 func (impl *DeployedAppServiceImpl) checkForDeploymentWindow(podRotateRequest *bean.PodRotateRequest) (*bean.PodRotateRequest, error) {
-	actionState, _, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
+	actionState, envstate, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
 	if err != nil {
 		return podRotateRequest, fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return podRotateRequest, fmt.Errorf("action not allowed %v", err)
+		return podRotateRequest, deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envstate))
 	}
 	return podRotateRequest, nil
 }

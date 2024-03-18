@@ -2,6 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"strconv"
 	"time"
@@ -30,6 +31,16 @@ func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
 
+func GetActionBlockedError(triggerMessage string) error {
+	return &util.ApiError{
+		HttpStatusCode:    422,
+		Code:              "422",
+		InternalMessage:   triggerMessage,
+		UserMessage:       triggerMessage,
+		UserDetailMessage: "action blocked",
+	}
+}
+
 type AppEnvSelector struct {
 	AppId int `json:"appId"`
 	EnvId int `json:"envId"`
@@ -56,7 +67,7 @@ type DeploymentWindowProfile struct {
 	DeploymentWindowProfileMetadata
 }
 
-func (state *EnvironmentState) GetSerializedAuditData(triggerMessage string) string {
+func (state *EnvironmentState) GetSerializedAuditData(triggerType string, triggerMessage string) string {
 	if state == nil {
 		return "{}"
 	}
@@ -66,6 +77,7 @@ func (state *EnvironmentState) GetSerializedAuditData(triggerMessage string) str
 		Audit:          state,
 		TriggeredAt:    state.CalculatedAt,
 		TriggerMessage: triggerMessage,
+		TriggerType:    triggerType,
 	}
 	if profile != nil {
 		audit.Name = profile.DeploymentWindowProfile.Name
@@ -89,6 +101,7 @@ type DeploymentWindowAuditData struct {
 	Audit          *EnvironmentState `json:"audit"`
 	TriggeredAt    time.Time         `json:"triggeredAt"`
 	TriggerMessage string            `json:"triggerMessage"`
+	TriggerType    string            `json:"triggerType"`
 }
 
 // DeploymentWindowProfileMetadata defines model for DeploymentWindowProfileMetadata.

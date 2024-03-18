@@ -341,14 +341,7 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 		if err != nil {
 			return triggerRequest, err
 		}
-		err = &util.ApiError{
-			HttpStatusCode:    422,
-			Code:              "422",
-			InternalMessage:   triggerRequest.TriggerMessage,
-			UserMessage:       triggerRequest.TriggerMessage,
-			UserDetailMessage: "deployment blocked",
-		}
-		return triggerRequest, err
+		return triggerRequest, deploymentWindow.GetActionBlockedError(triggerRequest.TriggerMessage)
 	}
 	return triggerRequest, nil
 }
@@ -907,7 +900,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
 	if request.TriggerMessage != "" {
-		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
+		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerContext.ToTriggerTypeString(), request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
 		if err != nil {
 			return err
 		}

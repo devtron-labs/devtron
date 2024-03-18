@@ -746,12 +746,12 @@ func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineI
 }
 
 func (impl *CdPipelineConfigServiceImpl) checkForDeploymentWindow(pipeline *pipelineConfig.Pipeline, userId int32) error {
-	actionState, _, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), pipeline.AppId, pipeline.EnvironmentId, userId)
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), pipeline.AppId, pipeline.EnvironmentId, userId)
 	if err != nil {
 		return fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return fmt.Errorf("action not allowed %v", err)
+		return deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envState))
 	}
 	return nil
 }

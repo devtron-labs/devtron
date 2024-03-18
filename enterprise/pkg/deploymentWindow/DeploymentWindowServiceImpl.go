@@ -76,6 +76,12 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 			impl.logger.Errorw("error in calculating state for environments", "err", err)
 			return nil, err
 		}
+
+		// sorting to keep active profiles first
+		sort.SliceStable(appIdToProfiles[appId], func(i, j int) bool {
+			return appIdToProfiles[appId][i].IsActive
+		})
+
 		envResponse := &DeploymentWindowResponse{
 			EnvironmentStateMap: envIdToProfileStates,
 			Profiles:            appIdToProfiles[appId],
@@ -142,10 +148,15 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 		impl.logger.Errorw("error in calculating state", "err", err)
 		return nil, err
 	}
+	profiles := maps.Values(profileIdToProfileState)
+	// sorting to keep active profiles first
+	sort.SliceStable(profiles, func(i, j int) bool {
+		return profiles[i].IsActive
+	})
 
 	response := &DeploymentWindowResponse{
 		EnvironmentStateMap: envIdToProfileStates,
-		Profiles:            maps.Values(profileIdToProfileState),
+		Profiles:            profiles,
 	}
 
 	return response, nil
@@ -168,11 +179,6 @@ func (impl DeploymentWindowServiceImpl) evaluateStateForEnvironments(profiles []
 			return nil, fmt.Errorf("error in evaluating profile state %v", err)
 		}
 		excludedUsers, excludedUsersEmail := impl.evaluateExcludedUsers(filteredProfileStates, superAdmins, userEmailMap)
-
-		// sorting to keep active profiles first
-		sort.SliceStable(filteredProfileStates, func(i, j int) bool {
-			return filteredProfileStates[i].IsActive
-		})
 
 		envState := EnvironmentState{
 			ExcludedUsers:      excludedUsers,
@@ -320,12 +326,12 @@ func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []Profi
 	}
 
 	var selectedProfile *ProfileWrapper
-	for _, profile := range profiles {
+	for i, profile := range profiles {
 		if filterRestricted != profile.isRestricted() {
 			continue
 		}
 		if selectedProfile == nil || profile.CalculatedTimestamp.After(selectedProfile.CalculatedTimestamp) {
-			selectedProfile = &profile
+			selectedProfile = &profiles[i]
 		}
 	}
 	return selectedProfile
@@ -337,12 +343,12 @@ func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []Pr
 	}
 
 	var selectedProfile *ProfileWrapper
-	for _, profile := range profiles {
+	for i, profile := range profiles {
 		if filterRestricted != profile.isRestricted() {
 			continue
 		}
 		if selectedProfile == nil || profile.CalculatedTimestamp.Before(selectedProfile.CalculatedTimestamp) {
-			selectedProfile = &profile
+			selectedProfile = &profiles[i]
 		}
 	}
 

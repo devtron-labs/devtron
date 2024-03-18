@@ -895,7 +895,11 @@ func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []i
 	dataMap := make(map[int]deploymentWindow.DeploymentWindowAuditData)
 	for _, filter := range filters {
 		if !(filter == nil || len(filter.FilterHistoryObjects) == 0) {
-			dataMap[filter.SubjectId] = deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+			data := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+			if data.TriggerType == "AUTO" {
+				continue
+			}
+			dataMap[filter.SubjectId] = data
 		}
 	}
 	return dataMap, nil
