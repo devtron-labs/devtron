@@ -1,18 +1,18 @@
 package timeoutWindow
 
 import (
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TimeoutWindowService interface {
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
 	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) error
-	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error)
+	BulkCreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error)
+	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, expressionFormat bean.ExpressionFormat, loggedInUserId int32) (*repository.TimeoutWindowConfiguration, error)
+	GetOrCreateWithExpressionAndFormat(tx *pg.Tx, timeoutExpression string, expressionFormat bean.ExpressionFormat, loggedInUserId int32) (*repository.TimeoutWindowConfiguration, error)
 }
 
 type TimeWindowServiceImpl struct {
@@ -47,19 +47,10 @@ func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.
 	return err
 }
 
-func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error) {
+func (impl TimeWindowServiceImpl) BulkCreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error) {
 	var models []*repository.TimeoutWindowConfiguration
 	for i := 0; i < count; i++ {
-		model := &repository.TimeoutWindowConfiguration{
-			TimeoutWindowExpression: timeoutExpression,
-			ExpressionFormat:        expressionFormat,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: loggedInUserId,
-				UpdatedOn: time.Now(),
-				UpdatedBy: loggedInUserId,
-			},
-		}
+		model := repository.GetTimeoutWindowConfigModel(timeoutExpression, expressionFormat, loggedInUserId)
 		models = append(models, model)
 	}
 	// create in batch
@@ -69,5 +60,34 @@ func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx
 		return nil, err
 	}
 	return models, nil
+
+}
+
+func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, expressionFormat bean.ExpressionFormat, loggedInUserId int32) (*repository.TimeoutWindowConfiguration, error) {
+	model := repository.GetTimeoutWindowConfigModel(timeoutExpression, expressionFormat, loggedInUserId)
+	model, err := impl.timeWindowRepository.Create(tx, model)
+	if err != nil {
+		impl.logger.Errorw("error in CreateWithTimeoutExpression", "err", err, "timeoutExpression", timeoutExpression)
+		return nil, err
+	}
+	return model, nil
+
+}
+
+func (impl TimeWindowServiceImpl) GetOrCreateWithExpressionAndFormat(tx *pg.Tx, timeoutExpression string, expressionFormat bean.ExpressionFormat, loggedInUserId int32) (*repository.TimeoutWindowConfiguration, error) {
+	timeoutWindow, err := impl.timeWindowRepository.GetWithExpressionAndFormat(tx, timeoutExpression, expressionFormat)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error encountered in GetOrCreateWithExpressionAndFormat", "timeoutExpression", timeoutExpression, "expressionFormat", expressionFormat, "err", err)
+		return nil, err
+	}
+	if err == pg.ErrNoRows {
+		impl.logger.Debugw("error in GetOrCreateWithExpressionAndFormat, consuming this error and creating config", "timeoutExpression", timeoutExpression, "expressionFormat", expressionFormat)
+		timeoutWindow, err = impl.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error encountered in GetOrCreateWithExpressionAndFormat", "timeoutExpression", timeoutExpression, "expressionFormat", expressionFormat, "err", err)
+			return nil, err
+		}
+	}
+	return timeoutWindow, nil
 
 }

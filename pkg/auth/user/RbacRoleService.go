@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"reflect"
 	"strings"
 	"time"
@@ -611,8 +612,8 @@ func (impl *RbacRoleServiceImpl) UpdateExistingUserOrGroupPolicies(oldPolicyDeta
 	addedPoliciesLen := len(addedPolicies)
 	deletedPoliciesLen := len(deletedPolicies)
 	rolesLen := len(roles)
-	addedPoliciesTotal := make([]casbin.Policy, 0, rolesLen*addedPoliciesLen)
-	deletedPoliciesTotal := make([]casbin.Policy, 0, rolesLen*deletedPoliciesLen)
+	addedPoliciesTotal := make([]bean2.Policy, 0, rolesLen*addedPoliciesLen)
+	deletedPoliciesTotal := make([]bean2.Policy, 0, rolesLen*deletedPoliciesLen)
 	for _, roleModel := range roles {
 		pValUpdateMap := impl.userCommonService.GetPValUpdateMap(roleModel.Team, roleModel.EntityName,
 			roleModel.Environment, roleModel.Entity, roleModel.Cluster, roleModel.Namespace, roleModel.Group, roleModel.Kind, roleModel.Resource, roleModel.Approver, roleModel.Workflow)

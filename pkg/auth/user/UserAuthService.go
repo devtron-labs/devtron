@@ -562,13 +562,13 @@ func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roles []strin
 	var casbinDeleteFailed []bool
 	// deleting all user_role mapping from casbin by getting all users mapped to the role
 	for _, role := range roles {
-		allUsersMappedToRoles, err := casbin2.GetUserByRole(role)
+		allUsersMappedToRolesPolicies, err := casbin2.GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role)
 		if err != nil {
 			impl.logger.Errorw("error in getting all users by roles", "err", err, "role", role)
 			continue
 		}
-		for _, rl := range allUsersMappedToRoles {
-			success := casbin2.DeleteRoleForUser(rl, role)
+		for _, rl := range allUsersMappedToRolesPolicies {
+			success := casbin2.DeleteRoleForUser(rl.User, role, rl.TimeoutWindowExpression, rl.ExpressionFormat)
 			if !success {
 				impl.logger.Warnw("error in deleting casbin policy for role", "role", role)
 				casbinDeleteFailed = append(casbinDeleteFailed, success)
