@@ -16,7 +16,7 @@ type GlobalCMCSDto struct {
 	MountPath          string            `json:"mountPath"`
 	Deleted            bool              `json:"deleted"`
 	UserId             int32             `json:"-"`
-	SecretIngestionFor string            `json:"secretIngestionFor"` // value can be one of [ci, cd, ci/cd]
+	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
 }
 
 func (dto GlobalCMCSDto) ConvertToConfigSecretMap() (bean.ConfigSecretMap, error) {
