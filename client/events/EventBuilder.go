@@ -449,9 +449,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event,
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
-	if defaultSesConfig.Id == 0 && defaultSmtpConfig.Id == 0 {
-		return events
-	}
 	if request.UserId == 0 {
 		return events
 	}
