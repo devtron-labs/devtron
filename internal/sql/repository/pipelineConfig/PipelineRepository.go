@@ -30,6 +30,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -178,12 +179,9 @@ type CdPipelineMetaData struct {
 type CdPipelineListFilter struct {
 	IncludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
 	ExcludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
-	SortBy           string
-	SortOrder        string
-	Limit            int
-	Offset           int
 	AppNames         []string
 	EnvNames         []string
+	util3.ListingFilterOptions
 }
 
 type PipelineRepositoryImpl struct {
@@ -201,6 +199,9 @@ func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
 
 func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
+	if len(ids) == 0 {
+		return pipelines, nil
+	}
 	err := impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "App", "Environment", "Environment.Cluster").
 		Join("inner join app a on pipeline.app_id = a.id").
@@ -836,7 +837,7 @@ func findAppAndEnvDetailsByListFilterQuery(filter CdPipelineListFilter) string {
 		orderBy = "environment_name"
 	}
 
-	if filter.SortOrder == "DESC" {
+	if filter.Order == "DESC" {
 		orderBy += " DESC"
 	}
 	query += " ORDER BY " + orderBy

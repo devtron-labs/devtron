@@ -18,9 +18,15 @@ import (
 	"net/http"
 )
 
+type ApplyObserver func(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
 type CommonPolicyActionsService interface {
 	ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error)
 	ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
+}
+
+type CommonPoliyApplyEventNotifier interface {
+	// add event listener
+	AddApplyEventObserver(policyType PathVariablePolicyType, observerFunc ApplyObserver) bool
 }
 
 type CommonPolicyActionsServiceImpl struct {
@@ -31,6 +37,8 @@ type CommonPolicyActionsServiceImpl struct {
 	environmentService              cluster.EnvironmentService
 	logger                          *zap.SugaredLogger
 	transactionManager              sql.TransactionWrapper
+
+	applyEventObservers map[PathVariablePolicyType][]ApplyObserver
 }
 
 func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -40,6 +48,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 	environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger, transactionManager sql.TransactionWrapper,
 ) *CommonPolicyActionsServiceImpl {
+	applyEventListners := make(map[PathVariablePolicyType][]ApplyObserver)
 	return &CommonPolicyActionsServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
@@ -48,10 +57,11 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 		appService:                      appService,
 		environmentService:              environmentService,
 		transactionManager:              transactionManager,
+		applyEventObservers:             applyEventListners,
 	}
 }
 
-func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl *CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	if len(listFilter.PolicyNames) > 0 {
 		return impl.listAppEnvPoliciesByPolicyFilter(listFilter)
 	} else {
@@ -60,7 +70,7 @@ func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 
 }
 
-func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
+func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[applyIdentifiersRequest.PolicyType]
 	if !ok {
 		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
@@ -122,6 +132,12 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.R
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
+	err = impl.notifyApplyEventObservers(tx, scopes)
+	if err != nil {
+		impl.logger.Errorw("error in notifying policy apply event for all the observers for given scopes", "scopes", scopes, "err", err)
+		return err
+	}
+
 	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
@@ -130,7 +146,26 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.R
 	return nil
 }
 
-func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl *CommonPolicyActionsServiceImpl) notifyApplyEventObservers(tx *pg.Tx, scopes []*resourceQualifiers.SelectionIdentifier) error {
+	appEnvIds := make([][]int, 0, len(scopes))
+	for _, scope := range scopes {
+		appEnvIds = append(appEnvIds, []int{scope.AppId, scope.EnvId})
+	}
+
+	for policyType, observers := range impl.applyEventObservers {
+		impl.logger.Debugw(" notifying policy apply event for all the observers", "policyType", policyType)
+		for _, observer := range observers {
+			err := observer(tx, appEnvIds)
+			if err != nil {
+				impl.logger.Errorw("error occured when observer handling policy apply events fo given appEnvIds", "appEnvIds", appEnvIds, "err", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
 	if !ok {
 		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
@@ -192,10 +227,12 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		excludeAppEnvIds = append(excludeAppEnvIds, key)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
-		SortOrder:        listFilter.SortOrder,
-		SortBy:           listFilter.SortBy,
-		Limit:            listFilter.Size,
-		Offset:           listFilter.Offset,
+		ListingFilterOptions: util2.ListingFilterOptions{
+			Order:  listFilter.SortOrder,
+			SortBy: listFilter.SortBy,
+			Limit:  listFilter.Size,
+			Offset: listFilter.Offset,
+		},
 		IncludeAppEnvIds: includeAppEnvIds,
 		ExcludeAppEnvIds: excludeAppEnvIds,
 		EnvNames:         listFilter.EnvNames,
@@ -226,18 +263,20 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 	return result, totalCount, nil
 }
 
-func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl *CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
 	if !ok {
 		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	filter := pipelineConfig.CdPipelineListFilter{
-		SortOrder: listFilter.SortOrder,
-		SortBy:    listFilter.SortBy,
-		Limit:     listFilter.Size,
-		Offset:    listFilter.Offset,
-		EnvNames:  listFilter.EnvNames,
-		AppNames:  listFilter.AppNames,
+		ListingFilterOptions: util2.ListingFilterOptions{
+			Order:  listFilter.SortOrder,
+			SortBy: listFilter.SortBy,
+			Limit:  listFilter.Size,
+			Offset: listFilter.Offset,
+		},
+		EnvNames: listFilter.EnvNames,
+		AppNames: listFilter.AppNames,
 	}
 	paginatedAppEnvData, err := impl.pipelineService.FindAppAndEnvDetailsByListFilter(filter)
 	if err != nil {
@@ -295,7 +334,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 	return result, totalCount, nil
 }
 
-func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, policyType bean2.GlobalPolicyType) ([]*bean2.GlobalPolicyBaseModel, error) {
+func (impl *CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, policyType bean2.GlobalPolicyType) ([]*bean2.GlobalPolicyBaseModel, error) {
 	if len(policyNames) == 0 {
 		policies, err := impl.globalPolicyDataManager.GetAllActiveByType(policyType)
 		if err != nil {
@@ -311,7 +350,7 @@ func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, pol
 	return policies, err
 }
 
-func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.SelectionIdentifier, error) {
+func (impl *CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.SelectionIdentifier, error) {
 	appNames := make([]string, 0, len(applicationEnvironments))
 	envNames := make([]string, 0, len(applicationEnvironments))
 	for _, appEnv := range applicationEnvironments {
@@ -358,4 +397,20 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 	}
 
 	return scopes, nil
+}
+
+func (impl *CommonPolicyActionsServiceImpl) AddApplyEventObserver(policyType PathVariablePolicyType, observerFunc ApplyObserver) bool {
+	if !util2.Contains(ExistingPolicyTypes, func(existingPolicy PathVariablePolicyType) bool {
+		return existingPolicy == policyType
+	}) {
+		return false
+	}
+
+	observers, ok := impl.applyEventObservers[policyType]
+	if !ok {
+		observers = make([]ApplyObserver, 0)
+	}
+	observers = append(observers, observerFunc)
+	impl.applyEventObservers[policyType] = observers
+	return true
 }

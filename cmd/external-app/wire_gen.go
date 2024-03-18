@@ -89,6 +89,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository8 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy/history"
+	repository13 "github.com/devtron-labs/devtron/pkg/globalPolicy/history/repository"
 	repository12 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -336,7 +338,9 @@ func InitializeApp() (*App, error) {
 	}
 	globalPolicyRepositoryImpl := repository12.NewGlobalPolicyRepositoryImpl(sugaredLogger, db)
 	globalPolicySearchableFieldRepositoryImpl := repository12.NewGlobalPolicySearchableFieldRepositoryImpl(sugaredLogger, db)
-	globalPolicyDataManagerImpl := globalPolicy.NewGlobalPolicyDataManagerImpl(sugaredLogger, globalPolicyRepositoryImpl, globalPolicySearchableFieldRepositoryImpl)
+	globalPolicyHistoryRepositoryImpl := repository13.NewGlobalPolicyHistoryRepositoryImpl(sugaredLogger, db)
+	globalPolicyHistoryServiceImpl := history.NewGlobalPolicyHistoryServiceImpl(sugaredLogger, globalPolicyHistoryRepositoryImpl)
+	globalPolicyDataManagerImpl := globalPolicy.NewGlobalPolicyDataManagerImpl(sugaredLogger, globalPolicyRepositoryImpl, globalPolicySearchableFieldRepositoryImpl, globalPolicyHistoryServiceImpl)
 	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
 	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeWindowServiceImpl, globalPolicyDataManagerImpl, userServiceImpl, transactionUtilImpl)
 	if err != nil {

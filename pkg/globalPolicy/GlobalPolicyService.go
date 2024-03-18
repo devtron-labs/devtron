@@ -136,7 +136,7 @@ func (impl *GlobalPolicyServiceImpl) DeleteGlobalPolicy(policyId int, userId int
 		return err
 	}
 	// creating history entry
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(policyModel, bean3.HISTORY_OF_ACTION_DELETE)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(nil, policyModel, bean3.HISTORY_OF_ACTION_DELETE)
 	if err != nil {
 		impl.logger.Warnw("error in creating global policy history", "err", err, "policyId", policyId)
 	}
@@ -334,7 +334,7 @@ func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps
 		}
 
 		if len(definitionSourceDtos) != 0 {
-			//map of plugins for which consequence is more or same severe than already present, and need to be included in this policy
+			// map of plugins for which consequence is more or same severe than already present, and need to be included in this policy
 			pluginIdApplyStageMap := getPluginIdApplyStageAndPluginBlockageMaps(globalPolicyDetailDto.Definitions, consequence, mandatoryPluginBlockageMap)
 			updateMandatoryPluginDefinitionMap(pluginIdApplyStageMap, mandatoryPluginDefinitionMap, definitionSourceDtos)
 		}
@@ -607,7 +607,7 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 		historyAction = bean3.HISTORY_OF_ACTION_UPDATE
 	}
 	// creating history entry
-	err = impl.globalPolicyHistoryService.CreateHistoryEntry(globalPolicyModel, historyAction)
+	err = impl.globalPolicyHistoryService.CreateHistoryEntry(nil, globalPolicyModel, historyAction)
 	if err != nil {
 		impl.logger.Warnw("error in creating global policy history", "err", err, "policyId", globalPolicyModel.Id)
 	}

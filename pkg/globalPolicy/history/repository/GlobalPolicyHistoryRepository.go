@@ -8,7 +8,9 @@ import (
 )
 
 type GlobalPolicyHistoryRepository interface {
-	Save(model *GlobalPolicyHistory) error
+	Save(tx *pg.Tx, model *GlobalPolicyHistory) error
+	GetByIds(policyIds []int) ([]*GlobalPolicyHistory, error)
+	GetIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
 type GlobalPolicyHistoryRepositoryImpl struct {
@@ -37,11 +39,34 @@ type GlobalPolicyHistory struct {
 	sql.AuditLog
 }
 
-func (repo *GlobalPolicyHistoryRepositoryImpl) Save(model *GlobalPolicyHistory) error {
-	err := repo.dbConnection.Insert(model)
+func (repo *GlobalPolicyHistoryRepositoryImpl) Save(tx *pg.Tx, model *GlobalPolicyHistory) error {
+
+	var err error
+	if tx != nil {
+		err = tx.Insert(model)
+	} else {
+		err = repo.dbConnection.Insert(model)
+	}
 	if err != nil {
 		repo.logger.Errorw("error in saving history entry for global policy", "err", err, "globalPolicyId", model.GlobalPolicyId)
 		return err
 	}
 	return nil
+}
+
+func (repo *GlobalPolicyHistoryRepositoryImpl) GetByIds(ids []int) ([]*GlobalPolicyHistory, error) {
+	models := make([]*GlobalPolicyHistory, 0)
+	if len(ids) == 0 {
+		return models, nil
+	}
+	err := repo.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).Select()
+	return models, err
+}
+
+func (repo *GlobalPolicyHistoryRepositoryImpl) GetIdsByPolicyIds(policyIds []int) ([]int, error) {
+	ids := make([]int, 0)
+	err := repo.dbConnection.Model((*GlobalPolicyHistory)(nil)).
+		ColumnExpr("MAX(id)").
+		Where("global_policy_id IN (?)", pg.In(policyIds)).Select(&ids)
+	return ids, err
 }

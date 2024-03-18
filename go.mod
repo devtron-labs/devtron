@@ -21,7 +21,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
-	github.com/devtron-labs/authenticator v0.4.35-0.20240216091211-80e10a80ce7b
+	github.com/devtron-labs/authenticator v0.4.35-0.20240313095124-d00f3ff035b6
 	github.com/devtron-labs/common-lib v0.0.16-0.20240313144930-526c5a13fef5
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240301113626-305856902377
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
