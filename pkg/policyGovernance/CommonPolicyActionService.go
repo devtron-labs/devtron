@@ -92,6 +92,7 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 			return err
 		}
 	} else {
+		applyIdentifiersRequest.AppEnvPolicyListFilter.PolicyType = applyIdentifiersRequest.PolicyType
 		appEnvPolicyContainers, _, err := impl.ListAppEnvPolicies(&applyIdentifiersRequest.AppEnvPolicyListFilter)
 		if err != nil {
 			impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
