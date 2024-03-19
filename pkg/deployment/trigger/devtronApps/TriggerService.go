@@ -909,6 +909,9 @@ func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBlock(request 
 }
 
 func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, wfrId int) error {
+	if request.TriggerMessage == "" || request.TriggerContext.IsAutoTrigger() {
+		return nil
+	}
 	_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, resourceFilter.CdWorkflowRunner, wfrId, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerContext.ToTriggerTypeString(), request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
 	if err != nil {
 		return err
