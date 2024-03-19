@@ -62,8 +62,11 @@ func (sourceType SourceTypeStr) GetSourceType() SourceType {
 	case SOURCE_TYPE_CI:
 		return CI
 	case SOURCE_TYPE_LINKED_CI:
+		return LINKED_CI
 	case SOURCE_TYPE_JOB_CI:
+		return JOB_CI
 	case SOURCE_TYPE_LINKED_CD:
+		return LINKED_CD
 	case SOURCE_TYPE_WEBHOOK:
 		return WEBHOOK
 	case SOURCE_TYPE_CD:

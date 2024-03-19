@@ -912,7 +912,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 		Where("ci_pipeline.active=true and ci_pipeline.id = ? ", request.CiPipelineId)
 
 	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.SearchString)
+		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
@@ -930,7 +930,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 		Where("external_ci_pipeline.active=true and external_ci_pipeline.id = ? ", request.ExternalCiPipelineId)
 
 	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.SearchString)
+		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
@@ -955,7 +955,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request be
 		Where("ci_artifact.id in ( ? ) ", awaitingRequestQuery)
 
 	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.SearchString)
+		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
 	}
 	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
 

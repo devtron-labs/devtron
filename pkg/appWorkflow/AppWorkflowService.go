@@ -908,7 +908,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error) {
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindByComponentId(ciPipelineId)
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindByComponentIdForCiPipelineType(ciPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting app workflow mappings from component id", "err", err, "componentId", ciPipelineId)
 		return nil, err

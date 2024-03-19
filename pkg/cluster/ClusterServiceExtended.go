@@ -69,10 +69,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			userRepository:                   userRepository,
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
-			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-				userService: userService,
-				logger:      logger,
-			},
+			userService:                      userService,
 		},
 	}
 	go clusterServiceExt.updateClusterConnectionMap()
