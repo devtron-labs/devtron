@@ -16,7 +16,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
           description: Unique identifier of the plugin
 
       responses:
@@ -154,7 +154,7 @@ paths:
           in: query
           required: true
           schema:
-            type: string
+            type: integer
           description: The ID of the application for which global variables are retrieved.
 
       responses:
@@ -259,10 +259,10 @@ components:
             - Use `1` to update an existing plugin.
             - Use `2` to delete a plugin.
     
-           If you're opting to update an existing plugin (action `1`), 
-           please take note:
-           - Ensure that the request body parameters are accurate before updating.
-           - Your request body (payload) will discard all previous updates and be treated as final.
+            If you're opting to update an existing plugin (action `1`), 
+            please take note:
+            - Ensure that the request body parameters are accurate before updating.
+            - Your request body (payload) will discard all previous updates and be treated as final.
 
         pluginStage:
           type: string
@@ -461,7 +461,7 @@ components:
       properties:
         id:
           type: integer
-          description: The unique identifier of the plugin pipeline script.
+          description: The unique identifier of the plugin pipeline script. Even if it is skipped by the user it will automatically get created with the default value
         script:
           type: string
           description: The script associated with the plugin pipeline.
@@ -545,7 +545,7 @@ components:
       properties:
         id:
           type: integer
-          description: The unique identifier of the script path argument port mapping.
+          description: The unique identifier of the script path argument port mapping. Even if it is skipped by the user it will automatically get created with the default value
         typeOfMapping:
           type: string
           description: >
@@ -584,6 +584,7 @@ components:
           type: integer
           description: The identifier of the script associated with the mapping.
       required:
+        - id
         - typeOfMapping
         - filePathOnDisk
         - filePathOnContainer
@@ -602,14 +603,14 @@ components:
         code:
           type: string
           description: "a code for this particular error"
-        message:
+        internalMessage:
           type: string
-          description: "a message with further detail"
-
-
-
-
-
-
+          description: "Optional. a message with further detail"
+        userMessage:
+          type: string
+          description: "Optional. A message for the user"
+        userDetailsMessage:
+          type: string
+          description: "Optional. Detailed User message"
 
 
