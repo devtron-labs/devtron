@@ -266,6 +266,7 @@ components:
 
         pluginStage:
           type: string
+          enum: [ CD, CI, CI_CD]
           description: Optional. Specifies the stage of the CI/CD pipeline or both (CI/CD) where this plugin can be used.
         pluginSteps:
           type: array
