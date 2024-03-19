@@ -113,7 +113,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 			return promotionApprovalMetadata, err
 		}
 
-		sourcePipelines, err := impl.pipelineRepository.FindByIdsIn(sourcePipelineIds)
+		sourcePipelines, err := impl.pipelineRepository.FindActiveAndDeletedByIds(sourcePipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
 			return promotionApprovalMetadata, err
