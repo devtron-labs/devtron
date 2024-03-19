@@ -36,6 +36,7 @@
       * [OpenShift](user-guide/global-configurations/authorization/sso/openshift.md)
       * [Example - Okta SSO](user-guide/global-configurations/okta.md)
     * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
+    * [Active Inactive User](user-guide/global-configurations/authorization/active-inactive.md)
     * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
     * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
   * [Notifications](user-guide/global-configurations/manage-notification.md)
