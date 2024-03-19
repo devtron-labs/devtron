@@ -175,6 +175,8 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	DEVTRON_CHART_INSTALL_DURABLE:       {},
 	PANIC_ON_PROCESSING_DURABLE:         {},
 	DEVTRON_TEST_CONSUMER:               {},
+	CD_STAGE_SUCCESS_EVENT_DURABLE:      {},
+	CD_PIPELINE_DELETE_EVENT_DURABLE:    {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string
@@ -241,6 +243,20 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	defaultConsumerConfigVal := defaultConfig.GetDefaultNatsConsumerConfig()
 
 	// initialise all the consumer wise config with default values or user defined values
+	updateNatsConsumerConfigMapping(defaultConsumerConfigVal, consumerConfigMap)
+
+	// initialise all the stream wise config with default values or user defined values
+	updateNatsStreamConfigMapping(defaultStreamConfigVal, streamConfigMap)
+}
+
+func updateNatsConsumerConfigMapping(defaultConsumerConfigVal NatsConsumerConfig, consumerConfigMap map[string]NatsConsumerConfig) {
+	//iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
+	for _, natsTopic := range natsTopicMapping {
+		if _, ok := NatsConsumerWiseConfigMapping[natsTopic.consumerName]; !ok {
+			NatsConsumerWiseConfigMapping[natsTopic.consumerName] = NatsConsumerConfig{}
+		}
+	}
+	//initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		consumerConfig := defaultConsumerConfigVal
 		if _, ok := consumerConfigMap[key]; ok {
@@ -248,8 +264,9 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		}
 		NatsConsumerWiseConfigMapping[key] = consumerConfig
 	}
+}
 
-	// initialise all the consumer wise config with default values or user defined values
+func updateNatsStreamConfigMapping(defaultStreamConfigVal NatsStreamConfig, streamConfigMap map[string]NatsStreamConfig) {
 	for key, _ := range NatsStreamWiseConfigMapping {
 		streamConfig := defaultStreamConfigVal
 		if _, ok := streamConfigMap[key]; ok {
@@ -257,7 +274,6 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		}
 		NatsStreamWiseConfigMapping[key] = streamConfig
 	}
-
 }
 
 func GetNatsTopic(topicName string) NatsTopic {
