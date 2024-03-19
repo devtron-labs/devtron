@@ -258,7 +258,7 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(request.AppId, env.Id)
 		//TODO: ayush rename resource
-		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamRbac)
+		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamRbac)
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
@@ -423,7 +423,7 @@ func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environ
 	for _, obj := range teamEnvRbacObjectMap {
 		teamEnvObjectArr = append(teamEnvObjectArr, obj)
 	}
-	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamEnvObjectArr)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamEnvObjectArr)
 	for _, env := range environmentNames {
 		rbacObject := teamEnvRbacObjectMap[env]
 		isAuthorised := results[rbacObject]

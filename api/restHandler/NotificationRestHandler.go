@@ -1237,7 +1237,7 @@ func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.Response
 	}
 
 	teamEnvRbacObj := impl.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(requestClaims.AppId, 0, requestClaims.EnvName)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamEnvRbacObj); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamEnvRbacObj); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}

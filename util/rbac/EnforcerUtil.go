@@ -786,7 +786,7 @@ func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, e
 }
 
 func (impl EnforcerUtilImpl) CheckImagePromoterBulkAuth(ctx *util.RequestCtx, object []string) map[string]bool {
-	return impl.enforcer.EnforceInBatch(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromoter, object)
+	return impl.enforcer.EnforceInBatch(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromote, object)
 }
 
 func (impl EnforcerUtilImpl) GetTeamRbacObjectsByPipelineIds(cdPipelineIds []int) ([]string, map[int]string) {
