@@ -297,7 +297,7 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileWra
 		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(excludedUsers))
 	}
 
-	isSuperAdminExcluded := profiles[0].DeploymentWindowProfile.IsSuperAdminExcluded
+	isSuperAdminExcluded := true
 	for _, profile := range profiles {
 
 		if !profile.isRestricted() {
