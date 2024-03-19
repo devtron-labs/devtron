@@ -255,12 +255,13 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileAppOve
 	v := r.URL.Query()
 	appId, envIds, err := handler.getAppIdAndEnvIdsFromQueryParam(w, v)
 	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	authorizedEnvs := handler.filterAuthorizedResources(envIds, appId, token)
 	if len(authorizedEnvs) == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
@@ -285,12 +286,13 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	v := r.URL.Query()
 	appId, envIds, err := handler.getAppIdAndEnvIdsFromQueryParam(w, v)
 	if err != nil {
+		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	authorizedEnvs := handler.filterAuthorizedResources(envIds, appId, token)
 	if len(authorizedEnvs) == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
@@ -419,7 +421,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 
 	request = handler.filterAuthorizedResourcesForGroup(request, token)
 	if len(request) == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
