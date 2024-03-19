@@ -71,7 +71,7 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
-	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
+	GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	GetClusterNameRBACObjByClusterId(clusterId int) string
@@ -677,10 +677,10 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPi
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return impl.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(ciPipeline.AppId, envId, envName)
+	return impl.GetTeamEnvAppRbacObjectByAppIdEnv(ciPipeline.AppId, envId, envName)
 
 }
-func (impl EnforcerUtilImpl) GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string {
+func (impl EnforcerUtilImpl) GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId int, envName string) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
@@ -786,7 +786,7 @@ func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, e
 }
 
 func (impl EnforcerUtilImpl) CheckImagePromoterBulkAuth(ctx *util.RequestCtx, object []string) map[string]bool {
-	return impl.enforcer.EnforceInBatch(ctx.GetToken(), casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
+	return impl.enforcer.EnforceInBatch(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromoter, object)
 }
 
 func (impl EnforcerUtilImpl) GetTeamRbacObjectsByPipelineIds(cdPipelineIds []int) ([]string, map[int]string) {

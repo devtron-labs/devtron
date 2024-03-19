@@ -175,7 +175,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 		transactionManager,
 		nil,
 		requestRepo,
-		nil)
+		nil, nil, nil, nil)
 
 	return service, promotionPolicyService
 }

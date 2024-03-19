@@ -75,29 +75,32 @@ type Event struct {
 }
 
 type Payload struct {
-	AppName               string               `json:"appName"`
-	EnvName               string               `json:"envName"`
-	PipelineName          string               `json:"pipelineName"`
-	Source                string               `json:"source"`
-	DockerImageUrl        string               `json:"dockerImageUrl"`
-	TriggeredBy           string               `json:"triggeredBy"`
-	Stage                 string               `json:"stage"`
-	DeploymentHistoryLink string               `json:"deploymentHistoryLink"`
-	AppDetailLink         string               `json:"appDetailLink"`
-	DownloadLink          string               `json:"downloadLink"`
-	BuildHistoryLink      string               `json:"buildHistoryLink"`
-	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
-	ApprovedByEmail       []string             `json:"approvedByEmail"`
-	FailureReason         string               `json:"failureReason"`
-	Providers             []*Provider          `json:"providers"`
-	ImageTagNames         []string             `json:"imageTagNames"`
-	ImageComment          string               `json:"imageComment"`
-	ImageApprovalLink     string               `json:"imageApprovalLink"`
-	ProtectConfigFileType string               `json:"protectConfigFileType"`
-	ProtectConfigFileName string               `json:"protectConfigFileName"`
-	ProtectConfigComment  string               `json:"protectConfigComment"`
-	ProtectConfigLink     string               `json:"protectConfigLink"`
-	ApprovalLink          string               `json:"approvalLink"`
+	AppName                          string               `json:"appName"`
+	EnvName                          string               `json:"envName"`
+	PipelineName                     string               `json:"pipelineName"`
+	Source                           string               `json:"source"`
+	DockerImageUrl                   string               `json:"dockerImageUrl"`
+	TriggeredBy                      string               `json:"triggeredBy"`
+	Stage                            string               `json:"stage"`
+	DeploymentHistoryLink            string               `json:"deploymentHistoryLink"`
+	AppDetailLink                    string               `json:"appDetailLink"`
+	DownloadLink                     string               `json:"downloadLink"`
+	BuildHistoryLink                 string               `json:"buildHistoryLink"`
+	MaterialTriggerInfo              *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail                  []string             `json:"approvedByEmail"`
+	FailureReason                    string               `json:"failureReason"`
+	Providers                        []*Provider          `json:"providers"`
+	ImageTagNames                    []string             `json:"imageTagNames"`
+	ImageComment                     string               `json:"imageComment"`
+	ImageApprovalLink                string               `json:"imageApprovalLink"`
+	ProtectConfigFileType            string               `json:"protectConfigFileType"`
+	ProtectConfigFileName            string               `json:"protectConfigFileName"`
+	ProtectConfigComment             string               `json:"protectConfigComment"`
+	ProtectConfigLink                string               `json:"protectConfigLink"`
+	ApprovalLink                     string               `json:"approvalLink"`
+	ArtifactPromotionRequestViewLink string               `json:"artifactPromotionRequestViewLink"`
+	ArtifactPromotionApprovalLink    string               `json:"artifactPromotionApprovalLink"`
+	PromotionArtifactSource          string               `json:"promotionArtifactSource"`
 }
 
 type CiPipelineMaterialResponse struct {

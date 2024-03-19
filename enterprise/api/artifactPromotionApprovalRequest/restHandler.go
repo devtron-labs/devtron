@@ -220,7 +220,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -258,7 +258,7 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(request.AppId, env.Id)
 		//TODO: ayush rename resource
-		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
+		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamRbac)
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
@@ -423,7 +423,7 @@ func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environ
 	for _, obj := range teamEnvRbacObjectMap {
 		teamEnvObjectArr = append(teamEnvObjectArr, obj)
 	}
-	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamEnvObjectArr)
 	for _, env := range environmentNames {
 		rbacObject := teamEnvRbacObjectMap[env]
 		isAuthorised := results[rbacObject]

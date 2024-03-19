@@ -68,9 +68,7 @@ type AppArtifactManager interface {
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
 
-	GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error)
-	//FetchMaterialForArtifactPromotion fetch artifacts for promotion approval node
-	FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest) (bean2.CiArtifactResponse, error)
+	FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) (bean2.CiArtifactResponse, error)
 }
 
 type AppArtifactManagerImpl struct {
@@ -1551,27 +1549,7 @@ func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repositor
 	return filterState
 }
 
-func (impl *AppArtifactManagerImpl) GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error) {
-	var imageTagNames []string
-	imageComment, err := impl.imageTaggingRepository.GetImageComment(artifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
-		return imageComment, imageTagNames, nil
-	}
-	imageTags, err := impl.imageTaggingRepository.GetTagsByArtifactId(artifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
-		return imageComment, imageTagNames, nil
-	}
-	if imageTags != nil && len(imageTags) != 0 {
-		for _, tag := range imageTags {
-			imageTagNames = append(imageTagNames, tag.TagName)
-		}
-	}
-	return imageComment, imageTagNames, nil
-}
-
-func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2.RequestCtx, request bean4.PromotionMaterialRequest, imagePromoterAuth func(*util2.RequestCtx, []string) map[string]bool) (bean2.CiArtifactResponse, error) {
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 

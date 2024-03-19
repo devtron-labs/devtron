@@ -316,9 +316,11 @@ type RequestMetaData struct {
 	activeAuthorisedEnvIds      []int
 	sourceMetaData              *SourceMetaData
 	appId                       int
-
-	ciArtifactId int
-	ciArtifact   *repository.CiArtifact
+	workflowId                  int
+	imageTags                   []string
+	imageComment                string
+	ciArtifactId                int
+	ciArtifact                  *repository.CiArtifact
 }
 
 func (r *RequestMetaData) GetDefaultEnvironmentPromotionMetaDataResponseMap() map[string]EnvironmentPromotionMetaData {
@@ -357,6 +359,11 @@ func (r *RequestMetaData) WithAppId(appId int) *RequestMetaData {
 	return r
 }
 
+func (r *RequestMetaData) WithWorkflowId(workflowId int) *RequestMetaData {
+	r.workflowId = workflowId
+	return r
+}
+
 func (r *RequestMetaData) WithPromotableEnvs(promotableEnvs []string) *RequestMetaData {
 	r.destinationPipelineMetaData.promotableEnvs = promotableEnvs
 	promotablePipelineIds := make([]int, 0, len(promotableEnvs))
@@ -369,6 +376,24 @@ func (r *RequestMetaData) WithPromotableEnvs(promotableEnvs []string) *RequestMe
 
 func (r *RequestMetaData) SetSourceMetaData(sourceMetaData *SourceMetaData) {
 	r.sourceMetaData = sourceMetaData
+}
+
+func (r *RequestMetaData) WithImageTags(imageTags []string) *RequestMetaData {
+	r.imageTags = imageTags
+	return r
+}
+
+func (r *RequestMetaData) WithImageComment(imageComment string) *RequestMetaData {
+	r.imageComment = imageComment
+	return r
+}
+
+func (r *RequestMetaData) GetImageTags() []string {
+	return r.imageTags
+}
+
+func (r *RequestMetaData) GetImageComment() string {
+	return r.imageComment
 }
 
 func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelines []*pipelineConfig.Pipeline) {

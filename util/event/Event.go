@@ -20,11 +20,12 @@ package util
 type EventType int
 
 const (
-	Trigger EventType = iota + 1
-	Success
-	Fail
-	Approval
-	ConfigApproval
+	Trigger                   EventType = 1
+	Success                   EventType = 2
+	Fail                      EventType = 3
+	Approval                  EventType = 4
+	ConfigApproval            EventType = 5
+	ArtifactPromotionApproval EventType = 6
 )
 
 type PipelineType string
