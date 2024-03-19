@@ -396,6 +396,7 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 func (impl DeploymentWindowServiceImpl) evaluateCombinedProfiles(profileStates []ProfileWrapper, profileType DeploymentWindowType) ([]ProfileWrapper, bool, bool, error) {
 
 	filteredProfiles := impl.filterForType(profileStates, profileType)
+	filteredProfiles = impl.filterRestricted(filteredProfiles)
 	allActive := true
 	oneActive := false
 	for _, profile := range filteredProfiles {
@@ -408,6 +409,16 @@ func (impl DeploymentWindowServiceImpl) evaluateCombinedProfiles(profileStates [
 		}
 	}
 	return filteredProfiles, allActive, oneActive, nil
+}
+
+func (impl DeploymentWindowServiceImpl) filterRestricted(profiles []ProfileWrapper) []ProfileWrapper {
+	filteredProfiles := make([]ProfileWrapper, 0)
+	for _, profileWrapper := range profiles {
+		if profileWrapper.isRestricted() {
+			filteredProfiles = append(filteredProfiles, profileWrapper)
+		}
+	}
+	return filteredProfiles
 }
 
 func (impl DeploymentWindowServiceImpl) filterForType(profiles []ProfileWrapper, profileType DeploymentWindowType) []ProfileWrapper {
