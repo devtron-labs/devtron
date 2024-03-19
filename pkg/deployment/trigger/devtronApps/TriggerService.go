@@ -479,6 +479,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		if err != nil {
 			return 0, "", err
 		}
+		overrideRequest.TriggerMetadata = triggerRequest.TriggerMessage
 
 		cdWorkflowId := cdWf.CdWorkflowId
 		if cdWf.CdWorkflowId == 0 {
@@ -1635,6 +1636,7 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 	if err != nil {
 		impl.logger.Errorw("could not get wf runner", "err", err)
 	}
+	wfr.TriggerMetadata = overrideRequest.TriggerMetadata
 	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {

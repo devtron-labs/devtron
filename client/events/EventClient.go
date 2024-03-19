@@ -38,7 +38,7 @@ import (
 )
 
 type EventClientConfig struct {
-	DestinationURL string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
+	DestinationURL string `env:"EVENT_URL" envDefault:"http://192.168.0.79:3000/notify"`
 }
 
 func GetEventClientConfig() (*EventClientConfig, error) {
