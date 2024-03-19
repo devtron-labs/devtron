@@ -34,6 +34,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
@@ -60,6 +61,7 @@ type WorkflowEventProcessorImpl struct {
 	validator               *validator.Validate
 	globalEnvVariables      *util2.GlobalEnvVariables
 	cdWorkflowCommonService cd.CdWorkflowCommonService
+	cdPipelineConfigService pipeline.CdPipelineConfigService
 
 	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
 	devtronAppReleaseContextMapLock *sync.Mutex
@@ -85,6 +87,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
+	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) (*WorkflowEventProcessorImpl, error) {
@@ -105,6 +108,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		validator:                       validator,
 		globalEnvVariables:              globalEnvVariables,
 		cdWorkflowCommonService:         cdWorkflowCommonService,
+		cdPipelineConfigService:         cdPipelineConfigService,
 		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
 		devtronAppReleaseContextMapLock: &sync.Mutex{},
 		pipelineRepository:              pipelineRepository,
@@ -669,7 +673,16 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 	cdWfrId := overrideRequest.WfrId
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
 	if err != nil {
-		impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
+		impl.logger.Errorw("err on fetching cd workflow runner, handleConcurrentOrInvalidRequest", "err", err, "cdWfrId", cdWfrId)
+		return toSkipProcess, err
+	}
+	pipelineObj, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err on fetching pipeline, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
+		return toSkipProcess, err
+	} else if err != pg.ErrNoRows || pipelineObj == nil || pipelineObj.Id == 0 {
+		impl.logger.Warnw("invalid request received pipeline not active, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
+		toSkipProcess = true
 		return toSkipProcess, err
 	}
 	impl.devtronAppReleaseContextMapLock.Lock()
@@ -685,7 +698,7 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 			// skip if the cdWfr.Status is already in a terminal state
 			skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
 			if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
-				impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfrId, "status", cdWfr.Status)
+				impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, handleConcurrentOrInvalidRequest", "cdWfrId", cdWfrId, "status", cdWfr.Status)
 				toSkipProcess = true
 				return toSkipProcess, nil
 			}
@@ -698,7 +711,7 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfrId)
 				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId)
 				if err != nil {
-					impl.logger.Errorw("error while updating current runner status to failed, processDevtronAsyncHelmInstallRequest", "cdWfr", cdWfrId, "err", err)
+					impl.logger.Errorw("error while updating current runner status to failed, handleConcurrentOrInvalidRequest", "cdWfr", cdWfrId, "err", err)
 					return toSkipProcess, err
 				}
 				toSkipProcess = true
@@ -777,8 +790,18 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error while unmarshalling cdPipelineDeleteEvent object", "err", err, "msg", msg.Data)
 			return
 		}
+		pipeline, err := impl.pipelineRepository.FindByIdEvenIfInactive(cdPipelineDeleteEvent.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
+			return
+		}
 		impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
-
+		//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+		//trying to delete deployment app once
+		err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+		}
 	}
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
