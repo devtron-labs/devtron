@@ -3,6 +3,7 @@ package deploymentWindow
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -255,7 +256,10 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileAppOve
 	v := r.URL.Query()
 	appId, envIds, err := handler.getAppIdAndEnvIdsFromQueryParam(w, v)
 	if err != nil {
-		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	err = handler.validateAppAndEnvs(w, appId, envIds)
+	if err != nil {
 		return
 	}
 
@@ -287,6 +291,10 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	appId, envIds, err := handler.getAppIdAndEnvIdsFromQueryParam(w, v)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	err = handler.validateAppAndEnvs(w, appId, envIds)
+	if err != nil {
 		return
 	}
 
@@ -366,6 +374,19 @@ func (handler *DeploymentWindowRestHandlerImpl) getFilterDays(w http.ResponseWri
 	return days, err
 }
 
+func (handler *DeploymentWindowRestHandlerImpl) validateAppAndEnvs(w http.ResponseWriter, appId int, envIds []int) error {
+	var err error
+	if appId == 0 {
+		err = fmt.Errorf("app not provided")
+		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
+	}
+	if len(envIds) == 0 {
+		err = fmt.Errorf("no environment found")
+		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
+	}
+	return err
+}
+
 func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(w http.ResponseWriter, v url.Values) (int, []int, error) {
 	appId, err := strconv.Atoi(v.Get("appId"))
 	if err != nil {
@@ -384,6 +405,7 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 	envIds, err := util2.SplitCommaSeparatedIntValues(envIdsString)
 	if err != nil {
 		common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+		return 0, nil, err
 	}
 	return appId, envIds, nil
 }
