@@ -206,8 +206,8 @@ func GetSourceCiDownStreamResponse(linkedCIDetails []bean.LinkedCIDetails, lates
 			if status, ok := cdWfrStatusMap[item.PipelineId]; ok {
 				linkedCIDetailsRes.DeploymentStatus = status
 			}
-			response = append(response, linkedCIDetailsRes)
 		}
+		response = append(response, linkedCIDetailsRes)
 	}
 	return response
 }
