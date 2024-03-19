@@ -158,3 +158,4 @@ const NoApprovePermissionOnEnvsErr = "user do not have access to approve on the 
 const SameSourceAndDestinationErr = "source and the destination cannot be same"
 const WorkflowNotFoundErr = "workflow not found"
 const PolicyNotFoundErr = "policy not found"
+const PromotionRequestStale = "request is no longer valid as the policy is no longer governing this pipeline or the pipeline was deleted on which this request was raised, state: stale"
