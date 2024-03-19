@@ -130,6 +130,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		return err
 	}
 
+	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+
 	if filterEvaluationAudit != nil {
 		// update resource_filter_evaluation entry with wfrId and type
 		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)

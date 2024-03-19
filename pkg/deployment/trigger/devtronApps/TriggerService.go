@@ -319,11 +319,10 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
 	if request.TriggerContext.IsAutoTrigger() {
 		go impl.writeBlockedTriggerEvent(request)
-	}
-
-	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)
-	if err != nil {
-		return fmt.Errorf("audit data entry for blocked trigger failed %v %v", request, err)
+		err := impl.createAuditDataForDeploymentWindowBlock(request, stage)
+		if err != nil {
+			return fmt.Errorf("audit data entry for blocked trigger failed %v %v", request, err)
+		}
 	}
 	return nil
 }
@@ -518,6 +517,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", err
 		}
+		impl.createAuditDataForDeploymentWindowBypass(triggerRequest, savedWfr.Id)
 
 		if filterEvaluationAudit != nil {
 			// update resource_filter_evaluation entry with wfrId and type
@@ -774,6 +774,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	if err != nil {
 		return err
 	}
+	impl.createAuditDataForDeploymentWindowBypass(request, savedWfr.Id)
 
 	if filterEvaluationAudit != nil {
 		// update resource_filter_evaluation entry with wfrId and type
@@ -899,12 +900,18 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
-	if request.TriggerMessage != "" {
-		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerContext.ToTriggerTypeString(), request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
-		if err != nil {
-			return err
-		}
+func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBlock(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
+	_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerContext.ToTriggerTypeString(), request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, wfrId int) error {
+	_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, resourceFilter.CdWorkflowRunner, wfrId, request.DeploymentWindowState.GetSerializedAuditData(request.TriggerContext.ToTriggerTypeString(), request.TriggerMessage), resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return err
 	}
 	return nil
 }

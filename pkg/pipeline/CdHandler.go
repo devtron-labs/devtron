@@ -697,7 +697,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	var triggerMetadata string
 	// Currently storing deployment window related info here,
 	//in future it could be expanded to hold more details
-	triggerMetadata, err = impl.getDeploymentWindowAuditMessage(workflow.CiArtifactId, pipelineId, workflowR.WorkflowType)
+	triggerMetadata, err = impl.getDeploymentWindowAuditMessage(workflow.CiArtifactId, workflowR.Id)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching DeploymentWindowAuditMessage", "cdWorkflowRunnerId", workflowR.Id, "err", err)
 	}
@@ -1284,10 +1284,9 @@ func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathRes
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
 }
 
-func (impl *CdHandlerImpl) getDeploymentWindowAuditMessage(artifactId int, pipelineId int, stage bean.WorkflowType) (string, error) {
+func (impl *CdHandlerImpl) getDeploymentWindowAuditMessage(artifactId int, wfrId int) (string, error) {
 
-	referenceType := getResourceTypeForWorkflowType(stage)
-	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, pipelineId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.CdWorkflowRunner, wfrId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
 	if err != nil {
 		return "", err
 	}
