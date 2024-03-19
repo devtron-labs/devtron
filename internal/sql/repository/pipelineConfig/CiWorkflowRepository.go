@@ -48,8 +48,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
-	FindAllLastGitTriggeredWorkflowByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error)
-	FindAllLastGirTriggeredWorkflowByArtifactId(ciArtifactId int) (CiWorkflow *ArtifactAndGitCommitMapping, err error)
+	FindGitTriggersByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -295,7 +294,11 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindAllLastGitTriggeredWorkflowByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error) {
+func (impl *CiWorkflowRepositoryImpl) FindGitTriggersByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error) {
+	if ciArtifactIds == nil || len(ciArtifactIds) == 0 {
+		// If ciArtifactIds is nil or empty, return an empty slice and nil error
+		return []*ArtifactAndGitCommitMapping{}, err
+	}
 	var workflows []*ArtifactAndGitCommitMapping
 	err = impl.dbConnection.Model().
 		Table("ci_workflow").
@@ -305,23 +308,9 @@ func (impl *CiWorkflowRepositoryImpl) FindAllLastGitTriggeredWorkflowByArtifactI
 		Where("cia.id in (?) ", pg.In(ciArtifactIds)).
 		Select(&workflows)
 
-	return workflows, err
+	return workflows, nil
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindAllLastGirTriggeredWorkflowByArtifactId(ciArtifactId int) (artifactWithGitMaps *ArtifactAndGitCommitMapping, err error) {
-	var artifactWithGitCommits *ArtifactAndGitCommitMapping
-	err = impl.dbConnection.Model().
-		Table("ci_workflow").
-		Column("ci_workflow.git_triggers").
-		ColumnExpr("cia.id as artifact_id").
-		Join("INNER JOIN ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
-		Where("cia.id in (?) ", pg.In(ciArtifactId)).
-		Select(&artifactWithGitCommits)
-
-	return artifactWithGitCommits, err
-}
-
-// For geeting the multiple workflow containing the last triggered workflow for each provided artifact id
 func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflows).
 		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").

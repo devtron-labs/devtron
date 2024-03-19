@@ -90,11 +90,6 @@ type AppListingRepositoryImpl struct {
 	gitOpsRepository                 GitOpsConfigRepository
 }
 
-type CiWorkflowRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
-}
-
 func NewAppListingRepositoryImpl(
 	Logger *zap.SugaredLogger,
 	dbConnection *pg.DB,

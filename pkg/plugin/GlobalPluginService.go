@@ -1344,35 +1344,6 @@ func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, plug
 	} else {
 		return nil, nil, pluginStepUpdateReq
 	}
-
-	//newPluginStepsToCreate := make([]*PluginStepsDto, 0)
-	//pluginStepsToRemove := make([]*PluginStepsDto, 0)
-	//pluginStepsToUpdate := make([]*PluginStepsDto, 0)
-	//
-	//existingPluginStepsMap := make(map[int]bool)
-	//
-	//for _, existingPluginStepInDb := range existingPluginStepsInDb {
-	//	existingPluginStepsMap[existingPluginStepInDb.Id] = false
-	//}
-	//
-	//if len(pluginStepUpdateReq) > 0 {
-	//	for _, pluginStepReq := range pluginStepUpdateReq {
-	//		if _, exists := existingPluginStepsMap[pluginStepReq.Id]; exists {
-	//			pluginStepsToUpdate = append(pluginStepsToUpdate, pluginStepReq)
-	//			existingPluginStepsMap[pluginStepReq.Id] = true
-	//
-	//		} else {
-	//			newPluginStepsToCreate = append(newPluginStepsToCreate, pluginStepReq)
-	//		}
-	//	}
-	//}
-	//
-	//for existingPluginStepId, updated := range existingPluginStepsMap {
-	//	if !updated {
-	//		pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStepId})
-	//	}
-	//}
-
 	return newPluginStepsToCreate, pluginStepsToRemove, pluginStepsToUpdate
 }
 
