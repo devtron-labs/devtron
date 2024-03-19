@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	repository17 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
@@ -1121,9 +1120,13 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 				Context: context.Background(),
 			},
 		}
-		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
+		err := impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
+		if err != nil {
+			impl.logger.Errorw("auto trigger error on artifact promotion", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId(), "err", err)
+		}
 	} else if promotionRequest.Status == constants.AWAITING_APPROVAL {
-		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.Value("userId").(int32))
+		impl.logger.Errorw("sending email notification for artifact promotion request", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
+		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetUserId())
 	}
 	return status, nil
 
@@ -1135,15 +1138,13 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 
 	pipeline := pipelineIdToDapMapping[pipelineId]
 
-	eventType := util2.ArtifactPromotionApproval
-	event := impl.eventFactory.Build(eventType, nil, pipeline.AppId, &pipeline.EnvironmentId, "")
+	event := impl.eventFactory.Build(util2.ArtifactPromotionApproval, nil, pipeline.AppId, &pipeline.EnvironmentId, "")
 
 	artifactPromotionNotificationRequest, err := impl.buildArtifactPromotionNotificationRequest(pipeline, metadata, userId)
 	if err != nil {
 		impl.logger.Errorw("error in building artifact promotion notification request", "pipelineId", pipeline.Id, "err", err)
 		return
 	}
-
 	events := impl.eventFactory.BuildExtraArtifactPromotionData(event, artifactPromotionNotificationRequest)
 	for _, evnt := range events {
 		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
@@ -1157,40 +1158,42 @@ func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationReques
 
 	team, err := impl.teamService.FetchOne(pipeline.App.TeamId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.App.TeamId)
+		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.App.TeamId, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
 
 	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.Name, team.Name, bean5.ArtifactPromoter)
 	if err != nil {
-		impl.logger.Errorw("error in finding image promoter access emails", "err", err)
+		impl.logger.Errorw("error in finding image promoter access emails", "appName", pipeline.App.AppName, "envName", pipeline.Environment.Name, "team", team.Name, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
+
 	artifactId := metadata.GetCiArtifactId()
+
 	imageComment, imageTagNames, err := impl.imageTaggingService.GetImageTagsAndComment(artifactId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching tags and comment", "artifactId", artifactId)
+		impl.logger.Errorw("error in fetching tags and comment", "artifactId", artifactId, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
-	ciSourceDetails := metadata.GetSourceTypeStr()
+	metadata = metadata.WithImageComment(imageComment.Comment).WithImageTags(imageTagNames)
 
-	artifactPromotionNotificationRequest := parseArtifactPromotionRequest(pipeline, metadata, userId, artifactId, imageTagNames, imageComment, ciSourceDetails, imagePromoterEmails)
+	artifactPromotionNotificationRequest := parseArtifactPromotionRequest(pipeline, metadata, imagePromoterEmails, userId)
 
 	return artifactPromotionNotificationRequest, nil
 }
 
-func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, userId int32, artifactId int, imageTagNames []string, imageComment repository17.ImageComment, ciSourceDetails constants.SourceTypeStr, imagePromoterEmails []string) client.ArtifactPromotionNotificationRequest {
+func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, imagePromoterEmails []string, userId int32) client.ArtifactPromotionNotificationRequest {
 	artifactPromotionNotificationRequest := client.ArtifactPromotionNotificationRequest{
 		CDPipelineId:            pipeline.Id,
 		AppId:                   pipeline.AppId,
 		AppName:                 pipeline.App.AppName,
 		EnvId:                   pipeline.EnvironmentId,
 		EnvName:                 pipeline.Environment.Name,
-		ArtifactId:              artifactId,
+		ArtifactId:              metadata.GetCiArtifactId(),
 		UserId:                  userId,
-		ImageTags:               imageTagNames,
-		ImageComment:            imageComment.Comment,
-		ArtifactPromotionSource: string(ciSourceDetails),
+		ImageTags:               metadata.GetImageTags(),
+		ImageComment:            metadata.GetImageComment(),
+		ArtifactPromotionSource: string(metadata.GetSourceTypeStr()),
 		PromoterAccessEmailIds:  imagePromoterEmails,
 		WorkflowId:              metadata.GetWorkflowId(),
 	}

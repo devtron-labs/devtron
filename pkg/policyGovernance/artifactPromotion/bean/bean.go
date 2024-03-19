@@ -317,9 +317,10 @@ type RequestMetaData struct {
 	sourceMetaData              *SourceMetaData
 	appId                       int
 	workflowId                  int
-
-	ciArtifactId int
-	ciArtifact   *repository.CiArtifact
+	imageTags                   []string
+	imageComment                string
+	ciArtifactId                int
+	ciArtifact                  *repository.CiArtifact
 }
 
 func (r *RequestMetaData) GetDefaultEnvironmentPromotionMetaDataResponseMap() map[string]EnvironmentPromotionMetaData {
@@ -375,6 +376,24 @@ func (r *RequestMetaData) WithPromotableEnvs(promotableEnvs []string) *RequestMe
 
 func (r *RequestMetaData) SetSourceMetaData(sourceMetaData *SourceMetaData) {
 	r.sourceMetaData = sourceMetaData
+}
+
+func (r *RequestMetaData) WithImageTags(imageTags []string) *RequestMetaData {
+	r.imageTags = imageTags
+	return r
+}
+
+func (r *RequestMetaData) WithImageComment(imageComment string) *RequestMetaData {
+	r.imageComment = imageComment
+	return r
+}
+
+func (r *RequestMetaData) GetImageTags() []string {
+	return r.imageTags
+}
+
+func (r *RequestMetaData) GetImageComment() string {
+	return r.imageComment
 }
 
 func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelines []*pipelineConfig.Pipeline) {

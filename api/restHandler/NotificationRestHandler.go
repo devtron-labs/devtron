@@ -1222,6 +1222,7 @@ func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w
 }
 
 func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.ResponseWriter, r *http.Request) {
+
 	token := r.Header.Get(middleware.ApiTokenHeaderKey)
 	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
 	if err != nil {
@@ -1235,8 +1236,8 @@ func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.Response
 		return
 	}
 
-	teamEnvRbacObj := impl.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(requestClaims.AppId, 0, requestClaims.EnvName)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvRbacObj); !ok {
+	teamEnvRbacObj := impl.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(requestClaims.AppId, 0, requestClaims.EnvName)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceArtifact, casbin.ActionArtifactPromoter, teamEnvRbacObj); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}

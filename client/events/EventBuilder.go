@@ -444,30 +444,31 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event {
+
 	var events []Event
+
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
+
 	if request.UserId == 0 {
 		return events
 	}
+
 	user, err := impl.userRepository.GetById(request.UserId)
 	if err != nil {
 		impl.logger.Errorw("found error on getting user data ", "userId", request.UserId)
 	}
-	payload := &Payload{}
-	payload.ImageComment = request.ImageComment
-	payload.ImageTagNames = request.ImageTags
-	ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
-	if err != nil {
-		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
-		return events
+
+	payload := &Payload{
+		ImageComment:                     request.ImageComment,
+		ImageTagNames:                    request.ImageTags,
+		AppName:                          request.AppName,
+		EnvName:                          request.EnvName,
+		PromotionArtifactSource:          request.ArtifactPromotionSource,
+		ArtifactPromotionRequestViewLink: fmt.Sprintf(ArtifactPromotionRequestViewLink, event.AppId, request.WorkflowId, request.EnvName),
 	}
-	payload.AppName = request.AppName
-	payload.EnvName = request.EnvName
-	payload.PromotionArtifactSource = request.ArtifactPromotionSource
-	payload.ArtifactPromotionRequestViewLink = fmt.Sprintf(ArtifactPromotionRequestViewLink, event.AppId, request.WorkflowId, request.EnvName)
 
 	for _, email := range request.PromoterAccessEmailIds {
 		newPayload := *payload
