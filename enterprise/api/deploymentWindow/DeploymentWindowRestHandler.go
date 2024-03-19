@@ -165,6 +165,7 @@ func (handler *DeploymentWindowRestHandlerImpl) DeleteDeploymentWindowProfile(w 
 			return
 		}
 		common.WriteJsonResp(w, err, "", http.StatusOK)
+		return
 	}
 
 	id, err := strconv.Atoi(v.Get("profileId"))
@@ -207,6 +208,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfile(w htt
 			return
 		}
 		common.WriteJsonResp(w, err, response, http.StatusOK)
+		return
 	}
 
 	id, err := strconv.Atoi(v.Get("profileId"))
