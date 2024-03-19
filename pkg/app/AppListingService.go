@@ -72,8 +72,6 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	//ArtifactToGitTriggers(artifactWithGitCommit *pipelineConfig.ArtifactAndGitCommitMapping) (gitCommits []string, err error)
-	//FetchCiArtifactToGitTriggersMap(artifacts []*CiArtifactWithParentArtifact) (CiArtifactAndGitCommitsMap []pipelineConfig.ArtifactAndGitCommitMapping, err error)
 	FetchCiArtifactToGitTriggersMap(artifacts []*CiArtifactWithParentArtifact) (CiArtifactAndGitCommitsMap map[int][]string, err error)
 }
 
@@ -253,39 +251,6 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
-
-		//artifactdetails = append(artifactdetails, &CiArtifactWithParentArtifact{
-		//	lastDeployed.ParentCiArtifact, lastDeployed.CiArtifactId,
-		//})
-		//environment containers
-		//var artifactWithGitCommit *pipelineConfig.ArtifactAndGitCommitMapping
-		//if lastDeployed.ParentCiArtifact > 0 {
-		//	artifactWithGitCommit, err = impl.ciWorkflowRepository.FindAllLastGirTriggeredWorkflowByArtifactId(lastDeployed.ParentCiArtifact)
-		//	if err != nil {
-		//		impl.Logger.Errorw("failed to fetch the git commits of the last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
-		//		return resp, err
-		//	}
-		//	//if err == pg.ErrNoRows{
-		//	//	impl.Logger.Errorw("No rows found for the given deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
-		//	//
-		//	//}
-		//	artifactWithGitCommit.ArtifactId = lastDeployed.CiArtifactId
-		//
-		//} else {
-		//	artifactWithGitCommit, err = impl.ciWorkflowRepository.FindAllLastGirTriggeredWorkflowByArtifactId(lastDeployed.CiArtifactId)
-		//	if err != nil {
-		//		impl.Logger.Errorw("failed to fetch the git commits of the last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
-		//		return resp, err
-		//	}
-		//	//if err == pg.ErrNoRows{
-		//	//	impl.Logger.Errorw("No rows found for the given deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
-		//	//
-		//	//}
-		//}
-
-		//var gitCommits []string
-
-		//gitCommits, err = impl.ArtifactToGitTriggers(artifactWithGitCommit)
 
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
