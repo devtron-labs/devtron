@@ -208,8 +208,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		//TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			DeployStageType:            bean2.CD_WORKFLOW_TYPE_POST,
 			CdWorkflowId:               runner.CdWorkflowId,
 			PipelineId:                 pipeline.CiPipelineId,
 			PluginRegistryImageDetails: nil,

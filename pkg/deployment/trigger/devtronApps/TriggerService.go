@@ -549,9 +549,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 					impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 					return 0, "", err
 				}
-				fmt.Println(pipelineOverride)
-				//TODO: update
 				cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+					DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 					PipelineOverride: pipelineOverride,
 				}
 				go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
@@ -815,9 +814,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 			return err
 		}
-		fmt.Println(pipelineOverride)
-		//TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 			PipelineOverride: pipelineOverride,
 		}
 		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
