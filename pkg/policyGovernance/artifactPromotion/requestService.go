@@ -705,7 +705,7 @@ func (impl *ApprovalRequestServiceImpl) filterValidAndStaleRequests(promotionReq
 
 			// also set the response messages
 			resp.PromotionPossible = false
-			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline or the pipeline was deleted on which this request was raised, state: stale"
+			resp.PromotionValidationMessage = constants.PromotionRequestStale
 		} else if promotionRequest.Status != constants.AWAITING_APPROVAL {
 			resp.PromotionValidationMessage = constants.PromotionValidationMsg(fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status()))
 		}
