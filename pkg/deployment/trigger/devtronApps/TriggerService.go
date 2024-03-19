@@ -336,11 +336,11 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(envState)
 	triggerRequest.DeploymentWindowState = envState
+	err = impl.handleBlockedTrigger(triggerRequest, stage)
+	if err != nil {
+		return triggerRequest, err
+	}
 	if !isDeploymentAllowed(triggerRequest, actionState) {
-		err := impl.handleBlockedTrigger(triggerRequest, stage)
-		if err != nil {
-			return triggerRequest, err
-		}
 		return triggerRequest, deploymentWindow.GetActionBlockedError(triggerRequest.TriggerMessage)
 	}
 	return triggerRequest, nil
