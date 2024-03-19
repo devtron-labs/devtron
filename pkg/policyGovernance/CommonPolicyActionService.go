@@ -111,6 +111,7 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 						EnvironmentName: appEnvPolicyContainer.EnvName,
 					},
 				})
+				scopeMap[key] = true
 			}
 		}
 	}
