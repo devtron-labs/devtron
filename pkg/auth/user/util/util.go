@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	"strings"
 )
 
@@ -33,4 +34,10 @@ func CheckIfAdminOrApiToken(email string) bool {
 		return true
 	}
 	return false
+}
+
+func GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string {
+	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.Environment,
+		roleFilter.EntityName, roleFilter.Action, roleFilter.AccessType, roleFilter.Approver, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
+	return key
 }
