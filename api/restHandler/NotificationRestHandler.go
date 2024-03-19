@@ -34,8 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
@@ -1244,17 +1242,10 @@ func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.Response
 	authorizedEnvironments := make(map[string]bool)
 	authorizedEnvironments[requestClaims.EnvName] = true
 
-	artifactPromotionApprovalRequest := &bean.ArtifactPromotionRequest{
-		Action:           constants.ACTION_APPROVE,
-		ArtifactId:       requestClaims.ArtifactId,
-		AppId:            requestClaims.AppId,
-		EnvironmentNames: []string{requestClaims.EnvName},
-		WorkflowId:       requestClaims.WorkflowId,
-	}
 	ctx := util2.NewRequestCtx(r.Context())
-	res, err := impl.approvalRequestService.HandleArtifactPromotionRequest(ctx, artifactPromotionApprovalRequest, authorizedEnvironments)
+	res, err := impl.notificationService.ApprovePromotionRequestAndGetMetadata(ctx, requestClaims, authorizedEnvironments)
 	if err != nil {
-		impl.logger.Errorw("error in handling promotion artifact request", "promotionRequest", artifactPromotionApprovalRequest, "err", err)
+		impl.logger.Errorw("error in handling promotion artifact request", "appId", requestClaims.AppId, "envId", requestClaims.EnvId, "artifactId", requestClaims.ArtifactId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

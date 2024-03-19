@@ -1193,6 +1193,7 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 		UserId:                  userId,
 		ImageTags:               metadata.GetImageTags(),
 		ImageComment:            metadata.GetImageComment(),
+		ImagePath:               metadata.GetCiArtifact().Image,
 		ArtifactPromotionSource: string(metadata.GetSourceTypeStr()),
 		PromoterAccessEmailIds:  imagePromoterEmails,
 		WorkflowId:              metadata.GetWorkflowId(),

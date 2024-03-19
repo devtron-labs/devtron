@@ -140,6 +140,7 @@ type ArtifactPromotionNotificationRequest struct {
 	EnvName                 string
 	ArtifactId              int
 	UserId                  int32
+	ImagePath               string
 	ImageTags               []string
 	ImageComment            string
 	PromoterAccessEmailIds  []string
@@ -488,11 +489,17 @@ func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event,
 
 func (impl *EventSimpleFactoryImpl) getArtifactPromotionApprovalLink(request ArtifactPromotionNotificationRequest, user *repository.UserModel, email string) (string, error) {
 	tokenCustomClaimsForNotification := &apiToken.ArtifactPromotionApprovalNotificationClaims{
-		AppId:      request.AppId,
-		EnvName:    request.EnvName,
-		ArtifactId: request.ArtifactId,
-		WorkflowId: request.WorkflowId,
-		UserId:     user.Id,
+		AppId:               request.AppId,
+		AppName:             request.AppName,
+		EnvName:             request.EnvName,
+		ArtifactId:          request.ArtifactId,
+		UserId:              user.Id,
+		EnvId:               request.EnvId,
+		WorkflowId:          request.WorkflowId,
+		ImageTags:           request.ImageTags,
+		ImageComment:        request.ImageComment,
+		PromotionSourceType: request.ArtifactPromotionSource,
+		Image:               request.ImagePath,
 		ApiTokenCustomClaims: apiToken.ApiTokenCustomClaims{
 			Email: email,
 		},

@@ -29,8 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-
+	util3 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
@@ -53,6 +55,7 @@ type NotificationConfigService interface {
 	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
 	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
 	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
+	ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -74,7 +77,7 @@ type NotificationConfigServiceImpl struct {
 	ciArtifactRepository           repository.CiArtifactRepository
 	imageTaggingService            pipeline.ImageTaggingService
 	artifactApprovalActionService  action.ArtifactApprovalActionService
-	artifactPromotion.ApprovalRequestService
+	promotionRequestService        artifactPromotion.ApprovalRequestService
 }
 
 type NotificationSettingRequest struct {
@@ -188,6 +191,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	ciArtifactRepository repository.CiArtifactRepository,
 	imageTaggingService pipeline.ImageTaggingService,
 	artifactApprovalActionService action.ArtifactApprovalActionService,
+	promotionRequestService artifactPromotion.ApprovalRequestService,
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
@@ -208,6 +212,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciArtifactRepository:           ciArtifactRepository,
 		imageTaggingService:            imageTaggingService,
 		artifactApprovalActionService:  artifactApprovalActionService,
+		promotionRequestService:        promotionRequestService,
 	}
 }
 
@@ -1040,4 +1045,41 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(
 			EventTime:  time.Now().Format(bean.LayoutRFC3339),
 		},
 	}, nil
+}
+
+func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.DeploymentApprovalResponse, error) {
+
+	artifactPromotionApprovalRequest := &bean2.ArtifactPromotionRequest{
+		Action:           constants.ACTION_APPROVE,
+		ArtifactId:       request.ArtifactId,
+		AppId:            request.AppId,
+		EnvironmentNames: []string{request.EnvName},
+		WorkflowId:       request.WorkflowId,
+	}
+	approvalResponse, err := impl.promotionRequestService.HandleArtifactPromotionRequest(ctx, artifactPromotionApprovalRequest, authorizedEnvs)
+	if err != nil {
+		impl.logger.Errorw("error in handling promotion artifact request", "promotionRequest", artifactPromotionApprovalRequest, "err", err)
+		return nil, err
+	}
+
+	var status bean.ApprovalState
+	if approvalResponse[0].PromotionValidationMessage == constants.APPROVED {
+		status = bean.AlreadyApproved
+	} else {
+		status = bean.RequestCancelled
+	}
+
+	return &client.DeploymentApprovalResponse{
+		ImageTagNames:  request.ImageTags,
+		ImageComment:   request.ImageComment,
+		DockerImageUrl: request.Image,
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    request.AppName,
+			EnvName:    request.EnvName,
+			ApprovedBy: request.ApiTokenCustomClaims.Email,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+		Status: status,
+	}, nil
+
 }
