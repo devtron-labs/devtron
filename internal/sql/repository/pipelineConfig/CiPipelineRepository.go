@@ -663,7 +663,7 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		Where("ci_pipeline.ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("ci_pipeline.deleted = ?", false)
 	// app name filtering
-	if len(appNameMatch) != 0 && req != nil && len(req.SortBy) != 0 {
+	if len(appNameMatch) != 0 {
 		query = query.Where("a.app_name LIKE ?", "%"+appNameMatch+"%")
 	}
 	// env name filtering
@@ -677,10 +677,15 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 	}
 	// query execution
 	if req != nil {
-		query = query.Order(fmt.Sprintf("%s %s", req.SortBy, string(req.Order))).
-			Limit(req.Limit).
-			Offset(req.Offset)
+		if len(req.SortBy) != 0 && len(req.Order) != 0 {
+			query = query.Order(fmt.Sprintf("%s %s", req.SortBy, string(req.Order)))
+		}
+		if req.Limit != 0 {
+			query = query.Limit(req.Limit).
+				Offset(req.Offset)
+		}
 	}
+
 	err = query.Select(&linkedCIDetails)
 	if err != nil {
 		return nil, 0, err

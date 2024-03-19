@@ -744,6 +744,9 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "FindLatestRunnerByPipelineIdsAndRunnerType")
 	defer span.End()
+	if pipelineIds == nil || len(pipelineIds) == 0 {
+		return nil, pg.ErrNoRows
+	}
 	var latestWfrs []CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&latestWfrs).

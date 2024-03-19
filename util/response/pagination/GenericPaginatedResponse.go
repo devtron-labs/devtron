@@ -33,6 +33,13 @@ type PaginatedResponse[T any] struct {
 	Data       []T `json:"data"`
 }
 
+// NewPaginatedResponse will initialise the PaginatedResponse; making sure that PaginatedResponse.Data will not be Null
+func NewPaginatedResponse[T any]() PaginatedResponse[T] {
+	return PaginatedResponse[T]{
+		Data: []T{},
+	}
+}
+
 // PushData will append item to the PaginatedResponse.Data
 func (m *PaginatedResponse[T]) PushData(item ...T) {
 	m.Data = append(m.Data, item...)

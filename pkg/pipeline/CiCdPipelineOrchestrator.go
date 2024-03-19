@@ -2154,7 +2154,7 @@ func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(ctx context.
 func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error) {
 	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamInfo")
 	defer span.End()
-	response := pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse]{}
+	response := pagination.NewPaginatedResponse[CiPipeline.SourceCiDownStreamResponse]()
 	queryReq := &pagination.RepositoryRequest{
 		Order:  req.SortOrder,
 		SortBy: req.SortBy,
