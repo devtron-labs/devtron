@@ -16,10 +16,10 @@ set -e
         echo "Source type is Pull Request. Running script..."
 
         grep_option="Fqe" 
-         if [ -z "$grep_command" ]; then
-        grep_command="$grep_option"
+         if [ -z "$GrepCommand" ]; then
+        GrepCommand="$grep_option"
     fi  
-     if echo "$PreviousStepOutputVariable" | grep -"$grep_command" "$PreviousStepOutputGrepPattern" 
+     if echo "$PreviousStepOutputVariable" | grep -"$GrepCommand" "$PreviousStepOutputGrepPattern" 
      then  
           echo "Pattern Matched. Running the plugin script..." 
           git_repository=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProjectDetails[0].gitRepository\')
@@ -89,5 +89,5 @@ INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_e
 VALUES 
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Github Pull Request Closer v1.0' and ps."index"=1 and ps.deleted=false),'PreviousOutput','STRING','Take the output variable obtained from the last script execution.','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Github Pull Request Closer v1.0' and ps."index"=1 and ps.deleted=false),'CurrentInputMatch','STRING','Enter the value to be compared.','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Github Pull Request Closer v1.0' and ps."index"=1 and ps.deleted=false),'PullRequestNumber','STRING','It displays the unique identifier (PR number) assigned to the GitHub Pull Request.','t','f',null,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Github Pull Request Closer v1.0' and ps."index"=1 and ps.deleted=false),'GrepCommand','STRING','Enter the command options to be used with grep. Default Command:"Fqe", if not provided.','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
