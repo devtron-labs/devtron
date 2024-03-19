@@ -38,11 +38,6 @@ type ScopedVariableServiceImpl struct {
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
 	VariableNameConfig                  *VariableConfig
 	VariableCache                       *cache.VariableCacheObj
-
-	//Enterprise only
-	appRepository         app.AppRepository
-	environmentRepository repository.EnvironmentRepository
-	clusterRepository     repository.ClusterRepository
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
@@ -52,12 +47,6 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		scopedVariableRepository: scopedVariableRepository,
 		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
-
-		//Enterprise only
-		appRepository:                       appRepository,
-		environmentRepository:               environmentRepository,
-		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
-		clusterRepository:                   clusterRepository,
 	}
 	cfg, err := GetVariableNameConfig()
 	if err != nil {
