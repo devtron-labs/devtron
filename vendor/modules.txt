@@ -422,7 +422,7 @@ github.com/devtron-labs/common-lib/utils/k8s/commonBean
 github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.13
+# github.com/devtron-labs/common-lib-private v0.0.14-0.20240319094025-366e7be45b23
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
