@@ -726,7 +726,6 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	if len(pluginUpdateReq.Type) == 0 {
 		return nil, errors.New("invalid plugin type, should be of the type PRESET or SHARED")
 	}
-
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -814,6 +813,7 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 			return nil, err
 		}
 	}
+
 	if len(pluginStepsToUpdate) > 0 {
 		err = impl.updateDeepPluginStepData(pluginStepsToUpdate, pluginStepVariables, pluginStepConditions, pluginSteps, userId, tx)
 		if err != nil {
@@ -1344,6 +1344,34 @@ func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, plug
 	} else {
 		return nil, nil, pluginStepUpdateReq
 	}
+
+	//newPluginStepsToCreate := make([]*PluginStepsDto, 0)
+	//pluginStepsToRemove := make([]*PluginStepsDto, 0)
+	//pluginStepsToUpdate := make([]*PluginStepsDto, 0)
+	//
+	//existingPluginStepsMap := make(map[int]bool)
+	//
+	//for _, existingPluginStepInDb := range existingPluginStepsInDb {
+	//	existingPluginStepsMap[existingPluginStepInDb.Id] = false
+	//}
+	//
+	//if len(pluginStepUpdateReq) > 0 {
+	//	for _, pluginStepReq := range pluginStepUpdateReq {
+	//		if _, exists := existingPluginStepsMap[pluginStepReq.Id]; exists {
+	//			pluginStepsToUpdate = append(pluginStepsToUpdate, pluginStepReq)
+	//			existingPluginStepsMap[pluginStepReq.Id] = true
+	//
+	//		} else {
+	//			newPluginStepsToCreate = append(newPluginStepsToCreate, pluginStepReq)
+	//		}
+	//	}
+	//}
+	//
+	//for existingPluginStepId, updated := range existingPluginStepsMap {
+	//	if !updated {
+	//		pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStepId})
+	//	}
+	//}
 
 	return newPluginStepsToCreate, pluginStepsToRemove, pluginStepsToUpdate
 }

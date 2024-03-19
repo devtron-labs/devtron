@@ -72,6 +72,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchCiArtifactToGitTriggersMap(artifacts []*CiArtifactWithParentArtifact) (CiArtifactAndGitCommitsMap map[int][]string, err error)
 }
 
 const (
@@ -98,6 +99,10 @@ type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
 	Type    string `json:"type"`
 	AppId   int    `json:"appId"`
+}
+type CiArtifactWithParentArtifact struct {
+	ParentCiArtifact int `json:"parent_ci_artifact"`
+	CiArtifactId     int `json:"ci_artifact_id"`
 }
 
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
@@ -143,6 +148,7 @@ type AppListingServiceImpl struct {
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
+	ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -153,7 +159,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *AppListingServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciWorkflowRepository pipelineConfig.CiWorkflowRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -172,6 +178,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 		userRepository:                 userRepository,
 		deployedAppMetricsService:      deployedAppMetricsService,
+		ciWorkflowRepository:           ciWorkflowRepository,
 	}
 	return serviceImpl
 }
@@ -234,17 +241,39 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
 	}
+
+	//artifactStore :=make()
+
+	artifactDetails := make([]*CiArtifactWithParentArtifact, 0)
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
 			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
+
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
 			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+			artifactDetails = append(artifactDetails, &CiArtifactWithParentArtifact{
+				lastDeployed.ParentCiArtifact, lastDeployed.CiArtifactId,
+			})
+			//envContainer.Commits = gitCommits
+			envContainer.CiArtifactId = lastDeployed.CiArtifactId
 		}
 	}
+
+	artifactWithGitCommit, err := impl.FetchCiArtifactToGitTriggersMap(artifactDetails)
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "err", err, "envId", envId)
+		return resp, err
+	}
+	for _, envContainer := range envContainers {
+		if envContainer.CiArtifactId > 0 {
+			envContainer.Commits = artifactWithGitCommit[envContainer.CiArtifactId]
+		}
+	}
+
 	resp.Apps = envContainers
 	return resp, err
 }
@@ -769,6 +798,84 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, appType)
 	return appStageStatuses, err
 }
+func (impl AppListingServiceImpl) FetchCiArtifactToGitTriggersMap(artifacts []*CiArtifactWithParentArtifact) (CiArtifactAndGitCommitsMap map[int][]string, err error) {
+
+	// Declare variables to store CI artifact IDs and child-parent relationships.
+	var ciArtifactIds []int
+	ciChildParentIdMap := make(map[int]int)
+
+	// Iterate through the artifacts to build the child-parent relationship map and gather unique artifact IDs.
+	for _, artifact := range artifacts {
+		// Mapping the current artifact to its parent, or to itself if it has no parent.
+		if artifact.ParentCiArtifact > 0 {
+			ciChildParentIdMap[artifact.CiArtifactId] = artifact.ParentCiArtifact
+		} else {
+			ciChildParentIdMap[artifact.CiArtifactId] = artifact.CiArtifactId
+		}
+
+		// Ensure uniqueness of artifact IDs in the slice.
+		if ciArtifactIds == nil {
+			ciArtifactIds = make([]int, 0)
+		}
+		if !slices.Contains(ciArtifactIds, ciChildParentIdMap[artifact.CiArtifactId]) {
+			ciArtifactIds = append(ciArtifactIds, ciChildParentIdMap[artifact.CiArtifactId])
+		}
+	}
+
+	// Retrieve workflows associated with the artifact IDs, handling any potential error.
+	artifactsWithGitTriggers, err := impl.ciWorkflowRepository.FindAllLastGitTriggeredWorkflowByArtifactIds(ciArtifactIds)
+	if err != nil {
+		// Log the error along with the artifact IDs that caused it.
+		impl.Logger.Errorw("error retrieving GitTriggers of the  CiWorkflows", "ciArtifactIds", ciArtifactIds, "err", err)
+		return nil, err // Return nil map and the encountered error.
+	}
+
+	// Map to hold the last Git-triggered workflow for each artifact.
+	gitTriggersToParentArtifactMap := make(map[int]map[int]pipelineConfig.GitCommit)
+
+	// Populate the gitTriggersToParentArtifactMap with Ci Workflow git triggers, ensuring no duplicates based on ArtifactId.
+	for _, artifactWithGitTriggers := range artifactsWithGitTriggers {
+		if artifactWithGitTriggers == nil {
+			// If artifactWithGitTriggers is nil, skip processing it.
+			continue
+		}
+
+		if _, ok := gitTriggersToParentArtifactMap[artifactWithGitTriggers.ArtifactId]; !ok {
+			gitTriggersToParentArtifactMap[artifactWithGitTriggers.ArtifactId] = artifactWithGitTriggers.GitTriggers
+		}
+	}
+
+	// Map to hold Git commits associated with each CI artifact.
+	gitCommitsWithArtifactMap := make(map[int][]string)
+
+	// Iterate through the child-parent relationship map to populate gitCommitsWithArtifactMap.
+	for child, parent := range ciChildParentIdMap {
+		// Retrieve the Git triggers associated with the parent artifact.
+		ciWorkflowTemp, exists := gitTriggersToParentArtifactMap[parent]
+		if !exists {
+			// If there's no workflow for this parent, continue to the next.
+			continue
+		}
+
+		// Declare a slice to hold git commits. If there are no GitTriggers, this remains empty.
+		var gitCommits []string
+
+		// Iterate through the Git triggers and extract the commit information.
+		for _, git := range ciWorkflowTemp {
+			gitCommits = append(gitCommits, git.Commit)
+		}
+
+		// Append the extracted commits to the corresponding child artifact in the map.
+		gitCommitsWithArtifactMap[child] = append(gitCommitsWithArtifactMap[child], gitCommits...)
+
+		// Ensure that gitCommitsWithArtifactMap[child] is initialized if it doesn't exist.
+		if gitCommitsWithArtifactMap[child] == nil {
+			gitCommitsWithArtifactMap[child] = make([]string, 0)
+		}
+	}
+
+	return gitCommitsWithArtifactMap, nil
+}
 
 func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
 	newCtx, span := otel.Tracer("appListingRepository").Start(ctx, "FetchOtherEnvironment")
@@ -793,6 +900,23 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("error in fetching latest chart", "err", err)
 		return envs, err
 	}
+	ciArtifactsWithParent := make([]*CiArtifactWithParentArtifact, 0)
+	for _, env := range envs {
+
+		if ok := env.CiArtifactId; ok > 0 {
+			ciArtifactsWithParent = append(ciArtifactsWithParent, &CiArtifactWithParentArtifact{
+				env.ParentCiArtifactId, env.CiArtifactId,
+			})
+		}
+
+	}
+
+	gitCommitsWithArtifacts, err := impl.FetchCiArtifactToGitTriggersMap(ciArtifactsWithParent)
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching the git commits of the ciArtifacts")
+		return envs, err
+	}
+
 	for _, env := range envs {
 		newCtx, span = otel.Tracer("envOverrideRepository").Start(newCtx, "FindLatestChartForAppByAppIdAndEnvId")
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
@@ -806,6 +930,15 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.ChartRefId = chart.ChartRefId
 		}
+
+		gitCommits, exists := gitCommitsWithArtifacts[env.CiArtifactId]
+		if exists {
+			env.Commits = gitCommits
+		} else {
+			gitCommits = make([]string, 0)
+			env.Commits = gitCommits
+		}
+
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
