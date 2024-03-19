@@ -662,9 +662,9 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		Where("ci_pipeline.parent_ci_pipeline = ?", sourceCiPipelineId).
 		Where("ci_pipeline.ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
 		Where("ci_pipeline.deleted = ?", false)
-	// app name filtering
+	// app name filtering with lower case
 	if len(appNameMatch) != 0 {
-		query = query.Where("a.app_name LIKE ?", "%"+appNameMatch+"%")
+		query = query.Where("LOWER(a.app_name) LIKE ?", "%"+appNameMatch+"%")
 	}
 	// env name filtering
 	if len(envNameMatch) != 0 {

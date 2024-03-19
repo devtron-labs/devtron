@@ -2145,6 +2145,8 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	// Convert searchKey to lowercase
+	req.SearchKey = strings.ToLower(req.SearchKey)
 	req.SortBy = pagination.AppName
 	if req.Size == 0 {
 		req.Size = 20
