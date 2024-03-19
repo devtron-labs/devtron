@@ -709,8 +709,11 @@ const (
 type ApprovalState int
 
 const (
-	AlreadyApproved ApprovalState = iota + 1
-	RequestCancelled
+	Approved         = 0
+	AlreadyApproved  = 1
+	RequestCancelled = 2
+	AlreadyPromoted  = 3
+	Errored          = 4
 )
 
 type UserApprovalActionRequest struct {
