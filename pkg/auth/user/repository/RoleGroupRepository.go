@@ -46,6 +46,7 @@ type RoleGroupRepository interface {
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
+	GetRoleGroupListByIds(ids []int32) ([]*RoleGroup, error)
 	GetRolesByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
@@ -240,6 +241,12 @@ func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMapping(model *RoleGroupR
 func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error) {
 	var model []*RoleGroup
 	err := impl.dbConnection.Model(&model).Where("name in (?)", pg.In(groupNames)).Where("active = ?", true).Order("updated_on desc").Select()
+	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupListByIds(ids []int32) ([]*RoleGroup, error) {
+	var model []*RoleGroup
+	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
 	return model, err
 }
 

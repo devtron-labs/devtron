@@ -33,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	errors1 "github.com/juju/errors"
@@ -245,7 +244,7 @@ type ClusterServiceImpl struct {
 	userRepository                   repository2.UserRepository
 	roleGroupRepository              repository2.RoleGroupRepository
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
-	*ClusterRbacServiceImpl
+	userService                      user.UserService
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -255,18 +254,15 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:   repository,
-		logger:              logger,
-		K8sUtil:             K8sUtil,
-		K8sInformerFactory:  K8sInformerFactory,
-		userAuthRepository:  userAuthRepository,
-		userRepository:      userRepository,
-		roleGroupRepository: roleGroupRepository,
-		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-			logger:      logger,
-			userService: userService,
-		},
+		clusterRepository:                repository,
+		logger:                           logger,
+		K8sUtil:                          K8sUtil,
+		K8sInformerFactory:               K8sInformerFactory,
+		userAuthRepository:               userAuthRepository,
+		userRepository:                   userRepository,
+		roleGroupRepository:              roleGroupRepository,
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
+		userService:                      userService,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -984,18 +980,19 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 	}
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(user.EmailId) {
-		groupsCasbin, err := casbin2.GetRolesForUser(user.EmailId)
+		activeRoles, err := impl.userService.GetActiveRolesAttachedToUser(user.EmailId, recordedTime)
 		if err != nil {
-			impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "id", user.Id, "err", err)
 			return nil, err
 		}
-		groups = append(groups, groupsCasbin...)
+		groups = append(groups, activeRoles...)
 	}
 
 	if isGroupClaimsActive {
-		_, groupClaims, err := impl.ClusterRbacServiceImpl.userService.GetEmailAndGroupClaimsFromToken(token)
+		_, groupClaims, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
 			return nil, err
@@ -1005,10 +1002,10 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 		groups = append(groups, groupsCasbinNames...)
 	}
 
-	roleEntity := "cluster"
-	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	roleEntity := bean2.CLUSTER_ENTITIY
+	roles, err := impl.userService.GetActiveUserRolesByEntityAndUserId(roleEntity, userId)
 	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err, "roleEntity", roleEntity, "userId", userId)
 		return nil, err
 	}
 	if len(groups) > 0 {

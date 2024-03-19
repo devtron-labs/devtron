@@ -22,6 +22,7 @@ package repository
 
 import (
 	"encoding/json"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ type UserAuthRepository interface {
 	DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []bean3.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error)
@@ -66,13 +67,15 @@ type UserAuthRepository interface {
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
-	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
-	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error)
+	GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error)
+	GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error)
 	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
 	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
+	GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
+	GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -292,9 +295,11 @@ func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRole
 }
 func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error) {
 	var userRoleModels []*UserRoleModel
-	err := impl.dbConnection.Model(&userRoleModels).Where("user_id = ?", userId).Select()
+	err := impl.dbConnection.Model(&userRoleModels).
+		Column("user_role_model.*", "TimeoutWindowConfiguration").
+		Where("user_id = ?", userId).Select()
 	if err != nil {
-		impl.Logger.Error(err)
+		impl.Logger.Errorw("error in GetUserRoleMappingByUserId", "err", err, "userId", userId)
 		return userRoleModels, err
 	}
 	return userRoleModels, nil
@@ -366,11 +371,11 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleIds(roleIds []int, tx *pg
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []bean3.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
-	var policiesToBeAdded []casbin2.Policy
+	var policiesToBeAdded []bean3.Policy
 	if err != nil {
 		return false, err, policiesToBeAdded
 	}
@@ -483,40 +488,32 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 
-func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error) {
-	var emailIds []string
+func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error) {
 	var roleGroups []string
-
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
-		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
-		"and us.id not in (1);"
-	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName, "role:super-admin___")
-	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
-	}
-
 	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
 		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and r.environment=? and r.entity_name=?;"
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return roleGroups, err
 	}
 
-	return emailIds, roleGroups, nil
+	return roleGroups, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error) {
-	var emailIds []string
-	var roleGroups []string
-
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
-		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+func (impl UserAuthRepositoryImpl) GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
+		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
 		"and us.id not in (1);"
-	_, err := impl.dbConnection.Query(&emailIds, query, "configApprover", envName, appName, "role:super-admin___")
+	_, err := impl.dbConnection.Query(&userRoles, query, envName, appName, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return nil, err
 	}
+	return userRoles, nil
+}
 
+func (impl UserAuthRepositoryImpl) GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error) {
+	var roleGroups []string
 	roleGroupQuery := "SELECT rg.casbin_name " +
 		"FROM role_group rg " +
 		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
@@ -525,12 +522,24 @@ func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName,
 		"AND (r.environment IS NULL OR r.environment = ?) " +
 		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
 
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return roleGroups, err
 	}
 
-	return emailIds, roleGroups, nil
+	return roleGroups, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&userRoles, query, "configApprover", envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	return userRoles, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
@@ -666,7 +675,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 
 	//for START in Casbin Object Ends Here
-	var policies []casbin2.Policy
+	var policies []bean3.Policy
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {

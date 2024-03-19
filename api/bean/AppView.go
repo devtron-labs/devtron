@@ -73,6 +73,7 @@ type JobContainer struct {
 	JobActualName  string                  `json:"appName""`
 	Description    GenericNoteResponseBean `json:"description"`
 	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
+	ProjectId      int                     `json:"projectId"`
 }
 
 type JobCIPipeline struct {
@@ -99,6 +100,7 @@ type JobListingContainer struct {
 	EnvironmentName              string    `sql:"environment_name" json:"environmentName"`
 	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
 	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
+	ProjectId                    int       `sql:"team_id" json:"projectId"`
 }
 
 type CiPipelineLastSucceededTime struct {
