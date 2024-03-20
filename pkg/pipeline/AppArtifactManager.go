@@ -441,23 +441,23 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(ctx *util2.Reques
 		}
 		if imageCommentResp := imageCommentsDataMap[deployedCiArtifacts[i].Id]; imageCommentResp != nil {
 			deployedCiArtifacts[i].ImageComment = imageCommentResp
-			releaseTags := make([]string, 0, len(imageTaggingResp))
-			for _, imageTag := range imageTaggingResp {
-				if !imageTag.Deleted {
-					releaseTags = append(releaseTags, imageTag.TagName)
-				}
-			}
-			materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
-			if err != nil {
-				impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", deployedCiArtifacts[i].Id, "materialInfo", deployedCiArtifacts[i].MaterialInfo, "err", err)
-				return deployedCiArtifactsResponse, err
-			}
-			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags, materialInfos)
-			if err != nil {
-				return deployedCiArtifactsResponse, err
-			}
-			deployedCiArtifacts[i].FilterState = filterState
 		}
+		releaseTags := make([]string, 0, len(imageTaggingResp))
+		for _, imageTag := range imageTaggingResp {
+			if !imageTag.Deleted {
+				releaseTags = append(releaseTags, imageTag.TagName)
+			}
+		}
+		materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
+		if err != nil {
+			impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", deployedCiArtifacts[i].Id, "materialInfo", deployedCiArtifacts[i].MaterialInfo, "err", err)
+			return deployedCiArtifactsResponse, err
+		}
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags, materialInfos)
+		if err != nil {
+			return deployedCiArtifactsResponse, err
+		}
+		deployedCiArtifacts[i].FilterState = filterState
 		var dockerRegistryId string
 		if deployedCiArtifacts[i].DataSource == repository.POST_CI || deployedCiArtifacts[i].DataSource == repository.PRE_CD || deployedCiArtifacts[i].DataSource == repository.POST_CD {
 			if deployedCiArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
