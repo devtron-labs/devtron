@@ -54,7 +54,7 @@ type AppListingRepository interface {
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
@@ -135,7 +135,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	return jobContainers, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error) {
+func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error) {
 	query := " SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time " +
 		" FROM app a " +
 		" INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? " +

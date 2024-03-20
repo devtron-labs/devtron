@@ -18,9 +18,11 @@
 package pipelineConfig
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
@@ -48,7 +50,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
-	FindGitTriggersByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error)
+	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -294,12 +296,14 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindGitTriggersByArtifactIds(ciArtifactIds []int) (ciWorkflows []*ArtifactAndGitCommitMapping, err error) {
-	if ciArtifactIds == nil || len(ciArtifactIds) == 0 {
+func (impl *CiWorkflowRepositoryImpl) FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error) {
+	_, span := otel.Tracer("envOverrideRepository").Start(ctx, "fetchCiArtifactAndGitTriggersMapping")
+	defer span.End()
+	if ciArtifactIds == nil {
 		// If ciArtifactIds is nil or empty, return an empty slice and nil error
-		return []*ArtifactAndGitCommitMapping{}, err
+		return []ArtifactAndGitCommitMapping{}, err
 	}
-	var workflows []*ArtifactAndGitCommitMapping
+	var workflows []ArtifactAndGitCommitMapping
 	err = impl.dbConnection.Model().
 		Table("ci_workflow").
 		Column("ci_workflow.git_triggers").
