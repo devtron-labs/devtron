@@ -24,6 +24,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -364,6 +365,10 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in templating chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return nil, err
 	}
 	response := &openapi2.TemplateChartResponse{
