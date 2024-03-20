@@ -79,7 +79,7 @@ func (s *GroupBadgesService) ListGroupBadges(gid interface{}, opt *ListGroupBadg
 		return nil, resp, err
 	}
 
-	return gb, resp, err
+	return gb, resp, nil
 }
 
 // GetGroupBadge gets a group badge.
@@ -104,7 +104,7 @@ func (s *GroupBadgesService) GetGroupBadge(gid interface{}, badge int, options .
 		return nil, resp, err
 	}
 
-	return gb, resp, err
+	return gb, resp, nil
 }
 
 // AddGroupBadgeOptions represents the available AddGroupBadge() options.
@@ -138,7 +138,7 @@ func (s *GroupBadgesService) AddGroupBadge(gid interface{}, opt *AddGroupBadgeOp
 		return nil, resp, err
 	}
 
-	return gb, resp, err
+	return gb, resp, nil
 }
 
 // EditGroupBadgeOptions represents the available EditGroupBadge() options.
@@ -172,7 +172,7 @@ func (s *GroupBadgesService) EditGroupBadge(gid interface{}, badge int, opt *Edi
 		return nil, resp, err
 	}
 
-	return gb, resp, err
+	return gb, resp, nil
 }
 
 // DeleteGroupBadge removes a badge from a group.
@@ -226,5 +226,5 @@ func (s *GroupBadgesService) PreviewGroupBadge(gid interface{}, opt *GroupBadgeP
 		return nil, resp, err
 	}
 
-	return gb, resp, err
+	return gb, resp, nil
 }

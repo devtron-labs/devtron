@@ -2,6 +2,7 @@ package ghinstallation
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,7 +24,7 @@ type AppsTransport struct {
 	BaseURL string            // BaseURL is the scheme and host for GitHub API, defaults to https://api.github.com
 	Client  Client            // Client to use to refresh tokens, defaults to http.Client with provided transport
 	tr      http.RoundTripper // tr is the underlying roundtripper being wrapped
-	key     *rsa.PrivateKey   // key is the GitHub App's private key
+	signer  Signer            // signer signs JWT tokens.
 	appID   int64             // appID is the GitHub App's ID
 }
 
@@ -57,9 +58,27 @@ func NewAppsTransportFromPrivateKey(tr http.RoundTripper, appID int64, key *rsa.
 		BaseURL: apiBaseURL,
 		Client:  &http.Client{Transport: tr},
 		tr:      tr,
-		key:     key,
+		signer:  NewRSASigner(jwt.SigningMethodRS256, key),
 		appID:   appID,
 	}
+}
+
+func NewAppsTransportWithOptions(tr http.RoundTripper, appID int64, opts ...AppsTransportOption) (*AppsTransport, error) {
+	t := &AppsTransport{
+		BaseURL: apiBaseURL,
+		Client:  &http.Client{Transport: tr},
+		tr:      tr,
+		appID:   appID,
+	}
+	for _, fn := range opts {
+		fn(t)
+	}
+
+	if t.signer == nil {
+		return nil, errors.New("no signer provided")
+	}
+
+	return t, nil
 }
 
 // RoundTrip implements http.RoundTripper interface.
@@ -69,14 +88,13 @@ func (t *AppsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Truncate them before passing to jwt-go.
 	iss := time.Now().Add(-30 * time.Second).Truncate(time.Second)
 	exp := iss.Add(2 * time.Minute)
-	claims := &jwt.StandardClaims{
-		IssuedAt:  iss.Unix(),
-		ExpiresAt: exp.Unix(),
+	claims := &jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(iss),
+		ExpiresAt: jwt.NewNumericDate(exp),
 		Issuer:    strconv.FormatInt(t.appID, 10),
 	}
-	bearer := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
-	ss, err := bearer.SignedString(t.key)
+	ss, err := t.signer.Sign(claims)
 	if err != nil {
 		return nil, fmt.Errorf("could not sign jwt: %s", err)
 	}
@@ -86,4 +104,13 @@ func (t *AppsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	resp, err := t.tr.RoundTrip(req)
 	return resp, err
+}
+
+type AppsTransportOption func(*AppsTransport)
+
+// WithSigner configures the AppsTransport to use the given Signer for generating JWT tokens.
+func WithSigner(signer Signer) AppsTransportOption {
+	return func(at *AppsTransport) {
+		at.signer = signer
+	}
 }

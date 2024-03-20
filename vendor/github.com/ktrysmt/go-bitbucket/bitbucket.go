@@ -139,8 +139,10 @@ type pipelines interface {
 }
 
 type RepositoriesOptions struct {
-	Owner string `json:"owner"`
-	Role  string `json:"role"` // role=[owner|admin|contributor|member]
+	Owner   string  `json:"owner"`
+	Role    string  `json:"role"` // role=[owner|admin|contributor|member]
+	Page    *int    `json:"page"`
+	Keyword *string `json:"keyword"`
 }
 
 type RepositoryOptions struct {
@@ -339,6 +341,7 @@ type CommitsOptions struct {
 	Include     string `json:"include"`
 	Exclude     string `json:"exclude"`
 	CommentID   string `json:"comment_id"`
+	Page        *int   `json:"page"`
 }
 
 type CommitStatusOptions struct {
