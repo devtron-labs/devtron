@@ -119,15 +119,19 @@ paths:
 
   /orchestrator/deployment-window/profile:
     get:
-      summary: Get  deployment window profile for id
+      summary: Get deployment window profile
       parameters:
-        - name: id
-          in: query
-          description: Profile ID.
-          required: true
-          schema:
-            type: integer
-      description: Get DeploymentWindow Profile by id
+          - name: id
+            in: query
+            description: Profile ID.
+            required: false
+            schema:
+              type: integer
+          - name: name
+            in: query
+            description: Profile name.
+            schema:
+               type: string
       responses:
         "200":
           description: gets DeploymentWindo config  profile by its Id.
@@ -207,9 +211,14 @@ paths:
         - name: id
           in: query
           description: Profile ID.
-          required: true
+          required: false
           schema:
             type: integer
+        - name: name
+          in: query
+          description: Profile name.
+          schema:
+            type: string
       responses:
         '200':
           description: OK
