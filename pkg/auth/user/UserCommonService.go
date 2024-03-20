@@ -605,25 +605,25 @@ func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[s
 
 func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
-	if containsArr(namespaceArr, AllNamespace) {
+	if containsArr(namespaceArr, AllNamespace) || roleFilterMap[key].Namespace == AllNamespace {
 		roleFilterMap[key].Namespace = AllNamespace
 	} else if !containsArr(namespaceArr, role.Namespace) {
 		roleFilterMap[key].Namespace = fmt.Sprintf("%s,%s", roleFilterMap[key].Namespace, role.Namespace)
 	}
 	groupArr := strings.Split(roleFilterMap[key].Group, ",")
-	if containsArr(groupArr, AllGroup) {
+	if containsArr(groupArr, AllGroup) || roleFilterMap[key].Group == AllGroup {
 		roleFilterMap[key].Group = AllGroup
 	} else if !containsArr(groupArr, role.Group) {
 		roleFilterMap[key].Group = fmt.Sprintf("%s,%s", roleFilterMap[key].Group, role.Group)
 	}
 	kindArr := strings.Split(roleFilterMap[key].Kind, ",")
-	if containsArr(kindArr, AllKind) {
+	if containsArr(kindArr, AllKind) || roleFilterMap[key].Kind == AllKind {
 		roleFilterMap[key].Kind = AllKind
 	} else if !containsArr(kindArr, role.Kind) {
 		roleFilterMap[key].Kind = fmt.Sprintf("%s,%s", roleFilterMap[key].Kind, role.Kind)
 	}
 	resourceArr := strings.Split(roleFilterMap[key].Resource, ",")
-	if containsArr(resourceArr, AllResource) {
+	if containsArr(resourceArr, AllResource) || roleFilterMap[key].Resource == AllResource {
 		roleFilterMap[key].Resource = AllResource
 	} else if !containsArr(resourceArr, role.Resource) {
 		roleFilterMap[key].Resource = fmt.Sprintf("%s,%s", roleFilterMap[key].Resource, role.Resource)
@@ -632,17 +632,19 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map
 
 func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	envArr := strings.Split(roleFilterMap[key].Environment, ",")
-	if containsArr(envArr, AllEnvironment) {
+	if containsArr(envArr, AllEnvironment) || roleFilterMap[key].Environment == AllEnvironment {
 		roleFilterMap[key].Environment = AllEnvironment
 	} else if !containsArr(envArr, role.Environment) {
 		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 	}
 	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if !containsArr(entityArr, role.EntityName) {
+	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) || roleFilterMap[key].EntityName == bean2.EmptyStringIndicatingAll {
+		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+	} else if !containsArr(entityArr, role.EntityName) {
 		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 	}
 	workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
-	if containsArr(workflowArr, AllWorkflow) {
+	if containsArr(workflowArr, AllWorkflow) || roleFilterMap[key].Workflow == AllWorkflow {
 		roleFilterMap[key].Workflow = AllWorkflow
 	} else if !containsArr(workflowArr, role.Workflow) {
 		roleFilterMap[key].Workflow = fmt.Sprintf("%s,%s", roleFilterMap[key].Workflow, role.Workflow)
@@ -651,13 +653,15 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[st
 
 func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	envArr := strings.Split(roleFilterMap[key].Environment, ",")
-	if containsArr(envArr, AllEnvironment) {
+	if containsArr(envArr, AllEnvironment) || roleFilterMap[key].Environment == AllEnvironment {
 		roleFilterMap[key].Environment = AllEnvironment
 	} else if !containsArr(envArr, role.Environment) {
 		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 	}
 	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if !containsArr(entityArr, role.EntityName) {
+	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) || roleFilterMap[key].EntityName == bean2.EmptyStringIndicatingAll {
+		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+	} else if !containsArr(entityArr, role.EntityName) {
 		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 	}
 }
