@@ -17,15 +17,16 @@ const (
 	OperationInProgressErrorMsg = "another operation (install/upgrade/rollback) is in progress"
 )
 
+var errorHttpStatusCodeMap = map[string]int{
+	ClusterUnreachableErrorMsg:  http.StatusUnprocessableEntity,
+	CrdPreconditionErrorMsg:     http.StatusPreconditionFailed,
+	NamespaceNotFoundErrorMsg:   http.StatusConflict,
+	ArrayStringMismatchErrorMsg: http.StatusFailedDependency,
+	InvalidValueErrorMsg:        http.StatusFailedDependency,
+	OperationInProgressErrorMsg: http.StatusConflict,
+}
+
 func ConvertToApiError(err error) *util2.ApiError {
-	errorHttpStatusCodeMap := map[string]int{
-		ClusterUnreachableErrorMsg:  http.StatusUnprocessableEntity,
-		CrdPreconditionErrorMsg:     http.StatusPreconditionFailed,
-		NamespaceNotFoundErrorMsg:   http.StatusConflict,
-		ArrayStringMismatchErrorMsg: http.StatusFailedDependency,
-		InvalidValueErrorMsg:        http.StatusFailedDependency,
-		OperationInProgressErrorMsg: http.StatusConflict,
-	}
 	for errMsg, statusCode := range errorHttpStatusCodeMap {
 		if strings.Contains(err.Error(), errMsg) {
 			return &util2.ApiError{
