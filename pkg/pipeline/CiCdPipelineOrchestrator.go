@@ -2118,7 +2118,9 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(ctx contex
 	envNames, err := impl.getAttachedEnvNamesByCiIds(ctx, linkedCiPipelines)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment names for linked Ci pipelines", "linkedCiPipelines", linkedCiPipelines, "err", err)
-		return nil, err
+		return &CiPipeline.SourceCiDownStreamEnv{
+			EnvNames: []string{},
+		}, err
 	}
 	res := &CiPipeline.SourceCiDownStreamEnv{
 		EnvNames: envNames,
