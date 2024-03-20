@@ -184,7 +184,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
-	payload.TimeWindowComment, _ = impl.getDeploymentWindowAuditMessage(wfr.CdWorkflow.CiArtifactId, wfr.Id)
+	if wfr.TriggerMetadata == "" {
+		payload.TimeWindowComment, _ = impl.getDeploymentWindowAuditMessage(wfr.CdWorkflow.CiArtifactId, wfr.Id)
+	}
 	payload.ApprovedByEmail = emailIDs
 	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
