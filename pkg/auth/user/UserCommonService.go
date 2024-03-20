@@ -605,19 +605,19 @@ func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[s
 
 func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
-	if containsArr(namespaceArr, AllNamespace) || roleFilterMap[key].Namespace == AllNamespace {
+	if containsArr(namespaceArr, AllNamespace) {
 		roleFilterMap[key].Namespace = AllNamespace
 	} else if !containsArr(namespaceArr, role.Namespace) {
 		roleFilterMap[key].Namespace = fmt.Sprintf("%s,%s", roleFilterMap[key].Namespace, role.Namespace)
 	}
 	groupArr := strings.Split(roleFilterMap[key].Group, ",")
-	if containsArr(groupArr, AllGroup) || roleFilterMap[key].Group == AllGroup {
+	if containsArr(groupArr, AllGroup) {
 		roleFilterMap[key].Group = AllGroup
 	} else if !containsArr(groupArr, role.Group) {
 		roleFilterMap[key].Group = fmt.Sprintf("%s,%s", roleFilterMap[key].Group, role.Group)
 	}
 	kindArr := strings.Split(roleFilterMap[key].Kind, ",")
-	if containsArr(kindArr, AllKind) || roleFilterMap[key].Kind == AllKind {
+	if containsArr(kindArr, AllKind) {
 		roleFilterMap[key].Kind = AllKind
 	} else if !containsArr(kindArr, role.Kind) {
 		roleFilterMap[key].Kind = fmt.Sprintf("%s,%s", roleFilterMap[key].Kind, role.Kind)
