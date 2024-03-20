@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
@@ -90,9 +91,6 @@ type TriggerService interface {
 
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
-
-	//TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
-	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
 
 type TriggerServiceImpl struct {
@@ -323,7 +321,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 		return 0, "", err
 	}
-	SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
+	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	ciArtifactId := overrideRequest.CiArtifactId
 	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
@@ -516,7 +514,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 
 		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-		if !impl.IsDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType) {
+		if !impl.isDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType) {
 			// Update previous deployment runner status (in transaction): Failed
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 			err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
@@ -552,9 +550,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 					impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 					return 0, "", err
 				}
-				fmt.Println(pipelineOverride)
-				//TODO: update
 				cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+					DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 					PipelineOverride: pipelineOverride,
 				}
 				go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
@@ -786,7 +783,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return releaseErr
 	}
 	// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-	if !impl.IsDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType) {
+	if !impl.isDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType) {
 		err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, pipeline.Id, triggeredAt, triggeredBy)
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
@@ -818,9 +815,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 			return err
 		}
-		fmt.Println(pipelineOverride)
-		//TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 			PipelineOverride: pipelineOverride,
 		}
 		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
@@ -877,7 +873,7 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 		DeploymentWithConfig: bean3.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
 		WfrId:                wfrId,
 	}
-	SetPipelineFieldsInOverrideRequest(request, pipeline)
+	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline)
 
 	ctx, err := impl.argoUserService.BuildACDContext()
 	if err != nil {
@@ -897,23 +893,9 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 
 }
 
-func SetPipelineFieldsInOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
-	overrideRequest.PipelineId = pipeline.Id
-	overrideRequest.PipelineName = pipeline.Name
-	overrideRequest.EnvId = pipeline.EnvironmentId
-	environment := pipeline.Environment
-	overrideRequest.EnvName = environment.Name
-	overrideRequest.ClusterId = environment.ClusterId
-	overrideRequest.IsProdEnv = environment.Default
-	overrideRequest.AppId = pipeline.AppId
-	overrideRequest.ProjectId = pipeline.App.TeamId
-	overrideRequest.AppName = pipeline.App.AppName
-	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
-}
-
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	if impl.IsDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
+	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
 		// asynchronous mode of installation starts
 		return impl.workflowEventPublishService.TriggerHelmAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	}
@@ -1152,6 +1134,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 
 		} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {
 			// need to implement for git repo push
+			// currently manifest push config doesn't have git push config. GitOps config is derived from charts, chart_env_config_override and chart_ref table
 		}
 	} else {
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
@@ -1303,7 +1286,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
-			if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+			if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
 			}
 			// For cases where helm release was not found, kubelink will install the same configuration
@@ -1498,7 +1481,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			TargetNamespace: appNamespace,
 			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
-			ValuesFile:      getValuesFileForEnv(envModel.Id),
+			ValuesFile:      helper.GetValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
@@ -1515,10 +1498,6 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 		}
 		return argoAppName, nil
 	}
-}
-
-func getValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
 
 func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
@@ -1538,7 +1517,7 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
-	if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+	if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 		helmInstallRequest.RunInCtx = true
 	}
 	// Request exec
@@ -1647,7 +1626,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 	return err
 }
 
-func (impl *TriggerServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
+func (impl *TriggerServiceImpl) isDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
 	return impl.globalEnvVariables.EnableAsyncInstallDevtronChart &&
 		deploymentAppType == bean.Helm
 }

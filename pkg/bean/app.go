@@ -757,26 +757,9 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType = string
-
-const (
-	Helm             DeploymentType = "helm"
-	ArgoCd           DeploymentType = "argo_cd"
-	ManifestDownload DeploymentType = "manifest_download"
-	ManifestPush     DeploymentType = "manifest_push"
-)
-
 const (
 	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
-}
 
 type Status string
 
