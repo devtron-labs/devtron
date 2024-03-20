@@ -185,6 +185,7 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(ctx, artifactId, environmentName, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, environmentApprovalMetadata, http.StatusOK)

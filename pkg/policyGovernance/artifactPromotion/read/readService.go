@@ -34,7 +34,7 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyByName(ctx *util2.RequestCtx, name string) (*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(ctx *util2.RequestCtx, policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
-	GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
+	GetPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
 	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
 }
 
@@ -493,7 +493,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocompl
 	return policyNames, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error) {
 	pipelineIdToCountMap := make(map[int]int)
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindPendingByDestinationPipelineIds(pipelineIds)
 	if err != nil {

@@ -1586,7 +1586,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 		return ciArtifactResponse, err
 	}
 
-	pipelineIdToRequestMapping, err := impl.artifactPromotionDataReadService.GetPromotionPendingRequestMapping(ctx, wfMetadata.GetCdPipelineIds())
+	pipelineIdToRequestMapping, err := impl.artifactPromotionDataReadService.GetPendingRequestMapping(ctx, wfMetadata.GetCdPipelineIds())
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", wfMetadata.GetCdPipelineIds(), "err", err)
 		return bean2.CiArtifactResponse{}, err

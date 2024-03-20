@@ -240,7 +240,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 }
 
 func (impl AppWorkflowServiceImpl) getWfIdToPendingApprovalCount(ctx *util2.RequestCtx, err error, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]int, error) {
-	pipelineIdToRequestCountMap, err := impl.artifactPromotionDataReadService.GetPromotionPendingRequestMapping(ctx, cdPipelineIds)
+	pipelineIdToRequestCountMap, err := impl.artifactPromotionDataReadService.GetPendingRequestMapping(ctx, cdPipelineIds)
 	if err != nil {
 		return nil, err
 	}

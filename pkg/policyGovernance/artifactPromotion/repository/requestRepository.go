@@ -158,7 +158,7 @@ func (repo *RequestRepositoryImpl) FindRequestsByArtifactAndOptionalEnv(artifact
 
 	query := fmt.Sprintf("select * from artifact_promotion_approval_request apar"+
 		" inner join pipeline p on apar.destination_pipeline_id=p.id "+
-		"inner join environment e on p.environment_id=e.id where apar.status = %d and apar.artifact_id = %d and p.deleted=true", status, artifactId)
+		"inner join environment e on p.environment_id=e.id where apar.status = %d and apar.artifact_id = %d and p.deleted=true ", status, artifactId)
 
 	if len(environmentName) > 0 {
 		query = query + fmt.Sprintf("and e.environment_name = '%s'", environmentName)
