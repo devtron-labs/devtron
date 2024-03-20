@@ -142,10 +142,10 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
-	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodeMaterialRequest) ([]CiArtifact, int, error)
-	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.CiNodeMaterialRequest) ([]CiArtifact, int, error)
-	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error)
-	FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps *bean.CdNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsByCIPipelineId(artifactsListingFilterOps *bean.CiNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps *bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error)
+	FindArtifactsPendingForPromotion(request *bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error)
 	IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string) (bool, error)
 }
 
@@ -873,20 +873,21 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 	return ciArtifacts, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodeMaterialRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps *bean.CdNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
 	query := fmt.Sprintf(" select ci_artifact.*, count(ci_artifact.id) over() as total_count from ci_artifact where ci_artifact.id in "+
-		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.ResourceCdPipelineId)
+		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.GetCDPipelineId())
 
-	searchRegex := artifactsListingFilterOps.ListingOptions.GetSearchStringRegex()
+	listingOptions := artifactsListingFilterOps.GetListingOptions()
+	searchRegex := listingOptions.GetSearchStringRegex()
 	if searchRegex != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", searchRegex)
 	}
 
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.ListingOptions.Limit, artifactsListingFilterOps.ListingOptions.Offset)
+	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", listingOptions.Limit, listingOptions.Offset)
 	query = query + limitOffSetQuery
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
@@ -904,17 +905,18 @@ func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsLi
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.CiNodeMaterialRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request *bean.CiNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(ci_artifact.id) OVER() AS total_count").
 		Join("join ci_pipeline ON ( ci_pipeline.id = ci_artifact.pipeline_id OR (ci_pipeline.id=ci_artifact.component_id AND ci_artifact.data_source= ? ) )", POST_CI).
-		Where("ci_pipeline.active=true and ci_pipeline.id = ? ", request.CiPipelineId)
+		Where("ci_pipeline.active=true and ci_pipeline.id = ? ", request.GetCiPipelineId())
 
-	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
+	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -922,17 +924,18 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request bean.Ci
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request *bean.ExtCiNodeMaterialRequest) ([]CiArtifact, int, error) {
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(ci_artifact.id) OVER() AS total_count").
 		Join("join external_ci_pipeline on external_ci_pipeline.id = ci_artifact.external_ci_pipeline_id ").
-		Where("external_ci_pipeline.active=true and external_ci_pipeline.id = ? ", request.ExternalCiPipelineId)
+		Where("external_ci_pipeline.active=true and external_ci_pipeline.id = ? ", request.GetExtCiPipelineId())
 
-	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
+	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -941,23 +944,24 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request *bean.PromotionPendingNodeMaterialRequest) ([]CiArtifact, int, error) {
 
-	if len(request.ResourceCdPipelineId) == 0 {
+	if len(request.GetCDPipelineIds()) == 0 {
 		return []CiArtifact{}, 0, nil
 	}
 	awaitingRequestQuery := impl.dbConnection.Model((*repository.ArtifactPromotionApprovalRequest)(nil)).
 		ColumnExpr("distinct(artifact_id)").
-		Where("destination_pipeline_id in (?) and status = ? ", pg.In(request.ResourceCdPipelineId), constants.AWAITING_APPROVAL)
+		Where("destination_pipeline_id in (?) and status = ? ", pg.In(request.GetCDPipelineIds()), constants.AWAITING_APPROVAL)
 
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
 		Where("ci_artifact.id in ( ? ) ", awaitingRequestQuery)
 
-	if len(request.ListingOptions.SearchString) > 0 {
-		query = query.Where("ci_artifact.image like ?", request.ListingOptions.GetSearchStringRegex())
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(request.ListingOptions.Limit).Offset(request.ListingOptions.Offset)
+	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {

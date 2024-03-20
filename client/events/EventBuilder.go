@@ -453,10 +453,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event,
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
 
-	if request.UserId == 0 {
-		return events
-	}
-
 	user, err := impl.userRepository.GetById(request.UserId)
 	if err != nil {
 		impl.logger.Errorw("found error on getting user data ", "userId", request.UserId)
@@ -504,14 +500,9 @@ func (impl *EventSimpleFactoryImpl) getArtifactPromotionApprovalLink(request Art
 			Email: email,
 		},
 	}
-
 	token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForArtifactPromotion(tokenCustomClaimsForNotification, impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
 	if err != nil {
 		impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
-		return "", err
-	}
-	if err != nil {
-		impl.logger.Errorw("error in generating token for draft approval request", "err", err)
 		return "", err
 	}
 	artifactPromotionApprovalLink := fmt.Sprintf(ArtifactPromotionApprovalLink, token)

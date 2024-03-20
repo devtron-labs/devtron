@@ -14,6 +14,10 @@ import (
 type IdentifierType int
 
 const (
+	GIT = "git"
+)
+
+const (
 	ProjectIdentifier     IdentifierType = 0
 	AppIdentifier         IdentifierType = 1
 	ClusterIdentifier     IdentifierType = 2
@@ -276,7 +280,7 @@ func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) [
 		repoUrl := ciMaterial.Material.ScmConfiguration.URL
 		commitMessage := ""
 		branch := ""
-		if ciMaterial.Material.Type == "git" {
+		if ciMaterial.Material.Type == GIT {
 			repoUrl = ciMaterial.Material.GitConfiguration.URL
 		}
 		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {

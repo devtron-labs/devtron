@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/util"
 )
 
 type WorkflowType string
@@ -90,60 +89,4 @@ type BulkCdDeployEvent struct {
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
-}
-
-type ArtifactsListFilterOptions struct {
-	//list filter data
-	Limit        int
-	Offset       int
-	SearchString string
-	Order        string
-
-	//self stage data
-	PipelineId int
-	StageType  WorkflowType
-
-	// CiPipelineId is id of ci-pipeline present in the same app-workflow of PipelineId
-	CiPipelineId int
-
-	//parent satge data
-	ParentCdId      int
-	ParentId        int
-	ParentStageType WorkflowType
-
-	//excludeArtifactIds
-	ExcludeArtifactIds []int
-
-	//excludeWfRunners
-	ExcludeWfrIds []int
-
-	//ApprovalNode data
-	ApprovalNodeConfigured bool
-	ApproversCount         int
-
-	//pluginStage
-	PluginStage string
-
-	// UseCdStageQueryV2 is to set query version
-	UseCdStageQueryV2 bool
-}
-
-type CiNodeMaterialRequest struct {
-	CiPipelineId   int
-	ListingOptions util.ListingFilterOptions
-}
-
-type ExtCiNodeMaterialRequest struct {
-	ExternalCiPipelineId int
-	ListingOptions       util.ListingFilterOptions
-}
-
-type CdNodeMaterialRequest struct {
-	ResourceCdPipelineId int
-	ListingOptions       util.ListingFilterOptions
-}
-
-type PromotionPendingNodeMaterialRequest struct {
-	ResourceCdPipelineId []int
-	ListingOptions       util.ListingFilterOptions
 }
