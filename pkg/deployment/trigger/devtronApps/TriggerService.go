@@ -40,6 +40,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -1309,7 +1310,11 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+				apiError := clientErrors.ConvertToApiError(err)
+				if apiError != nil {
+					return false, apiError
+				}
+				if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 				}
 				return false, err
@@ -1326,7 +1331,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err
 			}
-			if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+			if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
 				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 			}
 
@@ -1337,9 +1342,12 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-
 				if pgErr != nil {
 					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				}
+				apiError := clientErrors.ConvertToApiError(err)
+				if apiError != nil {
+					return false, apiError
 				}
 				return false, err
 			}

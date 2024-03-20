@@ -281,14 +281,14 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	if err != nil {
 		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
 		// Handle release not found errors
-		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != bean6.ErrReleaseNotFound {
+		if skipReleaseNotFound && util.GetClientErrorDetailedMessage(err) != bean6.ErrReleaseNotFound {
 			// skip this error and continue for next workflow status
 			impl.logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
 		}
 		// If release not found, mark the deployment as failure
 		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = util.GetGRPCErrorDetailedMessage(err)
+		wfr.Message = util.GetClientErrorDetailedMessage(err)
 		wfr.FinishedOn = time.Now()
 		return true
 	}
@@ -328,7 +328,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 }
 
 func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest, appIdentifier *client2.AppIdentifier) {
-	releaseErrString := util.GetGRPCErrorDetailedMessage(releaseErr)
+	releaseErrString := util.GetClientErrorDetailedMessage(releaseErr)
 	switch releaseErrString {
 	case context.DeadlineExceeded.Error():
 		// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
