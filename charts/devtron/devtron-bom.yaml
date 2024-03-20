@@ -29,7 +29,7 @@ components:
         ENABLE_EXTERNAL_ARGO_CD: "false"
   devtron:
     image: "quay.io/devtron/hyperion:dc49da44-280-21649"
-    cicdImage: "quay.io/devtron/devtron:4c59576a-434-21646"
+    cicdImage: "quay.io/devtron/devtron:8e4cc36e-434-21652"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
   argocdDexServer:
