@@ -269,7 +269,8 @@ func (impl DeploymentWindowServiceImpl) fillExcludedUserData(profile ProfileWrap
 }
 
 func (impl DeploymentWindowServiceImpl) evaluateExcludedUsers(profiles []ProfileWrapper, superAdmins []int32, userEmailMap map[int32]string) ([]int32, []string) {
-	combinedExcludedUsers, isSuperAdminExcluded := impl.getCombinedUserIds(profiles)
+	restrictedProfiles := impl.filterRestricted(profiles)
+	combinedExcludedUsers, isSuperAdminExcluded := impl.getCombinedUserIds(restrictedProfiles)
 
 	if isSuperAdminExcluded {
 		combinedExcludedUsers = utils.FilterDuplicates(append(combinedExcludedUsers, superAdmins...))
@@ -294,16 +295,13 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileWra
 
 	profile := profiles[0]
 	excludedUsers := profile.DeploymentWindowProfile.ExcludedUsersList
-	if profile.isRestricted() && profile.DeploymentWindowProfile.IsUserExcluded && len(excludedUsers) > 0 {
+	if profile.DeploymentWindowProfile.IsUserExcluded && len(excludedUsers) > 0 {
 		userSet = mapset.NewSetFromSlice(utils.ToInterfaceArrayAny(excludedUsers))
 	}
 
 	isSuperAdminExcluded := true
 	for _, profile := range profiles {
 
-		if !profile.isRestricted() {
-			continue
-		}
 		var users []int32
 		if profile.DeploymentWindowProfile.IsUserExcluded {
 			users = profile.DeploymentWindowProfile.ExcludedUsersList
