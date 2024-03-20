@@ -27,7 +27,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean4 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"net/http"
 	"strconv"
 
@@ -65,7 +64,6 @@ type PipelineTriggerRestHandlerImpl struct {
 	enforcer                    casbin.Enforcer
 	teamService                 team.TeamService
 	logger                      *zap.SugaredLogger
-	workflowDagExecutor         dag.WorkflowDagExecutor
 	enforcerUtil                rbac.EnforcerUtil
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
 	argoUserService             argo.ArgoUserService
@@ -77,7 +75,7 @@ type PipelineTriggerRestHandlerImpl struct {
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	workflowDagExecutor dag.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
+	deploymentGroupService deploymentGroup.DeploymentGroupService,
 	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
@@ -89,7 +87,6 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		enforcer:                    enforcer,
 		teamService:                 teamService,
 		logger:                      logger,
-		workflowDagExecutor:         workflowDagExecutor,
 		enforcerUtil:                enforcerUtil,
 		deploymentGroupService:      deploymentGroupService,
 		argoUserService:             argoUserService,
