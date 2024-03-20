@@ -271,7 +271,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileAppOve
 		return
 	}
 
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileOverview(appId, authorizedEnvs)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileOverview(appId, authorizedEnvs, false)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileOverview", "err", err, "appId", appId, "envIds", envIds, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -326,6 +326,7 @@ func (handler *DeploymentWindowRestHandlerImpl) filterAuthorizedResourcesForGrou
 	rbacObjectToAppEnv := make(map[string]deploymentWindow.AppEnvSelector)
 	rbacObjects := make([]string, 0)
 	for appId, envIds := range appToEnvs {
+		//call once
 		objectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
 		rbacObjects = append(rbacObjects, maps.Values(objectMap)...)
 		for _, envId := range envIds {

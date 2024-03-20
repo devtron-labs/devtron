@@ -41,6 +41,9 @@ func (impl TimeoutWindowResourceMappingRepositoryImpl) Create(tx *pg.Tx, mapping
 func (impl TimeoutWindowResourceMappingRepositoryImpl) GetWindowsForResources(resourceIds []int, resourceType ResourceType) ([]*TimeoutWindowResourceMapping, error) {
 	var mappings []*TimeoutWindowResourceMapping
 
+	if len(resourceIds) == 0 {
+		return mappings, nil
+	}
 	err := impl.dbConnection.Model(&mappings).
 		Where("resource_id IN (?)", pg.In(resourceIds)).
 		Where("resource_type = ?", resourceType).

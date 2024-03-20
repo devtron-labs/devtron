@@ -125,12 +125,13 @@ func (impl DeploymentWindowServiceImpl) getUserInfoMap(err error, appIdsToOvervi
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error) {
-	overview, err := impl.GetDeploymentWindowProfileOverview(appId, envIds)
+	overview, err := impl.GetDeploymentWindowProfileOverview(appId, envIds, true)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment window profile overview", "err", err, "appId", appId, "envs", envIds)
 		return nil, err
 	}
 
+	// TODO check if profiles are empty
 	superAdmins, userEmailMap, err := impl.getUserInfoMap(err, map[int]*DeploymentWindowResponse{0: overview})
 	if err != nil {
 		impl.logger.Errorw("error in fetching user data", "err", err)
@@ -396,10 +397,10 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 func (impl DeploymentWindowServiceImpl) evaluateCombinedProfiles(profileStates []ProfileWrapper, profileType DeploymentWindowType) ([]ProfileWrapper, bool, bool, error) {
 
 	filteredProfiles := impl.filterForType(profileStates, profileType)
-	filteredProfiles = impl.filterRestricted(filteredProfiles)
+	restrictedProfiles := impl.filterRestricted(filteredProfiles)
 	allActive := true
 	oneActive := false
-	for _, profile := range filteredProfiles {
+	for _, profile := range restrictedProfiles {
 		isActive := profile.IsActive
 		if !oneActive && isActive {
 			oneActive = true
@@ -444,7 +445,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}(tx)
 
 	// create policy
-	policy := profile.convertToPolicyDataModel(userId, false)
+	policy := profile.convertToPolicyDataModel(userId)
 
 	policy, err = impl.globalPolicyManager.CreatePolicy(policy, tx)
 	if err != nil {
@@ -499,7 +500,7 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 }
 
 func (impl DeploymentWindowServiceImpl) updatePolicy(profile *DeploymentWindowProfile, userId int32, tx *pg.Tx) (*bean2.GlobalPolicyDataModel, error) {
-	policy := profile.convertToPolicyDataModel(userId, false)
+	policy := profile.convertToPolicyDataModel(userId)
 
 	policy, err := impl.globalPolicyManager.UpdatePolicy(policy, tx)
 	if err != nil {
@@ -613,7 +614,7 @@ func (impl DeploymentWindowServiceImpl) ListDeploymentWindowProfiles() ([]*Deplo
 	return allProfiles, nil
 }
 
-func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error) {
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId int, envIds []int, filterExpired bool) (*DeploymentWindowResponse, error) {
 
 	resources, profileIdToProfile, err := impl.getProfileMappingsForApp(appId, envIds)
 	if err != nil {
@@ -626,7 +627,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)
 	}
 
-	profileStates := impl.flattenProfiles(envIdToMappings, profileIdToProfile)
+	profileStates := impl.flattenProfiles(envIdToMappings, profileIdToProfile, filterExpired)
 
 	return &DeploymentWindowResponse{
 		Profiles: profileStates,
@@ -650,12 +651,12 @@ func (impl DeploymentWindowServiceImpl) getProfileMappingsForApp(appId int, envI
 	return resources, profileIdToProfile, nil
 }
 
-func (impl DeploymentWindowServiceImpl) flattenProfiles(envIdToMappings map[int][]ProfileMapping, profileIdToProfile map[int]*DeploymentWindowProfile) []ProfileWrapper {
+func (impl DeploymentWindowServiceImpl) flattenProfiles(envIdToMappings map[int][]ProfileMapping, profileIdToProfile map[int]*DeploymentWindowProfile, filterExpired bool) []ProfileWrapper {
 	profiles := make([]ProfileWrapper, 0)
 	for envId, mappings := range envIdToMappings {
 		for _, mapping := range mappings {
 			profile := profileIdToProfile[mapping.ProfileId]
-			if !profile.Enabled {
+			if !profile.Enabled || (filterExpired && profile.isExpired) {
 				continue
 			}
 			profiles = append(profiles, ProfileWrapper{
@@ -714,7 +715,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 			envIdToMappings[resource.EnvId] = append(envIdToMappings[resource.EnvId], resource)
 		}
 
-		profileStates := impl.flattenProfiles(envIdToMappings, profileIdToProfile)
+		profileStates := impl.flattenProfiles(envIdToMappings, profileIdToProfile, true)
 		appIdToResponse[appId] = &DeploymentWindowResponse{
 			Profiles: profileStates,
 		}

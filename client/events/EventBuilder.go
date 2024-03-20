@@ -20,6 +20,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"strings"
 	"time"
 
@@ -64,6 +66,7 @@ type EventSimpleFactoryImpl struct {
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
 	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
+	resourceFilterAuditService   resourceFilter.FilterEvaluationAuditService
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -73,6 +76,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 ) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
@@ -90,6 +94,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		appRepo:                      appRepo,
 		envRepository:                envRepository,
 		apiTokenServiceImpl:          apiTokenServiceImpl,
+		resourceFilterAuditService:   resourceFilterAuditService,
 	}
 
 }
@@ -179,7 +184,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
-	payload.TimeWindowComment = wfr.TriggerMetadata
+	payload.TimeWindowComment, _ = impl.getDeploymentWindowAuditMessage(wfr.CdWorkflow.CiArtifactId, wfr.Id)
 	payload.ApprovedByEmail = emailIDs
 	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
@@ -608,4 +613,22 @@ func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SE
 		}
 	}
 	return defaultSesConfig, defaultSmtpConfig, nil
+}
+
+func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId int, wfrId int) (string, error) {
+
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.CdWorkflowRunner, wfrId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return "", err
+	}
+	if len(filters) != 1 {
+		return "", nil
+	}
+	filter := filters[0]
+
+	if filter == nil || len(filter.FilterHistoryObjects) == 0 {
+		return "", nil
+	}
+	auditData := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+	return auditData.TriggerMessage, nil
 }

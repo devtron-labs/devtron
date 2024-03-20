@@ -52,6 +52,7 @@ func (timeWindow *TimeWindow) toJsonString() string {
 	return string(marshal)
 }
 func (timeWindow *TimeWindow) setFromJsonString(jsonString string) {
+	// TODO throw error
 	json.Unmarshal([]byte(jsonString), timeWindow)
 }
 

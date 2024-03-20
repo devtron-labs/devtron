@@ -477,7 +477,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	eventSimpleFactoryImpl := client3.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl)
+	filterEvaluationAuditRepositoryImpl := resourceFilter.NewFilterEvaluationAuditRepositoryImpl(sugaredLogger, db)
+	filterAuditRepositoryImpl := resourceFilter.NewFilterAuditRepositoryImpl(sugaredLogger, db)
+	filterEvaluationAuditServiceImpl := resourceFilter.NewFilterEvaluationAuditServiceImpl(sugaredLogger, filterEvaluationAuditRepositoryImpl, filterAuditRepositoryImpl)
+	eventSimpleFactoryImpl := client3.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl, filterEvaluationAuditServiceImpl)
 	applicationServiceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	configMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(sugaredLogger, db)
 	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db)
@@ -633,14 +636,11 @@ func InitializeApp() (*App, error) {
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
 	ciMaterialConfigServiceImpl := pipeline.NewCiMaterialConfigServiceImpl(sugaredLogger, materialRepositoryImpl, ciTemplateServiceImpl, ciCdPipelineOrchestratorEnterpriseImpl, ciPipelineRepositoryImpl, gitMaterialHistoryServiceImpl, pipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl)
 	celServiceImpl := resourceFilter.NewCELServiceImpl(sugaredLogger)
-	filterAuditRepositoryImpl := resourceFilter.NewFilterAuditRepositoryImpl(sugaredLogger, db)
 	resourceFilterRepositoryImpl := resourceFilter.NewResourceFilterRepositoryImpl(sugaredLogger, db, filterAuditRepositoryImpl)
 	resourceFilterEvaluatorImpl, err := resourceFilter.NewResourceFilterEvaluatorImpl(sugaredLogger, celServiceImpl)
 	if err != nil {
 		return nil, err
 	}
-	filterEvaluationAuditRepositoryImpl := resourceFilter.NewFilterEvaluationAuditRepositoryImpl(sugaredLogger, db)
-	filterEvaluationAuditServiceImpl := resourceFilter.NewFilterEvaluationAuditServiceImpl(sugaredLogger, filterEvaluationAuditRepositoryImpl, filterAuditRepositoryImpl)
 	resourceFilterServiceImpl := resourceFilter.NewResourceFilterServiceImpl(sugaredLogger, qualifierMappingServiceImpl, resourceFilterRepositoryImpl, resourceFilterEvaluatorImpl, appRepositoryImpl, teamRepositoryImpl, clusterRepositoryImpl, environmentRepositoryImpl, celServiceImpl, devtronResourceSearchableKeyServiceImpl, filterEvaluationAuditServiceImpl, filterAuditRepositoryImpl)
 	deploymentGroupRepositoryImpl := repository2.NewDeploymentGroupRepositoryImpl(sugaredLogger, db)
 	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, utilMergeUtil, environmentRepositoryImpl, deploymentTemplateHistoryServiceImpl, scopedVariableManagerImpl, lockConfigurationServiceImpl, deployedAppMetricsServiceImpl, deploymentTemplateValidationServiceImpl)

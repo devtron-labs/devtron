@@ -327,6 +327,7 @@ func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest
 	return nil
 }
 
+// stage improper
 func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
 	triggerTime := time.Now()
 	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)

@@ -24,7 +24,7 @@ type DeploymentWindowService interface {
 	ListDeploymentWindowProfiles() ([]*DeploymentWindowProfileMetadata, error)
 
 	//Overview
-	GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error)
+	GetDeploymentWindowProfileOverview(appId int, envIds []int, filterExpired bool) (*DeploymentWindowResponse, error)
 
 	//State
 	GetStateForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (UserActionState, *EnvironmentState, error)

@@ -224,7 +224,6 @@ func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
 
 	_, err := impl.dbConnection.Query(&userIds, query, SuperAdminAction)
 	if err != nil {
-		fmt.Println("Error:", err)
 		return userIds, err
 	}
 	return userIds, nil

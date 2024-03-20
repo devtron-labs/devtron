@@ -17,7 +17,7 @@ type DeploymentWindowProfilePolicy struct {
 	IsExpired            bool                 `json:"isExpired"`
 }
 
-func (profile DeploymentWindowProfile) toPolicy(isExpired bool) DeploymentWindowProfilePolicy {
+func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy {
 	return DeploymentWindowProfilePolicy{
 		TimeZone:             profile.TimeZone,
 		DisplayMessage:       profile.DisplayMessage,
@@ -25,13 +25,13 @@ func (profile DeploymentWindowProfile) toPolicy(isExpired bool) DeploymentWindow
 		IsSuperAdminExcluded: profile.IsSuperAdminExcluded,
 		IsUserExcluded:       profile.IsUserExcluded,
 		Type:                 profile.Type,
-		IsExpired:            isExpired,
+		IsExpired:            profile.isExpired,
 	}
 }
 
-func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32, isExpired bool) *bean.GlobalPolicyDataModel {
+func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) *bean.GlobalPolicyDataModel {
 
-	policyBytes, _ := json.Marshal(profile.toPolicy(isExpired))
+	policyBytes, _ := json.Marshal(profile.toPolicy())
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
 			Id:            profile.Id,
