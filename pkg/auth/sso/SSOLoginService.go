@@ -60,33 +60,32 @@ func (r *Config) IsSsoLdap() bool {
 }
 
 func (r *Config) secureCredentials() {
-	r.secureCredentialValue(r, ClientID)
-	r.secureCredentialValue(r, ClientSecret)
+	r.secureCredentialValue(ClientID)
+	r.secureCredentialValue(ClientSecret)
 	if r.IsSsoLdap() {
-		r.secureCredentialValue(r, LdapBindPW)
-		r.secureCredentialValue(r, LdapUsernamePrompt)
+		r.secureCredentialValue(LdapBindPW)
+		r.secureCredentialValue(LdapUsernamePrompt)
 	}
-
 }
 
-func (r *Config) secureCredentialValue(configData *Config, credentialKey string) {
-	if configData.Config[credentialKey] != nil {
-		configData.Config[credentialKey] = ""
+func (r *Config) secureCredentialValue(credentialKey string) {
+	if r.Config[credentialKey] != nil {
+		r.Config[credentialKey] = ""
 	}
 }
 
 func (r *Config) updateCredentialsFromBase(configFromDb *Config) {
-	r.updateSecretFromBase(r, configFromDb, ClientID)
-	r.updateSecretFromBase(r, configFromDb, ClientSecret)
+	r.updateSecretFromBase(configFromDb, ClientID)
+	r.updateSecretFromBase(configFromDb, ClientSecret)
 	if r.IsSsoLdap() {
-		r.updateSecretFromBase(r, configFromDb, LdapBindPW)
-		r.updateSecretFromBase(r, configFromDb, LdapUsernamePrompt)
+		r.updateSecretFromBase(configFromDb, LdapBindPW)
+		r.updateSecretFromBase(configFromDb, LdapUsernamePrompt)
 	}
 }
 
-func (r *Config) updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
-		configData.Config[key] = baseConfigData.Config[key]
+func (r *Config) updateSecretFromBase(baseConfigData *Config, key string) {
+	if r.Config[key] == "" && baseConfigData.Config[key] != nil {
+		r.Config[key] = baseConfigData.Config[key]
 	}
 }
 
