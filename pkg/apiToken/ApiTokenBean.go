@@ -23,17 +23,17 @@ type TokenCustomClaimsForNotification struct {
 }
 
 type ArtifactPromotionApprovalNotificationClaims struct {
-	AppId               int      `json:"appId"`
-	AppName             string   `json:"appName"`
-	EnvId               int      `json:"envId"`
-	EnvName             string   `json:"envName"`
-	Image               string   `json:"image"`
-	ImageTags           []string `json:"imageTags"`
-	ImageComment        string   `json:"imageComment"`
-	PromotionSourceType string   `json:"promotionSourceType"`
-	ArtifactId          int      `json:"artifactId"`
-	WorkflowId          int      `json:"workflowId"`
-	UserId              int32    `json:"userId"`
+	AppId           int      `json:"appId"`
+	AppName         string   `json:"appName"`
+	EnvId           int      `json:"envId"`
+	EnvName         string   `json:"envName"`
+	Image           string   `json:"image"`
+	ImageTags       []string `json:"imageTags"`
+	ImageComment    string   `json:"imageComment"`
+	PromotionSource string   `json:"promotionSourceType"`
+	ArtifactId      int      `json:"artifactId"`
+	WorkflowId      int      `json:"workflowId"`
+	UserId          int32    `json:"userId"`
 	ApiTokenCustomClaims
 }
 

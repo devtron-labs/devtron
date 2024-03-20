@@ -55,7 +55,7 @@ type NotificationConfigService interface {
 	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
 	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
 	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
-	ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.DeploymentApprovalResponse, error)
+	ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -1035,9 +1035,11 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(
 	}
 
 	return &client.DeploymentApprovalResponse{
-		ImageTagNames:  imageTagNames,
-		ImageComment:   imageComment.Comment,
-		DockerImageUrl: ciArtifact.Image,
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames:  imageTagNames,
+			ImageComment:   imageComment.Comment,
+			DockerImageUrl: ciArtifact.Image,
+		},
 		NotificationMetaData: &client.NotificationMetaData{
 			AppName:    appName,
 			EnvName:    envName,
@@ -1047,7 +1049,7 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(
 	}, nil
 }
 
-func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.DeploymentApprovalResponse, error) {
+func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error) {
 
 	artifactPromotionApprovalRequest := &bean2.ArtifactPromotionRequest{
 		Action:           constants.ACTION_APPROVE,
@@ -1076,17 +1078,21 @@ func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata
 		status = bean.Errored
 	}
 
-	return &client.DeploymentApprovalResponse{
-		ImageTagNames:  request.ImageTags,
-		ImageComment:   request.ImageComment,
-		DockerImageUrl: request.Image,
+	return &client.PromotionApprovalResponse{
+		SourceInfo: request.PromotionSource,
+		Status:     status,
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames: request.ImageTags,
+			ImageComment:  request.ImageComment,
+
+			DockerImageUrl: request.Image,
+		},
 		NotificationMetaData: &client.NotificationMetaData{
 			AppName:    request.AppName,
 			EnvName:    request.EnvName,
 			ApprovedBy: request.ApiTokenCustomClaims.Email,
 			EventTime:  time.Now().Format(bean.LayoutRFC3339),
 		},
-		Status: status,
 	}, nil
 
 }

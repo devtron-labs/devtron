@@ -1155,7 +1155,7 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 		ImageTags:               metadata.GetImageTags(),
 		ImageComment:            metadata.GetImageComment(),
 		ImagePath:               metadata.GetCiArtifact().Image,
-		ArtifactPromotionSource: string(metadata.GetSourceTypeStr()),
+		ArtifactPromotionSource: metadata.GetSourceDisplayName(),
 		PromoterAccessEmailIds:  imagePromoterEmails,
 		WorkflowId:              metadata.GetWorkflowId(),
 	}

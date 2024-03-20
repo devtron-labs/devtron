@@ -479,6 +479,14 @@ func (r *RequestMetaData) GetSourceTypeStr() bean2.SourceTypeStr {
 	return r.sourceMetaData.typeStr
 }
 
+func (r *RequestMetaData) GetSourceDisplayName() string {
+	// for source type cd env name is displayed and for other sources source type is displayed
+	if r.GetSourceTypeStr() == bean2.SOURCE_TYPE_CD {
+		return r.sourceMetaData.name
+	}
+	return string(r.GetSourceTypeStr())
+}
+
 func (r *RequestMetaData) GetSourcePipelineId() int {
 	return r.sourceMetaData.id
 }
