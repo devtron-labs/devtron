@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2146,7 +2147,9 @@ func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(ctx context.
 	}
 	var envNames []string
 	for _, pipeline := range pipelines {
-		envNames = append(envNames, pipeline.Environment.Name)
+		if !slices.Contains(envNames, pipeline.Environment.Name) {
+			envNames = append(envNames, pipeline.Environment.Name)
+		}
 	}
 	return envNames, nil
 }
