@@ -171,20 +171,10 @@ func (handler *RestHandlerImpl) FetchWorkflowPromoteNodeList(w http.ResponseWrit
 func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
 	ctx := util.NewRequestCtx(r.Context())
 
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	if !isAuthorised {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
 	queryParams := r.URL.Query()
 
 	artifactId := 0
-	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
+	artifactId, err := common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
 	if err != nil {
 		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
 		return

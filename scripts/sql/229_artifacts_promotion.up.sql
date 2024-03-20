@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
     ON artifact_promotion_approval_request(artifact_id,destination_pipeline_id)
-    WHERE status = 3;
+    WHERE (status = 3 and status = 1);
 
 -- custom role queries
 insert into rbac_policy_resource_detail

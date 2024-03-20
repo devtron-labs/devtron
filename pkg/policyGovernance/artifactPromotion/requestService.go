@@ -191,17 +191,6 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 		return environmentApprovalMetadata, err
 	}
 
-	if len(pipelineIdToDaoMapping) < len(destinationPipelineIds) {
-		deletedPipelines, err := impl.markRequestAsStale(pipelineIdToDaoMapping, destinationPipelineIds)
-		if err != nil {
-			// not returning by choice, dont block user flow if this operation is unsuccessful
-			impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines, "err", err)
-		}
-		if len(deletedPipelines) == len(promotionRequests) {
-			return environmentApprovalMetadata, nil
-		}
-	}
-
 	envIds := make([]int, 0, len(pipelineIdToDaoMapping))
 	for _, pipelineDao := range pipelineIdToDaoMapping {
 		envIds = append(envIds, pipelineDao.EnvironmentId)
@@ -250,34 +239,6 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
-}
-
-// TODO : test
-func (impl *ApprovalRequestServiceImpl) markRequestAsStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
-	// TODO : add info log
-	impl.logger.Errorw("marking deleted pipeline policies stale", "deletedPipelineIds", destinationPipelineIds)
-	var deletedPipelines []int
-	for id := range destinationPipelineIds {
-		if _, ok := pipelineIdToDaoMapping[id]; !ok {
-			deletedPipelines = append(deletedPipelines, id)
-		}
-	}
-	tx, err := impl.transactionManager.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting tx", "pipelinesMap", pipelineIdToDaoMapping, "destinationPipelineIds", destinationPipelineIds, "err", err)
-		return deletedPipelines, err
-	}
-	err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByDestinationPipelineId(tx, deletedPipelines)
-	if err != nil {
-		impl.logger.Errorw("error in marking pipeline stale by ids", "pipelineIds", deletedPipelines, "err", err)
-		return deletedPipelines, err
-	}
-	err = impl.transactionManager.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing the transaction", "pipelineIds", deletedPipelines, "err", err)
-		return nil, err
-	}
-	return deletedPipelines, nil
 }
 
 func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util3.RequestCtx, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error) {
@@ -1125,7 +1086,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 			impl.logger.Errorw("auto trigger error on artifact promotion", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId(), "err", err)
 		}
 	} else if promotionRequest.Status == constants.AWAITING_APPROVAL {
-		impl.logger.Errorw("sending email notification for artifact promotion request", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
+		impl.logger.Infow("sending email notification for artifact promotion request", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
 		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetUserId())
 	}
 	return status, nil
