@@ -60,7 +60,7 @@ components:
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
-    image: "quay.io/devtron/dashboard:4110b28c-325-21635"
+    image: "quay.io/devtron/dashboard:bb703f7f-325-21643"
     imagePullPolicy: IfNotPresent
 
   devtron:
