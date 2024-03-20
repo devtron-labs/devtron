@@ -1024,8 +1024,8 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(ctx *util2.R
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtifacts []bean2.CiArtifactBean, wfMetadata bean4.PromotionRequestWfMetadata) ([]bean2.CiArtifactBean, error) {
-	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(wfMetadata, ciArtifacts)
+func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtifacts []bean2.CiArtifactBean, wfMetadata *bean4.PromotionRequestWfMetadata) ([]bean2.CiArtifactBean, error) {
+	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(ciArtifacts, wfMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineIds", wfMetadata.GetCdPipelineIds(), "err", err)
 		return ciArtifacts, err
@@ -1039,7 +1039,7 @@ func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtif
 	return ciArtifacts, nil
 }
 
-func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(wfMetadata bean4.PromotionRequestWfMetadata, ciArtifacts []bean2.CiArtifactBean) (artifactIdToDeployedEnvMap map[int][]string, err error) {
+func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(ciArtifacts []bean2.CiArtifactBean, wfMetadata *bean4.PromotionRequestWfMetadata) (artifactIdToDeployedEnvMap map[int][]string, err error) {
 
 	wfCdPipelineIds := wfMetadata.GetCdPipelineIds()
 
@@ -1049,12 +1049,7 @@ func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(wfMetada
 		return artifactIdToDeployedEnvMap, err
 	}
 
-	pipelineIdToEnvName, err := impl.getPipelineIdToEnvNameMapping(wfCdPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting pipelineId to envName mapping", "err", err)
-		return artifactIdToDeployedEnvMap, err
-	}
-
+	pipelineIdToEnvName := wfMetadata.GetPipelineIdToEnvNameMap()
 	artifactToDeployedOnEnvsMapping := make(map[int][]string)
 	for _, artifact := range ciArtifacts {
 		if pipelineId, ok := deployedArtifactToPipelineIDMapping[artifact.Id]; ok {
@@ -1065,18 +1060,20 @@ func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(wfMetada
 	return artifactToDeployedOnEnvsMapping, nil
 }
 
-func (impl *AppArtifactManagerImpl) getPipelineIdToEnvNameMapping(wfCdPipelineIds []int) (map[int]string, error) {
+func (impl *AppArtifactManagerImpl) getWfPipelinesMetadata(wfCdPipelineIds []int) (map[int]string, bool, error) {
 	pipelineIdToEnvNameMapping := make(map[int]string)
 	pipelines, err := impl.cdPipelineConfigService.FindCdPipelinesByIds(wfCdPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployed pipelines by pipelineIds", "pipelineIds", wfCdPipelineIds, "err", err)
-		return pipelineIdToEnvNameMapping, err
+		return pipelineIdToEnvNameMapping, false, err
 	}
 	pipelineIdToEnvName := make(map[int]string, 0)
+	hasProdEnv := false
 	for _, p := range pipelines {
 		pipelineIdToEnvName[p.Id] = p.EnvironmentName
+		hasProdEnv = p.IsProdEnv || hasProdEnv
 	}
-	return pipelineIdToEnvName, nil
+	return pipelineIdToEnvName, hasProdEnv, nil
 }
 
 func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPipelineIds []int) (map[int]int, error) {
@@ -1566,13 +1563,11 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 	}
 
 	if len(ciArtifactResponse.CiArtifacts) > 0 {
-
 		ciArtifactResponse.CiArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifactResponse.CiArtifacts, nil, request.GetAppId())
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data in artifacts", "appId", request.GetAppId(), "err", err)
 			return ciArtifactResponse, err
 		}
-
 		ciArtifactResponse.CiArtifacts, err = impl.setDeployedOnEnvironmentsForArtifact(ciArtifactResponse.CiArtifacts, wfMetadata)
 		if err != nil {
 			impl.logger.Errorw("error in setting environments on which artifact is deployed", "workflowId", request.GetWorkflowId(), "err", err)
@@ -1582,7 +1577,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 
 	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(request.GetAppId())
 	if err != nil {
-		impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", request.GetAppId())
+		impl.logger.Errorw("service err, GetTagsByAppId", "appId", request.GetAppId(), "err", err)
 		return ciArtifactResponse, err
 	}
 
@@ -1592,6 +1587,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 		return bean2.CiArtifactResponse{}, err
 	}
 
+	ciArtifactResponse.TagsEditable = wfMetadata.GetHasProdEnv() && request.GetTriggerAccess()
 	ciArtifactResponse.AppReleaseTagNames = appTags
 	ciArtifactResponse.IsApprovalPendingForPromotion = len(pipelineIdToRequestMapping) > 0
 	ciArtifactResponse.RequestedUserId = ctx.GetUserId()
@@ -1599,12 +1595,18 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 	return ciArtifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCtx, workflowId int) (bean4.PromotionRequestWfMetadata, error) {
+func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCtx, workflowId int) (*bean4.PromotionRequestWfMetadata, error) {
 
 	cdPipelineIds, _, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdToWfIdMapping([]int{workflowId})
 	if err != nil {
 		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowId", workflowId, "err", err)
-		return bean4.PromotionRequestWfMetadata{}, err
+		return &bean4.PromotionRequestWfMetadata{}, err
+	}
+
+	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineId to envName mapping", "cdPipelineIds", cdPipelineIds, "err", err)
+		return &bean4.PromotionRequestWfMetadata{}, err
 	}
 
 	imagePromoterRbacObjects, pipelineIdToRbacObjMapping := impl.enforcerUtil.GetTeamRbacObjectsByPipelineIds(cdPipelineIds)
@@ -1619,16 +1621,18 @@ func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCt
 		}
 	}
 
-	promotionRequestWfMetadata := bean4.PromotionRequestWfMetadata{}
-
-	promotionRequestWfMetadata.SetCdPipelineIds(cdPipelineIds)
-	promotionRequestWfMetadata.SetAuthCdPipelineIds(authorizedPipelineIds)
+	promotionRequestWfMetadata := &bean4.PromotionRequestWfMetadata{}
+	promotionRequestWfMetadata = promotionRequestWfMetadata.
+		WithCdPipelineIds(cdPipelineIds).
+		WithAuthCdPipelineIds(authorizedPipelineIds).
+		WithPipelineIdToEnvNameMap(pipelineIdToEnvName).
+		WithHasProdEnv(hasProdEnv)
 
 	return promotionRequestWfMetadata, nil
 
 }
 
-func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 	var err error
@@ -1738,28 +1742,28 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 	}
 
 	pipeline := cdPipeline.Pipelines[0]
-
 	promotionPendingNodeReq := &bean.PromotionPendingNodeMaterialRequest{}
+
 	promotionPendingNodeReq = promotionPendingNodeReq.
 		WithCDPipelineIds([]int{pipeline.Id}).
 		WithListingFilterOptions(request.ListingFilterOptions)
 
 	artifactEntities, totalCount, err := impl.ciArtifactRepository.FindArtifactsPendingForPromotion(promotionPendingNodeReq)
 	if err != nil {
-		impl.logger.Errorw("error in fetching artifacts pending for approval", "cdPipelineId", promotionPendingNodeReq.GetCDPipelineIds(), "err", err)
+		impl.logger.Errorw("error in fetching artifacts pending for approval", "cdPipelineIds", promotionPendingNodeReq.GetCDPipelineIds(), "err", err)
 		return bean2.CiArtifactResponse{}, err
 	}
 
 	imagePromotionApproverEmails, err := impl.getImagePromoterApproverEmails(pipeline)
 	if err != nil {
-		impl.logger.Errorw("error in finding users with image promoter approver access", "pipelineId", pipeline.Id, "err", err)
+		impl.logger.Errorw("error in finding users with image promoter approver access", "pipelineIds", pipeline.Id, "err", err)
 		return bean2.CiArtifactResponse{}, err
 	}
 
 	ciArtifacts := bean2.ConvertArtifactEntityToModel(artifactEntities)
 	ciArtifacts, err = impl.setPromotionArtifactMetadata(ctx, ciArtifacts, pipeline.Id, constants.AWAITING_APPROVAL)
 	if err != nil {
-		impl.logger.Errorw("error in fetching promotion approval metadata for artifacts", "cdPipelineId", pipeline.Id, "err", err)
+		impl.logger.Errorw("error in fetching promotion approval metadata for artifacts", "cdPipelineIds", pipeline.Id, "err", err)
 		return bean2.CiArtifactResponse{}, err
 	}
 
@@ -1770,7 +1774,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 	}, nil
 }
 
-func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
 
 	imagePromoterAuthCDPipelineIds := wfMetadata.GetAuthCdPipelineIds()
 

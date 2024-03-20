@@ -207,9 +207,11 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	if ok := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx); !ok {
+	hasTriggerAccess, isAuthorised := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx)
+	if !isAuthorised {
 		return
 	}
+	artifactPromotionMaterialRequest = artifactPromotionMaterialRequest.WithTriggerAccess(hasTriggerAccess)
 
 	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
@@ -221,42 +223,41 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
 }
 
-func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) bool {
+func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) (isAuthenticated bool, hasTriggerAccess bool) {
 
-	if request.IsCINode() || request.IsCDNode() {
+	if request.IsCINode() || request.IsCDNode() || request.IsPendingForUserRequest() {
 		// check if user has trigger access for any one env for this app
-		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId()); !hasTriggerAccess {
+		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
+		if !hasTriggerAccess && !request.IsPendingForUserRequest() {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
-			return false
+			return false, false
 		}
-	} else if request.IsPromotionApprovalPendingNode() && !request.GetPendingForCurrentUser() {
+	} else if request.IsPromotionApprovalPendingNode() {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(request.GetAppId())
 		env, err := handler.environmentService.FindOne(request.GetResourceName())
 		if err != nil {
 			handler.logger.Errorw("env not found for given envName", "envName", request.GetResourceName(), "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
-			return false
+			return false, false
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, request.GetAppId())
 		if ok := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return false
+			return false, false
 		}
 
-		triggerAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
+		hasTriggerAccess = handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
 			handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(request.GetAppId(), env.Id)
-		//TODO: ayush rename resource
 		approverAccess := handler.enforcer.Enforce(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamRbac)
-
-		if !triggerAccess && !approverAccess {
+		if !hasTriggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, unAuthorisedUser, http.StatusForbidden)
-			return false
+			return false, false
 		}
 	}
-	return true
+	return true, hasTriggerAccess
 }
 
 func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
@@ -335,31 +336,29 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 
 func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.ResponseWriter, request *bean3.PromotionMaterialRequest) bool {
 
+	if request.GetAppId() == 0 || request.GetWorkflowId() == 0 {
+		common.WriteJsonResp(w, errors.New("appId/workflowId is required field "), nil, http.StatusBadRequest)
+		return false
+	}
+
 	if len(request.GetResource()) == 0 {
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
 		return false
 	} else {
 		if request.IsCDNode() || request.IsCINode() {
-			if len(request.GetResourceName()) == 0 || request.GetAppId() == 0 {
+			if len(request.GetResourceName()) == 0 {
 				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", request.GetResource())), nil, http.StatusBadRequest)
 				return false
 			}
 		} else if request.IsWebhookNode() {
-			if request.GetResourceId() == 0 || request.GetAppId() == 0 {
+			if request.GetResourceId() == 0 {
 				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceId/appId is required field for resource = %s ", request.GetResource())), nil, http.StatusBadRequest)
 				return false
 			}
 		} else if request.IsPromotionApprovalPendingNode() {
-			if request.IsPendingForUserRequest() {
-				if request.GetWorkflowId() == 0 {
-					common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
-					return false
-				}
-			} else {
-				if len(request.GetResourceName()) == 0 || request.GetAppId() == 0 {
-					common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s if pendingForCurrentUser is false", request.GetResource())), nil, http.StatusBadRequest)
-					return false
-				}
+			if len(request.GetResourceName()) == 0 && !request.GetPendingForCurrentUser() {
+				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s if pendingForCurrentUser is false", request.GetResource())), nil, http.StatusBadRequest)
+				return false
 			}
 		} else {
 			common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid resource name - %s ", request.GetResource())), nil, http.StatusBadRequest)

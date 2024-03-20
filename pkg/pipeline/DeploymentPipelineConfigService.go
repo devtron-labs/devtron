@@ -2533,6 +2533,7 @@ func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []in
 			DeploymentAppDeleteRequest: pipeline.DeploymentAppDeleteRequest,
 			DeploymentAppCreated:       pipeline.DeploymentAppCreated,
 			AppId:                      pipeline.AppId,
+			IsProdEnv:                  pipeline.Environment.Default,
 		}
 		cdPipelines = append(cdPipelines, cdPipeline)
 

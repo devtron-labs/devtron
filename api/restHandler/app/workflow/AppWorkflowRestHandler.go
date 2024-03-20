@@ -65,14 +65,12 @@ type AppWorkflowRestHandlerImpl struct {
 	appRepository      app.AppRepository
 	enforcerUtil       rbac.EnforcerUtil
 	chartService       chart.ChartService
-	appArtifactManager pipeline.AppArtifactManager
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
 	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil,
-	chartService chart.ChartService,
-	appArtifactManager pipeline.AppArtifactManager) *AppWorkflowRestHandlerImpl {
+	chartService chart.ChartService) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
@@ -83,7 +81,6 @@ func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService us
 		appRepository:      appRepository,
 		enforcerUtil:       enforcerUtil,
 		chartService:       chartService,
-		appArtifactManager: appArtifactManager,
 	}
 }
 

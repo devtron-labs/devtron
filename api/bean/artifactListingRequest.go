@@ -143,6 +143,7 @@ type PromotionMaterialRequest struct {
 	ciPipelineId          int
 	cdPipelineId          int
 	externalCiPipelineId  int
+	triggerAccess         bool
 	util.ListingFilterOptions
 }
 
@@ -234,6 +235,15 @@ func (p *PromotionMaterialRequest) WithListingOptions(listingOptions util.Listin
 
 func (p *PromotionMaterialRequest) GetListingOptions() util.ListingFilterOptions {
 	return p.ListingFilterOptions
+}
+
+func (p *PromotionMaterialRequest) WithTriggerAccess(hasTriggerAccess bool) *PromotionMaterialRequest {
+	p.triggerAccess = hasTriggerAccess
+	return p
+}
+
+func (p *PromotionMaterialRequest) GetTriggerAccess() bool {
+	return p.triggerAccess
 }
 
 func (p *PromotionMaterialRequest) IsCINode() bool {
