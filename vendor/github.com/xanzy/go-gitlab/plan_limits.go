@@ -65,7 +65,7 @@ func (s *PlanLimitsService) GetCurrentPlanLimits(opt *GetCurrentPlanLimitsOption
 		return nil, resp, err
 	}
 
-	return pl, resp, err
+	return pl, resp, nil
 }
 
 // ChangePlanLimitOptions represents the available ChangePlanLimits() options.
@@ -100,5 +100,5 @@ func (s *PlanLimitsService) ChangePlanLimits(opt *ChangePlanLimitOptions, option
 		return nil, resp, err
 	}
 
-	return pl, resp, err
+	return pl, resp, nil
 }

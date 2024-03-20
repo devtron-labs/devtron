@@ -62,5 +62,5 @@ func (s *KeysService) GetKeyWithUser(key int, options ...RequestOptionFunc) (*Ke
 		return nil, resp, err
 	}
 
-	return k, resp, err
+	return k, resp, nil
 }

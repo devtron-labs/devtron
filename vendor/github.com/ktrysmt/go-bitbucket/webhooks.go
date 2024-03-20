@@ -74,7 +74,7 @@ func (r *Webhooks) buildWebhooksBody(ro *WebhooksOptions) (string, error) {
 
 func (r *Webhooks) List(ro *WebhooksOptions) ([]Webhook, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/hooks/", ro.Owner, ro.RepoSlug)
-	res, err := r.c.executePaginated("GET", urlStr, "")
+	res, err := r.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (r *Webhooks) List(ro *WebhooksOptions) ([]Webhook, error) {
 // Deprecate Gets for List call
 func (r *Webhooks) Gets(ro *WebhooksOptions) (interface{}, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/hooks/", ro.Owner, ro.RepoSlug)
-	return r.c.executePaginated("GET", urlStr, "")
+	return r.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (r *Webhooks) Create(ro *WebhooksOptions) (*Webhook, error) {

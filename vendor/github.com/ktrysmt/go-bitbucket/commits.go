@@ -12,7 +12,7 @@ type Commits struct {
 func (cm *Commits) GetCommits(cmo *CommitsOptions) (interface{}, error) {
 	urlStr := cm.c.requestUrl("/repositories/%s/%s/commits/%s", cmo.Owner, cmo.RepoSlug, cmo.Branchortag)
 	urlStr += cm.buildCommitsQuery(cmo.Include, cmo.Exclude)
-	return cm.c.executePaginated("GET", urlStr, "")
+	return cm.c.executePaginated("GET", urlStr, "", cmo.Page)
 }
 
 func (cm *Commits) GetCommit(cmo *CommitsOptions) (interface{}, error) {
@@ -22,7 +22,7 @@ func (cm *Commits) GetCommit(cmo *CommitsOptions) (interface{}, error) {
 
 func (cm *Commits) GetCommitComments(cmo *CommitsOptions) (interface{}, error) {
 	urlStr := cm.c.requestUrl("/repositories/%s/%s/commit/%s/comments", cmo.Owner, cmo.RepoSlug, cmo.Revision)
-	return cm.c.executePaginated("GET", urlStr, "")
+	return cm.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (cm *Commits) GetCommitComment(cmo *CommitsOptions) (interface{}, error) {
@@ -32,7 +32,7 @@ func (cm *Commits) GetCommitComment(cmo *CommitsOptions) (interface{}, error) {
 
 func (cm *Commits) GetCommitStatuses(cmo *CommitsOptions) (interface{}, error) {
 	urlStr := cm.c.requestUrl("/repositories/%s/%s/commit/%s/statuses", cmo.Owner, cmo.RepoSlug, cmo.Revision)
-	return cm.c.executePaginated("GET", urlStr, "")
+	return cm.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (cm *Commits) GetCommitStatus(cmo *CommitsOptions, commitStatusKey string) (interface{}, error) {

@@ -6,7 +6,6 @@ run:
   concurrency: 4
   timeout: 10m
   issues-exit-code: 1
-  # Include test files or not, default is true
   tests: true
 
 # Output configuration options
@@ -19,19 +18,14 @@ linters-settings:
     locale: US
     ignore-words:
     - noteable
-  unused:
-    # Treat code as a program (not a library) and report unused exported identifiers
-    check-exported: false
 
 linters:
   enable:
     - asciicheck
-    - deadcode
     - dogsled
     - errorlint
     - exportloopref
     - goconst
-    - golint
     - gosimple
     - govet
     - ineffassign
@@ -40,11 +34,9 @@ linters:
     - nakedret
     - nolintlint
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     - unused
-    - varcheck
     - whitespace
   disable:
     - errcheck
@@ -52,6 +44,10 @@ linters:
   fast: false
 
 issues:
+  # List of regexps of issue texts to exclude.
+  exclude:
+    - "^.*, make it a constant$"
+
   # Maximum issues count per one linter (set to 0 to disable)
   max-issues-per-linter: 0
 
