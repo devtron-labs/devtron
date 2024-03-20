@@ -676,6 +676,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(ima
 
 func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
 	callback := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("received, DEVTRON_CHART_INSTALL_TOPIC", "message", msg)
 		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
 		if err != nil {
 			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)

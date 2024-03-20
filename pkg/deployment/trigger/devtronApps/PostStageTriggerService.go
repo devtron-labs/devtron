@@ -211,7 +211,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 			DeployStageType:            bean2.CD_WORKFLOW_TYPE_POST,
 			CdWorkflowId:               runner.CdWorkflowId,
-			PipelineId:                 pipeline.CiPipelineId,
+			PipelineId:                 pipeline.Id,
 			PluginRegistryImageDetails: nil,
 		}
 		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
