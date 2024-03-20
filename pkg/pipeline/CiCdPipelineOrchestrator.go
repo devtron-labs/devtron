@@ -2136,14 +2136,14 @@ func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(ctx context.
 	pipelines, err := impl.pipelineRepository.FindWithEnvironmentByCiIds(ctx, ciPipelineIds)
 	if util.IsErrNoRows(err) {
 		impl.logger.Info("no pipelines available for these ciPipelineIds", "ciPipelineIds", ciPipelineIds)
-		return nil, nil
+		return []string{}, nil
 	} else if err != nil {
 		impl.logger.Errorw("error in getting pipelines for these ciPipelineIds ", "ciPipelineIds", ciPipelineIds, "err", err)
 		return nil, err
 	}
 	if pipelines == nil {
 		impl.logger.Info("no pipelines available for these ciPipelineIds", "ciPipelineIds", ciPipelineIds)
-		return nil, nil
+		return []string{}, nil
 	}
 	var envNames []string
 	for _, pipeline := range pipelines {
