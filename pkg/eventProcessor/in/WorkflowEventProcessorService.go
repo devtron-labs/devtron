@@ -136,6 +136,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeDeployStageSuccessEvent() error
 		triggerContext := bean5.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}
+		impl.logger.Debugw("received, CD_STAGE_SUCCESS_EVENT", "message", msg.Data)
 		switch event.DeployStageType {
 		case bean2.CD_WORKFLOW_TYPE_PRE:
 			//currently not being used, to implement if needed after refactoring current usages
