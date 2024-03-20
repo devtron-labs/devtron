@@ -209,8 +209,8 @@ github.com/devtron-labs/authenticator v0.4.35-0.20240318120452-291225c39ab6 h1:8
 github.com/devtron-labs/authenticator v0.4.35-0.20240318120452-291225c39ab6/go.mod h1:7mfk7SAY+lxM1CUxI2h08tRbNU/hkThRw1XRhGHBRjo=
 github.com/devtron-labs/common-lib v0.0.16-0.20240318063710-69cb957d019a h1:6ik5mwqPW3/zNGCsV0kRh2zFQbECpOfeldflYQaRoVo=
 github.com/devtron-labs/common-lib v0.0.16-0.20240318063710-69cb957d019a/go.mod h1:6QrrtLoLnuEdHkrx5HqkEVwMxEmnhAH1R/SJVMswuCc=
-github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
-github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
+github.com/devtron-labs/protos v0.0.3-0.20240318063943-73060446ac73 h1:AiBveuG5r1sfnX+pgskKu8SjDyFC14pnW25YoNpAYBU=
+github.com/devtron-labs/protos v0.0.3-0.20240318063943-73060446ac73/go.mod h1:ypUknVph8Ph4dxSlrFoouf7wLedQxHku2LQwgRrdgS4=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=

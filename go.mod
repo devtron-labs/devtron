@@ -18,7 +18,7 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240318120452-291225c39ab6
 	github.com/devtron-labs/common-lib v0.0.16-0.20240318063710-69cb957d019a
-	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
+	github.com/devtron-labs/protos v0.0.3-0.20240318063943-73060446ac73
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-git/go-billy/v5 v5.5.0
