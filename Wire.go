@@ -339,6 +339,7 @@ func InitializeApp() (*App, error) {
 		workflow2.NewAppWorkflowRouterImpl,
 		wire.Bind(new(workflow2.AppWorkflowRouter), new(*workflow2.AppWorkflowRouterImpl)),
 
+		pipeline4.NewCiCdPipelineOrchestrator,
 		pipeline3.NewCiCdPipelineOrchestratorEnterpriseImpl,
 		wire.Bind(new(pipeline4.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
 		// ------------

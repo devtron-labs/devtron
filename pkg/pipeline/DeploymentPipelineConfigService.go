@@ -53,6 +53,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -711,7 +712,7 @@ func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPa
 }
 
 func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(pipelineConfigBean.LINKED_CD))
+	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(CiPipeline.LINKED_CD))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
 		return true, err
