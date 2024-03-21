@@ -14,8 +14,8 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("valid release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{"tag1", "latest"}
-		params := GetParamsFromArtifact(artifact, releaseTags, nil)
-
+		params, err := GetParamsFromArtifact(artifact, releaseTags, nil)
+		assert.Nil(tt, err)
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
@@ -30,8 +30,8 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("empty release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{}
-		params := GetParamsFromArtifact(artifact, releaseTags, nil)
-
+		params, err := GetParamsFromArtifact(artifact, releaseTags, nil)
+		assert.Nil(tt, err)
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
@@ -46,8 +46,8 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("nil release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		var releaseTags []string
-		params := GetParamsFromArtifact(artifact, releaseTags, nil)
-
+		params, err := GetParamsFromArtifact(artifact, releaseTags, nil)
+		assert.Nil(tt, err)
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
@@ -74,7 +74,8 @@ func TestEvaluateCELRequest(t *testing.T) {
 				},
 			},
 		}
-		params := GetParamsFromArtifact(artifact, releaseTags, []repository.CiMaterialInfo{minfo})
+		params, err := GetParamsFromArtifact(artifact, releaseTags, []repository.CiMaterialInfo{minfo})
+		assert.Nil(tt, err)
 
 		evalReq := CELRequest{
 			Expression: "gitCommitDetails['github.com/test'].branch == 'test'",

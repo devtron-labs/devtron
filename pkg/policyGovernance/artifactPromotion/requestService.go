@@ -145,6 +145,9 @@ func (impl *ApprovalRequestServiceImpl) GetPromotionRequestById(promotionRequest
 	promotionRequest, err := impl.artifactPromotionApprovalRequestRepository.FindById(promotionRequestId)
 	if err != nil {
 		impl.logger.Errorw("error in getting promotion request by id", "promotionRequestId", promotionRequestId, "err", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr)
+		}
 		return nil, err
 	}
 	artifactPromotionResponse := &bean.ArtifactPromotionApprovalResponse{
@@ -417,8 +420,8 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 	for _, imageTag := range imageTags {
 		releaseTags = append(releaseTags, imageTag.TagName)
 	}
-	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, ciMaterials)
-	return params, nil
+	params, err := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, ciMaterials)
+	return params, err
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {

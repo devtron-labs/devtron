@@ -354,9 +354,13 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 }
 
 func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (FilterState, map[int]FilterState, error) {
-	params := GetParamsFromArtifact(artifactImage, imageLabels, materialInfos)
+
 	filterIdVsState := make(map[int]FilterState)
 	finalState := ALLOW
+	params, err := GetParamsFromArtifact(artifactImage, imageLabels, materialInfos)
+	if err != nil {
+		return ERROR, filterIdVsState, err
+	}
 	for _, filter := range filters {
 		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter.Conditions, ExpressionMetadata{Params: params})
 		if err != nil {

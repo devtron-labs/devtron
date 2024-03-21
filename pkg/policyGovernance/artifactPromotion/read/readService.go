@@ -140,7 +140,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) getRequestIdToPolicyMapping(promotionApprovalRequest []*repository.ArtifactPromotionApprovalRequest) (map[int]*bean.PromotionPolicy, error) {
-	policyEvaluationIds := util2.GetArrayObject(promotionApprovalRequest, func(service *repository.ArtifactPromotionApprovalRequest) int {
+	policyEvaluationIds := util2.Map(promotionApprovalRequest, func(service *repository.ArtifactPromotionApprovalRequest) int {
 		return service.PolicyEvaluationAuditId
 	})
 
