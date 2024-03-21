@@ -116,7 +116,7 @@ func (impl DeploymentWindowServiceImpl) getUserInfoMap(err error, appIdsToOvervi
 	}
 	userInfoMap := make(map[int32]string, 0)
 	for _, user := range allUserInfo {
-		if strings.Contains(user.EmailId, "@") {
+		if strings.Contains(user.EmailId, "@") || user.EmailId == "admin" {
 			userInfoMap[user.Id] = user.EmailId
 		}
 	}
