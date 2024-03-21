@@ -1,4 +1,5 @@
 ## Bugs
+- fix: panic on re-trigger ci if pod deleted on BuildTriggerObject (#4826)
 - fix: hide ldap creds in in get req (#4788)
 - fix: 5xx 4.0 iter (#4620)
 - fix:  rolefilters correction with all applications and particular application selected. (#4820)
