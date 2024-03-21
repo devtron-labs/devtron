@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -166,7 +167,7 @@ func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config
 
 func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceResponse, error) {
 	if impl.config.DestinationURL == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +212,7 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 
 func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDatasourceResponse, error) {
 	if impl.config.DestinationURL == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +256,7 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 
 func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
 	if impl.config.DestinationURL == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +309,7 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 
 func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
 	if impl.config.DestinationURL == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +361,7 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 
 func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDatasourceRequest) (*DatasourceResponse, error) {
 	if impl.config.DestinationURL == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}

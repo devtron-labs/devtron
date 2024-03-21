@@ -27,6 +27,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
 	"time"
@@ -120,7 +121,7 @@ type AppStatus struct {
 
 type AppAutocomplete struct {
 	Teams        []team.TeamRequest
-	Environments []cluster.EnvironmentBean
+	Environments []bean2.EnvironmentBean
 	Clusters     []cluster.ClusterBean
 }
 
@@ -894,7 +895,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+		installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 		if err == pg.ErrNoRows {
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -211,7 +211,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 	hostURL = false
 
-	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributeRepo.FindByKey(bean2.HostUrlKey)
 	if err == nil && attribute.Id > 0 {
 		hostURL = true
 	}

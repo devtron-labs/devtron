@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"net/http"
 	"strconv"
 
@@ -64,7 +65,7 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.AttributesDto
+	var dto bean.AttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
@@ -96,7 +97,7 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.AttributesDto
+	var dto bean.AttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateAttributes", "err", err, "payload", dto)
@@ -201,7 +202,7 @@ func (handler AttributesRestHandlerImpl) AddDeploymentEnforcementConfig(w http.R
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.AttributesDto
+	var dto bean.AttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)

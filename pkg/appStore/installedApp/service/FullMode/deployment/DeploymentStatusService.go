@@ -77,10 +77,9 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
 		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowFailed)
 		installedAppVersionHistory.FinishedOn = triggeredAt
-		installedAppVersionHistory.UpdatedOn = time.Now()
-		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersionHistory.UpdateAuditLog(installAppVersionRequest.UserId)
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
 			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)
