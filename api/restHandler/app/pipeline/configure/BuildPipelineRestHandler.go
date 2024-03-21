@@ -2206,11 +2206,6 @@ func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["ciPipelineId"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 
 	externalCi, ciPipelineId, appId, err := handler.extractCipipelineMetaForImageTags(artifactId)
 	if err != nil {
@@ -2218,10 +2213,7 @@ func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
-	if !externalCi && (ciPipelineId != pipelineId) {
-		common.WriteJsonResp(w, errors.New("ciPipelineId and artifactId sent in the request are not related"), nil, http.StatusBadRequest)
-		return
-	}
+
 	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {

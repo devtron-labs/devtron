@@ -27,6 +27,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/pkg/errors"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -78,6 +80,8 @@ type AppServiceConfig struct {
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
 }
+
+const AppNotFound = "app not found"
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
 	cfg := &AppServiceConfig{}
@@ -1163,5 +1167,9 @@ func (impl *AppServiceImpl) FindAppsWithFilter(appNameLike, sortOrder string, li
 }
 
 func (impl *AppServiceImpl) FindAppById(appId int) (*app.App, error) {
-	return impl.appRepository.FindById(appId)
+	app, err := impl.appRepository.FindById(appId)
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(AppNotFound)
+	}
+	return app, nil
 }
