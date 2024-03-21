@@ -257,12 +257,6 @@ func (handler *ResourceFilterRestHandlerImpl) applySuperAdminAuth(token string) 
 }
 
 func (handler *ResourceFilterRestHandlerImpl) GetResourceFilterMetaData(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	authorised := handler.applySuperAdminAuth(token)
-	if !authorised {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	res := resourceFilter.FILTER_CRITERIA
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
