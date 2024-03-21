@@ -80,6 +80,7 @@ if [ $GitCommitHash ];then
     if [ $code -ne 200 ];then
         error=$(echo "$curl_req" | jq -r \'.errors[]\')
         echo "$error"
+        echo "CI Pipeline details could not be found. Please check!"
         exit 1
     fi
     echo "The build with CI pipeline ID $ci_pipeline_id of application $DevtronApp is triggered using the commit: $GitCommitHash"
@@ -96,6 +97,7 @@ if [ $GitCommitHash ];then
         if [ $code -ne 200 ];then
             error=$(echo "$curl_req" | jq -r \'.errors[]\')
             echo "$error"
+            echo "CI Pipeline details could not be found. Please check!"
             exit 1
         fi
         echo "The build with CI pipeline ID $ci_pipeline_id of application $DevtronApp is triggered using the latest commit: $GitCommitHash"
