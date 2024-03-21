@@ -200,11 +200,6 @@ type Dependency struct {
 	Repository string `json:"repository"`
 }
 
-type DeployPayload struct {
-	InstalledAppVersionId        int
-	InstalledAppVersionHistoryId int
-}
-
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
 const REFERENCE_TYPE_TEMPLATE string = "TEMPLATE"
 const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
