@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.29"
+  release: "v0.6.29-rc.0"
   image: "quay.io/devtron/inception"
   tag: "473deaa4-185-21582"
   
@@ -29,7 +29,7 @@ components:
         ENABLE_EXTERNAL_ARGO_CD: "false"
   devtron:
     image: "quay.io/devtron/hyperion:4da24a72-280-21664"
-    cicdImage: "quay.io/devtron/devtron:8e4cc36e-434-21652"
+    cicdImage: "quay.io/devtron/devtron:b93c00f1-434-21670"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
   argocdDexServer:
