@@ -165,6 +165,23 @@ func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *
 	return ""
 }
 
+func (state UserActionState) GetErrorMessageForProfileAndState(envState *EnvironmentState) string {
+	if state == Allowed {
+		return ""
+	}
+	var profile *DeploymentWindowProfile
+	if envState != nil && envState.AppliedProfile != nil {
+		profile = envState.AppliedProfile.DeploymentWindowProfile
+	}
+
+	if profile != nil && profile.Type == Blackout {
+		return "You are not authorized to deploy during blackout window " + strconv.Quote(profile.Name)
+	} else if profile != nil && profile.Type == Maintenance {
+		return "You are not authorized to deploy outside maintenance window"
+	}
+	return ""
+}
+
 func (item ProfileWrapper) isRestricted() bool {
 	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
 }
