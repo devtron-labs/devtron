@@ -6,6 +6,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -16,7 +17,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -81,14 +81,13 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		return
 	}
 	if !isAuthorised {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New(unAuthorisedUser), nil, http.StatusForbidden)
 		return
 	}
 	promotionRequest := &bean.ArtifactPromotionRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(promotionRequest)
 	if err != nil {
-		handler.logger.Errorw("err in decoding request in promotionRequest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -100,10 +99,6 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 
 	app, err := handler.appService.FindAppById(promotionRequest.AppId)
 	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			common.WriteJsonResp(w, errors.New("app not found"), nil, http.StatusConflict)
-			return
-		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -128,7 +123,6 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 
 	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, promotionRequest, authorizedEnvironments)
 	if err != nil {
-		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -184,7 +178,6 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(ctx, artifactId, environmentName, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
-		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -215,8 +208,9 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
-		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
-		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
+		errorMsg := "error in fetching artifacts response for given request parameters"
+		err = util2.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithUserMessage(errorMsg).WithInternalMessage(err.Error())
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -237,7 +231,6 @@ func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWrit
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(request.GetAppId())
 		env, err := handler.environmentService.FindOne(request.GetResourceName())
 		if err != nil {
-			handler.logger.Errorw("env not found for given envName", "envName", request.GetResourceName(), "err", err)
 			common.WriteJsonResp(w, err, "invalid environment name in request", http.StatusBadRequest)
 			return false, false
 		}
@@ -425,7 +418,6 @@ func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environ
 func (handler *RestHandlerImpl) cancelActionRbac(token string, w http.ResponseWriter, promotionRequestId int) bool {
 	artifactPromotionDao, err := handler.promotionApprovalRequestService.GetPromotionRequestById(promotionRequestId)
 	if err != nil {
-		handler.logger.Errorw("error in fetching promotion request by id", "promotionRequestId", promotionRequestId, "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching promotion request "), nil, http.StatusInternalServerError)
 		return false
 	}

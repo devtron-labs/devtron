@@ -56,6 +56,7 @@ const (
 	ACTION_CANCEL  RequestAction = "CANCEL"
 	ACTION_APPROVE RequestAction = "APPROVE"
 )
+const UnknownRequestAction = " unknown request action"
 
 func (sourceType SourceTypeStr) GetSourceType() SourceType {
 	switch sourceType {
