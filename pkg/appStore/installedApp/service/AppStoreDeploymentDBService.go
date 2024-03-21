@@ -67,6 +67,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
+	appStoreValidator                    AppStoreValidator
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -79,7 +80,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	envVariables *globalUtil.EnvironmentVariables,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
-	fullModeDeploymentService deployment.FullModeDeploymentService) *AppStoreDeploymentDBServiceImpl {
+	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -92,6 +93,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		deploymentTypeOverrideService:        deploymentTypeOverrideService,
 		fullModeDeploymentService:            fullModeDeploymentService,
+		appStoreValidator:                    appStoreValidator,
 	}
 }
 
@@ -103,6 +105,8 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	}
 	// setting additional env data required in appStoreBean.InstallAppVersionDTO
 	adapter.UpdateAdditionalEnvDetails(installRequest, environment)
+
+	impl.appStoreValidator.Validate(installRequest, environment)
 
 	// Stage 1:  Create App in tx (Only if AppId is not set already)
 	if installRequest.AppId == 0 {
@@ -184,6 +188,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	installRequest.InstalledAppVersionId = installedAppVersions.Id
 	installRequest.Id = installedAppVersions.Id
 	// Stage 4: ends
+
+	// populate HelmPackageName; It's used in case of virtual deployments
+	installRequest.HelmPackageName = adapter.GetGeneratedHelmPackageName(
+		installRequest.AppName,
+		installRequest.EnvironmentName,
+		installedApp.UpdatedOn)
 
 	// Stage 5: save installed_app_version_history model
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
@@ -506,6 +516,19 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 		impl.logger.Errorw("error in fetching app store application version", "err", err)
 		return overrideDeploymentType, err
 	}
+
+	// virtual environments only supports Manifest Download
+	if installAppVersionRequest.Environment.IsVirtualEnvironment && util.IsManifestPush(installAppVersionRequest.DeploymentAppType) {
+		impl.logger.Errorw("invalid deployment type for a virtual environment", "deploymentType", installAppVersionRequest.DeploymentAppType)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: fmt.Sprintf("Deployment type '%s' is not supported on virtual cluster", installAppVersionRequest.DeploymentAppType),
+			UserMessage:     fmt.Sprintf("Deployment type '%s' is not supported on virtual cluster", installAppVersionRequest.DeploymentAppType),
+		}
+		return overrideDeploymentType, err
+	}
+
+	// OCI chart currently supports HELM installation only
 	isOCIRepo := appStoreAppVersion.AppStore.DockerArtifactStore != nil
 	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM

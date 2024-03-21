@@ -54,7 +54,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	environmentRepository         repository5.EnvironmentRepository
 	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
-	k8sUtil                       *k8s2.K8sServiceImpl
+	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
 	eaModeDeploymentService       EAMode.EAModeDeploymentService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
@@ -71,7 +71,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
-	k8sUtil *k8s2.K8sServiceImpl, fullModeDeploymentService deployment.FullModeDeploymentService,
+	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
