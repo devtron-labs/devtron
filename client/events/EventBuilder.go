@@ -269,7 +269,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraBlockedTriggerData(event Event, st
 	if event.PipelineId > 0 {
 		impl.setMaterialForPayload(event, payload)
 	}
-	payload.DockerImageUrl = artifact.Image
+	if artifact != nil {
+		payload.DockerImageUrl = artifact.Image
+	}
 	if event.UserId > 0 {
 		user, err := impl.userRepository.GetById(int32(event.UserId))
 		if err != nil {

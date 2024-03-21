@@ -99,7 +99,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
-
+	request.Artifact = cdWf.CiArtifact
 	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PostDeploy)
 	if err != nil {
 		return err
