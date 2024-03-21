@@ -6,6 +6,7 @@
 - fix: extra check added for mono-repo migraiton (#4764)
 - fix: trim space from git repo Url on create and update material (#4787)
 ## Enhancements
+- feat: Added Apply job in k8s plugin (#4828)
 - feat: Branch Divergence Checker Plugin (#4806)
 - feat: added request method in audit logger (#4817)
 - feat: active inactive user phase 3 (#4649)
