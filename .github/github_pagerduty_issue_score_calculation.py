@@ -43,7 +43,7 @@ def process_issue_body(issue_body, pagerduty_score_threshold):
     if user_unblocked_reason == 0:
         user_unblocked_reason = 1
 
-    if user_unblocked_reason == 3:
+    if user_unblocked_reason == 3 or affected_areas == 100:
         try:
             result = subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--add-label', 'urgent'], capture_output=True, check=True, text=True)
             print("urgent label added to issue", issue_number)
