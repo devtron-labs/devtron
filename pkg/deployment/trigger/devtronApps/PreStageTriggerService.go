@@ -17,7 +17,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -103,7 +104,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
-	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
+	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
@@ -225,9 +226,9 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 		if copyContainerImagePluginId != 0 && step.RefPluginId == copyContainerImagePluginId {
 			var pipelineStageEntityType int
 			if pipelineStage == types.PRE {
-				pipelineStageEntityType = bean3.EntityTypePreCD
+				pipelineStageEntityType = pipelineConfigBean.EntityTypePreCD
 			} else {
-				pipelineStageEntityType = bean3.EntityTypePostCD
+				pipelineStageEntityType = pipelineConfigBean.EntityTypePostCD
 			}
 			customTagId := -1
 			var DockerImageTag string
@@ -282,7 +283,7 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 			}
 			if len(savedCIArtifacts) > 0 {
 				// if already present in ci artifact, return "image path already in use error"
-				return imagePathReservationIds, bean3.ErrImagePathInUse
+				return imagePathReservationIds, pipelineConfigBean.ErrImagePathInUse
 			}
 			imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 			if err != nil {
@@ -336,7 +337,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		return nil, err
 	}
 
-	var ciProjectDetails []bean3.CiProjectDetails
+	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	var ciPipeline *pipelineConfig.CiPipeline
 	if cdPipeline.CiPipelineId > 0 {
 		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
@@ -365,7 +366,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				return nil, err
 			}
 
-			ciProjectDetail := bean3.CiProjectDetails{
+			ciProjectDetail := pipelineConfigBean.CiProjectDetails{
 				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
 				MaterialName:    gitMaterial.Name,
 				CheckoutPath:    gitMaterial.CheckoutPath,
@@ -373,7 +374,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				SourceType:      m.Type,
 				SourceValue:     m.Value,
 				Type:            string(m.Type),
-				GitOptions: bean3.GitOptions{
+				GitOptions: pipelineConfigBean.GitOptions{
 					UserName:      gitMaterial.GitProvider.UserName,
 					Password:      gitMaterial.GitProvider.Password,
 					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
@@ -392,7 +393,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == string(bean3.CI_JOB) {
+			} else if ciPipeline.PipelineType == string(CiPipeline.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -417,9 +418,9 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	var deployStageTriggeredByUserEmail string
 	var pipelineReleaseCounter int
-	var preDeploySteps []*bean3.StepObject
-	var postDeploySteps []*bean3.StepObject
-	var refPluginsData []*bean3.RefPluginObject
+	var preDeploySteps []*pipelineConfigBean.StepObject
+	var postDeploySteps []*pipelineConfigBean.StepObject
+	var refPluginsData []*pipelineConfigBean.RefPluginObject
 	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
 	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
@@ -912,15 +913,15 @@ func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, 
 	return imagePathReservationIds, nil
 }
 
-func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVariables map[string]string, webhookAndCiData *gitSensorClient.WebhookAndCiData) {
+func setExtraEnvVariableInDeployStep(deploySteps []*pipelineConfigBean.StepObject, extraEnvVariables map[string]string, webhookAndCiData *gitSensorClient.WebhookAndCiData) {
 	for _, deployStep := range deploySteps {
 		for variableKey, variableValue := range extraEnvVariables {
 			if isExtraVariableDynamic(variableKey, webhookAndCiData) && deployStep.StepType == "INLINE" {
-				extraInputVar := &bean3.VariableObject{
+				extraInputVar := &pipelineConfigBean.VariableObject{
 					Name:                  variableKey,
 					Format:                "STRING",
 					Value:                 variableValue,
-					VariableType:          bean3.VARIABLE_TYPE_REF_GLOBAL,
+					VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 					ReferenceVariableName: variableKey,
 				}
 				deployStep.InputVars = append(deployStep.InputVars, extraInputVar)
