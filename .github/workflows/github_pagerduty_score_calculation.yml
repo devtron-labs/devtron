@@ -1,0 +1,26 @@
+name: Issue Created
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  extract-issue-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x' 
+
+      - name: Check if pager-duty template is used
+        if: ${{ contains(github.event.issue.labels.*.name, 'pager-duty') && contains(github.event.issue.labels.*.name, 'bug') }}
+        run: |
+          echo "Issue was created using pager-duty template"
+          python github_pagerduty_issue_score_calculation.py
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN}}
