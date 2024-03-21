@@ -499,7 +499,7 @@ type Trigger struct {
 	ReferenceCiWorkflowId     int
 }
 
-func (obj Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
+func (obj *Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
 	invalidateCache bool, extraEnvironmentVariables map[string]string,
 	pipelineType string) {
