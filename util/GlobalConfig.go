@@ -16,7 +16,7 @@ type DeploymentServiceTypeConfig struct {
 }
 
 type GlobalEnvVariables struct {
-	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:"devtron"`
+	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
 }

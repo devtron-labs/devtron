@@ -6,7 +6,7 @@ Devtron allows you to manage your Kubernetes cluster by:
   * Managing Cluster resources with Kubernetes requests and limits and also individual containers.
   * Debugging a pod or node by connecting to a terminal.
 
-On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](https://docs.devtron.ai/global-configurations/cluster-and-environments).
+On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](./global-configurations/cluster-and-environments.md).
 
 You can also search the cluster in the `Search Clusters` bar.
 
@@ -169,7 +169,7 @@ The node will be deleted from the cluster.
 
 ## Access Cluster via Terminal for Troubleshooting
 
-User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permission) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+User with [Super admins](./global-configurations/authorization/user-access.md#assign-super-admin-permission) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
 
 To troubleshoot a cluster or a specific node in a cluster, click the terminal symbol on the right side.
 
@@ -177,7 +177,7 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal sy
 
 * You will see the user-defined name for the cluster in Devtron. E.g. `default-cluster`.
 * In the `Nodes` field, select the node from the drop-down list you want to troubleshoot. E.g. `demo-new`.
-* Select the namespace from the drop-down list which you have added in the [Environment](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment) section.
+* Select the namespace from the drop-down list which you have added in the [Environment](./global-configurations/cluster-and-environments.md#add-environment) section.
 * Select the image from the drop-down list which includes all CLI utilities or you can use a custom image, which is publicly available.
 * Select the terminal shell from the drop-down list (e.g. `sh`, `bash`) to troubleshoot a node.
 

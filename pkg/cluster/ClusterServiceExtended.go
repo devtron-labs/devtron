@@ -30,7 +30,6 @@ type ClusterServiceImplExtended struct {
 	grafanaClient           grafana.GrafanaClient
 	installedAppRepository  repository2.InstalledAppRepository
 	clusterServiceCD        cluster2.ServiceClient
-	K8sInformerFactory      informer.K8sInformerFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }

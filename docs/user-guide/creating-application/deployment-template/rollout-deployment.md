@@ -5,15 +5,15 @@ The `Rollout Deployment` chart deploys an advanced version of deployment that su
 
 You can define application behavior by providing information in the following sections:
 
-* [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
-* [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
-* [Advanced (YAML)](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml)
-* [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#4.-show-application-metrics)
+* [Chart version](#1.-chart-version)
+* [Basic Configuration](#2.-basic-configuration)
+* [Advanced (YAML)](#3.-advanced-yaml)
+* [Show Application Metrics](#4.-show-application-metrics)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
 {% hint style="warning" %}
-Super-admins can lock keys in rollout deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in rollout deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
 ## 1. Chart version
@@ -28,7 +28,7 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](#4.-show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
 
 **Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
 
