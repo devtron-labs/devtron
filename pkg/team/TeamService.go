@@ -48,7 +48,7 @@ type TeamServiceImpl struct {
 
 type TeamRequest struct {
 	Id        int       `json:"id,omitempty" validate:"number"`
-	Name      string    `json:"name,omitempty" validate:"required"`
+	Name      string    `json:"name,omitempty" validate:"required,only-lower-case"`
 	Active    bool      `json:"active"`
 	UserId    int32     `json:"-"`
 	CreatedOn time.Time `json:"-"`

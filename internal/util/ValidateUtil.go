@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -103,6 +104,10 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("only-lower-case", validateOnlyLowerCase)
+	if err != nil {
+		return v, err
+	}
 	return v, err
 }
 
@@ -128,4 +133,14 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 		return true
 	}
 	return false
+}
+
+func validateOnlyLowerCase(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	for _, r := range value {
+		if unicode.IsUpper(r) {
+			return false
+		}
+	}
+	return true
 }
