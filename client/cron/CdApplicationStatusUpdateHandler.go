@@ -1,10 +1,7 @@
 package cron
 
 import (
-	"encoding/json"
 	"fmt"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -19,12 +16,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
-	bean3 "github.com/devtron-labs/devtron/pkg/workflow/status/bean"
 	"github.com/devtron-labs/devtron/util"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
 	"strconv"
 	"time"
 )
@@ -33,7 +28,6 @@ type CdApplicationStatusUpdateHandler interface {
 	HelmApplicationStatusUpdate()
 	ArgoApplicationStatusUpdate()
 	ArgoPipelineTimelineUpdate()
-	Subscribe() error
 	SyncPipelineStatusForResourceTreeCall(pipeline *pipelineConfig.Pipeline) error
 	SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion *repository2.InstalledAppVersions) error
 	ManualSyncPipelineStatus(appId, envId int, userId int32) error
@@ -46,7 +40,6 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor                  dag.WorkflowDagExecutor
 	installedAppService                  EAMode.InstalledAppDBService
 	AppStatusConfig                      *app.AppServiceConfig
-	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                          client2.EventClient
 	appListingRepository                 repository.AppListingRepository
@@ -60,7 +53,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService EAMode.InstalledAppDBService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
+	AppStatusConfig *app.AppServiceConfig,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -79,7 +72,6 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		workflowDagExecutor:                  workflowDagExecutor,
 		installedAppService:                  installedAppService,
 		AppStatusConfig:                      AppStatusConfig,
-		pubsubClient:                         pubsubClient,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		eventClient:                          eventClient,
 		appListingRepository:                 appListingRepository,
@@ -90,13 +82,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		cdWorkflowCommonService:              cdWorkflowCommonService,
 		workflowStatusService:                workflowStatusService,
 	}
-
-	err := impl.Subscribe()
-	if err != nil {
-		logger.Errorw("error on subscribe", "err", err)
-		return nil
-	}
-	_, err = cron.AddFunc(AppStatusConfig.CdHelmPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
+	_, err := cron.AddFunc(AppStatusConfig.CdHelmPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)
 	if err != nil {
 		logger.Errorw("error in starting helm application status update cron job", "err", err)
 		return nil
@@ -112,63 +98,6 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		return nil
 	}
 	return impl
-}
-
-func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	callback := func(msg *model.PubSubMsg) {
-		statusUpdateEvent := bean3.ArgoPipelineStatusSyncEvent{}
-		var err error
-		var cdPipeline *pipelineConfig.Pipeline
-		var installedApp repository2.InstalledApps
-
-		err = json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on argo pipeline status update event", "err", err)
-			return
-		}
-
-		if statusUpdateEvent.IsAppStoreApplication {
-			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
-			if err != nil {
-				impl.logger.Errorw("error in getting installedAppVersion by id", "err", err, "id", statusUpdateEvent.PipelineId)
-				return
-			}
-		} else {
-			cdPipeline, err = impl.pipelineRepository.FindById(statusUpdateEvent.PipelineId)
-			if err != nil {
-				impl.logger.Errorw("error in getting cdPipeline by id", "err", err, "id", statusUpdateEvent.PipelineId)
-				return
-			}
-		}
-
-		triggerContext := bean2.TriggerContext{
-			ReferenceId: pointer.String(msg.MsgId),
-		}
-
-		err, _ = impl.workflowStatusService.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext, cdPipeline, installedApp, statusUpdateEvent.UserId)
-		if err != nil {
-			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
-			return
-		}
-	}
-
-	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		statusUpdateEvent := bean3.ArgoPipelineStatusSyncEvent{}
-		err := json.Unmarshal([]byte(msg.Data), &statusUpdateEvent)
-		if err != nil {
-			return "unmarshal error on argo pipeline status update event", []interface{}{"err", err}
-		}
-		return "got message for argo pipeline status update", []interface{}{"pipelineId", statusUpdateEvent.PipelineId, "installedAppVersionId", statusUpdateEvent.InstalledAppVersionId, "isAppStoreApplication", statusUpdateEvent.IsAppStoreApplication}
-	}
-
-	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
-	if err != nil {
-		impl.logger.Errorw("error in subscribing to argo application status update topic", "err", err)
-		return err
-	}
-	return nil
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {

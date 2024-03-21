@@ -82,11 +82,12 @@ type GitMaterial struct {
 	FilterPattern    []string `json:"filterPattern"`
 }
 
-// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes , leading and trailing spaces from git repository url
 func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
 	for strings.HasSuffix(m.Url, "/") {
 		m.Url = strings.TrimSuffix(m.Url, "/")
 	}
+	m.Url = strings.TrimSpace(m.Url)
 }
 
 type CiMaterial struct {
@@ -700,26 +701,9 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType = string
-
-const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
-)
-
 const (
 	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
-}
 
 type Status string
 
