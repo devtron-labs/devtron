@@ -346,7 +346,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	}
 	if overrideRequest.IsDeployDeploymentType() {
 		// Migration of deprecated DataSource Type
-		// TODO ayush - test ci parent, link ci , skopeo image, post/deploy parent cases
 		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
 		if err != nil {
 			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
