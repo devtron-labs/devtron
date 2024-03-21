@@ -300,6 +300,7 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 	return pipelines, nil
 }
 
+// write thin query for env
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").

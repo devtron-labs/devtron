@@ -168,3 +168,13 @@ func (state UserActionState) GetBypassActionMessageForProfileAndState(envState *
 func (item ProfileWrapper) isRestricted() bool {
 	return (item.DeploymentWindowProfile.Type == Blackout && item.IsActive) || (item.DeploymentWindowProfile.Type == Maintenance && !item.IsActive)
 }
+
+func (a ProfileWrapper) compareProfile(b ProfileWrapper) bool {
+	if a.DeploymentWindowProfile.Type != b.DeploymentWindowProfile.Type {
+		return a.DeploymentWindowProfile.Type == Blackout
+	}
+	if a.IsActive != b.IsActive {
+		return a.IsActive
+	}
+	return a.CalculatedTimestamp.Before(b.CalculatedTimestamp)
+}

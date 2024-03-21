@@ -24,7 +24,7 @@ type TimeoutWindowService interface {
 	CreateAndMapWithResource(tx *pg.Tx, timeWindows []TimeWindowExpression, userid int32, resourceId int, resourceType repository.ResourceType) error
 	GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error)
 
-	UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, err error, tx *pg.Tx, policyId int) error
+	UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, tx *pg.Tx, policyId int) error
 	GetActiveWindow(targetTime time.Time, timeZone string, windows []*TimeWindow) (bool, time.Time, *TimeWindow, error)
 	GetWindowsForResources(resourceId []int, resourceType repository.ResourceType) (map[int][]*TimeWindow, error)
 }
@@ -195,9 +195,9 @@ func (impl TimeWindowServiceImpl) CreateAndMapWithResource(tx *pg.Tx, timeWindow
 	return err
 }
 
-func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, err error, tx *pg.Tx, policyId int) error {
+func (impl TimeWindowServiceImpl) UpdateWindowMappings(windows []*TimeWindow, timeZone string, userId int32, tx *pg.Tx, policyId int) error {
 
-	err = impl.validateWindowsAndTimeZone(windows, timeZone)
+	err := impl.validateWindowsAndTimeZone(windows, timeZone)
 	if err != nil {
 		return &util.ApiError{
 			Code:           "400",
@@ -230,7 +230,7 @@ func (impl TimeWindowServiceImpl) validateWindowsAndTimeZone(windows []*TimeWind
 	for _, window := range windows {
 		err := window.toTimeRange().ValidateTimeRange()
 		if err != nil {
-			return fmt.Errorf("validation falied %v", err)
+			return fmt.Errorf("validation failed %v", err)
 		}
 	}
 	return nil

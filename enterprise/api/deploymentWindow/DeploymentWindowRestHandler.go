@@ -325,17 +325,20 @@ func (handler *DeploymentWindowRestHandlerImpl) filterAuthorizedResourcesForGrou
 	}
 	rbacObjectToAppEnv := make(map[string]deploymentWindow.AppEnvSelector)
 	rbacObjects := make([]string, 0)
+
+	objectMap := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppIdBatch(appToEnvs)
+
 	for appId, envIds := range appToEnvs {
-		//call once
-		objectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
-		rbacObjects = append(rbacObjects, maps.Values(objectMap)...)
 		for _, envId := range envIds {
-			rbacObjectToAppEnv[objectMap[envId]] = deploymentWindow.AppEnvSelector{
+			object := objectMap[appId][envId]
+			rbacObjectToAppEnv[object] = deploymentWindow.AppEnvSelector{
 				AppId: appId,
 				EnvId: envId,
 			}
+			rbacObjects = append(rbacObjects, object)
 		}
 	}
+
 	authorizedAppEnvSelectors := make([]deploymentWindow.AppEnvSelector, 0)
 	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, rbacObjects)
 	for object, isAllowed := range results {

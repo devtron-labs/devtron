@@ -79,7 +79,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 
 		// sorting to keep active profiles first
 		sort.SliceStable(appIdToProfiles[appId], func(i, j int) bool {
-			return appIdToProfiles[appId][i].IsActive
+			return profiles[i].compareProfile(profiles[j])
 		})
 
 		envResponse := &DeploymentWindowResponse{
@@ -150,9 +150,9 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 		return nil, err
 	}
 	profiles := maps.Values(profileIdToProfileState)
-	// sorting to keep active profiles first
+
 	sort.SliceStable(profiles, func(i, j int) bool {
-		return profiles[i].IsActive
+		return profiles[i].compareProfile(profiles[j])
 	})
 
 	response := &DeploymentWindowResponse{
@@ -194,15 +194,14 @@ func (impl DeploymentWindowServiceImpl) evaluateStateForEnvironments(profiles []
 }
 
 func getUserActionStateForUser(isAllowed bool, excludedUsers []int32, userId int32) UserActionState {
-	userActionState := Allowed
-	if !isAllowed {
-		if slices.Contains(excludedUsers, userId) {
-			userActionState = Partial
-		} else {
-			userActionState = Blocked
-		}
+	if isAllowed {
+		return Allowed
 	}
-	return userActionState
+	if slices.Contains(excludedUsers, userId) {
+		return Partial
+	}
+	return Blocked
+
 }
 
 func (impl DeploymentWindowServiceImpl) evaluateProfileStates(profileStates []ProfileWrapper) ([]ProfileWrapper, *ProfileWrapper, bool, error) {
@@ -452,7 +451,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}
 	profile.Id = policy.Id
 
-	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, tx, policy.Id)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateWindowMappings", "err", err, "profileId", policy.Id)
 		return nil, err
@@ -484,7 +483,7 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 		impl.logger.Errorw("error in updatePolicy", "err", err)
 		return nil, err
 	}
-	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, profile.TimeZone, userId, tx, policy.Id)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateWindowMappings", "err", err, "profileId", policy.Id)
 		return nil, err
@@ -533,7 +532,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 		impl.logger.Errorw("error in DeletePolicyById", "err", err, "profileId", profileId)
 		return err
 	}
-	err = impl.timeWindowService.UpdateWindowMappings([]*timeoutWindow.TimeWindow{}, "", userId, err, tx, profileId)
+	err = impl.timeWindowService.UpdateWindowMappings([]*timeoutWindow.TimeWindow{}, "", userId, tx, profileId)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateWindowMappings", "err", err, "profileId", profileId)
 		return err
