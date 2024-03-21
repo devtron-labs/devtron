@@ -66,7 +66,6 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -109,11 +108,14 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -123,6 +125,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -149,6 +152,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -183,9 +188,12 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
+		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
 
+		eventProcessor.EventProcessorWireSet,
+		workflow3.WorkflowWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -337,6 +345,8 @@ func InitializeApp() (*App, error) {
 
 		// end
 
+		gitOpsConfig.NewDevtronAppGitOpConfigServiceImpl,
+		wire.Bind(new(gitOpsConfig.DevtronAppGitOpConfigService), new(*gitOpsConfig.DevtronAppGitOpConfigServiceImpl)),
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
@@ -480,24 +490,9 @@ func InitializeApp() (*App, error) {
 
 		pubsub1.NewPubSubClientServiceImpl,
 
-		pubsub.NewGitWebhookHandler,
-		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
-
-		pubsub.NewWorkflowStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
-
-		pubsub.NewApplicationStatusHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
-
-		pubsub.GetCiEventConfig,
-		pubsub.NewCiEventHandlerImpl,
-		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
-
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		app.NewDeploymentEventHandlerImpl,
-		wire.Bind(new(app.DeploymentEventHandler), new(*app.DeploymentEventHandlerImpl)),
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),
 
@@ -543,6 +538,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
 		resource.NewInstalledAppResourceServiceImpl,
 		wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
+		deploymentTypeChange.NewInstalledAppDeploymentTypeChangeServiceImpl,
+		wire.Bind(new(deploymentTypeChange.InstalledAppDeploymentTypeChangeService), new(*deploymentTypeChange.InstalledAppDeploymentTypeChangeServiceImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
@@ -582,8 +579,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewBlobStorageConfigServiceImpl,
 		wire.Bind(new(pipeline.BlobStorageConfigService), new(*pipeline.BlobStorageConfigServiceImpl)),
 
-		pipeline.NewWorkflowDagExecutorImpl,
-		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
+		dag.NewWorkflowDagExecutorImpl,
+		wire.Bind(new(dag.WorkflowDagExecutor), new(*dag.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
 
@@ -962,8 +959,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPluginInputVariableParserImpl,
 		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
 
-		pipeline.NewPipelineConfigListenerServiceImpl,
-		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 		cron2.NewCronLoggerImpl,
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,

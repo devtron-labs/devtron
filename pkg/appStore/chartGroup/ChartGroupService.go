@@ -21,11 +21,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
-	"encoding/json"
 	"errors"
 	"fmt"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -38,6 +35,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
@@ -69,7 +67,6 @@ type ChartGroupServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	teamRepository                       repository4.TeamRepository
 	appStoreValuesService                service.AppStoreValuesService
-	pubSubClient                         *pubsub.PubSubClientServiceImpl
 	envService                           cluster2.EnvironmentService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
 	argoUserService                      argo.ArgoUserService
@@ -77,6 +74,7 @@ type ChartGroupServiceImpl struct {
 	acdConfig                            *argocdServer.ACDConfig
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	gitOperationService                  git.GitOperationService
+	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -90,14 +88,14 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository5.EnvironmentRepository,
 	teamRepository repository4.TeamRepository,
 	appStoreValuesService service.AppStoreValuesService,
-	pubSubClient *pubsub.PubSubClientServiceImpl,
 	envService cluster2.EnvironmentService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
 	argoUserService argo.ArgoUserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	acdConfig *argocdServer.ACDConfig,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
-	gitOperationService git.GitOperationService) (*ChartGroupServiceImpl, error) {
+	gitOperationService git.GitOperationService,
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -110,7 +108,6 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		environmentRepository:                environmentRepository,
 		teamRepository:                       teamRepository,
 		appStoreValuesService:                appStoreValuesService,
-		pubSubClient:                         pubSubClient,
 		envService:                           envService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		argoUserService:                      argoUserService,
@@ -118,12 +115,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		acdConfig:                            acdConfig,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		gitOperationService:                  gitOperationService,
-	}
-
-	err := impl.subscribe()
-	if err != nil {
-		impl.logger.Errorw("error in nats subscription", "topic", pubsub.BULK_APPSTORE_DEPLOY_TOPIC, "err", err)
-		return nil, err
+		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
 	}
 	return impl, nil
 }
@@ -140,6 +132,9 @@ type ChartGroupService interface {
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO)
+
+	PerformDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type ChartGroupList struct {
@@ -577,7 +572,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.BULK_DEPLOY_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -605,7 +600,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 		return nil, err
 	}
 	//nats event
-	impl.triggerDeploymentEvent(installAppVersions)
+	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -670,26 +665,19 @@ func createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVe
 	}
 }
 
-func (impl *ChartGroupServiceImpl) triggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
-	for _, versions := range installAppVersions {
+func (impl *ChartGroupServiceImpl) TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
+	publishErrMap := impl.appStoreAppsEventPublishService.PublishBulkDeployEvent(installAppVersions)
+	for _, version := range installAppVersions {
 		var installedAppDeploymentStatus appStoreBean.AppstoreDeploymentStatus
-		payload := &appStoreBean.DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId, InstalledAppVersionHistoryId: versions.InstalledAppVersionHistoryId}
-		data, err := json.Marshal(payload)
-		if err != nil {
+		publishErr, ok := publishErrMap[version.InstalledAppVersionId]
+		if !ok || publishErr != nil {
 			installedAppDeploymentStatus = appStoreBean.QUE_ERROR
 		} else {
-			err = impl.pubSubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
-			if err != nil {
-				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-				installedAppDeploymentStatus = appStoreBean.QUE_ERROR
-			} else {
-				installedAppDeploymentStatus = appStoreBean.ENQUEUED
-			}
-
+			installedAppDeploymentStatus = appStoreBean.ENQUEUED
 		}
-		if versions.Status == appStoreBean.DEPLOY_INIT || versions.Status == appStoreBean.QUE_ERROR || versions.Status == appStoreBean.ENQUEUED {
+		if version.Status == appStoreBean.DEPLOY_INIT || version.Status == appStoreBean.QUE_ERROR || version.Status == appStoreBean.ENQUEUED {
 			impl.logger.Debugw("status for bulk app-store deploy", "status", installedAppDeploymentStatus)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, installedAppDeploymentStatus)
+			_, err := impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(version.InstalledAppVersionId, installedAppDeploymentStatus)
 			if err != nil {
 				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
@@ -832,7 +820,7 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -862,7 +850,7 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 	//nats event
 
 	for _, versions := range installAppVersions {
-		_, err := impl.performDeployStage(versions.InstalledAppVersionId, versions.InstalledAppVersionHistoryId, chartGroupInstallRequest.UserId)
+		_, err := impl.PerformDeployStage(versions.InstalledAppVersionId, versions.InstalledAppVersionHistoryId, chartGroupInstallRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appStoreBean.QUE_ERROR)
@@ -875,41 +863,7 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 	return &ChartGroupInstallAppRes{}, nil
 }
 
-func (impl *ChartGroupServiceImpl) subscribe() error {
-	callback := func(msg *model.PubSubMsg) {
-		deployPayload := &appStoreBean.DeployPayload{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
-		if err != nil {
-			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
-			return
-		}
-		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
-		//using userId 1 - for system user
-		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId, deployPayload.InstalledAppVersionHistoryId, 1)
-		if err != nil {
-			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
-		}
-	}
-
-	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		deployPayload := &appStoreBean.DeployPayload{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
-		if err != nil {
-			return "error while unmarshalling deployPayload json object", []interface{}{"error", err}
-		}
-		return "got message for deploy app-store apps in bulk", []interface{}{"installedAppVersionId", deployPayload.InstalledAppVersionId, "installedAppVersionHistoryId", deployPayload.InstalledAppVersionHistoryId}
-	}
-
-	err := impl.pubSubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
-	if err != nil {
-		impl.logger.Error("err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *ChartGroupServiceImpl) performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
@@ -1061,13 +1015,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			return nil, err
 		}
 
-		repoUrl, err := impl.gitOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
-		if err != nil {
-			//will allow to continue to persist status on next operation
-			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
-		}
-
-		chartGitAttr.RepoUrl = repoUrl
+		chartGitAttr.RepoUrl = installedAppVersion.GitOpsRepoURL
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.Environment = environment

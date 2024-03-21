@@ -7,7 +7,28 @@ import (
 	"time"
 )
 
-const RefreshTypeNormal = "normal"
+const (
+	RefreshTypeNormal    = "normal"
+	TargetRevisionMaster = "master"
+	PatchTypeMerge       = "merge"
+)
+
+type ArgoCdAppPatchReqDto struct {
+	ArgoAppName    string
+	ChartLocation  string
+	GitRepoUrl     string
+	TargetRevision string
+	PatchType      string
+}
+
+// RegisterRepoMaxRetryCount is the maximum retries to be performed to register a repository in ArgoCd
+const RegisterRepoMaxRetryCount = 3
+
+// EmptyRepoErrorList - ArgoCD can't register empty repo and throws these error message in such cases
+var EmptyRepoErrorList = []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+
+// ArgoRepoSyncDelayErr - This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
+const ArgoRepoSyncDelayErr = "Unable to resolve 'HEAD' to a commit SHA"
 
 const (
 	Degraded    = "Degraded"
@@ -34,6 +55,7 @@ type ResourceTreeResponse struct {
 	RevisionHash             string                          `json:"revisionHash"`
 	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
 	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
+	ResourcesSyncResultMap   map[string]string               `json:"resourcesSyncResult"`
 }
 
 type PodMetadata struct {

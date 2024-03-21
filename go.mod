@@ -6,6 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/argoproj/argo-cd/v2 v2.6.15
 	github.com/argoproj/argo-workflows/v3 v3.4.3
+	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
 	github.com/aws/aws-sdk-go v1.44.290
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
 	github.com/caarlos0/env v3.5.0+incompatible
@@ -15,8 +16,8 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
-	github.com/devtron-labs/authenticator v0.4.33
-	github.com/devtron-labs/common-lib v0.0.14
+	github.com/devtron-labs/authenticator v0.4.35-0.20240216091211-80e10a80ce7b
+	github.com/devtron-labs/common-lib v0.0.16-0.20240320102218-5807b1301538
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -114,7 +115,6 @@ require (
 	github.com/antonmedv/expr v1.9.0 // indirect
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
-	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814 // indirect
 	github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e // indirect
 	github.com/aws/smithy-go v1.14.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

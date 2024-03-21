@@ -40,6 +40,9 @@ type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
 	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
 	GetOrUpdateArgoCdUserDetail() string
+
+	BuildACDContext() (acdContext context.Context, err error)
+	SetAcdTokenInContext(ctx context.Context) (context.Context, error)
 }
 
 type ArgoUserServiceImpl struct {
@@ -73,9 +76,31 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 	return argoUserServiceImpl, nil
 }
 
+func (impl *ArgoUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
+	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
+}
+
+func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {
+	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
+}
+
 func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil || !isGitOpsConfigured {
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
 	return impl.GetOrUpdateArgoCdUserDetail()
@@ -165,12 +190,12 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 
 // note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return "", err
 	}
-	if !isGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}

@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	util4 "github.com/devtron-labs/devtron/util"
+	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -15,6 +20,9 @@ import (
 )
 
 type DeployedConfigurationHistoryService interface {
+	//TODO: rethink if the below method right at this place
+	CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error
+
 	GetDeployedConfigurationByWfrId(pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error)
 	GetDeployedHistoryComponentList(pipelineId, baseConfigId int, historyComponent, historyComponentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 	GetDeployedHistoryComponentDetail(ctx context.Context, pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
@@ -30,12 +38,14 @@ type DeployedConfigurationHistoryServiceImpl struct {
 	strategyHistoryService           PipelineStrategyHistoryService
 	configMapHistoryService          ConfigMapHistoryService
 	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	scopedVariableManager            variables.ScopedVariableCMCSManager
 }
 
 func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 	userService user.UserService, deploymentTemplateHistoryService DeploymentTemplateHistoryService,
 	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService ConfigMapHistoryService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedConfigurationHistoryServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	scopedVariableManager variables.ScopedVariableCMCSManager) *DeployedConfigurationHistoryServiceImpl {
 	return &DeployedConfigurationHistoryServiceImpl{
 		logger:                           logger,
 		userService:                      userService,
@@ -43,7 +53,42 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 		strategyHistoryService:           strategyHistoryService,
 		configMapHistoryService:          configMapHistoryService,
 		cdWorkflowRepository:             cdWorkflowRepository,
+		scopedVariableManager:            scopedVariableManager,
 	}
+}
+
+func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
+	//creating history for deployment template
+	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
+		return err
+	}
+	cmId, csId, err := impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
+		return err
+	}
+	if strategy != nil {
+		err = impl.strategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+			return err
+		}
+	}
+
+	var variableSnapshotHistories = util4.GetBeansPtr(
+		repository5.GetSnapshotBean(deploymentTemplateHistory.Id, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
+		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
+		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
+	)
+	if len(variableSnapshotHistories) > 0 {
+		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, deployedBy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *DeployedConfigurationHistoryServiceImpl) GetLatestDeployedArtifactByPipelineId(pipelineId int) (*repository2.CiArtifact, error) {

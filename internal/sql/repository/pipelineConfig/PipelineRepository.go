@@ -24,12 +24,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"strconv"
 	"time"
 )
 
@@ -73,6 +73,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error)
 	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
@@ -302,6 +303,17 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
+func (impl PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error) {
+	pipeline = &Pipeline{}
+	err = impl.dbConnection.
+		Model(pipeline).
+		Column("pipeline.*", "App", "Environment").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id = ?", id).
+		Select()
+	return pipeline, err
+}
+
 func (impl PipelineRepositoryImpl) GetPostStageConfigById(id int) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.
@@ -332,15 +344,9 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
-	exclusionListString := []string{}
-	for _, appId := range exclusionList {
-		exclusionListString = append(exclusionListString, strconv.Itoa(appId))
-	}
+	exclusionListString := util2.ConvertIntArrayToStringArray(exclusionList)
 
-	inclusionListString := []string{}
-	for _, appId := range includeApps {
-		inclusionListString = append(inclusionListString, strconv.Itoa(appId))
-	}
+	inclusionListString := util2.ConvertIntArrayToStringArray(includeApps)
 
 	var pipelines []*Pipeline
 

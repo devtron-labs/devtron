@@ -3,6 +3,7 @@ package bean
 type RoleType string
 
 const (
+	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
 	ENV_TYPE                                    = "environment"
 	APP_TYPE                                    = "app"
@@ -32,6 +33,7 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 	EntityJobs                                  = "jobs"
+	EmptyStringIndicatingAll                    = ""
 )
 
 const (

@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -62,11 +63,12 @@ type AppWorkflowRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	appRepository      app.AppRepository
 	enforcerUtil       rbac.EnforcerUtil
+	chartService       chart.ChartService
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
-	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
+	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil, chartService chart.ChartService) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
@@ -76,6 +78,7 @@ func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService us
 		pipelineBuilder:    pipelineBuilder,
 		appRepository:      appRepository,
 		enforcerUtil:       enforcerUtil,
+		chartService:       chartService,
 	}
 }
 
@@ -259,7 +262,8 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		itr := 0
 		for _, val := range workflowIdToObjectMap {
 			rbacObjects = append(rbacObjects, val)
-			workNameObjectMap[val] = workflowsList[itr]
+			// doing this here as casbin returns lowercase objects which will not match in case of Project with uppercase letters, not done in enterprise as we use custom enforcer which returns the map with given expected rbac objects
+			workNameObjectMap[strings.ToLower(val)] = workflowsList[itr]
 			itr++
 		}
 
@@ -278,7 +282,14 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	} else {
 		workflows[bean3.Workflows] = []appWorkflow.AppWorkflowDto{}
 	}
-	common.WriteJsonResp(w, err, workflows, http.StatusOK)
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApps", "appId", appId, "envIds", envIds, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	workflows["isGitOpsRepoNotConfigured"] = !isAppLevelGitOpsConfigured
+	common.WriteJsonResp(w, nil, workflows, http.StatusOK)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
