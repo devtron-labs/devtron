@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'GitHub Branch Divergence Checker v1.0','Comparing Commit Histories in Branches in Github Repository','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/GitHubBranchDivergenceCheckerlogo.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'GitHub Branch Divergence Checker v1.0','Comparing Commit Histories in Branches in Github Repository','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/branch-compare-plugin-logo.png',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_tag_relation ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_tag_relation'), (SELECT id FROM plugin_tag WHERE name='Github'), (SELECT id FROM plugin_metadata WHERE name='GitHub Branch Divergence Checker v1.0'),'now()', 1, 'now()', 1);
 
