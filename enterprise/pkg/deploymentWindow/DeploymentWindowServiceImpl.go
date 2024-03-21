@@ -384,8 +384,12 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 			//this means all windows in this profile are expired
 			//therefore we're updating the isExpired flag in the policy so that expired profiles are filtered
 			//out for further evaluations, until an update operation happens on this profile
-			profile.DeploymentWindowProfile.isExpired = true
-			impl.updatePolicy(profile.DeploymentWindowProfile, 1, nil)
+			profile.DeploymentWindowProfile.isExpired = false //TODO fix
+			_, err := impl.updatePolicy(profile.DeploymentWindowProfile, 1, nil)
+			impl.logger.Infow("setting profile as expired", "profile", profile, "time", targetTime)
+			if err != nil {
+				impl.logger.Errorw("error updating expired profile", "err", err, "profile", profile)
+			}
 		}
 	}
 	return calculatedProfiles, nil

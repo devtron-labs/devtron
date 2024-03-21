@@ -100,6 +100,7 @@ type PipelineRepository interface {
 	Save(pipeline []*Pipeline, tx *pg.Tx) error
 	Update(pipeline *Pipeline, tx *pg.Tx) error
 	FindActiveByAppId(appId int) (pipelines []*Pipeline, err error)
+	FindPipelineEnvsByAppId(appId int) (pipelines []*Pipeline, err error)
 	Delete(id int, userId int32, tx *pg.Tx) error
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
@@ -304,6 +305,15 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
+		Where("app_id = ?", appId).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindPipelineEnvsByAppId(appId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.environment_id", "pipeline.app_id").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()

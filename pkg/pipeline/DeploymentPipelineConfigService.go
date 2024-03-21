@@ -2583,7 +2583,7 @@ func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvironmentAndProjectByPipeli
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetPipelineEnvironmentsForApplication(appId int) ([]int, error) {
-	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	pipelines, err := impl.pipelineRepository.FindPipelineEnvsByAppId(appId)
 	if err != nil {
 		return nil, err
 	}

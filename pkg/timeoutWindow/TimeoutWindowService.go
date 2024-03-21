@@ -122,34 +122,16 @@ func (impl TimeWindowServiceImpl) GetMappingsForResources(resourceIds []int, res
 		return make(map[int][]TimeWindowExpression), nil
 	}
 
-	resourceMappings, err := impl.timeWindowMappingRepository.GetWindowsForResources(resourceIds, resourceType)
+	resourceIdToWindowConfiguration, err := impl.timeWindowMappingRepository.GetGroupedExpressionsForResources(resourceIds, resourceType)
 	if err != nil {
 		return nil, err
-	}
-
-	resourceIdToMappings := make(map[int][]*repository.TimeoutWindowResourceMapping)
-	windowIds := make([]int, 0)
-	for _, mapping := range resourceMappings {
-		resourceIdToMappings[mapping.ResourceId] = append(resourceIdToMappings[mapping.ResourceId], mapping)
-		windowIds = append(windowIds, mapping.TimeoutWindowId)
-	}
-
-	allConfigurations, err := impl.GetAllWithIds(windowIds)
-	if err != nil {
-		return nil, err
-	}
-
-	windowIdToWindowConfiguration := make(map[int]*repository.TimeoutWindowConfiguration)
-	for _, configuration := range allConfigurations {
-		windowIdToWindowConfiguration[configuration.Id] = configuration
 	}
 
 	resourceIdToTimeWindowExpressions := make(map[int][]TimeWindowExpression)
 	for _, resourceId := range resourceIds {
-		mappings := resourceIdToMappings[resourceId]
+		confs := resourceIdToWindowConfiguration[resourceId]
 		expressions := make([]TimeWindowExpression, 0)
-		for _, mapping := range mappings {
-			conf := windowIdToWindowConfiguration[mapping.TimeoutWindowId]
+		for _, conf := range confs {
 			expressions = append(expressions, TimeWindowExpression{
 				TimeoutExpression: conf.TimeoutWindowExpression,
 				ExpressionFormat:  conf.ExpressionFormat,
