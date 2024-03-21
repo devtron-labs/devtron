@@ -75,6 +75,7 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error)
 	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
@@ -302,6 +303,17 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 		Join("inner join app a on pipeline.app_id = a.id").
 		Where("pipeline.id = ?", id).
 		Where("deleted = ?", false).
+		Select()
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error) {
+	pipeline = &Pipeline{}
+	err = impl.dbConnection.
+		Model(pipeline).
+		Column("pipeline.*", "App", "Environment").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id = ?", id).
 		Select()
 	return pipeline, err
 }

@@ -18,7 +18,7 @@
 package restHandler
 
 import (
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -36,21 +36,24 @@ type WebhookEventHandler interface {
 }
 
 type WebhookEventHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	gitHostConfig          pipeline.GitHostConfig
-	eventClient            client.EventClient
-	webhookSecretValidator git.WebhookSecretValidator
-	webhookEventDataConfig pipeline.WebhookEventDataConfig
+	logger                        *zap.SugaredLogger
+	gitHostConfig                 pipeline.GitHostConfig
+	eventClient                   client.EventClient
+	webhookSecretValidator        git.WebhookSecretValidator
+	webhookEventDataConfig        pipeline.WebhookEventDataConfig
+	ciPipelineEventPublishService out.CIPipelineEventPublishService
 }
 
 func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient,
-	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookEventHandlerImpl {
+	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
+	ciPipelineEventPublishService out.CIPipelineEventPublishService) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
-		logger:                 logger,
-		gitHostConfig:          gitHostConfig,
-		eventClient:            eventClient,
-		webhookSecretValidator: webhookSecretValidator,
-		webhookEventDataConfig: webhookEventDataConfig,
+		logger:                        logger,
+		gitHostConfig:                 gitHostConfig,
+		eventClient:                   eventClient,
+		webhookSecretValidator:        webhookSecretValidator,
+		webhookEventDataConfig:        webhookEventDataConfig,
+		ciPipelineEventPublishService: ciPipelineEventPublishService,
 	}
 }
 
@@ -121,7 +124,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// write event
-	err = impl.eventClient.WriteNatsEvent(pubsub.WEBHOOK_EVENT_TOPIC, webhookEvent)
+	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(gitHostId, eventType, string(requestBodyBytes))
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
