@@ -851,42 +851,6 @@ func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeli
 	return ciArtifactsFinal, approvalConfig, nil
 }
 
-func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType) (parentId int, parentType bean.WorkflowType, parentCdId int, err error) {
-	// retrieve parent details
-	parentId, parentType, err = impl.cdPipelineConfigService.RetrieveParentDetails(pipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("failed to retrieve parent details",
-			"cdPipelineId", pipeline.Id,
-			"err", err)
-		return parentId, parentType, parentCdId, err
-	}
-
-	if parentType == bean.CD_WORKFLOW_TYPE_POST || (parentType == bean.CD_WORKFLOW_TYPE_DEPLOY && stage != bean.CD_WORKFLOW_TYPE_POST) {
-		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
-		// Parent component is CD only if parent type is POST/DEPLOY
-		parentCdId = parentId
-	}
-
-	if stage == bean.CD_WORKFLOW_TYPE_DEPLOY {
-		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository2.PIPELINE_STAGE_TYPE_PRE_CD)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
-			return parentId, parentType, parentCdId, err
-		}
-		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
-			// Parent type will be PRE for DEPLOY stage
-			parentId = pipeline.Id
-			parentType = bean.CD_WORKFLOW_TYPE_PRE
-		}
-	}
-	if stage == bean.CD_WORKFLOW_TYPE_POST {
-		// Parent type will be DEPLOY for POST stage
-		parentId = pipeline.Id
-		parentType = bean.CD_WORKFLOW_TYPE_DEPLOY
-	}
-	return parentId, parentType, parentCdId, err
-}
-
 func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bean2.CiArtifactBean, pipelineId int, stage bean.WorkflowType) []bean2.CiArtifactBean {
 	referenceType := resourceFilter.Pipeline
 	referenceId := pipelineId
@@ -938,7 +902,7 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
-	parentId, parentType, parentCdId, err := impl.extractParentMetaDataByPipeline(pipeline, stage)
+	parentId, parentType, parentCdId, err := impl.cdPipelineConfigService.ExtractParentMetaDataByPipeline(pipeline, stage)
 	if err != nil {
 		impl.logger.Errorw("error in finding parent meta data for pipeline", "pipelineId", pipeline.Id, "pipelineStage", stage, "err", err)
 		return nil, err
@@ -1675,7 +1639,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCDResource(ctx *util2.Reque
 		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants2.CDPipelineNotFoundErr).WithInternalMessage(constants2.CDPipelineNotFoundErr)
 	}
 
-	cdMaterialsRequest := &bean.CdNodeMaterialRequest{}
+	cdMaterialsRequest := &bean.CdNodeMaterialParams{}
 	cdMaterialsRequest = cdMaterialsRequest.WithCDPipelineId(cdPipeline.Pipelines[0].Id).WithListingFilterOptions(request.ListingFilterOptions)
 
 	artifactEntities, totalCount, err := impl.ciArtifactRepository.FindDeployedArtifactsOnPipeline(cdMaterialsRequest)
@@ -1698,7 +1662,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCIResource(ctx *util2.Reque
 		return bean2.CiArtifactResponse{}, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(constants2.CiPipelineNotFoundErr)
 	}
 
-	ciNodeRequest := &bean.CiNodeMaterialRequest{}
+	ciNodeRequest := &bean.CiNodeMaterialParams{}
 	ciNodeRequest = ciNodeRequest.WithCiPipelineId(ciPipeline.Id).WithListingFilterOptions(request.ListingFilterOptions)
 
 	artifactEntities, totalCount, err := impl.ciArtifactRepository.FindArtifactsByCIPipelineId(ciNodeRequest)
@@ -1715,7 +1679,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForCIResource(ctx *util2.Reque
 
 func (impl *AppArtifactManagerImpl) fetchArtifactsForExtCINode(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest) (bean2.CiArtifactResponse, error) {
 
-	extCiNodeRequest := &bean.ExtCiNodeMaterialRequest{}
+	extCiNodeRequest := &bean.ExtCiNodeMaterialParams{}
 	extCiNodeRequest = extCiNodeRequest.WithExtCiPipelineId(request.GetResourceId()).WithListingFilterOptions(request.ListingFilterOptions)
 
 	artifactEntities, totalCount, err := impl.ciArtifactRepository.FindArtifactsByExternalCIPipelineId(extCiNodeRequest)
@@ -1742,7 +1706,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 	}
 
 	pipeline := cdPipeline.Pipelines[0]
-	promotionPendingNodeReq := &bean.PromotionPendingNodeMaterialRequest{}
+	promotionPendingNodeReq := &bean.PromotionPendingNodeMaterialParams{}
 
 	promotionPendingNodeReq = promotionPendingNodeReq.
 		WithCDPipelineIds([]int{pipeline.Id}).
@@ -1778,7 +1742,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.Requ
 
 	imagePromoterAuthCDPipelineIds := wfMetadata.GetAuthCdPipelineIds()
 
-	promotionPendingForCurrentUserReq := &bean.PromotionPendingNodeMaterialRequest{}
+	promotionPendingForCurrentUserReq := &bean.PromotionPendingNodeMaterialParams{}
 	promotionPendingForCurrentUserReq = promotionPendingForCurrentUserReq.
 		WithCDPipelineIds(wfMetadata.GetAuthCdPipelineIds()).
 		WithListingFilterOptions(request.ListingFilterOptions)

@@ -41,95 +41,95 @@ type ArtifactsListFilterOptions struct {
 	UseCdStageQueryV2 bool
 }
 
-type CiNodeMaterialRequest struct {
+type CiNodeMaterialParams struct {
 	ciPipelineId   int
 	listingOptions util.ListingFilterOptions
 }
 
-func (r *CiNodeMaterialRequest) WithCiPipelineId(id int) *CiNodeMaterialRequest {
+func (r *CiNodeMaterialParams) WithCiPipelineId(id int) *CiNodeMaterialParams {
 	r.ciPipelineId = id
 	return r
 }
 
-func (r *CiNodeMaterialRequest) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *CiNodeMaterialRequest {
+func (r *CiNodeMaterialParams) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *CiNodeMaterialParams {
 	r.listingOptions = listingOptions
 	return r
 }
 
-func (r *CiNodeMaterialRequest) GetCiPipelineId() int {
+func (r *CiNodeMaterialParams) GetCiPipelineId() int {
 	return r.ciPipelineId
 }
 
-func (r *CiNodeMaterialRequest) GetListingOptions() util.ListingFilterOptions {
+func (r *CiNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 	return r.listingOptions
 }
 
-type ExtCiNodeMaterialRequest struct {
+type ExtCiNodeMaterialParams struct {
 	externalCiPipelineId int
 	listingOptions       util.ListingFilterOptions
 }
 
-func (r *ExtCiNodeMaterialRequest) WithExtCiPipelineId(id int) *ExtCiNodeMaterialRequest {
+func (r *ExtCiNodeMaterialParams) WithExtCiPipelineId(id int) *ExtCiNodeMaterialParams {
 	r.externalCiPipelineId = id
 	return r
 }
 
-func (r *ExtCiNodeMaterialRequest) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *ExtCiNodeMaterialRequest {
+func (r *ExtCiNodeMaterialParams) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *ExtCiNodeMaterialParams {
 	r.listingOptions = listingOptions
 	return r
 }
 
-func (r *ExtCiNodeMaterialRequest) GetExtCiPipelineId() int {
+func (r *ExtCiNodeMaterialParams) GetExtCiPipelineId() int {
 	return r.externalCiPipelineId
 }
 
-func (r *ExtCiNodeMaterialRequest) GetListingOptions() util.ListingFilterOptions {
+func (r *ExtCiNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 	return r.listingOptions
 }
 
-type CdNodeMaterialRequest struct {
+type CdNodeMaterialParams struct {
 	resourceCdPipelineId int
 	listingOptions       util.ListingFilterOptions
 }
 
-func (r *CdNodeMaterialRequest) WithCDPipelineId(id int) *CdNodeMaterialRequest {
+func (r *CdNodeMaterialParams) WithCDPipelineId(id int) *CdNodeMaterialParams {
 	r.resourceCdPipelineId = id
 	return r
 }
 
-func (r *CdNodeMaterialRequest) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *CdNodeMaterialRequest {
+func (r *CdNodeMaterialParams) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *CdNodeMaterialParams {
 	r.listingOptions = listingOptions
 	return r
 }
 
-func (r *CdNodeMaterialRequest) GetCDPipelineId() int {
+func (r *CdNodeMaterialParams) GetCDPipelineId() int {
 	return r.resourceCdPipelineId
 }
 
-func (r *CdNodeMaterialRequest) GetListingOptions() util.ListingFilterOptions {
+func (r *CdNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 	return r.listingOptions
 }
 
-type PromotionPendingNodeMaterialRequest struct {
+type PromotionPendingNodeMaterialParams struct {
 	resourceCdPipelineId []int
 	listingOptions       util.ListingFilterOptions
 }
 
-func (r *PromotionPendingNodeMaterialRequest) WithCDPipelineIds(ids []int) *PromotionPendingNodeMaterialRequest {
+func (r *PromotionPendingNodeMaterialParams) WithCDPipelineIds(ids []int) *PromotionPendingNodeMaterialParams {
 	r.resourceCdPipelineId = ids
 	return r
 }
 
-func (r *PromotionPendingNodeMaterialRequest) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *PromotionPendingNodeMaterialRequest {
+func (r *PromotionPendingNodeMaterialParams) WithListingFilterOptions(listingOptions util.ListingFilterOptions) *PromotionPendingNodeMaterialParams {
 	r.listingOptions = listingOptions
 	return r
 }
 
-func (r *PromotionPendingNodeMaterialRequest) GetCDPipelineIds() []int {
+func (r *PromotionPendingNodeMaterialParams) GetCDPipelineIds() []int {
 	return r.resourceCdPipelineId
 }
 
-func (r *PromotionPendingNodeMaterialRequest) GetListingOptions() util.ListingFilterOptions {
+func (r *PromotionPendingNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 	return r.listingOptions
 }
 

@@ -131,6 +131,7 @@ type CdPipelineConfigService interface {
 	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
+	ExtractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (parentId int, parentType bean2.WorkflowType, parentCdId int, err error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -2552,4 +2553,40 @@ func (impl *CdPipelineConfigServiceImpl) FindActiveByAppIdAndEnvNames(appId int,
 
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
 	return impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds)
+}
+
+func (impl *CdPipelineConfigServiceImpl) ExtractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (parentId int, parentType bean2.WorkflowType, parentCdId int, err error) {
+	// retrieve parent details
+	parentId, parentType, err = impl.RetrieveParentDetails(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("failed to retrieve parent details",
+			"cdPipelineId", pipeline.Id,
+			"err", err)
+		return parentId, parentType, parentCdId, err
+	}
+
+	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
+		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
+		// Parent component is CD only if parent type is POST/DEPLOY
+		parentCdId = parentId
+	}
+
+	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository5.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
+			return parentId, parentType, parentCdId, err
+		}
+		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+			// Parent type will be PRE for DEPLOY stage
+			parentId = pipeline.Id
+			parentType = bean2.CD_WORKFLOW_TYPE_PRE
+		}
+	}
+	if stage == bean2.CD_WORKFLOW_TYPE_POST {
+		// Parent type will be DEPLOY for POST stage
+		parentId = pipeline.Id
+		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
+	}
+	return parentId, parentType, parentCdId, err
 }

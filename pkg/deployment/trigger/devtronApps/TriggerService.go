@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	constants2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -346,13 +347,13 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	if overrideRequest.IsDeployDeploymentType() {
 		// Migration of deprecated DataSource Type
 		// TODO ayush - test ci parent, link ci , skopeo image, post/deploy parent cases
-		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline.Id, artifact)
+		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
 		if err != nil {
 			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
 			return 0, "", err
 		}
 		if !isArtifactAvailable {
-			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("this artifact is not available for deployment on this pipeline")
+			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE)
 		}
 
 		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
@@ -645,18 +646,20 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciArtifact *repository3.CiArtifact) (bool, error) {
-	parentId, parentType, err := impl.cdPipelineConfigService.RetrieveParentDetails(pipelineId)
+func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineConfig.Pipeline, ciArtifact *repository3.CiArtifact, deployStage bean3.WorkflowType) (bool, error) {
+	parentId, parentType, _, err := impl.cdPipelineConfigService.ExtractParentMetaDataByPipeline(pipeline, deployStage)
 	if err != nil {
-		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipelineId, "err", err)
+		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipeline.Id, "err", err)
 		return false, err
 	}
 	if parentType == bean3.CI_WORKFLOW_TYPE {
-		// artifact can be created at post-ci aswell
+		// artifact can be created at post-ci as well
 		if parentId == ciArtifact.PipelineId || (ciArtifact.DataSource == repository3.POST_CI && ciArtifact.ComponentId == parentId) {
 			return true, nil
-		} else {
-			return false, nil
+		}
+	} else if parentType == bean3.WEBHOOK_WORKFLOW_TYPE {
+		if parentId == ciArtifact.ExternalCiPipelineId {
+			return true, nil
 		}
 	} else {
 		var pluginStage string
@@ -665,13 +668,14 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipelineId int, ciAr
 		} else if parentType == pipelineConfig.WorkflowTypePost {
 			pluginStage = repository3.POST_CD
 		}
-		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipelineId, parentId, ciArtifact.Id, string(parentType), pluginStage)
+		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipeline.Id, parentId, ciArtifact.Id, string(parentType), pluginStage, string(deployStage))
 		if err != nil {
-			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipelineId, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifact.Id, "err", err)
+			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipeline.Id, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifact.Id, "err", err)
 			return false, err
 		}
 		return artifactAvailable, nil
 	}
+	return false, nil
 }
 
 func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
