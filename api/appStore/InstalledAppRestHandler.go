@@ -47,7 +47,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -92,7 +91,6 @@ type InstalledAppRestHandlerImpl struct {
 	argoUserService                         argo.ArgoUserService
 	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
 	installedAppRepository                  repository.InstalledAppRepository
-	K8sApplicationService                   application2.K8sApplicationService
 	appCrudOperationService                 app2.AppCrudOperationService
 	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService
 }

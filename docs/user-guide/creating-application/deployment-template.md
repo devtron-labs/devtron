@@ -15,7 +15,7 @@ To configure a deployment chart for your application, do the following steps:
 
 You can select a default deployment chart from the following options:
 
-1. [Deployment](deployment-template/deployment) (Recommended)
+1. [Deployment](deployment-template/deployment.md) (Recommended)
 2. [Rollout Deployment](deployment-template/rollout-deployment.md)
 3. [Job & CronJob](deployment-template/job-and-cronjob.md)
 4. [StatefulSet](deployment-template/statefulset.md)
@@ -47,5 +47,5 @@ Enable **show application metrics** toggle to view the application metrics on th
 Select **Save & Next** to save your configurations.
 
 {% hint style="warning" %}
-Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}

@@ -1,20 +1,26 @@
 package in
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -28,10 +34,13 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/pointer"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -52,6 +61,12 @@ type WorkflowEventProcessorImpl struct {
 	validator               *validator.Validate
 	globalEnvVariables      *util2.GlobalEnvVariables
 	cdWorkflowCommonService cd.CdWorkflowCommonService
+	cdPipelineConfigService pipeline.CdPipelineConfigService
+
+	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
+	devtronAppReleaseContextMapLock *sync.Mutex
+	appServiceConfig                *app.AppServiceConfig
+
 	//repositories import to be removed
 	pipelineRepository   pipelineConfig.PipelineRepository
 	ciArtifactRepository repository.CiArtifactRepository
@@ -72,30 +87,39 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate,
 	envVariables *util2.EnvironmentVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
+	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
-		logger:                  logger,
-		pubSubClient:            pubSubClient,
-		cdWorkflowService:       cdWorkflowService,
-		cdWorkflowRunnerService: cdWorkflowRunnerService,
-		argoUserService:         argoUserService,
-		ciHandler:               ciHandler,
-		cdHandler:               cdHandler,
-		eventFactory:            eventFactory,
-		eventClient:             eventClient,
-		workflowDagExecutor:     workflowDagExecutor,
-		cdTriggerService:        cdTriggerService,
-		deployedAppService:      deployedAppService,
-		webhookService:          webhookService,
-		validator:               validator,
-		globalEnvVariables:      envVariables.GlobalEnvVariables,
-		cdWorkflowCommonService: cdWorkflowCommonService,
-		pipelineRepository:      pipelineRepository,
-		ciArtifactRepository:    ciArtifactRepository,
-		cdWorkflowRepository:    cdWorkflowRepository,
+		logger:                          logger,
+		pubSubClient:                    pubSubClient,
+		cdWorkflowService:               cdWorkflowService,
+		cdWorkflowRunnerService:         cdWorkflowRunnerService,
+		argoUserService:                 argoUserService,
+		ciHandler:                       ciHandler,
+		cdHandler:                       cdHandler,
+		eventFactory:                    eventFactory,
+		eventClient:                     eventClient,
+		workflowDagExecutor:             workflowDagExecutor,
+		cdTriggerService:                cdTriggerService,
+		deployedAppService:              deployedAppService,
+		webhookService:                  webhookService,
+		validator:                       validator,
+		globalEnvVariables:              envVariables.GlobalEnvVariables,
+		cdWorkflowCommonService:         cdWorkflowCommonService,
+		cdPipelineConfigService:         cdPipelineConfigService,
+		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
+		devtronAppReleaseContextMapLock: &sync.Mutex{},
+		pipelineRepository:              pipelineRepository,
+		ciArtifactRepository:            ciArtifactRepository,
+		cdWorkflowRepository:            cdWorkflowRepository,
 	}
+	appServiceConfig, err := app.GetAppServiceConfig()
+	if err != nil {
+		return nil, err
+	}
+	impl.appServiceConfig = appServiceConfig
 	return impl, nil
 }
 
@@ -594,4 +618,224 @@ func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(ima
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
+	callback := func(msg *model.PubSubMsg) {
+		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
+		if err != nil {
+			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+			return
+		}
+		toSkipProcess, err := impl.handleConcurrentOrInvalidRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest)
+		if err != nil {
+			impl.logger.Errorw("error, handleConcurrentOrInvalidRequest", "err", err, "req", CDAsyncInstallNatsMessage.ValuesOverrideRequest)
+			return
+		}
+		if toSkipProcess {
+			impl.logger.Debugw("skipping async helm install request", "req", CDAsyncInstallNatsMessage.ValuesOverrideRequest)
+			return
+		}
+		pipelineId := CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId
+		cdWfrId := CDAsyncInstallNatsMessage.ValuesOverrideRequest.WfrId
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(impl.appServiceConfig.DevtronChartInstallRequestTimeout)*time.Minute)
+		defer cancel()
+		impl.UpdateReleaseContextForPipeline(pipelineId, cdWfrId, cancel)
+		defer impl.cleanUpDevtronAppReleaseContextMap(pipelineId, cdWfrId)
+		err = impl.workflowDagExecutor.ProcessDevtronAsyncHelmInstallRequest(CDAsyncInstallNatsMessage, appIdentifier, ctx)
+		if err != nil {
+			impl.logger.Errorw("error, ProcessDevtronAsyncHelmInstallRequest", "err", err, "req", CDAsyncInstallNatsMessage)
+			return
+		}
+		return
+	}
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling CD async install request nats message", []interface{}{"err", err}
+		}
+		return "got message for devtron chart install", []interface{}{"appId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.AppId, "pipelineId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId, "artifactId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.CiArtifactId}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub.DEVTRON_CHART_INSTALL_TOPIC, callback, loggerFunc)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrideRequest *bean2.ValuesOverrideRequest) (toSkipProcess bool, err error) {
+	pipelineId := overrideRequest.PipelineId
+	cdWfrId := overrideRequest.WfrId
+	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
+	if err != nil {
+		impl.logger.Errorw("err on fetching cd workflow runner, handleConcurrentOrInvalidRequest", "err", err, "cdWfrId", cdWfrId)
+		return toSkipProcess, err
+	}
+	pipelineObj, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err on fetching pipeline, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
+		return toSkipProcess, err
+	} else if err != pg.ErrNoRows || pipelineObj == nil || pipelineObj.Id == 0 {
+		impl.logger.Warnw("invalid request received pipeline not active, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
+		toSkipProcess = true
+		return toSkipProcess, err
+	}
+	impl.devtronAppReleaseContextMapLock.Lock()
+	defer impl.devtronAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
+		if releaseContext.RunnerId == cdWfrId {
+			//request in process for same wfrId, skipping and doing nothing
+			//earlier we used to check if wfrStatus is in starting then only skip, removed that
+			toSkipProcess = true
+			return toSkipProcess, nil
+		} else {
+			//request in process but for other wfrId
+			// skip if the cdWfr.Status is already in a terminal state
+			skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
+			if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
+				impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, handleConcurrentOrInvalidRequest", "cdWfrId", cdWfrId, "status", cdWfr.Status)
+				toSkipProcess = true
+				return toSkipProcess, nil
+			}
+			isLatest, err := impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfrId, pipelineId)
+			if err != nil {
+				impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfrId)
+				return toSkipProcess, err
+			}
+			if !isLatest {
+				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfrId)
+				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error while updating current runner status to failed, handleConcurrentOrInvalidRequest", "cdWfr", cdWfrId, "err", err)
+					return toSkipProcess, err
+				}
+				toSkipProcess = true
+				return toSkipProcess, nil
+			}
+		}
+	} else {
+		//no request in process for pipeline, continue
+	}
+
+	return toSkipProcess, nil
+}
+
+func (impl *WorkflowEventProcessorImpl) isReleaseContextExistsForPipeline(pipelineId, cdWfrId int) bool {
+	impl.devtronAppReleaseContextMapLock.Lock()
+	defer impl.devtronAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
+		return releaseContext.RunnerId == cdWfrId
+	}
+	return false
+}
+
+func (impl *WorkflowEventProcessorImpl) UpdateReleaseContextForPipeline(pipelineId, cdWfrId int, cancel context.CancelFunc) {
+	impl.devtronAppReleaseContextMapLock.Lock()
+	defer impl.devtronAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
+		//Abort previous running release
+		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
+		releaseContext.CancelContext()
+	}
+	impl.devtronAppReleaseContextMap[pipelineId] = bean.DevtronAppReleaseContextType{
+		CancelContext: cancel,
+		RunnerId:      cdWfrId,
+	}
+}
+
+func (impl *WorkflowEventProcessorImpl) cleanUpDevtronAppReleaseContextMap(pipelineId, wfrId int) {
+	if impl.isReleaseContextExistsForPipeline(pipelineId, wfrId) {
+		impl.devtronAppReleaseContextMapLock.Lock()
+		defer impl.devtronAppReleaseContextMapLock.Unlock()
+		if _, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
+			delete(impl.devtronAppReleaseContextMap, pipelineId)
+		}
+	}
+}
+
+func (impl *WorkflowEventProcessorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *model.PubSubMsg) (*bean.AsyncCdDeployEvent, *client2.AppIdentifier, error) {
+	CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
+	err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
+		return nil, nil, err
+	}
+	pipeline, err := impl.pipelineRepository.FindById(CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
+		return nil, nil, err
+	}
+	triggerAdapter.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
+	if CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
+		CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
+	}
+	appIdentifier := &client2.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		Namespace:   pipeline.Environment.Namespace,
+		ReleaseName: pipeline.DeploymentAppName,
+	}
+	return CDAsyncInstallNatsMessage, appIdentifier, nil
+}
+
+func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
+	callback := func(msg *model.PubSubMsg) {
+		cdPipelineDeleteEvent := &bean7.CdPipelineDeleteEvent{}
+		err := json.Unmarshal([]byte(msg.Data), cdPipelineDeleteEvent)
+		if err != nil {
+			impl.logger.Errorw("error while unmarshalling cdPipelineDeleteEvent object", "err", err, "msg", msg.Data)
+			return
+		}
+		pipeline, err := impl.pipelineRepository.FindByIdEvenIfInactive(cdPipelineDeleteEvent.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
+			return
+		}
+		impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
+		//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+		//trying to delete deployment app once
+		err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+		}
+	}
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		cdStageCompleteEvent := &bean.CdStageCompleteEvent{}
+		err := json.Unmarshal([]byte(msg.Data), cdStageCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling cdPipelineDeleteEvent object", []interface{}{"err", err, "msg", msg.Data}
+		}
+		return "got message for cd pipeline deletion", []interface{}{"request", cdStageCompleteEvent}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub.CD_PIPELINE_DELETE_EVENT_TOPIC, callback, loggerFunc)
+	if err != nil {
+		impl.logger.Error("error", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) RemoveReleaseContextForPipeline(cdPipelineDeleteEvent *bean7.CdPipelineDeleteEvent) {
+	impl.devtronAppReleaseContextMapLock.Lock()
+	defer impl.devtronAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.devtronAppReleaseContextMap[cdPipelineDeleteEvent.PipelineId]; ok {
+		//Abort previous running release
+		impl.logger.Infow("CD pipeline has been deleted with a running deployment in progress!", "aborting deployment for pipelineId", cdPipelineDeleteEvent.PipelineId)
+		cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(releaseContext.RunnerId)
+		if err != nil {
+			impl.logger.Errorw("err on fetching cd workflow runner, RemoveReleaseContextForPipeline", "err", err)
+		}
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New("CD pipeline has been deleted"), cdPipelineDeleteEvent.TriggeredBy); err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, RemoveReleaseContextForPipeline", "cdWfr", cdWfr.Id, "err", err)
+		}
+		releaseContext.CancelContext()
+		delete(impl.devtronAppReleaseContextMap, cdPipelineDeleteEvent.PipelineId)
+	}
+	return
 }

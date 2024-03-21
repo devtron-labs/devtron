@@ -79,7 +79,7 @@ To approve an image approval request, follow these steps:
 
 ### Deploying Approved Image
 
-Users need to have [Build & deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the respective environment and application) to select and deploy an approved image.
+Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the respective environment and application) to select and deploy an approved image.
 
 In case the super-admin has set the minimum number of approval to more than 1 (in [workflow](../creating-application/workflow/cd-pipeline.md#4-manual-approval-for-deployment)), you must wait for all approvals before deploying the image. In other words, partially approved image will not be eligible for deployment.
 

@@ -33,6 +33,7 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 	EntityJobs                                  = "jobs"
+	EmptyStringIndicatingAll                    = ""
 )
 
 const (

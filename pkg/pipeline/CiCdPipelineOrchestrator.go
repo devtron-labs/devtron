@@ -1292,6 +1292,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 	}
 	var materials []*bean.GitMaterial
 	for _, inputMaterial := range createMaterialRequest.Material {
+		inputMaterial.UpdateSanitisedGitRepoUrl()
 		m, err := impl.createMaterial(inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
 		inputMaterial.Id = m.Id
 		if err != nil {
@@ -1482,6 +1483,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("validation err", "err", err)
 		return nil, validationErr
 	}
+	updateMaterialDTO.Material.UpdateSanitisedGitRepoUrl()
 	currentMaterial.Url = updateMaterialDTO.Material.Url
 	basePath := path.Base(updateMaterialDTO.Material.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
