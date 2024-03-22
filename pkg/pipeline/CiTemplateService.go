@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -138,7 +139,7 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineIds(ciPipeline
 	return templateBeanOverrides, nil
 }
 
-func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipelineConfig.CiTemplateOverride) (*bean.CiBuildConfigBean, error) {
+func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipelineConfig.CiTemplateOverride) (*CiPipeline.CiBuildConfigBean, error) {
 	ciBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(templateOverride.CiBuildConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",

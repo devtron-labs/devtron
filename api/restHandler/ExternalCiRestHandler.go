@@ -19,8 +19,8 @@ package restHandler
 
 import (
 	"encoding/json"
-	util3 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
+	util3 "github.com/devtron-labs/devtron/api/util"
 	"net/http"
 	"strconv"
 
