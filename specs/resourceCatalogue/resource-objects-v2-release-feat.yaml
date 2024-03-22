@@ -1,0 +1,261 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs - Release feature (resource catalogue v2)
+paths:
+  /orchestrator/resource/list/{kind}/{version}:
+    get:
+      description: List resource objects
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "v1"
+        - name: lite
+          in: query
+          required: false
+          schema:
+            type: boolean
+            description: boolean value declaring that data to be fetched is lite or heavy
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+  /orchestrator/resource/{kind}/{version}:
+    get:
+      description: fetch resource object
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "v1"
+        - name: components
+          in: query
+          required: false
+          schema:
+            type: string
+            description: this string will contain comma-separated values of components needed in the api call. If nothing is specified catalogue will be sent as before.
+            enum:
+              - "overview"
+              - "status"
+              - "note"
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+    put:
+      description: patch, create, delete resource object
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "v1"
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevtronResourcePatchObjectDto'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    DevtronResourceListDto:
+      type: array
+      items:
+        type: object
+        allOf:
+          - $ref: '#/components/schemas/DevtronResourceObjectDto'
+          - type: object
+            properties:
+              childObjects:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DevtronResourceObjectDto'
+    DevtronResourceObjectDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+        subKind:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        schema:
+          type: string
+        objectData:
+          type: string
+        note:
+          type: string
+        status:
+           type: string
+        overview:
+          type: object
+          properties:
+            releaseTrack:
+              type: string
+            releaseVersion:
+              type: string
+            createdBy:
+              type: string
+            createdOn:
+               type: string
+               format: timestamp
+            tags:
+              type: object
+    DevtronResourcePatchObjectDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        objectData:
+          type: string
+          description: field containing json of catalogue data. From v1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
+        action:
+          type: string
+          enum:
+            - "PATCH" #for patching specific path objects like description, readme/notes, name etc
+            - "CREATE" #for creating a new resource
+            - "DELETE" #for deleting the resource
+        actionPayload:
+          type: object
+          description: payload containing information on how to execute the action
+          properties:
+            patchPath:
+              type: string
+              enum:
+                - "description"
+                - "note"
+                - "readme"
+                - "name"
+            patchData:
+              type: object
+              description: can be string or object on basis of patching path.
+                For description, note, readme & name object will be string.
+                For creating resource this will be object like '{tag:{a:b},description:hello}'
+                For deleting, no need of resource
+        schema:
+          type: object
+          description: json object containing the complete schema
+          properties:
+            overview:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  description: field containing all data of catalogue
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
