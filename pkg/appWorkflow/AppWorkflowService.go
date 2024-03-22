@@ -257,7 +257,7 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.R
 
 	wfIdToPolicyMapping := make(map[int]bool)
 
-	cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	cdPipelines, err := impl.pipelineRepository.FindPipelineByIdsIn(cdPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
 		return wfIdToPolicyMapping, err
@@ -266,24 +266,24 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.R
 		return wfIdToPolicyMapping, err
 	}
 
-	envIds := make([]int, len(cdPipelines))
-	envIdToNameMap := make(map[int]string)
-	for i, cdPipeline := range cdPipelines {
-		envIds[i] = cdPipeline.EnvironmentId
-		envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
-	}
+	envIds := util2.Map(cdPipelines, func(pip *pipelineConfig.Pipeline) int {
+		return pip.EnvironmentId
+	})
 
-	promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
+	envPolicyMappings, err := impl.artifactPromotionDataReadService.GetPolicyIdsByAppAndEnvIds(ctx, appId, envIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
 		return wfIdToPolicyMapping, err
 	}
 
+	envIdPolicyMap := make(map[int]bool)
+	for _, envPolicyMapping := range envPolicyMappings {
+		envIdPolicyMap[envPolicyMapping.SelectionIdentifier.EnvId] = true
+	}
+
 	for _, cdPipeline := range cdPipelines {
-		envName := cdPipeline.Environment.Name
-		if _, ok := promotionPolicies[envName]; ok {
-			if _, cdPipelineOk := cdPipelineIdToWfIdMap[cdPipeline.Id]; cdPipelineOk {
-				workflowId := cdPipelineIdToWfIdMap[cdPipeline.Id]
+		if _, ok := envIdPolicyMap[cdPipeline.EnvironmentId]; ok {
+			if workflowId, cdPipelineOk := cdPipelineIdToWfIdMap[cdPipeline.Id]; cdPipelineOk {
 				wfIdToPolicyMapping[workflowId] = true
 			}
 		}

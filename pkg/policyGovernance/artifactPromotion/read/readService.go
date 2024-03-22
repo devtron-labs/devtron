@@ -28,6 +28,7 @@ import (
 type ArtifactPromotionDataReadService interface {
 	FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error)
 	GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
+	GetPolicyIdsByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) ([]resourceQualifiers.ResourceQualifierMappings, error)
 	GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
 	GetPromotionPolicyById(ctx *util2.RequestCtx, id int) (*bean.PromotionPolicy, error)
 	GetPromotionPolicyByIds(ctx *util2.RequestCtx, ids []int) ([]*bean.PromotionPolicy, error)
@@ -305,7 +306,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvI
 	return policy, nil
 }
 
-func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPolicyIdsByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) ([]resourceQualifiers.ResourceQualifierMappings, error) {
 	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(envIds))
 	for _, envId := range envIds {
 		scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
@@ -321,6 +322,16 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvI
 	resourceQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForSelections(resourceQualifiers.ImagePromotionPolicy, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
 		impl.logger.Errorw("error in finding resource qualifier mappings from scope", "scopes", scopes, "err", err)
+		return nil, err
+	}
+	return resourceQualifierMappings, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(ctx *util2.RequestCtx, appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
+
+	resourceQualifierMappings, err := impl.GetPolicyIdsByAppAndEnvIds(ctx, appId, envIds)
+	if err != nil {
+		impl.logger.Errorw("error in finding resource qualifier mappings using appId and envIds", "appId", appId, "envIds", envIds, "err", err)
 		return nil, err
 	}
 	policyIds := make([]int, 0, len(resourceQualifierMappings))

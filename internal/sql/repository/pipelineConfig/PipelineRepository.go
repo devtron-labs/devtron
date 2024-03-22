@@ -108,6 +108,7 @@ type PipelineRepository interface {
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
+	FindPipelineByIdsIn(ids []int) ([]*Pipeline, error)
 	FindActiveAndDeletedByIds(ids []int) ([]*Pipeline, error)
 	FindByIdsNotInAndAppId(ids []int, appId int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
@@ -208,6 +209,21 @@ func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Join("inner join cluster c on c.id = e.cluster_id").
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Where("pipeline.deleted = false").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
+	}
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindPipelineByIdsIn(ids []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	if len(ids) == 0 {
+		return pipelines, nil
+	}
+	err := impl.dbConnection.Model(&pipelines).
 		Where("pipeline.id in (?)", pg.In(ids)).
 		Where("pipeline.deleted = false").
 		Select()
