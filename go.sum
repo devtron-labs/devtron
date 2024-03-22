@@ -237,8 +237,8 @@ github.com/devtron-labs/authenticator v0.4.34 h1:U/2oy6v1j3Lzb0JkfLm/yaTAG0rkQ3p
 github.com/devtron-labs/authenticator v0.4.34/go.mod h1:ozNfT8WcruiSgnUbyp48WVfc41++W6xYXhKFp67lNTU=
 github.com/devtron-labs/common-lib v0.0.16-0.20240304121720-165aedb633c1 h1:xL/vi+srBiGUl+IP/YHTAk4ig+9UYg8d7AVXkZSWqP8=
 github.com/devtron-labs/common-lib v0.0.16-0.20240304121720-165aedb633c1/go.mod h1:95/DizzVXu1kHap/VwEvdxwgd+BvPVYc0bJzt8yqGDU=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240304121837-1c474d3c0ec0 h1:fyZtBk9SrVvhh/3ufxkDSeoyJjwYDkyF5WUzpdciAC8=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240304121837-1c474d3c0ec0/go.mod h1:Be1RDS3WKc93BoJPPVejPNiWWP64AxRU7r+CoLRJaUc=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240321222253-0a106415fab4 h1:yv29ZGWo4IXp85Rsbvp26UdbmQA5LWk8oP7LgWYc9dU=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240321222253-0a106415fab4/go.mod h1:Be1RDS3WKc93BoJPPVejPNiWWP64AxRU7r+CoLRJaUc=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
