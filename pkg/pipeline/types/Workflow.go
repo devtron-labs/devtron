@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
@@ -90,7 +91,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean.RefPluginObject           `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	CiBuildConfig              *bean.CiBuildConfigBean           `json:"ciBuildConfig"`
+	CiBuildConfig              *CiPipeline.CiBuildConfigBean     `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
