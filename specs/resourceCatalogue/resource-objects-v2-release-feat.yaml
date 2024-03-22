@@ -43,7 +43,7 @@ paths:
                   result:
                     type: array
                     items:
-                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+                      $ref: '#/components/schemas/DevtronResourceListDto'
   /orchestrator/resource/{kind}/{version}:
     get:
       description: fetch resource object
@@ -63,12 +63,12 @@ paths:
             type: string
             enum:
               - "v1"
-        - name: components
+        - name: component
           in: query
           required: false
           schema:
-            type: string
-            description: this string will contain comma-separated values of components needed in the api call. If nothing is specified catalogue will be sent as before.
+            type: array
+            description: this string will contain array of components needed in the api call. If nothing is specified catalogue will be sent as before.
             enum:
               - "overview"
               - "status"
@@ -137,8 +137,6 @@ paths:
 components:
   schemas:
     DevtronResourceListDto:
-      type: array
-      items:
         type: object
         allOf:
           - $ref: '#/components/schemas/DevtronResourceObjectDto'
@@ -165,13 +163,15 @@ components:
           type: string
         objectData:
           type: string
-        note:
-          type: string
         status:
            type: string
         overview:
           type: object
           properties:
+            description:
+              type: string
+            note:
+              type: string
             releaseTrack:
               type: string
             releaseVersion:
@@ -200,22 +200,24 @@ components:
             - "CREATE" #for creating a new resource
             - "DELETE" #for deleting the resource
         actionPayload:
-          type: object
-          description: payload containing information on how to execute the action
-          properties:
-            patchPath:
-              type: string
-              enum:
-                - "description"
-                - "note"
-                - "readme"
-                - "name"
-            patchData:
-              type: object
-              description: can be string or object on basis of patching path.
-                For description, note, readme & name object will be string.
-                For creating resource this will be object like '{tag:{a:b},description:hello}'
-                For deleting, no need of resource
+          type: array
+          items:
+            type: object
+            description: payload containing information on how to execute the action
+            properties:
+              patchPath:
+                type: string
+                enum:
+                  - "description"
+                  - "note"
+                  - "readme"
+                  - "name"
+              patchData:
+                type: object
+                description: Can be string or object on basis of patching path.
+                  For description, note, readme & name object will be string.
+                  For creating resource this will be object like '{tag:{a:b},description:hello}'
+                  For deleting, no need of resource
         schema:
           type: object
           description: json object containing the complete schema
@@ -243,7 +245,6 @@ components:
           description: errors
           items:
             $ref: '#/components/schemas/Error'
-
     Error:
       required:
         - code
