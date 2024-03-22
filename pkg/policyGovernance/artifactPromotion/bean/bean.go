@@ -176,8 +176,8 @@ func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingU
 	return !p.ApprovalMetaData.AllowRequesterFromApprove && requestedUserId == approvingUserId
 }
 
-func (p *PromotionPolicy) CanImageApproverDeploy() bool {
-	return p.ApprovalMetaData.AllowApproverFromDeploy
+func (p *PromotionPolicy) BlockApproverFromDeploy() bool {
+	return !p.ApprovalMetaData.AllowApproverFromDeploy
 }
 
 func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {
