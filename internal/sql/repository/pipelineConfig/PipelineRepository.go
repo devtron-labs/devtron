@@ -466,7 +466,8 @@ func (impl PipelineRepositoryImpl) FindMetadataByAppAndEnv(appId, envId int, env
 			"a.team_id", "a.app_name").
 		Join("inner join environment e on pipeline.environment_id=e.id").
 		Join("inner join app a on pipeline.app_id = a.id").
-		Where("a.id = ? and (e.id = ? or e.environment_name = ? )", appId, envId, envName)
+		Where("a.id = ? and ( e.id = ? or e.environment_name = ? )", appId, envId, envName).
+		Where("pipeline.deleted = false")
 	err = query.Select(pipeline)
 	return pipeline, err
 }
