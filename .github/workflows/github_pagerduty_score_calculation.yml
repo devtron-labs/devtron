@@ -24,3 +24,4 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           MY_ACCESS_TOKEN: ${{ secrets.MY_ACCESS_TOKEN}}
+          PAGERDUTY_SCORE_THRESHOLD: ${{secrets.PAGERDUTY_SCORE_THRESHOLD}}
