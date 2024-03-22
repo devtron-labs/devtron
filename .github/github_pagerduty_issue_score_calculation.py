@@ -3,7 +3,7 @@ import sys
 import re
 import subprocess
 
-# Dictionaries to store scores for different options
+# Dictionaries to store different options
 affected_areas = {
     "Devtron dashboard completely down": 100,
     "Login issues": 50,
