@@ -10,7 +10,15 @@ const (
 	ImageDigest                        = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 	InfraProfile                       = 3
+	ImagePromotionPolicy  ResourceType = 4
+	DeploymentWindow      ResourceType = 5
 )
+
+type ResourceQualifierMappings struct {
+	ResourceId          int
+	ResourceType        ResourceType
+	SelectionIdentifier *SelectionIdentifier
+}
 
 type QualifierMapping struct {
 	tableName             struct{}     `sql:"resource_qualifier_mapping" pg:",discard_unknown_columns"`
@@ -27,4 +35,29 @@ type QualifierMapping struct {
 	// Data                  string   `sql:"-"`
 	// VariableData          *VariableData
 	sql.AuditLog
+}
+
+type ResourceMappingSelection struct {
+	ResourceType        ResourceType
+	ResourceId          int
+	QualifierSelector   QualifierSelector
+	SelectionIdentifier *SelectionIdentifier
+	Id                  int
+}
+
+type SelectionIdentifier struct {
+	AppId                   int                      `json:"appId"`
+	EnvId                   int                      `json:"envId"`
+	ClusterId               int                      `json:"clusterId"`
+	SelectionIdentifierName *SelectionIdentifierName `json:"-"`
+}
+
+type SelectionIdentifierName struct {
+	AppName         string
+	EnvironmentName string
+	ClusterName     string
+}
+
+func (mapping *QualifierMapping) GetIdValueAndName() (int, string) {
+	return mapping.IdentifierValueInt, mapping.IdentifierValueString
 }

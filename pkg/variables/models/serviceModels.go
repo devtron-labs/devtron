@@ -16,6 +16,7 @@ type VariableScopeMapping struct {
 }
 
 type VariableScope struct {
-	*resourceQualifiers.QualifierMapping
+	id int
+	*resourceQualifiers.ResourceMappingSelection
 	Data string
 }

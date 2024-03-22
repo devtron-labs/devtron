@@ -38,8 +38,12 @@ func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariabl
 type Qualifier int
 
 const (
-	GLOBAL_QUALIFIER   Qualifier = 5
-	PIPELINE_QUALIFIER Qualifier = 6
+	APP_AND_ENV_QUALIFIER Qualifier = 1
+	APP_QUALIFIER         Qualifier = 2
+	ENV_QUALIFIER         Qualifier = 3
+	CLUSTER_QUALIFIER     Qualifier = 4
+	GLOBAL_QUALIFIER      Qualifier = 5
+	PIPELINE_QUALIFIER    Qualifier = 6
 )
 
 var CompoundQualifiers []Qualifier
