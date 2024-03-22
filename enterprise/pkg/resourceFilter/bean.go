@@ -15,7 +15,8 @@ import (
 type IdentifierType int
 
 const (
-	GIT = "git"
+	GIT     = "git"
+	NewLine = "\n"
 )
 
 const (
@@ -288,7 +289,7 @@ func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) [
 		}
 		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
 			modification := ciMaterial.Modifications[0]
-			commitMessage = modification.Message
+			commitMessage, _ = strings.CutSuffix(modification.Message, NewLine)
 			branch = modification.Branch
 		}
 		commitDetailsList = append(commitDetailsList, &CommitDetails{
