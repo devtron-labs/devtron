@@ -40,7 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -60,11 +60,11 @@ const (
 
 type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error)
+	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.CdWorkflowStatus, error)
@@ -139,13 +139,6 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	cdh.config = config
 	return cdh
 }
-
-const NotTriggered string = "Not Triggered"
-const NotDeployed = "Not Deployed"
-const WorklowTypeDeploy = "DEPLOY"
-const WorklowTypePre = "PRE"
-const WorklowTypePost = "POST"
-const WorkflowApprovalNode = "APPROVAL"
 
 func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int, error) {
 	workflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowRunnerId)
@@ -284,7 +277,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	for k, v := range workflowStatus.Nodes {
 		impl.Logger.Debugw("ExtractWorkflowStatus", "workflowName", k, "v", v)
-		if v.TemplateName == bean2.CD_WORKFLOW_NAME {
+		if v.TemplateName == pipelineBean.CD_WORKFLOW_NAME {
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {
@@ -319,7 +312,7 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []bean2.CdWorkflowWithArtifact) []bean2.CdWorkflowWithArtifact {
+func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipelineBean.CdWorkflowWithArtifact) []pipelineBean.CdWorkflowWithArtifact {
 	artifactIds := make([]int, len(cdWorkflowArtifacts))
 	workflowRunnerIds := make([]int, len(cdWorkflowArtifacts))
 	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
@@ -342,9 +335,9 @@ func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []bean2.Cd
 	return cdWorkflowArtifacts
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
 
-	var cdWorkflowArtifact []bean2.CdWorkflowWithArtifact
+	var cdWorkflowArtifact []pipelineBean.CdWorkflowWithArtifact
 	// this map contains artifactId -> array of tags of that artifact
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
@@ -426,7 +419,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
-		var newCdWorkflowArtifact []bean2.CdWorkflowWithArtifact
+		var newCdWorkflowArtifact []pipelineBean.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
 			gitTriggers := make(map[int]pipelineConfig.GitCommit)
@@ -830,8 +823,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bean2.CdWorkflowWithArtifact {
-	workflow := bean2.CdWorkflowWithArtifact{}
+func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineBean.CdWorkflowWithArtifact {
+	workflow := pipelineBean.CdWorkflowWithArtifact{}
 	if wfr.Id > 0 {
 		workflow.Name = wfr.Name
 		workflow.Id = wfr.Id
@@ -856,9 +849,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bea
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []bean2.CdWorkflowWithArtifact {
-	var workflowList []bean2.CdWorkflowWithArtifact
-	var results []bean2.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineBean.CdWorkflowWithArtifact {
+	var workflowList []pipelineBean.CdWorkflowWithArtifact
+	var results []pipelineBean.CdWorkflowWithArtifact
 	var ids []int32
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
@@ -879,8 +872,8 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 	return results
 }
 
-func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error) {
-	var results []bean2.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
+	var results []pipelineBean.CdWorkflowWithArtifact
 	wfrPre, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
@@ -889,7 +882,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]bean2.Cd
 		workflowPre := impl.converterWFR(wfrPre)
 		results = append(results, workflowPre)
 	} else {
-		workflowPre := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
+		workflowPre := pipelineBean.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
 		results = append(results, workflowPre)
 	}
 
@@ -901,7 +894,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]bean2.Cd
 		workflowPost := impl.converterWFR(wfrPost)
 		results = append(results, workflowPost)
 	} else {
-		workflowPost := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
+		workflowPost := pipelineBean.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
 		results = append(results, workflowPost)
 	}
 	return results, nil
@@ -953,11 +946,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			cdWorkflowStatus := &pipelineConfig.CdWorkflowStatus{}
 			cdWorkflowStatus.PipelineId = item.PipelineId
 			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
-			if item.WorkflowType == WorklowTypePre {
+			if item.WorkflowType == pipelineBean.WorkflowTypePre {
 				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypeDeploy {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypeDeploy {
 				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypePost {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypePost {
 				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
@@ -965,11 +958,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			cdWorkflowStatus := cdMap[item.PipelineId]
 			cdWorkflowStatus.PipelineId = item.PipelineId
 			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
-			if item.WorkflowType == WorklowTypePre {
+			if item.WorkflowType == pipelineBean.WorkflowTypePre {
 				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypeDeploy {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypeDeploy {
 				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypePost {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypePost {
 				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
@@ -979,13 +972,13 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 
 	for _, item := range cdMap {
 		if item.PreStatus == "" {
-			item.PreStatus = NotTriggered
+			item.PreStatus = pipelineBean.NotTriggered
 		}
 		if item.DeployStatus == "" {
-			item.DeployStatus = NotDeployed
+			item.DeployStatus = pipelineBean.NotDeployed
 		}
 		if item.PostStatus == "" {
-			item.PostStatus = NotTriggered
+			item.PostStatus = pipelineBean.NotTriggered
 		}
 		cdWorkflowStatus = append(cdWorkflowStatus, item)
 	}
@@ -994,9 +987,9 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 		for _, item := range pipelineIds {
 			cdWs := &pipelineConfig.CdWorkflowStatus{}
 			cdWs.PipelineId = item
-			cdWs.PreStatus = NotTriggered
-			cdWs.DeployStatus = NotDeployed
-			cdWs.PostStatus = NotTriggered
+			cdWs.PreStatus = pipelineBean.NotTriggered
+			cdWs.DeployStatus = pipelineBean.NotDeployed
+			cdWs.PostStatus = pipelineBean.NotTriggered
 			cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 		}
 	} else {
@@ -1004,9 +997,9 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerView(appId int) ([]*p
 			if _, ok := cdMap[item]; !ok {
 				cdWs := &pipelineConfig.CdWorkflowStatus{}
 				cdWs.PipelineId = item
-				cdWs.PreStatus = NotTriggered
-				cdWs.DeployStatus = NotDeployed
-				cdWs.PostStatus = NotTriggered
+				cdWs.PreStatus = pipelineBean.NotTriggered
+				cdWs.DeployStatus = pipelineBean.NotDeployed
+				cdWs.PostStatus = pipelineBean.NotTriggered
 				cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 			}
 		}
@@ -1105,11 +1098,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 			cdWorkflowStatus := &pipelineConfig.CdWorkflowStatus{}
 			cdWorkflowStatus.PipelineId = item.PipelineId
 			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
-			if item.WorkflowType == WorklowTypePre {
+			if item.WorkflowType == pipelineBean.WorkflowTypePre {
 				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypeDeploy {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypeDeploy {
 				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypePost {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypePost {
 				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
@@ -1117,11 +1110,11 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 			cdWorkflowStatus := cdMap[item.PipelineId]
 			cdWorkflowStatus.PipelineId = item.PipelineId
 			cdWorkflowStatus.CiPipelineId = item.CiPipelineId
-			if item.WorkflowType == WorklowTypePre {
+			if item.WorkflowType == pipelineBean.WorkflowTypePre {
 				cdWorkflowStatus.PreStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypeDeploy {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypeDeploy {
 				cdWorkflowStatus.DeployStatus = statusMap[item.WfrId]
-			} else if item.WorkflowType == WorklowTypePost {
+			} else if item.WorkflowType == pipelineBean.WorkflowTypePost {
 				cdWorkflowStatus.PostStatus = statusMap[item.WfrId]
 			}
 			cdMap[item.PipelineId] = cdWorkflowStatus
@@ -1130,13 +1123,13 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 
 	for _, item := range cdMap {
 		if item.PreStatus == "" {
-			item.PreStatus = NotTriggered
+			item.PreStatus = pipelineBean.NotTriggered
 		}
 		if item.DeployStatus == "" {
-			item.DeployStatus = NotDeployed
+			item.DeployStatus = pipelineBean.NotDeployed
 		}
 		if item.PostStatus == "" {
-			item.PostStatus = NotTriggered
+			item.PostStatus = pipelineBean.NotTriggered
 		}
 		cdWorkflowStatus = append(cdWorkflowStatus, item)
 	}
@@ -1145,9 +1138,9 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 		for _, item := range pipelineIds {
 			cdWs := &pipelineConfig.CdWorkflowStatus{}
 			cdWs.PipelineId = item
-			cdWs.PreStatus = NotTriggered
-			cdWs.DeployStatus = NotDeployed
-			cdWs.PostStatus = NotTriggered
+			cdWs.PreStatus = pipelineBean.NotTriggered
+			cdWs.DeployStatus = pipelineBean.NotDeployed
+			cdWs.PostStatus = pipelineBean.NotTriggered
 			cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 		}
 	} else {
@@ -1155,9 +1148,9 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 			if _, ok := cdMap[item]; !ok {
 				cdWs := &pipelineConfig.CdWorkflowStatus{}
 				cdWs.PipelineId = item
-				cdWs.PreStatus = NotTriggered
-				cdWs.DeployStatus = NotDeployed
-				cdWs.PostStatus = NotTriggered
+				cdWs.PreStatus = pipelineBean.NotTriggered
+				cdWs.DeployStatus = pipelineBean.NotDeployed
+				cdWs.PostStatus = pipelineBean.NotTriggered
 				cdWorkflowStatus = append(cdWorkflowStatus, cdWs)
 			}
 		}
@@ -1244,7 +1237,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 		}
 		for _, item := range wfrList {
 			if item.Status == "" {
-				statusMap[item.Id] = NotDeployed
+				statusMap[item.Id] = pipelineBean.NotDeployed
 			} else {
 				statusMap[item.Id] = item.Status
 			}
@@ -1255,7 +1248,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 		if _, ok := deploymentStatusesMap[item.PipelineId]; !ok {
 			deploymentStatus := &pipelineConfig.AppDeploymentStatus{}
 			deploymentStatus.PipelineId = item.PipelineId
-			if item.WorkflowType == WorklowTypeDeploy {
+			if item.WorkflowType == pipelineBean.WorkflowTypeDeploy {
 				deploymentStatus.DeployStatus = statusMap[item.WfrId]
 				deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
 				deploymentStatusesMap[item.PipelineId] = deploymentStatus
@@ -1267,7 +1260,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 		if _, ok := deploymentStatusesMap[pipelineId]; !ok {
 			deploymentStatus := &pipelineConfig.AppDeploymentStatus{}
 			deploymentStatus.PipelineId = pipelineId
-			deploymentStatus.DeployStatus = NotDeployed
+			deploymentStatus.DeployStatus = pipelineBean.NotDeployed
 			deploymentStatus.AppId = pipelineAppMap[deploymentStatus.PipelineId]
 			deploymentStatusesMap[pipelineId] = deploymentStatus
 		}

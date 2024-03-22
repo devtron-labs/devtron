@@ -16,6 +16,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchChartNotes(installedAppId int,
 	if err != nil && err != pg.ErrNoRows {
 		return "", err
 	}
+
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		if err == pg.ErrNoRows {

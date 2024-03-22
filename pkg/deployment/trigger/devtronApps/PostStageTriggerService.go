@@ -15,27 +15,32 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
-	"strconv"
 	"strings"
 	"time"
 )
 
 func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) error {
+	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_POST
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
 	cdWf := request.CdWf
-
+	ctx := context.Background() //before there was only one context. To check why here we are not using ctx from request.TriggerContext
 	var env *repository2.Environment
 	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)
 		return err
 	}
+	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error, getEnvAndNsIfRunStageInEnv", "err", err, "pipeline", pipeline, "stage", request.WorkflowType)
+		return nil
+	}
+	request.RunStageInEnvNamespace = namespace
 
 	// Todo - optimize
 	app, err := impl.appRepository.FindById(pipeline.AppId)
@@ -104,29 +109,9 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if err != nil {
 		return err
 	}
-
-	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:                  pipeline.Name,
-		WorkflowType:          bean2.CD_WORKFLOW_TYPE_POST,
-		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PostStage
-		TriggeredBy:           triggeredBy,
-		StartedOn:             triggeredAt,
-		Namespace:             impl.config.GetDefaultNamespace(),
-		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
-		CdWorkflowId:          cdWf.Id,
-		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean2.CD_WORKFLOW_TYPE_POST), pipeline.Name),
-		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
-		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		ReferenceId:           request.TriggerContext.ReferenceId,
-		TriggerMetadata:       request.TriggerMessage,
-	}
-	if pipeline.RunPostStageInEnv {
-		runner.Namespace = env.Namespace
-	}
-
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
+		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
 
@@ -150,24 +135,10 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	// custom gitops repo url validation --> Ends
 
 	// checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
+	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(context.Background(), cdWf.CiArtifact, pipeline, runner, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPostStage", "err", err)
+		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return err
-	}
-	if isVulnerable {
-		// if image vulnerable, update timeline status and return
-		runner.Status = pipelineConfig.WorkflowFailed
-		runner.Message = pipelineConfig.FOUND_VULNERABILITY
-		runner.FinishedOn = time.Now()
-		runner.UpdatedOn = time.Now()
-		runner.UpdatedBy = triggeredBy
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-		if err != nil {
-			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-			return err
-		}
-		return fmt.Errorf("found vulnerability for image digest %s", cdWf.CiArtifact.ImageDigest)
 	}
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	if err != nil {
@@ -243,10 +214,10 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		//TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			DeployStageType:            bean2.CD_WORKFLOW_TYPE_POST,
 			CdWorkflowId:               runner.CdWorkflowId,
-			PipelineId:                 pipeline.CiPipelineId,
+			PipelineId:                 pipeline.Id,
 			PluginRegistryImageDetails: nil,
 		}
 		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)

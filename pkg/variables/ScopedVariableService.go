@@ -248,7 +248,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	for _, variable := range payload.Variables {
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
-			varValue, err := utils.StringifyValue(value.VariableValue)
+			varValue, err := utils.StringifyValue(value.VariableValue.Value)
 			if err != nil {
 				return nil, err
 			}
