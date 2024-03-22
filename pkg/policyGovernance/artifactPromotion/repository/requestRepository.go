@@ -269,6 +269,9 @@ func (repo *RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rows
 
 func (repo *RequestRepositoryImpl) GetArtifactsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error) {
 	var ciArtifactIds []int
+	if len(pipelineIds) == 0 {
+		return ciArtifactIds, nil
+	}
 	err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
 		Column("artifact_promotion_approval_request.artifact_id").
 		Join("inner join request_approval_user_data on artifact_promotion_approval_request.id = request_approval_user_data.approval_request_id and request_type = ? ", models.ARTIFACT_PROMOTION_APPROVAL).
