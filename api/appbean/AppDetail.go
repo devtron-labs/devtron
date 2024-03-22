@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 )
 
 type AppDetail struct {
@@ -45,11 +46,11 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry    string                  `json:"dockerRegistry" validate:"required"`
-	DockerRepository  string                  `json:"dockerRepository" validate:"required"`
-	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
-	DockerBuildConfig *DockerBuildConfig      `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
-	CheckoutPath      string                  `json:"checkoutPath"`
+	DockerRegistry    string                        `json:"dockerRegistry" validate:"required"`
+	DockerRepository  string                        `json:"dockerRepository" validate:"required"`
+	CiBuildConfig     *CiPipeline.CiBuildConfigBean `json:"ciBuildConfig"`
+	DockerBuildConfig *DockerBuildConfig            `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
+	CheckoutPath      string                        `json:"checkoutPath"`
 }
 
 type DockerBuildConfig struct {
