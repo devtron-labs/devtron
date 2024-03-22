@@ -19,6 +19,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/errors"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -77,16 +78,18 @@ func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
 }
 
-func GetGRPCErrorDetailedMessage(err error) string {
+func GetClientErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()
 	}
 	return err.Error()
 }
 
-func GetGRPCDetailedError(err error) (codes.Code, string) {
+func GetClientDetailedError(err error) (*errors.ClientStatusCode, string) {
+	grpcCode := &errors.ClientStatusCode{Code: codes.Unknown}
 	if errStatus, ok := status.FromError(err); ok {
-		return errStatus.Code(), errStatus.Message()
+		grpcCode.Code = errStatus.Code()
+		return grpcCode, errStatus.Message()
 	}
-	return codes.Unknown, err.Error()
+	return grpcCode, err.Error()
 }

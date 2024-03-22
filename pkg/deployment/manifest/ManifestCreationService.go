@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -23,22 +22,19 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/helper"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
-	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -147,12 +143,7 @@ func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest
 }
 
 func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
-	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
-		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
-	}
-	if len(overrideRequest.DeploymentWithConfig) == 0 {
-		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
-	}
+	helper.ResolveDeploymentTypeAndUpdate(overrideRequest)
 	valuesOverrideResponse := &app.ValuesOverrideResponse{}
 	isPipelineOverrideCreated := overrideRequest.PipelineOverrideId > 0
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
@@ -225,8 +216,8 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	if !isPipelineOverrideCreated {
 		chartVersion := envOverride.Chart.ChartVersion
 		_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
-		scope := getScopeForVariables(overrideRequest, envOverride)
-		request := createConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
+		scope := helper.GetScopeForVariables(overrideRequest, envOverride)
+		request := helper.CreateConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
 
 		configMapJson, err = impl.getConfigMapAndSecretJsonV2(request, envOverride)
 		span.End()
@@ -269,7 +260,6 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 }
 
 func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
-
 	strategy := &chartConfig.PipelineStrategy{}
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
@@ -284,31 +274,15 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 		strategy.Config = strategyHistory.Config
 		strategy.PipelineId = overrideRequest.PipelineId
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		if overrideRequest.ForceTrigger {
+		deploymentTemplateType := helper.GetDeploymentTemplateType(overrideRequest)
+		if overrideRequest.ForceTrigger || len(deploymentTemplateType) == 0 {
 			_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
 			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
 			span.End()
 		} else {
-			var deploymentTemplate chartRepoRepository.DeploymentStrategy
-			if overrideRequest.DeploymentTemplate == "ROLLING" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING
-			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN
-			} else if overrideRequest.DeploymentTemplate == "CANARY" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY
-			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE
-			}
-
-			if len(deploymentTemplate) > 0 {
-				_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
-				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
-				span.End()
-			} else {
-				_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
-				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-				span.End()
-			}
+			_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
+			strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplateType, overrideRequest.PipelineId)
+			span.End()
 		}
 		if err != nil && errors2.IsNotFound(err) == false {
 			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
@@ -319,168 +293,185 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 }
 
 func (impl *ManifestCreationServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
-
 	envOverride := &chartConfig.EnvConfigOverride{}
-
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
-		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		//VARIABLE_SNAPSHOT_GET and resolve
-
-		span.End()
+		envOverride, err = impl.getEnvOverrideForSpecificConfigTrigger(overrideRequest, ctx)
 		if err != nil {
-			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+			impl.logger.Errorw("error, getEnvOverrideForSpecificConfigTrigger", "err", err, "overrideRequest", overrideRequest)
 			return nil, err
-		}
-		templateName := deploymentTemplateHistory.TemplateName
-		templateVersion := deploymentTemplateHistory.TemplateVersion
-		if templateName == "Rollout Deployment" {
-			templateName = ""
-		}
-		//getting chart_ref by id
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
-		chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateVersion, templateName)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
-			return nil, err
-		}
-		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
-		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRefDto.Id)
-			return nil, err
-		}
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("unable to find env", "err", err)
-			return nil, err
-		}
-		envOverride.Environment = env
-
-		//updating historical data in envConfigOverride and appMetrics flag
-		envOverride.IsOverride = true
-		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
-		reference := repository5.HistoryReference{
-			HistoryReferenceId:   deploymentTemplateHistory.Id,
-			HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
-		}
-		variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, parsers.JsonVariableTemplate, reference, true, false)
-		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
-		envOverride.VariableSnapshot = variableMap
-		if err != nil {
-			return envOverride, err
 		}
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
-		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
+		envOverride, err = impl.getEnvOverrideForLastSavedConfigTrigger(overrideRequest, triggeredAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error, getEnvOverrideForLastSavedConfigTrigger", "err", err, "overrideRequest", overrideRequest)
+			return nil, err
+		}
+	}
+	return envOverride, nil
+}
 
-		var chart *chartRepoRepository.Chart
+func (impl *ManifestCreationServiceImpl) getEnvOverrideForSpecificConfigTrigger(overrideRequest *bean.ValuesOverrideRequest,
+	ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
+	envOverride := &chartConfig.EnvConfigOverride{}
+	var err error
+	_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
+	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+	//VARIABLE_SNAPSHOT_GET and resolve
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		return nil, err
+	}
+	templateName := deploymentTemplateHistory.TemplateName
+	templateVersion := deploymentTemplateHistory.TemplateVersion
+	if templateName == "Rollout Deployment" {
+		templateName = ""
+	}
+	//getting chart_ref by id
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
+	chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateVersion, templateName)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
+		return nil, err
+	}
+	//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
+	_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
+	envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRefDto.Id)
+		return nil, err
+	}
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("unable to find env", "err", err, "env", envOverride.TargetEnvironment)
+		return nil, err
+	}
+	envOverride.Environment = env
+	//updating historical data in envConfigOverride and appMetrics flag
+	envOverride.IsOverride = true
+	envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
+	reference := repository5.HistoryReference{
+		HistoryReferenceId:   deploymentTemplateHistory.Id,
+		HistoryReferenceType: repository5.HistoryReferenceTypeDeploymentTemplate,
+	}
+	variableMap, resolvedTemplate, err := impl.scopedVariableManager.GetVariableSnapshotAndResolveTemplate(envOverride.EnvOverrideValues, parsers.JsonVariableTemplate, reference, true, false)
+	envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+	envOverride.VariableSnapshot = variableMap
+	if err != nil {
+		impl.logger.Errorw("error, GetVariableSnapshotAndResolveTemplate", "err", err, "envOverride", envOverride)
+		return envOverride, err
+	}
+	return envOverride, nil
+}
+
+func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger(overrideRequest *bean.ValuesOverrideRequest,
+	triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
+	envOverride := &chartConfig.EnvConfigOverride{}
+	var err error
+	_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
+	envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
+	var chart *chartRepoRepository.Chart
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+		return nil, err
+	}
+	if envOverride.Id == 0 {
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
+		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return nil, err
 		}
-		if envOverride.Id == 0 {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return nil, err
-			}
-			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
-			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chart.ChartRefId)
-			span.End()
-			if err != nil && !errors2.IsNotFound(err) {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return nil, err
-			}
-
-			//creating new env override config
-			if errors2.IsNotFound(err) || envOverride == nil {
-				_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-				environment, err := impl.envRepository.FindById(overrideRequest.EnvId)
-				span.End()
-				if err != nil && !util.IsErrNoRows(err) {
-					return nil, err
-				}
-				envOverride = &chartConfig.EnvConfigOverride{
-					Active:            true,
-					ManualReviewed:    true,
-					Status:            models.CHARTSTATUS_SUCCESS,
-					TargetEnvironment: overrideRequest.EnvId,
-					ChartId:           chart.Id,
-					AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
-					Namespace:         environment.Namespace,
-					IsOverride:        false,
-					EnvOverrideValues: "{}",
-					Latest:            false,
-					IsBasicViewLocked: chart.IsBasicViewLocked,
-					CurrentViewEditor: chart.CurrentViewEditor,
-				}
-				_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.Save")
-				err = impl.environmentConfigRepository.Save(envOverride)
-				span.End()
-				if err != nil {
-					impl.logger.Errorw("error in creating envConfig", "data", envOverride, "error", err)
-					return nil, err
-				}
-			}
-			envOverride.Chart = chart
-		} else if envOverride.Id > 0 && !envOverride.IsOverride {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
-			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
-			span.End()
-			if err != nil {
-				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-				return nil, err
-			}
-			envOverride.Chart = chart
-		}
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
+		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chart.ChartRefId)
 		span.End()
-		if err != nil {
-			impl.logger.Errorw("unable to find env", "err", err)
+		if err != nil && !errors2.IsNotFound(err) {
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return nil, err
 		}
-		envOverride.Environment = env
-		scope := getScopeForVariables(overrideRequest, envOverride)
-		if envOverride.IsOverride {
 
-			entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)
-			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, true)
-			envOverride.ResolvedEnvOverrideValues = resolvedTemplate
-			envOverride.VariableSnapshot = variableMap
-			if err != nil {
-				return envOverride, err
+		//creating new env override config
+		if errors2.IsNotFound(err) || envOverride == nil {
+			_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+			environment, err := impl.envRepository.FindById(overrideRequest.EnvId)
+			span.End()
+			if err != nil && !util.IsErrNoRows(err) {
+				return nil, err
 			}
-
-		} else {
-			entity := repository5.GetEntity(chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel)
-			resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, true)
-			envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
-			envOverride.VariableSnapshot = variableMap
-			if err != nil {
-				return envOverride, err
+			envOverride = &chartConfig.EnvConfigOverride{
+				Active:            true,
+				ManualReviewed:    true,
+				Status:            models.CHARTSTATUS_SUCCESS,
+				TargetEnvironment: overrideRequest.EnvId,
+				ChartId:           chart.Id,
+				AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
+				Namespace:         environment.Namespace,
+				IsOverride:        false,
+				EnvOverrideValues: "{}",
+				Latest:            false,
+				IsBasicViewLocked: chart.IsBasicViewLocked,
+				CurrentViewEditor: chart.CurrentViewEditor,
 			}
-
+			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.Save")
+			err = impl.environmentConfigRepository.Save(envOverride)
+			span.End()
+			if err != nil {
+				impl.logger.Errorw("error in creating envConfig", "data", envOverride, "error", err)
+				return nil, err
+			}
 		}
+		envOverride.Chart = chart
+	} else if envOverride.Id > 0 && !envOverride.IsOverride {
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
+		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+			return nil, err
+		}
+		envOverride.Chart = chart
 	}
 
+	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("unable to find env", "err", err)
+		return nil, err
+	}
+	envOverride.Environment = env
+	scope := helper.GetScopeForVariables(overrideRequest, envOverride)
+	if envOverride.IsOverride {
+		entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)
+		resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, true)
+		envOverride.ResolvedEnvOverrideValues = resolvedTemplate
+		envOverride.VariableSnapshot = variableMap
+		if err != nil {
+			impl.logger.Errorw("error,  GetMappedVariablesAndResolveTemplate env override level template", "err", err, "envOverride", envOverride)
+			return envOverride, err
+		}
+	} else {
+		entity := repository5.GetEntity(chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel)
+		resolvedTemplate, variableMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, true)
+		envOverride.Chart.ResolvedGlobalOverride = resolvedTemplate
+		envOverride.VariableSnapshot = variableMap
+		if err != nil {
+			impl.logger.Errorw("error,  GetMappedVariablesAndResolveTemplate app level template", "err", err, "chart", chart)
+			return envOverride, err
+		}
+	}
 	return envOverride, nil
 }
 
 func (impl *ManifestCreationServiceImpl) getAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error) {
-
 	var appMetrics bool
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
@@ -491,7 +482,6 @@ func (impl *ManifestCreationServiceImpl) getAppMetricsByTriggerType(overrideRequ
 			return appMetrics, err
 		}
 		appMetrics = deploymentTemplateHistory.IsAppMetricsEnabled
-
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId")
 		isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
@@ -505,27 +495,22 @@ func (impl *ManifestCreationServiceImpl) getAppMetricsByTriggerType(overrideRequ
 	return appMetrics, nil
 }
 
-func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
-	releaseOverrideJson string,
-	configMapJson []byte,
-	appLabelJsonByte []byte,
-	strategy *chartConfig.PipelineStrategy,
-) (mergedValues []byte, err error) {
-
+func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride, releaseOverrideJson string,
+	configMapJson []byte, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy) (mergedValues []byte, err error) {
 	//merge three values on the fly
 	//ordering is important here
 	//global < environment < db< release
 	var merged []byte
+	var templateOverrideValuesByte []byte
 	if !envOverride.IsOverride {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.Chart.ResolvedGlobalOverride))
-		if err != nil {
-			return nil, err
-		}
+		templateOverrideValuesByte = []byte(envOverride.Chart.ResolvedGlobalOverride)
 	} else {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.ResolvedEnvOverrideValues))
-		if err != nil {
-			return nil, err
-		}
+		templateOverrideValuesByte = []byte(envOverride.ResolvedEnvOverrideValues)
+	}
+	merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), templateOverrideValuesByte)
+	if err != nil {
+		impl.logger.Errorw("error in merging deployment template override values", "err", err, "overrideValues", templateOverrideValuesByte)
+		return nil, err
 	}
 	if strategy != nil && len(strategy.Config) > 0 {
 		merged, err = impl.mergeUtil.JsonPatch(merged, []byte(strategy.Config))
@@ -796,7 +781,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		return merged
 	}
 
-	hpaResourceRequest := getAutoScalingReplicaCount(templateMap, appName)
+	hpaResourceRequest := helper.GetAutoScalingReplicaCount(templateMap, appName)
 	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		resourceManifest := make(map[string]interface{})
@@ -843,7 +828,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 				return merged
 			}
 
-			reqReplicaCount := fetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
+			reqReplicaCount := helper.FetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
 			templateMap["replicaCount"] = reqReplicaCount
 			merged, err = json.Marshal(&templateMap)
 			if err != nil {
@@ -858,12 +843,12 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	//check for custom chart support
 	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
-			merged, err = setScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
 				return merged
 			}
-			merged, err = setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
 				return merged
@@ -880,7 +865,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 				if err != nil {
 					return merged
 				}
-				merged, err = setScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 				if err != nil {
 					impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
 					return merged
@@ -893,135 +878,20 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 }
 
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
-	autoscalingMinVal, err := extractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
+	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMinPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingMaxVal, err := extractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
+	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMaxPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingReplicaCountVal, err := extractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
+	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
 	if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCountPathKey, "err", err)
 		return 0, err
 	}
-	return fetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
-}
-
-func extractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
-	if _, ok := inputMap[key]; !ok {
-		return 0, errors.New("empty-val-err")
-	}
-	return util4.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
-}
-
-func setScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
-	autoscalingJsonPath := templateMap[customScalingKey]
-	autoscalingJsonPathKey := autoscalingJsonPath.(string)
-	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
-	if err != nil {
-		return []byte{}, err
-	}
-	return []byte(mergedRes), nil
-}
-
-func fetchRequiredReplicaCount(currentReplicaCount float64, reqMaxReplicas float64, reqMinReplicas float64) float64 {
-	var reqReplicaCount float64
-	if currentReplicaCount <= reqMaxReplicas && currentReplicaCount >= reqMinReplicas {
-		reqReplicaCount = currentReplicaCount
-	} else if currentReplicaCount > reqMaxReplicas {
-		reqReplicaCount = reqMaxReplicas
-	} else if currentReplicaCount < reqMinReplicas {
-		reqReplicaCount = reqMinReplicas
-	}
-	return reqReplicaCount
-}
-
-func getAutoScalingReplicaCount(templateMap map[string]interface{}, appName string) *util4.HpaResourceRequest {
-	hasOverride := false
-	if _, ok := templateMap[bean3.FullnameOverride]; ok {
-		appNameOverride := templateMap[bean3.FullnameOverride].(string)
-		if len(appNameOverride) > 0 {
-			appName = appNameOverride
-			hasOverride = true
-		}
-	}
-	if !hasOverride {
-		if _, ok := templateMap[bean3.NameOverride]; ok {
-			nameOverride := templateMap[bean3.NameOverride].(string)
-			if len(nameOverride) > 0 {
-				appName = fmt.Sprintf("%s-%s", appName, nameOverride)
-			}
-		}
-	}
-	hpaResourceRequest := &util4.HpaResourceRequest{}
-	hpaResourceRequest.Version = ""
-	hpaResourceRequest.Group = autoscaling.ServiceName
-	hpaResourceRequest.Kind = bean3.HorizontalPodAutoscaler
-	if _, ok := templateMap[bean3.KedaAutoscaling]; ok {
-		as := templateMap[bean3.KedaAutoscaling]
-		asd := as.(map[string]interface{})
-		if _, ok := asd[bean3.Enabled]; ok {
-			enable := asd[bean3.Enabled].(bool)
-			if enable {
-				hpaResourceRequest.IsEnable = enable
-				hpaResourceRequest.ReqReplicaCount = templateMap[bean3.ReplicaCount].(float64)
-				hpaResourceRequest.ReqMaxReplicas = asd["maxReplicaCount"].(float64)
-				hpaResourceRequest.ReqMinReplicas = asd["minReplicaCount"].(float64)
-				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s-%s", "keda-hpa", appName, "keda")
-				return hpaResourceRequest
-			}
-		}
-	}
-
-	if _, ok := templateMap[autoscaling.ServiceName]; ok {
-		as := templateMap[autoscaling.ServiceName]
-		asd := as.(map[string]interface{})
-		if _, ok := asd[bean3.Enabled]; ok {
-			enable := asd[bean3.Enabled].(bool)
-			if enable {
-				hpaResourceRequest.IsEnable = asd[bean3.Enabled].(bool)
-				hpaResourceRequest.ReqReplicaCount = templateMap[bean3.ReplicaCount].(float64)
-				hpaResourceRequest.ReqMaxReplicas = asd["MaxReplicas"].(float64)
-				hpaResourceRequest.ReqMinReplicas = asd["MinReplicas"].(float64)
-				hpaResourceRequest.ResourceName = fmt.Sprintf("%s-%s", appName, "hpa")
-				return hpaResourceRequest
-			}
-		}
-	}
-	return hpaResourceRequest
-
-}
-
-func createConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.ConfigMapAndSecretJsonV2 {
-	request := bean3.ConfigMapAndSecretJsonV2{
-		AppId:                                 overrideRequest.AppId,
-		EnvId:                                 envOverride.TargetEnvironment,
-		PipeLineId:                            overrideRequest.PipelineId,
-		ChartVersion:                          chartVersion,
-		DeploymentWithConfig:                  overrideRequest.DeploymentWithConfig,
-		WfrIdForDeploymentWithSpecificTrigger: overrideRequest.WfrIdForDeploymentWithSpecificTrigger,
-		Scope:                                 scope,
-	}
-	return request
-}
-
-func getScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {
-	scope := resourceQualifiers.Scope{
-		AppId:     overrideRequest.AppId,
-		EnvId:     envOverride.TargetEnvironment,
-		ClusterId: envOverride.Environment.Id,
-		SystemMetadata: &resourceQualifiers.SystemMetadata{
-			EnvironmentName: envOverride.Environment.Name,
-			ClusterName:     envOverride.Environment.Cluster.ClusterName,
-			Namespace:       envOverride.Environment.Namespace,
-			ImageTag:        util3.GetImageTagFromImage(overrideRequest.Image),
-			AppName:         overrideRequest.AppName,
-			Image:           overrideRequest.Image,
-		},
-	}
-	return scope
+	return helper.FetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
 }

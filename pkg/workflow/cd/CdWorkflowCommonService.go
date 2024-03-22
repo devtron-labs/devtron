@@ -140,7 +140,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
-	runner.Message = util.GetGRPCErrorDetailedMessage(releaseErr)
+	runner.Message = util.GetClientErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdatedOn = time.Now()
 	runner.UpdatedBy = triggeredBy
@@ -239,7 +239,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 }
 
 func extractTimelineFailedStatusDetails(err error) string {
-	errorString := util.GetGRPCErrorDetailedMessage(err)
+	errorString := util.GetClientErrorDetailedMessage(err)
 	switch errorString {
 	case pipelineConfig.FOUND_VULNERABILITY:
 		return pipelineConfig.TIMELINE_DESCRIPTION_VULNERABLE_IMAGE

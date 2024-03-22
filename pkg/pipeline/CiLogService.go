@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io"
@@ -68,7 +68,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildL
 			return nil, nil, err
 		}
 	}
-	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, bean.Main, true)
+	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, CiPipeline.Main, true)
 	podLogs, err := req.Stream(context.Background())
 	if podLogs == nil || err != nil {
 		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName)
