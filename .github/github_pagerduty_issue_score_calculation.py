@@ -119,7 +119,7 @@ def process_issue_body(issue_body):
         print(e.stderr)
     return final_score
 
-token = os.environ.get('MY_ACCESS_TOKEN')
+token = os.environ.get('GH_TOKEN')
 subprocess.run(['gh', 'auth', 'login', '--with-token'], input=token, text=True, capture_output=True)
 
 # Retrieving environment variables
