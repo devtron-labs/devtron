@@ -683,7 +683,7 @@ func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipel
 		return false, err
 	}
 	if promotionPolicy != nil && promotionPolicy.Id > 0 {
-		if true {
+		if promotionPolicy.BlockApproverFromDeploy() {
 			isUserApprover, err := impl.artifactPromotionDataReadService.IsUserApprover(artifactId, cdPipeline.Id, userId)
 			if err != nil {
 				impl.logger.Errorw("error in checking if user is approver or not", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
