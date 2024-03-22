@@ -264,8 +264,6 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveEnvOnlyDetails() ([
 		Select()
 	return mappings, err
 }
-
-// hjvhjjklhklhjn
 func (repositoryImpl EnvironmentRepositoryImpl) FindById(id int) (*Environment, error) {
 	environmentCluster := &Environment{}
 	err := repositoryImpl.dbConnection.
