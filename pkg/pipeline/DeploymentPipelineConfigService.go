@@ -127,7 +127,8 @@ type CdPipelineConfigService interface {
 	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
-	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineConfigObject, err error)
+	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineMinConfig, err error)
+	FindCdPipelinesByAppAndEnv(appId, envId int, envName string) (cdPipelines *bean.CDPipelineMinConfig, err error)
 	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
@@ -1459,6 +1460,10 @@ func (impl *CdPipelineConfigServiceImpl) FindPipelineByIds(cdPipelineId []int) (
 	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
 }
 
+func (impl *CdPipelineConfigServiceImpl) FindPipelineMinById(cdPipelineId []int) ([]*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
+}
+
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error) {
 	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
 }
@@ -2514,32 +2519,53 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
+func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineMinConfig, err error) {
 
-	pipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	pipelines, err := impl.pipelineRepository.FindMetadataByIdsIn(cdPipelineIds, true)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
 
 	for _, pipeline := range pipelines {
-		cdPipeline := &bean.CDPipelineConfigObject{
-			Id:                         pipeline.Id,
-			EnvironmentId:              pipeline.EnvironmentId,
-			EnvironmentName:            pipeline.Environment.Name,
-			CiPipelineId:               pipeline.CiPipelineId,
-			Name:                       pipeline.Name,
-			Namespace:                  pipeline.Environment.Namespace,
-			DeploymentAppType:          pipeline.DeploymentAppType,
-			DeploymentAppDeleteRequest: pipeline.DeploymentAppDeleteRequest,
-			DeploymentAppCreated:       pipeline.DeploymentAppCreated,
-			AppId:                      pipeline.AppId,
-			IsProdEnv:                  pipeline.Environment.Default,
+		cdPipeline := &bean.CDPipelineMinConfig{
+			Id:                pipeline.Id,
+			CiPipelineId:      pipeline.CiPipelineId,
+			EnvironmentId:     pipeline.EnvironmentId,
+			EnvironmentName:   pipeline.EnvironmentName,
+			IsProdEnv:         pipeline.Default,
+			AppId:             pipeline.AppId,
+			AppName:           pipeline.AppName,
+			TeamId:            pipeline.TeamId,
+			DeploymentAppType: pipeline.DeploymentAppType,
 		}
 		cdPipelines = append(cdPipelines, cdPipeline)
 
 	}
 	return cdPipelines, nil
+
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByAppAndEnv(appId, envId int, envName string) (cdPipelines *bean.CDPipelineMinConfig, err error) {
+
+	pipeline, err := impl.pipelineRepository.FindMetadataByAppAndEnv(appId, envId, envName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cdPipeline by id", "appId", appId, "envId", envId, "envName", envName, "err", err)
+		return nil, err
+	}
+
+	cdPipeline := &bean.CDPipelineMinConfig{
+		Id:                pipeline.Id,
+		CiPipelineId:      pipeline.CiPipelineId,
+		EnvironmentId:     pipeline.EnvironmentId,
+		EnvironmentName:   pipeline.EnvironmentName,
+		IsProdEnv:         pipeline.Default,
+		AppId:             pipeline.AppId,
+		AppName:           pipeline.AppName,
+		TeamId:            pipeline.TeamId,
+		DeploymentAppType: pipeline.DeploymentAppType,
+	}
+	return cdPipeline, nil
 
 }
 

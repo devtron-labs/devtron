@@ -78,7 +78,10 @@ type ValuesOverrideRequest struct {
 }
 
 func (v ValuesOverrideRequest) IsDeployDeploymentType() bool {
-	return v.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY || v.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN
+	return v.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY
+}
+func (v ValuesOverrideRequest) IsUnknownDeploymentType() bool {
+	return v.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN
 }
 
 type BulkCdDeployEvent struct {

@@ -916,7 +916,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request *bean.C
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.Order("ci_artifact.id DESC ").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -935,7 +935,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.Order("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -953,6 +953,11 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request *b
 		ColumnExpr("distinct(artifact_id)").
 		Where("destination_pipeline_id in (?) and status = ? ", pg.In(request.GetCDPipelineIds()), constants.AWAITING_APPROVAL)
 
+	excludedArtifactIds := request.GetExcludedArtifactIds()
+	if len(excludedArtifactIds) > 0 {
+		awaitingRequestQuery = awaitingRequestQuery.Where("artifact_id not in (?)", pg.In(excludedArtifactIds))
+	}
+
 	query := impl.dbConnection.Model((*CiArtifact)(nil)).
 		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
 		Where("ci_artifact.id in ( ? ) ", awaitingRequestQuery)
@@ -961,7 +966,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request *b
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.Order("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {

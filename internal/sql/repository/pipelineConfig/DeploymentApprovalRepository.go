@@ -3,6 +3,7 @@ package pipelineConfig
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"time"
 
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -50,7 +51,7 @@ type DeploymentApprovalRequest struct {
 type RequestApprovalUserData struct {
 	tableName         struct{}                   `sql:"request_approval_user_data" pg:",discard_unknown_columns"`
 	Id                int                        `sql:"id,pk"`
-	RequestType       repository2.RequestType    `sql:"request_type"`
+	RequestType       models.RequestType         `sql:"request_type"`
 	ApprovalRequestId int                        `sql:"approval_request_id"` // keep in mind foreign key constraint
 	UserId            int32                      `sql:"user_id"`             // keep in mid foreign key constraint
 	UserResponse      DeploymentApprovalResponse `sql:"user_response"`
@@ -68,7 +69,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalPendingArtifacts(pipe
 	subQuery := "WITH approval_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM request_approval_user_data " +
-		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", repository2.DEPLOYMENT_APPROVAL) +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", models.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approval_requests WHERE approval_count >= %v "
@@ -146,7 +147,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		requestIds = append(requestIds, requestId)
 	}
 	if len(requestIds) > 0 {
-		usersData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests(requestIds, repository2.DEPLOYMENT_APPROVAL)
+		usersData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests(requestIds, models.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return requests, err
 		}

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -53,6 +54,8 @@ type RequestRepository interface {
 	MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int, userId int32) error
 	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
+	GetArtifactsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error)
+	HasUserApprovedRequest(artifactId, pipelineId int, userId int32) (bool, error)
 }
 
 func (repo *RequestRepositoryImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -262,4 +265,30 @@ func (repo *RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rows
 		Where("id = ? and created_by = ? ", requestId, userId).
 		Update()
 	return res.RowsAffected(), err
+}
+
+func (repo *RequestRepositoryImpl) GetArtifactsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error) {
+	var ciArtifactIds []int
+	err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+		Column("artifact_promotion_approval_request.artifact_id").
+		Join("inner join request_approval_user_data on artifact_promotion_approval_request.id = request_approval_user_data.approval_request_id and request_type = ? ", models.ARTIFACT_PROMOTION_APPROVAL).
+		Where("request_approval_user_data.user_id = ? and artifact_promotion_approval_request.status = ? and artifact_promotion_approval_request.destination_pipeline_id in (?)", userId, constants.AWAITING_APPROVAL, pg.In(pipelineIds)).
+		Select(&ciArtifactIds)
+	return ciArtifactIds, err
+}
+
+func (repo *RequestRepositoryImpl) HasUserApprovedRequest(artifactId, pipelineId int, userId int32) (bool, error) {
+	var Result bool
+	err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+		ColumnExpr(" count(*) > 0 as Result").
+		Join("inner join request_approval_user_data on artifact_promotion_approval_request.id = request_approval_user_data.approval_request_id and request_type = ? ", models.ARTIFACT_PROMOTION_APPROVAL).
+		Where("request_approval_user_data.user_id = ?  ", userId).
+		Where("artifact_promotion_approval_request.status = ?  ", constants.PROMOTED).
+		Where("artifact_promotion_approval_request.destination_pipeline_id = ?", pipelineId).
+		Where("artifact_promotion_approval_request.artifact_id = ?", artifactId).
+		Select(&Result)
+	if err == pg.ErrNoRows {
+		return false, nil
+	}
+	return Result, err
 }

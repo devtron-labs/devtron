@@ -51,7 +51,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -344,8 +343,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("err", "err", err)
 		return 0, "", err
 	}
-	if overrideRequest.IsDeployDeploymentType() {
-		// Migration of deprecated DataSource Type
+	if overrideRequest.IsDeployDeploymentType() || overrideRequest.IsUnknownDeploymentType() {
 		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
 		if err != nil {
 			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
@@ -363,6 +361,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	}
 
 	if artifact.IsMigrationRequired() {
+		// Migration of deprecated DataSource Type
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 		if migrationErr != nil {
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
@@ -678,28 +677,21 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 }
 
 func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
-
 	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
 		return false, err
 	}
 	if promotionPolicy != nil && promotionPolicy.Id > 0 {
-		if !promotionPolicy.CanImageApproverDeploy() {
-
-			promotionApprovalMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipeline.Id, constants.PROMOTED)
+		if true {
+			isUserApprover, err := impl.artifactPromotionDataReadService.IsUserApprover(artifactId, cdPipeline.Id, userId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id)
+				impl.logger.Errorw("error in checking if user is approver or not", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
 				return false, err
 			}
-
-			if approvalMetadata, ok := promotionApprovalMetadataMap[artifactId]; ok {
-
-				if ok := approvalMetadata.IsUserApprover(userId); ok {
-					impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
-					return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
-				}
-
+			if isUserApprover {
+				impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
+				return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
 			}
 		}
 	}

@@ -21,6 +21,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"os"
@@ -617,7 +619,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	approvalRequest := workflowR.DeploymentApprovalRequest
 	if approvalRequest != nil {
 		approvalReqId := workflowR.DeploymentApprovalRequestId
-		approvalUserData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId}, repository.DEPLOYMENT_APPROVAL)
+		approvalUserData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId}, models.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return types.WorkflowResponse{}, err
 		}
@@ -704,29 +706,41 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 
+	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{workflow.CiArtifactId}, pipelineId, constants.PROMOTED)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", []int{workflow.CiArtifactId}, "pipelineId", pipelineId, "err", err)
+		return types.WorkflowResponse{}, err
+	}
+
+	var promotionApprovalMetadata *bean3.PromotionApprovalMetaData
+	if val, ok := artifactIdToPromotionApporvalMetadata[workflow.CiArtifactId]; ok {
+		promotionApprovalMetadata = val
+	}
+
 	workflowResponse := types.WorkflowResponse{
-		Id:                   workflow.Id,
-		Name:                 workflow.Name,
-		Status:               workflow.Status,
-		PodStatus:            workflow.PodStatus,
-		Message:              workflow.Message,
-		StartedOn:            workflow.StartedOn,
-		FinishedOn:           workflow.FinishedOn,
-		Namespace:            workflow.Namespace,
-		CiMaterials:          ciMaterialsArr,
-		TriggeredBy:          workflow.TriggeredBy,
-		TriggeredByEmail:     triggeredByUserEmailId,
-		Artifact:             workflow.Image,
-		Stage:                workflow.WorkflowType,
-		GitTriggers:          gitTriggers,
-		BlobStorageEnabled:   workflow.BlobStorageEnabled,
-		UserApprovalMetadata: workflow.UserApprovalMetadata,
-		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
-		PodName:              workflowR.PodName,
-		CdWorkflowId:         workflowR.CdWorkflowId,
-		HelmPackageName:      helmPackageName,
-		ArtifactId:           workflow.CiArtifactId,
-		CiPipelineId:         ciWf.CiPipelineId,
+		Id:                        workflow.Id,
+		Name:                      workflow.Name,
+		Status:                    workflow.Status,
+		PodStatus:                 workflow.PodStatus,
+		Message:                   workflow.Message,
+		StartedOn:                 workflow.StartedOn,
+		FinishedOn:                workflow.FinishedOn,
+		Namespace:                 workflow.Namespace,
+		CiMaterials:               ciMaterialsArr,
+		TriggeredBy:               workflow.TriggeredBy,
+		TriggeredByEmail:          triggeredByUserEmailId,
+		Artifact:                  workflow.Image,
+		Stage:                     workflow.WorkflowType,
+		GitTriggers:               gitTriggers,
+		BlobStorageEnabled:        workflow.BlobStorageEnabled,
+		UserApprovalMetadata:      workflow.UserApprovalMetadata,
+		IsVirtualEnvironment:      workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:                   workflowR.PodName,
+		CdWorkflowId:              workflowR.CdWorkflowId,
+		HelmPackageName:           helmPackageName,
+		ArtifactId:                workflow.CiArtifactId,
+		CiPipelineId:              ciWf.CiPipelineId,
+		PromotionApprovalMetadata: promotionApprovalMetadata,
 	}
 
 	if showAppliedFilters {

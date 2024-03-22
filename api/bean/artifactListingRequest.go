@@ -112,11 +112,17 @@ func (r *CdNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 
 type PromotionPendingNodeMaterialParams struct {
 	resourceCdPipelineId []int
+	excludedArtifactIds  []int
 	listingOptions       util.ListingFilterOptions
 }
 
 func (r *PromotionPendingNodeMaterialParams) WithCDPipelineIds(ids []int) *PromotionPendingNodeMaterialParams {
 	r.resourceCdPipelineId = ids
+	return r
+}
+
+func (r *PromotionPendingNodeMaterialParams) WithExcludedArtifactIds(ids []int) *PromotionPendingNodeMaterialParams {
+	r.excludedArtifactIds = ids
 	return r
 }
 
@@ -131,6 +137,10 @@ func (r *PromotionPendingNodeMaterialParams) GetCDPipelineIds() []int {
 
 func (r *PromotionPendingNodeMaterialParams) GetListingOptions() util.ListingFilterOptions {
 	return r.listingOptions
+}
+
+func (r *PromotionPendingNodeMaterialParams) GetExcludedArtifactIds() []int {
+	return r.excludedArtifactIds
 }
 
 type PromotionMaterialRequest struct {

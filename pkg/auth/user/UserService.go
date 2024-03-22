@@ -3211,7 +3211,6 @@ func (impl UserServiceImpl) GetActiveUserRolesByEntityAndUserId(entity string, u
 }
 
 func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error) {
-	// TODO: make common function
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
 	if err != nil {
 		return emailIds, err

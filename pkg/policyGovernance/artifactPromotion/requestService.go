@@ -8,6 +8,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -544,7 +545,7 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util3.RequestCtx, m
 		}
 		promotionRequestApprovedUserData := &pipelineConfig.RequestApprovalUserData{
 			ApprovalRequestId: promotionRequest.Id,
-			RequestType:       repository2.ARTIFACT_PROMOTION_APPROVAL,
+			RequestType:       models.ARTIFACT_PROMOTION_APPROVAL,
 			UserId:            ctx.GetUserId(),
 			UserResponse:      pipelineConfig.APPROVED,
 		}
@@ -593,7 +594,7 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx *util3.Reque
 	}
 	if len(validRequestIds) > 0 {
 		// fetch all the approved users data for the valid requestIds
-		approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+		approvedUsersData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(validRequestIds, models.ARTIFACT_PROMOTION_APPROVAL)
 		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in finding the approved users data for a artifact promotion request", "promotionRequestIds", validRequestIds, "err", err)
 			return nil, err
@@ -1343,7 +1344,7 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	}
 
 	approvbleRequestIds := make([]int, 0, len(unStaledRequestsIds))
-	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
+	approvedUserData, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(unStaledRequestsIds, models.ARTIFACT_PROMOTION_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in fetching approved user data for some artifact promotion requestIds", "unStaledRequestsIds", unStaledRequestsIds, "err", err)
 		return err

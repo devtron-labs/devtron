@@ -197,10 +197,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 	}
 
 	wfrIdVsMappings := make(map[int][]bean4.AppWorkflowMappingDto)
-	wfIds := make([]int, 0, len(appWorkflows))
 	for _, appWf := range appWorkflows {
 		wfrIdVsMappings[appWf.Id] = appWf.AppWorkflowMappingDto
-		wfIds = append(wfIds, appWf.Id)
 	}
 
 	cdPipelineIds := make([]int, 0)
@@ -255,8 +253,10 @@ func (impl AppWorkflowServiceImpl) getWfIdToPendingApprovalCount(ctx *util2.Requ
 
 func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.RequestCtx, appId int, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]bool, error) {
 
-	wfIdToPolicyMapping := make(map[int]bool)
+	//TODO:
 
+	wfIdToPolicyMapping := make(map[int]bool)
+	//TODO: ayush optimize
 	cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
@@ -272,7 +272,7 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.R
 		envIds[i] = cdPipeline.EnvironmentId
 		envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
 	}
-
+	//TODO: optimize
 	promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)

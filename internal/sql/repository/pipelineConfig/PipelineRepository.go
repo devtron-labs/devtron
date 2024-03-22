@@ -70,6 +70,18 @@ type Pipeline struct {
 	sql.AuditLog
 }
 
+type PipelineMetadata struct {
+	Id                int    `sql:"id"`
+	CiPipelineId      int    `sql:"ci_pipeline_id"`
+	EnvironmentId     int    `sql:"environment_id"`
+	EnvironmentName   string `sql:"environment_name"`
+	Default           bool   `sql:"default"`
+	AppId             int    `sql:"app_id"`
+	AppName           string `sql:"app_name"`
+	TeamId            int    `sql:"team_id"`
+	DeploymentAppType string `sql:"deployment_app_type"`
+}
+
 type UserApprovalConfig struct {
 	RequiredCount int    `json:"requiredCount" validate:"number,required"`
 	Description   string `json:"description,omitempty"`
@@ -104,10 +116,13 @@ type PipelineRepository interface {
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
+	FindMetadataById(id int, includeDeleted bool) (pipeline *PipelineMetadata, err error)
+	FindMetadataByAppAndEnv(appId, envId int, envName string) (pipeline *PipelineMetadata, err error)
 	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
+	FindMetadataByIdsIn(ids []int, includeDeleted bool) ([]*PipelineMetadata, error)
 	FindActiveAndDeletedByIds(ids []int) ([]*Pipeline, error)
 	FindByIdsNotInAndAppId(ids []int, appId int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
@@ -214,6 +229,27 @@ func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	if err != nil {
 		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
 	}
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindMetadataByIdsIn(ids []int, includeDeleted bool) ([]*PipelineMetadata, error) {
+	var pipelines []*PipelineMetadata
+	if len(ids) == 0 {
+		return pipelines, nil
+	}
+	query := impl.dbConnection.
+		Model((*Pipeline)(nil)).
+		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
+			"e.environment_name", "e.default",
+			"a.team_id", "a.app_name").
+		Join("inner join environment e on pipeline.environment_id=e.id").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id in (?)", pg.In(ids))
+
+	if includeDeleted {
+		query = query.Where("pipeline.deleted = false")
+	}
+	err := query.Select(&pipelines)
 	return pipelines, err
 }
 
@@ -384,6 +420,38 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 		Where("pipeline.id = ?", id).
 		Where("deleted = ?", false).
 		Select()
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindMetadataById(id int, includeDeleted bool) (pipeline *PipelineMetadata, err error) {
+	pipeline = &PipelineMetadata{}
+	query := impl.dbConnection.
+		Model((*Pipeline)(nil)).
+		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
+			"e.environment_name", "e.default",
+			"a.team_id", "a.app_name").
+		Join("inner join environment e on pipeline.environment_id=e.id").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id = ?", id)
+
+	if !includeDeleted {
+		query = query.Where("pipeline.deleted = false")
+	}
+	err = query.Select(&pipeline)
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindMetadataByAppAndEnv(appId, envId int, envName string) (pipeline *PipelineMetadata, err error) {
+	pipeline = &PipelineMetadata{}
+	query := impl.dbConnection.
+		Model((*Pipeline)(nil)).
+		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
+			"e.environment_name", "e.default",
+			"a.team_id", "a.app_name").
+		Join("inner join environment e on pipeline.environment_id=e.id").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("a.id = ? and (e.id = ? || e.environment_name = ? )", appId, envId, envName)
+	err = query.Select(pipeline)
 	return pipeline, err
 }
 

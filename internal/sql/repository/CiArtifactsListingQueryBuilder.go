@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 )
@@ -157,7 +158,7 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" ( " +
 		" SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM request_approval_user_data daud " +
-		fmt.Sprintf(" WHERE user_response is NULL AND request_type=%d", DEPLOYMENT_APPROVAL) +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type=%d", models.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id " +
 		" ) "
 	countQuery := " SELECT count(cia.created_on) as total_count"
@@ -187,7 +188,7 @@ func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsL
 	subQuery := "WITH approved_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM request_approval_user_data " +
-		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", DEPLOYMENT_APPROVAL) +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", models.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approved_requests WHERE approval_count >= %v "

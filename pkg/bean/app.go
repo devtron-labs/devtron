@@ -630,6 +630,18 @@ type CDPipelineConfigObject struct {
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
 }
 
+type CDPipelineMinConfig struct {
+	Id                int
+	CiPipelineId      int
+	EnvironmentId     int
+	EnvironmentName   string
+	IsProdEnv         bool
+	AppId             int
+	AppName           string
+	TeamId            int
+	DeploymentAppType string
+}
+
 type CDPipelineAddType string
 
 const (

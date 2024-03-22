@@ -1,7 +1,7 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -13,8 +13,8 @@ const UNIQUE_USER_REQUEST_ACTION Constraint = "unique_user_request_action"
 
 type RequestApprovalUserdataRepository interface {
 	SaveRequestApprovalUserData(userData *RequestApprovalUserData) error
-	FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
-	FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
+	FetchApprovalDataForRequests(requestIds []int, requestType models.RequestType) ([]*RequestApprovalUserData, error)
+	FetchApprovedDataByApprovalId(approvalRequestId int, requestType models.RequestType) ([]*RequestApprovalUserData, error)
 }
 
 type RequestApprovalUserDataRepositoryImpl struct {
@@ -26,7 +26,7 @@ func NewRequestApprovalUserDataRepositoryImpl(dbConnection *pg.DB, logger *zap.S
 	return &RequestApprovalUserDataRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
+func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovalDataForRequests(requestIds []int, requestType models.RequestType) ([]*RequestApprovalUserData, error) {
 	var usersData []*RequestApprovalUserData
 	if len(requestIds) == 0 {
 		return usersData, nil
@@ -44,7 +44,7 @@ func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovalDataForRequests(
 	return usersData, nil
 }
 
-func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
+func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int, requestType models.RequestType) ([]*RequestApprovalUserData, error) {
 	var results []*RequestApprovalUserData
 	err := impl.dbConnection.
 		Model(&results).

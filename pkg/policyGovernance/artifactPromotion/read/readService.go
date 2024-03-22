@@ -6,7 +6,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow/read"
@@ -36,6 +36,8 @@ type ArtifactPromotionDataReadService interface {
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
 	GetPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
 	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
+	GetArtifactsApprovedByUserForPipeline(ctx *util2.RequestCtx, cdPipelineIds []int) ([]int, error)
+	IsUserApprover(artifactId, pipelineId int, userId int32) (bool, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -92,7 +94,6 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 		var requestedUserIds []int32
 		var approvalRequestIds []int
 		var sourcePipelineIds []int
-		var sourcePipelinesMap = make(map[int]*pipelineConfig.Pipeline)
 		for _, approvalRequest := range promotionApprovalRequest {
 			requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
 			approvalRequestIds = append(approvalRequestIds, approvalRequest.Id)
@@ -112,16 +113,13 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 			impl.logger.Errorw("error in getting user info map by user ids", "requestedUserIds", requestedUserIds, "err", err)
 			return promotionApprovalMetadata, err
 		}
-
-		sourcePipelines, err := impl.pipelineRepository.FindActiveAndDeletedByIds(sourcePipelineIds)
+		sourcePipelines, err := impl.pipelineRepository.FindMetadataByIdsIn(sourcePipelineIds, true)
 		if err != nil {
 			impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
 			return promotionApprovalMetadata, err
 		}
+		sourcePipelinesMap := util2.GetIdToObjectMap(sourcePipelines, func(pipeline *pipelineConfig.PipelineMetadata) int { return pipeline.Id })
 
-		for _, sourcePipeline := range sourcePipelines {
-			sourcePipelinesMap[sourcePipeline.Id] = sourcePipeline
-		}
 		requestIdToPolicyMapping, err := impl.getRequestIdToPolicyMapping(promotionApprovalRequest)
 		if err != nil {
 			return promotionApprovalMetadata, err
@@ -130,7 +128,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForA
 		for _, approvalRequest := range promotionApprovalRequest {
 			envName := ""
 			if pipeline := sourcePipelinesMap[approvalRequest.SourcePipelineId]; pipeline != nil {
-				envName = pipeline.Environment.Name
+				envName = pipeline.EnvironmentName
 			}
 			approvalMetadata := impl.getPromotionApprovalMetadata(approvalRequest, envName, requestedUserInfoMap, requestIdToApprovalUserDataMapping, requestIdToPolicyMapping)
 			promotionApprovalMetadata[approvalRequest.ArtifactId] = approvalMetadata
@@ -239,6 +237,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId in
 
 func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalUserMetadata(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
 	requestIdToApprovalUserDataMapping := make(map[int][]*pipelineConfig.RequestApprovalUserData)
+	//TODO: specify join
 	promotionApprovalUserDataArray, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestIds", approvalRequestIds)
@@ -508,4 +507,17 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPendingRequestMapping(ctx *
 
 func (impl *ArtifactPromotionDataReadServiceImpl) GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error) {
 	return impl.globalPolicyDataManager.GetPolicyHistoryIdsByPolicyIds(policyIds)
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) GetArtifactsApprovedByUserForPipeline(ctx *util2.RequestCtx, cdPipelineIds []int) ([]int, error) {
+	ciArtifactIds, err := impl.artifactPromotionApprovalRequestRepository.GetArtifactsApprovedByUserForPipelines(cdPipelineIds, ctx.GetUserId())
+	if err != nil {
+		impl.logger.Errorw("error in getting artifacts already approved by user", "cdPipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
+	return ciArtifactIds, nil
+}
+
+func (impl *ArtifactPromotionDataReadServiceImpl) IsUserApprover(artifactId, pipelineId int, userId int32) (bool, error) {
+	return impl.artifactPromotionApprovalRequestRepository.HasUserApprovedRequest(artifactId, pipelineId, userId)
 }

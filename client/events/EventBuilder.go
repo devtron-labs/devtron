@@ -20,6 +20,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"strings"
 	"time"
 
@@ -177,7 +178,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	var emailIDs []string
 
 	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
-		deploymentUserData, err := impl.resourceApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId, repository2.DEPLOYMENT_APPROVAL)
+		deploymentUserData, err := impl.resourceApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId, models.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}

@@ -200,7 +200,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 		return
 	}
 
-	hasTriggerAccess, isAuthorised := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx)
+	isAuthorised, hasTriggerAccess := handler.promotionMaterialRequestRbac(w, artifactPromotionMaterialRequest, ctx)
 	if !isAuthorised {
 		return
 	}
@@ -219,13 +219,18 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) (isAuthenticated bool, hasTriggerAccess bool) {
 
-	if request.IsCINode() || request.IsCDNode() || request.IsPendingForUserRequest() {
+	if request.IsCINode() || request.IsCDNode() {
 		// check if user has trigger access for any one env for this app
 		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
-		if !hasTriggerAccess && !request.IsPendingForUserRequest() {
+		if !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return false, false
 		}
+	} else if request.IsPendingForUserRequest() {
+		// for this request user rbac is applied at service level, artifacts for only those pipelines on which user has image promoter acccess are returned
+		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
+		return true, hasTriggerAccess
+
 	} else if request.IsPromotionApprovalPendingNode() {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(request.GetAppId())
