@@ -916,7 +916,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request *bean.C
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id DESC ").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.OrderExpr("ci_artifact.id DESC ").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -935,7 +935,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.OrderExpr("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
 		return ciArtifacts, 0, err
@@ -966,7 +966,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request *b
 	if len(listingOptions.SearchString) > 0 {
 		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
 	}
-	query = query.Order("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	query = query.OrderExpr("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
 
 	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
 	if err != nil {
