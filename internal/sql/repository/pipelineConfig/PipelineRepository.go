@@ -247,8 +247,8 @@ func (impl PipelineRepositoryImpl) FindMetadataByIdsIn(ids []int, includeDeleted
 		Join("inner join app a on pipeline.app_id = a.id").
 		Where("pipeline.id in (?)", pg.In(ids))
 
-	if includeDeleted {
-		query = query.Where("pipeline.deleted = false")
+	if !includeDeleted {
+		query = query.Where("pipeline.deleted = ?", false)
 	}
 	err := query.Select(&pipelines)
 	return pipelines, err
