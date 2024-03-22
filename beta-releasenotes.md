@@ -13,4 +13,5 @@
 - feat: active inactive user phase 3 (#4649)
 ## Documentation
 ## Others
+- chore: Image scanning refactoring (#4802)
 - chore: refactoring v4 (#4775)
