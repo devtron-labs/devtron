@@ -218,7 +218,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 		return nil, err
 	}
 
-	wfIdToPendingApprovalCountMapping, err := impl.getWfIdToPendingApprovalCount(ctx, err, cdPipelineIds, cdPipelineIdToWfIdMap)
+	wfIdToPendingApprovalCountMapping, err := impl.getWfIdToPendingApprovalCount(ctx, cdPipelineIds, cdPipelineIdToWfIdMap)
 	if err != nil {
 		impl.Logger.Errorw("error in getting wfIdToPendingApprovalCountMapping for pipelineId", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
@@ -237,7 +237,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithAdditionalMetadata(ctx *u
 	return appWorkflows, nil
 }
 
-func (impl AppWorkflowServiceImpl) getWfIdToPendingApprovalCount(ctx *util2.RequestCtx, err error, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]int, error) {
+func (impl AppWorkflowServiceImpl) getWfIdToPendingApprovalCount(ctx *util2.RequestCtx, cdPipelineIds []int, cdPipelineIdToWfIdMap map[int]int) (map[int]int, error) {
 	pipelineIdToRequestCountMap, err := impl.artifactPromotionDataReadService.GetPendingRequestMapping(ctx, cdPipelineIds)
 	if err != nil {
 		return nil, err
@@ -256,8 +256,8 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.R
 	//TODO:
 
 	wfIdToPolicyMapping := make(map[int]bool)
-	//TODO: ayush optimize
-	cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+
+	cdPipelines, err := impl.pipelineRepository.FindPipelineByIdsIn(cdPipelineIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
 		return wfIdToPolicyMapping, err
@@ -266,24 +266,24 @@ func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMapping(ctx *util2.R
 		return wfIdToPolicyMapping, err
 	}
 
-	envIds := make([]int, len(cdPipelines))
-	envIdToNameMap := make(map[int]string)
-	for i, cdPipeline := range cdPipelines {
-		envIds[i] = cdPipeline.EnvironmentId
-		envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
-	}
-	//TODO: optimize
-	promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, appId, envIds)
+	envIds := util2.Map(cdPipelines, func(pip *pipelineConfig.Pipeline) int {
+		return pip.EnvironmentId
+	})
+
+	envPolicyMappings, err := impl.artifactPromotionDataReadService.GetPolicyIdsByAppAndEnvIds(ctx, appId, envIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
 		return wfIdToPolicyMapping, err
 	}
 
+	envIdPolicyMap := make(map[int]bool)
+	for _, envPolicyMapping := range envPolicyMappings {
+		envIdPolicyMap[envPolicyMapping.SelectionIdentifier.EnvId] = true
+	}
+
 	for _, cdPipeline := range cdPipelines {
-		envName := cdPipeline.Environment.Name
-		if _, ok := promotionPolicies[envName]; ok {
-			if _, cdPipelineOk := cdPipelineIdToWfIdMap[cdPipeline.Id]; cdPipelineOk {
-				workflowId := cdPipelineIdToWfIdMap[cdPipeline.Id]
+		if _, ok := envIdPolicyMap[cdPipeline.EnvironmentId]; ok {
+			if workflowId, cdPipelineOk := cdPipelineIdToWfIdMap[cdPipeline.Id]; cdPipelineOk {
 				wfIdToPolicyMapping[workflowId] = true
 			}
 		}
@@ -585,7 +585,7 @@ func (impl AppWorkflowServiceImpl) CheckCdPipelineByCiPipelineId(id int) bool {
 }
 
 func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (*bean4.AllAppWorkflowComponentDetails, error) {
-	//get all workflows
+	// get all workflows
 	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting app workflows by appId", "err", err, "appId", appId)
@@ -819,7 +819,7 @@ func processWorkflowMappingTree(appWorkflowMappings []bean4.AppWorkflowMappingDt
 	identifierToFilteredWorkflowMapping := make(map[bean4.PipelineIdentifier]*bean4.AppWorkflowMappingDto)
 	leafPipelines := make([]bean4.AppWorkflowMappingDto, 0)
 	var rootPipeline *bean4.AppWorkflowMappingDto
-	//initializing the nodes with empty children and collecting leaf
+	// initializing the nodes with empty children and collecting leaf
 	for i, appWorkflowMapping := range appWorkflowMappings {
 		appWorkflowMappings[i].ChildPipelinesIds = mapset.NewSet()
 		identifierToFilteredWorkflowMapping[appWorkflowMapping.GetPipelineIdentifier()] = &appWorkflowMappings[i]
@@ -863,7 +863,7 @@ func filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping ma
 		parentPipelineIdentifier := leafPipelines[i].GetParentPipelineIdentifier()
 		childPipelineIds := identifierToFilteredWorkflowMapping[parentPipelineIdentifier].ChildPipelinesIds
 		if childPipelineIds.Cardinality() == 0 {
-			//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
+			// this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
 			leafPipelines = append(leafPipelines, *identifierToFilteredWorkflowMapping[leafPipelines[i].GetParentPipelineIdentifier()])
 			leafPipelineSize += 1
 		}

@@ -219,7 +219,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) (isAuthenticated bool, hasTriggerAccess bool) {
 
-	if request.IsCINode() || request.IsCDNode() {
+	if request.IsCINode() || request.IsWebhookNode() || request.IsCDNode()  {
 		// check if user has trigger access for any one env for this app
 		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
 		if !hasTriggerAccess {

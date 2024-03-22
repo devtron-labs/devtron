@@ -123,6 +123,7 @@ type PipelineRepository interface {
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindMetadataByIdsIn(ids []int, includeDeleted bool) ([]*PipelineMetadata, error)
+	FindPipelineByIdsIn(ids []int) ([]*Pipeline, error)
 	FindActiveAndDeletedByIds(ids []int) ([]*Pipeline, error)
 	FindByIdsNotInAndAppId(ids []int, appId int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
@@ -250,6 +251,21 @@ func (impl PipelineRepositoryImpl) FindMetadataByIdsIn(ids []int, includeDeleted
 		query = query.Where("pipeline.deleted = false")
 	}
 	err := query.Select(&pipelines)
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindPipelineByIdsIn(ids []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	if len(ids) == 0 {
+		return pipelines, nil
+	}
+	err := impl.dbConnection.Model(&pipelines).
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Where("pipeline.deleted = false").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
+	}
 	return pipelines, err
 }
 

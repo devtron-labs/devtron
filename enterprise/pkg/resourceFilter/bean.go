@@ -1,6 +1,7 @@
 package resourceFilter
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
@@ -14,7 +15,8 @@ import (
 type IdentifierType int
 
 const (
-	GIT = "git"
+	GIT     = "git"
+	NewLine = "\n"
 )
 
 const (
@@ -241,12 +243,14 @@ type CommitDetails struct {
 	Branch        string `json:"branch"`
 }
 
-func (cd *CommitDetails) ConvertToMap() map[string]string {
-	return map[string]string{
-		"commitMessage": cd.CommitMessage,
-		"branch":        cd.Branch,
-		"repo":          cd.Repo,
+func (cd *CommitDetails) ConvertToMap() (mp map[string]string, err error) {
+	bytes, err := json.Marshal(cd)
+	if err != nil {
+		return nil, err
 	}
+
+	err = json.Unmarshal(bytes, &mp)
+	return mp, err
 }
 
 type ParamValuesType string
@@ -285,7 +289,7 @@ func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) [
 		}
 		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
 			modification := ciMaterial.Modifications[0]
-			commitMessage = modification.Message
+			commitMessage, _ = strings.CutSuffix(modification.Message, NewLine)
 			branch = modification.Branch
 		}
 		commitDetailsList = append(commitDetailsList, &CommitDetails{
@@ -297,14 +301,18 @@ func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) [
 	return commitDetailsList
 }
 
-func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos []repository.CiMaterialInfo) []ExpressionParam {
+func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos []repository.CiMaterialInfo) ([]ExpressionParam, error) {
 
 	commitDetails := GetCommitDetailsFromMaterialInfo(materialInfos)
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
 	commitDetailsMap := make(map[string]map[string]string)
 	for _, commitDetail := range commitDetails {
-		commitDetailsMap[commitDetail.Repo] = commitDetail.ConvertToMap()
+		mp, err := commitDetail.ConvertToMap()
+		if err != nil {
+			return nil, err
+		}
+		commitDetailsMap[commitDetail.Repo] = mp
 	}
 	containerRepository := artifact[:lastColonIndex]
 	containerImageTag := artifact[lastColonIndex+1:]
@@ -337,7 +345,7 @@ func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos 
 		},
 	}
 
-	return params
+	return params, nil
 }
 
 type ExpressionMetadata struct {
@@ -392,6 +400,6 @@ var FILTER_CRITERIA = []FilterCriteria{
 	{
 		Label:   string(GitCommitDetails),
 		Type:    "map",
-		Tooltip: "Commit details used to build the image. \n gitCommitDetails = {\n  'repo_url':{\n     'commitMessage': string \n     'branch':string\n  }\n} \nExample:\n gitCommitDetails['https://github.com/repo'].branch=='main'",
+		Tooltip: "Commit details used to build the image. \n gitCommitDetails = {\n  'repo_url':{\n     'commitMessage': string \n     'branch':string\n  }\n} \nExample:\n gitCommitDetails['github.com/repo'].branch=='main'",
 	},
 }
