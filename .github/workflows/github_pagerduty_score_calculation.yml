@@ -23,5 +23,5 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-          MY_ACCESS_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           PAGERDUTY_SCORE_THRESHOLD: ${{ vars.PAGERDUTY_SCORE_THRESHOLD }}
