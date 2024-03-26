@@ -839,23 +839,17 @@ func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMapping(artifacts
 func mapCiArtifactsWithChild(artifacts []*CiArtifactWithParentArtifact) (ciArtifactIds []int, artifactChildParentMap map[int]int, err error) {
 	artifactChildParentMap = make(map[int]int)
 
+	uniqueArtifactsMap := make(map[int]struct{})
 	for _, artifact := range artifacts {
-		// Mapping the current artifact to its parent, or to itself if it has no parent.
 		if artifact.ParentCiArtifact > 0 {
 			artifactChildParentMap[artifact.CiArtifactId] = artifact.ParentCiArtifact
 		} else {
 			artifactChildParentMap[artifact.CiArtifactId] = artifact.CiArtifactId
 		}
 
-		// Ensure uniqueness of artifact IDs in the slice.
-		if ciArtifactIds == nil {
-			if _, ok := artifactChildParentMap[artifact.CiArtifactId]; ok {
-				ciArtifactIds = []int{artifactChildParentMap[artifact.CiArtifactId]}
-			}
-		} else if !slices.Contains(ciArtifactIds, artifactChildParentMap[artifact.CiArtifactId]) {
-			if _, ok := artifactChildParentMap[artifact.CiArtifactId]; ok {
-				ciArtifactIds = append(ciArtifactIds, artifactChildParentMap[artifact.CiArtifactId])
-			}
+		if _, ok := uniqueArtifactsMap[artifactChildParentMap[artifact.CiArtifactId]]; !ok {
+			ciArtifactIds = append(ciArtifactIds, artifactChildParentMap[artifact.CiArtifactId])
+			uniqueArtifactsMap[artifactChildParentMap[artifact.CiArtifactId]] = struct{}{}
 		}
 	}
 	return ciArtifactIds, artifactChildParentMap, err
@@ -948,8 +942,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 			env.ChartRefId = chart.ChartRefId
 		}
 
-		gitCommits, exists := gitCommitsWithArtifacts[env.CiArtifactId]
-		if exists {
+		if gitCommits, exists := gitCommitsWithArtifacts[env.CiArtifactId]; exists {
 			env.Commits = gitCommits
 		} else {
 			gitCommits = make([]string, 0)
