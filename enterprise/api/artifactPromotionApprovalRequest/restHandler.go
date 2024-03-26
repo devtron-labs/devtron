@@ -75,18 +75,9 @@ func NewRestHandlerImpl(
 
 func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
 	ctx := util.NewRequestCtx(r.Context())
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(ctx.GetUserId(), ctx.GetToken())
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	if !isAuthorised {
-		common.WriteJsonResp(w, errors.New(unAuthorisedUser), nil, http.StatusForbidden)
-		return
-	}
 	promotionRequest := &bean.ArtifactPromotionRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(promotionRequest)
+	err := decoder.Decode(promotionRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -219,7 +210,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) (isAuthenticated bool, hasTriggerAccess bool) {
 
-	if request.IsCINode() || request.IsWebhookNode() || request.IsCDNode()  {
+	if request.IsCINode() || request.IsWebhookNode() || request.IsCDNode() {
 		// check if user has trigger access for any one env for this app
 		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
 		if !hasTriggerAccess {
