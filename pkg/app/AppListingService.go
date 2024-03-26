@@ -239,7 +239,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		return resp, err
 	}
 
-	artifactDetails := make([]int, 0)
+	artifactIds := make([]int, 0)
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
@@ -249,28 +249,23 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
 			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
-
-			artifactDetails = append(artifactDetails, lastDeployed.CiArtifactId)
 			envContainer.CiArtifactId = lastDeployed.CiArtifactId
+			if !slices.Contains(artifactIds, lastDeployed.CiArtifactId) {
+				artifactIds = append(artifactIds, lastDeployed.CiArtifactId)
+			}
 		}
 	}
-
-	artifactWithGitCommit, err := impl.fetchCiArtifactAndGitTriggersMap(artifactDetails)
+	artifactWithGitCommit, err := impl.fetchCiArtifactAndGitTriggersMap(artifactIds)
 	if err != nil {
-		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "err", err, "envId", envId)
+		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "envId", envId, "err", err)
 		return resp, err
 	}
 	for _, envContainer := range envContainers {
+		envContainer.Commits = []string{}
 		if envContainer.CiArtifactId > 0 {
 			if commits, ok := artifactWithGitCommit[envContainer.CiArtifactId]; ok && commits != nil {
 				envContainer.Commits = commits
-			} else {
-				envContainer.Commits = []string{}
-
 			}
-
-		} else {
-			envContainer.Commits = []string{}
 		}
 	}
 	resp.Apps = envContainers
@@ -798,35 +793,33 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	return appStageStatuses, err
 }
 
-func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds []int) (CiArtifactAndGitCommitsMap map[int][]string, err error) {
+func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
+
+	if len(artifactIds) == 0 {
+		impl.Logger.Errorw("error in getting the ArtifactIds", "ArtifactIds", artifactIds, "err", err)
+		return make(map[int][]string), err
+	}
+
 	artifacts, err := impl.ciArtifactRepository.GetByIds(artifactIds)
 	if err != nil {
 		return make(map[int][]string), err
 	}
 
-	CiArtifactAndGitCommitsMap = make(map[int][]string)
-	ciArtifactsWithMaterialsMap := make(map[int][]repository.CiMaterialInfo)
+	ciArtifactAndGitCommitsMap = make(map[int][]string)
 	ciArtifactWithModificationMap := make(map[int][]repository.Modification)
 
 	for _, artifact := range artifacts {
-		//impl.ciArtifactRepository.GetCi
 		materialInfo, err := repository.GetCiMaterialInfo(artifact.MaterialInfo, artifact.DataSource)
 		if err != nil {
-			// Log the error along with the artifact IDs that caused it.
 			impl.Logger.Errorw("error in getting the MaterialInfo", "ArtifactId", artifact.Id, "err", err)
-			return make(map[int][]string), err // Return nil map and the encountered error.
+			return make(map[int][]string), err
 		}
-		ciArtifactsWithMaterialsMap[artifact.Id] = materialInfo
-	}
-
-	for artifactId, materialsArray := range ciArtifactsWithMaterialsMap {
-		if len(materialsArray) == 0 {
+		if len(materialInfo) == 0 {
 			continue
 		}
-		for _, material := range materialsArray {
-			ciArtifactWithModificationMap[artifactId] = append(ciArtifactWithModificationMap[artifactId], material.Modifications...)
+		for _, material := range materialInfo {
+			ciArtifactWithModificationMap[artifact.Id] = append(ciArtifactWithModificationMap[artifact.Id], material.Modifications...)
 		}
-
 	}
 
 	for artifactId, modifications := range ciArtifactWithModificationMap {
@@ -837,10 +830,10 @@ func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds [
 			gitCommits = append(gitCommits, modification.Revision)
 		}
 
-		CiArtifactAndGitCommitsMap[artifactId] = gitCommits
+		ciArtifactAndGitCommitsMap[artifactId] = gitCommits
 	}
 
-	return CiArtifactAndGitCommitsMap, nil
+	return ciArtifactAndGitCommitsMap, nil
 }
 
 func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
@@ -869,8 +862,9 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 
 	ciArtifacts := make([]int, 0)
 	for _, env := range envs {
-		ciArtifacts = append(ciArtifacts, env.CiArtifactId)
-
+		if !slices.Contains(ciArtifacts, env.CiArtifactId) {
+			ciArtifacts = append(ciArtifacts, env.CiArtifactId)
+		}
 	}
 
 	gitCommitsWithArtifacts, err := impl.fetchCiArtifactAndGitTriggersMap(ciArtifacts)
