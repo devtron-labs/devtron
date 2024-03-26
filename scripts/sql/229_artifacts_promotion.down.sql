@@ -1,12 +1,11 @@
 ALTER TABLE request_approval_user_data DROP COLUMN "request_type";
 
+ALTER TABLE request_approval_user_data RENAME TO deployment_approval_user_data;
+
 ALTER TABLE deployment_approval_user_data
     ADD CONSTRAINT deployment_approval_user_data_approval_request_id_fkey
         FOREIGN KEY ("approval_request_id")
             REFERENCES "public"."deployment_approval_request" ("id");
-
-
-ALTER TABLE request_approval_user_data RENAME TO deployment_approval_user_data;
 
 DROP INDEX unique_user_request_action;
 
