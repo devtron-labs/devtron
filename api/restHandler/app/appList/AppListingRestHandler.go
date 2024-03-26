@@ -448,7 +448,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp, err := handler.appListingService.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	resp, err := handler.appListingService.FetchOverviewAppsByEnvironment(envId, limit, offset, r.Context())
 	if err != nil {
 		handler.logger.Errorw("error in getting apps for app-group overview", "envid", envId, "limit", limit, "offset", offset)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
