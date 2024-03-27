@@ -128,7 +128,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId 
 
 	for _, env := range envs {
 		if _, ok := objects[env.Id]; !ok {
-			objects[env.Id] = fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+			objects[env.Id] = strings.ToLower(fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName))
 			envObjectToName[objects[env.Id]] = env.Name
 		}
 	}
