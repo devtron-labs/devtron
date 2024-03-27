@@ -253,7 +253,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	}
 	uniqueArtifacts := getUniqueArtifacts(artifactIds)
 
-	artifactWithGitCommit, err := impl.fetchCiArtifactAndGitTriggersMap(uniqueArtifacts)
+	artifactWithGitCommit, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "envId", envId, "err", err)
 		return resp, err
@@ -806,7 +806,7 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	return appStageStatuses, err
 }
 
-func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
+func (impl AppListingServiceImpl) generateArtifactIDCommitMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
 
 	if len(artifactIds) == 0 {
 		impl.Logger.Errorw("error in getting the ArtifactIds", "ArtifactIds", artifactIds, "err", err)
@@ -880,7 +880,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 
 	uniqueArtifacts := getUniqueArtifacts(ciArtifacts)
 
-	gitCommitsWithArtifacts, err := impl.fetchCiArtifactAndGitTriggersMap(uniqueArtifacts)
+	gitCommitsWithArtifacts, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
 	if err != nil {
 		impl.Logger.Errorw("Error in fetching the git commits of the ciArtifacts", "err", err, "ciArtifacts", ciArtifacts)
 		return envs, err
