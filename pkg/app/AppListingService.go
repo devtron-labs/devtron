@@ -148,7 +148,7 @@ type AppListingServiceImpl struct {
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
-	ciArtifactRepository repository.CiArtifactRepository
+	ciArtifactRepository           repository.CiArtifactRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -178,7 +178,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 		userRepository:                 userRepository,
 		deployedAppMetricsService:      deployedAppMetricsService,
-		ciArtifactRepository: ciArtifactRepository,
+		ciArtifactRepository:           ciArtifactRepository,
 	}
 	return serviceImpl
 }
@@ -801,85 +801,6 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, appType)
 	return appStageStatuses, err
 }
-func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMapping(artifacts []*CiArtifactWithParentArtifact, ctx context.Context) (CiArtifactAndGitCommitsMap map[int][]string, err error) {
-	newCtx, span := otel.Tracer("envOverrideRepository").Start(ctx, "fetchCiArtifactAndGitTriggersMapping")
-	defer span.End()
-	ciArtifactIds, artifactChildParentMap, err := mapCiArtifactsWithChild(artifacts)
-	if err != nil {
-		// Log the error along with the artifact IDs that caused it.
-		impl.Logger.Errorw("error in getting the set of ciArtifactIds", "ArtifactIds", ciArtifactIds, "err", err)
-		return nil, err // Return nil map and the encountered error.
-	}
-
-	// Retrieve workflows associated with the artifact IDs, handling any potential error.
-	artifactsWithGitTriggers, err := impl.ciWorkflowRepository.FindGitTriggersByArtifactIds(ciArtifactIds, newCtx)
-	if err != nil {
-		// Log the error along with the artifact IDs that caused it.
-		impl.Logger.Errorw("error retrieving GitTriggers of the  CiWorkflows", "ciArtifactIds", ciArtifactIds, "err", err)
-		return nil, err // Return nil map and the encountered error.
-	}
-
-	gitCommitsWithChildArtifactMap, err := mapArtifactToGitCommits(artifactsWithGitTriggers, artifactChildParentMap)
-	if err != nil {
-		// Log the error along with the artifact child IDs .
-		impl.Logger.Errorw("error retrieving GitCommits of these ids", "CiArtifactIds", ciArtifactIds, "err", err)
-		return nil, err
-	}
-
-	return gitCommitsWithChildArtifactMap, nil
-}
-
-func mapCiArtifactsWithChild(artifacts []*CiArtifactWithParentArtifact) (ciArtifactIds []int, artifactChildParentMap map[int]int, err error) {
-	artifactChildParentMap = make(map[int]int)
-
-	uniqueArtifactsMap := make(map[int]struct{})
-	for _, artifact := range artifacts {
-		if artifact.ParentCiArtifact > 0 {
-			artifactChildParentMap[artifact.CiArtifactId] = artifact.ParentCiArtifact
-		} else {
-			artifactChildParentMap[artifact.CiArtifactId] = artifact.CiArtifactId
-		}
-
-		if _, ok := uniqueArtifactsMap[artifactChildParentMap[artifact.CiArtifactId]]; !ok {
-			ciArtifactIds = append(ciArtifactIds, artifactChildParentMap[artifact.CiArtifactId])
-			uniqueArtifactsMap[artifactChildParentMap[artifact.CiArtifactId]] = struct{}{}
-		}
-	}
-	return ciArtifactIds, artifactChildParentMap, err
-
-}
-
-// mapArtifactToGitCommits
-func mapArtifactToGitCommits(artifactsWithGitTriggers []pipelineConfig.ArtifactAndGitCommitMapping, artifactChildParentMap map[int]int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
-
-	gitTriggers := make(map[int][]string)
-
-	for _, artifactWithGitTriggers := range artifactsWithGitTriggers {
-		if artifactWithGitTriggers.ArtifactId == 0 {
-			continue
-		}
-
-		// Check if gitTriggers contains the key artifactWithGitTriggers.ArtifactId
-		if _, ok := gitTriggers[artifactWithGitTriggers.ArtifactId]; !ok {
-			for _, gitCommit := range artifactWithGitTriggers.GitTriggers {
-				gitTriggers[artifactWithGitTriggers.ArtifactId] = append(gitTriggers[artifactWithGitTriggers.ArtifactId], gitCommit.Commit)
-			}
-		}
-	}
-
-	ciArtifactAndGitCommitsMap = make(map[int][]string)
-
-	for child, parent := range artifactChildParentMap {
-		gitCommits, exists := gitTriggers[parent]
-		if !exists {
-			ciArtifactAndGitCommitsMap[child] = []string{}
-		} else {
-			ciArtifactAndGitCommitsMap[child] = append(ciArtifactAndGitCommitsMap[child], gitCommits...)
-		}
-	}
-	return ciArtifactAndGitCommitsMap, err
-
-}
 
 func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
 
@@ -973,14 +894,6 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.ChartRefId = chart.ChartRefId
 		}
-
-		if gitCommits, exists := gitCommitsWithArtifacts[env.CiArtifactId]; exists {
-			env.Commits = gitCommits
-		} else {
-			gitCommits = make([]string, 0)
-			env.Commits = gitCommits
-		}
-
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
