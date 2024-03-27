@@ -241,7 +241,6 @@ type Environment struct {
 	PipelineId                 int      `json:"pipelineId"`
 	LatestCdWorkflowRunnerId   int      `json:"latestCdWorkflowRunnerId,omitempty"`
 	CiArtifactId               int      `json:"ciArtifactId"`
-	ParentCiArtifactId         int      `json:"-"`
 	Commits                    []string `json:"commits"`
 }
 
