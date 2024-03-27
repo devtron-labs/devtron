@@ -27,7 +27,8 @@
 <p align="center">
 <a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
 <a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
-<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="./LICENSE"><img src="https://img.shields
+.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 <a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
 <a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
@@ -42,36 +43,46 @@
 
 Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
 <br>
-<p align="center"><img src="./assets/readme-comic.png"></p>
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Demo Environment](#demo-environment)
+- [Features](#features)
+- [Integrations](#integrations)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Technology](#technology)
+- [Videos](#videos)
+- [Blogs from Community](#blogs-from-community)
+- [Trusted By](#trusted-by)
+- [FAQs & Troubleshooting](#faqs--troubleshooting)
+- [Community](#community)
+- [Contribute](#contribute)
+- [Contributors](#contributors)
+- [Vulnerability Reporting](#vulnerability-reporting)
+- [License](#license)
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
+## Introduction
 
-## Devtron Demo Environment
+Devtron is a Cloud Native tool integration platform for Kubernetes. It deeply integrates with products across the lifecycle of microservices, including CI, CD, security, cost, debugging, and observability via an intuitive web interface.
 
-Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
+## Demo Environment
 
-## Devtron Features
+Please log in the [Demo environment](https://preview.devtron.ai/dashboard/) using GitHub credentials. Please note that the user is granted view access.
 
-<details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
-<br>
- 
-- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
- 
-</details>
-<details><summary> <b>Centralized Access Management</b></summary>
-<br>
+## Features
 
-- Control and give customizable view-only, edit access to users on Project, Environment and Application levels
-</details>
+- **Application-level Resource grouping for easier Debugging**:
+  - Devtron groups your Kubernetes objects deployed via Helm charts and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
 
-<details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
-<br>
+- **Centralized Access Management**:
+  - Control and give customizable view-only, edit access to users on Project, Environment, and Application levels.
 
-- Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
-</details>
-
-<br>
+- **Deploy, Manage, and Observe on multiple clusters**:
+  - Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup.
 
 ## Integrations
 
@@ -81,19 +92,19 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 [Devtron CI/CD with GitOps](#install-devtron-with-cicd-integration) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
 
-* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
-* Supports pre-CI and post-CI integrations for code quality monitoring.
-* Seamlessly integrates with Clair for image vulnerability scanning.
-* Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications.
-* Integrates with ArgoCD for continuous deployment.
-* Checks logs, events, and manifests or exec inside containers for debugging.
-* Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
-* Seamlessly integrates with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
+- Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
+- Supports pre-CI and post-CI integrations for code quality monitoring.
+- Seamlessly integrates with Clair for image vulnerability scanning.
+- Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
+- Implements GitOps to manage the state of Kubernetes applications.
+- Integrates with ArgoCD for continuous deployment.
+- Checks logs, events, and manifests or exec inside containers for debugging.
+- Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
+- Seamlessly integrates with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
 
 ## Architecture
 
-<p align="center"><img src="./assets/Architecture.jpg"></p>
+![Devtron Architecture](./assets/Architecture.jpg)
 
 ## Installation
 
@@ -109,6 +120,7 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
+
 ```
 
 ### Access Devtron
