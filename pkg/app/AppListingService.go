@@ -19,7 +19,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -258,13 +257,9 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			artifactIds = append(artifactIds, lastDeployed.CiArtifactId)
 		}
 	}
-	uniqueArtifacts, err := impl.getUniqueArtifacts(artifactIds)
-	if err != nil {
-		impl.Logger.Errorw("failed to unique Artifacts ", "ArtifactIds", artifactIds, "err", err)
-		return resp, err
-	}
+	uniqueArtifacts := getUniqueArtifacts(artifactIds)
 
-	artifactWithGitCommit, err := impl.fetchCiArtifactAndGitTriggersMap(uniqueArtifacts)
+	artifactWithGitCommit, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "envId", envId, "err", err)
 		return resp, err
@@ -281,13 +276,9 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	return resp, err
 }
 
-func (impl AppListingServiceImpl) getUniqueArtifacts(artifactIds []int) ([]int, error) {
-	uniqueArtifactIds := make([]int, 0)
-	if len(artifactIds) == 0 {
-		err := errors.New("artifactIds Array is empty")
-		impl.Logger.Errorw("failed to get unique Artifacts", "ArtifactIds", artifactIds, "err", err)
-		return uniqueArtifactIds, err
-	}
+func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int) {
+	uniqueArtifactIds = make([]int, 0)
+
 	uniqueArtifactMap := make(map[int]bool)
 
 	for _, artifactId := range artifactIds {
@@ -297,7 +288,7 @@ func (impl AppListingServiceImpl) getUniqueArtifacts(artifactIds []int) ([]int, 
 		}
 	}
 
-	return uniqueArtifactIds, nil
+	return uniqueArtifactIds
 }
 
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
@@ -826,7 +817,7 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	return appStageStatuses, err
 }
 
-func (impl AppListingServiceImpl) fetchCiArtifactAndGitTriggersMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
+func (impl AppListingServiceImpl) generateArtifactIDCommitMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
 
 	if len(artifactIds) == 0 {
 		impl.Logger.Errorw("error in getting the ArtifactIds", "ArtifactIds", artifactIds, "err", err)
@@ -898,13 +889,9 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		ciArtifacts = append(ciArtifacts, env.CiArtifactId)
 	}
 
-	uniqueArtifacts, err := impl.getUniqueArtifacts(ciArtifacts)
-	if err != nil {
-		impl.Logger.Errorw("Error in fetching the unique ciArtifacts", "ciArtifacts", ciArtifacts, "err", err)
-		return envs, err
-	}
+	uniqueArtifacts := getUniqueArtifacts(ciArtifacts)
 
-	gitCommitsWithArtifacts, err := impl.fetchCiArtifactAndGitTriggersMap(uniqueArtifacts)
+	gitCommitsWithArtifacts, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
 	if err != nil {
 		impl.Logger.Errorw("Error in fetching the git commits of the ciArtifacts", "err", err, "ciArtifacts", ciArtifacts)
 		return envs, err
