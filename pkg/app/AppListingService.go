@@ -19,6 +19,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -251,7 +252,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			artifactIds = append(artifactIds, lastDeployed.CiArtifactId)
 		}
 	}
-	uniqueArtifacts, err := getUniqueArtifacts(artifactIds)
+	uniqueArtifacts, err := impl.getUniqueArtifacts(artifactIds)
 	if err != nil {
 		impl.Logger.Errorw("failed to unique Artifacts ", "ArtifactIds", artifactIds, "err", err)
 		return resp, err
@@ -274,9 +275,11 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	return resp, err
 }
 
-func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int, err error) {
-	uniqueArtifactIds = make([]int, 0)
+func (impl AppListingServiceImpl) getUniqueArtifacts(artifactIds []int) ([]int, error) {
+	uniqueArtifactIds := make([]int, 0)
 	if len(artifactIds) == 0 {
+		err := errors.New("artifactIds Array is empty")
+		impl.Logger.Errorw("failed to get unique Artifacts", "ArtifactIds", artifactIds, "err", err)
 		return uniqueArtifactIds, err
 	}
 	uniqueArtifactMap := make(map[int]bool)
@@ -884,7 +887,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		ciArtifacts = append(ciArtifacts, env.CiArtifactId)
 	}
 
-	uniqueArtifacts, err := getUniqueArtifacts(ciArtifacts)
+	uniqueArtifacts, err := impl.getUniqueArtifacts(ciArtifacts)
 	if err != nil {
 		impl.Logger.Errorw("Error in fetching the unique ciArtifacts", "ciArtifacts", ciArtifacts, "err", err)
 		return envs, err
