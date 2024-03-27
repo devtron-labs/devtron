@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm deployments stucked in queued for devtron apps (#4842)
 - fix: panic on re-trigger ci if pod deleted on BuildTriggerObject (#4826)
 - fix: hide ldap creds in in get req (#4788)
 - fix: 5xx 4.0 iter (#4620)
