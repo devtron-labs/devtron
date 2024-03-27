@@ -127,7 +127,10 @@ func (repo *GlobalPolicyRepositoryImpl) GetByName(name string, policyType bean.G
 		Where("deleted = ?", false).
 		Where("policy_of = ?", policyType).
 		Select()
-	return &model, err
+	if err != nil {
+		return nil, err
+	}
+	return &model, nil
 }
 
 func (repo *GlobalPolicyRepositoryImpl) GetByNames(names []string, policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error) {
