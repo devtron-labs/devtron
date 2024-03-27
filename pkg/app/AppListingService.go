@@ -143,8 +143,7 @@ type AppListingServiceImpl struct {
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
-	//ciWorkflowRepository           pipelineConfig.CiWorkflowRepository
-	ciArtifactRepository repository.CiArtifactRepository
+	ciArtifactRepository           repository.CiArtifactRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -174,8 +173,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 		userRepository:                 userRepository,
 		deployedAppMetricsService:      deployedAppMetricsService,
-		//ciWorkflowRepository:           ciWorkflowRepository,
-		ciArtifactRepository: ciArtifactRepository,
+		ciArtifactRepository:           ciArtifactRepository,
 	}
 	return serviceImpl
 }
