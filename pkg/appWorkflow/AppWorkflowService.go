@@ -178,7 +178,15 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 	var wf *appWorkflow.AppWorkflow
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
-
+	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
+		return req, err
+	}
+	if workflow.Id != 0 {
+		impl.Logger.Errorw("workflow with this name already exist", "err", err)
+		return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
+	}
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
 			Id:     req.Id,
@@ -189,26 +197,9 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 				UpdatedBy: req.UserId,
 			},
 		}
-		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
-			return req, err
-		}
-		if workflow.Id != 0 {
-			impl.Logger.Errorw("workflow with this name already exist", "err", err)
-			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
-		}
 		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
 	} else {
-		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
-			return req, err
-		}
-		if workflow.Id != 0 {
-			impl.Logger.Errorw("workflow with this name already exist", "err", err)
-			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
-		}
+
 		wf := &appWorkflow.AppWorkflow{
 			Name:   req.Name,
 			AppId:  req.AppId,
