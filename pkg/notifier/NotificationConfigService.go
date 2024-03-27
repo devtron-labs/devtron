@@ -1068,12 +1068,10 @@ func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata
 	switch approvalResponse[0].PromotionValidationMessage {
 	case constants.APPROVED:
 		status = bean.Approved
-	case constants.ALREADY_APPROVED:
+	case constants.ALREADY_APPROVED, constants.ARTIFACT_ALREADY_PROMOTED:
 		status = bean.AlreadyApproved
 	case constants.PromotionRequestStale:
 		status = bean.RequestCancelled
-	case constants.ARTIFACT_ALREADY_PROMOTED:
-		status = bean.AlreadyPromoted
 	default:
 		status = bean.Errored
 	}

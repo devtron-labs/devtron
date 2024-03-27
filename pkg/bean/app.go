@@ -724,7 +724,6 @@ const (
 	Approved         = 0
 	AlreadyApproved  = 1
 	RequestCancelled = 2
-	AlreadyPromoted  = 3
 	Errored          = 4
 )
 
