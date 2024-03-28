@@ -106,7 +106,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 	// 3. Create Git Repo if required
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
 		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, ctx)
 		if errMsg != nil {
 			manifestPushResponse.Error = errMsg
