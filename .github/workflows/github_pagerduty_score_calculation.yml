@@ -19,7 +19,7 @@ jobs:
         if: ${{ contains(github.event.issue.labels.*.name, 'pager-duty') && contains(github.event.issue.labels.*.name, 'bug') }}
         run: |
           echo "Issue was created using pager-duty template"
-          python3 .github/github_pagerduty_issue_score_calculation.py
+          python3 scripts/utilities/github_pagerduty_issue_score_calculation.py
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
