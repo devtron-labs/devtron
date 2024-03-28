@@ -14,6 +14,7 @@
 - feat: added request method in audit logger (#4817)
 - feat: active inactive user phase 3 (#4649)
 ## Documentation
+- doc: Added EnvVariablesFromFieldPath in Deployment Template (#4852)
 ## Others
 - misc: Update github_pagerduty_score_calculation.yml (#4853)
 - misc: Update pager-duty.yaml (#4850)
