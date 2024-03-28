@@ -45,6 +45,7 @@
   * [Pull Image Digest](user-guide/global-configurations/pull-image-digest.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Lock Deployment Config](user-guide/global-configurations/lock-deployment-config.md)
+  * [Deployment Window](user-guide/global-configurations/deployment-window.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
   * [Build Infra](user-guide/global-configurations/build-infra.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
