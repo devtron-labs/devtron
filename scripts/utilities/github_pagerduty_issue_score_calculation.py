@@ -37,13 +37,13 @@ additional_affected_areas = {
 prod_environment = {
     "Prod": 2,
     "Non-prod": 1,
-    "None": 1
+    "None": 0
 }
 
 user_unblocked = {
     "Yes": 1,
     "No": 2,
-    "None": 1
+    "None": 0
 }
 
 user_unblocked_reason = {
@@ -52,7 +52,7 @@ user_unblocked_reason = {
     "TEMPORARILY - By doing some changes from the backend/DB": 1,
     "PERMANENTLY - By giving a workaround (From outside Devtron)": 2,
     "PERMANENTLY - By giving a workaround (Within Devtron)": 1,
-    "None": 1
+    "None": 0
 }
 # Function to extract and process information from the issue body
 def process_issue_body(issue_body):
@@ -80,9 +80,9 @@ def process_issue_body(issue_body):
     # Retrieving values from dictionaries
     affected_areas_score = affected_areas.get(affected_area_value, 0)
     additional_affected_areas_score = additional_affected_areas.get(additional_affected_area_value, 0)
-    prod_non_prod_score = prod_environment.get(prod_non_prod_value, 1)
-    user_unblocked_score = user_unblocked.get(user_unblocked_value, 1)
-    user_unblocked_reason_score = user_unblocked_reason.get(user_unblocked_reason_value, 1)
+    prod_non_prod_score = prod_environment.get(prod_non_prod_value, 0)
+    user_unblocked_score = user_unblocked.get(user_unblocked_value, 0)
+    user_unblocked_reason_score = user_unblocked_reason.get(user_unblocked_reason_value, 0)
 
     print("Affected areas:", affected_area_value)
     print("Additional affected areas:", additional_affected_area_value)
@@ -107,7 +107,7 @@ def process_issue_body(issue_body):
         except subprocess.CalledProcessError as e:
             print(e.stderr)
     #calculating final score
-    final_score = affected_areas_score + additional_affected_areas_score * prod_non_prod_score * user_unblocked_score * user_unblocked_reason_score
+    final_score = (affected_areas_score + additional_affected_areas_score)* prod_non_prod_score * user_unblocked_score * user_unblocked_reason_score
     print("Final Score:", final_score)
 
     # Commenting the final score in the issue
