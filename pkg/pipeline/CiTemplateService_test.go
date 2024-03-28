@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	pipelineMocks "github.com/devtron-labs/devtron/pkg/pipeline/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestCiTemplateService(t *testing.T) {
 		templateDbEntity := &pipelineConfig.CiTemplate{
 			Id: 1,
 			CiBuildConfig: &pipelineConfig.CiBuildConfig{
-				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				Type:          string(CiPipeline.BUILDPACK_BUILD_TYPE),
 				BuildMetadata: "{\"BuilderId\":\"" + builderId + "\"}",
 			},
 		}
@@ -37,7 +38,7 @@ func TestCiTemplateService(t *testing.T) {
 		template := templateBean.CiTemplate
 		assert.Equal(t, template.Id, templateDbEntity.Id)
 		assert.NotNil(t, templateBean.CiBuildConfig)
-		assert.Equal(t, bean.BUILDPACK_BUILD_TYPE, templateBean.CiBuildConfig.CiBuildType)
+		assert.Equal(t, CiPipeline.BUILDPACK_BUILD_TYPE, templateBean.CiBuildConfig.CiBuildType)
 		assert.Equal(t, builderId, templateBean.CiBuildConfig.BuildPackConfig.BuilderId)
 	})
 
@@ -64,7 +65,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.Equal(t, template.TargetPlatform, templateDbEntity.TargetPlatform)
 		assert.Nil(t, template.CiBuildConfig)
 		ciBuildConfig := templateBean.CiBuildConfig
-		assert.Equal(t, bean.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
+		assert.Equal(t, CiPipeline.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
 		assert.NotNil(t, ciBuildConfig.DockerBuildConfig)
 		assert.Equal(t, templateDbEntity.TargetPlatform, ciBuildConfig.DockerBuildConfig.TargetPlatform)
 		args := ciBuildConfig.DockerBuildConfig.Args
@@ -84,8 +85,8 @@ func TestCiTemplateService(t *testing.T) {
 		notPlatform := "linux/arm64"
 		gitMaterialId := 2
 		ciBuildConfigId := 3
-		managedDockerfileBuildType := bean.MANAGED_DOCKERFILE_BUILD_TYPE
-		buildConfigMetadata := &bean.DockerBuildConfig{
+		managedDockerfileBuildType := CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE
+		buildConfigMetadata := &CiPipeline.DockerBuildConfig{
 			DockerfileContent: dockerfileContent,
 			TargetPlatform:    targetPlatform,
 		}
@@ -147,7 +148,7 @@ func TestCiTemplateService(t *testing.T) {
 			assert.Equal(t, mockedTemplateOverride.Id, templateOverride.Id)
 			assert.Equal(t, mockedTemplateOverride.GitMaterialId, templateOverride.GitMaterialId)
 			assert.Equal(t, mockedTemplateOverride.CiPipelineId, templateOverride.CiPipelineId)
-			assert.Equal(t, bean.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			assert.Equal(t, CiPipeline.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
 			assert.Nil(t, ciBuildConfig.BuildPackConfig)
 			assert.Empty(t, ciBuildConfig.DockerBuildConfig.DockerBuildOptions, "docker build options not supported in pipeline override")
 			assert.Equal(t, mockedTemplateOverride.DockerfilePath, ciBuildConfig.DockerBuildConfig.DockerfilePath)
@@ -165,7 +166,7 @@ func TestCiTemplateService(t *testing.T) {
 			CiPipelineId:  2,
 			GitMaterialId: 3,
 			CiBuildConfig: &pipelineConfig.CiBuildConfig{
-				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				Type:          string(CiPipeline.BUILDPACK_BUILD_TYPE),
 				BuildMetadata: "{\"BuilderId\":\"" + builderId1 + "\"}",
 			},
 		}, {
@@ -173,7 +174,7 @@ func TestCiTemplateService(t *testing.T) {
 			CiPipelineId:  3,
 			GitMaterialId: 3,
 			CiBuildConfig: &pipelineConfig.CiBuildConfig{
-				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				Type:          string(CiPipeline.BUILDPACK_BUILD_TYPE),
 				BuildMetadata: "{\"BuilderId\":\"" + builderId1 + "\"}",
 			},
 		}}
@@ -190,7 +191,7 @@ func TestCiTemplateService(t *testing.T) {
 			assert.Equal(t, mockedTemplateOverride.Id, templateOverride.Id)
 			assert.Equal(t, mockedTemplateOverride.GitMaterialId, templateOverride.GitMaterialId)
 			assert.Equal(t, mockedTemplateOverride.CiPipelineId, templateOverride.CiPipelineId)
-			assert.Equal(t, bean.BUILDPACK_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			assert.Equal(t, CiPipeline.BUILDPACK_BUILD_TYPE, ciBuildConfig.CiBuildType)
 			assert.Nil(t, ciBuildConfig.DockerBuildConfig)
 			assert.NotNil(t, ciBuildConfig.BuildPackConfig)
 			assert.Equal(t, builderId1, ciBuildConfig.BuildPackConfig.BuilderId)
@@ -205,7 +206,7 @@ func TestCiTemplateService(t *testing.T) {
 		dockerfileContent := "FROM node:9\r\n\r\nWORKDIR /app\r\n\r\nRUN npm install -g contentful-cli\r\n\r\nCOPY package.json .\r\nRUN npm install\r\n\r\nCOPY . .\r\n\r\nUSER node\r\nEXPOSE 3000\r\n\r\nCMD [\"npm\", \"run\", \"start:dev\"]"
 		targetPlatform := "linux/amd64"
 		builderId := "sample-builder"
-		buildConfigMetadata := &bean.DockerBuildConfig{
+		buildConfigMetadata := &CiPipeline.DockerBuildConfig{
 			DockerfileContent: dockerfileContent,
 			TargetPlatform:    targetPlatform,
 		}
@@ -216,7 +217,7 @@ func TestCiTemplateService(t *testing.T) {
 			CiPipelineId:  2,
 			GitMaterialId: 3,
 			CiBuildConfig: &pipelineConfig.CiBuildConfig{
-				Type:          string(bean.MANAGED_DOCKERFILE_BUILD_TYPE),
+				Type:          string(CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE),
 				BuildMetadata: string(buildMetadata),
 			},
 		}, {
@@ -224,7 +225,7 @@ func TestCiTemplateService(t *testing.T) {
 			CiPipelineId:  3,
 			GitMaterialId: 3,
 			CiBuildConfig: &pipelineConfig.CiBuildConfig{
-				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				Type:          string(CiPipeline.BUILDPACK_BUILD_TYPE),
 				BuildMetadata: "{\"BuilderId\":\"" + builderId + "\"}",
 			},
 		}}
@@ -241,13 +242,13 @@ func TestCiTemplateService(t *testing.T) {
 			assert.Equal(t, mockedTemplateOverride.Id, templateOverride.Id)
 			assert.Equal(t, mockedTemplateOverride.GitMaterialId, templateOverride.GitMaterialId)
 			assert.Equal(t, mockedTemplateOverride.CiPipelineId, templateOverride.CiPipelineId)
-			if ciBuildConfig.CiBuildType == bean.MANAGED_DOCKERFILE_BUILD_TYPE {
-				assert.Equal(t, bean.MANAGED_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			if ciBuildConfig.CiBuildType == CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE {
+				assert.Equal(t, CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
 				assert.Nil(t, ciBuildConfig.BuildPackConfig)
 				assert.NotNil(t, ciBuildConfig.DockerBuildConfig)
 				assert.Equal(t, dockerfileContent, ciBuildConfig.DockerBuildConfig.DockerfileContent)
-			} else if ciBuildConfig.CiBuildType == bean.BUILDPACK_BUILD_TYPE {
-				assert.Equal(t, bean.BUILDPACK_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			} else if ciBuildConfig.CiBuildType == CiPipeline.BUILDPACK_BUILD_TYPE {
+				assert.Equal(t, CiPipeline.BUILDPACK_BUILD_TYPE, ciBuildConfig.CiBuildType)
 				assert.Nil(t, ciBuildConfig.DockerBuildConfig)
 				assert.NotNil(t, ciBuildConfig.BuildPackConfig)
 				assert.Equal(t, builderId, ciBuildConfig.BuildPackConfig.BuilderId)
@@ -269,11 +270,11 @@ func TestCiTemplateService(t *testing.T) {
 		mockedCiTemplateBean.CiTemplateOverride = mockedTemplateOverride
 		dockerBuildOptions := map[string]string{}
 		dockerBuildOptions["volume"] = "abcd:defg"
-		mockedCiTemplateBean.CiBuildConfig = &bean.CiBuildConfigBean{
+		mockedCiTemplateBean.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
 			Id:                mockedCiBuildConfigId,
 			GitMaterialId:     materialId,
-			CiBuildType:       bean.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
+			CiBuildType:       CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &CiPipeline.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
 		}
 		mockedUserId := int32(4)
 		mockedCiTemplateBean.UserId = mockedUserId
@@ -285,7 +286,7 @@ func TestCiTemplateService(t *testing.T) {
 		mockedBuildConfigService.On("UpdateOrSave", mock.AnythingOfType("int"), mock.AnythingOfType("int"),
 			mock.AnythingOfType("*bean.CiBuildConfigBean"), mock.AnythingOfType("int32")).
 			Return(
-				func(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) *bean.CiBuildConfigBean {
+				func(templateId int, overrideTemplateId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) *CiPipeline.CiBuildConfigBean {
 					assert.Equal(t, 0, templateId)
 					assert.Equal(t, mockedTemplateOverrideId, overrideTemplateId)
 					assert.Equal(t, mockedUserId, userId)
@@ -314,11 +315,11 @@ func TestCiTemplateService(t *testing.T) {
 		mockedCiTemplateBean.CiTemplate = mockedTemplate
 		dockerBuildOptions := map[string]string{}
 		dockerBuildOptions["volume"] = "abcd:defg"
-		mockedCiTemplateBean.CiBuildConfig = &bean.CiBuildConfigBean{
+		mockedCiTemplateBean.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
 			Id:                mockedCiBuildConfigId,
 			GitMaterialId:     materialId,
-			CiBuildType:       bean.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
+			CiBuildType:       CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &CiPipeline.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
 		}
 		mockedUserId := int32(4)
 		mockedCiTemplateBean.UserId = mockedUserId
@@ -330,7 +331,7 @@ func TestCiTemplateService(t *testing.T) {
 		mockedBuildConfigService.On("UpdateOrSave", mock.AnythingOfType("int"), mock.AnythingOfType("int"),
 			mock.AnythingOfType("*bean.CiBuildConfigBean"), mock.AnythingOfType("int32")).
 			Return(
-				func(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) *bean.CiBuildConfigBean {
+				func(templateId int, overrideTemplateId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) *CiPipeline.CiBuildConfigBean {
 					assert.Equal(t, 0, overrideTemplateId)
 					assert.Equal(t, mockedTemplateId, templateId)
 					assert.Equal(t, mockedUserId, userId)
@@ -358,18 +359,18 @@ func TestCiTemplateService(t *testing.T) {
 		mockedCiTemplateBean.CiTemplate = mockedTemplate
 		dockerBuildOptions := map[string]string{}
 		dockerBuildOptions["volume"] = "abcd:defg"
-		mockedCiTemplateBean.CiBuildConfig = &bean.CiBuildConfigBean{
+		mockedCiTemplateBean.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
 			Id:                0,
 			GitMaterialId:     materialId,
-			CiBuildType:       bean.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
+			CiBuildType:       CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &CiPipeline.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
 		}
 		mockedUserId := int32(4)
 		mockedCiTemplateBean.UserId = mockedUserId
 		mockedBuildConfigService.On("Save", mock.AnythingOfType("int"), mock.AnythingOfType("int"),
 			mock.AnythingOfType("*bean.CiBuildConfigBean"), mock.AnythingOfType("int32")).
 			Return(
-				func(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) error {
+				func(templateId int, overrideTemplateId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) error {
 					assert.Equal(t, 0, overrideTemplateId)
 					assert.Equal(t, mockedTemplate.Id, templateId)
 					assert.Equal(t, mockedUserId, userId)
@@ -412,11 +413,11 @@ func TestCiTemplateService(t *testing.T) {
 
 		ciBuildConfig := ciTemplateBean.CiBuildConfig
 
-		buildPackConfig := &bean.BuildPackConfig{
+		buildPackConfig := &CiPipeline.BuildPackConfig{
 			BuilderId: "gcr.io/buildpacks/builder:v1",
 		}
 		//buildPackConfig.BuilderId = "heroku/buildpacks:20"
-		ciBuildConfig.CiBuildType = bean.BUILDPACK_BUILD_TYPE
+		ciBuildConfig.CiBuildType = CiPipeline.BUILDPACK_BUILD_TYPE
 		ciBuildConfig.BuildPackConfig = buildPackConfig
 
 		//args := make(map[string]string)

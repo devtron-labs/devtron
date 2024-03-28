@@ -34,6 +34,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -768,7 +769,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipeline.PipelineType == string(bean3.CI_JOB) && image == "" {
+			if pipeline.PipelineType == string(CiPipeline.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{
