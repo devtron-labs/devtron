@@ -28,7 +28,7 @@ components:
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
   devtron:
-    image: "quay.io/devtron/hyperion:126b6971-280-21778"
+    image: "quay.io/devtron/hyperion:698e4ab9-280-21780"
     cicdImage: "quay.io/devtron/devtron:126b6971-434-21779"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
