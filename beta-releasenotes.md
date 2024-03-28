@@ -15,6 +15,7 @@
 - feat: active inactive user phase 3 (#4649)
 ## Documentation
 ## Others
+- misc: Update pager-duty.yaml (#4850)
 - misc: Pagerduty issue template change (#4796)
 - chore: Image scanning refactoring (#4802)
 - chore: refactoring v4 (#4775)
