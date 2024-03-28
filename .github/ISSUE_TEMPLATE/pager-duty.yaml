@@ -65,8 +65,8 @@ body:
       label: "Is User unblocked?"
       description: "Is the User unblocked?"
       options:
-        - Yes 
-        - No 
+        - 'Yes' 
+        - 'No'
   - type: dropdown
     id: user-unblocked-reason
     attributes:
