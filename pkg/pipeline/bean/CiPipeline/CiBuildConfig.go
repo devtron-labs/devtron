@@ -1,4 +1,4 @@
-package bean
+package CiPipeline
 
 type CiBuildType string
 
@@ -16,11 +16,13 @@ const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
 type PipelineType string
 
 const (
-	NORMAL    PipelineType = "NORMAL"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
-	LINKED_CD PipelineType = "LINKED_CD"
+	NORMAL PipelineType = "NORMAL"
+	LINKED PipelineType = "LINKED"
+	// CI_EXTERNAL field is been sent from the dashboard in CreateLinkedCI request and directly gets saved to Database without any validations
+	CI_EXTERNAL PipelineType = "CI_EXTERNAL" // Deprecated Enum: TODO fix the PipelineTypes in code and database
+	EXTERNAL    PipelineType = "EXTERNAL"
+	CI_JOB      PipelineType = "CI_JOB"
+	LINKED_CD   PipelineType = "LINKED_CD"
 )
 
 type CiBuildConfigBean struct {
