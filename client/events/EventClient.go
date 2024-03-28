@@ -52,6 +52,7 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
+	sendEventOnNats(event Event)
 	WriteNatsEvent(channel string, payload interface{}) error
 }
 
@@ -240,7 +241,19 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 	return true, err
 }
 
+func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
+
+	err := impl.pubsubClient.Publish(pubsub.DEVTRON_TEST_TOPIC, string(body))
+	if err != nil {
+		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
+		return err
+	}
+	return nil
+
+}
+
 // do not call this method if notification module is not installed
+
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 	body, err := json.Marshal(event)
@@ -249,6 +262,15 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		return false, err
 	}
 	var reqBody = []byte(body)
+
+	//sending events on nats
+
+	err = impl.sendEventsOnNats(body)
+	if err != nil {
+		impl.logger.Errorw("error while publishing event  ", "err", err)
+		return false, err
+	}
+
 	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while writing event", "err", err)
