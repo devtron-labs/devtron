@@ -24,6 +24,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1587,6 +1588,17 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 }
 
 func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, appId int, userId int32) (int, error) {
+	workflow, err := handler.appWorkflowRepository.FindByNameAndAppId(workflowName, appId)
+	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
+		handler.logger.Errorw("error in finding workflow by app id and name", "name", workflowName, "appId", appId)
+		return 0, err
+	}
+	if workflow.Id != 0 {
+		rand.Seed(time.Now().UnixNano())
+		// Generates a random number between 0 and 1000
+		randomNumber := rand.Intn(1001)
+		workflowName = fmt.Sprintf("%s-clone-%d", workflowName, randomNumber)
+	}
 	wf := &appWorkflow2.AppWorkflow{
 		Name:   workflowName,
 		AppId:  appId,
