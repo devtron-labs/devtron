@@ -20,7 +20,7 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -180,7 +180,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
 	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
 		return req, err
 	}
@@ -201,11 +201,9 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
 	} else {
 		workflowName := req.Name
-		if workflow.Id != 0 { // if workflow already exists then we will assign a new name to the workflow
-			rand.Seed(time.Now().UnixNano())
-			// Generates a random number between 0 and 1000
-			randomNumber := rand.Intn(1001)
-			workflowName = fmt.Sprintf("%s-clone-%d", req.Name, randomNumber)
+		// if workflow already exists then we will assign a new name to the workflow
+		if workflow.Id != 0 {
+			workflowName = fmt.Sprintf("%s-clone-%s", req.Name, util2.Generate(4))
 		}
 		wf := &appWorkflow.AppWorkflow{
 			Name:   workflowName,
