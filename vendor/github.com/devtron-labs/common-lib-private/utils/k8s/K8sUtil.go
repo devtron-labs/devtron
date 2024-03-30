@@ -97,3 +97,25 @@ func (impl K8sUtilExtended) CleanupForClusterUsedForVerification(config *k8s2.Cl
 		impl.sshTunnelWrapperService.CleanupForVerificationCluster(config.ClusterName)
 	}
 }
+
+func (impl K8sUtilExtended) WrapForSSHAndProxy(clusterConfig *k8s2.ClusterConfig) func(*restclient.Config) *restclient.Config {
+	return func(restConfig *restclient.Config) *restclient.Config {
+		if clusterConfig.ToConnectWithSSHTunnel {
+			hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
+			if err != nil {
+				impl.logger.Errorw("error in getting hostUrl for ssh configured cluster", "err", err, "clusterId", clusterConfig.ClusterId)
+				return restConfig
+			}
+			// Override the server URL with the localhost URL where the SSH tunnel is hosted
+			restConfig.Host = hostUrl
+		} else if len(clusterConfig.ProxyUrl) > 0 {
+			proxy, err := url.Parse(clusterConfig.ProxyUrl)
+			if err != nil {
+				impl.logger.Errorw("error in parsing proxy url", "err", err, "proxyUrl", clusterConfig.ProxyUrl)
+				return restConfig
+			}
+			restConfig.Proxy = http.ProxyURL(proxy)
+		}
+		return restConfig
+	}
+}
