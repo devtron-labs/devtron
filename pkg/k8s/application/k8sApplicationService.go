@@ -8,6 +8,8 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	util4 "github.com/devtron-labs/devtron/api/util"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -46,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/printers"
 )
 
 type K8sApplicationService interface {
@@ -85,13 +88,15 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
+	celEvaluatorService          resourceFilter.CELEvaluatorService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	argoApplicationService argoApplication.ArgoApplicationService) (*K8sApplicationServiceImpl, error) {
+	argoApplicationService argoApplication.ArgoApplicationService,
+	celEvaluatorService resourceFilter.CELEvaluatorService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -112,6 +117,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
 		argoApplicationService:       argoApplicationService,
+		celEvaluatorService:          celEvaluatorService,
 	}, nil
 }
 
@@ -630,10 +636,96 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	k8sRequest := request.K8sRequest
 	//store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
-	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace)
+	listOptions := &metav1.ListOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       resourceIdentifierCloned.GroupVersionKind.Kind,
+			APIVersion: resourceIdentifierCloned.GroupVersionKind.GroupVersion().String(),
+		},
+	}
+	if len(request.LabelSelector) > 0 {
+		listOptions.LabelSelector = request.LabelSelector
+	}
+	if len(request.FieldSelector) > 0 {
+		listOptions.FieldSelector = request.FieldSelector
+	}
+	asTable := len(request.Filter) == 0
+	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace, asTable, listOptions)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
+	}
+
+	for _, item := range resp.Resources.Items {
+		item.GetKind()
+	}
+
+	resources := resp.Resources
+	fmt.Println(resources.GetObjectKind().GroupVersionKind().Kind)
+	if len(request.Filter) > 0 {
+		filteredResources := unstructured.UnstructuredList{}
+		filteredItems := make([]interface{}, 0)
+		//resource := unstructured.Unstructured{}
+		for _, v := range resp.Resources.Items {
+			fmt.Println(v.GetObjectKind().GroupVersionKind().Kind)
+			celRequest := resourceFilter.CELRequest{
+				Expression: request.Filter,
+				ExpressionMetadata: resourceFilter.ExpressionMetadata{
+					Params: []resourceFilter.ExpressionParam{
+						{
+							ParamName: "self",
+							Value:     v.Object,
+							Type:      resourceFilter.ParamTypeObject,
+						},
+					},
+				},
+			}
+			pass, err := impl.celEvaluatorService.EvaluateCELRequest(celRequest)
+			if err != nil || !pass {
+				continue
+			}
+
+			filteredItems = append(filteredItems, interface{}(v.Object))
+			//resource = v
+		}
+		items := map[string]interface{}{
+			"items": filteredItems,
+		}
+		filteredResources.SetUnstructuredContent(items)
+		filteredResources.DeepCopyObject()
+		filteredResources.SetKind(resources.GetKind())
+		filteredResources.SetAPIVersion(resources.GetAPIVersion())
+		resources = filteredResources
+		lst := ConvertToCore(resources)
+		p := printers.NewTableGenerator()
+		util4.AddHandlers(p)
+		//objk := resource.GetObjectKind()
+		//gvk := objk.GroupVersionKind()
+		//fmt.Println(gvk)
+		//fmt.Println(objk)
+		//cm := core.ConfigMap{}
+		//runtime.DefaultUnstructuredConverter.FromUnstructured(resource.UnstructuredContent(), &cm)
+		t, err := p.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
+		if err != nil {
+			fmt.Println("error")
+		}
+		//t.Rows = make([]metav1.TableRow, 0)
+		//for _, itm := range itms {
+		//	if itm == nil {
+		//		continue
+		//	}
+		//	r, err := p.GenerateTable(itm, printers.GenerateOptions{NoHeaders: true})
+		//	if err != nil {
+		//		fmt.Println("error")
+		//	}
+		//	t.Rows = append(t.Rows, r.Rows...)
+		//}
+		//t, err := p.GenerateTable(&cm, printers.GenerateOptions{})
+		fmt.Printf("+%v\n", t)
+		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
+		if err != nil {
+			fmt.Println(err)
+		}
+		resources.SetUnstructuredContent(m)
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := resourceIdentifierCloned
@@ -645,7 +737,8 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -658,6 +751,34 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		resourceList.ServerVersion = k8sServerVersion.String()
 	}
 	return resourceList, nil
+}
+
+func ConvertToCore(uns unstructured.UnstructuredList) runtime.Object {
+	if uns.GetObjectKind().GroupVersionKind().Kind == "ConfigMapList" {
+		configMaps := make([]corev1.ConfigMap, 0)
+		configMapPtrs := make([]runtime.Object, 0)
+		for _, item := range uns.Items {
+			configMap := corev1.ConfigMap{}
+			fmt.Println(item.UnstructuredContent())
+			runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), &configMap)
+			configMap.SetGroupVersionKind(item.GetObjectKind().GroupVersionKind())
+			configMaps = append(configMaps, configMap)
+			configMapPtrs = append(configMapPtrs, &configMap)
+			cm := corev1.ConfigMap{}
+			runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), &cm)
+			configMap.ObjectMeta = cm.ObjectMeta
+			fmt.Println(cm)
+		}
+		configMapList := corev1.ConfigMapList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       uns.GetKind(),
+				APIVersion: uns.GetAPIVersion(),
+			},
+			Items: configMaps,
+		}
+		return &configMapList
+	}
+	return nil
 }
 
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *k8s3.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s3.ApplyResourcesResponse, error) {

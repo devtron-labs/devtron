@@ -399,7 +399,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.16-0.20240320102218-5807b1301538
+# github.com/devtron-labs/common-lib v0.0.16-0.20240326053557-bff4518a731d => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier
@@ -418,7 +418,7 @@ github.com/devtron-labs/common-lib/utils/k8s/commonBean
 github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.14-0.20240320102546-c9522e2ea733
+# github.com/devtron-labs/common-lib-private v0.0.14-0.20240320102546-c9522e2ea733 => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib-private
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
@@ -611,8 +611,8 @@ github.com/golang/groupcache/lru
 # github.com/golang/mock v1.6.0
 ## explicit; go 1.11
 github.com/golang/mock/gomock
-# github.com/golang/protobuf v1.5.3
-## explicit; go 1.9
+# github.com/golang/protobuf v1.5.4
+## explicit; go 1.17
 github.com/golang/protobuf/descriptor
 github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
@@ -1445,14 +1445,15 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.31.0
-## explicit; go 1.11
+# google.golang.org/protobuf v1.33.0
+## explicit; go 1.17
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
 google.golang.org/protobuf/internal/descopts
 google.golang.org/protobuf/internal/detrand
+google.golang.org/protobuf/internal/editiondefaults
 google.golang.org/protobuf/internal/encoding/defval
 google.golang.org/protobuf/internal/encoding/json
 google.golang.org/protobuf/internal/encoding/messageset
@@ -1477,6 +1478,7 @@ google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/dynamicpb
+google.golang.org/protobuf/types/gofeaturespb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
@@ -2049,6 +2051,7 @@ k8s.io/kubernetes/pkg/apis/admissionregistration/install
 k8s.io/kubernetes/pkg/apis/admissionregistration/v1
 k8s.io/kubernetes/pkg/apis/admissionregistration/v1alpha1
 k8s.io/kubernetes/pkg/apis/admissionregistration/v1beta1
+k8s.io/kubernetes/pkg/apis/apiserverinternal
 k8s.io/kubernetes/pkg/apis/apps
 k8s.io/kubernetes/pkg/apis/apps/install
 k8s.io/kubernetes/pkg/apis/apps/v1
@@ -2082,6 +2085,7 @@ k8s.io/kubernetes/pkg/apis/coordination/install
 k8s.io/kubernetes/pkg/apis/coordination/v1
 k8s.io/kubernetes/pkg/apis/coordination/v1beta1
 k8s.io/kubernetes/pkg/apis/core
+k8s.io/kubernetes/pkg/apis/core/helper
 k8s.io/kubernetes/pkg/apis/core/install
 k8s.io/kubernetes/pkg/apis/core/v1
 k8s.io/kubernetes/pkg/apis/discovery
@@ -2097,6 +2101,7 @@ k8s.io/kubernetes/pkg/apis/extensions/install
 k8s.io/kubernetes/pkg/apis/extensions/v1beta1
 k8s.io/kubernetes/pkg/apis/flowcontrol
 k8s.io/kubernetes/pkg/apis/flowcontrol/install
+k8s.io/kubernetes/pkg/apis/flowcontrol/util
 k8s.io/kubernetes/pkg/apis/flowcontrol/v1alpha1
 k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta1
 k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta2
@@ -2123,6 +2128,9 @@ k8s.io/kubernetes/pkg/apis/rbac/install
 k8s.io/kubernetes/pkg/apis/rbac/v1
 k8s.io/kubernetes/pkg/apis/rbac/v1alpha1
 k8s.io/kubernetes/pkg/apis/rbac/v1beta1
+k8s.io/kubernetes/pkg/apis/resource
+k8s.io/kubernetes/pkg/apis/resource/install
+k8s.io/kubernetes/pkg/apis/resource/v1alpha1
 k8s.io/kubernetes/pkg/apis/scheduling
 k8s.io/kubernetes/pkg/apis/scheduling/install
 k8s.io/kubernetes/pkg/apis/scheduling/v1
@@ -2130,10 +2138,14 @@ k8s.io/kubernetes/pkg/apis/scheduling/v1alpha1
 k8s.io/kubernetes/pkg/apis/scheduling/v1beta1
 k8s.io/kubernetes/pkg/apis/storage
 k8s.io/kubernetes/pkg/apis/storage/install
+k8s.io/kubernetes/pkg/apis/storage/util
 k8s.io/kubernetes/pkg/apis/storage/v1
 k8s.io/kubernetes/pkg/apis/storage/v1alpha1
 k8s.io/kubernetes/pkg/apis/storage/v1beta1
 k8s.io/kubernetes/pkg/features
+k8s.io/kubernetes/pkg/printers
+k8s.io/kubernetes/pkg/printers/internalversion
+k8s.io/kubernetes/pkg/util/node
 k8s.io/kubernetes/pkg/util/parsers
 # k8s.io/metrics v0.26.4 => k8s.io/metrics v0.24.2
 ## explicit; go 1.16
@@ -2317,3 +2329,5 @@ xorm.io/xorm/tags
 # k8s.io/mount-utils => k8s.io/mount-utils v0.24.2
 # k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 # k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
+# github.com/devtron-labs/common-lib-private => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib-private
+# github.com/devtron-labs/common-lib => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib
