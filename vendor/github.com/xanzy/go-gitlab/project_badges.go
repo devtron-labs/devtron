@@ -76,7 +76,7 @@ func (s *ProjectBadgesService) ListProjectBadges(pid interface{}, opt *ListProje
 		return nil, resp, err
 	}
 
-	return pb, resp, err
+	return pb, resp, nil
 }
 
 // GetProjectBadge gets a project badge.
@@ -101,7 +101,7 @@ func (s *ProjectBadgesService) GetProjectBadge(pid interface{}, badge int, optio
 		return nil, resp, err
 	}
 
-	return pb, resp, err
+	return pb, resp, nil
 }
 
 // AddProjectBadgeOptions represents the available AddProjectBadge() options.
@@ -136,7 +136,7 @@ func (s *ProjectBadgesService) AddProjectBadge(pid interface{}, opt *AddProjectB
 		return nil, resp, err
 	}
 
-	return pb, resp, err
+	return pb, resp, nil
 }
 
 // EditProjectBadgeOptions represents the available EditProjectBadge() options.
@@ -171,7 +171,7 @@ func (s *ProjectBadgesService) EditProjectBadge(pid interface{}, badge int, opt 
 		return nil, resp, err
 	}
 
-	return pb, resp, err
+	return pb, resp, nil
 }
 
 // DeleteProjectBadge removes a badge from a project. Only project's
@@ -226,5 +226,5 @@ func (s *ProjectBadgesService) PreviewProjectBadge(pid interface{}, opt *Project
 		return nil, resp, err
 	}
 
-	return pb, resp, err
+	return pb, resp, nil
 }

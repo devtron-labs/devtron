@@ -83,10 +83,26 @@ WebHook request
   }
 ```
 
+# Customizing signing behavior
+
+Users can customize signing behavior by passing in a
+[Signer](https://pkg.go.dev/github.com/bradleyfalzon/ghinstallation/v2#Signer)
+implementation when creating an
+[AppsTransport](https://pkg.go.dev/github.com/bradleyfalzon/ghinstallation/v2#AppsTransport).
+For example, this can be used to create tokens backed by keys in a KMS system.
+
+```go
+signer := &myCustomSigner{
+  key: "https://url/to/key/vault",
+}
+atr := NewAppsTransportWithOptions(http.DefaultTransport, 1, WithSigner(signer))
+tr := NewFromAppsTransport(atr, 99)
+```
+
 # License
 
 [Apache 2.0](LICENSE)
 
 # Dependencies
 
--   [github.com/golang-jwt/jwt-go](https://github.com/golang-jwt/jwt-go)
+- [github.com/golang-jwt/jwt-go](https://github.com/golang-jwt/jwt-go)

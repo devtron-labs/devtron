@@ -61,7 +61,7 @@ func (s *EpicIssuesService) ListEpicIssues(gid interface{}, epic int, opt *ListO
 		return nil, resp, err
 	}
 
-	return is, resp, err
+	return is, resp, nil
 }
 
 // AssignEpicIssue assigns an existing issue to an epic.
@@ -86,7 +86,7 @@ func (s *EpicIssuesService) AssignEpicIssue(gid interface{}, epic, issue int, op
 		return nil, resp, err
 	}
 
-	return a, resp, err
+	return a, resp, nil
 }
 
 // RemoveEpicIssue removes an issue from an epic.
@@ -111,7 +111,7 @@ func (s *EpicIssuesService) RemoveEpicIssue(gid interface{}, epic, epicIssue int
 		return nil, resp, err
 	}
 
-	return a, resp, err
+	return a, resp, nil
 }
 
 // UpdateEpicIsssueAssignmentOptions describes the UpdateEpicIssueAssignment()
@@ -148,5 +148,5 @@ func (s *EpicIssuesService) UpdateEpicIssueAssignment(gid interface{}, epic, epi
 		return nil, resp, err
 	}
 
-	return is, resp, err
+	return is, resp, nil
 }

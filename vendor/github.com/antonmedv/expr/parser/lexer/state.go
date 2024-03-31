@@ -25,15 +25,14 @@ func root(l *lexer) stateFn {
 		l.backup()
 		return number
 	case r == '?':
-		if l.peek() == '.' {
-			return nilsafe
-		}
-		l.emit(Operator)
+		return questionMark
+	case r == '/':
+		return slash
 	case strings.ContainsRune("([{", r):
 		l.emit(Bracket)
 	case strings.ContainsRune(")]}", r):
 		l.emit(Bracket)
-	case strings.ContainsRune("#,?:%+-/", r): // single rune operator
+	case strings.ContainsRune("#,:%+-^", r): // single rune operator
 		l.emit(Operator)
 	case strings.ContainsRune("&|!=*<>", r): // possible double rune operator
 		l.accept("&|=*")
@@ -107,13 +106,6 @@ func dot(l *lexer) stateFn {
 	return root
 }
 
-func nilsafe(l *lexer) stateFn {
-	l.next()
-	l.accept("?.")
-	l.emit(Operator)
-	return root
-}
-
 func identifier(l *lexer) stateFn {
 loop:
 	for {
@@ -137,12 +129,70 @@ loop:
 }
 
 func not(l *lexer) stateFn {
-	switch l.acceptWord("in") {
-	case true:
-		l.emitValue(Operator, "not in")
-	case false:
-		l.emitValue(Operator, "not")
+	l.emit(Operator)
+
+	l.skipSpaces()
+
+	pos, loc, prev := l.end, l.loc, l.prev
+
+	// Get the next word.
+	for {
+		r := l.next()
+		if IsAlphaNumeric(r) {
+			// absorb
+		} else {
+			l.backup()
+			break
+		}
 	}
 
+	switch l.word() {
+	case "in", "matches", "contains", "startsWith", "endsWith":
+		l.emit(Operator)
+	default:
+		l.end, l.loc, l.prev = pos, loc, prev
+	}
+	return root
+}
+
+func questionMark(l *lexer) stateFn {
+	l.accept(".?")
+	l.emit(Operator)
+	return root
+}
+
+func slash(l *lexer) stateFn {
+	if l.accept("/") {
+		return singleLineComment
+	}
+	if l.accept("*") {
+		return multiLineComment
+	}
+	l.emit(Operator)
+	return root
+}
+
+func singleLineComment(l *lexer) stateFn {
+	for {
+		r := l.next()
+		if r == eof || r == '\n' {
+			break
+		}
+	}
+	l.ignore()
+	return root
+}
+
+func multiLineComment(l *lexer) stateFn {
+	for {
+		r := l.next()
+		if r == eof {
+			return l.error("unclosed comment")
+		}
+		if r == '*' && l.accept("/") {
+			break
+		}
+	}
+	l.ignore()
 	return root
 }

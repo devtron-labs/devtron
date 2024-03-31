@@ -46,7 +46,7 @@ func (p *Pipelines) List(po *PipelinesOptions) (interface{}, error) {
 		urlStr = parsed.String()
 	}
 
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *Pipelines) Get(po *PipelinesOptions) (interface{}, error) {
@@ -90,7 +90,7 @@ func (p *Pipelines) ListSteps(po *PipelinesOptions) (interface{}, error) {
 		urlStr = parsed.String()
 	}
 
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *Pipelines) GetStep(po *PipelinesOptions) (interface{}, error) {

@@ -60,7 +60,7 @@ func (s *ManagedLicensesService) ListManagedLicenses(pid interface{}, options ..
 		return nil, resp, err
 	}
 
-	return mls, resp, err
+	return mls, resp, nil
 }
 
 // GetManagedLicense returns an existing managed license.
@@ -89,7 +89,7 @@ func (s *ManagedLicensesService) GetManagedLicense(pid, mlid interface{}, option
 		return nil, resp, err
 	}
 
-	return ml, resp, err
+	return ml, resp, nil
 }
 
 // AddManagedLicenseOptions represents the available AddManagedLicense() options.
@@ -123,7 +123,7 @@ func (s *ManagedLicensesService) AddManagedLicense(pid interface{}, opt *AddMana
 		return nil, resp, err
 	}
 
-	return ml, resp, err
+	return ml, resp, nil
 }
 
 // DeleteManagedLicense deletes a managed license with a given ID.
@@ -184,5 +184,5 @@ func (s *ManagedLicensesService) EditManagedLicense(pid, mlid interface{}, opt *
 		return nil, resp, err
 	}
 
-	return ml, resp, err
+	return ml, resp, nil
 }

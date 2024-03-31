@@ -33,10 +33,11 @@ type GroupWikisService struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/group_wikis.html
 type GroupWiki struct {
-	Content string          `json:"content"`
-	Format  WikiFormatValue `json:"format"`
-	Slug    string          `json:"slug"`
-	Title   string          `json:"title"`
+	Content  string          `json:"content"`
+	Encoding string          `json:"encoding"`
+	Format   WikiFormatValue `json:"format"`
+	Slug     string          `json:"slug"`
+	Title    string          `json:"title"`
 }
 
 func (w GroupWiki) String() string {
@@ -74,21 +75,30 @@ func (s *GroupWikisService) ListGroupWikis(gid interface{}, opt *ListGroupWikisO
 		return nil, resp, err
 	}
 
-	return gws, resp, err
+	return gws, resp, nil
+}
+
+// GetGroupWikiPageOptions represents options to GetGroupWikiPage
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/group_wikis.html#get-a-wiki-page
+type GetGroupWikiPageOptions struct {
+	RenderHTML *bool   `url:"render_html,omitempty" json:"render_html,omitempty"`
+	Version    *string `url:"version,omitempty" json:"version,omitempty"`
 }
 
 // GetGroupWikiPage gets a wiki page for a given group.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/group_wikis.html#get-a-wiki-page
-func (s *GroupWikisService) GetGroupWikiPage(gid interface{}, slug string, options ...RequestOptionFunc) (*GroupWiki, *Response, error) {
+func (s *GroupWikisService) GetGroupWikiPage(gid interface{}, slug string, opt *GetGroupWikiPageOptions, options ...RequestOptionFunc) (*GroupWiki, *Response, error) {
 	group, err := parseID(gid)
 	if err != nil {
 		return nil, nil, err
 	}
 	u := fmt.Sprintf("groups/%s/wikis/%s", PathEscape(group), url.PathEscape(slug))
 
-	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -99,7 +109,7 @@ func (s *GroupWikisService) GetGroupWikiPage(gid interface{}, slug string, optio
 		return nil, resp, err
 	}
 
-	return gw, resp, err
+	return gw, resp, nil
 }
 
 // CreateGroupWikiPageOptions represents options to CreateGroupWikiPage.
@@ -116,7 +126,7 @@ type CreateGroupWikiPageOptions struct {
 // the given title, slug, and content.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/13.8/ee/api/group_wikis.html#create-a-new-wiki-page
+// https://docs.gitlab.com/ee/api/group_wikis.html#create-a-new-wiki-page
 func (s *GroupWikisService) CreateGroupWikiPage(gid interface{}, opt *CreateGroupWikiPageOptions, options ...RequestOptionFunc) (*GroupWiki, *Response, error) {
 	group, err := parseID(gid)
 	if err != nil {
@@ -135,7 +145,7 @@ func (s *GroupWikisService) CreateGroupWikiPage(gid interface{}, opt *CreateGrou
 		return nil, resp, err
 	}
 
-	return w, resp, err
+	return w, resp, nil
 }
 
 // EditGroupWikiPageOptions represents options to EditGroupWikiPage.
@@ -171,7 +181,7 @@ func (s *GroupWikisService) EditGroupWikiPage(gid interface{}, slug string, opt 
 		return nil, resp, err
 	}
 
-	return w, resp, err
+	return w, resp, nil
 }
 
 // DeleteGroupWikiPage deletes a wiki page with a given slug.

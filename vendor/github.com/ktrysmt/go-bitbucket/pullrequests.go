@@ -65,7 +65,7 @@ func (p *PullRequests) Gets(po *PullRequestsOptions) (interface{}, error) {
 		urlStr = parsed.String()
 	}
 
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *PullRequests) Get(po *PullRequestsOptions) (interface{}, error) {
@@ -75,7 +75,7 @@ func (p *PullRequests) Get(po *PullRequestsOptions) (interface{}, error) {
 
 func (p *PullRequests) Activities(po *PullRequestsOptions) (interface{}, error) {
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/activity"
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *PullRequests) Activity(po *PullRequestsOptions) (interface{}, error) {
@@ -85,7 +85,7 @@ func (p *PullRequests) Activity(po *PullRequestsOptions) (interface{}, error) {
 
 func (p *PullRequests) Commits(po *PullRequestsOptions) (interface{}, error) {
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID + "/commits"
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *PullRequests) Patch(po *PullRequestsOptions) (interface{}, error) {
@@ -158,7 +158,7 @@ func (p *PullRequests) UpdateComment(co *PullRequestCommentOptions) (interface{}
 
 func (p *PullRequests) GetComments(po *PullRequestsOptions) (interface{}, error) {
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID + "/comments/"
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *PullRequests) GetComment(po *PullRequestsOptions) (interface{}, error) {
@@ -189,7 +189,7 @@ func (p *PullRequests) Statuses(po *PullRequestsOptions) (interface{}, error) {
 		parsed.RawQuery = query.Encode()
 		urlStr = parsed.String()
 	}
-	return p.c.executePaginated("GET", urlStr, "")
+	return p.c.executePaginated("GET", urlStr, "", nil)
 }
 
 func (p *PullRequests) buildPullRequestBody(po *PullRequestsOptions) (string, error) {

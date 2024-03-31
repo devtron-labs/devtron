@@ -12,12 +12,11 @@ const (
 	InitContainerName = "init"
 	WaitContainerName = "wait"
 
+	// DockerSockVolumeName is the volume name for the /var/run/docker.sock host path volume
+	DockerSockVolumeName = "docker-sock"
+
 	// AnnotationKeyDefaultContainer is the annotation that specify container that will be used by default in case of kubectl commands for example
 	AnnotationKeyDefaultContainer = "kubectl.kubernetes.io/default-container"
-
-	// AnnotationKeyServiceAccountTokenName is used to name the secret that containers the service account token name.
-	// It is intentially named similar to ` `kubernetes.io/service-account.name`.
-	AnnotationKeyServiceAccountTokenName = workflow.WorkflowFullName + "/service-account-token.name"
 
 	// AnnotationKeyNodeID is the ID of the node.
 	// Historically, the pod name was the same as the node ID.
@@ -25,10 +24,8 @@ const (
 	AnnotationKeyNodeID = workflow.WorkflowFullName + "/node-id"
 	// AnnotationKeyNodeName is the pod metadata annotation key containing the workflow node name
 	AnnotationKeyNodeName = workflow.WorkflowFullName + "/node-name"
-	// AnnotationKeyNodeType is the node's type
+	// AnnotationKeyNodeName is the node's type
 	AnnotationKeyNodeType = workflow.WorkflowFullName + "/node-type"
-	// AnnotationKeyNodeStartTime is the node's start timestamp.
-	AnnotationKeyNodeStartTime = workflow.WorkflowFullName + "/node-start-time"
 
 	// AnnotationKeyRBACRule is a rule to match the claims
 	AnnotationKeyRBACRule           = workflow.WorkflowFullName + "/rbac-rule"
@@ -50,10 +47,6 @@ const (
 
 	// AnnotationKeyProgress is N/M progress for the node
 	AnnotationKeyProgress = workflow.WorkflowFullName + "/progress"
-
-	// AnnotationKeyArtifactGCStrategy is listed as an annotation on the Artifact GC Pod to identify
-	// the strategy whose artifacts are being deleted
-	AnnotationKeyArtifactGCStrategy = workflow.WorkflowFullName + "/artifact-gc-strategy"
 
 	// LabelKeyControllerInstanceID is the label the controller will carry forward to workflows/pod labels
 	// for the purposes of workflow segregation
@@ -91,8 +84,6 @@ const (
 	LabelKeyClusterWorkflowTemplate = workflow.WorkflowFullName + "/cluster-workflow-template"
 	// LabelKeyOnExit is a label applied to Pods that are run from onExit nodes, so that they are not shut down when stopping a Workflow
 	LabelKeyOnExit = workflow.WorkflowFullName + "/on-exit"
-	// LabelKeyArtifactGCPodHash is a label applied to WorkflowTaskSets used by the Artifact Garbage Collection Pod
-	LabelKeyArtifactGCPodHash = workflow.WorkflowFullName + "/artifact-gc-pod"
 
 	// ExecutorArtifactBaseDir is the base directory in the init container in which artifacts will be copied to.
 	// Each artifact will be named according to its input name (e.g: /argo/inputs/artifacts/CODE)
@@ -108,13 +99,11 @@ const (
 	ExecutorStagingEmptyDir = "/argo/staging"
 	// ExecutorScriptSourcePath is the path which init will write the script source file to for script templates
 	ExecutorScriptSourcePath = "/argo/staging/script"
-	// ExecutorResourceManifestPath is the path which init will write the manifest file to for resource templates
+	// ExecutorResourceManifestPath is the path which init will write the a manifest file to for resource templates
 	ExecutorResourceManifestPath = "/tmp/manifest.yaml"
 
 	// Various environment variables containing pod information exposed to the executor container(s)
 
-	// EnvVarArtifactGCPodHash is applied as a Label on the WorkflowTaskSets read by the Artifact GC Pod, so that the Pod can find them
-	EnvVarArtifactGCPodHash = "ARGO_ARTIFACT_POD_NAME"
 	// EnvVarPodName contains the name of the pod (currently unused)
 	EnvVarPodName = "ARGO_POD_NAME"
 	// EnvVarPodUID is the workflow's UID
@@ -123,8 +112,6 @@ const (
 	EnvVarInstanceID = "ARGO_INSTANCE_ID"
 	// EnvVarWorkflowName is the name of the workflow for which the an agent is responsible for
 	EnvVarWorkflowName = "ARGO_WORKFLOW_NAME"
-	// EnvVarWorkflowUID is the workflow UUID
-	EnvVarWorkflowUID = "ARGO_WORKFLOW_UID"
 	// EnvVarNodeID is the node ID of the node.
 	EnvVarNodeID = "ARGO_NODE_ID"
 	// EnvVarPluginAddresses is a list of plugin addresses
@@ -141,6 +128,14 @@ const (
 	EnvVarIncludeScriptOutput = "ARGO_INCLUDE_SCRIPT_OUTPUT"
 	// EnvVarTemplate is the template
 	EnvVarTemplate = "ARGO_TEMPLATE"
+	// EnvVarContainerRuntimeExecutor contains the name of the container runtime executor to use, empty is equal to "docker"
+	EnvVarContainerRuntimeExecutor = "ARGO_CONTAINER_RUNTIME_EXECUTOR"
+	// EnvVarDownwardAPINodeIP is the envvar used to get the `status.hostIP`
+	EnvVarDownwardAPINodeIP = "ARGO_KUBELET_HOST"
+	// EnvVarKubeletPort is used to configure the kubelet api port
+	EnvVarKubeletPort = "ARGO_KUBELET_PORT"
+	// EnvVarKubeletInsecure is used to disable the TLS verification
+	EnvVarKubeletInsecure = "ARGO_KUBELET_INSECURE"
 	// EnvVarArgoTrace is used enable tracing statements in Argo components
 	EnvVarArgoTrace = "ARGO_TRACE"
 	// EnvVarProgressPatchTickDuration sets the tick duration for patching pod annotations upon progress changes.
@@ -158,8 +153,17 @@ const (
 	// EnvAgentPatchRate is the rate that the Argo Agent will patch the Workflow TaskSet
 	EnvAgentPatchRate = "ARGO_AGENT_PATCH_RATE"
 
-	// Finalizer to block deletion of the workflow if deletion of artifacts fail for some reason.
-	FinalizerArtifactGC = workflow.WorkflowFullName + "/artifact-gc"
+	// ContainerRuntimeExecutorDocker to use docker as container runtime executor
+	ContainerRuntimeExecutorDocker = "docker"
+
+	// ContainerRuntimeExecutorKubelet to use the kubelet as container runtime executor
+	ContainerRuntimeExecutorKubelet = "kubelet"
+
+	// ContainerRuntimeExecutorPNS indicates to use process namespace sharing as the container runtime executor
+	ContainerRuntimeExecutorPNS = "pns"
+
+	// ContainerRuntimeExecutorEmissary indicates to use emissary container runtime executor
+	ContainerRuntimeExecutorEmissary = "emissary"
 
 	// Variables that are added to the scope during template execution and can be referenced using {{}} syntax
 
@@ -181,18 +185,12 @@ const (
 	GlobalVarWorkflowFailures = "workflow.failures"
 	// GlobalVarWorkflowDuration is the current duration of this workflow
 	GlobalVarWorkflowDuration = "workflow.duration"
-	// GlobalVarWorkflowAnnotations is a JSON string containing all workflow annotations - which will be deprecated in favor of GlobalVarWorkflowAnnotationsJSON
+	// GlobalVarWorkflowAnnotations is a JSON string containing all workflow annotations
 	GlobalVarWorkflowAnnotations = "workflow.annotations"
-	// GlobalVarWorkflowAnnotationsJSON is a JSON string containing all workflow annotations
-	GlobalVarWorkflowAnnotationsJSON = "workflow.annotations.json"
-	// GlobalVarWorkflowLabels is a JSON string containing all workflow labels - which will be deprecated in favor of GlobalVarWorkflowLabelsJSON
+	// GlobalVarWorkflowLabels is a JSON string containing all workflow labels
 	GlobalVarWorkflowLabels = "workflow.labels"
-	// GlobalVarWorkflowLabelsJSON is a JSON string containing all workflow labels
-	GlobalVarWorkflowLabelsJSON = "workflow.labels.json"
-	// GlobalVarWorkflowParameters is a JSON string containing all workflow parameters - which will be deprecated in favor of GlobalVarWorkflowParametersJSON
+	// GlobalVarWorkflowParameters is a JSON string containing all workflow parameters
 	GlobalVarWorkflowParameters = "workflow.parameters"
-	// GlobalVarWorkflowParametersJSON is a JSON string containing all workflow parameters
-	GlobalVarWorkflowParametersJSON = "workflow.parameters.json"
 	// GlobalVarWorkflowCronScheduleTime is the scheduled timestamp of a Workflow started by a CronWorkflow
 	GlobalVarWorkflowCronScheduleTime = "workflow.scheduledTime"
 
@@ -242,8 +240,6 @@ const (
 
 	// ErrDeadlineExceeded is the pod status reason when exceed deadline
 	ErrDeadlineExceeded = "DeadlineExceeded"
-
-	ConfigMapName = "workflow-controller-configmap"
 )
 
 // AnnotationKeyKillCmd specifies the command to use to kill to container, useful for injected sidecars

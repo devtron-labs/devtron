@@ -8,11 +8,10 @@ import (
 
 type inArray struct{}
 
-func (*inArray) Enter(*Node) {}
-func (*inArray) Exit(node *Node) {
+func (*inArray) Visit(node *Node) {
 	switch n := (*node).(type) {
 	case *BinaryNode:
-		if n.Operator == "in" || n.Operator == "not in" {
+		if n.Operator == "in" {
 			if array, ok := n.Right.(*ArrayNode); ok {
 				if len(array.Nodes) > 0 {
 					t := n.Left.Type()

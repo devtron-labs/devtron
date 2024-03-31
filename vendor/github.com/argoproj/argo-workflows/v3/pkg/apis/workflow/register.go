@@ -33,9 +33,4 @@ const (
 	WorkflowTaskSetShortName         string = "wfts"
 	WorkflowTaskSetFullName          string = WorkflowTaskSetPlural + "." + Group
 	WorkflowTaskResultKind           string = "WorkflowTaskResult"
-	WorkflowArtifactGCTaskKind       string = "WorkflowArtifactGCTask"
-	WorkflowArtifactGCTaskSingular   string = "workflowartifactgctask"
-	WorkflowArtifactGCTaskPlural     string = "workflowartifactgctasks"
-	WorkflowArtifactGCTaskShortName  string = "wfat"
-	WorkflowArtifactGCTaskFullName   string = WorkflowArtifactGCTaskPlural + "." + Group
 )
