@@ -167,19 +167,17 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppTyp
 			Type:        "cd",
 		},
 	}
-	var globalVariable *GlobalVariable
+	globalVariable := &GlobalVariable{
+		Name:        "APP_NAME",
+		Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+		Description: "Name of the app this pipeline resides in.",
+		Type:        "ci",
+	}
 	if appType == helper.Job {
 		globalVariable = &GlobalVariable{
 			Name:        "JOB_NAME",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Name of the Job this pipeline resides in.",
-			Type:        "ci",
-		}
-	} else {
-		globalVariable = &GlobalVariable{
-			Name:        "APP_NAME",
-			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Name of the app this pipeline resides in.",
 			Type:        "ci",
 		}
 	}
