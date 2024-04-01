@@ -68,7 +68,7 @@ func canFieldTypeBeNil(field reflect.Value) bool {
 
 func canSkipFieldStructCheck(fieldName string) bool {
 	fieldName = strings.ToLower(fieldName)
-	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
+	for _, str := range []string{"logger", "dbconnection", "syncedenforcer", "client"} {
 		if fieldName == str {
 			return true
 		}
