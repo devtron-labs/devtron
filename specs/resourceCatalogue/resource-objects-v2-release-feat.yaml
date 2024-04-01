@@ -92,9 +92,7 @@ paths:
                     type: string
                     description: status
                   result:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/DevtronResourceObjectDto'
+                    $ref: '#/components/schemas/DevtronResourceObjectDto'
     put:
       description: patch, create, delete resource object
       parameters:
