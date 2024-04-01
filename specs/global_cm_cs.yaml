@@ -60,6 +60,13 @@ components:
           type: object
           additionalProperties:
             type: string
+        secretIngestionFor:
+          type: string
+          description: field for defining at where this config is to be ingested. If not set, "CI/CD" will be used as default.
+          enum:
+            - "CI"
+            - "CD"
+            - "CI/CD"
     Error:
       required:
         - code
