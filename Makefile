@@ -39,10 +39,13 @@ test-all: test-unit
 test-unit:
 	go test ./pkg/pipeline
 
-test-integration:
+test-integration: make-binary-file-for-nil-check
 	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$TEST_BRANCH --env LATEST_HASH=$LATEST_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
 	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
 	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
+
+make-binary-file-for-nil-check:
+	./runTimeMainScript.sh
 
 run: build
 	./devtron
