@@ -26,6 +26,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -1254,9 +1255,9 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", totalCount, err
 			}
 		} else {
-			if listingFilterOpts.ParentStageType == WorklowTypePre {
+			if listingFilterOpts.ParentStageType == pipelineBean.WorkflowTypePre {
 				listingFilterOpts.PluginStage = repository.PRE_CD
-			} else if listingFilterOpts.ParentStageType == WorklowTypePost {
+			} else if listingFilterOpts.ParentStageType == pipelineBean.WorkflowTypePost {
 				listingFilterOpts.PluginStage = repository.POST_CD
 			}
 			// if parent pipeline is PRE_CD/POST_CD/CD, then compute ciArtifacts using listingFilterOpts

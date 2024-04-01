@@ -18,6 +18,7 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
@@ -48,20 +49,20 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	newEnvConfigOverrideRepository := chartConfig.NewEnvConfigOverrideRepository(dbConnection)
 	newConfigMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(logger, dbConnection)
 	newChartRepository := chartRepoRepository.NewChartRepository(dbConnection)
-	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
+	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, nil, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
 	mergeUtil := util.MergeUtil{Logger: logger}
-	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, nil, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, "", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	runTimeConfig, _ := client.GetRuntimeConfig()
-	k8sUtil := k8s.NewK8sUtil(logger, runTimeConfig)
+	k8sUtil := k8s.NewK8sUtilExtended(logger, runTimeConfig, nil)
 	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(dbConnection, logger)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(logger, v, runTimeConfig, k8sUtil)
-	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService)
+	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil, nil, nil)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, nil, nil, clusterService, nil)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
-	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl)
+	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil, nil, nil)
 	return workflowServiceImpl
 }
 func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
@@ -153,13 +154,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -191,7 +192,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -289,13 +290,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -327,7 +328,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -468,7 +469,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "job/f1851uikJ",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,
@@ -495,7 +496,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -665,7 +666,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &bean2.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,
@@ -724,7 +725,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object

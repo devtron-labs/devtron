@@ -30,6 +30,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	CiPipeline2 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	constants1 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
@@ -158,9 +159,9 @@ type CiPipeline struct {
 }
 
 type DockerConfigOverride struct {
-	DockerRegistry   string                  `json:"dockerRegistry,omitempty"`
-	DockerRepository string                  `json:"dockerRepository,omitempty"`
-	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
+	DockerRegistry   string                         `json:"dockerRegistry,omitempty"`
+	DockerRepository string                         `json:"dockerRepository,omitempty"`
+	CiBuildConfig    *CiPipeline2.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
 	// DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
@@ -384,7 +385,7 @@ type CiConfigRequest struct {
 	AppId              int                             `json:"appId,omitempty" validate:"required,number"`
 	DockerRegistry     string                          `json:"dockerRegistry,omitempty" `  // repo id example ecr mapped one-one with gocd registry entry
 	DockerRepository   string                          `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	CiBuildConfig      *bean.CiBuildConfigBean         `json:"ciBuildConfig"`
+	CiBuildConfig      *CiPipeline2.CiBuildConfigBean  `json:"ciBuildConfig"`
 	CiPipelines        []*CiPipeline                   `json:"ciPipelines,omitempty" validate:"dive"` // a pipeline will be built for each ciMaterial
 	AppName            string                          `json:"appName,omitempty"`
 	Version            string                          `json:"version,omitempty"` // gocd etag used for edit purpose
@@ -773,26 +774,9 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType = string
-
-const (
-	Helm             DeploymentType = "helm"
-	ArgoCd           DeploymentType = "argo_cd"
-	ManifestDownload DeploymentType = "manifest_download"
-	ManifestPush     DeploymentType = "manifest_push"
-)
-
 const (
 	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
-}
 
 type Status string
 

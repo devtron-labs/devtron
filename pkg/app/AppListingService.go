@@ -22,7 +22,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"net/http"
 	"strconv"
 	"strings"
@@ -72,7 +72,7 @@ type AppListingService interface {
 	GetReleaseCount(appId, envId int) (int, error)
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) (*OverviewAppsByEnvironmentBean, error)
 }
 
 const (
@@ -99,6 +99,10 @@ type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
 	Type    string `json:"type"`
 	AppId   int    `json:"appId"`
+}
+type CiArtifactWithParentArtifact struct {
+	ParentCiArtifact int
+	CiArtifactId     int
 }
 
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
@@ -144,6 +148,7 @@ type AppListingServiceImpl struct {
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
+	ciArtifactRepository           repository.CiArtifactRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -154,7 +159,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *AppListingServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -173,6 +178,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 		userRepository:                 userRepository,
 		deployedAppMetricsService:      deployedAppMetricsService,
+		ciArtifactRepository:           ciArtifactRepository,
 	}
 	return serviceImpl
 }
@@ -199,7 +205,7 @@ const (
 	NonProduction = "Non-Production"
 )
 
-func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
+func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
@@ -230,24 +236,59 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
 		}
 	}
-	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset, ctx)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
 	}
+
+	artifactIds := make([]int, 0)
 	for _, envContainer := range envContainers {
 		lastDeployed, err := impl.appListingRepository.FetchLastDeployedImage(envContainer.AppId, envId)
 		if err != nil {
 			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
+
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
 			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
+			envContainer.CiArtifactId = lastDeployed.CiArtifactId
+			artifactIds = append(artifactIds, lastDeployed.CiArtifactId)
+		}
+	}
+	uniqueArtifacts := getUniqueArtifacts(artifactIds)
+
+	artifactWithGitCommit, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch Artifacts to git Triggers ", "envId", envId, "err", err)
+		return resp, err
+	}
+	for _, envContainer := range envContainers {
+		envContainer.Commits = []string{}
+		if envContainer.CiArtifactId > 0 {
+			if commits, ok := artifactWithGitCommit[envContainer.CiArtifactId]; ok && commits != nil {
+				envContainer.Commits = commits
+			}
 		}
 	}
 	resp.Apps = envContainers
 	return resp, err
+}
+
+func getUniqueArtifacts(artifactIds []int) (uniqueArtifactIds []int) {
+	uniqueArtifactIds = make([]int, 0)
+
+	uniqueArtifactMap := make(map[int]bool)
+
+	for _, artifactId := range artifactIds {
+		if ok := uniqueArtifactMap[artifactId]; !ok {
+			uniqueArtifactIds = append(uniqueArtifactIds, artifactId)
+			uniqueArtifactMap[artifactId] = true
+		}
+	}
+
+	return uniqueArtifactIds
 }
 
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
@@ -750,7 +791,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(pipelineConfigBean.LINKED_CD) {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
@@ -776,6 +817,49 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([
 	return appStageStatuses, err
 }
 
+func (impl AppListingServiceImpl) generateArtifactIDCommitMap(artifactIds []int) (ciArtifactAndGitCommitsMap map[int][]string, err error) {
+
+	if len(artifactIds) == 0 {
+		impl.Logger.Errorw("error in getting the ArtifactIds", "ArtifactIds", artifactIds, "err", err)
+		return make(map[int][]string), err
+	}
+
+	artifacts, err := impl.ciArtifactRepository.GetByIds(artifactIds)
+	if err != nil {
+		return make(map[int][]string), err
+	}
+
+	ciArtifactAndGitCommitsMap = make(map[int][]string)
+	ciArtifactWithModificationMap := make(map[int][]repository.Modification)
+
+	for _, artifact := range artifacts {
+		materialInfo, err := repository.GetCiMaterialInfo(artifact.MaterialInfo, artifact.DataSource)
+		if err != nil {
+			impl.Logger.Errorw("error in getting the MaterialInfo", "ArtifactId", artifact.Id, "err", err)
+			return make(map[int][]string), err
+		}
+		if len(materialInfo) == 0 {
+			continue
+		}
+		for _, material := range materialInfo {
+			ciArtifactWithModificationMap[artifact.Id] = append(ciArtifactWithModificationMap[artifact.Id], material.Modifications...)
+		}
+	}
+
+	for artifactId, modifications := range ciArtifactWithModificationMap {
+
+		gitCommits := make([]string, 0)
+
+		for _, modification := range modifications {
+			gitCommits = append(gitCommits, modification.Revision)
+		}
+
+		ciArtifactAndGitCommitsMap[artifactId] = gitCommits
+	}
+
+	return ciArtifactAndGitCommitsMap, nil
+}
+
 func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
 	newCtx, span := otel.Tracer("appListingRepository").Start(ctx, "FetchOtherEnvironment")
 	envs, err := impl.appListingRepository.FetchOtherEnvironment(appId)
@@ -799,6 +883,19 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("error in fetching latest chart", "err", err)
 		return envs, err
 	}
+
+	ciArtifacts := make([]int, 0)
+	for _, env := range envs {
+		ciArtifacts = append(ciArtifacts, env.CiArtifactId)
+	}
+
+	uniqueArtifacts := getUniqueArtifacts(ciArtifacts)
+
+	gitCommitsWithArtifacts, err := impl.generateArtifactIDCommitMap(uniqueArtifacts)
+	if err != nil {
+		impl.Logger.Errorw("Error in fetching the git commits of the ciArtifacts", "err", err, "ciArtifacts", ciArtifacts)
+		return envs, err
+	}
 	for _, env := range envs {
 		newCtx, span = otel.Tracer("envOverrideRepository").Start(newCtx, "FindLatestChartForAppByAppIdAndEnvId")
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
@@ -815,7 +912,13 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
+
+		if _, ok := gitCommitsWithArtifacts[env.CiArtifactId]; ok {
+			env.Commits = gitCommitsWithArtifacts[env.CiArtifactId]
+		} else {
+			env.Commits = make([]string, 0)
+		}
+		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
 	}
 	return envs, nil
 }

@@ -1,4 +1,4 @@
-package bean
+package CiPipeline
 
 type CiBuildType string
 

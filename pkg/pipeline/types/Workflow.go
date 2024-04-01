@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -91,7 +92,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean.RefPluginObject           `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	CiBuildConfig              *bean.CiBuildConfigBean           `json:"ciBuildConfig"`
+	CiBuildConfig              *CiPipeline.CiBuildConfigBean     `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
@@ -213,8 +214,10 @@ func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]b
 
 func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+	case bean.CI_WORKFLOW_PIPELINE_TYPE:
 		return bean.CiStage
+	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return bean.JobStage
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CdStage
 	default:
@@ -224,10 +227,21 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: //TODO: separate job as did in eventType, will need changes in wf template for this
 		return bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CD_WORKFLOW_NAME
+	default:
+		return ""
+	}
+}
+
+func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return bean.CiStage //although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return bean.CdStage
 	default:
 		return ""
 	}

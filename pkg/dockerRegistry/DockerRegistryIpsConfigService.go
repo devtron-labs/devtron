@@ -23,14 +23,16 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -173,7 +175,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if ciPipeline.IsDockerConfigOverridden {
 			// set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
-			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(pipelineConfigBean.LINKED_CD) {
+			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
 			}
 			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)
@@ -271,6 +273,10 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		ipsData := BuildIpsData(registryURL, username, password, email)
 		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
+			if statusError, ok = err.(*k8sErrors.StatusError); ok {
+				errorCode := int(statusError.ErrStatus.Code)
+				err = &util2.ApiError{Code: strconv.Itoa(errorCode), HttpStatusCode: errorCode, UserMessage: statusError.Error(), InternalMessage: statusError.Error()}
+			}
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err
 		}

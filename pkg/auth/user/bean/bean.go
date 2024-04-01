@@ -36,6 +36,7 @@ const (
 	EntityJobs                                  = "jobs"
 	ArtifactPromoter                            = "artifactPromoter"
 	ConfigApprover                              = "configApprover"
+	EmptyStringIndicatingAll                    = ""
 )
 
 const (

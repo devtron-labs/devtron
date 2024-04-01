@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
@@ -32,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -118,6 +120,7 @@ type PipelineRepository interface {
 	FindById(id int) (pipeline *Pipeline, err error)
 	FindMetadataById(id int, includeDeleted bool) (pipeline *PipelineMetadata, err error)
 	FindMetadataByAppAndEnv(appId, envId int, envName string) (pipeline *PipelineMetadata, err error)
+	FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error)
 	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
@@ -167,6 +170,8 @@ type PipelineRepository interface {
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error)
 	FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error)
+	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
+	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -469,6 +474,17 @@ func (impl PipelineRepositoryImpl) FindMetadataByAppAndEnv(appId, envId int, env
 		Where("a.id = ? and ( e.id = ? or e.environment_name = ? )", appId, envId, envName).
 		Where("pipeline.deleted = false")
 	err = query.Select(pipeline)
+	return pipeline, err
+}
+
+func (impl PipelineRepositoryImpl) FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error) {
+	pipeline = &Pipeline{}
+	err = impl.dbConnection.
+		Model(pipeline).
+		Column("pipeline.*", "App", "Environment").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Where("pipeline.id = ?", id).
+		Select()
 	return pipeline, err
 }
 
@@ -900,6 +916,19 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("ci_pipeline_id = ? ", oldCiPipelineId).
 		Where("deleted = ?", false).Update()
 	return err
+}
+func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FindWithEnvironmentByCiIds")
+	defer span.End()
+	var cDPipelines []*Pipeline
+	err := impl.dbConnection.Model(&cDPipelines).
+		Column("pipeline.*", "Environment").
+		Where("ci_pipeline_id in (?)", pg.In(cIPipelineIds)).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return cDPipelines, nil
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error) {

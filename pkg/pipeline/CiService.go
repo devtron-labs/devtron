@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"net/http"
 	"path/filepath"
@@ -42,7 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -76,35 +76,33 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                        *zap.SugaredLogger
-	workflowService               WorkflowService
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	eventClient                   client.EventClient
-	eventFactory                  client.EventFactory
-	mergeUtil                     *util.MergeUtil
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
-	appCrudOperationService       app.AppCrudOperationService
-	globalPolicyService           globalPolicy.GlobalPolicyService
-	envRepository                 repository1.EnvironmentRepository
-	appRepository                 appRepository.AppRepository
-	customTagService              CustomTagService
-	config                        *types.CiConfig
-	scopedVariableManager         variables.ScopedVariableManager
-	pluginInputVariableParser     PluginInputVariableParser
-	globalPluginService           plugin.GlobalPluginService
-	infraProvider                 infraProviders.InfraProvider
+	Logger                       *zap.SugaredLogger
+	workflowService              WorkflowService
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	eventClient                  client.EventClient
+	eventFactory                 client.EventFactory
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	pipelineStageService         PipelineStageService
+	userService                  user.UserService
+	ciTemplateService            CiTemplateService
+	appCrudOperationService      app.AppCrudOperationService
+	globalPolicyService          globalPolicy.GlobalPolicyService
+	envRepository                repository1.EnvironmentRepository
+	appRepository                appRepository.AppRepository
+	customTagService             CustomTagService
+	config                       *types.CiConfig
+	scopedVariableManager        variables.ScopedVariableManager
+	pluginInputVariableParser    PluginInputVariableParser
+	globalPluginService          plugin.GlobalPluginService
+	infraProvider                infraProviders.InfraProvider
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
-	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	eventFactory client.EventFactory,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
 	ciTemplateService CiTemplateService,
@@ -119,27 +117,25 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	infraProvider infraProviders.InfraProvider,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
-		Logger:                        Logger,
-		workflowService:               workflowService,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		eventClient:                   eventClient,
-		eventFactory:                  eventFactory,
-		mergeUtil:                     mergeUtil,
-		ciPipelineRepository:          ciPipelineRepository,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		userService:                   userService,
-		ciTemplateService:             ciTemplateService,
-		appCrudOperationService:       appCrudOperationService,
-		globalPolicyService:           globalPolicyService,
-		envRepository:                 envRepository,
-		appRepository:                 appRepository,
-		scopedVariableManager:         scopedVariableManager,
-		customTagService:              customTagService,
-		pluginInputVariableParser:     pluginInputVariableParser,
-		globalPluginService:           globalPluginService,
-		infraProvider:                 infraProvider,
+		Logger:                       Logger,
+		workflowService:              workflowService,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		ciWorkflowRepository:         ciWorkflowRepository,
+		eventClient:                  eventClient,
+		eventFactory:                 eventFactory,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineStageService:         pipelineStageService,
+		userService:                  userService,
+		ciTemplateService:            ciTemplateService,
+		appCrudOperationService:      appCrudOperationService,
+		globalPolicyService:          globalPolicyService,
+		envRepository:                envRepository,
+		appRepository:                appRepository,
+		scopedVariableManager:        scopedVariableManager,
+		customTagService:             customTagService,
+		pluginInputVariableParser:    pluginInputVariableParser,
+		globalPluginService:          globalPluginService,
+		infraProvider:                infraProvider,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -575,7 +571,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
-	var ciBuildConfigBean *pipelineConfigBean.CiBuildConfigBean
+	var ciBuildConfigBean *CiPipeline.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
@@ -682,13 +678,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	ciBuildConfigBean.PipelineType = trigger.PipelineType
 
-	if ciBuildConfigBean.CiBuildType == pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == pipelineConfigBean.MANAGED_DOCKERFILE_BUILD_TYPE {
+	if ciBuildConfigBean.CiBuildType == CiPipeline.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
-	} else if ciBuildConfigBean.CiBuildType == pipelineConfigBean.BUILDPACK_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == CiPipeline.BUILDPACK_BUILD_TYPE {
 		buildPackConfig := ciBuildConfigBean.BuildPackConfig
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}

@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
@@ -133,46 +134,48 @@ type CdPipelineConfigService interface {
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
 	ExtractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (parentId int, parentType bean2.WorkflowType, parentCdId int, err error)
+	//DeleteHelmTypePipelineDeploymentApp : Deletes helm release for a pipeline with force flag
+	DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error
 }
 
 type CdPipelineConfigServiceImpl struct {
-	logger                           *zap.SugaredLogger
-	pipelineRepository               pipelineConfig.PipelineRepository
-	environmentRepository            repository2.EnvironmentRepository
-	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	pipelineStageService             PipelineStageService
-	appRepo                          app.AppRepository
-	appService                       app2.AppService
-	deploymentGroupRepository        repository.DeploymentGroupRepository
-	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
-	appStatusRepository              appStatus.AppStatusRepository
-	ciPipelineRepository             pipelineConfig.CiPipelineRepository
-	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
-	clusterRepository                repository2.ClusterRepository
-	helmAppService                   client.HelmAppService
-	enforcerUtil                     rbac.EnforcerUtil
-	pipelineStrategyHistoryService   history.PipelineStrategyHistoryService
-	chartRepository                  chartRepoRepository.ChartRepository
-	resourceGroupService             resourceGroup2.ResourceGroupService
-	propertiesConfigService          PropertiesConfigService
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	scopedVariableManager            variables.ScopedVariableManager
-	deploymentConfig                 *DeploymentServiceTypeConfig
-	application                      application.ServiceClient
-	manifestPushConfigRepository     repository5.ManifestPushConfigRepository
-	pipelineConfigListenerService    PipelineConfigListenerService
-	devtronAppCMCSService            DevtronAppCMCSService
-	customTagService                 CustomTagService
-	ciPipelineConfigService          CiPipelineConfigService
-	buildPipelineSwitchService       BuildPipelineSwitchService
-	devtronResourceService           devtronResource.DevtronResourceService
-	argoClientWrapperService         argocdServer.ArgoClientWrapperService
-	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
-	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOperationService              git.GitOperationService
-	chartService                     chart.ChartService
-	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
+	logger                            *zap.SugaredLogger
+	pipelineRepository                pipelineConfig.PipelineRepository
+	environmentRepository             repository2.EnvironmentRepository
+	pipelineConfigRepository          chartConfig.PipelineConfigRepository
+	appWorkflowRepository             appWorkflow.AppWorkflowRepository
+	pipelineStageService              PipelineStageService
+	appRepo                           app.AppRepository
+	appService                        app2.AppService
+	deploymentGroupRepository         repository.DeploymentGroupRepository
+	ciCdPipelineOrchestrator          CiCdPipelineOrchestrator
+	appStatusRepository               appStatus.AppStatusRepository
+	ciPipelineRepository              pipelineConfig.CiPipelineRepository
+	prePostCdScriptHistoryService     history.PrePostCdScriptHistoryService
+	clusterRepository                 repository2.ClusterRepository
+	helmAppService                    client.HelmAppService
+	enforcerUtil                      rbac.EnforcerUtil
+	pipelineStrategyHistoryService    history.PipelineStrategyHistoryService
+	chartRepository                   chartRepoRepository.ChartRepository
+	resourceGroupService              resourceGroup2.ResourceGroupService
+	propertiesConfigService           PropertiesConfigService
+	deploymentTemplateHistoryService  history.DeploymentTemplateHistoryService
+	scopedVariableManager             variables.ScopedVariableManager
+	deploymentConfig                  *DeploymentServiceTypeConfig
+	application                       application.ServiceClient
+	manifestPushConfigRepository      repository5.ManifestPushConfigRepository
+	devtronAppCMCSService             DevtronAppCMCSService
+	customTagService                  CustomTagService
+	ciPipelineConfigService           CiPipelineConfigService
+	buildPipelineSwitchService        BuildPipelineSwitchService
+	devtronResourceService            devtronResource.DevtronResourceService
+	argoClientWrapperService          argocdServer.ArgoClientWrapperService
+	deployedAppMetricsService         deployedAppMetrics.DeployedAppMetricsService
+	gitOpsConfigReadService           config.GitOpsConfigReadService
+	gitOperationService               git.GitOperationService
+	chartService                      chart.ChartService
+	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
+	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -200,7 +203,6 @@ func NewCdPipelineConfigServiceImpl(
 	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
-	pipelineConfigListenerService PipelineConfigListenerService,
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	customTagService CustomTagService,
 	devtronAppCMCSService DevtronAppCMCSService,
@@ -212,45 +214,46 @@ func NewCdPipelineConfigServiceImpl(
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService,
 	chartService chart.ChartService,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+	pipelineConfigEventPublishService out.PipelineConfigEventPublishService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
-		logger:                           logger,
-		pipelineRepository:               pipelineRepository,
-		environmentRepository:            environmentRepository,
-		pipelineConfigRepository:         pipelineConfigRepository,
-		appWorkflowRepository:            appWorkflowRepository,
-		pipelineStageService:             pipelineStageService,
-		appRepo:                          appRepo,
-		appService:                       appService,
-		deploymentGroupRepository:        deploymentGroupRepository,
-		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
-		appStatusRepository:              appStatusRepository,
-		ciPipelineRepository:             ciPipelineRepository,
-		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
-		clusterRepository:                clusterRepository,
-		helmAppService:                   helmAppService,
-		enforcerUtil:                     enforcerUtil,
-		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
-		chartRepository:                  chartRepository,
-		resourceGroupService:             resourceGroupService,
-		propertiesConfigService:          propertiesConfigService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		scopedVariableManager:            scopedVariableManager,
-		deploymentConfig:                 deploymentConfig,
-		application:                      application,
-		manifestPushConfigRepository:     manifestPushConfigRepository,
-		pipelineConfigListenerService:    pipelineConfigListenerService,
-		chartService:                     chartService,
-		devtronAppCMCSService:            devtronAppCMCSService,
-		ciPipelineConfigService:          ciPipelineConfigService,
-		customTagService:                 customTagService,
-		buildPipelineSwitchService:       buildPipelineSwitchService,
-		devtronResourceService:           devtronResourceService,
-		argoClientWrapperService:         argoClientWrapperService,
-		deployedAppMetricsService:        deployedAppMetricsService,
-		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOperationService:              gitOperationService,
-		imageDigestPolicyService:         imageDigestPolicyService,
+		logger:                            logger,
+		pipelineRepository:                pipelineRepository,
+		environmentRepository:             environmentRepository,
+		pipelineConfigRepository:          pipelineConfigRepository,
+		appWorkflowRepository:             appWorkflowRepository,
+		pipelineStageService:              pipelineStageService,
+		appRepo:                           appRepo,
+		appService:                        appService,
+		deploymentGroupRepository:         deploymentGroupRepository,
+		ciCdPipelineOrchestrator:          ciCdPipelineOrchestrator,
+		appStatusRepository:               appStatusRepository,
+		ciPipelineRepository:              ciPipelineRepository,
+		prePostCdScriptHistoryService:     prePostCdScriptHistoryService,
+		clusterRepository:                 clusterRepository,
+		helmAppService:                    helmAppService,
+		enforcerUtil:                      enforcerUtil,
+		pipelineStrategyHistoryService:    pipelineStrategyHistoryService,
+		chartRepository:                   chartRepository,
+		resourceGroupService:              resourceGroupService,
+		propertiesConfigService:           propertiesConfigService,
+		deploymentTemplateHistoryService:  deploymentTemplateHistoryService,
+		scopedVariableManager:             scopedVariableManager,
+		deploymentConfig:                  deploymentConfig,
+		application:                       application,
+		manifestPushConfigRepository:      manifestPushConfigRepository,
+		chartService:                      chartService,
+		devtronAppCMCSService:             devtronAppCMCSService,
+		ciPipelineConfigService:           ciPipelineConfigService,
+		customTagService:                  customTagService,
+		buildPipelineSwitchService:        buildPipelineSwitchService,
+		devtronResourceService:            devtronResourceService,
+		argoClientWrapperService:          argoClientWrapperService,
+		deployedAppMetricsService:         deployedAppMetricsService,
+		gitOpsConfigReadService:           gitOpsConfigReadService,
+		gitOperationService:               gitOperationService,
+		imageDigestPolicyService:          imageDigestPolicyService,
+		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
 	}
 }
 
@@ -975,22 +978,11 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
 		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
-			appIdentifier := &client.AppIdentifier{
-				ClusterId:   pipeline.Environment.ClusterId,
-				ReleaseName: deploymentAppName,
-				Namespace:   pipeline.Environment.Namespace,
-			}
-			deleteResourceResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-			if forceDelete || errors3.As(err, &models2.NamespaceNotExistError{}) {
-				impl.logger.Warnw("error while deletion of helm application, ignore error and delete from db since force delete req", "error", err, "pipelineId", pipeline.Id)
-			} else {
-				if err != nil {
-					impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
-					return deleteResponse, err
-				}
-				if deleteResourceResponse == nil || !deleteResourceResponse.GetSuccess() {
-					return deleteResponse, errors2.New("delete application response unsuccessful")
-				}
+			err = impl.DeleteHelmTypePipelineDeploymentApp(ctx, forceDelete, pipeline)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "err", err, "pipelineId", pipeline.Id)
+				return deleteResponse, err
+
 			}
 		}
 	}
@@ -1000,7 +992,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 	deleteResponse.DeleteInitiated = true
-	impl.pipelineConfigListenerService.HandleCdPipelineDelete(pipeline.Id, userId)
+	impl.pipelineConfigEventPublishService.PublishCDPipelineDelete(pipeline.Id, userId)
 
 	go func() {
 		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(pipeline.Id, bean5.DevtronResourceCdPipeline, "", bean5.DevtronResourceVersion1, userId)
@@ -1009,6 +1001,28 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		}
 	}()
 	return deleteResponse, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error {
+	deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   pipeline.Environment.ClusterId,
+		ReleaseName: deploymentAppName,
+		Namespace:   pipeline.Environment.Namespace,
+	}
+	deleteResourceResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+	if forceDelete || errors3.As(err, &models2.NamespaceNotExistError{}) {
+		impl.logger.Warnw("error while deletion of helm application, ignore error and delete from db since force delete req", "error", err, "pipelineId", pipeline.Id)
+	} else {
+		if err != nil {
+			impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			return err
+		}
+		if deleteResourceResponse == nil || !deleteResourceResponse.GetSuccess() {
+			return errors2.New("delete application response unsuccessful")
+		}
+	}
+	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) error {

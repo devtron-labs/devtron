@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	CiPipeline2 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -1378,7 +1379,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 	if pipelineExists {
 		err = &utils.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "pipeline name already exist"}
 		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, fmt.Errorf(pipelineConfigBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
+		return nil, fmt.Errorf(CiPipeline2.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
 	}
 
 	if request.IsSwitchCiPipelineRequest() {
@@ -1407,12 +1408,12 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
 			DockerRepository: ciConfig.DockerRepository,
-			CiBuildConfig: &pipelineConfigBean.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline2.CiBuildConfigBean{
 				Id:                        0,
 				GitMaterialId:             request.CiPipeline.CiMaterial[0].GitMaterialId,
 				BuildContextGitMaterialId: request.CiPipeline.CiMaterial[0].GitMaterialId,
 				UseRootBuildContext:       false,
-				CiBuildType:               pipelineConfigBean.SKIP_BUILD_TYPE,
+				CiBuildType:               CiPipeline2.SKIP_BUILD_TYPE,
 				DockerBuildConfig:         nil,
 				BuildPackConfig:           nil,
 			},

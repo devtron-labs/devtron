@@ -25,6 +25,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	bean3 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1325,9 +1326,9 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	dockerBuildConfig := dockerConfig.DockerBuildConfig
 	if dockerBuildConfig != nil {
 		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
-		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
-			CiBuildType: bean2.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean2.DockerBuildConfig{
+		dockerConfig.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
+			CiBuildType: CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
@@ -1547,7 +1548,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		// Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
-			if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
 				return err, http.StatusBadRequest
 			}

@@ -2,6 +2,7 @@ package bean
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
@@ -22,12 +23,14 @@ type TriggerEvent struct {
 }
 
 type TriggerRequest struct {
-	CdWf                  *pipelineConfig.CdWorkflow
-	Pipeline              *pipelineConfig.Pipeline
-	Artifact              *repository.CiArtifact
-	ApplyAuth             bool
-	TriggeredBy           int32
-	RefCdWorkflowRunnerId int
+	CdWf                   *pipelineConfig.CdWorkflow
+	Pipeline               *pipelineConfig.Pipeline
+	Artifact               *repository.CiArtifact
+	ApplyAuth              bool
+	TriggeredBy            int32
+	RefCdWorkflowRunnerId  int
+	RunStageInEnvNamespace string
+	WorkflowType           bean.WorkflowType
 	TriggerContext
 }
 
