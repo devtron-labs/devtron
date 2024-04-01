@@ -1595,7 +1595,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, ap
 	}
 	// if workflow name already exists then we will assign a new name to the workflow
 	if workflow.Id != 0 {
-		workflowName = fmt.Sprintf("%s-clone-%s", workflowName, util.Generate(4))
+		workflowName = util.GenerateNewWorkflowName(workflowName)
 	}
 	wf := &appWorkflow2.AppWorkflow{
 		Name:   workflowName,

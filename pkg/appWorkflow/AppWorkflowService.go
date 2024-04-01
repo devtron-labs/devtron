@@ -180,7 +180,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
 	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
 		impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
 		return req, err
 	}
@@ -203,7 +203,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 		workflowName := req.Name
 		// if workflow already exists then we will assign a new name to the workflow
 		if workflow.Id != 0 {
-			workflowName = fmt.Sprintf("%s-clone-%s", req.Name, util2.Generate(4))
+			workflowName = util2.GenerateNewWorkflowName(workflowName)
 		}
 		wf := &appWorkflow.AppWorkflow{
 			Name:   workflowName,

@@ -135,6 +135,11 @@ func Generate(size int) string {
 	return str
 }
 
+// Generates random name format name-clone-xyts
+func GenerateNewWorkflowName(name string) string {
+	return fmt.Sprintf("%s-clone-%s", name, Generate(4))
+}
+
 func HttpRequest(url string) (map[string]interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
