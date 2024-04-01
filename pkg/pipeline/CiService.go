@@ -100,7 +100,7 @@ type CiServiceImpl struct {
 	globalPluginService           plugin.GlobalPluginService
 	infraProvider                 infraProviders.InfraProvider
 	remoteConnectionService       remoteConnection.RemoteConnectionService
-	dockerRegistryConfig          DockerRegistryConfig
+	dockerRegistryConfig          *DockerRegistryConfigImpl
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -121,6 +121,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
 	remoteConnectionService remoteConnection.RemoteConnectionService,
+	dockerRegistryConfig *DockerRegistryConfigImpl,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -145,6 +146,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		globalPluginService:           globalPluginService,
 		infraProvider:                 infraProvider,
 		remoteConnectionService:       remoteConnectionService,
+		dockerRegistryConfig:          dockerRegistryConfig,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
