@@ -54,6 +54,9 @@ type ArgoClientWrapperService interface {
 	// PatchArgoCdApp performs a patch operation on an argoCd app
 	PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error
 
+	// IsArgoAppPatchRequired decides weather the v1alpha1.ApplicationSource requires to be updated
+	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool
+
 	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error)
 }
@@ -178,6 +181,12 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 		return nil, err
 	}
 	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool {
+	return (len(currentGitRepoUrl) != 0 && argoAppSpec.RepoURL != currentGitRepoUrl) ||
+		argoAppSpec.Path != currentChartPath ||
+		argoAppSpec.TargetRevision != bean.TargetRevisionMaster
 }
 
 func (impl *ArgoClientWrapperServiceImpl) PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error {
