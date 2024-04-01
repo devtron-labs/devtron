@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS timeout_window_resource_mappings;
+DROP SEQUENCE IF EXISTS id_seq_timeout_window_resource_mappings;
