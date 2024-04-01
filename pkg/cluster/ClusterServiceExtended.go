@@ -13,7 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/remoteConnection"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -58,7 +58,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	userService user.UserService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
-	serverConnectionService remoteConnection.ServerConnectionService) *ClusterServiceImplExtended {
+	remoteConnectionService remoteConnection.RemoteConnectionService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:    environmentRepository,
 		grafanaClient:            grafanaClient,
@@ -76,7 +76,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			userRepository:                   userRepository,
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
-			serverConnectionService:          serverConnectionService,
+			remoteConnectionService:          remoteConnectionService,
 			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
 				userService: userService,
 				logger:      logger,
@@ -115,13 +115,13 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterB
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.ServerConnectionConfig != nil && bean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
-			bean.ServerConnectionConfig.SSHTunnelConfig != nil {
-			if len(bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
-				bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
+		if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
+			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
 			}
-			if len(bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
-				bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
+			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
 			}
 		}
 	}

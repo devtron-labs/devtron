@@ -52,7 +52,7 @@ type DockerArtifactStore struct {
 	tableName                struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id                       string       `sql:"id,pk" json:"id,,omitempty"`
 	PluginId                 string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	ServerConnectionConfigId int          `sql:"server_connection_config_id" json:"serverConnectionConfigId,omitempty"`
+	RemoteConnectionConfigId int          `sql:"remote_connection_config_id" json:"remoteConnectionConfigId,omitempty"`
 	RegistryURL              string       `sql:"registry_url" json:"registryUrl,omitempty"`
 	RegistryType             RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
 	IsOCICompliantRegistry   bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
@@ -67,7 +67,7 @@ type DockerArtifactStore struct {
 	Active                   bool         `sql:"active,notnull" json:"active"`
 	IpsConfig                *DockerRegistryIpsConfig
 	OCIRegistryConfig        []*OCIRegistryConfig
-	ServerConnectionConfig   *repository.RemoteConnectionConfig
+	RemoteConnectionConfig   *repository.RemoteConnectionConfig
 	sql.AuditLog
 }
 

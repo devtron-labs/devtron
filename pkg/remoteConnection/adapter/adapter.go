@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func GetServerConnectionConfigBean(model *repository.RemoteConnectionConfig) *bean.RemoteConnectionConfigBean {
+func GetRemoteConnectionConfigBean(model *repository.RemoteConnectionConfig) *bean.RemoteConnectionConfigBean {
 	var configBean *bean.RemoteConnectionConfigBean
 	if model != nil {
 		configBean = &bean.RemoteConnectionConfigBean{
@@ -31,7 +31,7 @@ func GetServerConnectionConfigBean(model *repository.RemoteConnectionConfig) *be
 	return configBean
 }
 
-func ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.RemoteConnectionConfigBean, userId int32) *repository.RemoteConnectionConfig {
+func ConvertRemoteConnectionConfigBeanToRemoteConnectionConfig(configBean *bean.RemoteConnectionConfigBean, userId int32) *repository.RemoteConnectionConfig {
 	var model repository.RemoteConnectionConfig
 	if configBean != nil {
 		model = repository.RemoteConnectionConfig{

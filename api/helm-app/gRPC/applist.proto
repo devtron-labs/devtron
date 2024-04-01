@@ -13,7 +13,7 @@ message ClusterConfig {
   string keyData = 6;
   string certData = 7;
   string caData = 8;
-  ServerConnectionConfig ServerConnectionConfig = 9;
+  RemoteConnectionConfig RemoteConnectionConfig = 9;
 }
 
 message AppListRequest {
@@ -370,11 +370,11 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
-  ServerConnectionConfig ServerConnectionConfig = 10;
+  RemoteConnectionConfig RemoteConnectionConfig = 10;
   string RegistryId = 11;
 }
 
-enum ServerConnectionMethod {
+enum RemoteConnectionMethod {
   PROXY = 0;
   SSH = 1;
 }
@@ -390,8 +390,8 @@ message SSHTunnelConfig {
   string SSHAuthKey = 4;
 }
 
-message ServerConnectionConfig {
-  ServerConnectionMethod ConnectionMethod = 1;
+message RemoteConnectionConfig {
+  RemoteConnectionMethod ConnectionMethod = 1;
   ProxyConfig ProxyConfig = 2;
   SSHTunnelConfig SSHTunnelConfig = 3;
 }

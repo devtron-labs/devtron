@@ -29,7 +29,7 @@ type ClusterBean struct {
 	ClusterUpdated          bool                             `json:"clusterUpdated"`
 	ToConnectWithSSHTunnel  bool                             `json:"toConnectWithSSHTunnel,omitempty"`
 	SSHTunnelConfig         *SSHTunnelConfig                 `json:"sshTunnelConfig,omitempty"`
-	ServerConnectionConfig  *bean.RemoteConnectionConfigBean `json:"-"`
+	RemoteConnectionConfig  *bean.RemoteConnectionConfigBean `json:"-"`
 }
 
 type VirtualClusterBean struct {
@@ -70,12 +70,12 @@ func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
 		clusterCfg.CertData = configMap[k8s.CertData]
 		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
 	}
-	if bean.ServerConnectionConfig != nil {
+	if bean.RemoteConnectionConfig != nil {
 		clusterCfg.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
-			RemoteConnectionConfigId: bean.ServerConnectionConfig.RemoteConnectionConfigId,
-			ConnectionMethod:         remoteConnectionBean.RemoteConnectionMethod(bean.ServerConnectionConfig.ConnectionMethod),
-			ProxyConfig:              (*remoteConnectionBean.ProxyConfig)(bean.ServerConnectionConfig.ProxyConfig),
-			SSHTunnelConfig:          (*remoteConnectionBean.SSHTunnelConfig)(bean.ServerConnectionConfig.SSHTunnelConfig),
+			RemoteConnectionConfigId: bean.RemoteConnectionConfig.RemoteConnectionConfigId,
+			ConnectionMethod:         remoteConnectionBean.RemoteConnectionMethod(bean.RemoteConnectionConfig.ConnectionMethod),
+			ProxyConfig:              (*remoteConnectionBean.ProxyConfig)(bean.RemoteConnectionConfig.ProxyConfig),
+			SSHTunnelConfig:          (*remoteConnectionBean.SSHTunnelConfig)(bean.RemoteConnectionConfig.SSHTunnelConfig),
 		}
 	}
 	return clusterCfg

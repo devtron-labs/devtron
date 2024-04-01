@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/remoteConnection"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -99,7 +99,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
 	infraProvider                 infraProviders.InfraProvider
-	serverConnectionService       remoteConnection.ServerConnectionService
+	remoteConnectionService       remoteConnection.RemoteConnectionService
 	dockerRegistryConfig          DockerRegistryConfig
 }
 
@@ -120,7 +120,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
-	serverConnectionService remoteConnection.ServerConnectionService,
+	remoteConnectionService remoteConnection.RemoteConnectionService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -144,7 +144,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:     pluginInputVariableParser,
 		globalPluginService:           globalPluginService,
 		infraProvider:                 infraProvider,
-		serverConnectionService:       serverConnectionService,
+		remoteConnectionService:       remoteConnectionService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -753,8 +753,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	if dockerRegistry != nil {
-		var registryConnectionConfig *serverConnectionBean.RemoteConnectionConfigBean
-		registryConnectionConfig, err = impl.dockerRegistryConfig.GetServerConnectionConfigByDockerId(dockerRegistry.Id)
+		var registryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean
+		registryConnectionConfig, err = impl.dockerRegistryConfig.GetRemoteConnectionConfigByDockerId(dockerRegistry.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
 			return nil, err

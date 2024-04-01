@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 )
 
 type DockerArtifactStoreBean struct {
@@ -26,7 +26,7 @@ type DockerArtifactStoreBean struct {
 	DisabledFields          []DisabledFields                                 `json:"disabledFields"`
 	User                    int32                                            `json:"-"`
 	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean                     `json:"ipsConfig,omitempty"`
-	ServerConnectionConfig  *serverConnectionBean.RemoteConnectionConfigBean `json:"serverConnectionConfig,omitempty"`
+	RemoteConnectionConfig  *remoteConnectionBean.RemoteConnectionConfigBean `json:"remoteConnectionConfig,omitempty"`
 }
 
 type DockerRegistryIpsConfigBean struct {

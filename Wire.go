@@ -1031,8 +1031,8 @@ func InitializeApp() (*App, error) {
 		repository11.NewRemoteConnectionRepositoryImpl,
 		wire.Bind(new(repository11.RemoteConnectionRepository), new(*repository11.RemoteConnectionRepositoryImpl)),
 
-		remoteConnection.NewServerConnectionServiceImpl,
-		wire.Bind(new(remoteConnection.ServerConnectionService), new(*remoteConnection.ServerConnectionServiceImpl)),
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

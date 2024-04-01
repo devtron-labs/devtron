@@ -211,7 +211,8 @@ func InitializeApp() (*App, error) {
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sUtilExtended)
 	remoteConnectionRepositoryImpl := repository5.NewRemoteConnectionRepositoryImpl(db, sugaredLogger)
 	dockerArtifactStoreRepositoryImpl := repository6.NewDockerArtifactStoreRepositoryImpl(db)
-	serverConnectionServiceImpl := remoteConnection.NewServerConnectionServiceImpl(sugaredLogger, remoteConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
+
+	serverConnectionServiceImpl := remoteConnection.NewRemoteConnectionServiceImpl(sugaredLogger, remoteConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, serverConnectionServiceImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)

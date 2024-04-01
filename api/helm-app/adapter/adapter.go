@@ -6,24 +6,24 @@ import (
 	"github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 )
 
-func ConvertServerConnectionConfigToProto(dockerBean *types.DockerArtifactStoreBean) *grpcBean.ServerConnectionConfig {
-	var registryConnectionConfig *grpcBean.ServerConnectionConfig
-	if dockerBean.ServerConnectionConfig != nil {
+func ConvertRemoteConnectionConfigToProto(dockerBean *types.DockerArtifactStoreBean) *grpcBean.RemoteConnectionConfig {
+	var registryConnectionConfig *grpcBean.RemoteConnectionConfig
+	if dockerBean.RemoteConnectionConfig != nil {
 		connectionMethod := 0
-		if dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
+		if dockerBean.RemoteConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
 			connectionMethod = 1
 		}
-		registryConnectionConfig = &grpcBean.ServerConnectionConfig{
-			ConnectionMethod: grpcBean.ServerConnectionMethod(connectionMethod),
+		registryConnectionConfig = &grpcBean.RemoteConnectionConfig{
+			ConnectionMethod: grpcBean.RemoteConnectionMethod(connectionMethod),
 		}
-		if dockerBean.ServerConnectionConfig.ProxyConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodProxy {
-			proxyConfig := dockerBean.ServerConnectionConfig.ProxyConfig
+		if dockerBean.RemoteConnectionConfig.ProxyConfig != nil && dockerBean.RemoteConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodProxy {
+			proxyConfig := dockerBean.RemoteConnectionConfig.ProxyConfig
 			registryConnectionConfig.ProxyConfig = &grpcBean.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if dockerBean.ServerConnectionConfig.SSHTunnelConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
-			sshTunnelConfig := dockerBean.ServerConnectionConfig.SSHTunnelConfig
+		if dockerBean.RemoteConnectionConfig.SSHTunnelConfig != nil && dockerBean.RemoteConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
+			sshTunnelConfig := dockerBean.RemoteConnectionConfig.SSHTunnelConfig
 			registryConnectionConfig.SSHTunnelConfig = &grpcBean.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
 				SSHUsername:      sshTunnelConfig.SSHUsername,

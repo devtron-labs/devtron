@@ -39,7 +39,7 @@ type Cluster struct {
 	Description              string            `sql:"description"`
 	ServerUrl                string            `sql:"server_url"`
 	ProxyUrl                 string            `sql:"proxy_url"`
-	ServerConnectionConfigId int               `sql:"server_connection_config_id"`
+	RemoteConnectionConfigId int               `sql:"remote_connection_config_id"`
 	PrometheusEndpoint       string            `sql:"prometheus_endpoint"`
 	Active                   bool              `sql:"active,notnull"`
 	CdArgoSetup              bool              `sql:"cd_argo_setup,notnull"`
@@ -58,7 +58,7 @@ type Cluster struct {
 	SSHTunnelPassword        string            `sql:"ssh_tunnel_password"`
 	SSHTunnelAuthKey         string            `sql:"ssh_tunnel_auth_key"`
 	SSHTunnelServerAddress   string            `sql:"ssh_tunnel_server_address"`
-	ServerConnectionConfig   *repository.RemoteConnectionConfig
+	RemoteConnectionConfig   *repository.RemoteConnectionConfig
 	sql.AuditLog
 }
 

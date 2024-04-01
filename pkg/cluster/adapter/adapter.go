@@ -3,16 +3,16 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
-	serverConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"time"
 )
 
 func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 	if len(model.ProxyUrl) > 0 || model.ToConnectWithSSHTunnel {
 		// converting old to new
-		connectionConfig := &serverConnectionRepository.RemoteConnectionConfig{
-			Id:               model.ServerConnectionConfigId,
+		connectionConfig := &remoteConnectionRepository.RemoteConnectionConfig{
+			Id:               model.RemoteConnectionConfigId,
 			ProxyUrl:         model.ProxyUrl,
 			SSHServerAddress: model.SSHTunnelServerAddress,
 			SSHUsername:      model.SSHTunnelUser,
@@ -21,11 +21,11 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 			Deleted:          false,
 		}
 		if len(model.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
+			connectionConfig.ConnectionMethod = remoteConnectionBean.RemoteConnectionMethodProxy
 		} else if model.ToConnectWithSSHTunnel {
-			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
+			connectionConfig.ConnectionMethod = remoteConnectionBean.RemoteConnectionMethodSSH
 		}
-		model.ServerConnectionConfig = connectionConfig
+		model.RemoteConnectionConfig = connectionConfig
 		// reset old config
 		model.ProxyUrl = ""
 		model.SSHTunnelUser = ""
@@ -40,40 +40,40 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
 	if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// converting old bean to new bean
-		connectionConfig := &serverConnectionBean.RemoteConnectionConfigBean{}
+		connectionConfig := &remoteConnectionBean.RemoteConnectionConfigBean{}
 		if len(clusterBean.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
-			connectionConfig.ProxyConfig = &serverConnectionBean.ProxyConfig{
+			connectionConfig.ConnectionMethod = remoteConnectionBean.RemoteConnectionMethodProxy
+			connectionConfig.ProxyConfig = &remoteConnectionBean.ProxyConfig{
 				ProxyUrl: clusterBean.ProxyUrl,
 			}
 		}
 		if clusterBean.ToConnectWithSSHTunnel && clusterBean.SSHTunnelConfig != nil {
-			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
-			connectionConfig.SSHTunnelConfig = &serverConnectionBean.SSHTunnelConfig{
+			connectionConfig.ConnectionMethod = remoteConnectionBean.RemoteConnectionMethodSSH
+			connectionConfig.SSHTunnelConfig = &remoteConnectionBean.SSHTunnelConfig{
 				SSHServerAddress: clusterBean.SSHTunnelConfig.SSHServerAddress,
 				SSHUsername:      clusterBean.SSHTunnelConfig.User,
 				SSHPassword:      clusterBean.SSHTunnelConfig.Password,
 				SSHAuthKey:       clusterBean.SSHTunnelConfig.AuthKey,
 			}
 		}
-		clusterBean.ServerConnectionConfig = connectionConfig
+		clusterBean.RemoteConnectionConfig = connectionConfig
 	}
 	return clusterBean
 }
 
 func ConvertNewClusterBeanToOldClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
-	if clusterBean.ServerConnectionConfig != nil {
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy &&
-			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
-			clusterBean.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
+	if clusterBean.RemoteConnectionConfig != nil {
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
+			clusterBean.RemoteConnectionConfig.ProxyConfig != nil {
+			clusterBean.ProxyUrl = clusterBean.RemoteConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
-			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil {
 			clusterBean.ToConnectWithSSHTunnel = true
-			clusterBean.SSHTunnelConfig.SSHServerAddress = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
-			clusterBean.SSHTunnelConfig.User = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername
-			clusterBean.SSHTunnelConfig.Password = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword
-			clusterBean.SSHTunnelConfig.AuthKey = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey
+			clusterBean.SSHTunnelConfig.SSHServerAddress = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress
+			clusterBean.SSHTunnelConfig.User = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername
+			clusterBean.SSHTunnelConfig.Password = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword
+			clusterBean.SSHTunnelConfig.AuthKey = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey
 		}
 	}
 	return clusterBean
@@ -102,33 +102,33 @@ func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *r
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
 
-	var connectionMethod serverConnectionBean.RemoteConnectionMethod
-	var connectionConfig *serverConnectionRepository.RemoteConnectionConfig
-	if clusterBean.ServerConnectionConfig != nil {
+	var connectionMethod remoteConnectionBean.RemoteConnectionMethod
+	var connectionConfig *remoteConnectionRepository.RemoteConnectionConfig
+	if clusterBean.RemoteConnectionConfig != nil {
 		// if FE provided new bean
-		connectionMethod = clusterBean.ServerConnectionConfig.ConnectionMethod
-		connectionConfig = &serverConnectionRepository.RemoteConnectionConfig{
+		connectionMethod = clusterBean.RemoteConnectionConfig.ConnectionMethod
+		connectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{
 			ConnectionMethod: connectionMethod,
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy &&
-			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
-			connectionConfig.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
+			clusterBean.RemoteConnectionConfig.ProxyConfig != nil {
+			connectionConfig.ProxyUrl = clusterBean.RemoteConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
-			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
-			connectionConfig.SSHServerAddress = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
-			connectionConfig.SSHUsername = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername
-			connectionConfig.SSHPassword = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword
-			connectionConfig.SSHAuthKey = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil {
+			connectionConfig.SSHServerAddress = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress
+			connectionConfig.SSHUsername = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername
+			connectionConfig.SSHPassword = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword
+			connectionConfig.SSHAuthKey = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey
 		}
 	} else if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// if FE provided old bean
 		if len(clusterBean.ProxyUrl) > 0 {
-			connectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
+			connectionMethod = remoteConnectionBean.RemoteConnectionMethodProxy
 		} else if clusterBean.ToConnectWithSSHTunnel {
-			connectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
+			connectionMethod = remoteConnectionBean.RemoteConnectionMethodSSH
 		}
-		connectionConfig = &serverConnectionRepository.RemoteConnectionConfig{
+		connectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{
 			ConnectionMethod: connectionMethod,
 			ProxyUrl:         clusterBean.ProxyUrl,
 		}
@@ -147,7 +147,7 @@ func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *r
 		model.SSHTunnelAuthKey = ""
 		model.ToConnectWithSSHTunnel = false
 	}
-	model.ServerConnectionConfig = connectionConfig
+	model.RemoteConnectionConfig = connectionConfig
 	return model
 }
 
@@ -171,18 +171,18 @@ func GetClusterBean(model repository.Cluster) bean.ClusterBean {
 		TlsClientCert: model.PTlsClientCert,
 		TlsClientKey:  model.PTlsClientKey,
 	}
-	if model.ServerConnectionConfig != nil {
-		clusterBean.ServerConnectionConfig = &serverConnectionBean.RemoteConnectionConfigBean{
-			RemoteConnectionConfigId: model.ServerConnectionConfigId,
-			ConnectionMethod:         model.ServerConnectionConfig.ConnectionMethod,
-			ProxyConfig: &serverConnectionBean.ProxyConfig{
-				ProxyUrl: model.ServerConnectionConfig.ProxyUrl,
+	if model.RemoteConnectionConfig != nil {
+		clusterBean.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
+			RemoteConnectionConfigId: model.RemoteConnectionConfigId,
+			ConnectionMethod:         model.RemoteConnectionConfig.ConnectionMethod,
+			ProxyConfig: &remoteConnectionBean.ProxyConfig{
+				ProxyUrl: model.RemoteConnectionConfig.ProxyUrl,
 			},
-			SSHTunnelConfig: &serverConnectionBean.SSHTunnelConfig{
-				SSHServerAddress: model.ServerConnectionConfig.SSHServerAddress,
-				SSHUsername:      model.ServerConnectionConfig.SSHUsername,
-				SSHPassword:      model.ServerConnectionConfig.SSHPassword,
-				SSHAuthKey:       model.ServerConnectionConfig.SSHAuthKey,
+			SSHTunnelConfig: &remoteConnectionBean.SSHTunnelConfig{
+				SSHServerAddress: model.RemoteConnectionConfig.SSHServerAddress,
+				SSHUsername:      model.RemoteConnectionConfig.SSHUsername,
+				SSHPassword:      model.RemoteConnectionConfig.SSHPassword,
+				SSHAuthKey:       model.RemoteConnectionConfig.SSHAuthKey,
 			},
 		}
 	}

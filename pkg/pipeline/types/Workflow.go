@@ -32,7 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -50,7 +50,7 @@ type WorkflowRequest struct {
 	DockerRegistryId               string                                           `json:"dockerRegistryId"`
 	DockerRegistryType             string                                           `json:"dockerRegistryType"`
 	DockerRegistryURL              string                                           `json:"dockerRegistryURL"`
-	DockerRegistryConnectionConfig *serverConnectionBean.RemoteConnectionConfigBean `json:"dockerRegistryConnectionConfig"`
+	DockerRegistryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean `json:"dockerRegistryConnectionConfig"`
 	DockerConnection               string                                           `json:"dockerConnection"`
 	DockerCert                     string                                           `json:"dockerCert"`
 	DockerRepository               string                                           `json:"dockerRepository"`

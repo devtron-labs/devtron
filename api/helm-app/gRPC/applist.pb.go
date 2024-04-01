@@ -21,49 +21,49 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ServerConnectionMethod int32
+type RemoteConnectionMethod int32
 
 const (
-	ServerConnectionMethod_PROXY ServerConnectionMethod = 0
-	ServerConnectionMethod_SSH   ServerConnectionMethod = 1
+	RemoteConnectionMethod_PROXY RemoteConnectionMethod = 0
+	RemoteConnectionMethod_SSH   RemoteConnectionMethod = 1
 )
 
-// Enum value maps for ServerConnectionMethod.
+// Enum value maps for RemoteConnectionMethod.
 var (
-	ServerConnectionMethod_name = map[int32]string{
+	RemoteConnectionMethod_name = map[int32]string{
 		0: "PROXY",
 		1: "SSH",
 	}
-	ServerConnectionMethod_value = map[string]int32{
+	RemoteConnectionMethod_value = map[string]int32{
 		"PROXY": 0,
 		"SSH":   1,
 	}
 )
 
-func (x ServerConnectionMethod) Enum() *ServerConnectionMethod {
-	p := new(ServerConnectionMethod)
+func (x RemoteConnectionMethod) Enum() *RemoteConnectionMethod {
+	p := new(RemoteConnectionMethod)
 	*p = x
 	return p
 }
 
-func (x ServerConnectionMethod) String() string {
+func (x RemoteConnectionMethod) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (ServerConnectionMethod) Descriptor() protoreflect.EnumDescriptor {
+func (RemoteConnectionMethod) Descriptor() protoreflect.EnumDescriptor {
 	return file_api_helm_app_gRPC_applist_proto_enumTypes[0].Descriptor()
 }
 
-func (ServerConnectionMethod) Type() protoreflect.EnumType {
+func (RemoteConnectionMethod) Type() protoreflect.EnumType {
 	return &file_api_helm_app_gRPC_applist_proto_enumTypes[0]
 }
 
-func (x ServerConnectionMethod) Number() protoreflect.EnumNumber {
+func (x RemoteConnectionMethod) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use ServerConnectionMethod.Descriptor instead.
-func (ServerConnectionMethod) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use RemoteConnectionMethod.Descriptor instead.
+func (RemoteConnectionMethod) EnumDescriptor() ([]byte, []int) {
 	return file_api_helm_app_gRPC_applist_proto_rawDescGZIP(), []int{0}
 }
 
@@ -80,7 +80,7 @@ type ClusterConfig struct {
 	KeyData                string                  `protobuf:"bytes,6,opt,name=keyData,proto3" json:"keyData,omitempty"`
 	CertData               string                  `protobuf:"bytes,7,opt,name=certData,proto3" json:"certData,omitempty"`
 	CaData                 string                  `protobuf:"bytes,8,opt,name=caData,proto3" json:"caData,omitempty"`
-	ServerConnectionConfig *ServerConnectionConfig `protobuf:"bytes,9,opt,name=ServerConnectionConfig,proto3" json:"ServerConnectionConfig,omitempty"`
+	RemoteConnectionConfig *RemoteConnectionConfig `protobuf:"bytes,9,opt,name=RemoteConnectionConfig,proto3" json:"RemoteConnectionConfig,omitempty"`
 }
 
 func (x *ClusterConfig) Reset() {
@@ -171,9 +171,9 @@ func (x *ClusterConfig) GetCaData() string {
 	return ""
 }
 
-func (x *ClusterConfig) GetServerConnectionConfig() *ServerConnectionConfig {
+func (x *ClusterConfig) GetRemoteConnectionConfig() *RemoteConnectionConfig {
 	if x != nil {
-		return x.ServerConnectionConfig
+		return x.RemoteConnectionConfig
 	}
 	return nil
 }
@@ -3441,7 +3441,7 @@ type RegistryCredential struct {
 	RegistryType           string                  `protobuf:"bytes,7,opt,name=RegistryType,proto3" json:"RegistryType,omitempty"`
 	RepoName               string                  `protobuf:"bytes,8,opt,name=RepoName,proto3" json:"RepoName,omitempty"`
 	IsPublic               bool                    `protobuf:"varint,9,opt,name=IsPublic,proto3" json:"IsPublic,omitempty"`
-	ServerConnectionConfig *ServerConnectionConfig `protobuf:"bytes,10,opt,name=ServerConnectionConfig,proto3" json:"ServerConnectionConfig,omitempty"`
+	RemoteConnectionConfig *RemoteConnectionConfig `protobuf:"bytes,10,opt,name=RemoteConnectionConfig,proto3" json:"RemoteConnectionConfig,omitempty"`
 	RegistryId             string                  `protobuf:"bytes,11,opt,name=RegistryId,proto3" json:"RegistryId,omitempty"`
 }
 
@@ -3540,9 +3540,9 @@ func (x *RegistryCredential) GetIsPublic() bool {
 	return false
 }
 
-func (x *RegistryCredential) GetServerConnectionConfig() *ServerConnectionConfig {
+func (x *RegistryCredential) GetRemoteConnectionConfig() *RemoteConnectionConfig {
 	if x != nil {
-		return x.ServerConnectionConfig
+		return x.RemoteConnectionConfig
 	}
 	return nil
 }
@@ -3672,18 +3672,18 @@ func (x *SSHTunnelConfig) GetSSHAuthKey() string {
 	return ""
 }
 
-type ServerConnectionConfig struct {
+type RemoteConnectionConfig struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ConnectionMethod ServerConnectionMethod `protobuf:"varint,1,opt,name=ConnectionMethod,proto3,enum=ServerConnectionMethod" json:"ConnectionMethod,omitempty"`
+	ConnectionMethod RemoteConnectionMethod `protobuf:"varint,1,opt,name=ConnectionMethod,proto3,enum=RemoteConnectionMethod" json:"ConnectionMethod,omitempty"`
 	ProxyConfig      *ProxyConfig           `protobuf:"bytes,2,opt,name=ProxyConfig,proto3" json:"ProxyConfig,omitempty"`
 	SSHTunnelConfig  *SSHTunnelConfig       `protobuf:"bytes,3,opt,name=SSHTunnelConfig,proto3" json:"SSHTunnelConfig,omitempty"`
 }
 
-func (x *ServerConnectionConfig) Reset() {
-	*x = ServerConnectionConfig{}
+func (x *RemoteConnectionConfig) Reset() {
+	*x = RemoteConnectionConfig{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_api_helm_app_gRPC_applist_proto_msgTypes[53]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3691,13 +3691,13 @@ func (x *ServerConnectionConfig) Reset() {
 	}
 }
 
-func (x *ServerConnectionConfig) String() string {
+func (x *RemoteConnectionConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ServerConnectionConfig) ProtoMessage() {}
+func (*RemoteConnectionConfig) ProtoMessage() {}
 
-func (x *ServerConnectionConfig) ProtoReflect() protoreflect.Message {
+func (x *RemoteConnectionConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_api_helm_app_gRPC_applist_proto_msgTypes[53]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3709,26 +3709,26 @@ func (x *ServerConnectionConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ServerConnectionConfig.ProtoReflect.Descriptor instead.
-func (*ServerConnectionConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use RemoteConnectionConfig.ProtoReflect.Descriptor instead.
+func (*RemoteConnectionConfig) Descriptor() ([]byte, []int) {
 	return file_api_helm_app_gRPC_applist_proto_rawDescGZIP(), []int{53}
 }
 
-func (x *ServerConnectionConfig) GetConnectionMethod() ServerConnectionMethod {
+func (x *RemoteConnectionConfig) GetConnectionMethod() RemoteConnectionMethod {
 	if x != nil {
 		return x.ConnectionMethod
 	}
-	return ServerConnectionMethod_PROXY
+	return RemoteConnectionMethod_PROXY
 }
 
-func (x *ServerConnectionConfig) GetProxyConfig() *ProxyConfig {
+func (x *RemoteConnectionConfig) GetProxyConfig() *ProxyConfig {
 	if x != nil {
 		return x.ProxyConfig
 	}
 	return nil
 }
 
-func (x *ServerConnectionConfig) GetSSHTunnelConfig() *SSHTunnelConfig {
+func (x *RemoteConnectionConfig) GetSSHTunnelConfig() *SSHTunnelConfig {
 	if x != nil {
 		return x.SSHTunnelConfig
 	}
@@ -3869,11 +3869,11 @@ var file_api_helm_app_gRPC_applist_proto_rawDesc = []byte{
 	0x0a, 0x08, 0x63, 0x65, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x08, 0x63, 0x65, 0x72, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12, 0x16, 0x0a, 0x06, 0x63, 0x61,
 	0x44, 0x61, 0x74, 0x61, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x63, 0x61, 0x44, 0x61,
-	0x74, 0x61, 0x12, 0x4f, 0x0a, 0x16, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e,
+	0x74, 0x61, 0x12, 0x4f, 0x0a, 0x16, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e,
 	0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x18, 0x09, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e, 0x65,
-	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x16, 0x53, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e,
+	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e, 0x65,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x16, 0x52, 0x65, 0x6d,
+	0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e,
 	0x66, 0x69, 0x67, 0x22, 0x3c, 0x0a, 0x0e, 0x41, 0x70, 0x70, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2a, 0x0a, 0x08, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72,
 	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65,
@@ -4360,11 +4360,11 @@ var file_api_helm_app_gRPC_applist_proto_rawDesc = []byte{
 	0x70, 0x6f, 0x4e, 0x61, 0x6d, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x52, 0x65,
 	0x70, 0x6f, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x49, 0x73, 0x50, 0x75, 0x62, 0x6c,
 	0x69, 0x63, 0x18, 0x09, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08, 0x49, 0x73, 0x50, 0x75, 0x62, 0x6c,
-	0x69, 0x63, 0x12, 0x4f, 0x0a, 0x16, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e,
+	0x69, 0x63, 0x12, 0x4f, 0x0a, 0x16, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e,
 	0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x18, 0x0a, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e, 0x65,
-	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x16, 0x53, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e,
+	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e, 0x65,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x16, 0x52, 0x65, 0x6d,
+	0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e,
 	0x66, 0x69, 0x67, 0x12, 0x1e, 0x0a, 0x0a, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x72, 0x79, 0x49,
 	0x64, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x72,
 	0x79, 0x49, 0x64, 0x22, 0x29, 0x0a, 0x0b, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x43, 0x6f, 0x6e, 0x66,
@@ -4380,10 +4380,10 @@ var file_api_helm_app_gRPC_applist_proto_rawDesc = []byte{
 	0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x53, 0x53, 0x48, 0x50, 0x61, 0x73, 0x73, 0x77, 0x6f,
 	0x72, 0x64, 0x12, 0x1e, 0x0a, 0x0a, 0x53, 0x53, 0x48, 0x41, 0x75, 0x74, 0x68, 0x4b, 0x65, 0x79,
 	0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x53, 0x53, 0x48, 0x41, 0x75, 0x74, 0x68, 0x4b,
-	0x65, 0x79, 0x22, 0xc9, 0x01, 0x0a, 0x16, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e,
+	0x65, 0x79, 0x22, 0xc9, 0x01, 0x0a, 0x16, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e,
 	0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x43, 0x0a,
 	0x10, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x65, 0x74, 0x68, 0x6f,
-	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x17, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,
+	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x17, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65,
 	0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x65, 0x74, 0x68, 0x6f, 0x64,
 	0x52, 0x10, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x65, 0x74, 0x68,
 	0x6f, 0x64, 0x12, 0x2e, 0x0a, 0x0b, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x69,
@@ -4405,7 +4405,7 @@ var file_api_helm_app_gRPC_applist_proto_rawDesc = []byte{
 	0x67, 0x65, 0x73, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x44, 0x69, 0x67, 0x65,
 	0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x50, 0x75, 0x73, 0x68, 0x65, 0x64, 0x55, 0x52, 0x4c, 0x18,
 	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x50, 0x75, 0x73, 0x68, 0x65, 0x64, 0x55, 0x52, 0x4c,
-	0x2a, 0x2c, 0x0a, 0x16, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63,
+	0x2a, 0x2c, 0x0a, 0x16, 0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63,
 	0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x65, 0x74, 0x68, 0x6f, 0x64, 0x12, 0x09, 0x0a, 0x05, 0x50, 0x52,
 	0x4f, 0x58, 0x59, 0x10, 0x00, 0x12, 0x07, 0x0a, 0x03, 0x53, 0x53, 0x48, 0x10, 0x01, 0x32, 0xe3,
 	0x0b, 0x0a, 0x12, 0x41, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65,
@@ -4524,7 +4524,7 @@ func file_api_helm_app_gRPC_applist_proto_rawDescGZIP() []byte {
 var file_api_helm_app_gRPC_applist_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_api_helm_app_gRPC_applist_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_api_helm_app_gRPC_applist_proto_goTypes = []interface{}{
-	(ServerConnectionMethod)(0),         // 0: ServerConnectionMethod
+	(RemoteConnectionMethod)(0),         // 0: RemoteConnectionMethod
 	(*ClusterConfig)(nil),               // 1: ClusterConfig
 	(*AppListRequest)(nil),              // 2: AppListRequest
 	(*ExternalResourceTreeRequest)(nil), // 3: ExternalResourceTreeRequest
@@ -4578,7 +4578,7 @@ var file_api_helm_app_gRPC_applist_proto_goTypes = []interface{}{
 	(*RegistryCredential)(nil),          // 51: RegistryCredential
 	(*ProxyConfig)(nil),                 // 52: ProxyConfig
 	(*SSHTunnelConfig)(nil),             // 53: SSHTunnelConfig
-	(*ServerConnectionConfig)(nil),      // 54: ServerConnectionConfig
+	(*RemoteConnectionConfig)(nil),      // 54: RemoteConnectionConfig
 	(*OCIRegistryResponse)(nil),         // 55: OCIRegistryResponse
 	(*OCIRegistryPushResponse)(nil),     // 56: OCIRegistryPushResponse
 	nil,                                 // 57: ResourceNetworkingInfo.LabelsEntry
@@ -4586,7 +4586,7 @@ var file_api_helm_app_gRPC_applist_proto_goTypes = []interface{}{
 	(*timestamp.Timestamp)(nil),         // 59: google.protobuf.Timestamp
 }
 var file_api_helm_app_gRPC_applist_proto_depIdxs = []int32{
-	54, // 0: ClusterConfig.ServerConnectionConfig:type_name -> ServerConnectionConfig
+	54, // 0: ClusterConfig.RemoteConnectionConfig:type_name -> RemoteConnectionConfig
 	1,  // 1: AppListRequest.clusters:type_name -> ClusterConfig
 	1,  // 2: ExternalResourceTreeRequest.clusterConfig:type_name -> ClusterConfig
 	4,  // 3: ExternalResourceTreeRequest.externalResourceDetail:type_name -> ExternalResourceDetail
@@ -4636,10 +4636,10 @@ var file_api_helm_app_gRPC_applist_proto_depIdxs = []int32{
 	47, // 47: ResourceTreeFilter.globalFilter:type_name -> ResourceIdentifier
 	46, // 48: ResourceTreeFilter.resourceFilters:type_name -> ResourceFilter
 	51, // 49: OCIRegistryRequest.RegistryCredential:type_name -> RegistryCredential
-	54, // 50: RegistryCredential.ServerConnectionConfig:type_name -> ServerConnectionConfig
-	0,  // 51: ServerConnectionConfig.ConnectionMethod:type_name -> ServerConnectionMethod
-	52, // 52: ServerConnectionConfig.ProxyConfig:type_name -> ProxyConfig
-	53, // 53: ServerConnectionConfig.SSHTunnelConfig:type_name -> SSHTunnelConfig
+	54, // 50: RegistryCredential.RemoteConnectionConfig:type_name -> RemoteConnectionConfig
+	0,  // 51: RemoteConnectionConfig.ConnectionMethod:type_name -> RemoteConnectionMethod
+	52, // 52: RemoteConnectionConfig.ProxyConfig:type_name -> ProxyConfig
+	53, // 53: RemoteConnectionConfig.SSHTunnelConfig:type_name -> SSHTunnelConfig
 	56, // 54: OCIRegistryResponse.PushResult:type_name -> OCIRegistryPushResponse
 	2,  // 55: ApplicationService.ListApplications:input_type -> AppListRequest
 	8,  // 56: ApplicationService.GetAppDetail:input_type -> AppDetailRequest
@@ -5335,7 +5335,7 @@ func file_api_helm_app_gRPC_applist_proto_init() {
 			}
 		}
 		file_api_helm_app_gRPC_applist_proto_msgTypes[53].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ServerConnectionConfig); i {
+			switch v := v.(*RemoteConnectionConfig); i {
 			case 0:
 				return &v.state
 			case 1:

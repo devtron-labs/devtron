@@ -11,5 +11,5 @@ type ClusterInfo struct {
 	KeyData                string                           `json:"keyData"`
 	CertData               string                           `json:"certData"`
 	CAData                 string                           `json:"CAData"`
-	ServerConnectionConfig *bean.RemoteConnectionConfigBean `json:"serverConnectionConfig"`
+	RemoteConnectionConfig *bean.RemoteConnectionConfigBean `json:"remoteConnectionConfig"`
 }

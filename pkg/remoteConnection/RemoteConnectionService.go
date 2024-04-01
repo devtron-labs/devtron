@@ -9,37 +9,37 @@ import (
 	"go.uber.org/zap"
 )
 
-type ServerConnectionService interface {
+type RemoteConnectionService interface {
 	// methods
-	CreateOrUpdateServerConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error
-	GetServerConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error)
+	CreateOrUpdateRemoteConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error
+	GetRemoteConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error)
 }
 
-type ServerConnectionServiceImpl struct {
+type RemoteConnectionServiceImpl struct {
 	logger                        *zap.SugaredLogger
-	serverConnectionRepository    repository.RemoteConnectionRepository
+	remoteConnectionRepository    repository.RemoteConnectionRepository
 	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 }
 
-func NewServerConnectionServiceImpl(logger *zap.SugaredLogger,
-	serverConnectionRepository repository.RemoteConnectionRepository,
-	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository) *ServerConnectionServiceImpl {
-	return &ServerConnectionServiceImpl{
+func NewRemoteConnectionServiceImpl(logger *zap.SugaredLogger,
+	remoteConnectionRepository repository.RemoteConnectionRepository,
+	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository) *RemoteConnectionServiceImpl {
+	return &RemoteConnectionServiceImpl{
 		logger:                        logger,
-		serverConnectionRepository:    serverConnectionRepository,
+		remoteConnectionRepository:    remoteConnectionRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 	}
 }
 
-func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error {
-	existingConfig, err := impl.serverConnectionRepository.GetById(reqBean.RemoteConnectionConfigId)
+func (impl *RemoteConnectionServiceImpl) CreateOrUpdateRemoteConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error {
+	existingConfig, err := impl.remoteConnectionRepository.GetById(reqBean.RemoteConnectionConfigId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error occurred while fetching existing server connection config", "err", err, "id", reqBean.RemoteConnectionConfigId)
 		return err
 	}
-	config := adapter.ConvertServerConnectionConfigBeanToServerConnectionConfig(reqBean, userId)
+	config := adapter.ConvertRemoteConnectionConfigBeanToRemoteConnectionConfig(reqBean, userId)
 	if existingConfig == nil {
-		err = impl.serverConnectionRepository.Save(config, tx)
+		err = impl.remoteConnectionRepository.Save(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving server connection config", "err", err)
 			return err
@@ -49,7 +49,7 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 		config.Id = existingConfig.Id
 		config.CreatedBy = existingConfig.CreatedBy
 		config.CreatedOn = existingConfig.CreatedOn
-		err = impl.serverConnectionRepository.Update(config, tx)
+		err = impl.remoteConnectionRepository.Update(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating server connection config", "err", err)
 			return err
@@ -58,12 +58,12 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 	return nil
 }
 
-func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error) {
-	model, err := impl.serverConnectionRepository.GetById(id)
+func (impl *RemoteConnectionServiceImpl) GetRemoteConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error) {
+	model, err := impl.remoteConnectionRepository.GetById(id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching server connection config", "err", err, "serverConnectionConfigId", id)
+		impl.logger.Errorw("error while fetching remote connection config", "err", err, "remoteConnectionConfigId", id)
 		return nil, err
 	}
-	serverConnectionConfig := adapter.GetServerConnectionConfigBean(model)
-	return serverConnectionConfig, nil
+	remoteConnectionConfig := adapter.GetRemoteConnectionConfigBean(model)
+	return remoteConnectionConfig, nil
 }

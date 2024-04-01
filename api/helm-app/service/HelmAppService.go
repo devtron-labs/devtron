@@ -12,7 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"net/http"
@@ -143,22 +143,22 @@ func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gR
 		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
 	}
 
-	if clusterBean.ServerConnectionConfig != nil {
+	if clusterBean.RemoteConnectionConfig != nil {
 		connectionMethod := 0
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH {
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 			connectionMethod = 1
 		}
-		clusterConnectionConfig := &gRPC.ServerConnectionConfig{
-			ConnectionMethod: gRPC.ServerConnectionMethod(connectionMethod),
+		clusterConnectionConfig := &gRPC.RemoteConnectionConfig{
+			ConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
 		}
-		if clusterBean.ServerConnectionConfig.ProxyConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy {
-			proxyConfig := clusterBean.ServerConnectionConfig.ProxyConfig
+		if clusterBean.RemoteConnectionConfig.ProxyConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
+			proxyConfig := clusterBean.RemoteConnectionConfig.ProxyConfig
 			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH {
-			sshTunnelConfig := clusterBean.ServerConnectionConfig.SSHTunnelConfig
+		if clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			sshTunnelConfig := clusterBean.RemoteConnectionConfig.SSHTunnelConfig
 			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
 				SSHUsername:      sshTunnelConfig.SSHUsername,
@@ -166,7 +166,7 @@ func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gR
 				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
 			}
 		}
-		config.ServerConnectionConfig = clusterConnectionConfig
+		config.RemoteConnectionConfig = clusterConnectionConfig
 	}
 	if clusterBean.InsecureSkipTLSVerify == false {
 		config.KeyData = clusterBean.Config[k8s2.TlsKey]

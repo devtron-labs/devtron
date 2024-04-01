@@ -77,22 +77,22 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CAData:                info.CAData,
 		}
 
-		if info.ServerConnectionConfig != nil {
+		if info.RemoteConnectionConfig != nil {
 			connectionConfig := &bean3.RemoteConnectionConfigBean{
-				RemoteConnectionConfigId: info.ServerConnectionConfig.RemoteConnectionConfigId,
-				ConnectionMethod:         bean3.RemoteConnectionMethod(info.ServerConnectionConfig.ConnectionMethod),
+				RemoteConnectionConfigId: info.RemoteConnectionConfig.RemoteConnectionConfigId,
+				ConnectionMethod:         bean3.RemoteConnectionMethod(info.RemoteConnectionConfig.ConnectionMethod),
 			}
-			if info.ServerConnectionConfig.ProxyConfig != nil && string(info.ServerConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodProxy) {
+			if info.RemoteConnectionConfig.ProxyConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodProxy) {
 				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
-					ProxyUrl: info.ServerConnectionConfig.ProxyConfig.ProxyUrl,
+					ProxyUrl: info.RemoteConnectionConfig.ProxyConfig.ProxyUrl,
 				}
 			}
-			if info.ServerConnectionConfig.SSHTunnelConfig != nil && string(info.ServerConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodSSH) {
+			if info.RemoteConnectionConfig.SSHTunnelConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodSSH) {
 				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
-					SSHServerAddress: info.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress,
-					SSHUsername:      info.ServerConnectionConfig.SSHTunnelConfig.SSHUsername,
-					SSHPassword:      info.ServerConnectionConfig.SSHTunnelConfig.SSHPassword,
-					SSHAuthKey:       info.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+					SSHServerAddress: info.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+					SSHUsername:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername,
+					SSHPassword:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword,
+					SSHAuthKey:       info.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey,
 				}
 			}
 			clusterConfig.RemoteConnectionConfig = connectionConfig
