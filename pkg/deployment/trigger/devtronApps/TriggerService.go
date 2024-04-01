@@ -39,8 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
-	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/adapter"
-	bean9 "github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/trigger"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -82,8 +81,7 @@ type TriggerService interface {
 	HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 
-	HandleCdTriggerReleaseWithFeasibility(feasibilityDto *bean9.FeasibilityDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
-		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error, err2 error)
+	HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
@@ -119,9 +117,9 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
-
-	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	feasibilityManager                  trigger.FeasibilityManager
+	enforcerUtil                        rbac.EnforcerUtil
+	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
 	scanResultRepository          security.ImageScanResultRepository
@@ -408,20 +406,17 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 		// Deploy the release
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-		feasibilityDto := adapter2.GetFeasibilityDto(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
+		triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
 		var releaseErr error
-		var err2 error
-		releaseId, _, releaseErr, err2 = impl.HandleCdTriggerReleaseWithFeasibility(feasibilityDto, overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
+		releaseId, _, releaseErr = impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
-		if err2 != nil {
-			impl.logger.Errorw("error encountered in ManualCdTrigger", "err", err2)
-			return 0, err2
-		}
 		// if releaseErr found, then the mark current deployment Failed and return
 		if releaseErr != nil {
-			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
+				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+				}
 			}
 			return 0, releaseErr
 		}
@@ -578,17 +573,15 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 	// custom GitOps repo url validation --> Ends
 
-	feasibilityDto := adapter2.GetFeasibilityDto(artifact, pipeline, runner, triggeredBy, nil)
-	releaseErr, err2 := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt, feasibilityDto)
-	if err2 != nil {
-		impl.logger.Errorw("error encountered in TriggerAutomaticDeployment", "err2", err2, "feasibilityDto", feasibilityDto)
-		return err2
-	}
+	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
+	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt, triggerRequirementRequest)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
-		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
-		if err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+		if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
+			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
+			if err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			}
 		}
 		return releaseErr
 	}
@@ -603,40 +596,40 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, feasibilityDto *bean9.FeasibilityDto) (error, error) {
+func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
 
-	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt, feasibilityDto)
+	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt, triggerRequirementRequest)
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, feasibilityDto *bean9.FeasibilityDto) (error, error) {
-	err, err2 := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt, feasibilityDto)
+func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
+	err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
 	impl.logger.Debugw("trigger attempted for all pipeline ", "artifactId", artifact.Id)
-	return err, err2
+	return err
 }
 
-func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, feasibilityDto *bean9.FeasibilityDto) (error, error) {
+func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
 	//TODO: verify this logicc
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
 		impl.logger.Error("invalid req, app and env not found from rbac")
-		return errors.New("invalid req, app and env not found from rbac"), nil
+		return errors.New("invalid req, app and env not found from rbac")
 	}
-	err, err2 := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt, feasibilityDto)
-	return err, err2
+	err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
+	return err
 }
 
-func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, feasibilityDto *bean9.FeasibilityDto) (error, error) {
+func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return err, nil
+		return err
 	}
 
 	request := &bean3.ValuesOverrideRequest{
@@ -654,62 +647,58 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 	ctx, err := impl.argoUserService.BuildACDContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		return err, nil
+		return err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err, err2 := impl.HandleCdTriggerReleaseWithFeasibility(feasibilityDto, request, ctx, triggeredAt, 1)
-	if err2 != nil && !errors.Is(err2, fmt.Errorf("found vulnerability for image digest %s", feasibilityDto.Artifact.ImageDigest)) {
-		impl.logger.Errorw("error in releasePipeline", feasibilityDto, "feasibilityDto", "err", err2)
-		return nil, err2
-	}
+	id, _, err := impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, request, ctx, triggeredAt, 1)
 	if err != nil {
-		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		if errors.Is(err, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) {
+			// setting error as nil here as to maintain the existing flow when vulnerability found we used to sent nil.
+			impl.logger.Info("setting as err as nil , ignoring vulnerabilityfound error", "err", err)
+			err = nil
+		} else {
+			impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		}
 	} else {
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
-	return err, nil
+	return err
 }
 
-func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(feasibilityDto *bean9.FeasibilityDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
-	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error, err2 error) {
+func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
 	isDryRun := overrideRequest.IsDryRun
 	// introduce feasibility call and return custom error if fails
-	feasibilityState, err2 := impl.checkFeasibility(feasibilityDto)
-	if err2 != nil {
+	err = impl.checkFeasibility(triggerRequirementRequest)
+	if err != nil && !errors.Is(err, bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)) {
 		impl.logger.Errorw("error encountered in HandleCdTriggerReleaseWithFeasibility", "overrideRequest", overrideRequest, "err", err)
-		return releaseNo, manifest, err, err2
-	}
-	// handle error deployment failed in case of vulnerability and return
-	if feasibilityState.ErrorState == bean9.VulnerabilityFoundFeasibilityError {
+		return releaseNo, manifest, err
+	} else if err != nil {
 		// if image vulnerable, update timeline status and return
-		if isDryRun {
-			if ok := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(feasibilityDto.Runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), feasibilityDto.TriggeredBy); ok != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", feasibilityDto.Runner.Id, "err", err)
-			}
+		if ok := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(triggerRequirementRequest.Runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggerRequirementRequest.TriggeredBy); ok != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", triggerRequirementRequest.Runner.Id, "err", err)
 		}
-		return releaseNo, manifest, nil, fmt.Errorf("found vulnerability for image digest %s", feasibilityDto.Artifact.ImageDigest)
+		return releaseNo, manifest, err
 	}
 	if !isDryRun {
 		releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
-		return releaseNo, manifest, err, nil
+		return releaseNo, manifest, err
 	}
-	return releaseNo, manifest, err, nil
+	return releaseNo, manifest, err
 
 }
 
-func (impl *TriggerServiceImpl) checkFeasibility(feasibilityDto *bean9.FeasibilityDto) (*bean9.FeasibilityErrorState, error) {
-	feasibilityErrorState := &bean9.FeasibilityErrorState{}
+func (impl *TriggerServiceImpl) checkFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
 	//checking vulnerability for deploying image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(feasibilityDto.Artifact, feasibilityDto.Pipeline, feasibilityDto.Context)
+	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(triggerRequirementRequest.Artifact, triggerRequirementRequest.Pipeline, triggerRequirementRequest.Context)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerAutomaticDeployment", "err", err)
-		return nil, err
+		return bean.GetOperationPerformError(err.Error())
 	}
 	if isVulnerable {
-		feasibilityErrorState.SetVulnerabilityFeasibilityError()
+		return bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)
 	}
 
-	return feasibilityErrorState, nil
+	return nil
 }
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
