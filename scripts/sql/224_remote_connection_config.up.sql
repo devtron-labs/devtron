@@ -20,12 +20,12 @@ CREATE TABLE IF NOT EXISTS public.server_connection_config
 );
 
 ALTER TABLE cluster
-    ADD CONSTRAINT fk_cluster_server_connection_config
-        FOREIGN KEY (server_connection_config_id)
-            REFERENCES server_connection_config (id);
+    ADD CONSTRAINT fk_cluster_remote_connection_config
+        FOREIGN KEY (remote_connection_config_id)
+            REFERENCES remote_connection_config (id);
 
 ALTER TABLE docker_artifact_store
-    ADD CONSTRAINT fk_docker_artifact_store_server_connection_config
-        FOREIGN KEY (server_connection_config_id)
-            REFERENCES server_connection_config (id);
+    ADD CONSTRAINT fk_docker_artifact_store_remote_connection_config
+        FOREIGN KEY (remote_connection_config_id)
+            REFERENCES remote_connection_config (id);
 
