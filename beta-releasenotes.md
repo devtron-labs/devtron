@@ -16,6 +16,7 @@
 ## Documentation
 - doc: Added EnvVariablesFromFieldPath in Deployment Template (#4852)
 ## Others
+- misc: Refactoring Pagerduty Issue Calculator script (#4856)
 - misc: Update github_pagerduty_score_calculation.yml (#4853)
 - misc: Update pager-duty.yaml (#4850)
 - misc: Pagerduty issue template change (#4796)
