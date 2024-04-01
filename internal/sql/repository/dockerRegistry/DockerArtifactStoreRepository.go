@@ -19,7 +19,7 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg/orm"
@@ -67,7 +67,7 @@ type DockerArtifactStore struct {
 	Active                   bool         `sql:"active,notnull" json:"active"`
 	IpsConfig                *DockerRegistryIpsConfig
 	OCIRegistryConfig        []*OCIRegistryConfig
-	ServerConnectionConfig   *repository.ServerConnectionConfig
+	ServerConnectionConfig   *repository.RemoteConnectionConfig
 	sql.AuditLog
 }
 
@@ -149,7 +149,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindActiveDefaultStore() (*DockerA
 func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig", "ServerConnectionConfig").
+		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -162,7 +162,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -191,7 +191,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerA
 func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
@@ -229,7 +229,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(st
 func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", false).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {

@@ -98,11 +98,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository5 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/server"
 	"github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	repository5 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -209,9 +209,9 @@ func InitializeApp() (*App, error) {
 	clusterRepositoryImpl := repository4.NewClusterRepositoryImpl(db, sugaredLogger)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sUtilExtended)
-	serverConnectionRepositoryImpl := repository5.NewServerConnectionRepositoryImpl(db, sugaredLogger)
+	remoteConnectionRepositoryImpl := repository5.NewRemoteConnectionRepositoryImpl(db, sugaredLogger)
 	dockerArtifactStoreRepositoryImpl := repository6.NewDockerArtifactStoreRepositoryImpl(db)
-	serverConnectionServiceImpl := serverConnection.NewServerConnectionServiceImpl(sugaredLogger, serverConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
+	serverConnectionServiceImpl := remoteConnection.NewServerConnectionServiceImpl(sugaredLogger, remoteConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, serverConnectionServiceImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
@@ -247,7 +247,7 @@ func InitializeApp() (*App, error) {
 	helmAppServiceImpl := service.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImpl, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtilExtended, helmReleaseConfig)
 	dockerRegistryIpsConfigRepositoryImpl := repository6.NewDockerRegistryIpsConfigRepositoryImpl(db)
 	ociRegistryConfigRepositoryImpl := repository6.NewOCIRegistryConfigRepositoryImpl(db)
-	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, serverConnectionServiceImpl, serverConnectionRepositoryImpl)
+	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, serverConnectionServiceImpl, remoteConnectionRepositoryImpl)
 	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)

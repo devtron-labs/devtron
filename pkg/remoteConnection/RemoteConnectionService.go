@@ -1,29 +1,28 @@
-package serverConnection
+package remoteConnection
 
 import (
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/adapter"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/adapter"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type ServerConnectionService interface {
 	// methods
-	CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32, tx *pg.Tx) error
-	GetServerConnectionConfigById(id int) (*bean.ServerConnectionConfigBean, error)
-	GetServerConnectionConfigByDockerId(dockerId string) (*bean.ServerConnectionConfigBean, error)
+	CreateOrUpdateServerConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error
+	GetServerConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error)
 }
 
 type ServerConnectionServiceImpl struct {
 	logger                        *zap.SugaredLogger
-	serverConnectionRepository    repository.ServerConnectionRepository
+	serverConnectionRepository    repository.RemoteConnectionRepository
 	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 }
 
 func NewServerConnectionServiceImpl(logger *zap.SugaredLogger,
-	serverConnectionRepository repository.ServerConnectionRepository,
+	serverConnectionRepository repository.RemoteConnectionRepository,
 	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository) *ServerConnectionServiceImpl {
 	return &ServerConnectionServiceImpl{
 		logger:                        logger,
@@ -32,10 +31,10 @@ func NewServerConnectionServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32, tx *pg.Tx) error {
-	existingConfig, err := impl.serverConnectionRepository.GetById(reqBean.ServerConnectionConfigId)
+func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error {
+	existingConfig, err := impl.serverConnectionRepository.GetById(reqBean.RemoteConnectionConfigId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error occurred while fetching existing server connection config", "err", err, "id", reqBean.ServerConnectionConfigId)
+		impl.logger.Errorw("error occurred while fetching existing server connection config", "err", err, "id", reqBean.RemoteConnectionConfigId)
 		return err
 	}
 	config := adapter.ConvertServerConnectionConfigBeanToServerConnectionConfig(reqBean, userId)
@@ -45,7 +44,7 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 			impl.logger.Errorw("error occurred while saving server connection config", "err", err)
 			return err
 		}
-		reqBean.ServerConnectionConfigId = config.Id
+		reqBean.RemoteConnectionConfigId = config.Id
 	} else {
 		config.Id = existingConfig.Id
 		config.CreatedBy = existingConfig.CreatedBy
@@ -59,24 +58,12 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 	return nil
 }
 
-func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (*bean.ServerConnectionConfigBean, error) {
+func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error) {
 	model, err := impl.serverConnectionRepository.GetById(id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching server connection config", "err", err, "serverConnectionConfigId", id)
 		return nil, err
 	}
 	serverConnectionConfig := adapter.GetServerConnectionConfigBean(model)
-	return serverConnectionConfig, nil
-}
-
-func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigByDockerId(dockerId string) (*bean.ServerConnectionConfigBean, error) {
-	dockerRegistry, err := impl.dockerArtifactStoreRepository.FindOne(dockerId)
-	if err != nil {
-		return nil, err
-	}
-	serverConnectionConfig, err := impl.GetServerConnectionConfigById(dockerRegistry.ServerConnectionConfigId)
-	if err != nil {
-		return nil, err
-	}
 	return serverConnectionConfig, nil
 }

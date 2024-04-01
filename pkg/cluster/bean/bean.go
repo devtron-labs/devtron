@@ -2,8 +2,8 @@ package bean
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	bean2 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 )
 
 type ClusterBean struct {
@@ -29,7 +29,7 @@ type ClusterBean struct {
 	ClusterUpdated          bool                             `json:"clusterUpdated"`
 	ToConnectWithSSHTunnel  bool                             `json:"toConnectWithSSHTunnel,omitempty"`
 	SSHTunnelConfig         *SSHTunnelConfig                 `json:"sshTunnelConfig,omitempty"`
-	ServerConnectionConfig  *bean.ServerConnectionConfigBean `json:"-"`
+	ServerConnectionConfig  *bean.RemoteConnectionConfigBean `json:"-"`
 }
 
 type VirtualClusterBean struct {
@@ -71,11 +71,11 @@ func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
 		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
 	}
 	if bean.ServerConnectionConfig != nil {
-		clusterCfg.ServerConnectionConfig = &bean2.ServerConnectionConfigBean{
-			ServerConnectionConfigId: bean.ServerConnectionConfig.ServerConnectionConfigId,
-			ConnectionMethod:         bean2.ServerConnectionMethod(bean.ServerConnectionConfig.ConnectionMethod),
-			ProxyConfig:              (*bean2.ProxyConfig)(bean.ServerConnectionConfig.ProxyConfig),
-			SSHTunnelConfig:          (*bean2.SSHTunnelConfig)(bean.ServerConnectionConfig.SSHTunnelConfig),
+		clusterCfg.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
+			RemoteConnectionConfigId: bean.ServerConnectionConfig.RemoteConnectionConfigId,
+			ConnectionMethod:         remoteConnectionBean.RemoteConnectionMethod(bean.ServerConnectionConfig.ConnectionMethod),
+			ProxyConfig:              (*remoteConnectionBean.ProxyConfig)(bean.ServerConnectionConfig.ProxyConfig),
+			SSHTunnelConfig:          (*remoteConnectionBean.SSHTunnelConfig)(bean.ServerConnectionConfig.SSHTunnelConfig),
 		}
 	}
 	return clusterCfg

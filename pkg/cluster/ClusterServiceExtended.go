@@ -7,13 +7,13 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	userRepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -51,14 +51,14 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *k8s.K8sUtilExtended,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	userAuthRepository repository5.UserAuthRepository,
-	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
+	userAuthRepository userRepository.UserAuthRepository,
+	userRepository userRepository.UserRepository, roleGroupRepository userRepository.RoleGroupRepository,
 	sshTunnelWrapperService ssh.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
-	serverConnectionService serverConnection.ServerConnectionService) *ClusterServiceImplExtended {
+	serverConnectionService remoteConnection.ServerConnectionService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:    environmentRepository,
 		grafanaClient:            grafanaClient,
@@ -115,7 +115,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterB
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.ServerConnectionConfig != nil && bean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+		if bean.ServerConnectionConfig != nil && bean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
 			bean.ServerConnectionConfig.SSHTunnelConfig != nil {
 			if len(bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
 				bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder

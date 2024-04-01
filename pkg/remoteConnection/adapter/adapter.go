@@ -1,25 +1,25 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
 
-func GetServerConnectionConfigBean(model *repository.ServerConnectionConfig) *bean.ServerConnectionConfigBean {
-	var configBean *bean.ServerConnectionConfigBean
+func GetServerConnectionConfigBean(model *repository.RemoteConnectionConfig) *bean.RemoteConnectionConfigBean {
+	var configBean *bean.RemoteConnectionConfigBean
 	if model != nil {
-		configBean = &bean.ServerConnectionConfigBean{
-			ServerConnectionConfigId: model.Id,
+		configBean = &bean.RemoteConnectionConfigBean{
+			RemoteConnectionConfigId: model.Id,
 			ConnectionMethod:         model.ConnectionMethod,
 		}
-		if model.ConnectionMethod == bean.ServerConnectionMethodProxy {
+		if model.ConnectionMethod == bean.RemoteConnectionMethodProxy {
 			configBean.ProxyConfig = &bean.ProxyConfig{
 				ProxyUrl: model.ProxyUrl,
 			}
 		}
-		if model.ConnectionMethod == bean.ServerConnectionMethodSSH {
+		if model.ConnectionMethod == bean.RemoteConnectionMethodSSH {
 			configBean.SSHTunnelConfig = &bean.SSHTunnelConfig{
 				SSHServerAddress: model.SSHServerAddress,
 				SSHUsername:      model.SSHUsername,
@@ -31,11 +31,11 @@ func GetServerConnectionConfigBean(model *repository.ServerConnectionConfig) *be
 	return configBean
 }
 
-func ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.ServerConnectionConfigBean, userId int32) *repository.ServerConnectionConfig {
-	var model repository.ServerConnectionConfig
+func ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.RemoteConnectionConfigBean, userId int32) *repository.RemoteConnectionConfig {
+	var model repository.RemoteConnectionConfig
 	if configBean != nil {
-		model = repository.ServerConnectionConfig{
-			Id:               configBean.ServerConnectionConfigId,
+		model = repository.RemoteConnectionConfig{
+			Id:               configBean.RemoteConnectionConfigId,
 			ConnectionMethod: configBean.ConnectionMethod,
 			Deleted:          false,
 			AuditLog: sql.AuditLog{
@@ -45,11 +45,11 @@ func ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.
 				UpdatedOn: time.Now(),
 			},
 		}
-		if configBean.ProxyConfig != nil && configBean.ConnectionMethod == bean.ServerConnectionMethodProxy {
+		if configBean.ProxyConfig != nil && configBean.ConnectionMethod == bean.RemoteConnectionMethodProxy {
 			proxyConfig := configBean.ProxyConfig
 			model.ProxyUrl = proxyConfig.ProxyUrl
 		}
-		if configBean.SSHTunnelConfig != nil && configBean.ConnectionMethod == bean.ServerConnectionMethodSSH {
+		if configBean.SSHTunnelConfig != nil && configBean.ConnectionMethod == bean.RemoteConnectionMethodSSH {
 			sshTunnelConfig := configBean.SSHTunnelConfig
 			model.SSHServerAddress = sshTunnelConfig.SSHServerAddress
 			model.SSHUsername = sshTunnelConfig.SSHUsername

@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	_ "github.com/devtron-labs/common-lib/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	bean2 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	"go.uber.org/zap"
 	restclient "k8s.io/client-go/rest"
 	"net/http"
@@ -52,9 +52,9 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 	if err != nil {
 		return nil, err
 	}
-	connectionConfig := clusterConfig.ServerConnectionConfig
+	connectionConfig := clusterConfig.RemoteConnectionConfig
 	if connectionConfig != nil {
-		if connectionConfig.SSHTunnelConfig != nil && connectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+		if connectionConfig.SSHTunnelConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 			hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
 			if err != nil {
 				impl.logger.Errorw("error in getting hostUrl for ssh configured cluster", "err", err, "clusterId", clusterConfig.ClusterId)
@@ -62,7 +62,7 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 			}
 			// Override the server URL with the localhost URL where the SSH tunnel is hosted
 			restConfig.Host = hostUrl
-		} else if connectionConfig.ProxyConfig != nil && connectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+		} else if connectionConfig.ProxyConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
 			proxyUrl := connectionConfig.ProxyConfig.ProxyUrl
 			proxy, err := url.Parse(proxyUrl)
 			if err != nil {
@@ -70,6 +70,9 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 				return nil, err
 			}
 			restConfig.Proxy = http.ProxyURL(proxy)
+		} else {
+			impl.logger.Errorw("error in fetching connection config", "err", err)
+			return nil, err
 		}
 	}
 
@@ -90,7 +93,7 @@ func (impl K8sUtilExtended) GetHostUrlForSSHTunnelConfiguredCluster(clusterConfi
 
 func (impl K8sUtilExtended) CleanupForClusterUsedForVerification(config *k8s2.ClusterConfig) {
 	//cleanup for ssh tunnel, as other methods do not require cleanup
-	if config.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+	if config.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 		impl.sshTunnelWrapperService.CleanupForVerificationCluster(config.ClusterName)
 	}
 }

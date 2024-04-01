@@ -3,15 +3,15 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	serverConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"time"
 )
 
 func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 	if len(model.ProxyUrl) > 0 || model.ToConnectWithSSHTunnel {
 		// converting old to new
-		connectionConfig := &repository3.ServerConnectionConfig{
+		connectionConfig := &serverConnectionRepository.RemoteConnectionConfig{
 			Id:               model.ServerConnectionConfigId,
 			ProxyUrl:         model.ProxyUrl,
 			SSHServerAddress: model.SSHTunnelServerAddress,
@@ -21,9 +21,9 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 			Deleted:          false,
 		}
 		if len(model.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodProxy
+			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
 		} else if model.ToConnectWithSSHTunnel {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodSSH
+			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
 		}
 		model.ServerConnectionConfig = connectionConfig
 		// reset old config
@@ -40,16 +40,16 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
 	if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// converting old bean to new bean
-		connectionConfig := &bean4.ServerConnectionConfigBean{}
+		connectionConfig := &serverConnectionBean.RemoteConnectionConfigBean{}
 		if len(clusterBean.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodProxy
-			connectionConfig.ProxyConfig = &bean4.ProxyConfig{
+			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
+			connectionConfig.ProxyConfig = &serverConnectionBean.ProxyConfig{
 				ProxyUrl: clusterBean.ProxyUrl,
 			}
 		}
 		if clusterBean.ToConnectWithSSHTunnel && clusterBean.SSHTunnelConfig != nil {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodSSH
-			connectionConfig.SSHTunnelConfig = &bean4.SSHTunnelConfig{
+			connectionConfig.ConnectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
+			connectionConfig.SSHTunnelConfig = &serverConnectionBean.SSHTunnelConfig{
 				SSHServerAddress: clusterBean.SSHTunnelConfig.SSHServerAddress,
 				SSHUsername:      clusterBean.SSHTunnelConfig.User,
 				SSHPassword:      clusterBean.SSHTunnelConfig.Password,
@@ -63,11 +63,11 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.Clu
 
 func ConvertNewClusterBeanToOldClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
 	if clusterBean.ServerConnectionConfig != nil {
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy &&
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy &&
 			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
 			clusterBean.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
 			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
 			clusterBean.ToConnectWithSSHTunnel = true
 			clusterBean.SSHTunnelConfig.SSHServerAddress = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
@@ -102,19 +102,19 @@ func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *r
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
 
-	var connectionMethod bean4.ServerConnectionMethod
-	var connectionConfig *repository3.ServerConnectionConfig
+	var connectionMethod serverConnectionBean.RemoteConnectionMethod
+	var connectionConfig *serverConnectionRepository.RemoteConnectionConfig
 	if clusterBean.ServerConnectionConfig != nil {
 		// if FE provided new bean
 		connectionMethod = clusterBean.ServerConnectionConfig.ConnectionMethod
-		connectionConfig = &repository3.ServerConnectionConfig{
+		connectionConfig = &serverConnectionRepository.RemoteConnectionConfig{
 			ConnectionMethod: connectionMethod,
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy &&
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy &&
 			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
 			connectionConfig.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH &&
 			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
 			connectionConfig.SSHServerAddress = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
 			connectionConfig.SSHUsername = clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername
@@ -124,11 +124,11 @@ func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *r
 	} else if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// if FE provided old bean
 		if len(clusterBean.ProxyUrl) > 0 {
-			connectionMethod = bean4.ServerConnectionMethodProxy
+			connectionMethod = serverConnectionBean.RemoteConnectionMethodProxy
 		} else if clusterBean.ToConnectWithSSHTunnel {
-			connectionMethod = bean4.ServerConnectionMethodSSH
+			connectionMethod = serverConnectionBean.RemoteConnectionMethodSSH
 		}
-		connectionConfig = &repository3.ServerConnectionConfig{
+		connectionConfig = &serverConnectionRepository.RemoteConnectionConfig{
 			ConnectionMethod: connectionMethod,
 			ProxyUrl:         clusterBean.ProxyUrl,
 		}
@@ -172,13 +172,13 @@ func GetClusterBean(model repository.Cluster) bean.ClusterBean {
 		TlsClientKey:  model.PTlsClientKey,
 	}
 	if model.ServerConnectionConfig != nil {
-		clusterBean.ServerConnectionConfig = &bean4.ServerConnectionConfigBean{
-			ServerConnectionConfigId: model.ServerConnectionConfigId,
+		clusterBean.ServerConnectionConfig = &serverConnectionBean.RemoteConnectionConfigBean{
+			RemoteConnectionConfigId: model.ServerConnectionConfigId,
 			ConnectionMethod:         model.ServerConnectionConfig.ConnectionMethod,
-			ProxyConfig: &bean4.ProxyConfig{
+			ProxyConfig: &serverConnectionBean.ProxyConfig{
 				ProxyUrl: model.ServerConnectionConfig.ProxyUrl,
 			},
-			SSHTunnelConfig: &bean4.SSHTunnelConfig{
+			SSHTunnelConfig: &serverConnectionBean.SSHTunnelConfig{
 				SSHServerAddress: model.ServerConnectionConfig.SSHServerAddress,
 				SSHUsername:      model.ServerConnectionConfig.SSHUsername,
 				SSHPassword:      model.ServerConnectionConfig.SSHPassword,

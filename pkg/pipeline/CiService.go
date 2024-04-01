@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	bean3 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -99,7 +99,8 @@ type CiServiceImpl struct {
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
 	infraProvider                 infraProviders.InfraProvider
-	serverConnectionService       serverConnection.ServerConnectionService
+	serverConnectionService       remoteConnection.ServerConnectionService
+	dockerRegistryConfig          DockerRegistryConfig
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -119,7 +120,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
-	serverConnectionService serverConnection.ServerConnectionService,
+	serverConnectionService remoteConnection.ServerConnectionService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -752,8 +753,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	if dockerRegistry != nil {
-		var registryConnectionConfig *bean3.ServerConnectionConfigBean
-		registryConnectionConfig, err = impl.serverConnectionService.GetServerConnectionConfigByDockerId(dockerRegistry.Id)
+		var registryConnectionConfig *serverConnectionBean.RemoteConnectionConfigBean
+		registryConnectionConfig, err = impl.dockerRegistryConfig.GetServerConnectionConfigByDockerId(dockerRegistry.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
 			return nil, err

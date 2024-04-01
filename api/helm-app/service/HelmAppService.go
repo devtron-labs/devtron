@@ -11,8 +11,8 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"net/http"
@@ -134,7 +134,7 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
-func ConvertClusterBeanToClusterConfig(clusterBean *bean3.ClusterBean) *gRPC.ClusterConfig {
+func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gRPC.ClusterConfig {
 	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          clusterBean.ServerUrl,
 		Token:                 clusterBean.Config[k8s2.BearerToken],
@@ -145,19 +145,19 @@ func ConvertClusterBeanToClusterConfig(clusterBean *bean3.ClusterBean) *gRPC.Clu
 
 	if clusterBean.ServerConnectionConfig != nil {
 		connectionMethod := 0
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH {
 			connectionMethod = 1
 		}
 		clusterConnectionConfig := &gRPC.ServerConnectionConfig{
 			ConnectionMethod: gRPC.ServerConnectionMethod(connectionMethod),
 		}
-		if clusterBean.ServerConnectionConfig.ProxyConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+		if clusterBean.ServerConnectionConfig.ProxyConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodProxy {
 			proxyConfig := clusterBean.ServerConnectionConfig.ProxyConfig
 			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+		if clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == serverConnectionBean.RemoteConnectionMethodSSH {
 			sshTunnelConfig := clusterBean.ServerConnectionConfig.SSHTunnelConfig
 			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,

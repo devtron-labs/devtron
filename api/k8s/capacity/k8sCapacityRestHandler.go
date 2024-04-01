@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
@@ -73,7 +73,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*bean2.ClusterBean
+	var authenticatedClusters []*clusterBean.ClusterBean
 	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
@@ -113,7 +113,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*bean2.ClusterBean
+	var authenticatedClusters []*clusterBean.ClusterBean
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
 		if err != nil {

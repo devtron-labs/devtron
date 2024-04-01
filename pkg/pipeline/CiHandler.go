@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -788,7 +788,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		if err != nil {
 			return nil, nil, err
 		}
-		var clusterBean bean4.ClusterBean
+		var clusterBean clusterBean.ClusterBean
 		if env != nil && env.Cluster != nil {
 			clusterBean = adapter.GetClusterBean(*env.Cluster)
 		}

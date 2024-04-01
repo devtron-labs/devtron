@@ -1,10 +1,10 @@
 package bean
 
-type ServerConnectionMethod string
+type RemoteConnectionMethod string
 
 const (
-	ServerConnectionMethodProxy ServerConnectionMethod = "PROXY"
-	ServerConnectionMethodSSH   ServerConnectionMethod = "SSH"
+	RemoteConnectionMethodProxy RemoteConnectionMethod = "PROXY"
+	RemoteConnectionMethodSSH   RemoteConnectionMethod = "SSH"
 )
 
 type ConnectionMethod string
@@ -25,9 +25,9 @@ type SSHTunnelConfig struct {
 	SSHAuthKey       string `json:"sshAuthKey,omitempty"`
 }
 
-type ServerConnectionConfigBean struct {
-	ServerConnectionConfigId int                    `json:"serverConnectionConfigId"`
-	ConnectionMethod         ServerConnectionMethod `json:"connectionMethod,omitempty"`
+type RemoteConnectionConfigBean struct {
+	RemoteConnectionConfigId int                    `json:"remoteConnectionConfigId"`
+	ConnectionMethod         RemoteConnectionMethod `json:"connectionMethod,omitempty"`
 	ProxyConfig              *ProxyConfig           `json:"proxyConfig,omitempty"`
 	SSHTunnelConfig          *SSHTunnelConfig       `json:"sshConfig,omitempty"`
 }

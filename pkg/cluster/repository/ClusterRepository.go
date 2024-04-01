@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -58,7 +58,7 @@ type Cluster struct {
 	SSHTunnelPassword        string            `sql:"ssh_tunnel_password"`
 	SSHTunnelAuthKey         string            `sql:"ssh_tunnel_auth_key"`
 	SSHTunnelServerAddress   string            `sql:"ssh_tunnel_server_address"`
-	ServerConnectionConfig   *repository.ServerConnectionConfig
+	ServerConnectionConfig   *repository.RemoteConnectionConfig
 	sql.AuditLog
 }
 
@@ -107,7 +107,7 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 	cluster := &Cluster{}
 	err := impl.dbConnection.
 		Model(cluster).
-		Column("cluster.*", "ServerConnectionConfig").
+		Column("cluster.*", "RemoteConnectionConfig").
 		Where("cluster.cluster_name =?", clusterName).
 		Where("cluster.active =?", true).
 		Limit(1).
@@ -225,7 +225,7 @@ func (impl ClusterRepositoryImpl) UpdateClusterConnectionStatus(clusterId int, e
 func (impl ClusterRepositoryImpl) GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error) {
 	var clusters []*Cluster
 	err := impl.dbConnection.Model(&clusters).
-		Column("cluster.*", "ServerConnectionConfig").
+		Column("cluster.*", "RemoteConnectionConfig").
 		Where("cluster.active = ?", true).
 		Where("server_connection_config.connection_method = ?", "SSH").
 		Select()

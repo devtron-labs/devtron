@@ -25,7 +25,7 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -456,7 +456,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 }
 
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	var clusterBean *bean.ClusterBean
+	var clusterBean *clusterBean.ClusterBean
 	var clusterConfig *k8s2.ClusterConfig
 	var restConfig *rest.Config
 	var err error

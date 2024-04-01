@@ -1,6 +1,6 @@
 package bean
 
-import "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+import "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 
 type ClusterInfo struct {
 	ClusterId              int                              `json:"clusterId"`
@@ -11,5 +11,5 @@ type ClusterInfo struct {
 	KeyData                string                           `json:"keyData"`
 	CertData               string                           `json:"certData"`
 	CAData                 string                           `json:"CAData"`
-	ServerConnectionConfig *bean.ServerConnectionConfigBean `json:"serverConnectionConfig"`
+	ServerConnectionConfig *bean.RemoteConnectionConfigBean `json:"serverConnectionConfig"`
 }

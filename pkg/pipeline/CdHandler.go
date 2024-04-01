@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -166,7 +166,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 
-	var clusterBean bean3.ClusterBean
+	var clusterBean clusterBean.ClusterBean
 	if env != nil && env.Cluster != nil {
 		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}
@@ -486,7 +486,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-	var clusterBean bean3.ClusterBean
+	var clusterBean clusterBean.ClusterBean
 	if env != nil && env.Cluster != nil {
 		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}

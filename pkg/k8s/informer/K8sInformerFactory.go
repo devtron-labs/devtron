@@ -3,8 +3,7 @@ package informer
 import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	bean3 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	bean3 "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	"sync"
 	"time"
 
@@ -79,16 +78,16 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 		}
 
 		if info.ServerConnectionConfig != nil {
-			connectionConfig := &bean3.ServerConnectionConfigBean{
-				ServerConnectionConfigId: info.ServerConnectionConfig.ServerConnectionConfigId,
-				ConnectionMethod:         bean3.ServerConnectionMethod(info.ServerConnectionConfig.ConnectionMethod),
+			connectionConfig := &bean3.RemoteConnectionConfigBean{
+				RemoteConnectionConfigId: info.ServerConnectionConfig.RemoteConnectionConfigId,
+				ConnectionMethod:         bean3.RemoteConnectionMethod(info.ServerConnectionConfig.ConnectionMethod),
 			}
-			if info.ServerConnectionConfig.ProxyConfig != nil && info.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+			if info.ServerConnectionConfig.ProxyConfig != nil && string(info.ServerConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodProxy) {
 				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
 					ProxyUrl: info.ServerConnectionConfig.ProxyConfig.ProxyUrl,
 				}
 			}
-			if info.ServerConnectionConfig.SSHTunnelConfig != nil && info.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+			if info.ServerConnectionConfig.SSHTunnelConfig != nil && string(info.ServerConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodSSH) {
 				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
 					SSHServerAddress: info.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress,
 					SSHUsername:      info.ServerConnectionConfig.SSHTunnelConfig.SSHUsername,
@@ -96,7 +95,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 					SSHAuthKey:       info.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey,
 				}
 			}
-			clusterConfig.ServerConnectionConfig = connectionConfig
+			clusterConfig.RemoteConnectionConfig = connectionConfig
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}

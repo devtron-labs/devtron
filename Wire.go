@@ -156,11 +156,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository11 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	repository11 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository9 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -1028,11 +1028,11 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		repository11.NewServerConnectionRepositoryImpl,
-		wire.Bind(new(repository11.ServerConnectionRepository), new(*repository11.ServerConnectionRepositoryImpl)),
+		repository11.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(repository11.RemoteConnectionRepository), new(*repository11.RemoteConnectionRepositoryImpl)),
 
-		serverConnection.NewServerConnectionServiceImpl,
-		wire.Bind(new(serverConnection.ServerConnectionService), new(*serverConnection.ServerConnectionServiceImpl)),
+		remoteConnection.NewServerConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.ServerConnectionService), new(*remoteConnection.ServerConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -24,9 +24,10 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/adapter"
-	repository2 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/adapter"
+	serverConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	serverConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
@@ -56,6 +57,7 @@ type DockerRegistryConfig interface {
 	FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList []*repository.OCIRegistryConfig, repositoryType string) *repository.OCIRegistryConfig
 	FilterRegistryBeanListBasedOnStorageTypeAndAction(bean []types.DockerArtifactStoreBean, storageType string, actionTypes ...string) []types.DockerArtifactStoreBean
 	ValidateRegistryStorageType(registryId string, storageType string, storageActions ...string) bool
+	GetServerConnectionConfigByDockerId(dockerId string) (*serverConnectionBean.RemoteConnectionConfigBean, error)
 }
 
 const (
@@ -70,13 +72,13 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
-	serverConnectionService           serverConnection.ServerConnectionService
-	serverConnectionRepository        repository2.ServerConnectionRepository
+	serverConnectionService           remoteConnection.ServerConnectionService
+	serverConnectionRepository        serverConnectionRepository.RemoteConnectionRepository
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
-	serverConnectionService serverConnection.ServerConnectionService, serverConnectionRepository repository2.ServerConnectionRepository) *DockerRegistryConfigImpl {
+	serverConnectionService remoteConnection.ServerConnectionService, serverConnectionRepository serverConnectionRepository.RemoteConnectionRepository) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
@@ -91,7 +93,7 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService clien
 func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
 	var serverConnectionConfigId int
 	if bean.ServerConnectionConfig != nil {
-		serverConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+		serverConnectionConfigId = bean.ServerConnectionConfig.RemoteConnectionConfigId
 	}
 	return &repository.DockerArtifactStore{
 		Id:                       bean.Id,
@@ -315,7 +317,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 		// 2 - insert air-gapped connection config for this docker registry
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ServerConnectionConfig, bean.User, tx)
 		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.ServerConnectionConfigId, "user", bean.User)
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.RemoteConnectionConfigId, "user", bean.User)
 			return nil, err
 		}
 	}
@@ -536,11 +538,11 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	if bean.ServerConnectionConfig != nil {
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ServerConnectionConfig, bean.User, tx)
 		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.ServerConnectionConfigId)
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.RemoteConnectionConfigId)
 			return nil, err
 		}
 	}
-	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.RemoteConnectionConfigId
 
 	// 4- update docker_registry_config
 	if bean.Password == "" {
@@ -747,11 +749,11 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 		registryConnectionConfig := bean.ServerConnectionConfig
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User, tx)
 		if err != nil {
-			impl.logger.Errorw("error updating connection config", "err", err, "user", bean.User, "connectionConfigId", registryConnectionConfig.ServerConnectionConfigId)
+			impl.logger.Errorw("error updating connection config", "err", err, "user", bean.User, "connectionConfigId", registryConnectionConfig.RemoteConnectionConfigId)
 			return nil, err
 		}
 	}
-	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.RemoteConnectionConfigId
 
 	// 4- update docker_registry_config
 
@@ -892,7 +894,7 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *types.DockerArtifactStoreBe
 
 	// 6- mark deleted, server_connection_config
 	registryConnectionDeleteReq := dockerReg.ServerConnectionConfig
-	err = impl.serverConnectionRepository.MarkServerConnectionConfigDeleted(registryConnectionDeleteReq, tx)
+	err = impl.serverConnectionRepository.MarkRemoteConnectionConfigDeleted(registryConnectionDeleteReq, tx)
 	if err != nil {
 		impl.logger.Errorw("err in deleting cluster connection config", "id", bean.Id, "err", err)
 		return err
@@ -937,4 +939,18 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		ServerConnectionConfig: registryConnectionConfig,
 	}
 	return impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
+}
+
+func (impl DockerRegistryConfigImpl) GetServerConnectionConfigByDockerId(dockerId string) (*serverConnectionBean.RemoteConnectionConfigBean, error) {
+	dockerRegistry, err := impl.dockerArtifactStoreRepository.FindOne(dockerId)
+	if err != nil {
+		impl.logger.Errorw("err in fetching docker registry", "id", dockerId, "err", err)
+		return nil, err
+	}
+	serverConnectionConfig, err := impl.serverConnectionService.GetServerConnectionConfigById(dockerRegistry.ServerConnectionConfigId)
+	if err != nil {
+		impl.logger.Errorw("err in fetching connection config", "connection config id", dockerRegistry.ServerConnectionConfigId, "err", err)
+		return nil, err
+	}
+	return serverConnectionConfig, nil
 }

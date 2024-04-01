@@ -204,8 +204,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/server"
 	"github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	repository8 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository8 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -347,9 +347,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	imageDigestPolicyServiceImpl := imageDigestPolicy.NewImageDigestPolicyServiceImpl(sugaredLogger, qualifierMappingServiceImpl, devtronResourceSearchableKeyServiceImpl, environmentRepositoryImpl, clusterRepositoryImpl, db)
-	serverConnectionRepositoryImpl := repository8.NewServerConnectionRepositoryImpl(db, sugaredLogger)
+	serverConnectionRepositoryImpl := repository8.NewRemoteConnectionRepositoryImpl(db, sugaredLogger)
 	dockerArtifactStoreRepositoryImpl := repository9.NewDockerArtifactStoreRepositoryImpl(db)
-	serverConnectionServiceImpl := serverConnection.NewServerConnectionServiceImpl(sugaredLogger, serverConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
+	serverConnectionServiceImpl := remoteConnection.NewServerConnectionServiceImpl(sugaredLogger, serverConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
 	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtilExtended, serviceClientImpl, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, sshTunnelWrapperServiceImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, gitOpsConfigReadServiceImpl, imageDigestPolicyServiceImpl, serverConnectionServiceImpl)
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)

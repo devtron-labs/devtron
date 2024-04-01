@@ -1,30 +1,30 @@
 package adapter
 
 import (
-	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	grpcBean "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 )
 
-func ConvertServerConnectionConfigToProto(dockerBean *types.DockerArtifactStoreBean) *bean2.ServerConnectionConfig {
-	var registryConnectionConfig *bean2.ServerConnectionConfig
+func ConvertServerConnectionConfigToProto(dockerBean *types.DockerArtifactStoreBean) *grpcBean.ServerConnectionConfig {
+	var registryConnectionConfig *grpcBean.ServerConnectionConfig
 	if dockerBean.ServerConnectionConfig != nil {
 		connectionMethod := 0
-		if dockerBean.ServerConnectionConfig.ConnectionMethod == bean.ServerConnectionMethodSSH {
+		if dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
 			connectionMethod = 1
 		}
-		registryConnectionConfig = &bean2.ServerConnectionConfig{
-			ConnectionMethod: bean2.ServerConnectionMethod(connectionMethod),
+		registryConnectionConfig = &grpcBean.ServerConnectionConfig{
+			ConnectionMethod: grpcBean.ServerConnectionMethod(connectionMethod),
 		}
-		if dockerBean.ServerConnectionConfig.ProxyConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.ServerConnectionMethodProxy {
+		if dockerBean.ServerConnectionConfig.ProxyConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodProxy {
 			proxyConfig := dockerBean.ServerConnectionConfig.ProxyConfig
-			registryConnectionConfig.ProxyConfig = &bean2.ProxyConfig{
+			registryConnectionConfig.ProxyConfig = &grpcBean.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if dockerBean.ServerConnectionConfig.SSHTunnelConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.ServerConnectionMethodSSH {
+		if dockerBean.ServerConnectionConfig.SSHTunnelConfig != nil && dockerBean.ServerConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodSSH {
 			sshTunnelConfig := dockerBean.ServerConnectionConfig.SSHTunnelConfig
-			registryConnectionConfig.SSHTunnelConfig = &bean2.SSHTunnelConfig{
+			registryConnectionConfig.SSHTunnelConfig = &grpcBean.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
 				SSHUsername:      sshTunnelConfig.SSHUsername,
 				SSHPassword:      sshTunnelConfig.SSHPassword,

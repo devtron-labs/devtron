@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/sshTunnel"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/common-lib/utils/serverConnection/bean"
+	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	"go.uber.org/zap"
 	"net/url"
 	"strconv"
@@ -80,7 +80,7 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)
 		return portUsed, err
 	}
-	sshTunnelConfig := cluster.ServerConnectionConfig.SSHTunnelConfig
+	sshTunnelConfig := cluster.RemoteConnectionConfig.SSHTunnelConfig
 	serverAddress, _, err := impl.extractHostAndPostFromUrl(sshTunnelConfig.SSHServerAddress)
 	if err != nil {
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)
