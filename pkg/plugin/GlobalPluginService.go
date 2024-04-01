@@ -3,6 +3,7 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -37,7 +38,7 @@ const (
 )
 
 type GlobalPluginService interface {
-	GetAllGlobalVariables() ([]*GlobalVariable, error)
+	GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error)
 	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
@@ -61,7 +62,7 @@ type GlobalPluginServiceImpl struct {
 	pipelineStageRepository repository2.PipelineStageRepository
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
+func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
 	globalVariables := []*GlobalVariable{
 		{
 			Name:        "WORKING_DIRECTORY",
@@ -91,12 +92,6 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Name:        "DOCKER_IMAGE",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Complete image name(repository+registry+tag).",
-			Type:        "ci",
-		},
-		{
-			Name:        "APP_NAME",
-			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Name of the app this pipeline resides in.",
 			Type:        "ci",
 		},
 		{
@@ -172,6 +167,23 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Type:        "cd",
 		},
 	}
+	var globalVariable *GlobalVariable
+	if appType == helper.Job {
+		globalVariable = &GlobalVariable{
+			Name:        "JOB_NAME",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Name of the Job this pipeline resides in.",
+			Type:        "ci",
+		}
+	} else {
+		globalVariable = &GlobalVariable{
+			Name:        "APP_NAME",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Name of the app this pipeline resides in.",
+			Type:        "ci",
+		}
+	}
+	globalVariables = append(globalVariables, globalVariable)
 	return globalVariables, nil
 }
 

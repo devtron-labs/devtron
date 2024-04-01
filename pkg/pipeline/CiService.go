@@ -664,7 +664,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PreCiSteps:                  preCiSteps,
 		PostCiSteps:                 postCiSteps,
 		RefPlugins:                  refPluginsData,
-		AppName:                     pipeline.App.AppName,
+		AppName:                     pipeline.App.DisplayName,
 		TriggerByAuthor:             userEmailId,
 		CiBuildConfig:               ciBuildConfigBean,
 		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
