@@ -886,7 +886,7 @@ func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *reposit
 		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
 		span.End()
 		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
+			impl.logger.Errorw("error encountered in GetArtifactVulnerabilityStatus", "clusterId", cdPipeline.Environment.ClusterId, "envId", cdPipeline.EnvironmentId, "appId", cdPipeline.AppId, "err", err)
 			return false, err
 		}
 		if len(blockCveList) > 0 {
