@@ -50,10 +50,14 @@ func rewriteRequestUrl(path string, pathToExclude string) string {
 	return strings.Join(finalParts, "/")
 }
 
-func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
+func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
+	serverAddr := fmt.Sprintf("http://%s:%s", connection.Host, connection.Port)
 	proxy := GetProxyServer(serverAddr, transport, Proxy)
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		if len(connection.PassKey) > 0 {
+			r.Header.Add("X-PASS-KEY", connection.PassKey)
+		}
 		token := r.Header.Get("token")
 		if ok := enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 			common.WriteJsonResp(w, nil, "Unauthorized User", http.StatusForbidden)
