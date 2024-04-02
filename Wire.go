@@ -121,6 +121,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	trigger3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/trigger"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -963,6 +964,9 @@ func InitializeApp() (*App, error) {
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
+
+		trigger3.NewFeasibilityManagerImpl,
+		wire.Bind(new(trigger3.FeasibilityManager), new(*trigger3.FeasibilityManagerImpl)),
 	)
 	return &App{}, nil
 }

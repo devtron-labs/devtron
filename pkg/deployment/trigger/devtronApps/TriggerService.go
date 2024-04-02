@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -117,13 +118,12 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
+	imageScanService                    security2.ImageScanService
 	feasibilityManager                  trigger.FeasibilityManager
 	enforcerUtil                        rbac.EnforcerUtil
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
-	scanResultRepository          security.ImageScanResultRepository
-	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
@@ -173,8 +173,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventClient client.EventClient,
 	globalEnvVariables *util3.GlobalEnvVariables,
 	appRepository appRepository.AppRepository,
-	scanResultRepository security.ImageScanResultRepository,
-	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -191,7 +189,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
+	imageScanService security2.ImageScanService,
+	feasibilityManager trigger.FeasibilityManager) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -224,8 +224,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
-		scanResultRepository:                scanResultRepository,
-		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageScanHistoryRepository:          imageScanHistoryRepository,
 		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
@@ -243,6 +241,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		imageScanService:                    imageScanService,
+		feasibilityManager:                  feasibilityManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -668,7 +668,7 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
 	isDryRun := overrideRequest.IsDryRun
 	// introduce feasibility call and return custom error if fails
-	err = impl.checkFeasibility(triggerRequirementRequest)
+	err = impl.feasibilityManager.CheckFeasibility(triggerRequirementRequest)
 	if err != nil && !errors.Is(err, bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)) {
 		impl.logger.Errorw("error encountered in HandleCdTriggerReleaseWithFeasibility", "overrideRequest", overrideRequest, "err", err)
 		return releaseNo, manifest, err
@@ -685,20 +685,6 @@ func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerReq
 	}
 	return releaseNo, manifest, err
 
-}
-
-func (impl *TriggerServiceImpl) checkFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
-	//checking vulnerability for deploying image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(triggerRequirementRequest.Artifact, triggerRequirementRequest.Pipeline, triggerRequirementRequest.Context)
-	if err != nil {
-		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerAutomaticDeployment", "err", err)
-		return bean.GetOperationPerformError(err.Error())
-	}
-	if isVulnerable {
-		return bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)
-	}
-
-	return nil
 }
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
