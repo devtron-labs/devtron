@@ -1,4 +1,5 @@
 ## Bugs
+- fix: return nil,err on git material fetch error (#4857)
 - fix: ns not found in case ips is being injected in cluster (in global config) (#4844)
 - fix: helm deployments stucked in queued for devtron apps (#4842)
 - fix: panic on re-trigger ci if pod deleted on BuildTriggerObject (#4826)
