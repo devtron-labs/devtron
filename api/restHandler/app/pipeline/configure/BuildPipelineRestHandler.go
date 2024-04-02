@@ -2011,7 +2011,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 	}
 	//RBAC
 
-	resp, err := handler.imageTaggingService.GetTagsData(ciPipelineId, appId, artifactId, externalCi)
+	resp, err := handler.imageTaggingService.GetTagsData(ciPipelineId, appId, artifactId, externalCi, 0)
 	if err != nil {
 		handler.Logger.Errorw("error occurred in fetching GetTagsData for artifact ", "err", err, "artifactId", artifactId, "ciPipelineId", ciPipelineId, "externalCi", externalCi, "appId", appId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

@@ -45,7 +45,7 @@ type ImageTaggingService interface {
 	//AppReleaseTags -> all the tags of the given appId,
 	//imageComment -> comment of the given artifactId,
 	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
-	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error)
+	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool, cdPipelineId int) (*types.ImageTaggingResponseDTO, error)
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) (*types.ImageTaggingResponseDTO, error)
 	GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId int) (bool, error)
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
@@ -100,7 +100,7 @@ func (impl ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingS
 // AppReleaseTags -> all the tags of the given appId,
 // imageComment -> comment of the given artifactId,
 // ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
-func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error) {
+func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool, cdPipelineId int) (*types.ImageTaggingResponseDTO, error) {
 	resp := &types.ImageTaggingResponseDTO{}
 	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
@@ -120,9 +120,12 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	prodEnvExists := false
 	if externalCi {
 		prodEnvExists, err = impl.FindProdEnvExists(externalCi, []int{ciPipelineId})
+	} else if cdPipelineId > 0 {
+		prodEnvExists, err = impl.GetProdEnvByCdPipelineId(cdPipelineId)
 	} else {
 		prodEnvExists, err = impl.GetProdEnvFromParentAndLinkedWorkflow(ciPipelineId)
 	}
+
 	if err != nil {
 		impl.logger.Errorw("error in finding prodEnvExists value", "err", err, "ciPipelineId", ciPipelineId, "externalCi", externalCi)
 		return resp, err
@@ -311,7 +314,7 @@ func (impl ImageTaggingServiceImpl) CreateOrUpdateImageTagging(ciPipelineId, app
 		impl.logger.Errorw("error in committing transaction", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "artifactId", artifactId, "userId", userId, "imageTaggingRequest", imageTaggingRequest)
 		return nil, err
 	}
-	return impl.GetTagsData(ciPipelineId, appId, artifactId, imageTaggingRequest.ExternalCi)
+	return impl.GetTagsData(ciPipelineId, appId, artifactId, imageTaggingRequest.ExternalCi, 0)
 }
 
 func (impl ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.Tx, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) ([]*repository.ImageTaggingAudit, error) {
