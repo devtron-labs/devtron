@@ -1,7 +1,7 @@
 package appStoreValues
 
 import (
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/google/wire"

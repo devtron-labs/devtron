@@ -23,12 +23,13 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -74,6 +75,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
+	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -109,7 +111,7 @@ const (
 	WorkflowTypePost           = "POST"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, application.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, argoApplication.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
 
 func (a WorkflowStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "WF_STARTED", "DROPPED_STALE", "DEQUE_ERROR", "TRIGGER_ERROR"}[a]
@@ -155,6 +157,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
+	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )
 
 type CdWorkflowRunnerWithExtraFields struct {
@@ -184,6 +187,17 @@ type CdWorkflowRunner struct {
 	ReferenceId             *string              `sql:"reference_id"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
+}
+
+// TODO: move from here to adapter
+func GetTriggerMetricsFromRunnerObj(runner *CdWorkflowRunner) util4.CDMetrics {
+	return util4.CDMetrics{
+		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          runner.Status,
+		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+	}
 }
 
 func (c *CdWorkflowRunner) IsExternalRun() bool {
@@ -467,7 +481,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 
 func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool, error) {
 	wfr := &CdWorkflowRunner{}
-	exists, err := impl.dbConnection.
+	ifAnySuccessorWfrExists, err := impl.dbConnection.
 		Model(wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow").
 		Where("wf.pipeline_id = ?", pipelineId).
@@ -476,7 +490,7 @@ func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Where("cd_workflow_runner.id > ?", wfrId).
 		Exists()
-	return exists, err
+	return !ifAnySuccessorWfrExists, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
@@ -725,4 +739,27 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 		return false, nil
 	}
 	return exists, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FindLatestRunnerByPipelineIdsAndRunnerType")
+	defer span.End()
+	if pipelineIds == nil || len(pipelineIds) == 0 {
+		return nil, pg.ErrNoRows
+	}
+	var latestWfrs []CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&latestWfrs).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		ColumnExpr("MAX(cd_workflow_runner.id)").
+		Where("cd_workflow.pipeline_id IN (?)", pg.In(pipelineIds)).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow__pipeline.deleted = ?", false).
+		Group("cd_workflow_runner.id", "cd_workflow.id", "cd_workflow__pipeline.id").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "pipelineIds", pipelineIds, "runnerType", runnerType)
+		return nil, err
+	}
+	return latestWfrs, err
 }

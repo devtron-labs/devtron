@@ -60,7 +60,7 @@ You can use the following variables in the helm template (all the placeholders a
     "deploymentType": "{{.DeploymentType}}",
     "app": "{{.App}}",
     "env": "{{.Env}}",
-    "appMetrics": "{{.AppMetrics}}"
+    "appMetrics": {{.AppMetrics}}
 }
 ```
 

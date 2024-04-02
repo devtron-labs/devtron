@@ -28,7 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
@@ -88,7 +90,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean.RefPluginObject           `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	CiBuildConfig              *bean.CiBuildConfigBean           `json:"ciBuildConfig"`
+	CiBuildConfig              *CiPipeline.CiBuildConfigBean     `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
@@ -209,8 +211,10 @@ func (workflowRequest *WorkflowRequest) GetWorkflowJson(config *CiCdConfig) ([]b
 
 func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+	case bean.CI_WORKFLOW_PIPELINE_TYPE:
 		return bean.CiStage
+	case bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return bean.JobStage
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CdStage
 	default:
@@ -220,10 +224,21 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: //TODO: separate job as did in eventType, will need changes in wf template for this
 		return bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CD_WORKFLOW_NAME
+	default:
+		return ""
+	}
+}
+
+func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
+	switch workflowRequest.Type {
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
+		return bean.CiStage //although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
+	case bean.CD_WORKFLOW_PIPELINE_TYPE:
+		return bean.CdStage
 	default:
 		return ""
 	}
@@ -406,15 +421,15 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1.ResourceRequirements {
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *infraConfig.InfraConfig) v1.ResourceRequirements {
 	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
 		limitReqCpuMem = &bean.LimitReqCpuMem{
-			LimitCpu: config.CiLimitCpu,
-			LimitMem: config.CiLimitMem,
-			ReqCpu:   config.CiReqCpu,
-			ReqMem:   config.CiReqMem,
+			LimitCpu: infraConfigurations.GetCiLimitCpu(),
+			LimitMem: infraConfigurations.GetCiLimitMem(),
+			ReqCpu:   infraConfigurations.GetCiReqCpu(),
+			ReqMem:   infraConfigurations.GetCiReqMem(),
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		limitReqCpuMem = &bean.LimitReqCpuMem{
@@ -447,7 +462,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraConfig.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
@@ -458,7 +473,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		SecurityContext: &v1.SecurityContext{
 			Privileged: &privileged,
 		},
-		Resources: workflowRequest.GetLimitReqCpuMem(config),
+		Resources: workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Ports = []v1.ContainerPort{{
@@ -509,7 +524,7 @@ func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConf
 	if err != nil {
 		return err
 	}
-	workflowTemplate.Volumes = volume
+	workflowTemplate.Volumes = append(workflowTemplate.Volumes, volume...)
 	workflowMainContainer.VolumeMounts = volumeMounts
 	return nil
 }

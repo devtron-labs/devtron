@@ -19,11 +19,11 @@ package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -32,11 +32,12 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/api/router/app"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -56,27 +57,17 @@ import (
 type MuxRouter struct {
 	logger                             *zap.SugaredLogger
 	Router                             *mux.Router
-	HelmRouter                         PipelineTriggerRouter
-	PipelineConfigRouter               PipelineConfigRouter
 	JobRouter                          JobRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
-	AppListingRouter                   AppListingRouter
 	ClusterRouter                      cluster.ClusterRouter
 	WebHookRouter                      WebhookRouter
 	UserAuthRouter                     user.UserAuthRouter
-	ApplicationRouter                  ApplicationRouter
-	CDRouter                           CDRouter
 	GitProviderRouter                  GitProviderRouter
 	GitHostRouter                      GitHostRouter
 	DockerRegRouter                    DockerRegRouter
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
-	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
-	gitWebhookHandler                  pubsub.GitWebhookHandler
-	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
-	appUpdateHandler                   pubsub.ApplicationStatusHandler
-	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -99,7 +90,7 @@ type MuxRouter struct {
 	telemetryWatcher                   telemetry.TelemetryEventClient
 	bulkUpdateRouter                   BulkUpdateRouter
 	WebhookListenerRouter              WebhookListenerRouter
-	appRouter                          AppRouter
+	appRouter                          app.AppRouter
 	coreAppRouter                      CoreAppRouter
 	helmAppRouter                      client.HelmAppRouter
 	k8sApplicationRouter               application.K8sApplicationRouter
@@ -122,26 +113,23 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
+	infraConfigRouter                  infraConfig.InfraConfigRouter
+	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
-	AppListingRouter AppListingRouter,
+func NewMuxRouter(logger *zap.SugaredLogger,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
-	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
-	CDRouter CDRouter,
+	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
-	gitWebhookHandler pubsub.GitWebhookHandler,
-	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
-	appUpdateHandler pubsub.ApplicationStatusHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
+	UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter app.AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
@@ -154,29 +142,21 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	rbacRoleRouter user.RbacRoleRouter,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
-	proxyRouter proxy.ProxyRouter) *MuxRouter {
+	proxyRouter proxy.ProxyRouter,
+	infraConfigRouter infraConfig.InfraConfigRouter,
+	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
-		HelmRouter:                         HelmRouter,
-		PipelineConfigRouter:               PipelineConfigRouter,
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
-		AppListingRouter:                   AppListingRouter,
 		ClusterRouter:                      ClusterRouter,
 		WebHookRouter:                      WebHookRouter,
 		UserAuthRouter:                     UserAuthRouter,
-		ApplicationRouter:                  ApplicationRouter,
-		CDRouter:                           CDRouter,
 		DockerRegRouter:                    DockerRegRouter,
 		GitProviderRouter:                  GitProviderRouter,
 		GitHostRouter:                      GitHostRouter,
 		NotificationRouter:                 NotificationRouter,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
-		gitWebhookHandler:                  gitWebhookHandler,
-		workflowUpdateHandler:              workflowUpdateHandler,
-		appUpdateHandler:                   appUpdateHandler,
-		ciEventHandler:                     ciEventHandler,
-		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,
@@ -224,6 +204,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
 		ciTriggerCron:                      ciTriggerCron,
+		infraConfigRouter:                  infraConfigRouter,
+		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
@@ -233,8 +215,8 @@ func (r MuxRouter) Init() {
 
 	r.Router.StrictSlash(true)
 	r.Router.Handle("/metrics", promhttp.Handler())
-	//prometheus.MustRegister(pipeline.CiTriggerCounter)
-	//prometheus.MustRegister(app.CdTriggerCounter)
+	// prometheus.MustRegister(pipeline.CiTriggerCounter)
+	// prometheus.MustRegister(app.CdTriggerCounter)
 	r.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
@@ -265,11 +247,8 @@ func (r MuxRouter) Init() {
 	coreAppRouter := r.Router.PathPrefix("/orchestrator/core").Subrouter()
 	r.coreAppRouter.initCoreAppRouter(coreAppRouter)
 
-	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
-	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
-	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
-	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
-	r.appRouter.InitAppRouter(pipelineConfigRouter)
+	appSubRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
+	r.appRouter.InitAppRouter(appSubRouter)
 
 	jobConfigRouter := r.Router.PathPrefix("/orchestrator/job").Subrouter()
 	r.JobRouter.InitJobRouter(jobConfigRouter)
@@ -283,9 +262,6 @@ func (r MuxRouter) Init() {
 
 	webHookRouter := r.Router.PathPrefix("/orchestrator/webhook").Subrouter()
 	r.WebHookRouter.intWebhookRouter(webHookRouter)
-
-	applicationRouter := r.Router.PathPrefix("/orchestrator/api/v1/applications").Subrouter()
-	r.ApplicationRouter.initApplicationRouter(applicationRouter)
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
@@ -392,10 +368,10 @@ func (r MuxRouter) Init() {
 	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
 	// dashboard event router ends
 
-	//GitOps,Acd + HelmCLi both apps deployment related api's
+	// GitOps,Acd + HelmCLi both apps deployment related api's
 	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.commonDeploymentRouter.Init(applicationSubRouter)
-	//this router must placed after commonDeploymentRouter
+	// this router must placed after commonDeploymentRouter
 	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
 
 	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
@@ -428,4 +404,10 @@ func (r MuxRouter) Init() {
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
+	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }

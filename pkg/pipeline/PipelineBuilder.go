@@ -229,16 +229,6 @@ func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentT
 	return false
 }
 
-func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
-	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
-
-	if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
-		impl.logger.Errorw("error fetching git repo url or it is not present")
-		return false
-	}
-	return true
-}
-
 type DeploymentType struct {
 	Deployment Deployment `json:"deployment"`
 }

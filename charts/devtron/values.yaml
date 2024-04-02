@@ -9,9 +9,9 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.27"
+  release: "v0.6.28"
   image: quay.io/devtron/inception
-  tag: a9820f38-185-20840
+  tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
@@ -59,15 +59,16 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
-    image: "quay.io/devtron/dashboard:796b9e98-325-20868"
+        ENABLE_EXTERNAL_ARGO_CD: "false"
+    image: "quay.io/devtron/dashboard:9429b066-325-21529"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:2feec2a7-280-20864"
-    cicdImage: "quay.io/devtron/devtron:2feec2a7-434-20865"
+    image: "quay.io/devtron/hyperion:ca439071-280-21596"
+    cicdImage: "quay.io/devtron/devtron:ca439071-434-21597"
     imagePullPolicy: IfNotPresent
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d4dadb96-138-20830"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
     serviceMonitor:
       enabled: false
     service:
@@ -97,7 +98,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:b3a017d2-564-20648"
+    image: "quay.io/devtron/kubelink:7c66e0fc-564-21516"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -112,7 +113,17 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-
+  
+  kubewatch:
+    image: "quay.io/devtron/kubewatch:91c2cece-419-21178"
+    imagePullPolicy: IfNotPresent
+    configs:
+      devtroncd_NAMESPACE: "devtron-ci"
+      CI_INFORMER: "true"
+      ACD_NAMESPACE: "devtroncd"
+      ACD_INFORMER: "true"
+      NATS_STREAM_MAX_AGE: "10800"
+      
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
@@ -120,7 +131,7 @@ components:
     persistence:
       volumeSize: "20Gi"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:7f704db3-200-20777"
+    image: "quay.io/devtron/git-sensor:4bacf5f7-200-21575"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
@@ -131,12 +142,12 @@ components:
       PG_USER: postgres
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
-      USE_GIT_CLI: "false"
+      USE_GIT_CLI: "true"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:98130668-333-20295"
+    image: "quay.io/devtron/lens:70577aaa-333-21179"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -330,7 +341,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:28f95d21-334-20763"
+    image: "quay.io/devtron/image-scanner:bdbcef05-334-21577"
   # Values for trivy
   trivy:
     enabled: false

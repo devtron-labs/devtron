@@ -1,95 +1,157 @@
 # CD Pipeline
-Once you are done creating your CI pipeline, you can start building your CD pipeline. Devtron enables you to design your CD pipeline in a way that fully automates your deployments.
+
+After your CI pipeline is ready, you can start building your CD pipeline. Devtron enables you to design your CD pipeline in a way that fully automates your deployments. Images from CI stage can be deployed to one or more environments through dedicated CD pipelines.
 
 ## Creating CD Pipeline
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/workflow-cd.jpg)
+Click the '**+**' sign on CI Pipeline to attach a CD Pipeline to it.
 
-Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it. A basic `Create deployment modal` will pop up.
+![Figure 1a: Adding CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/workflow-cd-v2.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-basic.png)
+A basic `Create deployment pipeline` window will pop up.
 
-This section expects two inputs:
+![Figure 1b: Creating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-basic-v2.jpg)
 
-* **Select Environment**
-* **Deployment Strategy**
+Here, you get three sections:
 
-### 1. Select Environment
-This section further includes two inputs:
+* [Deploy to Environment](#deploy-to-environment)
+* [Deployment Strategy](#deployment-strategy)
+* [Advanced Options](#advanced-options)
 
-**\(a\) Deploy to Environment**
+### Deploy to Environment
 
-Select the environment where you want to deploy your application.
+This section expects three inputs from you:
 
-**\(b\) Namespace**
+| Setting     | Description                                                | Options                   |
+| ----------- | ---------------------------------------------------------- | ------------------------- |
+| Environment | Select the environment where you want to deploy your application | (List of available environments)  |
+| Namespace   | Automatically populated based on the selected environment | Not Applicable                           |
+| Trigger     | When to execute the deployment pipeline                   | **Automatic**: Deployment triggers automatically when a new image completes the previous stage (build pipeline or another deployment pipeline) <br /> **Manual**: Deployment is not initiated automatically. You can trigger deployment with a desired image. |
 
-This field will be automatically populated with the `Namespace` corresponding to the `Environment` selected in the previous step.
+### Deployment Strategy
 
-Click on `Create Pipeline` to create a CD pipeline. 
+Devtron supports multiple deployment strategies depending on the [deployment chart type](../../creating-application/deployment-template.md#select-chart-from-default-charts). 
 
-> One can have a single CD pipeline or multiple CD pipelines connected to the same CI Pipeline. Each CD pipeline corresponds to only one environment, or in other words, any single environment of an application can have only one CD pipeline.
-So, the images created by the CI pipeline can be deployed into multiple environments through different CD pipelines originating from a single CI pipeline.
-If you already have one CD pipeline and want to add more, you can add them by clicking on the `+` sign and then choosing the environment in which you want to deploy your application. Once a new CD Pipeline is created for the environment of your choosing, you can move ahead and configure the CD pipeline as required.
-Your CD pipeline can be configured for the pre-deployment stage, the deployment stage, and the post-deployment stage. You can also select the deployment strategy of your choice. You can add your configurations as explained below:
+![Figure 2: Strategies Supported by Chart Type](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/chart-and-strategy.jpg)
 
+Refer [Deployment Strategies](#deployment-strategies) to know more about each strategy in depth.
 
-To configure the advanced CD option click **Advanced Options** at the bottom.
+{% hint style="info" %}
+The next section is [Advanced Options](#advanced-options) and it comes with additional capabilities. However, if you don't need them, you may proceed with a basic CD pipeline and click **Create Pipeline**. 
+{% endhint %}
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-cd-advanced.png)
+---
 
-| Key | Description |
-| :--- | :--- |
-| Pipeline Name | Enter the name of the pipeline to be created |
-| Environment | Select the environment in which you want to deploy |
-| Pre-deployment stage | Run any configuration and provide secrets before the deployment |
-| Deployment stage | Select how and when you want the deployment to be triggered - Automatic or manual triggering of your CD Pipeline |
-| Deployment Strategy | Select the type of deployment strategy that you want to enable by clicking `Add Deployment Strategy` |
-| Post-deployment stage | If you need to run any configurations and provide secrets after the deployment, mention those here |
+## Advanced Options
 
+This option is available at the bottom of the `Create deployment pipeline` window.
 
-### 1. Pipeline Name
+![Figure 3: Advanced Options](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/advanced-option.jpg)
 
-Pipeline name will be autogenerated.
+Now, the window will have 3 distinct tabs, and you will see the following additions:
+* [Pre-Deployment stage (tab)](#pre-deployment-stage)
+* [Deployment stage (tab)](#deployment-stage)
+  * [Pipeline Name (input field)](#pipeline-name)
+  * [Manual approval for deployment (toggle button)](#manual-approval-for-deployment)
+  * [Custom Image tag pattern (toggle button)](#custom-image-tag-pattern)
+  * [Pull container image with image digest](#pull-container-image-with-image-digest)
+* [Post-Deployment stage (tab)](#post-deployment-stage)
 
-### 2. Deploy to Environment
+![Figure 4: Advanced Options (Expanded View)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-advanced.jpg)
 
-As we discussed above, Select the environment where you want to deploy your application. Once you select the environment, it will display the `Namespace` corresponding to your selected environment automatically.
+{% hint style="info" %}
+You can create or edit a deployment strategy in Advanced Options. Remember, only the default strategy will be used for deployment, so use the **SET DEFAULT** button to mark your preferred strategy as default after creating it.
+{% endhint %}
 
-## Stages
-There are 3 dropdowns given below:
+### Pre-Deployment Stage
 
-* **Pre-deployment stage**
-* **Deployment stage**
-* **Post-deployment stage**
+If your deployment requires prior actions like DB migration, code quality check (QC), etc., you can use the `Pre-deployment stage` to configure such tasks.
 
-### 3. Pre-deployment stage
+![Figure 5: Pre-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-prebuild-v2.jpg)
 
-Sometimes one has a requirement where certain actions like DB migration are to be executed before deployment, the `Pre-deployment stage` should be used to configure these actions.
+1. **Tasks**
 
-Pre-deployment stages can be configured to be executed automatically or manually.
+Here you can add one or more tasks. The tasks can be re-arranged using drag-and-drop and they will be executed sequentially. 
 
-If you select automatic, `Pre-deployment Stage` will be triggered automatically after the CI pipeline gets executed and before the CD pipeline starts executing itself. But, if you select a manual, then you have to trigger your stage via console.
+2. **Trigger Pre-Deployment Stage**
 
-If you want to use some configuration files and secrets in pre-deployment stages or post-deployment stages, then you can use the `Config Maps` & `Secrets` options.
+Refer the trigger types from [here](#1-deploy-to-environment).
 
-`Config Maps` can be used to define configuration files. And `Secrets` can be defined to store the private data of your application.
+3. **ConfigMaps & Secrets**
 
-Once you are done defining Config Maps & Secrets, you will get them as a drop-down in the pre-deployment stage and you can select them as part of your pre-deployment stage.
+{% hint style="info" %}
+### Prerequisites
+Make sure you have added [ConfigMaps](../config-maps.md) and [Secrets](../secrets.md) in App Configuration.
+{% endhint %}
 
-These `Pre-deployment CD / Post-deployment CD` pods can be created in your deployment cluster or the devtron build cluster. It is recommended that you run these pods in the Deployment cluster so that your scripts \(if there are any\) can interact with the cluster services that may not be publicly exposed.
+If you want to use some configuration files and secrets in pre-deployment stages or post-deployment stages, then you can use the `ConfigMaps` & `Secrets` options. You will get them as a drop-down in the pre-deployment stage.
 
-If you want to run it inside your application, then you have to check the `Execute in application Environment` option else leave it unchecked to run it within the Devtron build cluster.
+4. **Execute tasks in application environment**
 
-Make sure your cluster has `devtron-agent` installed if you check the `Execute in the application Environment` option.
+These `Pre-deployment CD / Post-deployment CD` pods can be created in your deployment cluster or the devtron build cluster. If your scripts/tasks has some dependency on the deployment environment, you may run these pods in the deployment cluster. Thus, your scripts \(if any\) can interact with the cluster services that may not be publicly exposed.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_pre_build_2.jpg)
+Some tasks require extra permissions for the node where Devtron is installed. However, if the node already has the necessary permissions for deploying applications, there is no need to assign them again. Instead, you can enable the **Execute tasks in application environment** option for the pre-CD or post-CD steps. By default, this option is disabled.
 
-### 4. Manual approval for deployment
+To enable the `Execute tasks in application environment` option, follow these steps:
 
-When `Manual approval for deployment` is enabled, only approved images are available for deployment through the respective deployment pipeline.
-Users can specify the number of approvals required for each deployment, where the permissible limit ranges from one approval (minimum) to six approval (maximum).
+{% hint style="info" %}
+Make sure your cluster has [devtron-agent](../../global-configurations/cluster-and-environments.md#installing-devtron-agent) installed.
+{% endhint %}
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval.jpg)
+* Go to the chart store and search for the devtron-in-clustercd chart.
+
+  ![Figure 14: 'devtron-in-clustercd' Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
+
+* Configure the chart according to your requirements and deploy it in the target cluster.
+
+* After the deployment, edit the devtron-cm configmap and add the following key-value pair:
+
+  ```bash
+  ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
+
+  Example:
+
+  ORCH_HOST: http://xyz.devtron.com/orchestrator/webhook/msg/nats
+
+  ```
+
+  `ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
+
+  ![Figure 15: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+
+* Delete the Devtron pod using the following command:
+
+  ```bash
+  kubectl delete pod -l app=devtron -n devtroncd
+  ```
+
+* Again navigate to the chart store and search for the "migration-incluster-cd" chart.
+
+  ![Figure 16: 'migration-incluster-cd' chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
+
+* Edit the `cluster-name` and `secret name` values within the chart. The `cluster name` refers to the name used when adding the cluster in the global configuration and for which you are going to enable `Execute tasks in application environment` option.
+
+  ![Figure 17: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
+
+* Deploy the chart in any environment within the Devtron cluster. Now you should be able to enable `Execute tasks in application environment` option for an environment of target cluster.
+
+### Deployment Stage
+
+#### Pipeline Name
+
+Pipeline name will be auto-generated; however, you are free to modify the name as per your requirement.
+
+#### Manual Approval for Deployment [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+If you want only approved images to be eligible for deployment, enable the `Manual approval for deployment` option in the respective deployment pipeline. By doing so, unapproved images would be prevented from being deployed for that deployment pipeline.
+
+{% hint style="info" %}
+Currently, only super-admins can enable or disable this option.
+{% endhint %}
+
+Users can also specify the number of approvals required for each deployment, where the permissible limit ranges from one approval (minimum) to six approvals (maximum). In other words, if the image doesn't get the specified number of approvals, it will not be eligible for deployment
+
+![Figure 6: Configuring Manual Approval of Images](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval-new.jpg)
 
 To enable manual approval for deployment, follow these steps:
 
@@ -97,114 +159,96 @@ To enable manual approval for deployment, follow these steps:
 2. Turn on the ‘Manual approval for deployment’ toggle button.
 3. Select the number of approvals required for each deployment.
 
-### 5. Deployment stage
+To know more about the approval process, refer [Triggering CD](../../deploying-application/triggering-cd.md#manual-approval-for-deployment). 
 
-**\(a\) Deploy to Environment**
+#### Custom Image Tag Pattern
 
-Select the environment where you want to deploy your application. Once you select the environment, it will display the `Namespace` corresponding to your selected environment automatically.
+{% hint style="warning" %}
+This will be utilized only when an existing container image is copied to another repository using the [Copy Container Image Plugin](../../plugins/copy-container-image.md). The image will be copied with the tag generated by the Image Tag Pattern you defined.
+{% endhint %}
 
-**\(b\)We support two methods of deployments** - Manual and Automatic. If you choose automatic, it will trigger your CD pipeline automatically once the corresponding CI pipeline has been executed successfully.
+1. Enable the toggle button as shown below.
 
-If you have defined pre-deployment stages, then the CD Pipeline will be triggered automatically after the successful execution of your CI pipeline followed by the successful execution of your pre-deployment stages. But if you choose the manual option, then you have to trigger your deployment manually via console.
+    ![Figure 7: Enabling Custom Image Tag Pattern](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-image-pattern.jpg)
 
-**\(c\) Deployment Strategy**
+2. Click the edit icon.
 
-Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment strategy` and select from the available options:
+    ![Figure 8: Edit Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/edit-cd-image-tag.jpg)
 
-\(a\) Recreate
+3. You can write an alphanumeric pattern for your image tag, e.g., **prod-v1.0.{x}**. Here, 'x' is a mandatory variable whose value will incrementally increase with every pre or post deployment trigger (that option is also available to you). You can also define the value of 'x' for the next trigger in case you want to change it. 
 
-\(b\) Canary
+    ![Figure 9: Defining Tag Pattern](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-image-tag.jpg)
 
-\(c\) Blue Green
+    {% hint style="warning" %}
+    Ensure your custom tag do not start or end with a period (.) or comma (,)
+    {% endhint %}
 
-\(d\) Rolling
+4. Click **Update Pipeline**. 
 
-### 6. Post-deployment Stage
+To know how and where this image tag would appear, refer [Copy Container Image Plugin](../../plugins/copy-container-image.md)
 
-If you want to run actions like closure of Jira ticket after the deployment, you can configure such actions in the post-deployment stages.
+#### Pull Container Image with Image Digest
 
-Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the CD pipeline execution and post-deployment executes after the CD pipeline execution. The configuration of post-deployment stages is similar to the pre-deployment stages.
+Although Devtron ensures that [image tags](#custom-image-tag-pattern) remain unique, the same cannot be said if images are pushed with the same tag to the same container registry from outside Devtron. 
 
-You can use Config Map and Secrets in post deployments as well, as defined in the Pre-Deployment stages.
+Therefore, to eliminate the possibility of pulling an unintended image, Devtron offers the option to pull container images using digest and image tag.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
+![Figure 10: Pull with Image Digest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-digest/pull-with-digest.jpg)
 
+An image digest is a unique and immutable SHA-256 string returned by the container registry when you push an image. So the image referenced by the digest will never change.
 
-Once you have configured the CD pipeline, click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
-
-
-### 7. Execute in Application Environment
-
-When deploying an application, we often need to perform additional tasks before or after the deployments. These tasks require extra permissions for the node where Devtron is installed. However, if the node already has the necessary permissions for deploying applications, there is no need to assign them again. Instead, you can enable the "Execute in application environment" option for the pre-CD and post-CD steps. By default, this option is disabled, and some configurations are required to enable it.
-
-To enable the "Execute in application environment" option, follow these steps:
-
-1. Go to the chart store and search for the devtron-in-clustercd chart.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
-
-2. Configure the chart according to your requirements and deploy it in the target cluster.
-3. After the deployment, edit the devtron-cm configmap and add the following key-value pair:
-
-```bash
-ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
-
-Example:
-
-ORCH_HOST: http://xyz.devtron.com/orchestrator/webhook/msg/nats
-
-```
-`ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+![Figure 11: Tag@Digest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-digest/tag-digest.jpg)
 
 
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have Admin permission or above (along with access to the environment and application) to enable this option. However, this option will be non-editable in case the super-admin has enabled [pull image digest in Global Configurations](../../global-configurations/pull-image-digest.md).
+{% endhint %}
 
-4. Delete the Devtron pod using the following command:
+### Post-Deployment Stage
 
-```bash
-kubectl delete pod -l app=devtron -n devtroncd
-```
+If you need to run any actions for e.g., closure of Jira ticket, load testing or performance testing, you can configure such actions in the post-deployment stages.
 
-5. Again navigate to the chart store and search for the "migration-incluster-cd" chart.
+Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the deployment, while post-deployment occurs after.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
+You can use [ConfigMap and Secrets](#configmaps--secrets) in post deployments as well. The option to execute tasks in application environment is available too.
 
-6. Edit the `cluster-name` and `secret name` values within the chart. The `cluster name` refers to the name used when adding the cluster in the global configuration and for which you are going to enable `Execute in application environment` option.
+![Figure 12: Post-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
+---
 
-7. Deploy the chart in any environment within the Devtron cluster. 
+## Updating CD Pipeline
 
-Now you should be able to enable `Execute in application environment` option for an environment of target cluster.
+You can update the deployment stages and the deployment strategy of the CD Pipeline whenever you require it. However, you cannot change the name of a CD Pipeline or its Deployment Environment. If you want a new CD pipeline for the same environment, first delete the previous CD pipeline.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/enabled-incluster.jpg)
+To update a CD Pipeline, go to the `App Configurations` section, Click on `Workflow editor` and then click on the CD Pipeline you want to Update.
 
-
-
-## Update CD Pipeline
-
-You can update the deployment stages and the deployment strategy of the CD Pipeline whenever you require it. But, you cannot change the name of a CD Pipeline or its Deployment Environment. If you need to change such configurations, you need to make another CD Pipeline from scratch.
-
-To Update a CD Pipeline, go to the `App Configurations` section, Click on `Workflow editor` and then click on the CD Pipeline you want to Update.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-update.gif)
+![Figure 13: Updating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-update.gif)
 
 
 Make changes as needed and click on `Update Pipeline` to update this CD Pipeline.
 
-## Delete CD Pipeline
+---
 
-If you no longer require the CD Pipeline, you can also Delete the Pipeline.
+## Deleting CD Pipeline
 
-To Delete a CD Pipeline, go to the App Configurations and then click on the Workflow editor. Now click on the pipeline you want to delete. A pop will be displayed with CD details. Verify the name and the details to ensure that you are not accidentally deleting the wrong CD pipeline and then click on the Delete Pipeline option to delete the CD Pipeline.
+If you no longer require the CD Pipeline, you can also delete the Pipeline.
 
+To delete a CD Pipeline, go to the App Configurations and then click on the Workflow editor. Now click on the pipeline you wish to delete. A pop-up having the CD details will appear. Verify the name and the details to ensure that you are not accidentally deleting the wrong CD pipeline and then click **Delete Pipeline** to delete it.
 
-## Deployment Strategies
+{% hint style="warning" %}
+Deleting a CD pipeline also deletes all the K8s resources associated with it and will bring a disruption in the deployed micro-service. Before deleting a CD pipeline, please ensure that the associated resources are not being used in any production workload.
+{% endhint %}
 
-A deployment strategy is a way to make changes to an application, without downtime in a way that the user barely notices the changes. There are different types of deployment strategies like Blue/green Strategy, Rolling Strategy, Canary Strategy, Recreate Strategy. These deployment configuration-based strategies are discussed in this section.
+---
 
-**Blue Green Strategy**
+## Extras
+
+### Deployment Strategies
+
+A deployment strategy is a method of updating, downgrading, or creating new versions of an application. The options you see under deployment strategy depend on the selected chart type (see fig 2). Below are some deployment configuration-based strategies.
+
+#### Blue-Green Strategy
 
 Blue-green deployments involve running two versions of an application at the same time and moving traffic from the in-production version \(the green version\) to the newer version \(the blue version\).
 
@@ -219,11 +263,11 @@ blueGreen:
 | Key | Description |
 | :--- | :--- |
 | `autoPromotionSeconds` | It will make the rollout automatically promote the new ReplicaSet to active Service after this time has passed |
-| `scaleDownDelaySeconds` | It is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet. |
+| `scaleDownDelaySeconds` | It is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet |
 | `previewReplicaCount` | It will indicate the number of replicas that the new version of an application should run |
-| `autoPromotionEnabled` | It will make the rollout automatically promote the new ReplicaSet to the active service. |
+| `autoPromotionEnabled` | It will make the rollout automatically promote the new ReplicaSet to the active service |
 
-**Rolling Strategy**
+#### Rolling Strategy
 
 A rolling deployment slowly replaces instances of the previous version of an application with instances of the new version of the application. Rolling deployment typically waits for new pods to become ready via a readiness check before scaling down the old components. If a significant issue occurs, the rolling deployment can be aborted.
 
@@ -235,10 +279,10 @@ rolling:
 
 | Key | Description |
 | :--- | :--- |
-| `maxSurge` | No. of replicas allowed above the scheduled quantity. |
-| `maxUnavailable` | Maximum number of pods allowed to be unavailable. |
+| `maxSurge` | No. of replicas allowed above the scheduled quantity |
+| `maxUnavailable` | Maximum number of pods allowed to be unavailable |
 
-**Canary Strategy**
+#### Canary Strategy
 
 Canary deployments are a pattern for rolling out releases to a subset of users or servers. The idea is to first deploy the change to a small subset of servers, test it, and then roll the change out to the rest of the servers. The canary deployment serves as an early warning indicator with less impact on downtime: if the canary deployment fails, the rest of the servers aren't impacted.
 
@@ -263,23 +307,27 @@ canary:
 | `maxSurge` | It defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight |
 | `maxUnavailable` | The maximum number of pods that can be unavailable during the update |
 | `setWeight` | It is the required percent of pods to move to the next step |
-| `duration` | It is used to set the duration to wait to move to the next step. |
+| `duration` | It is used to set the duration to wait to move to the next step |
 
-**Recreate**
+#### Recreate Strategy
 
-The recreate strategy is a dummy deployment that consists of shutting down version A then deploying version B after version A is turned off. A recreate deployment incurs downtime because, for a brief period, no instances of your application are running. However, your old code and new code do not run at the same time.
+The recreate strategy is a dummy deployment that consists of shutting down version 'A' and then deploying version 'B' after version 'A' is turned off. 
+
+A recreate deployment incurs downtime because, for a brief period, no instances of your application are running. However, your old code and new code do not run at the same time. It terminates the old version and releases the new one.
 
 ```markup
 recreate:
 ```
 
-It terminates the old version and releases the new one.
+Unlike other strategies mentioned above, 'Recreate' strategy doesn't contain keys for you to configure.
 
-[Does your app has different requirements in different Environments? Also read Environment Overrides](../environment-overrides.md)
+{% hint style="info" %}
+Does your app have different requirements for different environments? Read [Environment Overrides](../environment-overrides.md)
+{% endhint %}
 
-## Creating Sequential Pipelines
+### Creating Sequential Pipelines
 
-Devtron now supports attaching multiple deployment pipelines to a single build pipeline, in its workflow editor. This feature lets you deploy an image first to stage, run tests and then deploy the same image to production.
+Devtron supports attaching multiple deployment pipelines to a single build pipeline, in its workflow editor. This feature lets you deploy an image first to stage, run tests and then deploy the same image to production.
 
 Please follow the steps mentioned below to create sequential pipelines:
 
@@ -287,6 +335,7 @@ Please follow the steps mentioned below to create sequential pipelines:
 2. To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
 3. Similarly, you can add multiple CD pipelines by clicking + sign of the last CD pipeline, each deploying in different environments.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/sequential-workflow.jpg)
+![Figure 18: Adding Multiple CD Pipelines](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/sequential-workflow.jpg)
 
-> Note: Deleting a CD pipeline also deletes all the K8s resources associated with it and will bring a disruption in the deployed micro-service. Before deleting a CD pipeline, please ensure that the associated resources are not being used in any production workload.
+
+

@@ -22,13 +22,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -39,12 +43,11 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -67,51 +70,60 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
+	MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request)
+	TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
-	Logger                           *zap.SugaredLogger
-	userAuthService                  user.UserService
-	enforcer                         casbin.Enforcer
-	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
-	installedAppService              service.InstalledAppService
-	validator                        *validator.Validate
-	clusterService                   cluster.ClusterService
-	acdServiceClient                 application.ServiceClient
-	appStoreDeploymentService        service.AppStoreDeploymentService
-	helmAppClient                    client.HelmAppClient
-	argoUserService                  argo.ArgoUserService
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	installedAppRepository           repository.InstalledAppRepository
-	K8sApplicationService            application2.K8sApplicationService
-	appCrudOperationService          app2.AppCrudOperationService
+	Logger                                  *zap.SugaredLogger
+	userAuthService                         user.UserService
+	enforcer                                casbin.Enforcer
+	enforcerUtil                            rbac.EnforcerUtil
+	enforcerUtilHelm                        rbac.EnforcerUtilHelm
+	installedAppService                     FullMode.InstalledAppDBExtendedService
+	installedAppResourceService             resource.InstalledAppResourceService
+	chartGroupService                       chartGroup.ChartGroupService
+	validator                               *validator.Validate
+	clusterService                          cluster.ClusterService
+	acdServiceClient                        application.ServiceClient
+	appStoreDeploymentService               service.AppStoreDeploymentService
+	helmAppClient                           client.HelmAppClient
+	argoUserService                         argo.ArgoUserService
+	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
+	installedAppRepository                  repository.InstalledAppRepository
+	appCrudOperationService                 app2.AppCrudOperationService
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, installedAppService service.InstalledAppService,
-	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
-	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient,
-	argoUserService argo.ArgoUserService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
+	installedAppService FullMode.InstalledAppDBExtendedService, installedAppResourceService resource.InstalledAppResourceService,
+	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
+	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
-	appCrudOperationService app2.AppCrudOperationService) *InstalledAppRestHandlerImpl {
+	appCrudOperationService app2.AppCrudOperationService,
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
-		Logger:                           Logger,
-		userAuthService:                  userAuthService,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		enforcerUtilHelm:                 enforcerUtilHelm,
-		installedAppService:              installedAppService,
-		validator:                        validator,
-		clusterService:                   clusterService,
-		acdServiceClient:                 acdServiceClient,
-		appStoreDeploymentService:        appStoreDeploymentService,
-		helmAppClient:                    helmAppClient,
-		argoUserService:                  argoUserService,
-		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		installedAppRepository:           installedAppRepository,
-		appCrudOperationService:          appCrudOperationService,
+		Logger:                                  Logger,
+		userAuthService:                         userAuthService,
+		enforcer:                                enforcer,
+		enforcerUtil:                            enforcerUtil,
+		enforcerUtilHelm:                        enforcerUtilHelm,
+		installedAppService:                     installedAppService,
+		installedAppResourceService:             installedAppResourceService,
+		chartGroupService:                       chartGroupService,
+		validator:                               validator,
+		clusterService:                          clusterService,
+		acdServiceClient:                        acdServiceClient,
+		appStoreDeploymentService:               appStoreDeploymentService,
+		helmAppClient:                           helmAppClient,
+		argoUserService:                         argoUserService,
+		cdApplicationStatusUpdateHandler:        cdApplicationStatusUpdateHandler,
+		installedAppRepository:                  installedAppRepository,
+		appCrudOperationService:                 appCrudOperationService,
+		installedAppDeploymentTypeChangeService: installedAppDeploymentTypeChangeService,
 	}
 }
 func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +383,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 			return
 		}
 	}
-	res, err := handler.installedAppService.DeployBulk(&request)
+	res, err := handler.chartGroupService.DeployBulk(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeployBulk", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -433,7 +445,7 @@ func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.Res
 		return
 	}
 	// RBAC enforcer ends
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
+	isTriggered, err := impl.chartGroupService.DeployDefaultChartOnCluster(cluster, userId)
 	if err != nil {
 		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -462,7 +474,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchNotesForArgoInstalledApp(w http
 		return
 	}
 	handler.Logger.Infow("request payload, FetchNotesForArgoInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
-	notes, err := handler.installedAppService.FetchChartNotes(installedAppId, envId, token, handler.checkNotesAuth)
+	notes, err := handler.installedAppResourceService.FetchChartNotes(installedAppId, envId, token, handler.checkNotesAuth)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchNotesFromdb, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -621,7 +633,8 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
+					// TODO refactoring: should be performed through nats
+					err = handler.appStoreDeploymentService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 					if appDeleteErrOk && appDeleteErr != nil {
 						handler.Logger.Errorw(appDeleteErr.InternalMessage)
@@ -738,7 +751,8 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					err = handler.installedAppService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
+					// TODO refactoring: should be performed in go routine
+					err = handler.appStoreDeploymentService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 					if appDeleteErrOk && appDeleteErr != nil {
 						handler.Logger.Errorw(appDeleteErr.InternalMessage)
@@ -825,12 +839,102 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.Re
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, helmReleaseInstallStatus, status)
+	err := handler.installedAppResourceService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, helmReleaseInstallStatus, status)
 	return err
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
+	handler.installedAppResourceService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
+}
+
+func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var migrateAndTriggerReq *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw("request err, MigrateDeploymentTypeForChartStore", "payload", migrateAndTriggerReq, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	migrateAndTriggerReq.UserId = userId
+
+	err = handler.validator.Struct(migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw("validation err, MigrateDeploymentTypeForChartStore", "payload", migrateAndTriggerReq, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	resp, err := handler.installedAppDeploymentTypeChangeService.MigrateDeploymentType(r.Context(), migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw(err.Error(),
+			"payload", migrateAndTriggerReq,
+			"err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return
+}
+
+func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var deploymentAppTriggerRequest *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&deploymentAppTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, TriggerChartStoreAppAfterMigration", "payload", deploymentAppTriggerRequest, "err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	deploymentAppTriggerRequest.UserId = userId
+
+	err = handler.validator.Struct(deploymentAppTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, TriggerChartStoreAppAfterMigration", "payload", deploymentAppTriggerRequest, "err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	resp, err := handler.installedAppDeploymentTypeChangeService.TriggerAfterMigration(r.Context(), deploymentAppTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw(err.Error(),
+			"payload", deploymentAppTriggerRequest,
+			"err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return
 }

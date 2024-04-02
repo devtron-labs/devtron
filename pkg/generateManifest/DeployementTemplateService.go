@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -21,6 +23,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -45,14 +48,14 @@ const (
 	Manifest RequestDataMode = 2
 )
 
-var ChartRepository = &client.ChartRepository{
+var ChartRepository = &gRPC.ChartRepository{
 	Name:     "repo",
 	Url:      "http://localhost:8080/",
 	Username: "admin",
 	Password: "password",
 }
 
-var ReleaseIdentifier = &client.ReleaseIdentifier{
+var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
 	ReleaseNamespace: "devtron-demo",
 	ReleaseName:      "release-name",
 }
@@ -72,43 +75,38 @@ type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
 	chartService                     chart.ChartService
 	appListingService                app.AppListingService
-	appListingRepository             repository.AppListingRepository
 	deploymentTemplateRepository     repository.DeploymentTemplateRepository
 	helmAppService                   client.HelmAppService
-	chartRepository                  chartRepoRepository.ChartRepository
 	chartTemplateServiceImpl         util.ChartTemplateService
 	K8sUtil                          *k8s.K8sServiceImpl
-	helmAppClient                    client.HelmAppClient
+	helmAppClient                    gRPC.HelmAppClient
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	environmentRepository            repository3.EnvironmentRepository
 	appRepository                    appRepository.AppRepository
 	scopedVariableManager            variables.ScopedVariableManager
+	chartRefService                  chartRef.ChartRefService
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
 	appListingService app.AppListingService,
-	appListingRepository repository.AppListingRepository,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
 	helmAppService client.HelmAppService,
-	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateServiceImpl util.ChartTemplateService,
-	helmAppClient client.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-) *DeploymentTemplateServiceImpl {
+	chartRefService chartRef.ChartRefService) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
 		chartService:                     chartService,
 		appListingService:                appListingService,
-		appListingRepository:             appListingRepository,
 		deploymentTemplateRepository:     deploymentTemplateRepository,
 		helmAppService:                   helmAppService,
-		chartRepository:                  chartRepository,
 		chartTemplateServiceImpl:         chartTemplateServiceImpl,
 		K8sUtil:                          K8sUtil,
 		helmAppClient:                    helmAppClient,
@@ -117,6 +115,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		environmentRepository:            environmentRepository,
 		appRepository:                    appRepository,
 		scopedVariableManager:            scopedVariableManager,
+		chartRefService:                  chartRefService,
 	}
 }
 
@@ -132,7 +131,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, item := range defaultVersions.ChartRefs {
 		res := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:      item.Id,
+			ChartRefId:   item.Id,
 			ChartVersion: item.Version,
 			ChartType:    item.Name,
 			Type:         repository.DefaultVersions,
@@ -148,7 +147,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, env := range publishedOnEnvs {
 		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:         env.ChartRefId,
+			ChartRefId:      env.ChartRefId,
 			EnvironmentId:   env.EnvironmentId,
 			EnvironmentName: env.EnvironmentName,
 			Type:            repository.PublishedOnEnvironments,
@@ -197,7 +196,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	} else {
 		switch request.Type {
 		case repository.DefaultVersions:
-			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
+			_, values, err = impl.chartRefService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
 			values, resolvedValue, variableSnapshot, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
@@ -301,7 +300,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
+	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
@@ -337,18 +336,18 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	installReleaseRequest := &client.InstallReleaseRequest{
+	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		ChartName:         template,
 		ChartVersion:      version,
 		ValuesYaml:        valuesYaml,
 		K8SVersion:        k8sServerVersion.String(),
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
-		ChartContent: &client.ChartContent{
+		ChartContent: &gRPC.ChartContent{
 			Content: chartBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(client.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
@@ -359,6 +358,10 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in templating chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return nil, err
 	}
 	response := &openapi2.TemplateChartResponse{

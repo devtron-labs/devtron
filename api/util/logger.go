@@ -18,6 +18,7 @@ type AuditLoggerDTO struct {
 	QueryParams     string    `json:"queryParams"`
 	ApiResponseCode int       `json:"apiResponseCode"`
 	RequestPayload  []byte    `json:"requestPayload"`
+	RequestMethod   string    `json:"requestMethod"`
 }
 
 type LoggingMiddlewareImpl struct {
@@ -61,6 +62,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 			UpdatedOn:      time.Now(),
 			QueryParams:    r.URL.Query().Encode(),
 			RequestPayload: bodyBuffer.Bytes(),
+			RequestMethod:  r.Method,
 		}
 		// Call the next handler in the chain.
 		next.ServeHTTP(d, r)
@@ -71,5 +73,5 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 }
 
 func LogRequest(auditLogDto *AuditLoggerDTO) {
-	log.Printf("AUDIT_LOG: urlPath: %s, queryParams: %s,updatedBy: %s, updatedOn: %s, apiResponseCode: %d,requestPayload: %s", auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
+	log.Printf("AUDIT_LOG: requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, requestPayload: %s", auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
 }

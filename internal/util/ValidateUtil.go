@@ -18,6 +18,7 @@
 package util
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strings"
 
@@ -94,7 +95,31 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("not-system-admin-user", validateForSystemOrAdminUser)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("not-system-admin-userid", validateForSystemOrAdminUserById)
+	if err != nil {
+		return v, err
+	}
 	return v, err
+}
+
+func validateForSystemOrAdminUser(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == bean.AdminUser || value == bean.SystemUser {
+		return false
+	}
+	return true
+}
+
+func validateForSystemOrAdminUserById(fl validator.FieldLevel) bool {
+	value := fl.Field().Int()
+	if value == bean.AdminUserId || value == bean.SystemUserId {
+		return false
+	}
+	return true
 }
 
 func validateDockerImage(fl validator.FieldLevel) bool {

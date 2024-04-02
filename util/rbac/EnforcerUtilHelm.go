@@ -3,7 +3,7 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -21,7 +21,6 @@ type EnforcerUtilHelmImpl struct {
 	clusterRepository      repository.ClusterRepository
 	teamRepository         team.TeamRepository
 	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
 	InstalledAppRepository repository2.InstalledAppRepository
 }
 
@@ -29,7 +28,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	clusterRepository repository.ClusterRepository,
 	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
-	environmentRepository repository.EnvironmentRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
@@ -37,7 +35,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 		clusterRepository:      clusterRepository,
 		teamRepository:         teamRepository,
 		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
 		InstalledAppRepository: installedAppRepository,
 	}
 }

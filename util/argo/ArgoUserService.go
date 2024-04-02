@@ -9,10 +9,9 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	apiv1 "k8s.io/api/core/v1"
@@ -41,6 +40,9 @@ type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
 	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
 	GetOrUpdateArgoCdUserDetail() string
+
+	BuildACDContext() (acdContext context.Context, err error)
+	SetAcdTokenInContext(ctx context.Context) (context.Context, error)
 }
 
 type ArgoUserServiceImpl struct {
@@ -48,22 +50,25 @@ type ArgoUserServiceImpl struct {
 	clusterService          cluster.ClusterService
 	devtronSecretConfig     *util2.DevtronSecretConfig
 	runTimeConfig           *client.RuntimeConfig
-	gitOpsRepository        repository.GitOpsConfigRepository
 	argoCDConnectionManager connection.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
 	k8sUtil                 *k8s.K8sServiceImpl
+	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sServiceImpl) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
+	devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig,
+	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
+	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
 		devtronSecretConfig:     devtronSecretConfig,
 		runTimeConfig:           runTimeConfig,
-		gitOpsRepository:        gitOpsRepository,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
 		k8sUtil:                 k8sUtil,
+		gitOpsConfigReadService: gitOpsConfigReadService,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -71,9 +76,31 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 	return argoUserServiceImpl, nil
 }
 
+func (impl *ArgoUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
+	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
+}
+
+func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {
+	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
+}
+
 func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
-	if err != nil || !isGitOpsConfigured {
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
 	return impl.GetOrUpdateArgoCdUserDetail()
@@ -85,7 +112,7 @@ func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 	}
@@ -163,16 +190,12 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 
 // note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return "", err
 	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-	if !isGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}
@@ -181,7 +204,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return "", err
@@ -190,11 +213,9 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	username := secretData[DEVTRON_ARGOCD_USERNAME_KEY]
 	password := secretData[DEVTRON_ARGOCD_USER_PASSWORD_KEY]
 	latestTokenNo := 1
-	isTokenAvailable := true
 	var token string
 	for key, value := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
-			isTokenAvailable = true
 			keySplits := strings.Split(key, "_")
 			keyLen := len(keySplits)
 			tokenNo, err := strconv.Atoi(keySplits[keyLen-1])
@@ -209,7 +230,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		}
 	}
 
-	if !isTokenAvailable || len(token) == 0 {
+	if len(token) == 0 {
 		newTokenNo := latestTokenNo + 1
 		token, err = impl.createNewArgoCdTokenForDevtron(string(username), string(password), newTokenNo, k8sClient)
 		if err != nil {
@@ -221,7 +242,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 }
 
 func (impl *ArgoUserServiceImpl) updateArgoCdUserInfoInDevtronSecret(userinfo map[string]string, k8sClient *v1.CoreV1Client) error {
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return err
@@ -234,7 +255,7 @@ func (impl *ArgoUserServiceImpl) updateArgoCdUserInfoInDevtronSecret(userinfo ma
 		secretData[key] = []byte(value)
 	}
 	devtronSecret.Data = secretData
-	_, err = updateSecret(DEVTRONCD_NAMESPACE, devtronSecret, k8sClient)
+	_, err = updateSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, devtronSecret, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating devtron secret", "err", err)
 		return err

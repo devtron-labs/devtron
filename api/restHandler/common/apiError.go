@@ -126,42 +126,10 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 
 }
 
-// use this method when we have specific api error to be conveyed to api User
-func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interface{}, status int, apiErrors []*util.ApiError) {
-	response := Response{}
-	response.Code = status
-	response.Status = http.StatusText(status)
-	if err == nil {
-		response.Result = respBody
-	} else {
-		response.Errors = apiErrors
-	}
-	b, err := json.Marshal(response)
-	if err != nil {
-		util.GetLogger().Error("error in marshaling err object", err)
-		status = 500
-	}
-	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
-	w.WriteHeader(status)
-	_, err = w.Write(b)
-	if err != nil {
-		util.GetLogger().Error(err)
-	}
-}
-
 // global response body used across api
 type Response struct {
 	Code   int              `json:"code,omitempty"`
 	Status string           `json:"status,omitempty"`
 	Result interface{}      `json:"result,omitempty"`
 	Errors []*util.ApiError `json:"errors,omitempty"`
-}
-
-func contains(s []*string, e *string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
