@@ -75,15 +75,8 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 	if !ok {
 		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
-	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
-	if err != nil {
-		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error occurred in fetching the policy to update")
-		if errors.Is(err, pg.ErrNoRows) {
-			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
-		}
-		return errResp
-	}
 
+	var err error
 	var scopes []*resourceQualifiers.SelectionIdentifier
 	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
 		scopes, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
@@ -122,15 +115,26 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 
 	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, ctx.GetUserId(), referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
-		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
+		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "scopes", scopes, "err", err)
 		return err
 	}
 
-	// create new mappings using resourceQualifierMapping
-	err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
-	if err != nil {
-		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
-		return err
+	if applyIdentifiersRequest.ApplyToPolicyName != "" {
+		updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
+		if err != nil {
+			errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error occurred in fetching the policy to update")
+			if errors.Is(err, pg.ErrNoRows) {
+				errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
+			}
+			return errResp
+		}
+
+		// create new mappings using resourceQualifierMapping
+		err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+		if err != nil {
+			impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
+			return err
+		}
 	}
 	err = impl.notifyApplyEventObservers(tx, scopes)
 	if err != nil {
