@@ -98,7 +98,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:7c66e0fc-564-21516"
+    image: "quay.io/devtron/kubelink:58ad1d64-564-21826"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
