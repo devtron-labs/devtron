@@ -16,6 +16,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 type ApplyObserver func(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
@@ -106,21 +107,10 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 	if len(scopes) == 0 {
 		return util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(invalidAppEnvCombinations).WithInternalMessage(invalidAppEnvCombinations)
 	}
-	tx, err := impl.transactionManager.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
-		return err
-	}
-	defer impl.transactionManager.RollbackTx(tx)
 
-	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, ctx.GetUserId(), referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
-	if err != nil {
-		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "scopes", scopes, "err", err)
-		return err
-	}
-
+	var updateToPolicy *bean2.GlobalPolicyBaseModel
 	if applyIdentifiersRequest.ApplyToPolicyName != "" {
-		updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
+		updateToPolicy, err = impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
 		if err != nil {
 			errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error occurred in fetching the policy to update")
 			if errors.Is(err, pg.ErrNoRows) {
@@ -128,7 +118,21 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 			}
 			return errResp
 		}
+	}
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
+		return err
+	}
+	defer impl.transactionManager.RollbackTx(tx)
 
+	err = impl.deleteMappings(ctx, applyIdentifiersRequest, err, referenceType, updateToPolicy, tx, scopes)
+	if err != nil {
+		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "scopes", scopes, "err", err)
+		return err
+	}
+
+	if applyIdentifiersRequest.ApplyToPolicyName != "" {
 		// create new mappings using resourceQualifierMapping
 		err = impl.resourceQualifierMappingService.CreateMappings(tx, ctx.GetUserId(), referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 		if err != nil {
@@ -148,6 +152,18 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 		return err
 	}
 	return nil
+}
+
+func (impl *CommonPolicyActionsServiceImpl) deleteMappings(ctx *util2.RequestCtx, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest, err error, referenceType resourceQualifiers.ResourceType, updateToPolicy *bean2.GlobalPolicyBaseModel, tx *pg.Tx, scopes []*resourceQualifiers.SelectionIdentifier) error {
+	if applyIdentifiersRequest.PolicyType == bean2.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW && updateToPolicy != nil {
+		err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.AuditLog{
+			UpdatedOn: time.Now(),
+			UpdatedBy: ctx.GetUserId(),
+		}, tx)
+	} else {
+		err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, ctx.GetUserId(), referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	}
+	return err
 }
 
 func (impl *CommonPolicyActionsServiceImpl) notifyApplyEventObservers(tx *pg.Tx, scopes []*resourceQualifiers.SelectionIdentifier) error {

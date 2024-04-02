@@ -91,6 +91,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/bulk/branch-update").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdsAndEnvironmentId).Methods("PUT")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
 
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env").HandlerFunc(router.restHandler.GetSourceCiDownStreamFilters).Methods("GET")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd").HandlerFunc(router.restHandler.GetSourceCiDownStreamInfo).Methods("GET")
+
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")
 
