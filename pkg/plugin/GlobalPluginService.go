@@ -22,12 +22,15 @@ type GlobalVariable struct {
 }
 
 const (
+	APP                          = "app"
+	JOB                          = "job"
 	DOCKER_IMAGE                 = "DOCKER_IMAGE"
 	DEPLOYMENT_RELEASE_ID        = "DEPLOYMENT_RELEASE_ID"
 	DEPLOYMENT_UNIQUE_ID         = "DEPLOYMENT_UNIQUE_ID"
 	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
 	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
 	APP_NAME                     = "APP_NAME"
+	JOB_NAME                     = "JOB_NAME"
 	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
 	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
 	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
@@ -167,19 +170,17 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppTyp
 			Type:        "cd",
 		},
 	}
-	globalVariable := &GlobalVariable{
-		Name:        "APP_NAME",
-		Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-		Description: "Name of the app this pipeline resides in.",
-		Type:        "ci",
-	}
+	appName := APP_NAME
+	entityType := APP
 	if appType == helper.Job {
-		globalVariable = &GlobalVariable{
-			Name:        "JOB_NAME",
-			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Name of the Job this pipeline resides in.",
-			Type:        "ci",
-		}
+		appName = JOB_NAME
+		entityType = JOB
+	}
+	globalVariable := &GlobalVariable{
+		Name:        appName,
+		Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+		Description: fmt.Sprintf("Name of the %s this pipeline resides in.", entityType),
+		Type:        "ci",
 	}
 	globalVariables = append(globalVariables, globalVariable)
 	return globalVariables, nil
