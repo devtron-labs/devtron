@@ -37,6 +37,7 @@ const (
 	CI_WORKFLOW_NAME           = "ci"
 	CI_WORKFLOW_WITH_STAGES    = "ci-stages-with-env"
 	CiStage                    = "CI"
+	JobStage                = "JOB"
 	CdStage                    = "CD"
 	CD_WORKFLOW_NAME           = "cd"
 	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"

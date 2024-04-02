@@ -18,27 +18,9 @@
 package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"go.uber.org/zap"
 )
 
 type CiCdPipelineOrchestratorEnterpriseImpl struct {
@@ -46,42 +28,12 @@ type CiCdPipelineOrchestratorEnterpriseImpl struct {
 	*pipeline.CiCdPipelineOrchestratorImpl
 }
 
-func NewCiCdPipelineOrchestratorEnterpriseImpl(pipelineGroupRepository app2.AppRepository,
-	logger *zap.SugaredLogger,
-	materialRepository pipelineConfig.MaterialRepository,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
-	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	envRepository repository2.EnvironmentRepository,
-	attributesService attributes.AttributesService,
-	appListingRepository repository.AppListingRepository,
-	appLabelsService app.AppCrudOperationService,
-	userAuthService user.UserAuthService,
-	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
-	pipelineStageService pipeline.PipelineStageService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
-	gitMaterialHistoryService history3.GitMaterialHistoryService,
-	ciPipelineHistoryService history3.CiPipelineHistoryService,
-	ciTemplateService pipeline.CiTemplateService,
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	globalTagService globalTag.GlobalTagService,
-	PipelineOverrideRepository chartConfig.PipelineOverrideRepository, CiArtifactRepository repository.CiArtifactRepository, manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	configMapService pipeline.ConfigMapService,
-	genericNoteService genericNotes.GenericNoteService,
-	customTagService pipeline.CustomTagService,
-	devtronResourceService devtronResource.DevtronResourceService,
-	chartService chart.ChartService) *CiCdPipelineOrchestratorEnterpriseImpl {
+func NewCiCdPipelineOrchestratorEnterpriseImpl(
+	ciCdPipelineOrchestratorImpl *pipeline.CiCdPipelineOrchestratorImpl,
+	globalTagService globalTag.GlobalTagService) *CiCdPipelineOrchestratorEnterpriseImpl {
 	return &CiCdPipelineOrchestratorEnterpriseImpl{
-		CiCdPipelineOrchestratorImpl: pipeline.NewCiCdPipelineOrchestrator(pipelineGroupRepository, logger, materialRepository, pipelineRepository,
-			ciPipelineRepository, ciPipelineMaterialRepository, GitSensorClient, ciConfig, appWorkflowRepository, envRepository, attributesService,
-			appListingRepository, appLabelsService, userAuthService, prePostCdScriptHistoryService, prePostCiScriptHistoryService,
-			pipelineStageService, ciTemplateOverrideRepository, gitMaterialHistoryService, ciPipelineHistoryService, ciTemplateService,
-			dockerArtifactStoreRepository, PipelineOverrideRepository, CiArtifactRepository, manifestPushConfigRepository, configMapService,
-			customTagService, genericNoteService, devtronResourceService, chartService),
-		globalTagService: globalTagService,
+		CiCdPipelineOrchestratorImpl: ciCdPipelineOrchestratorImpl,
+		globalTagService:             globalTagService,
 	}
 }
 

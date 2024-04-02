@@ -22,7 +22,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -479,6 +479,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
 			val.JobActualName = jobContainer.JobActualName
+			val.ProjectId = jobContainer.ProjectId
 		}
 
 		if len(val.JobCiPipelines) == 0 {
@@ -749,7 +750,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(pipelineConfigBean.LINKED_CD) {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(CiPipeline.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")

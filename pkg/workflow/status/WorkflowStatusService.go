@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	pubub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	client2 "github.com/devtron-labs/devtron/client/events"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -19,10 +17,10 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	"github.com/devtron-labs/devtron/pkg/workflow/status/bean"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
@@ -58,6 +56,7 @@ type WorkflowStatusServiceImpl struct {
 	argoUserService                 argo.ArgoUserService
 	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService
 	argocdClientWrapperService      argocdServer.ArgoClientWrapperService
+	cdPipelineEventPublishService   out.CDPipelineEventPublishService
 
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 	pipelineOverrideRepository           chartConfig.PipelineOverrideRepository
@@ -69,7 +68,6 @@ type WorkflowStatusServiceImpl struct {
 	pipelineRepository                   pipelineConfig.PipelineRepository
 
 	application application.ServiceClient
-	eventClient client2.EventClient
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -80,6 +78,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService,
 	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService,
 	argocdClientWrapperService argocdServer.ArgoClientWrapperService,
+	cdPipelineEventPublishService out.CDPipelineEventPublishService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository,
@@ -88,8 +87,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository3.InstalledAppRepository,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	application application.ServiceClient,
-	eventClient client2.EventClient) (*WorkflowStatusServiceImpl, error) {
+	application application.ServiceClient) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
 		workflowDagExecutor:                  workflowDagExecutor,
@@ -101,6 +99,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		pipelineStatusSyncDetailService:      pipelineStatusSyncDetailService,
 		argocdClientWrapperService:           argocdClientWrapperService,
+		cdPipelineEventPublishService:        cdPipelineEventPublishService,
 		cdWorkflowRepository:                 cdWorkflowRepository,
 		pipelineOverrideRepository:           pipelineOverrideRepository,
 		installedAppVersionHistoryRepository: installedAppVersionHistoryRepository,
@@ -110,7 +109,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		pipelineRepository:                   pipelineRepository,
 		application:                          application,
-		eventClient:                          eventClient,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -412,16 +410,9 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 
 	// pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
 	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { // create new nats event
-		statusUpdateEvent := bean.ArgoPipelineStatusSyncEvent{
-			PipelineId:            pipelineId,
-			InstalledAppVersionId: installedAppVersionId,
-			UserId:                userId,
-			IsAppStoreApplication: isAppStoreApplication,
-		}
-		// write event
-		err = impl.eventClient.WriteNatsEvent(pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		err = impl.cdPipelineEventPublishService.PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId, userId, isAppStoreApplication)
 		if err != nil {
-			impl.logger.Errorw("error in writing nats event", "topic", pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.logger.Errorw("error, PublishArgoTypePipelineSyncEvent", "err", err)
 		}
 	}
 }
