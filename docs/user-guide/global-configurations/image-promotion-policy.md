@@ -20,7 +20,11 @@ Therefore, Devtron offers a feature called 'Image Promotion Policy' that allows 
 
 ## Creating an Image Promotion Policy
 
-{% hint style="warning" %}
+(This is configured by super-admins using APIs)
+
+---
+
+<!-- {% hint style="warning" %}
 ### Who Can Perform This Action?
 Users need to have super-admin permission to create an image promotion policy.
 {% endhint %}
@@ -59,7 +63,7 @@ If you don't define both pass and fail conditions, all images will be eligible f
 
 6. Click **Save Changes**.
 
----
+--- 
 
 ## Applying an Image Promotion Policy
 
@@ -89,7 +93,7 @@ Moreover, there are three filters available to make the selections easier for yo
 * Environment
 * Policy
 
----
+--- -->
 
 ## Result
 
@@ -106,11 +110,17 @@ Here, you can promote images to the target environment(s).
 
 2. Click the **Promote** button next to the workflow in which the you wish to promote the image. Please note, the button will appear only if image promotion is allowed for any environment used in that workflow.
 
+    ![Figure 3: Promote Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/promote-button.jpg)
+
 3. In the `Select Image` tab, you will see a list of images. However, you can use the **Show Images from** dropdown to decide the image you wish to promote. It can be an image either from the CI pipeline or an image that has passed from a particular environment in the workflow (the image must have passed all stages of deployment).
+
+    ![Figure 4: Selecting an Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/show-images.jpg)
 
 4. Use the **SELECT** button on the image, and click **Promote to...**
 
 5. Select one or more target environments using the checkbox.
+
+    ![Figure 4: Selecting the Destination Environment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/selecting-env.jpg)
 
 6. Click **Promote Image**. 
 
@@ -133,7 +143,9 @@ User needs to be a direct promotion approver or a super-admin to approve an imag
 
 2. Click the **Promote** button next to the workflow. The button will appear only if image promotion is allowed for any environment used in that workflow.
 
-3. Go to the `Approval Pending` tab to see the list of images requiring approval. By default, it shows a list of all images whose promotion request is pending with you.  
+3. Go to the `Approval Pending` tab to see the list of images requiring approval. By default, it shows a list of all images whose promotion request is pending with you. 
+
+    ![Figure 5: Checking Pending Approvals](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/pending-approvals.jpg)
 
 {% hint style="info" %}
 All the images will show the source from which it is being promoted, i.e., CI stage or intermediate stage (environment).
@@ -144,6 +156,10 @@ All the images will show the source from which it is being promoted, i.e., CI st
 5. Click **Approve**.
 
 You can also use the **Show requests** dropdown to filter the image promotion requests for a specific target environment.
+
+![Figure 6: Show Env-specific Promotion Requests](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/show-requests.jpg)
+
+show-requests.jpg
 
 ### Deploying a Promoted Image
 
@@ -156,4 +172,11 @@ If a user has approved the promotion request for an image, they may or may not b
 
 However, a promoted image does not automatically qualify as a deployable image. It must fulfill all configured requirements ([Image Deployment Approval](../creating-application/workflow/cd-pipeline.md#manual-approval-for-deployment), [Filter Conditions](./filter-condition.md), etc.) of the target environment for it to be deployed.
 
-You can check the deployment of promoted images in the **Deployment History** of your application.
+In the **Build & Deploy** tab of your application, click **Select Image** for the CD pipeline, and choose your promoted image for deployment.
+
+![Figure 7: Deploying Promoted Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/deploying-promoted-image.jpg)
+
+You can check the deployment of promoted images in the **Deployment History** of your application. It will also indicate the pipeline from which the image was promoted and deployed to the target environment.
+
+![Figure 8: Deployment History - Checking Image Source](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/promoted-image-deploy-log.jpg)
+
