@@ -149,7 +149,7 @@ func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gR
 			connectionMethod = 1
 		}
 		clusterConnectionConfig := &gRPC.RemoteConnectionConfig{
-			ConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
+			RemoteConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
 		}
 		if clusterBean.RemoteConnectionConfig.ProxyConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
 			proxyConfig := clusterBean.RemoteConnectionConfig.ProxyConfig

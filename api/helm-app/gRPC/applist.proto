@@ -391,7 +391,7 @@ message SSHTunnelConfig {
 }
 
 message RemoteConnectionConfig {
-  RemoteConnectionMethod ConnectionMethod = 1;
+  RemoteConnectionMethod RemoteConnectionMethod = 1;
   ProxyConfig ProxyConfig = 2;
   SSHTunnelConfig SSHTunnelConfig = 3;
 }
