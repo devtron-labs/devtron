@@ -204,7 +204,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 	var workflowSecrets []bean.ConfigSecretMap
 	if !workflowRequest.IsExtRun {
 		// inject global variables only if IsExtRun is false
-		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(workflowRequest.GetEventTypeForWorkflowRequest())
+		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(workflowRequest.GetPipelineTypeForGlobalCMCS())
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 			return nil, nil, err
