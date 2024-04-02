@@ -1587,14 +1587,13 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 }
 
 func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, appId int, userId int32) (int, error) {
-	//checking if workflow name is already exist or not
-	workflow, err := handler.appWorkflowRepository.FindByNameAndAppId(workflowName, appId)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
-		handler.logger.Errorw("error in finding workflow by app id and name", "name", workflowName, "appId", appId)
+	//checking if workflow name  already exist or not
+	ok, err := handler.appWorkflowService.IsWorkflowNameFound(workflowName, appId)
+	if err != nil {
 		return 0, err
 	}
 	// if workflow name already exists then we will assign a new name to the workflow
-	if workflow.Id != 0 {
+	if ok {
 		workflowName = util.GenerateNewWorkflowName(workflowName)
 	}
 	wf := &appWorkflow2.AppWorkflow{
