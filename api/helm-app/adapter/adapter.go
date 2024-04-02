@@ -14,7 +14,7 @@ func ConvertRemoteConnectionConfigToProto(dockerBean *types.DockerArtifactStoreB
 			connectionMethod = 1
 		}
 		registryConnectionConfig = &grpcBean.RemoteConnectionConfig{
-			ConnectionMethod: grpcBean.RemoteConnectionMethod(connectionMethod),
+			RemoteConnectionMethod: grpcBean.RemoteConnectionMethod(connectionMethod),
 		}
 		if dockerBean.RemoteConnectionConfig.ProxyConfig != nil && dockerBean.RemoteConnectionConfig.ConnectionMethod == bean.RemoteConnectionMethodProxy {
 			proxyConfig := dockerBean.RemoteConnectionConfig.ProxyConfig

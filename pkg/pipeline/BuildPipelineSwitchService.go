@@ -4,7 +4,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -96,10 +97,10 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 	}
 
 	//get the ciPipeline
-	var switchFromType bean.PipelineType
+	var switchFromType pipelineConfigBean.PipelineType
 	var switchFromPipelineId int
 	if request.SwitchFromExternalCiPipelineId != 0 {
-		switchFromType = bean.EXTERNAL
+		switchFromType = pipelineConfigBean.EXTERNAL
 		switchFromPipelineId = request.SwitchFromExternalCiPipelineId
 	} else {
 		switchFromPipelineId = request.SwitchFromCiPipelineId
@@ -117,7 +118,7 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 	return impl.createNewPipelineAndReplaceOldPipelineLinks(request.CiPipeline, ciConfig, switchFromPipelineId, switchFromType, request.UserId)
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipelineLinks(ciPipelineReq *bean.CiPipeline, ciConfig *bean.CiConfigRequest, switchFromPipelineId int, switchFromType bean.PipelineType, userId int32) (*bean.CiConfigRequest, error) {
+func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipelineLinks(ciPipelineReq *bean.CiPipeline, ciConfig *bean.CiConfigRequest, switchFromPipelineId int, switchFromType pipelineConfigBean.PipelineType, userId int32) (*bean.CiConfigRequest, error) {
 	tx, err := impl.ciPipelineRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction", "switchFromPipelineId", switchFromPipelineId, "switchFromType", switchFromType, "userId", userId, "err", err)
@@ -145,7 +146,7 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 	}
 
 	//we don't store ci-pipeline-id in pipeline table for external ci's
-	if switchFromPipelineId > 0 && switchFromType != bean.EXTERNAL {
+	if switchFromPipelineId > 0 && switchFromType != pipelineConfigBean.EXTERNAL {
 		// ciPipeline id is being set in res object in the addpipelineToTemplate method.
 		err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, switchFromPipelineId, res.CiPipelines[0].Id)
 		if err != nil {
@@ -164,7 +165,7 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 
 // add switchType and remove other id
 // make constants for error msgs
-func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromCiPipelineId int, switchToType, switchFromType bean.PipelineType) error {
+func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromCiPipelineId int, switchToType, switchFromType pipelineConfigBean.PipelineType) error {
 	// this will only allow below conversions
 	// ext -> {ci_job,direct,linked}
 	// direct -> {ci_job,linked}
@@ -176,13 +177,13 @@ func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromC
 	}
 
 	// refer SwitchToExternalCi
-	if switchToType == bean.EXTERNAL {
+	if switchToType == pipelineConfigBean.EXTERNAL {
 		return errors.New(string(cannotConvertToExternalCi))
 	}
 
 	// we should not check the below logic for external_ci type as builds are not built in devtron and
 	// linked pipelines won't be there as per current external-ci-pipeline architecture
-	if switchFromCiPipelineId > 0 && switchFromType != bean.EXTERNAL {
+	if switchFromCiPipelineId > 0 && switchFromType != pipelineConfigBean.EXTERNAL {
 		// old ci_pipeline should not contain any linked ci_pipelines.
 		linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiCount(switchFromCiPipelineId)
 		if err != nil {
@@ -228,13 +229,13 @@ func (impl *BuildPipelineSwitchServiceImpl) deleteCiAndItsWorkflowMappings(tx *p
 	return err
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) deleteOldCiPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, switchFromPipelineId int, switchFromType bean.PipelineType, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
+func (impl *BuildPipelineSwitchServiceImpl) deleteOldCiPipelineAndWorkflowMappingBeforeSwitch(tx *pg.Tx, switchFromPipelineId int, switchFromType pipelineConfigBean.PipelineType, userId int32) (*appWorkflow.AppWorkflowMapping, error) {
 	// 1) delete build pipelines
 	// 2) delete app workflowMappings
 	var err error
 	pipelineId := switchFromPipelineId
 	pipelineType := ""
-	if switchFromType == bean.EXTERNAL {
+	if switchFromType == pipelineConfigBean.EXTERNAL {
 		err = impl.deleteExternalCi(tx, switchFromPipelineId, userId)
 		pipelineType = appWorkflow.WEBHOOK
 	} else {
@@ -315,7 +316,7 @@ func (impl *BuildPipelineSwitchServiceImpl) saveHistoryOfOverriddenTemplate(ciPi
 		impl.logger.Errorw("error in getting ciTemplate ", "err", err, "ciTemplate", ciTemplate.Id)
 		return err
 	}
-	buildConfig, err := bean3.ConvertDbBuildConfigToBean(ciTemplate.CiBuildConfig)
+	buildConfig, err := adapter.ConvertDbBuildConfigToBean(ciTemplate.CiBuildConfig)
 	if err != nil {
 		impl.logger.Errorw("error in ConvertDbBuildConfigToBean ", "err", err, "buildConfigId", buildConfig.Id)
 		return err

@@ -34,6 +34,7 @@ type TelemetryRouterImpl struct {
 
 func NewTelemetryRouterImpl(logger *zap.SugaredLogger, handler restHandler.TelemetryRestHandler) *TelemetryRouterImpl {
 	router := &TelemetryRouterImpl{
+		logger:  logger,
 		handler: handler,
 	}
 	return router

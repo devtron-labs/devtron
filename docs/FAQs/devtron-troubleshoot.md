@@ -1,4 +1,4 @@
-## Troubleshooting Guide
+# Troubleshooting Guide
 
 We always try to make your experience of using Devtron as smooth as possible but still if you face any issues, follow the troubleshooting guide given below or join our [discord channel](https://discord.gg/jsRG5qx2gp) if you couldn't find the solution for the issue you are facing.
 
@@ -524,7 +524,8 @@ This command deletes the Devtron pod in the `devtroncd` namespace with the label
 Following these steps should allow you to refresh the ArgoCD certificates when they have expired.
 
 
-### 26. Not able to see commits, throwing exit status 128
+#### 26. Not able to see commits, throwing exit status 128
+
 1. **Save the Git Repository Again**
 Wait for few minutes and check the build pipeline if commits are visible or not
 
@@ -541,3 +542,35 @@ kubectl delete po -n devtroncd -l app=git-sensor
 3. **Try to clone the git repository with the token you have added for Git Account**
 
 In case the cloning fails, you can generate the token, update the Git account in Global Configurations, and try to save the git repository again.
+
+
+#### 27. Git-sensor PVC- disk full 
+
+**Need to increase the PVC size if you are getting following error:**
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/git-sensor-pvc.png)
+
+**Need to check the `Storageclass` by which PVC was provisioned.**
+
+Run the following command:
+```yaml
+kubectl get storageclass
+```
+Check for the field `allowVolumeExpansion`, if it is set to `true`, run the following command and increase the size of the PVC.
+```yaml
+kubectl edit pvc git-volume-git-sensor-0 -n devtroncd
+```
+However, if the field is `allowVolumeExpansion: false`, set it to `true` and run the above command.
+
+Edit the following field:
+```yaml
+spec:
+    capacity:
+        storage: 10Gi # increase as per convenience
+```
+
+**Increase the PVC size as per your requirement. This will resolve the issue. If not, then try to bounce the pod using the following command.**
+
+```yaml
+kubectl delete po -n devtroncd git-sensor-0
+```

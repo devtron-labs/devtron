@@ -19,6 +19,9 @@ package casbin
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	"log"
 	"os"
 	"strings"
@@ -45,12 +48,6 @@ var e2 *casbinv2.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
 var casbinService CasbinService
 var casbinVersion Version
-
-type Subject string
-type Resource string
-type Action string
-type Object string
-type PolicyType string
 
 func isV2() bool {
 	return casbinVersion == CasbinV2
@@ -145,7 +142,7 @@ func setCasbinService(service CasbinService) {
 	casbinService = service
 }
 
-func AddPolicy(policies []Policy) error {
+func AddPolicy(policies []bean.Policy) error {
 	err := casbinService.AddPolicy(policies)
 	if err != nil {
 		log.Println("casbin policy addition failed", "err", err)
@@ -168,7 +165,7 @@ func LoadPolicy() {
 	}
 }
 
-func RemovePolicy(policies []Policy) []Policy {
+func RemovePolicy(policies []bean.Policy) []bean.Policy {
 	policy, err := casbinService.RemovePolicy(policies)
 	if err != nil {
 		log.Println(err)
@@ -183,37 +180,102 @@ func GetAllSubjects() []string {
 	return e.GetAllSubjects()
 }
 
-func DeleteRoleForUser(user string, role string) bool {
+func DeleteRoleForUser(user string, role string, expression string, format string) bool {
 	user = strings.ToLower(user)
 	role = strings.ToLower(role)
+	expression = strings.ToLower(expression)
+	format = strings.ToLower(format)
 	var response bool
 	var err error
 	if isV2() {
-		response, err = e2.DeleteRoleForUser(user, role)
-		if err != nil {
-			log.Println(err)
+		if len(expression) == 0 && len(format) == 0 {
+			response, err = e2.RemoveGroupingPolicy(util.GetStringSliceWithUserAndRole(user, role))
+			if err != nil {
+				log.Println(err)
+			}
+		} else {
+			response, err = e2.RemoveGroupingPolicy(util.GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format))
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	} else {
-		response = e.DeleteRoleForUser(user, role)
+		if len(expression) == 0 && len(format) == 0 {
+			response = e.RemoveGroupingPolicy(util.GetStringSliceWithUserAndRole(user, role))
+		} else {
+			response = e.RemoveGroupingPolicy(util.GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format))
+		}
 	}
-	enforcerImplRef.InvalidateCache(user)
 	return response
+
 }
 
-func GetRolesForUser(user string) ([]string, error) {
+func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
+	return GetRolesAndGroupsAttachedToUser(user, true)
+}
+
+func GetRoleMappings() [][]string {
+	roleMappings := make([][]string, 0)
+	if isV2() {
+		roleMappings = e2.GetModel()["g"]["g"].Policy
+	} else {
+		roleMappings = e.GetModel()["g"]["g"].Policy
+	}
+	return roleMappings
+}
+
+func GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.GroupPolicy, error) {
+	return GetRolesAndGroupsAttachedToUser(user, false)
+}
+
+func GetRolesAndGroupsAttachedToUser(user string, getGroupsOnly bool) ([]bean.GroupPolicy, error) {
 	user = strings.ToLower(user)
-	if isV2() {
-		return e2.GetRolesForUser(user)
+	roleMappings := GetRoleMappings()
+	userRoles := make([]bean.GroupPolicy, 0)
+	for _, roleMappingDetail := range roleMappings {
+		lenOfRoleMapping := len(roleMappingDetail)
+		if lenOfRoleMapping < 2 {
+			//invalid case
+			return nil, fmt.Errorf("invalid role mapping found")
+		} else {
+			userInRole := roleMappingDetail[0]
+			if userInRole == user { //checking user
+				role := roleMappingDetail[1]
+				if getGroupsOnly && !strings.HasPrefix(role, bean2.GroupPrefix) {
+					continue
+				}
+				expression, format, isExpressionValid := util.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
+				if isExpressionValid {
+					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
+				}
+
+			}
+		}
 	}
-	return e.GetRolesForUser(user)
+	return userRoles, nil
 }
 
-func GetUserByRole(role string) ([]string, error) {
-	role = strings.ToLower(role)
-	if isV2() {
-		return e2.GetUsersForRole(role)
+func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.GroupPolicy, error) {
+	roleMappings := GetRoleMappings()
+	userRoles := make([]bean.GroupPolicy, 0)
+	for _, roleMappingDetail := range roleMappings {
+		lenOfRoleMapping := len(roleMappingDetail)
+		if lenOfRoleMapping < 2 {
+			//invalid case
+			return nil, fmt.Errorf("invalid role mapping found")
+		} else {
+			roleInPolicy := roleMappingDetail[1]
+			if roleInPolicy == role { //checking user
+				user := roleMappingDetail[0]
+				expression, format, isExpressionValid := util.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
+				if isExpressionValid {
+					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
+				}
+
+			}
+		}
 	}
-	return e.GetUsersForRole(role)
+	return userRoles, nil
 }
 
 func RemovePoliciesByRole(role string) bool {
@@ -237,12 +299,4 @@ func HandlePanic() {
 	if err := recover(); err != nil {
 		log.Println("panic occurred:", err)
 	}
-}
-
-type Policy struct {
-	Type PolicyType `json:"type"`
-	Sub  Subject    `json:"sub"`
-	Res  Resource   `json:"res"`
-	Act  Action     `json:"act"`
-	Obj  Object     `json:"obj"`
 }

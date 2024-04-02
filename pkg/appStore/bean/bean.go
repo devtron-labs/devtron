@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
@@ -63,6 +64,14 @@ type InstalledAppDto struct {
 	EnvironmentId   int    `json:"environmentId"`
 }
 
+type InstallAppVersionRequestType int
+
+const (
+	INSTALL_APP_REQUEST InstallAppVersionRequestType = iota
+	BULK_DEPLOY_REQUEST
+	DEFAULT_COMPONENT_DEPLOYMENT_REQUEST
+)
+
 type InstallAppVersionDTO struct {
 	Id                           int                            `json:"id,omitempty"` // TODO: redundant data; refers to InstalledAppVersionId
 	AppId                        int                            `json:"appId,omitempty"`
@@ -76,38 +85,48 @@ type InstallAppVersionDTO struct {
 	AppStoreVersion              int                            `json:"appStoreVersion,omitempty,notnull"`
 	ValuesOverrideYaml           string                         `json:"valuesOverrideYaml,omitempty"`
 	Readme                       string                         `json:"readme,omitempty"`
-	UserId                       int32                          `json:"-"`
 	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`                            // TODO: ineffective usage of omitempty; can be removed
 	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"` // TODO: ineffective usage of omitempty; can be removed
-	ACDAppName                   string                         `json:"-"`
-	Environment                  *repository2.Environment       `json:"-"`
-	ChartGroupEntryId            int                            `json:"-"`
-	DefaultClusterComponent      bool                           `json:"-"`
-	Status                       AppstoreDeploymentStatus       `json:"-"`
 	AppStoreId                   int                            `json:"appStoreId"`
 	AppStoreName                 string                         `json:"appStoreName"`
 	Deprecated                   bool                           `json:"deprecated"`
-	ForceDelete                  bool                           `json:"-"`
-	NonCascadeDelete             bool                           `json:"-"`
 	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
 	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode              string                         `json:"appOfferingMode"`
-	GitOpsRepoName               string                         `json:"gitOpsRepoName"`
 	GitOpsPath                   string                         `json:"gitOpsPath"`
 	GitHash                      string                         `json:"gitHash"`
-	EnvironmentName              string                         `json:"-"`
-	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	DeploymentAppType            string                         `json:"deploymentAppType"` // TODO: instead of string, use enum
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	UpdatedOn                    time.Time                      `json:"updatedOn"`
 	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
 	HelmPackageName              string                         `json:"helmPackageName"`
+	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	IsCustomRepository           bool                           `json:"-"`
+	IsNewGitOpsRepo              bool                           `json:"-"`
+	ACDAppName                   string                         `json:"-"`
+	Environment                  *repository2.Environment       `json:"-"`
+	ChartGroupEntryId            int                            `json:"-"`
+	DefaultClusterComponent      bool                           `json:"-"`
+	Status                       AppstoreDeploymentStatus       `json:"-"`
+	UserId                       int32                          `json:"-"`
+	ForceDelete                  bool                           `json:"-"`
+	NonCascadeDelete             bool                           `json:"-"`
+	EnvironmentName              string                         `json:"-"`
+	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
 }
 
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
 	chart.DeploymentAppType = deploymentAppType
+}
+
+func (chart *InstallAppVersionDTO) UpdateCustomGitOpsRepoUrl(allowCustomRepository bool, installAppVersionRequestType InstallAppVersionRequestType) {
+	// Handling for chart-group deployment request
+	if allowCustomRepository && len(chart.GitOpsRepoURL) == 0 &&
+		(installAppVersionRequestType == BULK_DEPLOY_REQUEST || installAppVersionRequestType == DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) {
+		chart.GitOpsRepoURL = apiBean.GIT_REPO_DEFAULT
+	}
 }
 
 // InstalledAppDeploymentAction is an internal struct for Helm App deployment; used to decide the deployment steps to be performed
@@ -183,11 +202,6 @@ type Dependency struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
-}
-
-type DeployPayload struct {
-	InstalledAppVersionId        int
-	InstalledAppVersionHistoryId int
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
@@ -379,6 +393,10 @@ const (
 	HELM_RELEASE_STATUS_FAILED                  = "Failed"
 	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
 	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
+	FAILED_TO_REGISTER_IN_ACD_ERROR             = "failed to register app on ACD with error: "
+	FAILED_TO_DELETE_APP_PREFIX_ERROR           = "error deleting app with error: "
+	COULD_NOT_FETCH_APP_NAME_AND_ENV_NAME_ERR   = "could not fetch app name or environment name"
+	APP_NOT_DELETED_YET_ERROR                   = "App Not Yet Deleted."
 )
 
 type EnvironmentDetails struct {

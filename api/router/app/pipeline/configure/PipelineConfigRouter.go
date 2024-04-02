@@ -60,6 +60,10 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
 	configRouter.Path("/template/validate").HandlerFunc(router.restHandler.ValidateAppOverride).Methods("POST")
 
+	// Start -- user defined gitops repository
+	configRouter.Path("/template/gitops/config/{appId}").HandlerFunc(router.restHandler.GetGitOpsConfiguration).Methods("GET")
+	configRouter.Path("/template/gitops/config").HandlerFunc(router.restHandler.SaveGitOpsConfiguration).Methods("POST")
+	// End --
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch/deployment").HandlerFunc(router.restHandler.HandleChangeDeploymentRequest).Methods("POST")
@@ -77,6 +81,7 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.GetCIPipelineByPipelineId).Methods("GET")
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
+	configRouter.Path("/ci-pipeline/runtime-params").HandlerFunc(router.restHandler.GetCIRuntimeParams).Methods("GET")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
 	configRouter.Path("/external-ci/{appId}").HandlerFunc(router.restHandler.GetExternalCi).Methods("GET")
 	configRouter.Path("/external-ci/{appId}/{externalCiId}").HandlerFunc(router.restHandler.GetExternalCiById).Methods("GET")
@@ -85,6 +90,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch-source").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdAndEnvironmentId).Methods("PATCH")
 	configRouter.Path("/ci-pipeline/bulk/branch-update").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdsAndEnvironmentId).Methods("PUT")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
+
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env").HandlerFunc(router.restHandler.GetSourceCiDownStreamFilters).Methods("GET")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd").HandlerFunc(router.restHandler.GetSourceCiDownStreamInfo).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")

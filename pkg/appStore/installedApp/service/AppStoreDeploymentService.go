@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -56,12 +57,13 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
 
 type AppStoreDeploymentService interface {
-	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error)
+	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool, installAppVersionRequestType appStoreBean.InstallAppVersionRequestType) (*appStoreBean.InstallAppVersionDTO, error)
 	AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error)
 	IsChartRepoActive(appStoreVersionId int) (bool, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
@@ -170,7 +172,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	// Rollback tx on error.
 	defer tx.Rollback()
 	//step 1 db operation initiated
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, false)
+	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, false, appStoreBean.INSTALL_APP_REQUEST)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
@@ -658,7 +660,27 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
+	if installedApp.InstalledAppId > 0 {
+		installedAppModel, err := impl.installedAppRepository.GetInstalledApp(installedApp.InstalledAppId)
+		if err != nil {
+			impl.logger.Errorw("error while fetching installed app", "error", err)
+			return false, err
+		}
+		installedApp.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
+		// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+		if util.IsAcdApp(installedAppModel.DeploymentAppType) &&
+			len(installedAppModel.GitOpsRepoName) != 0 &&
+			len(installedAppModel.GitOpsRepoUrl) == 0 {
+			//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+			migrationErr := impl.handleGitOpsRepoUrlMigration(tx, installedAppModel, userId)
+			if migrationErr != nil {
+				impl.logger.Errorw("error in GitOps repository url migration", "err", migrationErr)
+				return false, err
+			}
+			installedApp.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
+		}
+		// migration ends
+	}
 	// Rollback starts
 	var success bool
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
@@ -724,7 +746,7 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	// skipAppCreation - This flag will skip app creation if app already exists.
 
 	//step 1 db operation initiated
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, true)
+	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, true, appStoreBean.INSTALL_APP_REQUEST)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
@@ -1047,25 +1069,24 @@ func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppV
 }
 
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) bool {
-
+func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps) bool {
 	monoRepoMigrationRequired := false
+	if !util.IsAcdApp(installedApp.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
+		return false
+	}
 	var err error
-	gitOpsRepoName := installedApp.GitOpsRepoName
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installedApp.GitOpsRepoUrl)
 	if len(gitOpsRepoName) == 0 {
-		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-			if err != nil {
-				return false
-			}
-		} else {
-			gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+		gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installedApp.App.AppName, installedApp.Environment.Name)
+		if err != nil || gitOpsRepoName == "" {
+			return false
 		}
 	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
+	appNameGitOpsRepoPattern := installedApp.App.AppName + "$"
+	regex := regexp.MustCompile(appNameGitOpsRepoPattern)
+
+	// if appName is not in the gitOpsRepoName consider it as mono repo
+	if !regex.MatchString(gitOpsRepoName) {
 		monoRepoMigrationRequired = true
 	}
 	return monoRepoMigrationRequired
@@ -1089,6 +1110,19 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installAppVersionRequest.UpdateDeploymentAppType(installedApp.DeploymentAppType)
 
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installedApp.DeploymentAppType)
+	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+	if util.IsAcdApp(installedApp.DeploymentAppType) &&
+		len(installedApp.GitOpsRepoName) != 0 &&
+		len(installedApp.GitOpsRepoUrl) == 0 {
+		//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+		gitRepoUrl, err := impl.fullModeDeploymentService.GetGitRepoUrl(installedApp.GitOpsRepoName)
+		if err != nil {
+			impl.logger.Errorw("error in GitOps repository url migration", "err", err)
+			return nil, err
+		}
+		installedApp.GitOpsRepoUrl = gitRepoUrl
+	}
+	// migration ends
 
 	if util.IsManifestDownload(installedApp.DeploymentAppType) {
 		updateTime := installedApp.UpdatedOn
@@ -1198,27 +1232,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
-		gitOpsRepoName := installedApp.GitOpsRepoName
-		if len(gitOpsRepoName) == 0 {
-			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-				gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-			}
-		}
-		//here will set new git repo name if required to migrate
-		newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
-		//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-		if newGitOpsRepoName != gitOpsRepoName {
-			monoRepoMigrationRequired = true
-			installAppVersionRequest.GitOpsRepoName = newGitOpsRepoName
-		} else {
-			installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
-		}
-		installedApp.GitOpsRepoName = installAppVersionRequest.GitOpsRepoName
+		monoRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(installedApp)
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 
@@ -1291,6 +1305,48 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	return installAppVersionRequest, nil
 }
 
+func (impl AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.Tx, installedApp *repository.InstalledApps, userId int32) error {
+	var (
+		localTx *pg.Tx
+		err     error
+	)
+
+	if tx == nil {
+		dbConnection := impl.installedAppRepository.GetConnection()
+		localTx, err = dbConnection.Begin()
+		if err != nil {
+			return err
+		}
+		// Rollback tx on error.
+		defer localTx.Rollback()
+	}
+
+	gitRepoUrl, err := impl.fullModeDeploymentService.GetGitRepoUrl(installedApp.GitOpsRepoName)
+	if err != nil {
+		impl.logger.Errorw("error in GitOps repository url migration", "err", err)
+		return err
+	}
+	installedApp.GitOpsRepoUrl = gitRepoUrl
+	installedApp.UpdatedOn = time.Now()
+	installedApp.UpdatedBy = userId
+	if localTx != nil {
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, localTx)
+	} else {
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in updating installed app model", "err", err)
+		return err
+	}
+	if localTx != nil {
+		err = localTx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error while committing transaction to db", "error", err)
+			return err
+		}
+	}
+	return err
+}
 func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
@@ -1300,6 +1356,20 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
+	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+	if util.IsAcdApp(app.InstalledApp.DeploymentAppType) &&
+		len(app.InstalledApp.GitOpsRepoName) != 0 &&
+		len(app.InstalledApp.GitOpsRepoUrl) == 0 {
+		//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
+		// db operations
+		installedAppModel := &app.InstalledApp
+		migrationErr := impl.handleGitOpsRepoUrlMigration(nil, installedAppModel, userId)
+		if migrationErr != nil {
+			impl.logger.Errorw("error in GitOps repository url migration", "err", migrationErr)
+			return nil, err
+		}
+	}
+	// migration ends
 	updateTime := app.InstalledApp.UpdatedOn
 	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
 	helmPackageName := fmt.Sprintf("%s-%s-%s (GMT)", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name, timeStampTag)
@@ -1319,7 +1389,6 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
 		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
-		GitOpsRepoName:     app.InstalledApp.GitOpsRepoName,
 		UserId:             userId,
 		AppOfferingMode:    app.InstalledApp.App.AppOfferingMode,
 		ClusterId:          app.InstalledApp.Environment.ClusterId,
@@ -1328,6 +1397,9 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		Environment:        &app.InstalledApp.Environment,
 		HelmPackageName:    helmPackageName,
 		ACDAppName:         fmt.Sprintf("%s-%s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name),
+	}
+	if util.IsAcdApp(installAppVersion.DeploymentAppType) {
+		installAppVersion.GitOpsRepoURL = app.InstalledApp.GitOpsRepoUrl
 	}
 	return installAppVersion, err
 }

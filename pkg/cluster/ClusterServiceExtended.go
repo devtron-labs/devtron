@@ -40,7 +40,6 @@ type ClusterServiceImplExtended struct {
 	grafanaClient            grafana.GrafanaClient
 	installedAppRepository   repository2.InstalledAppRepository
 	clusterServiceCD         cluster2.ServiceClient
-	K8sInformerFactory       informer.K8sInformerFactory
 	gitOpsConfigReadService  config.GitOpsConfigReadService
 	sshTunnelWrapperService  ssh.SSHTunnelWrapperService
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
@@ -76,11 +75,8 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			userRepository:                   userRepository,
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
+			userService:                      userService,
 			remoteConnectionService:          remoteConnectionService,
-			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-				userService: userService,
-				logger:      logger,
-			},
 		},
 	}
 	go clusterServiceExt.updateClusterConnectionMap()
@@ -213,7 +209,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*bean.ClusterB
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
-	isGitOpsConfigured, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
@@ -291,7 +287,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 	}
 
 	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && !IsProxyOrSSHConfigured(bean) {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && !IsProxyOrSSHConfigured(bean) {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -393,7 +389,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bea
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +400,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && IsProxyOrSSHConfigured(clusterBean) {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && IsProxyOrSSHConfigured(clusterBean) {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 

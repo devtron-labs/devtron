@@ -38,7 +38,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	errors1 "github.com/juju/errors"
@@ -105,6 +104,7 @@ type ClusterService interface {
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s2.ClusterConfig, error)
 	IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error)
+	IsClusterReachable(clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -117,7 +117,7 @@ type ClusterServiceImpl struct {
 	roleGroupRepository              repository2.RoleGroupRepository
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 	remoteConnectionService          remoteConnection.RemoteConnectionService
-	*ClusterRbacServiceImpl
+	userService                      user.UserService
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -135,11 +135,8 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userRepository:          userRepository,
 		roleGroupRepository:     roleGroupRepository,
 		remoteConnectionService: remoteConnectionService,
-		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-			logger:      logger,
-			userService: userService,
-		},
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
+		userService:                      userService,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -973,18 +970,19 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 	}
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(user.EmailId) {
-		groupsCasbin, err := casbin2.GetRolesForUser(user.EmailId)
+		activeRoles, err := impl.userService.GetActiveRolesAttachedToUser(user.EmailId, recordedTime)
 		if err != nil {
-			impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "id", user.Id, "err", err)
 			return nil, err
 		}
-		groups = append(groups, groupsCasbin...)
+		groups = append(groups, activeRoles...)
 	}
 
 	if isGroupClaimsActive {
-		_, groupClaims, err := impl.ClusterRbacServiceImpl.userService.GetEmailAndGroupClaimsFromToken(token)
+		_, groupClaims, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
 			return nil, err
@@ -994,10 +992,10 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 		groups = append(groups, groupsCasbinNames...)
 	}
 
-	roleEntity := "cluster"
-	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	roleEntity := bean2.CLUSTER_ENTITIY
+	roles, err := impl.userService.GetActiveUserRolesByEntityAndUserId(roleEntity, userId)
 	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err, "roleEntity", roleEntity, "userId", userId)
 		return nil, err
 	}
 	if len(groups) > 0 {
@@ -1313,4 +1311,17 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s2
 func (impl ClusterServiceImpl) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
 	// this implementation is used in hyperion mode, so IsPolicyConfiguredForCluster is always false
 	return false, nil
+}
+
+func (impl ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)
+		return false, err
+	}
+	if len(cluster.ErrorInConnecting) > 0 {
+		return false, nil
+	}
+	return true, nil
+
 }
