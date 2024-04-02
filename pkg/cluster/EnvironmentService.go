@@ -123,6 +123,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 	FindByNames(names []string) ([]*EnvironmentBean, error)
+	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -888,4 +889,13 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 
 func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Environment, error) {
+	envDetails, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in GetDetailsById", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envDetails, nil
 }

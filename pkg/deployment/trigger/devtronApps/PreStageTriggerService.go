@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -319,7 +318,7 @@ func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
 	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
 	//checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
 		return err
@@ -993,42 +992,6 @@ func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipeli
 		}
 	}
 	return sourceCiPipeline, nil
-}
-
-func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		span.End()
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return false, err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
-		if cdPipeline.Environment.ClusterId == 0 {
-			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
-				return false, err
-			}
-			cdPipeline.Environment = *envDetails
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return false, err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	return isVulnerable, nil
 }
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {

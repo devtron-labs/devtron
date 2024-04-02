@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/trigger"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -54,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -89,6 +91,8 @@ type TriggerService interface {
 
 	HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+
+	HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
@@ -130,14 +134,14 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
+	imageScanService                    security2.ImageScanService
+	feasibilityManager                  trigger.FeasibilityManager
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
-	scanResultRepository          security.ImageScanResultRepository
-	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
@@ -195,8 +199,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	globalEnvVariables *util3.GlobalEnvVariables,
 	appRepository appRepository.AppRepository,
-	scanResultRepository security.ImageScanResultRepository,
-	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -215,7 +217,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
-) (*TriggerServiceImpl, error) {
+	imageScanService security2.ImageScanService,
+	feasibilityManager trigger.FeasibilityManager) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -255,8 +258,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
-		scanResultRepository:                scanResultRepository,
-		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageScanHistoryRepository:          imageScanHistoryRepository,
 		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
@@ -275,6 +276,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		deploymentWindowService:             deploymentWindowService,
+		imageScanService:                    imageScanService,
+		feasibilityManager:                  feasibilityManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -549,31 +552,19 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			impl.logger.Errorw("error in creating timeline status for deployment initiation, ManualCdTrigger", "err", err, "timeline", timeline)
 		}
 
-		// checking vulnerability for deploying image
-		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
-			return 0, "", err
-		}
-
-		if isVulnerable == true {
-			// if image vulnerable, update timeline status and return
-			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), overrideRequest.UserId); err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
-			}
-			return 0, "", fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
-		}
-
 		// Deploy the release
 		_, span = otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.HandleCDTriggerRelease")
+		triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
 		var releaseErr error
-		releaseId, manifest, releaseErr = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
+		releaseId, manifest, releaseErr = impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
 		// if releaseErr found, then the mark current deployment Failed and return
 		if releaseErr != nil {
-			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
+				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+				}
 			}
 			return 0, "", releaseErr
 		}
@@ -691,6 +682,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		impl.logger.Errorw("error while fetching env", "err", err)
 		return err
 	}
+	// setting env in pipeline, TODO: Check if correct, doubtful
+	pipeline.Environment = *env
 
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
@@ -820,40 +813,15 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 	// custom gitops repo url validation --> Ends
 
-	// checking vulnerability for deploying image
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, env.ClusterId, pipeline.EnvironmentId, pipeline.AppId, false)
-		if err != nil {
-			impl.logger.Errorw("error while fetching blocked cve list", "err", err)
-			return err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	if isVulnerable == true {
-		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
-		}
-		return nil
-	}
-
-	manifest, releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
+	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
+	manifest, releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt, triggerRequirementRequest)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
-		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
-		if err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+		if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
+			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
+			if err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			}
 		}
 		return releaseErr
 	}
@@ -918,9 +886,9 @@ func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request
 	return nil
 }
 
-func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error) {
+func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*[]byte, error) {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
-	manifest, err := impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
+	manifest, err := impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt, triggerRequirementRequest)
 	if err != nil {
 		impl.logger.Errorw("error in cd trigger", "err", err)
 		return manifest, err
@@ -928,8 +896,8 @@ func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWo
 	return manifest, err
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error) {
-	manifest, err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
+func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*[]byte, error) {
+	manifest, err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
@@ -937,18 +905,18 @@ func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArti
 	return manifest, err
 }
 
-func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) (*[]byte, error) {
+func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*[]byte, error) {
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
 		impl.logger.Error("invalid req, app and env not found from rbac")
 		return nil, errors3.New("invalid req, app and env not found from rbac")
 	}
-	manifest, err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt)
+	manifest, err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
 	return manifest, err
 }
 
-func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) (*[]byte, error) {
+func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*[]byte, error) {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
@@ -976,14 +944,42 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 	}
 	// setting deployedBy as 1(system user) since case of auto trigger
 	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.HandleCDTriggerRelease")
-	id, manifest, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
+	id, manifest, err := impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, request, ctx, triggeredAt, 1)
 	span.End()
 	if err != nil {
-		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		if errors.Is(err, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) {
+			// setting error as nil here as to maintain the existing flow when vulnerability found we used to sent nil.
+			impl.logger.Info("setting as err as nil , ignoring vulnerabilityfound error", "err", err)
+			err = nil
+		} else {
+			impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		}
 	} else {
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
 	return &manifest, err
+
+}
+
+func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
+	isDryRun := overrideRequest.IsDryRun
+	// introduce feasibility call and return custom error if fails
+	err = impl.feasibilityManager.CheckFeasibility(triggerRequirementRequest)
+	if err != nil && !errors.Is(err, bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)) {
+		impl.logger.Errorw("error encountered in HandleCdTriggerReleaseWithFeasibility", "overrideRequest", overrideRequest, "err", err)
+		return releaseNo, manifest, err
+	} else if err != nil {
+		// if image vulnerable, update timeline status and return
+		if ok := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(triggerRequirementRequest.Runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggerRequirementRequest.TriggeredBy); ok != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", triggerRequirementRequest.Runner.Id, "err", err)
+		}
+		return releaseNo, manifest, err
+	}
+	if !isDryRun {
+		releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+		return releaseNo, manifest, err
+	}
+	return releaseNo, manifest, err
 
 }
 

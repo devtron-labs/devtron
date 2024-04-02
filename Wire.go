@@ -136,6 +136,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	trigger3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/trigger"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
@@ -1033,6 +1034,9 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
+
+		trigger3.NewFeasibilityManagerImpl,
+		wire.Bind(new(trigger3.FeasibilityManager), new(*trigger3.FeasibilityManagerImpl)),
 	)
 	return &App{}, nil
 }
