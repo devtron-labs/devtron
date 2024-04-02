@@ -22,9 +22,11 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/terminal/mocks"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -262,12 +264,12 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-
+	middleware.IncTerminalSessionRequestCounter(mocks.SessionInitiating)
 	err = execWithStreamOptions(exec, streamOptions)
 	if err != nil {
 		return err
 	}
-
+	middleware.IncTerminalSessionRequestCounter(mocks.SessionActive)
 	return nil
 }
 
@@ -365,10 +367,11 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		}
 
 		if err != nil {
+			middleware.IncTerminalSessionRequestCounter(mocks.SessionClosedAbnormally)
 			terminalSessions.Close(request.SessionId, 2, err.Error())
 			return
 		}
-
+		middleware.IncTerminalSessionRequestCounter(mocks.SessionClosedNormally)
 		terminalSessions.Close(request.SessionId, 1, "Process exited")
 	}
 }
