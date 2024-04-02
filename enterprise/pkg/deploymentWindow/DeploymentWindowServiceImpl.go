@@ -206,14 +206,17 @@ func getUserActionStateForUser(isAllowed bool, excludedUsers []int32, userId int
 
 func (impl DeploymentWindowServiceImpl) evaluateProfileStates(profileStates []ProfileWrapper) ([]ProfileWrapper, *ProfileWrapper, bool, error) {
 	var appliedProfile *ProfileWrapper
-	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.evaluateCombinedProfiles(profileStates, Blackout)
+	filteredBlackoutProfiles, isBlackoutActive, err := impl.evaluateCombinedProfiles(profileStates, Blackout)
 	if err != nil {
-		return nil, appliedProfile, false, fmt.Errorf("error in calculating state for blackout windows %v", err)
+		return nil, appliedProfile, false, fmt.Errorf("error in evaluating blackout windows %v", err)
 	}
 
-	filteredMaintenanceProfiles, _, isMaintenanceActive, err := impl.evaluateCombinedProfiles(profileStates, Maintenance)
+	filteredMaintenanceProfiles, isMaintenanceActive, err := impl.evaluateCombinedProfiles(profileStates, Maintenance)
 	if err != nil {
-		return nil, appliedProfile, false, fmt.Errorf("error in calculating state for maintenance windows %v", err)
+		return nil, appliedProfile, false, fmt.Errorf("error in evaluating maintenance windows %v", err)
+	}
+	if len(filteredMaintenanceProfiles) == 0 {
+		isMaintenanceActive = true
 	}
 
 	if len(filteredBlackoutProfiles) == 0 && len(filteredMaintenanceProfiles) == 0 {
@@ -395,22 +398,17 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 	return calculatedProfiles, nil
 }
 
-func (impl DeploymentWindowServiceImpl) evaluateCombinedProfiles(profileStates []ProfileWrapper, profileType DeploymentWindowType) ([]ProfileWrapper, bool, bool, error) {
+func (impl DeploymentWindowServiceImpl) evaluateCombinedProfiles(profileStates []ProfileWrapper, profileType DeploymentWindowType) ([]ProfileWrapper, bool, error) {
 
 	filteredProfiles := impl.filterForType(profileStates, profileType)
-	restrictedProfiles := impl.filterRestricted(filteredProfiles)
-	allActive := true
-	oneActive := false
-	for _, profile := range restrictedProfiles {
-		isActive := profile.IsActive
-		if !oneActive && isActive {
-			oneActive = true
-		}
-		if allActive && !isActive {
-			allActive = false
+	isActive := false
+	for _, profile := range filteredProfiles {
+		if profile.IsActive {
+			isActive = true
+			break
 		}
 	}
-	return filteredProfiles, allActive, oneActive, nil
+	return filteredProfiles, isActive, nil
 }
 
 func (impl DeploymentWindowServiceImpl) filterRestricted(profiles []ProfileWrapper) []ProfileWrapper {
