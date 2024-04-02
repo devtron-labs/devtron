@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/util"
+	"strings"
 )
 
 type DeploymentWindowProfilePolicy struct {
@@ -35,7 +36,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) *b
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
 			Id:            profile.Id,
-			Name:          profile.Name,
+			Name:          strings.TrimSpace(profile.Name),
 			Description:   profile.Description,
 			Enabled:       profile.Enabled,
 			PolicyOf:      bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW,

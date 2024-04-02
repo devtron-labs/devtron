@@ -94,6 +94,10 @@ func (handler *DeploymentWindowRestHandlerImpl) CreateDeploymentWindowProfile(w 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if request.Id > 0 {
+		common.WriteJsonResp(w, fmt.Errorf("non zero id not allowed when creating new profile"), nil, http.StatusBadRequest)
+		return
+	}
 
 	profile, err := handler.deploymentWindowService.CreateDeploymentWindowProfile(&request, userId)
 	if err != nil {

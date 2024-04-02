@@ -109,7 +109,7 @@ type DeploymentWindowProfileMetadata struct {
 	Description string               `json:"description"`
 	Id          int                  `json:"id"`
 	Name        string               `json:"name"`
-	Type        DeploymentWindowType `json:"type"`
+	Type        DeploymentWindowType `json:"type" validate:"oneof=BLACKOUT MAINTENANCE"`
 	isExpired   bool
 }
 

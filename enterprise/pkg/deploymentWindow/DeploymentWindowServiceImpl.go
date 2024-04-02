@@ -211,7 +211,7 @@ func (impl DeploymentWindowServiceImpl) evaluateProfileStates(profileStates []Pr
 		return nil, appliedProfile, false, fmt.Errorf("error in calculating state for blackout windows %v", err)
 	}
 
-	filteredMaintenanceProfiles, isMaintenanceActive, _, err := impl.evaluateCombinedProfiles(profileStates, Maintenance)
+	filteredMaintenanceProfiles, _, isMaintenanceActive, err := impl.evaluateCombinedProfiles(profileStates, Maintenance)
 	if err != nil {
 		return nil, appliedProfile, false, fmt.Errorf("error in calculating state for maintenance windows %v", err)
 	}

@@ -221,7 +221,7 @@ func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicyDto(globalPolicyDataMode
 		Version:     string(bean.GLOBAL_POLICY_VERSION_V1),
 		Description: globalPolicyDataModel.Description,
 		PolicyJson:  globalPolicyDataModel.JsonData,
-		Enabled:     true,
+		Enabled:     globalPolicyDataModel.Enabled,
 		Deleted:     false,
 	}
 	globalPolicy.CreateAuditLog(globalPolicyDataModel.UserId)

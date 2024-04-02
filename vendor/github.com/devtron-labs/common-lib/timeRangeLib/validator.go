@@ -41,6 +41,11 @@ func (tr TimeRange) ValidateTimeRange() error {
 		if len(tr.Weekdays) == 0 {
 			return errors.New(string(WeekDaysNotPresent))
 		}
+		for _, weekday := range tr.Weekdays {
+			if weekday < 0 || weekday > 6 {
+				return errors.New(string(WeekDayOutsideRange))
+			}
+		}
 	case WeeklyRange:
 		if tr.WeekdayFrom == 0 || tr.WeekdayTo == 0 {
 			return errors.New(string(WeekDayFromOrToNotPresent))
