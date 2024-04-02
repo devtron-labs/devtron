@@ -51,6 +51,6 @@ type AppEnvPolicyMappingsListFilter struct {
 type BulkPromotionPolicyApplyRequest struct {
 	PolicyType              bean.GlobalPolicyType          `json:"-"`
 	ApplicationEnvironments []AppEnvPolicyContainer        `json:"applicationEnvironments"`
-	ApplyToPolicyName       string                         `json:"applyToPolicyName" validate:"min=3"`
+	ApplyToPolicyName       string                         `json:"applyToPolicyName"`
 	AppEnvPolicyListFilter  AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter" validate:"dive"`
 }
