@@ -131,7 +131,12 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 		return nil, err
 	}
 
-	// TODO check if profiles are empty
+	if len(overview.Profiles) == 0 {
+		return &DeploymentWindowResponse{
+			EnvironmentStateMap: make(map[int]EnvironmentState),
+			Profiles:            make([]ProfileWrapper, 0),
+		}, nil
+	}
 	superAdmins, userEmailMap, err := impl.getUserInfoMap(err, map[int]*DeploymentWindowResponse{0: overview})
 	if err != nil {
 		impl.logger.Errorw("error in fetching user data", "err", err)
