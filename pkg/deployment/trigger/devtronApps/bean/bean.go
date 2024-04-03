@@ -2,14 +2,11 @@ package bean
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"time"
 )
@@ -82,10 +79,6 @@ const (
 	ManifestPush            DeploymentType = "manifest_push"
 )
 
-const (
-	OperationPerformError string = "operation perform error"
-)
-
 type TriggerRequirementRequestDto struct {
 	Scope          resourceQualifiers.Scope
 	TriggerRequest TriggerRequest
@@ -97,8 +90,4 @@ type TriggerFeasibilityResponse struct {
 	TriggerRequest    TriggerRequest
 	FilterIdVsState   map[int]resourceFilter.FilterState
 	Filters           []*resourceFilter.FilterMetaDataBean
-}
-
-func GetOperationPerformError(errString string) error {
-	return &util.ApiError{Code: constants.OperationPerformError, InternalMessage: fmt.Sprintf("%s %s", errString, OperationPerformError)}
 }

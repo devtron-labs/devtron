@@ -1,8 +1,9 @@
 package devtronApps
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 )
@@ -44,7 +45,7 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 
 	// allow or block w.r.t filterState
 	if filterState != resourceFilter.ALLOW {
-		return nil, fmt.Errorf("the artifact does not pass filtering condition")
+		return nil, &util.ApiError{Code: constants.FilteringConditionFail, InternalMessage: "the artifact does not pass filtering condition", UserMessage: "the artifact does not pass filtering condition"}
 	}
 
 	triggerRequest, err := impl.checkForDeploymentWindow(triggerRequirementRequest.TriggerRequest, triggerRequirementRequest.Stage)

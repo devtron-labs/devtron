@@ -18,6 +18,7 @@ import (
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1867,19 +1868,19 @@ func (impl *TriggerServiceImpl) checkApprovalNodeForDeployment(requestedUserId i
 		approvalMetadata, ok := userApprovalMetadata[artifactId]
 		if ok && approvalMetadata.ApprovalRuntimeState != pipelineConfig.ApprovedApprovalState {
 			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
-			return 0, errors.New("not triggering deployment since artifact is not approved")
+			return 0, &util.ApiError{Code: constants.ApprovalNodeFail, InternalMessage: "not triggering deployment since artifact is not approved", UserMessage: "not triggering deployment since artifact is not approved"}
 		} else if ok {
 			if !impl.config.CanApproverDeploy {
 				approvalUsersData := approvalMetadata.ApprovalUsersData
 				for _, approvalData := range approvalUsersData {
 					if approvalData.UserId == requestedUserId {
-						return 0, errors.New("image cannot be deployed by its approver")
+						return 0, &util.ApiError{Code: constants.ApprovalNodeFail, InternalMessage: "image cannot be deployed by its approver", UserMessage: "image cannot be deployed by its approver"}
 					}
 				}
 			}
 			return approvalMetadata.ApprovalRequestId, nil
 		} else {
-			return 0, errors.New("request not raised for artifact")
+			return 0, &util.ApiError{Code: constants.ApprovalNodeFail, InternalMessage: "request not raised for artifact", UserMessage: "request not raised for artifact"}
 		}
 	}
 	return 0, nil
