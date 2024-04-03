@@ -413,7 +413,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 		// Deploy the release
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-		//triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
 		var releaseErr error
 		releaseId, _, releaseErr = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()

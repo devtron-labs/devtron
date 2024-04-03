@@ -2,12 +2,9 @@ package bean
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"time"
 )
 
@@ -54,23 +51,3 @@ const (
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
-
-const (
-	OperationPerformError string = "operation perform error"
-)
-
-type TriggerRequirementRequestDto struct {
-	Pipeline    *pipelineConfig.Pipeline
-	Artifact    *repository.CiArtifact
-	Runner      *pipelineConfig.CdWorkflowRunner
-	Context     context.Context
-	TriggeredBy int32
-}
-
-func GetVulnerabilityFoundError(imageDigest string) error {
-	return &util.ApiError{Code: constants.VulnerabilityFound, InternalMessage: fmt.Sprintf("found vulnerability for image digest %s", imageDigest)}
-}
-
-func GetOperationPerformError(errString string) error {
-	return &util.ApiError{Code: constants.OperationPerformError, InternalMessage: fmt.Sprintf("%s %s", errString, OperationPerformError)}
-}
