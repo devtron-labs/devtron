@@ -11,7 +11,7 @@ import (
 type DeploymentWindowProfilePolicy struct {
 	TimeZone             string               `json:"timeZone"`
 	DisplayMessage       string               `json:"displayMessage"`
-	ExcludedUsersList    []int32              `json:"excludedUsersList"`
+	ExcludedUsersEmails  []string             `json:"excludedUsersList"`
 	IsSuperAdminExcluded bool                 `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool                 `json:"isUserExcluded"`
 	Type                 DeploymentWindowType `json:"type"`
@@ -22,7 +22,7 @@ func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy 
 	return DeploymentWindowProfilePolicy{
 		TimeZone:             profile.TimeZone,
 		DisplayMessage:       profile.DisplayMessage,
-		ExcludedUsersList:    profile.ExcludedUsersList,
+		ExcludedUsersEmails:  profile.ExcludedUsersEmails,
 		IsSuperAdminExcluded: profile.IsSuperAdminExcluded,
 		IsUserExcluded:       profile.IsUserExcluded,
 		Type:                 profile.Type,
@@ -55,7 +55,7 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 		Enabled:              policyModel.Enabled,
 		TimeZone:             profilePolicy.TimeZone,
 		DisplayMessage:       profilePolicy.DisplayMessage,
-		ExcludedUsersList:    profilePolicy.ExcludedUsersList,
+		ExcludedUsersEmails:  profilePolicy.ExcludedUsersEmails,
 		IsSuperAdminExcluded: profilePolicy.IsSuperAdminExcluded,
 		IsUserExcluded:       profilePolicy.IsUserExcluded,
 		DeploymentWindowProfileMetadata: DeploymentWindowProfileMetadata{

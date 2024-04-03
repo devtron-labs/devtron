@@ -61,7 +61,7 @@ type DeploymentWindowProfile struct {
 	Enabled              bool                        `json:"enabled"`
 	TimeZone             string                      `json:"timeZone"`
 	DisplayMessage       string                      `json:"displayMessage"`
-	ExcludedUsersList    []int32                     `json:"excludedUsersList"`
+	ExcludedUsersEmails  []string                    `json:"excludedUsersEmails"`
 	IsSuperAdminExcluded bool                        `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool                        `json:"isUserExcluded"`
 	DeploymentWindowProfileMetadata
@@ -133,7 +133,8 @@ type EnvironmentState struct {
 type ProfileWrapper struct {
 	DeploymentWindowProfile *DeploymentWindowProfile `json:"deploymentWindowProfile,omitempty"`
 	ProfileStateData
-	EnvId int `json:"envId"`
+	EnvId             int `json:"envId"`
+	ExcludedUsersList []int32
 }
 
 type ProfileStateData struct {
