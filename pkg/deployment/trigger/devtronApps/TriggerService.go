@@ -991,7 +991,6 @@ func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerReq
 		}
 		return releaseNo, manifest, err
 	}
-
 	releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	return releaseNo, manifest, err
 
