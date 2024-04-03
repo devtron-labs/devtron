@@ -403,6 +403,19 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
+		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+			return 0, err
+		}
+
+		if isVulnerable == true {
+			// if image vulnerable, update timeline status and return
+			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), overrideRequest.UserId); err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+			}
+			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+		}
 
 		// Deploy the release
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
@@ -412,11 +425,9 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		span.End()
 		// if releaseErr found, then the mark current deployment Failed and return
 		if releaseErr != nil {
-			if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
-				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
-				if err != nil {
-					impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
-				}
+			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
 			}
 			return 0, releaseErr
 		}
@@ -573,7 +584,19 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 	// custom GitOps repo url validation --> Ends
 
-	//triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
+	//checking vulnerability for deploying image
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, pipeline, nil)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+		return err
+	}
+	if isVulnerable == true {
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+		}
+		return nil
+	}
+
 	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
