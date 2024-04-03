@@ -46,7 +46,7 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 			continue
 		}
 		if !isExported(fieldName) && !field.CanInterface() {
-			unexportedField := GetUnexportedField(field, fieldName)
+			unexportedField := GetUnexportedField(field)
 			checkNilFields(unexportedField, nilObjMap)
 		} else {
 			// Recurse
@@ -69,7 +69,7 @@ func canFieldTypeBeNil(field reflect.Value) bool {
 func canSkipFieldStructCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
 	valName = strings.ToLower(valName)
-	if valName == "githubclient" && fieldName == "client" {
+	if valName == "githubclient" && (fieldName == "client" || fieldName == "gitopshelper") {
 		return true
 	}
 	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
@@ -80,7 +80,7 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 	return false
 }
 
-func GetUnexportedField(field reflect.Value, fieldName string) interface{} {
+func GetUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
