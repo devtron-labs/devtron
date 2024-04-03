@@ -39,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/feasibility/trigger"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -82,8 +81,6 @@ type TriggerService interface {
 	HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 
-	HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
-
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
 }
@@ -119,7 +116,6 @@ type TriggerServiceImpl struct {
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
 	imageScanService                    security2.ImageScanService
-	feasibilityManager                  trigger.FeasibilityManager
 	enforcerUtil                        rbac.EnforcerUtil
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
@@ -190,8 +186,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
-	imageScanService security2.ImageScanService,
-	feasibilityManager trigger.FeasibilityManager) (*TriggerServiceImpl, error) {
+	imageScanService security2.ImageScanService) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -242,7 +237,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		imageScanService:                    imageScanService,
-		feasibilityManager:                  feasibilityManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -678,24 +672,6 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
 	return err
-}
-
-func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	// introduce feasibility call and return custom error if fails
-	err = impl.feasibilityManager.CheckFeasibility(triggerRequirementRequest)
-	if err != nil && !errors.Is(err, bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)) {
-		impl.logger.Errorw("error encountered in HandleCdTriggerReleaseWithFeasibility", "overrideRequest", overrideRequest, "err", err)
-		return releaseNo, manifest, err
-	} else if err != nil {
-		// if image vulnerable, update timeline status and return
-		if ok := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(triggerRequirementRequest.Runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggerRequirementRequest.TriggeredBy); ok != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", triggerRequirementRequest.Runner.Id, "err", err)
-		}
-		return releaseNo, manifest, err
-	}
-	releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
-	return releaseNo, manifest, err
-
 }
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
