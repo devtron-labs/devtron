@@ -42,7 +42,7 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 			nilObjMap[mapEntry] = true
 			continue
 		}
-		if canSkipFieldStructCheck(fieldName) {
+		if canSkipFieldStructCheck(fieldName, valName) {
 			continue
 		}
 		if !isExported(fieldName) && !field.CanInterface() {
@@ -66,9 +66,13 @@ func canFieldTypeBeNil(field reflect.Value) bool {
 	}
 }
 
-func canSkipFieldStructCheck(fieldName string) bool {
+func canSkipFieldStructCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
-	for _, str := range []string{"logger", "dbconnection", "syncedenforcer", "client"} {
+	valName = strings.ToLower(valName)
+	if valName == "githubclient" && fieldName == "client" {
+		return true
+	}
+	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
 		if fieldName == str {
 			return true
 		}
