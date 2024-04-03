@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/robfig/cron/v3"
 	"log"
 	"net/http"
 	"os"
@@ -58,6 +59,7 @@ type App struct {
 	sessionManager2    *authMiddleware.SessionManager
 	OtelTracingService *otel.OtelTracingServiceImpl
 	loggingMiddleware  util.LoggingMiddleware
+	cron               *cron.Cron
 }
 
 func NewApp(router *router.MuxRouter,
@@ -157,6 +159,9 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("Error in draining nats connection", "error", err)
 	}
+
+	app.Logger.Infow("stopping cron")
+	app.cron.Stop()
 
 	app.Logger.Infow("housekeeping done. exiting now")
 }
