@@ -94,7 +94,7 @@ func GetSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierS
 
 	case resourceQualifiers.EnvironmentSelector:
 		envName = attributeParams[models.EnvName]
-		envId, err = GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
+		envId, err = GetIdentifierValueV1(models.EnvName, envName, attributesMapping)
 	case resourceQualifiers.ApplicationEnvironmentSelector:
 		appName = attributeParams[models.ApplicationName]
 		appId, err = GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
@@ -102,7 +102,7 @@ func GetSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierS
 		envId, err = GetIdentifierValueV1(models.EnvName, envName, attributesMapping)
 	case resourceQualifiers.ClusterSelector:
 		clusterName = attributeParams[models.ClusterName]
-		clusterId, err = GetIdentifierValueV1(models.ClusterName, appName, attributesMapping)
+		clusterId, err = GetIdentifierValueV1(models.ClusterName, clusterName, attributesMapping)
 	}
 	if err != nil {
 		return nil, err

@@ -5,12 +5,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/util"
+	"strings"
 )
 
 type DeploymentWindowProfilePolicy struct {
 	TimeZone             string               `json:"timeZone"`
 	DisplayMessage       string               `json:"displayMessage"`
-	ExcludedUsersList    []int32              `json:"excludedUsersList"`
+	ExcludedUsersEmails  []string             `json:"excludedUsersList"`
 	IsSuperAdminExcluded bool                 `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool                 `json:"isUserExcluded"`
 	Type                 DeploymentWindowType `json:"type"`
@@ -21,7 +22,7 @@ func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy 
 	return DeploymentWindowProfilePolicy{
 		TimeZone:             profile.TimeZone,
 		DisplayMessage:       profile.DisplayMessage,
-		ExcludedUsersList:    profile.ExcludedUsersList,
+		ExcludedUsersEmails:  profile.ExcludedUsersEmails,
 		IsSuperAdminExcluded: profile.IsSuperAdminExcluded,
 		IsUserExcluded:       profile.IsUserExcluded,
 		Type:                 profile.Type,
@@ -35,7 +36,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) *b
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
 			Id:            profile.Id,
-			Name:          profile.Name,
+			Name:          strings.TrimSpace(profile.Name),
 			Description:   profile.Description,
 			Enabled:       profile.Enabled,
 			PolicyOf:      bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW,
@@ -54,7 +55,7 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 		Enabled:              policyModel.Enabled,
 		TimeZone:             profilePolicy.TimeZone,
 		DisplayMessage:       profilePolicy.DisplayMessage,
-		ExcludedUsersList:    profilePolicy.ExcludedUsersList,
+		ExcludedUsersEmails:  profilePolicy.ExcludedUsersEmails,
 		IsSuperAdminExcluded: profilePolicy.IsSuperAdminExcluded,
 		IsUserExcluded:       profilePolicy.IsUserExcluded,
 		DeploymentWindowProfileMetadata: DeploymentWindowProfileMetadata{

@@ -104,6 +104,7 @@ type UserService interface {
 	GetUserRoleGroupsForEmail(emailId string, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error)
 	GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error)
 	GetSuperAdminIds() ([]int32, error)
+	FetchUserIdsByEmails(emails []string) ([]int32, error)
 }
 
 type UserServiceImpl struct {
@@ -3212,4 +3213,16 @@ func (impl UserServiceImpl) GetActiveUserRolesByEntityAndUserId(entity string, u
 
 func (impl UserServiceImpl) GetSuperAdminIds() ([]int32, error) {
 	return impl.userRepository.GetSuperAdmins()
+}
+
+func (impl UserServiceImpl) FetchUserIdsByEmails(emails []string) ([]int32, error) {
+	users, err := impl.userRepository.FetchUserDetailByEmails(emails)
+	if err != nil {
+		return nil, nil
+	}
+	ids := make([]int32, 0)
+	for _, user := range users {
+		ids = append(ids, user.Id)
+	}
+	return ids, nil
 }

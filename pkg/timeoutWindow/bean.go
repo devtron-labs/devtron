@@ -21,7 +21,6 @@ const (
 
 // TimeWindow defines model for TimeWindow.
 type TimeWindow struct {
-	//Id        int       `json:"id"`
 	Frequency Frequency `json:"frequency"`
 
 	// relevant for daily and monthly
