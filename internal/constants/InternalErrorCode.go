@@ -90,8 +90,11 @@ const (
 	GitHostCreateFailedInDb          string = "9002"
 
 	// feasibility errors
-	OperationPerformError string = "10001"
-	VulnerabilityFound    string = "10002"
+	OperationPerformError  string = "10001"
+	VulnerabilityFound     string = "10002"
+	ApprovalNodeFail       string = "10003"
+	FilteringConditionFail string = "10004"
+	DeploymentWindowFail   string = "10005"
 )
 
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}

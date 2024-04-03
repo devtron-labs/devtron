@@ -99,10 +99,6 @@ type TriggerFeasibilityResponse struct {
 	Filters           []*resourceFilter.FilterMetaDataBean
 }
 
-func GetVulnerabilityFoundError(imageDigest string) error {
-	return &util.ApiError{Code: constants.VulnerabilityFound, InternalMessage: fmt.Sprintf("found vulnerability for image digest %s", imageDigest)}
-}
-
 func GetOperationPerformError(errString string) error {
 	return &util.ApiError{Code: constants.OperationPerformError, InternalMessage: fmt.Sprintf("%s %s", errString, OperationPerformError)}
 }
