@@ -1,4 +1,5 @@
 ## Bugs
+- fix: update argo app repo url in patch (#4876)
 - fix: removed code for gitops repo migration in devtron apps (#4838)
 - fix: return nil,err on git material fetch error (#4857)
 - fix: ns not found in case ips is being injected in cluster (in global config) (#4844)
