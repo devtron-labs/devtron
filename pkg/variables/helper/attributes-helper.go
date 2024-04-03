@@ -94,7 +94,7 @@ func GetSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierS
 
 	case resourceQualifiers.EnvironmentSelector:
 		envName = attributeParams[models.EnvName]
-		envId, err = GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
+		envId, err = GetIdentifierValueV1(models.EnvName, envName, attributesMapping)
 	case resourceQualifiers.ApplicationEnvironmentSelector:
 		appName = attributeParams[models.ApplicationName]
 		appId, err = GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
