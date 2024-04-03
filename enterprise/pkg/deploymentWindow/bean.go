@@ -30,6 +30,16 @@ func (action UserActionState) IsActionAllowed() bool {
 func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
+func GetNotFoundError(err error) error {
+	msg := "not found"
+	return &util.ApiError{
+		HttpStatusCode:    404,
+		Code:              "404",
+		InternalMessage:   err.Error(),
+		UserMessage:       msg,
+		UserDetailMessage: msg,
+	}
+}
 
 func GetActionBlockedError(triggerMessage string) error {
 	return &util.ApiError{
