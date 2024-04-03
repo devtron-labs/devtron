@@ -34,6 +34,7 @@ import (
 
 type credentialsSource = string
 type ArtifactsSourceType = string
+type ciMaterialType = string
 
 const (
 	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
@@ -50,6 +51,8 @@ const (
 	// deprecated; Handled for backward compatibility
 	EXT ArtifactsSourceType = "ext"
 	// PRE_CI is not a valid DataSource for an artifact
+	MATERIAL_TYPE_GIT ciMaterialType = "git"
+	MATERIAL_TYPE_SCM ciMaterialType = "scm"
 )
 
 type CiArtifactWithExtraData struct {
@@ -515,9 +518,9 @@ func (artifact *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
 	scmMap := map[string]string{}
 	for _, material := range ciMaterials {
 		var url string
-		if material.Material.Type == "git" {
+		if material.Material.Type == MATERIAL_TYPE_GIT {
 			url = material.Material.GitConfiguration.URL
-		} else if material.Material.Type == "scm" {
+		} else if material.Material.Type == MATERIAL_TYPE_SCM {
 			url = material.Material.ScmConfiguration.URL
 		} else {
 			return nil, fmt.Errorf("unknown material type:%s ", material.Material.Type)

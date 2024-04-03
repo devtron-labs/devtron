@@ -1469,22 +1469,20 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 
 	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	if err != nil {
-		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
+		impl.Logger.Errorw("error in getting CiArtifact Details", "ciArtifactId", ciArtifactId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
 	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId, envId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting deploy detail", "ciArtifactId", ciArtifactId, "err", err)
+		impl.Logger.Errorw("error in getting deploy detail", "ciArtifactId", ciArtifactId, "envId", envId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
 	var triggeredByUserEmailId string
-
 	triggeredByUserEmailId, err = impl.userService.GetEmailById(deployDetail.DeployedBy)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in getting the user email Id ", "userId", deployDetail.DeployedBy, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
@@ -1494,6 +1492,37 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
+	ciMaterialsArr := impl.parseCiMaterials(ciMaterials)
+
+	ciPipelineId, appId, isExternalCi, cdPipelineId, err := impl.fetchVariablesForImageTagging(ciArtifact.DataSource, ciArtifact.PipelineId, ciArtifact.ExternalCiPipelineId, ciArtifact.ComponentId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching variables for Image Tagging ", "PipelineId", ciArtifact.PipelineId, "ciArtifactId", ciArtifactId, "dataSource", ciArtifact.DataSource, "externalCiPipelineId", ciArtifact.ExternalCiPipelineId, "componentId", ciArtifact.ComponentId, "err", err)
+		return &types.GitTriggerInfoResponse{}, err
+	}
+	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipelineId, appId, ciArtifactId, isExternalCi, cdPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageTaggingData", "ciPipelineId", ciPipelineId, "appId", appId, "ciArtifactId", ciArtifactId, "cdPipelineId", cdPipelineId, "isExternalCi", isExternalCi, "err", err)
+		return &types.GitTriggerInfoResponse{}, err
+	}
+
+	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
+		//GitTriggers:      workflow.GitTriggers,
+		CiMaterials:      ciMaterialsArr,
+		TriggeredByEmail: triggeredByUserEmailId,
+		AppId:            appId,
+		AppName:          deployDetail.AppName,
+		EnvironmentId:    deployDetail.EnvironmentId,
+		EnvironmentName:  deployDetail.EnvironmentName,
+		LastDeployedTime: deployDetail.LastDeployedTime,
+		Default:          deployDetail.Default,
+		ImageTaggingData: *imageTaggingData,
+		Image:            ciArtifact.Image,
+	}
+	return gitTriggerInfoResponse, nil
+}
+
+func (impl *CiHandlerImpl) parseCiMaterials(ciMaterials []repository.CiMaterialInfo) []pipelineConfig.CiPipelineMaterialResponse {
+	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
 	for _, m := range ciMaterials {
 
 		var history []*gitSensor.GitCommit
@@ -1529,9 +1558,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		history = append(history, gitCommit)
 
 		var url string
-		if m.Material.Type == "git" {
+		if m.Material.Type == repository.MATERIAL_TYPE_GIT {
 			url = m.Material.GitConfiguration.URL
-		} else if m.Material.Type == "scm" {
+		} else if m.Material.Type == repository.MATERIAL_TYPE_SCM {
 			url = m.Material.ScmConfiguration.URL
 		} else {
 			continue
@@ -1552,34 +1581,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			History:         history,
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
-
 	}
 
-	ciPipelineId, appId, isExternalCi, cdPipelineId, err := impl.fetchVariablesForImageTagging(ciArtifact.DataSource, ciArtifact.PipelineId, ciArtifact.ExternalCiPipelineId, ciArtifact.ComponentId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching ciPipelineId, appId", "err", err, "PipelineId", ciArtifact.PipelineId, "ciArtifactId", ciArtifactId)
-		return &types.GitTriggerInfoResponse{}, err
-	}
-	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipelineId, appId, ciArtifactId, isExternalCi, cdPipelineId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching imageTaggingData", "err", err, "ciPipelineId", ciPipelineId, "appId", appId, "ciArtifactId", ciArtifactId)
-		return &types.GitTriggerInfoResponse{}, err
-	}
-
-	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
-		//GitTriggers:      workflow.GitTriggers,
-		CiMaterials:      ciMaterialsArr,
-		TriggeredByEmail: triggeredByUserEmailId,
-		AppId:            appId,
-		AppName:          deployDetail.AppName,
-		EnvironmentId:    deployDetail.EnvironmentId,
-		EnvironmentName:  deployDetail.EnvironmentName,
-		LastDeployedTime: deployDetail.LastDeployedTime,
-		Default:          deployDetail.Default,
-		ImageTaggingData: *imageTaggingData,
-		Image:            ciArtifact.Image,
-	}
-	return gitTriggerInfoResponse, nil
+	return ciMaterialsArr
 }
 
 func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPipelineId int, externalCiPipelineId int, componentId int) (int, int, bool, int, error) {
@@ -1587,8 +1591,8 @@ func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPi
 	isExternalCi := false
 	var appId int
 	var cdPipelineId int
-	//CI_RUNNER,EXTERNAL,post_ci,pre_cd,post_cd
 
+	//CI_RUNNER,EXTERNAL,post_ci,pre_cd,post_cd
 	switch dataSource {
 	case repository.CI_RUNNER:
 		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciPipelineId)
@@ -1602,7 +1606,7 @@ func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPi
 	case repository.POST_CI:
 		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(componentId)
 		if err != nil {
-			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "err", err)
+			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "componentId", componentId, "err", err)
 			return 0, 0, isExternalCi, 0, err
 		}
 		ciPipelineId = ciPipeline.Id
@@ -1610,7 +1614,7 @@ func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPi
 	case repository.PRE_CD, repository.POST_CD:
 		cdPipeline, err := impl.cdPipelineRepository.FindById(componentId)
 		if err != nil {
-			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "err", err)
+			impl.Logger.Errorw("err in fetching the cdPipeline", "ciPipelineId", ciPipelineId, "componentId", componentId, "err", err)
 			return 0, 0, isExternalCi, 0, err
 		}
 		cdPipelineId = cdPipeline.Id
@@ -1618,7 +1622,7 @@ func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPi
 	case repository.WEBHOOK:
 		externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiPipelineId)
 		if err != nil {
-			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "err", err)
+			impl.Logger.Errorw("err in fetching the external ciPipeline", "ciPipelineId", ciPipelineId, "externalCiPipelineId", externalCiPipelineId, "err", err)
 			return 0, 0, isExternalCi, 0, err
 		}
 		ciPipelineId = externalCiPipeline.Id
