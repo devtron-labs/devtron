@@ -102,7 +102,7 @@ func GetSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierS
 		envId, err = GetIdentifierValueV1(models.EnvName, envName, attributesMapping)
 	case resourceQualifiers.ClusterSelector:
 		clusterName = attributeParams[models.ClusterName]
-		clusterId, err = GetIdentifierValueV1(models.ClusterName, appName, attributesMapping)
+		clusterId, err = GetIdentifierValueV1(models.ClusterName, clusterName, attributesMapping)
 	}
 	if err != nil {
 		return nil, err
