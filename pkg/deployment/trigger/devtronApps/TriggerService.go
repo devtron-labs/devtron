@@ -406,9 +406,9 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 		// Deploy the release
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-		triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
+		//triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, cdPipeline, runner, overrideRequest.UserId, ctx)
 		var releaseErr error
-		releaseId, _, releaseErr = impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
+		releaseId, _, releaseErr = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
 		// if releaseErr found, then the mark current deployment Failed and return
 		if releaseErr != nil {
@@ -573,15 +573,13 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 	// custom GitOps repo url validation --> Ends
 
-	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
-	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt, triggerRequirementRequest)
+	//triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
+	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
-		if !errors.Is(releaseErr, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) && !strings.Contains(releaseErr.Error(), bean.OperationPerformError) {
-			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
-			if err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
-			}
+		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
 		}
 		return releaseErr
 	}
@@ -596,14 +594,14 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
+func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
 
-	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt, triggerRequirementRequest)
+	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
-	err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
+func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
+	err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
@@ -611,7 +609,7 @@ func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArti
 	return err
 }
 
-func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
+func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	//TODO: verify this logicc
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
@@ -619,11 +617,11 @@ func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, a
 		impl.logger.Error("invalid req, app and env not found from rbac")
 		return errors.New("invalid req, app and env not found from rbac")
 	}
-	err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt, triggerRequirementRequest)
+	err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt)
 	return err
 }
 
-func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time, triggerRequirementRequest *bean.TriggerRequirementRequestDto) error {
+func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
@@ -650,15 +648,9 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 		return err
 	}
 	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest, request, ctx, triggeredAt, 1)
+	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
-		if errors.Is(err, bean.GetVulnerabilityFoundError(artifact.ImageDigest)) {
-			// setting error as nil here as to maintain the existing flow when vulnerability found we used to sent nil.
-			impl.logger.Info("setting as err as nil , ignoring vulnerabilityfound error", "err", err)
-			err = nil
-		} else {
-			impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		}
+		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
 		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
