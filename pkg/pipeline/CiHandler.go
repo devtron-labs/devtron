@@ -1475,14 +1475,12 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 
 	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId, envId)
 	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in getting deploy detail", "ciArtifactId", ciArtifactId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
 	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
 	var triggeredByUserEmailId string
-	//check workflow data only for non external builds
-	//if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline > 0 {
 
 	triggeredByUserEmailId, err = impl.userService.GetEmailById(deployDetail.DeployedBy)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1556,7 +1554,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		ciMaterialsArr = append(ciMaterialsArr, res)
 
 	}
-	//}
+
 	ciPipelineId, appId, isExternalCi, cdPipelineId, err := impl.fetchVariablesForImageTagging(ciArtifact.DataSource, ciArtifact.PipelineId, ciArtifact.ExternalCiPipelineId, ciArtifact.ComponentId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching ciPipelineId, appId", "err", err, "PipelineId", ciArtifact.PipelineId, "ciArtifactId", ciArtifactId)
