@@ -681,7 +681,6 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 }
 
 func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	isDryRun := overrideRequest.IsDryRun
 	// introduce feasibility call and return custom error if fails
 	err = impl.feasibilityManager.CheckFeasibility(triggerRequirementRequest)
 	if err != nil && !errors.Is(err, bean.GetVulnerabilityFoundError(triggerRequirementRequest.Artifact.ImageDigest)) {
@@ -694,10 +693,7 @@ func (impl *TriggerServiceImpl) HandleCdTriggerReleaseWithFeasibility(triggerReq
 		}
 		return releaseNo, manifest, err
 	}
-	if !isDryRun {
-		releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
-		return releaseNo, manifest, err
-	}
+	releaseNo, manifest, err = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	return releaseNo, manifest, err
 
 }
