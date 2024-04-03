@@ -73,7 +73,6 @@ type ValuesOverrideRequest struct {
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
 	Image                                 string                      `json:"-"`
-	IsDryRun                              bool                        `json:"-"`
 }
 
 type BulkCdDeployEvent struct {
