@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"time"
 )
 
@@ -35,8 +37,8 @@ type TriggerRequest struct {
 	RefCdWorkflowRunnerId  int
 	RunStageInEnvNamespace string
 	WorkflowType           bean.WorkflowType
-	TriggerMessage        string
-	DeploymentWindowState *deploymentWindow.EnvironmentState
+	TriggerMessage         string
+	DeploymentWindowState  *deploymentWindow.EnvironmentState
 	TriggerContext
 }
 
@@ -85,11 +87,16 @@ const (
 )
 
 type TriggerRequirementRequestDto struct {
-	Pipeline    *pipelineConfig.Pipeline
-	Artifact    *repository.CiArtifact
-	Runner      *pipelineConfig.CdWorkflowRunner
-	Context     context.Context
-	TriggeredBy int32
+	Scope          resourceQualifiers.Scope
+	TriggerRequest TriggerRequest
+	Stage          resourceFilter.ReferenceType
+}
+
+type TriggerFeasibilityResponse struct {
+	ApprovalRequestId int
+	TriggerRequest    TriggerRequest
+	FilterIdVsState   map[int]resourceFilter.FilterState
+	Filters           []*resourceFilter.FilterMetaDataBean
 }
 
 func GetVulnerabilityFoundError(imageDigest string) error {

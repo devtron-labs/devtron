@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -85,23 +86,14 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy)
+	feasibilityResponse, err := impl.CheckFeasibility(triggerRequirementRequest)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
-		return err
-	}
-	// get releaseTags from imageTaggingService
-	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
 
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
-	if err != nil {
-		return err
-	}
-
+	filterIdVsState, filters := feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
 	// store evaluated result
 	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
 	if err != nil {
@@ -109,15 +101,8 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 
-	// allow or block w.r.t filterState
-	if filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
-	}
-
-	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PreDeploy)
-	if err != nil {
-		return err
-	}
+	// overriding request frm feasibility response
+	request = feasibilityResponse.TriggerRequest
 
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
