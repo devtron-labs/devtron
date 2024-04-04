@@ -186,6 +186,9 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 		close(terminalSession.doneChan)
 		terminalSession.contextCancelFunc()
 		delete(sm.Sessions, sessionId)
+		if terminalSession.doneChan != nil {
+			close(terminalSession.doneChan)
+		}
 	}
 
 }
