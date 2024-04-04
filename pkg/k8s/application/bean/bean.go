@@ -54,3 +54,10 @@ type RotatePodResourceResponse struct {
 	k8s.ResourceIdentifier
 	ErrorResponse string `json:"errorResponse"`
 }
+
+type PortForwardRequest struct {
+	Namespace   string
+	ServiceName string
+	ClusterId   int
+	PortString  []string // []string{"5432:5432"}
+}
