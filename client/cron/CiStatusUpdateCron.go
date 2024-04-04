@@ -78,3 +78,7 @@ func (impl *CiStatusUpdateCronImpl) UpdateCiWorkflowStatusFailedCron() {
 	}
 	return
 }
+
+func (impl *CiStatusUpdateCronImpl) StopCron() {
+	impl.cron.Stop()
+}

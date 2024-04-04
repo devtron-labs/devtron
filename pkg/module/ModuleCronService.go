@@ -299,3 +299,7 @@ func (impl *ModuleCronServiceImpl) updateModuleStatus(module moduleRepo.Module, 
 		impl.logger.Errorw("error in updating module status", "name", module.Name, "status", status, "err", err)
 	}
 }
+
+func (impl *ModuleCronServiceImpl) StopCron() {
+	impl.cron.Stop()
+}

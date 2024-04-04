@@ -22,8 +22,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
+	cron2 "github.com/devtron-labs/devtron/client/cron"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
-	"github.com/robfig/cron/v3"
+	"github.com/devtron-labs/devtron/pkg/module"
 	"log"
 	"net/http"
 	"os"
@@ -55,11 +58,17 @@ type App struct {
 	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
-	serveTls           bool
-	sessionManager2    *authMiddleware.SessionManager
-	OtelTracingService *otel.OtelTracingServiceImpl
-	loggingMiddleware  util.LoggingMiddleware
-	cron               *cron.Cron
+	serveTls                             bool
+	sessionManager2                      *authMiddleware.SessionManager
+	OtelTracingService                   *otel.OtelTracingServiceImpl
+	loggingMiddleware                    util.LoggingMiddleware
+	CdApplicationStatusUpdateHandlerImpl *cron2.CdApplicationStatusUpdateHandlerImpl
+	CiStatusUpdateCronImpl               *cron2.CiStatusUpdateCronImpl
+	UserTerminalAccessServiceImpl        *clusterTerminalAccess.UserTerminalAccessServiceImpl
+	CiTriggerCronImpl                    *cron2.CiTriggerCronImpl
+	TelemetryEventClientImpl             *telemetry.TelemetryEventClientImpl
+	ModuleCronServiceImpl                *module.ModuleCronServiceImpl
+	ClusterCronServiceImpl               *cluster.ClusterCronServiceImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -71,21 +80,35 @@ func NewApp(router *router.MuxRouter,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
+	CdApplicationStatusUpdateHandlerImpl *cron2.CdApplicationStatusUpdateHandlerImpl,
+	CiStatusUpdateCronImpl *cron2.CiStatusUpdateCronImpl,
+	UserTerminalAccessServiceImpl *clusterTerminalAccess.UserTerminalAccessServiceImpl,
+	CiTriggerCronImpl *cron2.CiTriggerCronImpl,
+	TelemetryEventClientImpl *telemetry.TelemetryEventClientImpl,
+	ModuleCronServiceImpl *module.ModuleCronServiceImpl,
+	ClusterCronServiceImpl *cluster.ClusterCronServiceImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:             router,
-		Logger:                Logger,
-		SSE:                   sse,
-		Enforcer:              enforcer,
-		db:                    db,
-		serveTls:              false,
-		sessionManager2:       sessionManager2,
-		posthogClient:         posthogClient,
-		OtelTracingService:    otel.NewOtelTracingServiceImpl(Logger),
-		loggingMiddleware:     loggingMiddleware,
-		centralEventProcessor: centralEventProcessor,
+		MuxRouter:                            router,
+		Logger:                               Logger,
+		SSE:                                  sse,
+		Enforcer:                             enforcer,
+		db:                                   db,
+		serveTls:                             false,
+		sessionManager2:                      sessionManager2,
+		posthogClient:                        posthogClient,
+		OtelTracingService:                   otel.NewOtelTracingServiceImpl(Logger),
+		loggingMiddleware:                    loggingMiddleware,
+		centralEventProcessor:                centralEventProcessor,
+		CdApplicationStatusUpdateHandlerImpl: CdApplicationStatusUpdateHandlerImpl,
+		CiStatusUpdateCronImpl:               CiStatusUpdateCronImpl,
+		UserTerminalAccessServiceImpl:        UserTerminalAccessServiceImpl,
+		CiTriggerCronImpl:                    CiTriggerCronImpl,
+		TelemetryEventClientImpl:             TelemetryEventClientImpl,
+		ModuleCronServiceImpl:                ModuleCronServiceImpl,
+		ClusterCronServiceImpl:               ClusterCronServiceImpl,
 	}
 	return app
 }
@@ -161,7 +184,13 @@ func (app *App) Stop() {
 	}
 
 	app.Logger.Infow("stopping cron")
-	app.cron.Stop()
+	app.CdApplicationStatusUpdateHandlerImpl.StopCron()
+	app.CiStatusUpdateCronImpl.StopCron()
+	app.UserTerminalAccessServiceImpl.StopCron()
+	app.CiTriggerCronImpl.StopCron()
+	app.TelemetryEventClientImpl.StopCron()
+	app.ModuleCronServiceImpl.StopCron()
+	app.ClusterCronServiceImpl.StopCron()
 
 	app.Logger.Infow("housekeeping done. exiting now")
 }

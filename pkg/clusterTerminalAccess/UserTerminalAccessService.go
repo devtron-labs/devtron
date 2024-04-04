@@ -1252,3 +1252,7 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
 	return debugPod, err
 }
+
+func (impl *UserTerminalAccessServiceImpl) StopCron() {
+	impl.PodStatusSyncCron.Stop()
+}

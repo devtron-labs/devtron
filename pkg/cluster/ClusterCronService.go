@@ -14,6 +14,7 @@ type ClusterCronService interface {
 type ClusterCronServiceImpl struct {
 	logger         *zap.SugaredLogger
 	clusterService ClusterService
+	cron           *cron.Cron
 }
 
 type ClusterStatusConfig struct {
@@ -39,6 +40,7 @@ func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService Cluster
 		fmt.Println("error in adding cron function into cluster cron service")
 		return clusterCronServiceImpl, err
 	}
+	clusterCronServiceImpl.cron = newCron
 	return clusterCronServiceImpl, nil
 }
 
@@ -53,4 +55,8 @@ func (impl *ClusterCronServiceImpl) GetAndUpdateClusterConnectionStatus() {
 		return
 	}
 	impl.clusterService.ConnectClustersInBatch(clusters, true)
+}
+
+func (impl *ClusterCronServiceImpl) StopCron() {
+	impl.cron.Stop()
 }

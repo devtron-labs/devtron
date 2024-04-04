@@ -93,3 +93,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 	}
 	return
 }
+
+func (impl *CiTriggerCronImpl) StopCron() {
+	impl.cron.Stop()
+}

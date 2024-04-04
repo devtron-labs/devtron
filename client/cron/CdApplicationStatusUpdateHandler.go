@@ -216,3 +216,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 
 	return nil
 }
+
+func (impl *CdApplicationStatusUpdateHandlerImpl) StopCron() {
+	impl.cron.Stop()
+}
