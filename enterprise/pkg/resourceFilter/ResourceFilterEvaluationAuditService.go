@@ -17,7 +17,7 @@ type FilterHistoryObject struct {
 type FilterEvaluationAuditService interface {
 	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
+	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]FilterState, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
 	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
 	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
@@ -99,17 +99,17 @@ func (impl *FilterEvaluationAuditServiceImpl) UpdateFilterEvaluationAuditRef(id 
 	return impl.filterEvaluationAuditRepo.UpdateRefTypeAndRefId(id, refType, refId)
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error) {
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]FilterState, error) {
 
 	// find the evaluation audit
 	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByRefAndMultiSubject(referenceType, referenceId, subjectType, subjectIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding resource filters evaluation audit data", "referenceType", referenceType, "referenceId", referenceId, "subjectType", subjectType, "subjectIds", subjectIds, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[int]map[int]time.Time)
-
+	subjectIdVsState := make(map[int]FilterState)
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
 		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId]
 		if !ok {
@@ -118,15 +118,21 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 		filterHistoryObjects, err := getFilterHistoryObjectsFromJsonString(resourceFilterEvaluationAudit.FilterHistoryObjects)
 		if err != nil {
 			impl.logger.Errorw("error in extracting filter history objects from json string", "err", err, "jsonString", resourceFilterEvaluationAudit.FilterHistoryObjects)
-			return nil, err
+			return nil, nil, err
 		}
 
+		subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = ALLOW
+		filterStateForSubject := true
 		for _, filterHistoryObject := range filterHistoryObjects {
 			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
+			filterStateForSubject = filterStateForSubject && (filterHistoryObject.State == ALLOW)
 		}
 		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId] = filterHistoryIdVsEvaluatedTimeMap
+		if !filterStateForSubject {
+			subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = BLOCK
+		}
 	}
-	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
+	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, subjectIdVsState, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error) {
