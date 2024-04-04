@@ -95,7 +95,7 @@ func (s *ProjectClustersService) ListClusters(pid interface{}, options ...Reques
 		return nil, resp, err
 	}
 
-	return pcs, resp, err
+	return pcs, resp, nil
 }
 
 // GetCluster gets a cluster.
@@ -120,7 +120,7 @@ func (s *ProjectClustersService) GetCluster(pid interface{}, cluster int, option
 		return nil, resp, err
 	}
 
-	return pc, resp, err
+	return pc, resp, nil
 }
 
 // AddClusterOptions represents the available AddCluster() options.
@@ -168,7 +168,7 @@ func (s *ProjectClustersService) AddCluster(pid interface{}, opt *AddClusterOpti
 		return nil, resp, err
 	}
 
-	return pc, resp, err
+	return pc, resp, nil
 }
 
 // EditClusterOptions represents the available EditCluster() options.
@@ -213,7 +213,7 @@ func (s *ProjectClustersService) EditCluster(pid interface{}, cluster int, opt *
 		return nil, resp, err
 	}
 
-	return pc, resp, err
+	return pc, resp, nil
 }
 
 // DeleteCluster deletes an existing project cluster.
