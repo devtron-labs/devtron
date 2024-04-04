@@ -86,21 +86,27 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 			return err
 		}
 	} else {
+		applyIdentifiersRequest.AppEnvPolicyListFilter.PolicyType = applyIdentifiersRequest.PolicyType
 		appEnvPolicyContainers, _, err := impl.ListAppEnvPolicies(&applyIdentifiersRequest.AppEnvPolicyListFilter)
 		if err != nil {
 			impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
 			return err
 		}
 		scopes = make([]*resourceQualifiers.SelectionIdentifier, 0, len(appEnvPolicyContainers))
+		scopeMap := make(map[string]bool)
 		for _, appEnvPolicyContainer := range appEnvPolicyContainers {
-			scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
-				AppId: appEnvPolicyContainer.AppId,
-				EnvId: appEnvPolicyContainer.EnvId,
-				SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
-					AppName:         appEnvPolicyContainer.AppName,
-					EnvironmentName: appEnvPolicyContainer.EnvName,
-				},
-			})
+			key := fmt.Sprintf("%s/%s", appEnvPolicyContainer.AppName, appEnvPolicyContainer.EnvName)
+			if _, ok := scopeMap[key]; !ok {
+				scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
+					AppId: appEnvPolicyContainer.AppId,
+					EnvId: appEnvPolicyContainer.EnvId,
+					SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
+						AppName:         appEnvPolicyContainer.AppName,
+						EnvironmentName: appEnvPolicyContainer.EnvName,
+					},
+				})
+				scopeMap[key] = true
+			}
 		}
 	}
 
