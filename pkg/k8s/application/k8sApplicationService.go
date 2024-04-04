@@ -12,10 +12,25 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
-	"k8s.io/api/apps/v1beta1"
-	"k8s.io/api/apps/v1beta2"
+	admissionregistrationV1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
+	admissionregistrationV1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	apiserverinternalV1alpha1 "k8s.io/api/apiserverinternal/v1alpha1"
+	appsV1 "k8s.io/api/apps/v1"
+	autoscalingV2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
+	certificatesV1 "k8s.io/api/certificates/v1"
+	coordinationV1 "k8s.io/api/coordination/v1"
+	discoveryV1beta1 "k8s.io/api/discovery/v1beta1"
+	networkingV1 "k8s.io/api/networking/v1"
+	networkingv1alpha1 "k8s.io/api/networking/v1alpha1"
+	networkingV1beta1 "k8s.io/api/networking/v1beta1"
+	nodeV1 "k8s.io/api/node/v1"
+	resourceV1alpha1 "k8s.io/api/resource/v1alpha1"
+	schedulingV1 "k8s.io/api/scheduling/v1"
+	storageV1beta1 "k8s.io/api/storage/v1beta1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/kubernetes/pkg/apis/flowcontrol"
+	"k8s.io/kubernetes/pkg/apis/rbac"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -26,6 +41,7 @@ import (
 	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	policyV1beta1 "k8s.io/api/policy/v1beta1"
 
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -42,13 +58,14 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
+	apiV1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -72,7 +89,7 @@ type K8sApplicationService interface {
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
-	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
+	GetPodListByLabel(clusterId int, namespace, label string) ([]apiV1.Pod, error)
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s3.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
@@ -761,22 +778,108 @@ func ConvertToCore(uns unstructured.UnstructuredList) runtime.Object {
 	kind := uns.GetObjectKind().GroupVersionKind().Kind
 
 	switch kind {
-	case "ConfigMapList":
-		return convertToCoreList(uns, &corev1.ConfigMap{}, &corev1.ConfigMapList{})
 	case "PodList":
-		return convertToCoreList(uns, &corev1.Pod{}, &corev1.PodList{})
+		return convertToCoreList(uns, &apiV1.Pod{}, &apiV1.PodList{})
+	case "PodTemplateList":
+		return convertToCoreList(uns, &apiV1.PodTemplate{}, &apiV1.PodTemplateList{})
+	case "PodDisruptionBudgetList":
+		return convertToCoreList(uns, &policyV1beta1.PodDisruptionBudget{}, &policyV1beta1.PodDisruptionBudgetList{})
+	case "ReplicationControllerList":
+		return convertToCoreList(uns, &apiV1.ReplicationController{}, &apiV1.ReplicationControllerList{})
+	case "ReplicaSetList":
+		return convertToCoreList(uns, &appsV1.ReplicaSet{}, &appsV1.ReplicaSetList{})
+	case "DaemonSetList":
+		return convertToCoreList(uns, &appsV1.DaemonSet{}, &appsV1.DaemonSetList{})
 	case "JobList":
 		return convertToCoreList(uns, &batchv1.Job{}, &batchv1.JobList{})
 	case "CronJobList":
 		return convertToCoreList(uns, &batchv1.CronJob{}, &batchv1.CronJobList{})
-	case "ControllerRevisionList":
-		return convertToCoreList(uns, &v1beta1.ControllerRevision{}, &v1beta1.ControllerRevisionList{})
+	case "ServiceList":
+		return convertToCoreList(uns, &apiV1.Service{}, &apiV1.ServiceList{})
+	case "IngressList":
+		return convertToCoreList(uns, &networkingV1beta1.Ingress{}, &networkingV1beta1.IngressList{})
+	case "IngressClassList":
+		return convertToCoreList(uns, &networkingV1beta1.IngressClass{}, &networkingV1beta1.IngressClassList{})
+	case "StatefulSetList":
+		return convertToCoreList(uns, &appsV1.StatefulSet{}, &appsV1.StatefulSetList{})
+	case "EndpointsList":
+		return convertToCoreList(uns, &apiV1.Endpoints{}, &apiV1.EndpointsList{})
 	case "NodeList":
-		return convertToCoreList(uns, &corev1.Node{}, &corev1.NodeList{})
-	case "ResourceQuotaList":
-		return convertToCoreList(uns, &corev1.ResourceQuota{}, &corev1.ResourceQuotaList{})
-	case "DaemonSetList":
-		return convertToCoreList(uns, &v1beta2.DaemonSet{}, &v1beta2.DaemonSetList{})
+		return convertToCoreList(uns, &apiV1.Node{}, &apiV1.NodeList{})
+	case "EventList":
+		return convertToCoreList(uns, &apiV1.Event{}, &apiV1.EventList{})
+	case "NamespaceList":
+		return convertToCoreList(uns, &apiV1.Namespace{}, &apiV1.NamespaceList{})
+	case "SecretList":
+		return convertToCoreList(uns, &apiV1.Secret{}, &apiV1.SecretList{})
+	case "ServiceAccountList":
+		return convertToCoreList(uns, &apiV1.ServiceAccount{}, &apiV1.ServiceAccountList{})
+	case "PersistentVolumeList":
+		return convertToCoreList(uns, &apiV1.PersistentVolume{}, &apiV1.PersistentVolumeList{})
+	case "PersistentVolumeClaimList":
+		return convertToCoreList(uns, &apiV1.PersistentVolumeClaim{}, &apiV1.PersistentVolumeClaimList{})
+	case "ComponentStatusList":
+		return convertToCoreList(uns, &apiV1.ComponentStatus{}, &apiV1.ComponentStatusList{})
+	case "DeploymentList":
+		return convertToCoreList(uns, &appsV1.Deployment{}, &appsV1.DeploymentList{})
+	case "HorizontalPodAutoscalerList":
+		return convertToCoreList(uns, &autoscalingV2.HorizontalPodAutoscaler{}, &autoscalingV2.HorizontalPodAutoscalerList{})
+	case "ConfigMapList":
+		return convertToCoreList(uns, &apiV1.ConfigMap{}, &apiV1.ConfigMapList{})
+	case "PodSecurityPolicyList":
+		return convertToCoreList(uns, &policyV1beta1.PodSecurityPolicy{}, &policyV1beta1.PodSecurityPolicyList{})
+	case "NetworkPolicyList":
+		return convertToCoreList(uns, &networkingV1.NetworkPolicy{}, &networkingV1.NetworkPolicyList{})
+	case "RoleBindingList":
+		return convertToCoreList(uns, &rbac.RoleBinding{}, &rbac.RoleBindingList{})
+	case "ClusterRoleBindingList":
+		return convertToCoreList(uns, &rbac.ClusterRoleBinding{}, &rbac.ClusterRoleBindingList{})
+	case "CertificateSigningRequestList":
+		return convertToCoreList(uns, &certificatesV1.CertificateSigningRequest{}, &certificatesV1.CertificateSigningRequestList{})
+	case "LeaseList":
+		return convertToCoreList(uns, &coordinationV1.Lease{}, &coordinationV1.LeaseList{})
+	case "StorageClassList":
+		return convertToCoreList(uns, &storageV1beta1.StorageClass{}, &storageV1beta1.StorageClassList{})
+	case "ControllerRevisionList":
+		return convertToCoreList(uns, &apiV1.ResourceQuota{}, &apiV1.ResourceQuotaList{})
+	case "PriorityClassList":
+		return convertToCoreList(uns, &schedulingV1.PriorityClass{}, &schedulingV1.PriorityClassList{})
+	case "RuntimeClassList":
+		return convertToCoreList(uns, &nodeV1.RuntimeClass{}, &nodeV1.RuntimeClassList{})
+	case "VolumeAttachmentList":
+		return convertToCoreList(uns, &storageV1beta1.VolumeAttachment{}, &storageV1beta1.VolumeAttachmentList{})
+	case "EndpointSliceList":
+		return convertToCoreList(uns, &discoveryV1beta1.EndpointSlice{}, &discoveryV1beta1.EndpointSliceList{})
+	case "CSINodeList":
+		return convertToCoreList(uns, &storageV1beta1.CSINode{}, &storageV1beta1.CSINodeList{})
+	case "CSIDriverList":
+		return convertToCoreList(uns, &storageV1beta1.CSIDriver{}, &storageV1beta1.CSIDriverList{})
+	case "CSIStorageCapacityList":
+		return convertToCoreList(uns, &storageV1beta1.CSIStorageCapacity{}, &storageV1beta1.CSIStorageCapacityList{})
+	case "MutatingWebhookConfigurationList":
+		return convertToCoreList(uns, &admissionregistrationV1beta1.MutatingWebhookConfiguration{}, &admissionregistrationV1beta1.MutatingWebhookConfigurationList{})
+	case "ValidatingWebhookConfigurationList":
+		return convertToCoreList(uns, &admissionregistrationV1beta1.ValidatingWebhookConfiguration{}, &admissionregistrationV1beta1.ValidatingWebhookConfigurationList{})
+	case "ValidatingAdmissionPolicyList":
+		return convertToCoreList(uns, &admissionregistrationV1alpha1.ValidatingAdmissionPolicy{}, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyList{})
+	case "ValidatingAdmissionPolicyBindingList":
+		return convertToCoreList(uns, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyBinding{}, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyBindingList{})
+	case "FlowSchemaList":
+		return convertToCoreList(uns, &flowcontrol.FlowSchema{}, &flowcontrol.FlowSchemaList{})
+	case "PriorityLevelConfigurationList":
+		return convertToCoreList(uns, &flowcontrol.PriorityLevelConfiguration{}, &flowcontrol.PriorityLevelConfigurationList{})
+	case "StorageVersionList":
+		return convertToCoreList(uns, &apiserverinternalV1alpha1.StorageVersion{}, &apiserverinternalV1alpha1.StorageVersionList{})
+	case "ClusterCIDRList":
+		return convertToCoreList(uns, &networkingv1alpha1.ClusterCIDR{}, &networkingv1alpha1.ClusterCIDRList{})
+	case "ResourceClassList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClass{}, &resourceV1alpha1.ResourceClassList{})
+	case "ResourceClaimList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClaim{}, &resourceV1alpha1.ResourceClaimList{})
+	case "ResourceClaimTemplateList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClaimTemplate{}, &resourceV1alpha1.ResourceClaimTemplateList{})
+	case "PodSchedulingList":
+		return convertToCoreList(uns, &resourceV1alpha1.PodScheduling{}, &resourceV1alpha1.PodSchedulingList{})
 	default:
 		fmt.Println("Unsupported kind:", kind)
 		return nil
@@ -1019,9 +1122,9 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	return err
 }
 
-func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req cluster.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *apiV1.Pod, req cluster.EphemeralContainerRequest) (*apiV1.Pod, *apiV1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
-	ephemeralContainer := &corev1.EphemeralContainer{}
+	ephemeralContainer := &apiV1.EphemeralContainer{}
 	if req.AdvancedData != nil {
 		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ephemeralContainer)
 		if err != nil {
@@ -1035,14 +1138,14 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 			return copied, ephemeralContainer, errors.New("Command field is not supported, please remove command and try again")
 		}
 	} else {
-		ephemeralContainer = &corev1.EphemeralContainer{
-			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+		ephemeralContainer = &apiV1.EphemeralContainer{
+			EphemeralContainerCommon: apiV1.EphemeralContainerCommon{
 				Name:                     req.BasicData.ContainerName,
 				Env:                      nil,
 				Image:                    req.BasicData.Image,
-				ImagePullPolicy:          corev1.PullIfNotPresent,
+				ImagePullPolicy:          apiV1.PullIfNotPresent,
 				Stdin:                    true,
-				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+				TerminationMessagePolicy: apiV1.TerminationMessageReadFile,
 				TTY:                      true,
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
@@ -1144,7 +1247,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error) {
+func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]apiV1.Pod, error) {
 	clientSet, _, err := impl.k8sCommonService.GetCoreClientByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
