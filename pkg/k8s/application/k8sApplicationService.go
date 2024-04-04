@@ -12,8 +12,12 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/apps/v1beta2"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -754,31 +758,55 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 }
 
 func ConvertToCore(uns unstructured.UnstructuredList) runtime.Object {
-	if uns.GetObjectKind().GroupVersionKind().Kind == "ConfigMapList" {
-		configMaps := make([]corev1.ConfigMap, 0)
-		configMapPtrs := make([]runtime.Object, 0)
-		for _, item := range uns.Items {
-			configMap := corev1.ConfigMap{}
-			fmt.Println(item.UnstructuredContent())
-			runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), &configMap)
-			configMap.SetGroupVersionKind(item.GetObjectKind().GroupVersionKind())
-			configMaps = append(configMaps, configMap)
-			configMapPtrs = append(configMapPtrs, &configMap)
-			cm := corev1.ConfigMap{}
-			runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), &cm)
-			configMap.ObjectMeta = cm.ObjectMeta
-			fmt.Println(cm)
-		}
-		configMapList := corev1.ConfigMapList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       uns.GetKind(),
-				APIVersion: uns.GetAPIVersion(),
-			},
-			Items: configMaps,
-		}
-		return &configMapList
+	kind := uns.GetObjectKind().GroupVersionKind().Kind
+
+	switch kind {
+	case "ConfigMapList":
+		return convertToCoreList(uns, &corev1.ConfigMap{}, &corev1.ConfigMapList{})
+	case "PodList":
+		return convertToCoreList(uns, &corev1.Pod{}, &corev1.PodList{})
+	case "JobList":
+		return convertToCoreList(uns, &batchv1.Job{}, &batchv1.JobList{})
+	case "CronJobList":
+		return convertToCoreList(uns, &batchv1.CronJob{}, &batchv1.CronJobList{})
+	case "ControllerRevisionList":
+		return convertToCoreList(uns, &v1beta1.ControllerRevision{}, &v1beta1.ControllerRevisionList{})
+	case "NodeList":
+		return convertToCoreList(uns, &corev1.Node{}, &corev1.NodeList{})
+	case "ResourceQuotaList":
+		return convertToCoreList(uns, &corev1.ResourceQuota{}, &corev1.ResourceQuotaList{})
+	case "DaemonSetList":
+		return convertToCoreList(uns, &v1beta2.DaemonSet{}, &v1beta2.DaemonSetList{})
+	default:
+		fmt.Println("Unsupported kind:", kind)
+		return nil
 	}
-	return nil
+
+}
+
+func convertToCoreList(uns unstructured.UnstructuredList, itemPtr, listPtr interface{}) runtime.Object {
+	items := reflect.New(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem())).Interface()
+	for _, item := range uns.Items {
+		obj := reflect.New(reflect.TypeOf(itemPtr).Elem()).Interface()
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), obj); err != nil {
+			fmt.Println("Error converting item:", err)
+			continue
+		}
+		reflect.ValueOf(items).Elem().Set(reflect.Append(reflect.ValueOf(items).Elem(), reflect.ValueOf(obj).Elem()))
+	}
+
+	list := reflect.New(reflect.TypeOf(listPtr).Elem()).Interface()
+	listValue := reflect.ValueOf(list).Elem()
+	listValue.FieldByName("TypeMeta").Set(reflect.ValueOf(metav1.TypeMeta{
+		Kind:       uns.GetKind(),
+		APIVersion: uns.GetAPIVersion(),
+	}))
+	// Initialize the Items field as a slice
+	listValue.FieldByName("Items").Set(reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem()), 0, 0))
+	// Set the Items field with the items slice
+	listValue.FieldByName("Items").Set(reflect.ValueOf(items).Elem())
+
+	return list.(runtime.Object)
 }
 
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *k8s3.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s3.ApplyResourcesResponse, error) {
