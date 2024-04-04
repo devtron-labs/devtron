@@ -4,6 +4,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 )
@@ -36,5 +37,12 @@ func GetTriggerFeasibilityResponse(approvalRequestId int, triggerRequest bean2.T
 		TriggerRequest:    triggerRequest,
 		FilterIdVsState:   filterIdVsState,
 		Filters:           filters,
+	}
+}
+
+func GetVulnerabilityCheckRequest(cdPipeline *pipelineConfig.Pipeline, imageDigest string) *bean.VulnerabilityCheckRequest {
+	return &bean.VulnerabilityCheckRequest{
+		CdPipeline:  cdPipeline,
+		ImageDigest: imageDigest,
 	}
 }

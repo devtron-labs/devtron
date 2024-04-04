@@ -91,3 +91,8 @@ type TriggerFeasibilityResponse struct {
 	FilterIdVsState   map[int]resourceFilter.FilterState
 	Filters           []*resourceFilter.FilterMetaDataBean
 }
+
+type VulnerabilityCheckRequest struct {
+	ImageDigest string
+	CdPipeline  *pipelineConfig.Pipeline
+}

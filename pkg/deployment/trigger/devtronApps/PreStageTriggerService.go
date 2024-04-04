@@ -303,7 +303,8 @@ func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
 	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
 	//checking vulnerability for the selected image
-	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+	vulnerabilityCheckRequest := adapter2.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
 		return err
