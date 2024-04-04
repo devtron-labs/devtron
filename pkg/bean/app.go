@@ -30,6 +30,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	CiPipeline2 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"strings"
 	"time"
@@ -117,60 +118,60 @@ type CiMaterial struct {
 }
 
 type CiPipeline struct {
-	IsManual                   bool                   `json:"isManual"`
-	DockerArgs                 map[string]string      `json:"dockerArgs"`
-	IsExternal                 bool                   `json:"isExternal"`
-	ParentCiPipeline           int                    `json:"parentCiPipeline"`
-	ParentAppId                int                    `json:"parentAppId"`
-	AppId                      int                    `json:"appId"`
-	AppName                    string                 `json:"appName,omitempty"`
-	AppType                    helper.AppType         `json:"appType,omitempty"`
-	ExternalCiConfig           ExternalCiConfig       `json:"externalCiConfig"`
-	CiMaterial                 []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                       string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id                         int                    `json:"id,omitempty" `
-	Version                    string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                     bool                   `json:"active,omitempty"`  //pipeline is active or not
-	Deleted                    bool                   `json:"deleted,omitempty"`
-	BeforeDockerBuild          []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild           []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
-	BeforeDockerBuildScripts   []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
-	AfterDockerBuildScripts    []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
-	LinkedCount                int                    `json:"linkedCount"`
-	PipelineType               bean.PipelineType           `json:"pipelineType,omitempty"`
-	ScanEnabled                bool                   `json:"scanEnabled,notnull"`
-	AppWorkflowId              int                    `json:"appWorkflowId,omitempty"`
-	PreBuildStage              *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
-	PostBuildStage             *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
-	TargetPlatform             string                 `json:"targetPlatform,omitempty"`
-	IsDockerConfigOverridden   bool                   `json:"isDockerConfigOverridden"`
-	DockerConfigOverride       DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
-	IsOffendingMandatoryPlugin *bool                  `json:"isOffendingMandatoryPlugin,omitempty"`
-	IsCITriggerBlocked         *bool                  `json:"isCITriggerBlocked,omitempty"`
-	CiBlockState               *bean2.ConsequenceDto  `json:"ciBlockState,omitempty"`
-	EnvironmentId              int                    `json:"environmentId,omitempty"`
-	LastTriggeredEnvId         int                    `json:"lastTriggeredEnvId"`
-	CustomTagObject            *CustomTagData         `json:"customTag,omitempty"`
-	DefaultTag                 []string               `json:"defaultTag,omitempty"`
-	EnableCustomTag            bool                   `json:"enableCustomTag"`
+	IsManual                   bool                     `json:"isManual"`
+	DockerArgs                 map[string]string        `json:"dockerArgs"`
+	IsExternal                 bool                     `json:"isExternal"`
+	ParentCiPipeline           int                      `json:"parentCiPipeline"`
+	ParentAppId                int                      `json:"parentAppId"`
+	AppId                      int                      `json:"appId"`
+	AppName                    string                   `json:"appName,omitempty"`
+	AppType                    helper.AppType           `json:"appType,omitempty"`
+	ExternalCiConfig           ExternalCiConfig         `json:"externalCiConfig"`
+	CiMaterial                 []*CiMaterial            `json:"ciMaterial,omitempty" validate:"dive,min=1"`
+	Name                       string                   `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                         int                      `json:"id,omitempty" `
+	Version                    string                   `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	Active                     bool                     `json:"active,omitempty"`  //pipeline is active or not
+	Deleted                    bool                     `json:"deleted,omitempty"`
+	BeforeDockerBuild          []*Task                  `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild           []*Task                  `json:"afterDockerBuild,omitempty" validate:"dive"`
+	BeforeDockerBuildScripts   []*CiScript              `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
+	AfterDockerBuildScripts    []*CiScript              `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
+	LinkedCount                int                      `json:"linkedCount"`
+	PipelineType               CiPipeline2.PipelineType `json:"pipelineType,omitempty"`
+	ScanEnabled                bool                     `json:"scanEnabled,notnull"`
+	AppWorkflowId              int                      `json:"appWorkflowId,omitempty"`
+	PreBuildStage              *bean.PipelineStageDto   `json:"preBuildStage,omitempty"`
+	PostBuildStage             *bean.PipelineStageDto   `json:"postBuildStage,omitempty"`
+	TargetPlatform             string                   `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden   bool                     `json:"isDockerConfigOverridden"`
+	DockerConfigOverride       DockerConfigOverride     `json:"dockerConfigOverride,omitempty"`
+	IsOffendingMandatoryPlugin *bool                    `json:"isOffendingMandatoryPlugin,omitempty"`
+	IsCITriggerBlocked         *bool                    `json:"isCITriggerBlocked,omitempty"`
+	CiBlockState               *bean2.ConsequenceDto    `json:"ciBlockState,omitempty"`
+	EnvironmentId              int                      `json:"environmentId,omitempty"`
+	LastTriggeredEnvId         int                      `json:"lastTriggeredEnvId"`
+	CustomTagObject            *CustomTagData           `json:"customTag,omitempty"`
+	DefaultTag                 []string                 `json:"defaultTag,omitempty"`
+	EnableCustomTag            bool                     `json:"enableCustomTag"`
 }
 
 type DockerConfigOverride struct {
-	DockerRegistry   string                  `json:"dockerRegistry,omitempty"`
-	DockerRepository string                  `json:"dockerRepository,omitempty"`
-	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
+	DockerRegistry   string                         `json:"dockerRegistry,omitempty"`
+	DockerRepository string                         `json:"dockerRepository,omitempty"`
+	CiBuildConfig    *CiPipeline2.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
 	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
-	Name             string            `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id               int               `json:"id,omitempty" `
-	Version          string            `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	IsExternal       bool              `json:"isExternal,omitempty"`
-	ParentCiPipeline int               `json:"parentCiPipeline"`
-	ParentAppId      int               `json:"parentAppId"`
-	PipelineType     bean.PipelineType `json:"pipelineType,omitempty"`
-	ScanEnabled      bool              `json:"scanEnabled,notnull"`
+	Name             string                   `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id               int                      `json:"id,omitempty" `
+	Version          string                   `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	IsExternal       bool                     `json:"isExternal,omitempty"`
+	ParentCiPipeline int                      `json:"parentCiPipeline"`
+	ParentAppId      int                      `json:"parentAppId"`
+	PipelineType     CiPipeline2.PipelineType `json:"pipelineType,omitempty"`
+	ScanEnabled      bool                     `json:"scanEnabled,notnull"`
 }
 
 type CiScript struct {
@@ -304,12 +305,12 @@ type CiPatchRequest struct {
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 
-	ParentCDPipeline               int               `json:"parentCDPipeline"`
-	DeployEnvId                    int               `json:"deployEnvId"`
-	SwitchFromCiPipelineId         int               `json:"switchFromCiPipelineId"`
-	SwitchFromExternalCiPipelineId int               `json:"switchFromExternalCiPipelineId"`
-	SwitchFromCiPipelineType       bean.PipelineType `json:"-"`
-	SwitchToCiPipelineType         bean.PipelineType `json:"-"`
+	ParentCDPipeline               int                      `json:"parentCDPipeline"`
+	DeployEnvId                    int                      `json:"deployEnvId"`
+	SwitchFromCiPipelineId         int                      `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int                      `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       CiPipeline2.PipelineType `json:"-"`
+	SwitchToCiPipelineType         CiPipeline2.PipelineType `json:"-"`
 }
 
 func (ciPatchRequest CiPatchRequest) IsLinkedCdRequest() bool {
@@ -382,7 +383,7 @@ type CiConfigRequest struct {
 	AppId              int                             `json:"appId,omitempty" validate:"required,number"`
 	DockerRegistry     string                          `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
 	DockerRepository   string                          `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	CiBuildConfig      *bean.CiBuildConfigBean         `json:"ciBuildConfig"`
+	CiBuildConfig      *CiPipeline2.CiBuildConfigBean  `json:"ciBuildConfig"`
 	CiPipelines        []*CiPipeline                   `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
 	AppName            string                          `json:"appName,omitempty"`
 	Version            string                          `json:"version,omitempty"` //gocd etag used for edit purpose
@@ -757,26 +758,9 @@ type CdPipelineTrigger struct {
 	PipelineId   int `json:"pipelineId"`
 }
 
-type DeploymentType = string
-
-const (
-	Helm             DeploymentType = "helm"
-	ArgoCd           DeploymentType = "argo_cd"
-	ManifestDownload DeploymentType = "manifest_download"
-	ManifestPush     DeploymentType = "manifest_push"
-)
-
 const (
 	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
-}
 
 type Status string
 

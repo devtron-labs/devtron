@@ -38,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -56,7 +55,6 @@ type App struct {
 	EnforcerV2            *casbinv2.SyncedEnforcer
 	server                *http.Server
 	db                    *pg.DB
-	pubsubClient          *pubsub.PubSubClientServiceImpl
 	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
@@ -73,7 +71,6 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.SyncedEnforcer,
 	enforcerV2 *casbinv2.SyncedEnforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
@@ -89,7 +86,6 @@ func NewApp(router *router.MuxRouter,
 		Enforcer:              enforcer,
 		EnforcerV2:            enforcerV2,
 		db:                    db,
-		pubsubClient:          pubsubClient,
 		serveTls:              false,
 		sessionManager2:       sessionManager2,
 		posthogClient:         posthogClient,

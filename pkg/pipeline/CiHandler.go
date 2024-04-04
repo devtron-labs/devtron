@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -447,7 +448,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
 		if apiErr != nil {
 			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
-			return []pipelineConfig.CiPipelineMaterialResponse{}, apiErr
+			return nil, apiErr
 		}
 		ciMaterialHistoryMap[m] = changesResp
 	}
@@ -476,7 +477,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
-		return []pipelineConfig.CiPipelineMaterialResponse{}, err
+		return nil, err
 	}
 	for _, k := range regexMaterials {
 		r := pipelineConfig.CiPipelineMaterialResponse{
@@ -1443,7 +1444,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	}
 	for _, pipeline := range pipelines {
 		pipelineId := 0
-		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
+		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(CiPipeline.LINKED_CD) {
 			pipelineId = pipeline.Id
 		} else {
 			pipelineId = pipeline.ParentCiPipeline
@@ -1758,7 +1759,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			continue
 		}
 		ciPipelineId := 0
-		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
+		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(CiPipeline.LINKED_CD) {
 			ciPipelineId = ciPipeline.Id
 		} else {
 			ciPipelineId = ciPipeline.ParentCiPipeline
