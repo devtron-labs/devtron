@@ -309,7 +309,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistoryWit
 
 func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName string, teamId int, userId int32) error {
 	appModel, err := impl.appRepository.FindActiveByName(appName)
-	if err != nil && util.IsErrNoRows(err) {
+	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel", "err", err)
 		return err
 	}
