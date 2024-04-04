@@ -397,7 +397,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 		if err != nil {
 			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 			return 0, err
@@ -576,9 +577,9 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 	// custom GitOps repo url validation --> Ends
-
+	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(pipeline, artifact.ImageDigest)
 	//checking vulnerability for deploying image
-	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, pipeline, nil)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(request.TriggerContext.Context, vulnerabilityCheckRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 		return err

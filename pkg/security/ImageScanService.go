@@ -19,6 +19,7 @@ package security
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -41,7 +42,7 @@ type ImageScanService interface {
 	FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	FetchMinScanResultByAppIdAndEnvId(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error)
-	GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error)
+	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean.VulnerabilityCheckRequest) (bool, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -611,33 +612,33 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	return vulnerabilityExposureListingResponse, nil
 }
 
-func (impl ImageScanServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
+func (impl ImageScanServiceImpl) GetArtifactVulnerabilityStatus(ctx context.Context, request *bean.VulnerabilityCheckRequest) (bool, error) {
 	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
+	if len(request.ImageDigest) > 0 {
 		var cveStores []*security.CveStore
 		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
+		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(request.ImageDigest)
 		span.End()
 		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
+			impl.Logger.Errorw("error fetching image digest", "digest", request.ImageDigest, "err", err)
 			return false, err
 		}
 		for _, item := range imageScanResult {
 			cveStores = append(cveStores, &item.CveStore)
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
-		if cdPipeline.Environment.ClusterId == 0 {
-			envDetails, err := impl.envService.GetDetailsById(cdPipeline.EnvironmentId)
+		if request.CdPipeline.Environment.ClusterId == 0 {
+			envDetails, err := impl.envService.GetDetailsById(request.CdPipeline.EnvironmentId)
 			if err != nil {
-				impl.Logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
+				impl.Logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", request.CdPipeline.EnvironmentId, "err", err)
 				return false, err
 			}
-			cdPipeline.Environment = *envDetails
+			request.CdPipeline.Environment = *envDetails
 		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
+		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, request.CdPipeline.Environment.ClusterId, request.CdPipeline.EnvironmentId, request.CdPipeline.AppId, false)
 		span.End()
 		if err != nil {
-			impl.Logger.Errorw("error encountered in GetArtifactVulnerabilityStatus", "clusterId", cdPipeline.Environment.ClusterId, "envId", cdPipeline.EnvironmentId, "appId", cdPipeline.AppId, "err", err)
+			impl.Logger.Errorw("error encountered in GetArtifactVulnerabilityStatus", "clusterId", request.CdPipeline.Environment.ClusterId, "envId", request.CdPipeline.EnvironmentId, "appId", request.CdPipeline.AppId, "err", err)
 			return false, err
 		}
 		if len(blockCveList) > 0 {
