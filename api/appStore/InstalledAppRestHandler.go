@@ -142,6 +142,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
+
 	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
 	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
 	if err != nil {

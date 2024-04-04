@@ -1034,6 +1034,9 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 		//projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
+			if deployedapp.AppName == "prkash-apache-ext-3" {
+				fmt.Println(fmt.Sprintf(deployedapp.AppId, "-", deployedapp.AppName, "-", deployedapp.EnvironmentDetail.Namespace, "-"))
+			}
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
 			var toExcludeFromList bool
 			for _, helmCdPipeline := range helmCdPipelines {
@@ -1049,6 +1052,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			// end
 
 			// do not add helm apps in the list which are created using app_store
+			//here installedHelmApps list coming from parameter, but when I delete that particular helm app then in installedHelmApps list, that particular app will not come for taht release name because the query from where this list comes there is a condition that app.active should be true
+			// and in that case it doesn't iterate through them and break the loop.
 			for _, installedHelmApp := range installedHelmApps {
 				if deployedapp.AppName == installedHelmApp.App.AppName && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
 					toExcludeFromList = true

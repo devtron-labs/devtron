@@ -1405,7 +1405,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
 		appName = appIdentifier.ReleaseName
 	}
-
+	//when coming to update the project name app is already there so app.Id>0, and it assumes that only one entry resides since app name is unique,
+	// and it goes and update that app project id, hence changing project id of all apps.
 	app, err := impl.appRepository.FindActiveByName(appName)
 
 	if err != nil && err != pg.ErrNoRows {
