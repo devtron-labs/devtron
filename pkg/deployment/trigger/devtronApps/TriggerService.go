@@ -778,7 +778,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	// custom gitops repo url validation --> Ends
 
 	// checking vulnerability for deploying image
-	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, pipeline, nil)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(artifact, pipeline, context.Background())
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 		return err
