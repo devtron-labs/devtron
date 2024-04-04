@@ -324,25 +324,6 @@ func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest
 	return nil
 }
 
-func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
-	triggerTime := time.Now()
-	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
-	if err != nil {
-		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
-	}
-	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(envState)
-	triggerRequest.DeploymentWindowState = envState
-
-	if !isDeploymentAllowed(triggerRequest, actionState) {
-		err = impl.handleBlockedTrigger(triggerRequest, stage)
-		if err != nil {
-			return triggerRequest, err
-		}
-		return triggerRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.DeploymentWindowFail)
-	}
-	return triggerRequest, nil
-}
-
 func isDeploymentAllowed(triggerRequest bean.TriggerRequest, actionState deploymentWindow.UserActionState) bool {
 
 	if triggerRequest.TriggerContext.IsAutoTrigger() {
@@ -670,14 +651,17 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		impl.logger.Errorw("error while fetching env", "err", err)
 		return err
 	}
-	// setting env in pipeline, TODO: Check if correct, doubtful
+	// setting env in pipeline
 	pipeline.Environment = *env
-
-	app, err := impl.appRepository.FindById(pipeline.AppId)
-	if err != nil {
-		return err
+	teamId := pipeline.App.TeamId
+	if teamId == 0 {
+		app, err := impl.appRepository.FindById(pipeline.AppId)
+		if err != nil {
+			return err
+		}
+		teamId = app.TeamId
 	}
-	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: teamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(scope, request, resourceFilter.Deploy)
 	feasibilityResponse, err := impl.CheckFeasibility(triggerRequirementRequest)

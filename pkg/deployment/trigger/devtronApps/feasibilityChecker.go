@@ -1,11 +1,14 @@
 package devtronApps
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"time"
 )
 
 func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*bean.TriggerFeasibilityResponse, error) {
@@ -55,4 +58,23 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 	}
 
 	return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequest, filterIdVsState, filters), nil
+}
+
+func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
+	triggerTime := time.Now()
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
+	if err != nil {
+		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
+	}
+	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(envState)
+	triggerRequest.DeploymentWindowState = envState
+
+	if !isDeploymentAllowed(triggerRequest, actionState) {
+		err = impl.handleBlockedTrigger(triggerRequest, stage)
+		if err != nil {
+			return triggerRequest, err
+		}
+		return triggerRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.DeploymentWindowFail)
+	}
+	return triggerRequest, nil
 }
