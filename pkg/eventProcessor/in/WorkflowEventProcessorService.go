@@ -680,7 +680,7 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err on fetching pipeline, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
 		return toSkipProcess, err
-	} else if err != pg.ErrNoRows || pipelineObj == nil || pipelineObj.Id == 0 {
+	} else if err == pg.ErrNoRows || pipelineObj == nil || pipelineObj.Id == 0 {
 		impl.logger.Warnw("invalid request received pipeline not active, handleConcurrentOrInvalidRequest", "err", err, "pipelineId", pipelineId)
 		toSkipProcess = true
 		return toSkipProcess, err

@@ -36,7 +36,7 @@ func NewGlobalCMCSServiceImpl(logger *zap.SugaredLogger,
 type GlobalCMCSDataUpdateDto struct {
 	Id                 int               `json:"id"`
 	Data               map[string]string `json:"data"  validate:"required"`
-	SecretIngestionFor string            `json:"SecretIngestionFor"` // value can be one of [ci, cd, ci/cd]
+	SecretIngestionFor string            `json:"secretIngestionFor"` // value can be one of [ci, cd, ci/cd]
 	UserId             int32             `json:"-"`
 }
 

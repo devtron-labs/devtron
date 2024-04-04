@@ -62,6 +62,14 @@ EnvVariables: []
 ```
 To set environment variables for the containers that run in the Pod.
 
+### EnvVariablesFromFieldPath
+```yaml
+EnvVariablesFromFieldPath:
+- name: ENV_NAME
+  fieldPath: status.podIP (example)
+```
+To set environment variables for the containers and fetching their values from pod-level fields.
+
 ### Liveness Probe
 
 If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
