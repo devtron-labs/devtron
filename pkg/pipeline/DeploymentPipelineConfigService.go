@@ -146,7 +146,6 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentConfig                  *util2.DeploymentServiceTypeConfig
 	application                       application.ServiceClient
 	customTagService                  CustomTagService
-	devtronAppCMCSService             DevtronAppCMCSService
 	ciPipelineConfigService           CiPipelineConfigService
 	buildPipelineSwitchService        BuildPipelineSwitchService
 	argoClientWrapperService          argocdServer.ArgoClientWrapperService
@@ -156,7 +155,7 @@ type CdPipelineConfigServiceImpl struct {
 	chartService                      chart.ChartService
 	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
 	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
-	deploymentTypeOverrideService    config2.DeploymentTypeOverrideService
+	deploymentTypeOverrideService     config2.DeploymentTypeOverrideService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -172,7 +171,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
 	application application.ServiceClient, customTagService CustomTagService,
-	devtronAppCMCSService DevtronAppCMCSService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
@@ -205,10 +203,9 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		propertiesConfigService:           propertiesConfigService,
 		deploymentTemplateHistoryService:  deploymentTemplateHistoryService,
 		scopedVariableManager:             scopedVariableManager,
-		deploymentConfig:                 envVariables.DeploymentServiceTypeConfig,
+		deploymentConfig:                  envVariables.DeploymentServiceTypeConfig,
 		application:                       application,
 		chartService:                      chartService,
-		devtronAppCMCSService:             devtronAppCMCSService,
 		customTagService:                  customTagService,
 		ciPipelineConfigService:           ciPipelineConfigService,
 		buildPipelineSwitchService:        buildPipelineSwitchService,
@@ -218,7 +215,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		gitOperationService:               gitOperationService,
 		imageDigestPolicyService:          imageDigestPolicyService,
 		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
-		deploymentTypeOverrideService:    deploymentTypeOverrideService,
+		deploymentTypeOverrideService:     deploymentTypeOverrideService,
 	}
 }
 

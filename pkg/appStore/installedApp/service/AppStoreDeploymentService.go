@@ -839,12 +839,12 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 		return nil, err
 	}
 	if appModel != nil && appModel.Id > 0 {
-		impl.logger.Infow(" app already exists", "name", installAppVersionRequest.AppName)
+		impl.logger.Infow("app already exists", "name", installAppVersionRequest.AppName)
 		installAppVersionRequest.AppId = appModel.Id
 	}
 	installAppVersionRequest, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationDB(installAppVersionRequest, tx, appStoreBean.INSTALL_APP_REQUEST)
 	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
+		impl.logger.Errorw("error in linking chart to chart store", "err", err)
 		return nil, err
 	}
 

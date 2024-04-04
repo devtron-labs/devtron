@@ -472,7 +472,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 		return nil, err
 	}
 	if activeApp != nil && activeApp.Id > 0 {
-		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
+		impl.logger.Infow("app already exists", "name", createRequest.AppName)
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			Code:            constants.AppAlreadyExists.Code,
