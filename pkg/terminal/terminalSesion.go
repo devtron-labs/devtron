@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/terminal/mocks"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -264,12 +263,12 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-	middleware.IncTerminalSessionRequestCounter(mocks.SessionInitiating)
+	middleware.IncTerminalSessionRequestCounter(SessionInitiating)
 	err = execWithStreamOptions(exec, streamOptions)
 	if err != nil {
 		return err
 	}
-	middleware.IncTerminalSessionRequestCounter(mocks.SessionActive)
+	middleware.IncTerminalSessionRequestCounter(SessionActive)
 	return nil
 }
 
@@ -367,11 +366,11 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		}
 
 		if err != nil {
-			middleware.IncTerminalSessionRequestCounter(mocks.SessionClosedAbnormally)
+			middleware.IncTerminalSessionRequestCounter(SessionClosedAbnormally)
 			terminalSessions.Close(request.SessionId, 2, err.Error())
 			return
 		}
-		middleware.IncTerminalSessionRequestCounter(mocks.SessionClosedNormally)
+		middleware.IncTerminalSessionRequestCounter(SessionClosedNormally)
 		terminalSessions.Close(request.SessionId, 1, "Process exited")
 	}
 }

@@ -1,4 +1,4 @@
-package mocks
+package terminal
 
 const (
 	SessionClosedAbnormally = "SessionClosedAbnormally"

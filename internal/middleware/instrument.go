@@ -120,7 +120,7 @@ var DeploymentStatusCronDuration = promauto.NewHistogramVec(prometheus.Histogram
 var TerminalSessionRequestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "initiate_terminal_session_request_counter",
 	Help: "count of requests for initiated, established and closed terminal sessions",
-}, []string{"action"})
+}, []string{"sessionAction"})
 
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
@@ -140,6 +140,6 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func IncTerminalSessionRequestCounter(action string) {
-	TerminalSessionRequestCounter.WithLabelValues(action).Inc()
+func IncTerminalSessionRequestCounter(sessionAction string) {
+	TerminalSessionRequestCounter.WithLabelValues(sessionAction).Inc()
 }
