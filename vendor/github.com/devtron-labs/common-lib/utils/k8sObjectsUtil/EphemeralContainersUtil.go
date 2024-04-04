@@ -62,3 +62,18 @@ func IsExternalEphemeralContainer(cmds []string, name string) bool {
 func IsPod(kind string, group string) bool {
 	return kind == "Pod" && group == ""
 }
+func extractImages(obj unstructured.Unstructured) []string {
+	images := make([]string, 0)
+	switch obj.GetKind() {
+	case "Pod", "Deployment", "StatefulSet", "DaemonSet":
+		containers, _, _ := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
+		for _, container := range containers {
+			containerMap := container.(map[string]interface{})
+			image, ok := containerMap["image"].(string)
+			if ok {
+				images = append(images, image)
+			}
+		}
+	}
+	return images
+}
