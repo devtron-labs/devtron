@@ -77,7 +77,7 @@ func (s *GroupClustersService) ListClusters(pid interface{}, options ...RequestO
 		return nil, resp, err
 	}
 
-	return pcs, resp, err
+	return pcs, resp, nil
 }
 
 // GetCluster gets a cluster.
@@ -102,7 +102,7 @@ func (s *GroupClustersService) GetCluster(pid interface{}, cluster int, options 
 		return nil, resp, err
 	}
 
-	return gc, resp, err
+	return gc, resp, nil
 }
 
 // AddGroupClusterOptions represents the available AddCluster() options.
@@ -150,7 +150,7 @@ func (s *GroupClustersService) AddCluster(pid interface{}, opt *AddGroupClusterO
 		return nil, resp, err
 	}
 
-	return gc, resp, err
+	return gc, resp, nil
 }
 
 // EditGroupClusterOptions represents the available EditCluster() options.
@@ -194,7 +194,7 @@ func (s *GroupClustersService) EditCluster(pid interface{}, cluster int, opt *Ed
 		return nil, resp, err
 	}
 
-	return gc, resp, err
+	return gc, resp, nil
 }
 
 // DeleteCluster deletes an existing group cluster.

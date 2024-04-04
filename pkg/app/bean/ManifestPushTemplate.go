@@ -10,7 +10,7 @@ type ManifestPushTemplate struct {
 	AppId                   int
 	ChartRefId              int
 	EnvironmentId           int
-	EnvironmentName             string
+	EnvironmentName         string
 	UserId                  int32
 	PipelineOverrideId      int
 	AppName                 string
@@ -20,8 +20,7 @@ type ManifestPushTemplate struct {
 	ChartVersion            string
 	ChartLocation           string
 	RepoUrl                 string
-	IsCustomGitRepository       bool
-	GitOpsRepoMigrationRequired bool
+	IsCustomGitRepository   bool
 	BuiltChartPath          string
 	BuiltChartBytes         *[]byte
 	MergedValues            string
