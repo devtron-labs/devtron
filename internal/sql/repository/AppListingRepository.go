@@ -55,7 +55,7 @@ type AppListingRepository interface {
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
@@ -77,6 +77,7 @@ type AppNameTypeIdContainerDBResponse struct {
 }
 
 type LastDeployed struct {
+	CiArtifactId      int    `sql:"ci_artifact_id"`
 	LastDeployedBy    string `sql:"last_deployed_by"`
 	LastDeployedImage string `sql:"last_deployed_image"`
 }
@@ -134,7 +135,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	return jobContainers, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error) {
+func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error) {
 	query := " SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time " +
 		" FROM app a " +
 		" INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? " +
@@ -158,7 +159,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
 	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
-	query := `select ca.image as last_deployed_image, 
+	query := `select ca.id as ci_artifact_id,ca.image as last_deployed_image, 
 			    case
 					when u.active = false then u.email_id || ' (inactive)'
 					else u.email_id
@@ -634,8 +635,8 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	var otherEnvironments []*bean.Environment
 	//TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
-       			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
-      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image,
+      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status,ca.id as ci_artifact_id
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
                   	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 

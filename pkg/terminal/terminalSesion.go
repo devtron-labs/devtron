@@ -180,6 +180,9 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 			log.Println(err)
 		}
 		delete(sm.Sessions, sessionId)
+		if terminalSession.doneChan != nil {
+			close(terminalSession.doneChan)
+		}
 	}
 
 }
@@ -436,6 +439,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		id:       sessionID,
 		bound:    make(chan error),
 		sizeChan: make(chan remotecommand.TerminalSize),
+		doneChan: make(chan struct{}),
 	})
 	config, client, err := impl.getClientConfig(req)
 

@@ -18,9 +18,11 @@
 package pipelineConfig
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
@@ -48,6 +50,7 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -118,6 +121,12 @@ type WorkflowWithArtifact struct {
 	ExecutorType            WorkflowExecutorType `json:"executor_type"` //awf, system
 	ImagePathReservationId  int                  `json:"image_path_reservation_id"`
 	ImagePathReservationIds []int                `json:"image_path_reservation_ids" pg:",array"`
+}
+
+type ArtifactAndGitCommitMapping struct {
+	//Id          int               `sql:"id,pk"`
+	GitTriggers map[int]GitCommit `sql:"git_triggers"`
+	ArtifactId  int               `sql:"artifact_id"`
 }
 
 type GitCommit struct {
@@ -286,6 +295,25 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Where("cia.id = ? ", ciArtifactId).
 		Select()
 	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error) {
+	_, span := otel.Tracer("envOverrideRepository").Start(ctx, "fetchCiArtifactAndGitTriggersMapping")
+	defer span.End()
+	if ciArtifactIds == nil {
+		// If ciArtifactIds is nil or empty, return an empty slice and nil error
+		return []ArtifactAndGitCommitMapping{}, err
+	}
+	var workflows []ArtifactAndGitCommitMapping
+	err = impl.dbConnection.Model().
+		Table("ci_workflow").
+		Column("ci_workflow.git_triggers").
+		ColumnExpr("cia.id as artifact_id").
+		Join("INNER JOIN ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
+		Where("cia.id in (?) ", pg.In(ciArtifactIds)).
+		Select(&workflows)
+
+	return workflows, nil
 }
 
 func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
