@@ -789,7 +789,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		}
 		return nil
 	}
-	//triggerRequirementRequest := adapter.GetTriggerRequirementRequest(artifact, pipeline, runner, triggeredBy, nil)
+
 	manifest, releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
