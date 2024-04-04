@@ -441,9 +441,9 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 		filterIdVsState, filters := feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
 		// store evaluated result
-		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
+		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
 		if err != nil {
-			impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", cdPipeline.Id, "artifactId", artifact.Id)
+			impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", cdPipeline.Id, "artifactId", ciArtifactId)
 			return 0, "", err
 		}
 
