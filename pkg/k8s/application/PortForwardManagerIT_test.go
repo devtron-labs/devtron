@@ -58,7 +58,7 @@ func TestPortForwardManager(t *testing.T) {
 			ClusterId:   1,
 			PortString:  []string{"8088:80"},
 		}
-		err = portForwardManagerImpl.ForwardPort(context.Background(), portForwardRequest)
+		_, err = portForwardManagerImpl.ForwardPort(context.Background(), portForwardRequest)
 		assert.NotNil(t, err)
 	})
 }

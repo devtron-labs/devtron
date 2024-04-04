@@ -23,7 +23,7 @@ import (
 )
 
 type PortForwardManager interface {
-	ForwardPort(ctx context.Context, request bean.PortForwardRequest) error
+	ForwardPort(ctx context.Context, request bean.PortForwardRequest) (string, error)
 }
 
 type PortForwardManagerImpl struct {
@@ -38,14 +38,14 @@ func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K
 	}, nil
 }
 
-func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bean.PortForwardRequest) error {
+func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bean.PortForwardRequest) (string, error) {
 	pod, service, err := impl.getServicePod(ctx, request)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if pod.Status.Phase != corev1.PodRunning {
-		return fmt.Errorf("unable to forward port because pod is not running. Current status=%v", pod.Status.Phase)
+		return "", fmt.Errorf("unable to forward port because pod is not running. Current status=%v", pod.Status.Phase)
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -54,7 +54,9 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 
 	portForwarderOps := NewDefaultPortForwardOptions()
 	portForwarderOps.Address = []string{"localhost"}
-	portForwarderOps.Ports, err = translateServicePortToTargetPort(request.PortString, *service, *pod)
+
+	portString, portToAllocate := impl.getPortString(request.TargetPort)
+	portForwarderOps.Ports, err = translateServicePortToTargetPort([]string{portString}, *service, *pod)
 
 	returnCtx, returnCtxCancel := context.WithCancel(ctx)
 	defer returnCtxCancel()
@@ -71,15 +73,15 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 
 	config, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = setKubernetesDefaults(config)
 	if err != nil {
-		return err
+		return "", err
 	}
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req := restClient.Post().
 		Resource("pods").
@@ -87,7 +89,20 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 		Name(pod.Name).
 		SubResource("portforward")
 	portForwarderOps.Config = config
-	return portForwarderOps.PortForwarder.ForwardPorts("POST", req.URL(), portForwarderOps)
+	portFwdErrChan := make(chan error, 1) //using buffered channel
+	go func() {
+		portForwardErr := portForwarderOps.PortForwarder.ForwardPorts("POST", req.URL(), portForwarderOps)
+		if portForwardErr != nil {
+			impl.logger.Errorw("error occurred while forwarding port request", "err", err)
+			portFwdErrChan <- portForwardErr
+		}
+	}()
+	var portForwardErr error
+	select {
+	case <-portForwarderOps.ReadyChannel:
+	case portForwardErr = <-portFwdErrChan:
+	}
+	return portToAllocate, portForwardErr
 }
 
 func (impl *PortForwardManagerImpl) getServicePod(ctx context.Context, request bean.PortForwardRequest) (*corev1.Pod, *corev1.Service, error) {
@@ -112,6 +127,15 @@ func (impl *PortForwardManagerImpl) getServicePod(ctx context.Context, request b
 		return nil, nil, err
 	}
 	return pod, service, nil
+}
+
+func (impl *PortForwardManagerImpl) getPortString(servicePort string) (string, string) {
+	unUsedport := impl.getUnUsedPort()
+	return unUsedport + ":" + servicePort, unUsedport
+}
+
+func (impl *PortForwardManagerImpl) getUnUsedPort() string {
+	return "8001"
 }
 
 type portForwarder interface {

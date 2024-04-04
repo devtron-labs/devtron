@@ -5,23 +5,25 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const Dashboard = "dashboard"
 const Proxy = "proxy"
 
 func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func(writer http.ResponseWriter, request *http.Request) {
-	proxy := GetProxyServer(serverAddr, transport, Dashboard)
+	proxy := GetProxyServer(serverAddr, transport, Dashboard, "")
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
 	}
 }
 
-func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string) *httputil.ReverseProxy {
+func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string) *httputil.ReverseProxy {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -32,15 +34,18 @@ func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclud
 		path := request.URL.Path
 		request.URL.Host = target.Host
 		request.URL.Scheme = target.Scheme
-		request.URL.Path = rewriteRequestUrl(path, pathToExclude)
+		request.URL.Path = rewriteRequestUrl(basePathToInclude, path, pathToExclude)
 		fmt.Printf("%s\n", request.URL.Path)
 	}
 	return proxy
 }
 
-func rewriteRequestUrl(path string, pathToExclude string) string {
+func rewriteRequestUrl(basePathToInclude string, path string, pathToExclude string) string {
 	parts := strings.Split(path, "/")
 	var finalParts []string
+	if len(basePathToInclude) > 0 {
+		finalParts = append(finalParts, basePathToInclude)
+	}
 	for _, part := range parts {
 		if part == pathToExclude {
 			continue
@@ -50,9 +55,21 @@ func rewriteRequestUrl(path string, pathToExclude string) string {
 	return strings.Join(finalParts, "/")
 }
 
+func NewProxyTransport() *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   120 * time.Second,
+			KeepAlive: 120 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
 func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
 	serverAddr := fmt.Sprintf("http://%s:%s", connection.Host, connection.Port)
-	proxy := GetProxyServer(serverAddr, transport, Proxy)
+	proxy := GetProxyServer(serverAddr, transport, Proxy, "")
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if len(connection.PassKey) > 0 {

@@ -6,9 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net"
 	"net/http"
-	"time"
 )
 
 type ProxyRouter interface {
@@ -49,15 +47,7 @@ type ProxyRouterImpl struct {
 
 func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer casbin.Enforcer) *ProxyRouterImpl {
 	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   120 * time.Second,
-				KeepAlive: 120 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport: NewProxyTransport(),
 	}
 	proxyConnection := make(map[ProxyServiceName]ProxyConnection)
 	err := json.Unmarshal([]byte(proxyCfg.ProxyServiceConfig), &proxyConnection)

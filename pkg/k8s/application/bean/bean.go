@@ -56,8 +56,8 @@ type RotatePodResourceResponse struct {
 }
 
 type PortForwardRequest struct {
+	ClusterId   int
 	Namespace   string
 	ServiceName string
-	ClusterId   int
-	PortString  []string // []string{"5432:5432"}
+	TargetPort  string // []string{"5432:5432"}
 }
