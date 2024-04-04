@@ -59,7 +59,7 @@ type K8sApplicationRestHandler interface {
 	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
-	//GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
+	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -208,6 +208,15 @@ func (handler *K8sApplicationRestHandlerImpl) validateGetResourceRequest(w http.
 		return &request, err
 	}
 	return &request, nil
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request) {
+	request, err := handler.validateGetResourceRequest(w, r)
+	if err != nil {
+		return
+	}
+	handler.k8sCommonService.GetResource(r.Context(), request)
+
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {

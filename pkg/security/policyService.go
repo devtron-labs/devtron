@@ -162,6 +162,7 @@ func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return err
 	}
+	resp.Body.Close()
 	impl.logger.Debugw("response from test suit create api", "status code", resp.StatusCode)
 	return err
 }

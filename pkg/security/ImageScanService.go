@@ -18,6 +18,7 @@
 package security
 
 import (
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"time"
 
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -39,6 +40,7 @@ type ImageScanService interface {
 	FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	FetchMinScanResultByAppIdAndEnvId(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error)
+	FetchScanResultsForImages(images []string) error
 }
 
 type ImageScanServiceImpl struct {
@@ -91,22 +93,37 @@ type ImageScanHistoryResponse struct {
 }
 
 type ImageScanExecutionDetail struct {
-	ImageScanDeployInfoId int                `json:"imageScanDeployInfoId"`
-	AppId                 int                `json:"appId,omitempty"`
-	EnvId                 int                `json:"envId,omitempty"`
-	AppName               string             `json:"appName,omitempty"`
-	EnvName               string             `json:"envName,omitempty"`
-	ArtifactId            int                `json:"artifactId,omitempty"`
-	Image                 string             `json:"image,omitempty"`
-	PodName               string             `json:"podName,omitempty"`
-	ReplicaSet            string             `json:"replicaSet,omitempty"`
-	Vulnerabilities       []*Vulnerabilities `json:"vulnerabilities,omitempty"`
-	SeverityCount         *SeverityCount     `json:"severityCount,omitempty"`
-	ExecutionTime         time.Time          `json:"executionTime,omitempty"`
-	ScanEnabled           bool               `json:"scanEnabled,notnull"`
-	Scanned               bool               `json:"scanned,notnull"`
-	ObjectType            string             `json:"objectType,notnull"`
-	ScanToolId            int                `json:"scanToolId,omitempty""`
+	ImageScanDeployInfoId int    `json:"imageScanDeployInfoId"`
+	AppId                 int    `json:"appId,omitempty"`
+	EnvId                 int    `json:"envId,omitempty"`
+	AppName               string `json:"appName,omitempty"`
+	EnvName               string `json:"envName,omitempty"`
+	ArtifactId            int    `json:"artifactId,omitempty"`
+	Image                 string `json:"image,omitempty"`
+	PodName               string `json:"podName,omitempty"`
+	ReplicaSet            string `json:"replicaSet,omitempty"`
+	//Vulnerabilities       []*Vulnerabilities `json:"vulnerabilities,omitempty"`
+	//SeverityCount         *SeverityCount     `json:"severityCount,omitempty"`
+	//ExecutionTime         time.Time          `json:"executionTime,omitempty"`
+	ScanEnabled bool   `json:"scanEnabled,notnull"`
+	Scanned     bool   `json:"scanned,notnull"`
+	ObjectType  string `json:"objectType,notnull"`
+	//ScanToolId            int                `json:"scanToolId,omitempty""`
+	ScanResult
+}
+
+type ImageScanResult struct {
+	ScanResult ScanResult                           `json:"scanResult"`
+	Image      string                               `json:"image"`
+	State      serverBean.ScanExecutionProcessState `json:"state"`
+	Error      string                               `json:"error"`
+}
+
+type ScanResult struct {
+	Vulnerabilities []*Vulnerabilities `json:"vulnerabilities,omitempty"`
+	SeverityCount   *SeverityCount     `json:"severityCount,omitempty"`
+	ExecutionTime   time.Time          `json:"executionTime,omitempty"`
+	ScanToolId      int                `json:"scanToolId,omitempty""`
 }
 
 type Vulnerabilities struct {
@@ -516,13 +533,19 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 		Low:      lowCount,
 	}
 	imageScanResponse := &ImageScanExecutionDetail{
+		ScanResult: ScanResult{
+			Vulnerabilities: nil,
+			SeverityCount:   severityCount,
+			ExecutionTime:   executionTime,
+			ScanToolId:      scantoolId,
+		},
 		ImageScanDeployInfoId: scanDeployInfo.Id,
-		SeverityCount:         severityCount,
-		ExecutionTime:         executionTime,
-		ObjectType:            scanDeployInfo.ObjectType,
-		ScanEnabled:           true,
-		Scanned:               true,
-		ScanToolId:            scantoolId,
+		//SeverityCount:         severityCount,
+		//ExecutionTime:         executionTime,
+		ObjectType:  scanDeployInfo.ObjectType,
+		ScanEnabled: true,
+		Scanned:     true,
+		//ScanToolId:            scantoolId,
 	}
 	return imageScanResponse, nil
 }
@@ -603,4 +626,76 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	}
 	vulnerabilityExposureListingResponse.VulnerabilityExposure = vulnerabilityExposureList
 	return vulnerabilityExposureListingResponse, nil
+}
+
+func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]ImageScanResult, error) {
+
+	imageScanResults, err := impl.scanResultRepository.FindByImages(images)
+	if err != nil {
+		return nil, err
+	}
+	foundImages := make([]string, 0)
+	historyIds := make([]int, 0)
+	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
+	for _, result := range imageScanResults {
+		historyIds = append(historyIds, result.ImageScanExecutionHistoryId)
+		foundImages = append(foundImages, result.ImageScanExecutionHistory.Image)
+
+		imageToExecutionResults[result.ImageScanExecutionHistory.Image] = append(imageToExecutionResults[result.ImageScanExecutionHistory.Image], result)
+	}
+	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(historyIds)
+	if err != nil {
+		return nil, err
+	}
+	historyIdToMapping := make(map[int]*security.ScanToolExecutionHistoryMapping)
+	for _, mapping := range historyMappings {
+		historyIdToMapping[mapping.ImageScanExecutionHistoryId] = mapping
+	}
+
+	results := make([]ImageScanResult, 0)
+	for image, executionResults := range imageToExecutionResults {
+		historyMapping := historyIdToMapping[executionResults[0].ImageScanExecutionHistoryId]
+		var vulnerabilities []*Vulnerabilities
+		var highCount, moderateCount, lowCount int
+		var cveStores []*security.CveStore
+		for _, item := range executionResults {
+			vulnerability := &Vulnerabilities{
+				CVEName:  item.CveStore.Name,
+				CVersion: item.CveStore.Version,
+				FVersion: item.CveStore.FixedVersion,
+				Package:  item.CveStore.Package,
+				Severity: item.CveStore.Severity.String(),
+			}
+			if item.CveStore.Severity == security.Critical {
+				highCount = highCount + 1
+			} else if item.CveStore.Severity == security.Medium {
+				moderateCount = moderateCount + 1
+			} else if item.CveStore.Severity == security.Low {
+				lowCount = lowCount + 1
+			}
+			vulnerabilities = append(vulnerabilities, vulnerability)
+			cveStores = append(cveStores, &item.CveStore)
+		}
+		severityCount := &SeverityCount{
+			High:     highCount,
+			Moderate: moderateCount,
+			Low:      lowCount,
+		}
+		scanResult := ScanResult{
+			Vulnerabilities: vulnerabilities,
+			SeverityCount:   severityCount,
+			ExecutionTime:   historyMapping.ExecutionStartTime,
+			ScanToolId:      historyMapping.ScanToolId,
+		}
+		results = append(results, ImageScanResult{
+			ScanResult: scanResult,
+			Image:      image,
+			State:      historyMapping.State,
+			Error:      historyMapping.ErrorMessage,
+		})
+
+	}
+
+	//TODO send not scanned results to image-scanner through nats
+	return results, nil
 }

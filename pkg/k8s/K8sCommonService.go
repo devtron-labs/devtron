@@ -14,10 +14,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -43,6 +45,7 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) error
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -52,6 +55,7 @@ type K8sCommonServiceImpl struct {
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	argoApplicationService      argoApplication.ArgoApplicationService
+	imageScanService            security.ImageScanService
 }
 
 type K8sApplicationServiceConfig struct {
@@ -61,7 +65,9 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExtended, helmAppService service.HelmAppService,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService,
-	argoApplicationService argoApplication.ArgoApplicationService) *K8sCommonServiceImpl {
+	argoApplicationService argoApplication.ArgoApplicationService,
+	imageScanService security.ImageScanService,
+) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -75,6 +81,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExt
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
 		argoApplicationService:      argoApplicationService,
+		imageScanService:            imageScanService,
 	}
 }
 
@@ -701,4 +708,46 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		}
 	}
 	return resourceTree
+}
+
+func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) error {
+	resource, err := impl.GetResource(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	manifestResponse := resource.ManifestResponse
+	images := extractImages(manifestResponse.Manifest)
+
+}
+
+func extractImages(obj unstructured.Unstructured) []string {
+	images := make([]string, 0)
+
+	var containers, iContainers, ephContainers []interface{}
+
+	switch obj.GetKind() {
+	case "Deployment", "Job", "StatefulSet", "DaemonSet", "ReplicaSet", "Rollout", "ReplicationController":
+		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
+		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "initContainers")
+		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "ephemeralContainers")
+	case "Pod":
+		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "containers")
+		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "initContainers")
+		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "ephemeralContainers")
+	case "CronJob":
+		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "containers")
+		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "initContainers")
+		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "ephemeralContainers")
+	}
+
+	allContainers := append(append(containers, iContainers), ephContainers)
+	for _, container := range allContainers {
+		containerMap := container.(map[string]interface{})
+		image, ok := containerMap["image"].(string)
+		if ok {
+			images = append(images, image)
+		}
+	}
+	return images
 }
