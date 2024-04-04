@@ -2,7 +2,6 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"strconv"
@@ -32,10 +31,10 @@ func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
 
-func GetActionBlockedError(triggerMessage string) error {
+func GetActionBlockedError(triggerMessage string, internalCode string) error {
 	return &util.ApiError{
 		HttpStatusCode:    422,
-		Code:              constants.DeploymentWindowFail,
+		Code:              internalCode,
 		InternalMessage:   triggerMessage,
 		UserMessage:       triggerMessage,
 		UserDetailMessage: "action blocked",

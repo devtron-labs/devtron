@@ -338,7 +338,7 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 		if err != nil {
 			return triggerRequest, err
 		}
-		return triggerRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+		return triggerRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.DeploymentWindowFail)
 	}
 	return triggerRequest, nil
 }

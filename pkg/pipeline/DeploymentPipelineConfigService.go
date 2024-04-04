@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -176,7 +177,7 @@ type CdPipelineConfigServiceImpl struct {
 	chartService                      chart.ChartService
 	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
 	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
-	deploymentWindowService          deploymentWindow.DeploymentWindowService
+	deploymentWindowService           deploymentWindow.DeploymentWindowService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -257,7 +258,7 @@ func NewCdPipelineConfigServiceImpl(
 		gitOperationService:               gitOperationService,
 		imageDigestPolicyService:          imageDigestPolicyService,
 		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
-		deploymentWindowService:          deploymentWindowService,
+		deploymentWindowService:           deploymentWindowService,
 	}
 }
 
@@ -755,7 +756,7 @@ func (impl *CdPipelineConfigServiceImpl) checkForDeploymentWindow(pipeline *pipe
 		return fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envState))
+		return deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
 	}
 	return nil
 }
