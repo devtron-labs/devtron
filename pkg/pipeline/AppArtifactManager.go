@@ -25,8 +25,8 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -885,7 +885,7 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 		}
 	}
 	if len(artifactIds) > 0 {
-		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
+		subjectIdVsState, appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
 		if err != nil {
 			// not returning error by choice
 			impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
@@ -894,7 +894,7 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 		for i, ciArtifactBean := range ciArtifactBeans {
 			ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
 			ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
-			ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
+			ciArtifactBeans[i].AppliedFiltersState = subjectIdVsState[ciArtifactBean.Id]
 		}
 	}
 	return ciArtifactBeans
