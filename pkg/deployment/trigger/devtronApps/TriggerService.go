@@ -415,7 +415,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 
 		triggerOperationRequest := adapter.GetTriggerOperationDto(triggerRequest, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF, overrideRequest.PipelineId, scope, triggeredAt, overrideRequest.CdWorkflowId)
-		runner, cdWfId, triggerMessage, err := impl.performOperationsForAutoOrManualTrigger(triggerOperationRequest)
+		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
 		if err != nil {
 			impl.logger.Errorw("error encountered in ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
 			return 0, "", err
@@ -560,7 +560,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-// performOperationsForAutoOrManualTrigger performs the feasibility and required operation before actual deployment for both auto and manual deploy
+// checkFeasibilityAndAuditStateChanges performs the feasibility and required operation before actual deployment for both auto and manual deploy
 // step1:checks feasibility if any policy is blocking the deployment
 // step2: Creates filter evaluation audit when feasibility is passed
 // step3: gets or create cd workflow basis of auto or manual deployment
@@ -568,7 +568,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 // step5: createAuditDataForDeploymentWindowBypass
 // step6: UpdateFilterEvaluationAuditRef if applicable
 // step7: ConsumeApprovalRequest if applicable
-func (impl *TriggerServiceImpl) performOperationsForAutoOrManualTrigger(triggerOperationReq *bean.TriggerOperationDto) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
+func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOperationReq *bean.TriggerOperationDto) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
 	cdPipeline := triggerOperationReq.TriggerRequest.Pipeline
 	ciArtifactId := triggerOperationReq.TriggerRequest.Artifact.Id
 	triggeredBy := triggerOperationReq.TriggerRequest.TriggeredBy
@@ -691,26 +691,29 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	pipeline := request.Pipeline
 	artifact := request.Artifact
 
-	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching env", "err", err)
-		return err
-	}
-	// setting env in pipeline
-	pipeline.Environment = *env
-	teamId := pipeline.App.TeamId
-	if teamId == 0 {
-		app, err := impl.appRepository.FindById(pipeline.AppId)
+	if pipeline.Environment.Id == 0 {
+		env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 		if err != nil {
+			impl.logger.Errorw("error while fetching env", "err", err)
 			return err
 		}
-		teamId = app.TeamId
+		// setting env in pipeline
+		pipeline.Environment = *env
 	}
-	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: teamId, IsProdEnv: env.Default}
+	teamId := pipeline.App.TeamId
+	var err error
+	if teamId == 0 {
+		teamId, err = impl.appRepository.GetTeamIdById(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error encountered in TriggerAutomaticDeployment", "appId", pipeline.AppId, "err", err)
+			return err
+		}
+	}
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: pipeline.Environment.ClusterId, ProjectId: teamId, IsProdEnv: pipeline.Environment.Default}
 	impl.logger.Debug("scope for auto trigger ", "scope", scope, "pipelineId", pipeline.Id)
 
 	triggerOperationRequest := adapter.GetTriggerOperationDto(request, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM, pipeline.Id, scope, triggeredAt, 0)
-	runner, cdWfId, _, err := impl.performOperationsForAutoOrManualTrigger(triggerOperationRequest)
+	runner, cdWfId, _, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerAutomaticDeployment", "pipelineId", pipeline.Id, "err", err)
 		return err
