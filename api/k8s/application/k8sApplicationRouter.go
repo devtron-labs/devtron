@@ -79,4 +79,6 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
 
+	k8sAppRouter.Path("/resource/security").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceSecurityInfo).Methods("POST")
 }

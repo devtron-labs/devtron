@@ -215,8 +215,16 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.Res
 	if err != nil {
 		return
 	}
-	handler.k8sCommonService.GetResource(r.Context(), request)
-
+	info, err := handler.k8sCommonService.GetResourceSecurityInfo(r.Context(), request)
+	if err != nil {
+		return
+	}
+	if err != nil {
+		handler.logger.Errorw("error in getting security details for resource", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, info, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {

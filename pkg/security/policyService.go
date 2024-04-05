@@ -49,6 +49,7 @@ type PolicyService interface {
 	GetCvePolicy(id int, userId int32) (*security.CvePolicy, error)
 	GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error)
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) bool
+	SendEventToClairUtility(event *ScanEvent) error
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService

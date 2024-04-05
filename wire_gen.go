@@ -410,7 +410,25 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	argoApplicationServiceImpl := argoApplication.NewArgoApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sUtilExtended, argoUserServiceImpl, helmAppServiceImpl)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sUtilExtended, helmAppServiceImpl, k8sResourceHistoryServiceImpl, clusterServiceImplExtended, argoApplicationServiceImpl)
+	imageScanHistoryRepositoryImpl := security.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
+	imageScanResultRepositoryImpl := security.NewImageScanResultRepositoryImpl(db, sugaredLogger)
+	imageScanObjectMetaRepositoryImpl := security.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
+	cveStoreRepositoryImpl := security.NewCveStoreRepositoryImpl(db, sugaredLogger)
+	imageScanDeployInfoRepositoryImpl := security.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
+	ciArtifactRepositoryImpl := repository2.NewCiArtifactRepositoryImpl(db, sugaredLogger)
+	pipelineOverrideRepositoryImpl := chartConfig.NewPipelineOverrideRepository(db)
+	cvePolicyRepositoryImpl := security.NewPolicyRepositoryImpl(db)
+	ciCdConfig, err := types.GetCiCdConfig()
+	if err != nil {
+		return nil, err
+	}
+	ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
+	policyServiceImpl := security2.NewPolicyServiceImpl(environmentServiceImpl, sugaredLogger, appRepositoryImpl, pipelineOverrideRepositoryImpl, cvePolicyRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, imageScanResultRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanObjectMetaRepositoryImpl, httpClient, ciArtifactRepositoryImpl, ciCdConfig, imageScanHistoryRepositoryImpl, cveStoreRepositoryImpl, ciTemplateRepositoryImpl)
+	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger)
+	scanToolMetadataRepositoryImpl := security.NewScanToolMetadataRepositoryImpl(db, sugaredLogger)
+	scanToolExecutionHistoryMappingRepositoryImpl := security.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
+	imageScanServiceImpl := security2.NewImageScanServiceImpl(sugaredLogger, imageScanHistoryRepositoryImpl, imageScanResultRepositoryImpl, imageScanObjectMetaRepositoryImpl, cveStoreRepositoryImpl, imageScanDeployInfoRepositoryImpl, userServiceImpl, teamRepositoryImpl, appRepositoryImpl, environmentServiceImpl, ciArtifactRepositoryImpl, policyServiceImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, scanToolMetadataRepositoryImpl, scanToolExecutionHistoryMappingRepositoryImpl)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sUtilExtended, helmAppServiceImpl, k8sResourceHistoryServiceImpl, clusterServiceImplExtended, argoApplicationServiceImpl, imageScanServiceImpl)
 	environmentRestHandlerImpl := cluster3.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enterpriseEnforcerImpl, deleteServiceExtendedImpl, k8sUtilExtended, k8sCommonServiceImpl)
 	environmentRouterImpl := cluster3.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	genericNoteRepositoryImpl := repository10.NewGenericNoteRepositoryImpl(db)
@@ -422,12 +440,7 @@ func InitializeApp() (*App, error) {
 	clusterRbacServiceImpl := cluster2.NewClusterRbacServiceImpl(environmentServiceImpl, enterpriseEnforcerImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl)
 	clusterRestHandlerImpl := cluster3.NewClusterRestHandlerImpl(clusterServiceImplExtended, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enterpriseEnforcerImpl, deleteServiceExtendedImpl, argoUserServiceImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster3.NewClusterRouterImpl(clusterRestHandlerImpl)
-	ciCdConfig, err := types.GetCiCdConfig()
-	if err != nil {
-		return nil, err
-	}
 	envConfigOverrideRepositoryImpl := chartConfig.NewEnvConfigOverrideRepository(db)
-	pipelineOverrideRepositoryImpl := chartConfig.NewPipelineOverrideRepository(db)
 	mergeUtil := &util.MergeUtil{
 		Logger: sugaredLogger,
 	}
@@ -436,7 +449,6 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	pubSubClientServiceImpl := pubsub_lib.NewPubSubClientServiceImpl(sugaredLogger)
-	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger)
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
 	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
 	moduleEnvConfig, err := module.ParseModuleEnvConfig()
@@ -452,13 +464,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	scanToolMetadataRepositoryImpl := security.NewScanToolMetadataRepositoryImpl(db, sugaredLogger)
 	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl, scanToolMetadataRepositoryImpl)
 	eventRESTClientImpl := client3.NewEventRESTClientImpl(sugaredLogger, httpClient, eventClientConfig, pubSubClientServiceImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, attributesRepositoryImpl, moduleServiceImpl)
 	cdWorkflowRepositoryImpl := pipelineConfig.NewCdWorkflowRepositoryImpl(db, sugaredLogger)
 	ciWorkflowRepositoryImpl := pipelineConfig.NewCiWorkflowRepositoryImpl(db, sugaredLogger)
 	ciPipelineMaterialRepositoryImpl := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(db, sugaredLogger)
-	ciArtifactRepositoryImpl := repository2.NewCiArtifactRepositoryImpl(db, sugaredLogger)
 	deploymentApprovalRepositoryImpl := pipelineConfig.NewDeploymentApprovalRepositoryImpl(db, sugaredLogger)
 	sesNotificationRepositoryImpl := repository2.NewSESNotificationRepositoryImpl(db)
 	smtpNotificationRepositoryImpl := repository2.NewSMTPNotificationRepositoryImpl(db)
@@ -550,7 +560,6 @@ func InitializeApp() (*App, error) {
 	pipelineStageServiceImpl := pipeline.NewPipelineStageService(sugaredLogger, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, pipelineRepositoryImpl, scopedVariableManagerImpl)
 	ciBuildConfigRepositoryImpl := pipelineConfig.NewCiBuildConfigRepositoryImpl(db, sugaredLogger)
 	ciBuildConfigServiceImpl := pipeline.NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
-	ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
 	ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
 	ciTemplateServiceImpl := pipeline.NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
@@ -674,13 +683,6 @@ func InitializeApp() (*App, error) {
 	appCloneServiceImpl := appClone.NewAppCloneServiceImpl(sugaredLogger, pipelineBuilderImpl, chartServiceImpl, configMapServiceImpl, appWorkflowServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, pipelineStageServiceImpl, ciTemplateServiceImpl, appRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, ciPipelineConfigServiceImpl, gitOpsConfigReadServiceImpl)
 	deploymentTemplateRepositoryImpl := repository2.NewDeploymentTemplateRepositoryImpl(db, sugaredLogger)
 	generateManifestDeploymentTemplateServiceImpl := generateManifest.NewDeploymentTemplateServiceImpl(sugaredLogger, chartServiceImpl, appListingServiceImpl, deploymentTemplateRepositoryImpl, helmAppServiceImpl, chartTemplateServiceImpl, helmAppClientImpl, k8sUtilExtended, propertiesConfigServiceImpl, deploymentTemplateHistoryServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, chartRefServiceImpl)
-	cvePolicyRepositoryImpl := security.NewPolicyRepositoryImpl(db)
-	imageScanResultRepositoryImpl := security.NewImageScanResultRepositoryImpl(db, sugaredLogger)
-	imageScanDeployInfoRepositoryImpl := security.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
-	imageScanObjectMetaRepositoryImpl := security.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
-	imageScanHistoryRepositoryImpl := security.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
-	cveStoreRepositoryImpl := security.NewCveStoreRepositoryImpl(db, sugaredLogger)
-	policyServiceImpl := security2.NewPolicyServiceImpl(environmentServiceImpl, sugaredLogger, appRepositoryImpl, pipelineOverrideRepositoryImpl, cvePolicyRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, imageScanResultRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanObjectMetaRepositoryImpl, httpClient, ciArtifactRepositoryImpl, ciCdConfig, imageScanHistoryRepositoryImpl, cveStoreRepositoryImpl, ciTemplateRepositoryImpl)
 	resourceProtectionRepositoryImpl := protect.NewResourceProtectionRepositoryImpl(sugaredLogger, db)
 	resourceProtectionServiceImpl := protect.NewResourceProtectionServiceImpl(sugaredLogger, resourceProtectionRepositoryImpl)
 	gitOpsManifestPushServiceImpl := app2.NewGitOpsManifestPushServiceImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, pipelineStatusTimelineRepositoryImpl, acdConfig, chartRefServiceImpl, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, argoClientWrapperServiceImpl)
@@ -812,8 +814,6 @@ func InitializeApp() (*App, error) {
 	batchOperationRouterImpl := router.NewBatchOperationRouterImpl(batchOperationRestHandlerImpl, sugaredLogger)
 	chartGroupRestHandlerImpl := chartGroup2.NewChartGroupRestHandlerImpl(chartGroupServiceImpl, sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, validate)
 	chartGroupRouterImpl := chartGroup2.NewChartGroupRouterImpl(chartGroupRestHandlerImpl)
-	scanToolExecutionHistoryMappingRepositoryImpl := security.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
-	imageScanServiceImpl := security2.NewImageScanServiceImpl(sugaredLogger, imageScanHistoryRepositoryImpl, imageScanResultRepositoryImpl, imageScanObjectMetaRepositoryImpl, cveStoreRepositoryImpl, imageScanDeployInfoRepositoryImpl, userServiceImpl, teamRepositoryImpl, appRepositoryImpl, environmentServiceImpl, ciArtifactRepositoryImpl, policyServiceImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, scanToolMetadataRepositoryImpl, scanToolExecutionHistoryMappingRepositoryImpl)
 	imageScanRestHandlerImpl := restHandler.NewImageScanRestHandlerImpl(sugaredLogger, imageScanServiceImpl, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, environmentServiceImpl)
 	imageScanRouterImpl := router.NewImageScanRouterImpl(imageScanRestHandlerImpl)
 	policyRestHandlerImpl := restHandler.NewPolicyRestHandlerImpl(sugaredLogger, policyServiceImpl, userServiceImpl, userAuthServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, environmentServiceImpl)

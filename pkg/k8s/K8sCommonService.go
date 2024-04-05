@@ -45,7 +45,7 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
-	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) error
+	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -710,44 +710,81 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 	return resourceTree
 }
 
-func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) error {
+func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error) {
 	resource, err := impl.GetResource(ctx, request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	manifestResponse := resource.ManifestResponse
 	images := extractImages(manifestResponse.Manifest)
+	scanResults, err := impl.imageScanService.FetchScanResultsForImages(images)
+	if err != nil {
+		return nil, err
+	}
+	return scanResults, nil
+}
 
+const Job = "Job"
+const Deployment = "Deployment"
+const StatefulSet = "StatefulSet"
+const DaemonSet = "DaemonSet"
+const ReplicaSet = "ReplicaSet"
+const Rollout = "Rollout"
+const ReplicationController = "ReplicationController"
+const Pod = "Pod"
+const CronJob = "CronJob"
+const Containers = "containers"
+const InitContainers = "initContainers"
+const EphemeralContainers = "ephemeralContainers"
+
+var commonContainerPath = []string{"spec", "template", "spec"}
+var cronJobContainerPath = []string{"spec", "jobTemplate", "spec", "spec"}
+var podContainerPath = []string{"spec"}
+
+var kindToPath = map[string][]string{
+	Deployment:            commonContainerPath,
+	Job:                   commonContainerPath,
+	StatefulSet:           commonContainerPath,
+	DaemonSet:             commonContainerPath,
+	ReplicaSet:            commonContainerPath,
+	Rollout:               commonContainerPath,
+	ReplicationController: commonContainerPath,
+	Pod:                   podContainerPath,
+	CronJob:               cronJobContainerPath,
+}
+
+func GetPath(item string, path []string) []string {
+	return append(path, item)
 }
 
 func extractImages(obj unstructured.Unstructured) []string {
 	images := make([]string, 0)
 
-	var containers, iContainers, ephContainers []interface{}
-
-	switch obj.GetKind() {
-	case "Deployment", "Job", "StatefulSet", "DaemonSet", "ReplicaSet", "Rollout", "ReplicationController":
-		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
-		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "initContainers")
-		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "ephemeralContainers")
-	case "Pod":
-		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "containers")
-		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "initContainers")
-		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "ephemeralContainers")
-	case "CronJob":
-		containers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "containers")
-		iContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "initContainers")
-		ephContainers, _, _ = unstructured.NestedSlice(obj.Object, "spec", "jobTemplate", "spec", "spec", "ephemeralContainers")
+	kind := obj.GetKind()
+	subPath, ok := kindToPath[kind]
+	if !ok {
+		return images
 	}
-
-	allContainers := append(append(containers, iContainers), ephContainers)
+	allContainers := make([]interface{}, 0)
+	containers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(Containers, subPath)...)
+	if len(containers) > 0 {
+		allContainers = append(allContainers, containers...)
+	}
+	iContainers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(InitContainers, subPath)...)
+	if len(iContainers) > 0 {
+		allContainers = append(allContainers, iContainers...)
+	}
+	ephContainers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(EphemeralContainers, subPath)...)
+	if len(ephContainers) > 0 {
+		allContainers = append(allContainers, ephContainers...)
+	}
 	for _, container := range allContainers {
 		containerMap := container.(map[string]interface{})
-		image, ok := containerMap["image"].(string)
-		if ok {
+		if image, ok := containerMap["image"].(string); ok {
 			images = append(images, image)
 		}
+
 	}
 	return images
 }
