@@ -817,32 +817,8 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
-		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.checkIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
-}
-
-// checkIfRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
-	monoRepoMigrationRequired := false
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
-		return false
-	}
-	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName, err = impl.getAcdAppGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
-		if err != nil || gitOpsRepoName == "" {
-			return false
-		}
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
-		monoRepoMigrationRequired = true
-	}
-	return monoRepoMigrationRequired
 }
 
 // getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
@@ -1086,7 +1062,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, envOverride.Chart.GitRepoUrl, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
 				ChartLocation:  envOverride.Chart.ChartLocation,
@@ -1098,6 +1074,9 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 			if err != nil {
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
+			}
+			if envOverride.Chart.GitRepoUrl != argoApplication.Spec.Source.RepoURL {
+				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
 		} else {
