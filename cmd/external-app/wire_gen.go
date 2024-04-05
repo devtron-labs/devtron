@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -178,7 +179,8 @@ func InitializeApp() (*App, error) {
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userGroupMapRepositoryImpl := repository2.NewUserGroupMapRepositoryImpl(db, sugaredLogger)
 	timeWindowRepositoryImpl := repository3.NewTimeWindowRepositoryImpl(db, sugaredLogger)
-	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl)
+	timeoutWindowResourceMappingRepositoryImpl := repository3.NewTimeoutWindowResourceMappingRepositoryImpl(db, sugaredLogger)
+	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl, timeoutWindowResourceMappingRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl, timeWindowServiceImpl)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
 	sshTunnelWrapperServiceImpl, err := k8s.NewSSHTunnelWrapperServiceImpl(sugaredLogger)
@@ -316,7 +318,8 @@ func InitializeApp() (*App, error) {
 	ephemeralContainersRepositoryImpl := repository4.NewEphemeralContainersRepositoryImpl(db)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sUtilExtended, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
-	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, argoApplicationServiceImpl)
+	deploymentWindowServiceImpl := deploymentWindow.NewDeploymentWindowServiceImplEA()
+	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, argoApplicationServiceImpl, deploymentWindowServiceImpl)
 	if err != nil {
 		return nil, err
 	}

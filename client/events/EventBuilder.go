@@ -20,6 +20,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"strings"
 	"time"
 
@@ -45,6 +47,7 @@ type EventFactory interface {
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
+	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
 }
 
 type EventSimpleFactoryImpl struct {
@@ -63,6 +66,7 @@ type EventSimpleFactoryImpl struct {
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
 	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
+	resourceFilterAuditService   resourceFilter.FilterEvaluationAuditService
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -72,6 +76,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 ) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
@@ -89,6 +94,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		appRepo:                      appRepo,
 		envRepository:                envRepository,
 		apiTokenServiceImpl:          apiTokenServiceImpl,
+		resourceFilterAuditService:   resourceFilterAuditService,
 	}
 
 }
@@ -178,7 +184,10 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
-
+	payload.TimeWindowComment = wfr.TriggerMetadata
+	if wfr != nil && wfr.CdWorkflow != nil && wfr.TriggerMetadata == "" {
+		payload.TimeWindowComment, _ = impl.getDeploymentWindowAuditMessage(wfr.CdWorkflow.CiArtifactId, wfr.Id)
+	}
 	payload.ApprovedByEmail = emailIDs
 	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
@@ -220,17 +229,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		}
 		event.Payload = payload
 	} else if event.PipelineId > 0 {
-		pipeline, err := impl.pipelineRepository.FindById(event.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipeline", pipeline)
-		}
-		if pipeline != nil {
-			material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, 0)
-			if err != nil {
-				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
-			}
-			payload.MaterialTriggerInfo = material
-		}
+		impl.setMaterialForPayload(event, payload, 0)
 		event.Payload = payload
 	}
 
@@ -241,6 +240,43 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
 		}
 		payload = event.Payload
+		payload.TriggeredBy = user.EmailId
+		event.Payload = payload
+	}
+	return event
+}
+
+func (impl *EventSimpleFactoryImpl) setMaterialForPayload(event Event, payload *Payload, artifactId int) {
+	pipeline, err := impl.pipelineRepository.FindById(event.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipeline", pipeline)
+	}
+	if pipeline != nil {
+		material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, artifactId)
+		if err != nil {
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
+		}
+		payload.MaterialTriggerInfo = material
+	}
+}
+
+func (impl *EventSimpleFactoryImpl) BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event {
+	event.CdWorkflowType = stage
+	payload := &Payload{}
+	event.Payload = payload
+	payload.Stage = string(stage)
+	payload.TimeWindowComment = timeWindowComment
+	if event.PipelineId > 0 {
+		impl.setMaterialForPayload(event, payload, artifact.Id)
+	}
+	if artifact != nil {
+		payload.DockerImageUrl = artifact.Image
+	}
+	if event.UserId > 0 {
+		user, err := impl.userRepository.GetById(int32(event.UserId))
+		if err != nil {
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
+		}
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}
@@ -582,4 +618,22 @@ func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SE
 		}
 	}
 	return defaultSesConfig, defaultSmtpConfig, nil
+}
+
+func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId int, wfrId int) (string, error) {
+
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.CdWorkflowRunner, wfrId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return "", err
+	}
+	if len(filters) != 1 {
+		return "", nil
+	}
+	filter := filters[0]
+
+	if filter == nil || len(filter.FilterHistoryObjects) == 0 {
+		return "", nil
+	}
+	auditData := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+	return auditData.TriggerMessage, nil
 }

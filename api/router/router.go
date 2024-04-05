@@ -49,6 +49,8 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
+	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -131,6 +133,8 @@ type MuxRouter struct {
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
+	commonPolicyRouter                 commonPolicyActions.CommonPolicyRouter
+	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -165,7 +169,10 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	proxyRouter proxy.ProxyRouter,
 	imageDigestPolicyRouter ImageDigestPolicyRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
-	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
+	argoApplicationRouter argoApplication.ArgoApplicationRouter,
+	deploymentWindowRouter deploymentWindow.DeploymentWindowRouter,
+	commonPolicyRouter commonPolicyActions.CommonPolicyRouter,
+) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -237,6 +244,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
+		deploymentWindowRouter:             deploymentWindowRouter,
+		commonPolicyRouter:                 commonPolicyRouter,
 	}
 	return r
 }
@@ -470,4 +479,11 @@ func (r MuxRouter) Init() {
 
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
+
+	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/global/policy").Subrouter()
+	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
+
+
+	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
+	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
 }

@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"sort"
@@ -40,14 +41,14 @@ import (
 )
 
 type AppArtifactManager interface {
-	//RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
+	// RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
 	RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
 	FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error)
 
-	//FetchArtifactForRollback :
+	// FetchArtifactForRollback :
 	FetchArtifactForRollback(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, pipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
 
 	FetchArtifactForRollbackV2(cdPipelineId, appId, offset, limit int, searchString string, app *bean2.CreateAppDTO, deploymentPipeline *pipelineConfig.Pipeline) (bean2.CiArtifactResponse, error)
@@ -68,6 +69,7 @@ type AppArtifactManagerImpl struct {
 	pipelineStageService            PipelineStageService
 	celService                      resourceFilter.CELEvaluatorService
 	resourceFilterService           resourceFilter.ResourceFilterService
+	resourceFilterAuditService      resourceFilter.FilterEvaluationAuditService
 	config                          *types.CdConfig
 	cdPipelineConfigService         CdPipelineConfigService
 	dockerArtifactRegistry          dockerArtifactStoreRegistry.DockerArtifactStoreRepository
@@ -86,6 +88,7 @@ func NewAppArtifactManagerImpl(
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
@@ -107,6 +110,7 @@ func NewAppArtifactManagerImpl(
 		ciWorkflowRepository:            ciWorkflowRepository,
 		celService:                      celService,
 		resourceFilterService:           resourceFilterService,
+		resourceFilterAuditService:      resourceFilterAuditService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		pipelineStageService:            pipelineStageService,
 		config:                          cdConfig,
@@ -126,14 +130,14 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForParentStage(cdPipelineId in
 	} else if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
 		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, searchString, limit)
 	} else {
-		//parent type is PRE, POST or DEPLOY type
+		// parent type is PRE, POST or DEPLOY type
 		ciArtifactsFinal, _, _, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, searchString, limit, parentCdId)
 	}
 	return ciArtifactsFinal, err
 }
 
 func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error) {
-	//getting running artifact id for parent cd
+	// getting running artifact id for parent cd
 	parentCdRunningArtifactId := 0
 	if parentCdId > 0 && parent {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, searchString, 1, nil)
@@ -143,7 +147,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 		}
 		parentCdRunningArtifactId = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
 	}
-	//getting wfr for parent and updating artifacts
+	// getting wfr for parent and updating artifacts
 	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(pipelineId, stageType, searchString, limit, nil)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", pipelineId)
@@ -161,7 +165,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 			latest := !parent && index == 0
 			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
 			if ciArtifactIndex, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
-				//entry not present, creating new entry
+				// entry not present, creating new entry
 				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
 				if err != nil {
 					mInfo = []byte("[]")
@@ -191,10 +195,10 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 					ciArtifact.RunningOnParentCd = runningOnParentCd
 				}
 				ciArtifacts = append(ciArtifacts, ciArtifact)
-				//storing index of ci artifact for using when updating old entry
+				// storing index of ci artifact for using when updating old entry
 				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1
 			} else {
-				//entry already present, updating running on parent
+				// entry already present, updating running on parent
 				if parent {
 					ciArtifacts[ciArtifactIndex].LastSuccessfulTriggerOnParent = lastSuccessfulTriggerOnParent
 				}
@@ -448,14 +452,14 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	var deployedCiArtifacts []bean2.CiArtifactBean
 	totalCount := 0
 
-	//1)get current deployed artifact on this pipeline
+	// 1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, "", 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", artifactListingFilterOpts.PipelineId, "currentStageType", artifactListingFilterOpts.StageType)
 		return deployedCiArtifacts, nil, totalCount, err
 	}
 	if len(latestWf) > 0 {
-		//we should never show current deployed artifact in rollback API
+		// we should never show current deployed artifact in rollback API
 		artifactListingFilterOpts.ExcludeWfrIds = []int{latestWf[0].Id}
 	}
 
@@ -570,7 +574,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		return nil, err
 	}
 
-	//sorting ci artifacts on the basis of creation time
+	// sorting ci artifacts on the basis of creation time
 	if ciArtifacts != nil {
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
@@ -717,7 +721,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 		}
 
 		if ciArtifacts != nil {
-			//set userApprovalMetaData starts
+			// set userApprovalMetaData starts
 			var artifactIds []int
 			for _, item := range ciArtifacts {
 				artifactIds = append(artifactIds, item.Id)
@@ -733,7 +737,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 					ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
 				}
 			}
-			//set userApprovalMetaData ends
+			// set userApprovalMetaData ends
 			ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
 			if err != nil {
 				impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
@@ -851,7 +855,7 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 		}
 		if pipelineStage != nil {
 			referenceId = pipelineStage.Id
-		} else { //this may happen if PRE-CD/POST-CD not yet migrated to pipeline_stage table
+		} else { // this may happen if PRE-CD/POST-CD not yet migrated to pipeline_stage table
 			if stageType == repository2.PIPELINE_STAGE_TYPE_PRE_CD {
 				referenceType = resourceFilter.PrePipelineStageYaml
 			} else if stageType == repository2.PIPELINE_STAGE_TYPE_POST_CD {
@@ -861,13 +865,13 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 	}
 	artifactIds := make([]int, 0, len(ciArtifactBeans))
 	for _, ciArtifactBean := range ciArtifactBeans {
-		//we only want to get evaluated filters for un deployed artifacts
+		// we only want to get evaluated filters for un deployed artifacts
 		if !ciArtifactBean.Deployed {
 			artifactIds = append(artifactIds, ciArtifactBean.Id)
 		}
 	}
 	if len(artifactIds) > 0 {
-		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
+		appliedFilterStateMap, appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, artifactIds, referenceId, referenceType)
 		if err != nil {
 			// not returning error by choice
 			impl.logger.Errorw("error in fetching applied filters when this image was born", "stageType", stage, "pipelineId", pipelineId, "err", err)
@@ -876,10 +880,43 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 		for i, ciArtifactBean := range ciArtifactBeans {
 			ciArtifactBeans[i].AppliedFilters = appliedFiltersMap[ciArtifactBean.Id]
 			ciArtifactBeans[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[ciArtifactBean.Id]
-			ciArtifactBeans[i].AppliedFiltersState = resourceFilter.BLOCK
+			ciArtifactBeans[i].AppliedFiltersState = appliedFilterStateMap[ciArtifactBean.Id]
 		}
 	}
 	return ciArtifactBeans
+}
+
+func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int, stage bean.WorkflowType) (map[int]deploymentWindow.DeploymentWindowAuditData, error) {
+
+	referenceType := getResourceTypeForWorkflowType(stage)
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, pipelineId, resourceFilter.Artifact, artifactIds, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return nil, err
+	}
+	dataMap := make(map[int]deploymentWindow.DeploymentWindowAuditData)
+	for _, filter := range filters {
+		if !(filter == nil || len(filter.FilterHistoryObjects) == 0) {
+			data := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+			if data.TriggerType != "AUTO" {
+				continue
+			}
+			dataMap[filter.SubjectId] = data
+		}
+	}
+	return dataMap, nil
+}
+
+func getResourceTypeForWorkflowType(stage bean.WorkflowType) resourceFilter.ReferenceType {
+	var referenceType resourceFilter.ReferenceType
+	switch stage {
+	case bean.CD_WORKFLOW_TYPE_PRE:
+		referenceType = resourceFilter.PreDeploy
+	case bean.CD_WORKFLOW_TYPE_POST:
+		referenceType = resourceFilter.PostDeploy
+	case bean.CD_WORKFLOW_TYPE_DEPLOY:
+		referenceType = resourceFilter.Deploy
+	}
+	return referenceType
 }
 
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
@@ -933,16 +970,24 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	}
 	ciArtifactsResponse.ResourceFilters = filters
 
-	//sorting ci artifacts on the basis of creation time
+	// sorting ci artifacts on the basis of creation time
 	if ciArtifacts != nil {
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
+
 		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 			return ciArtifactsResponse, err
 		}
+
+		ciArtifacts, err = impl.setDeploymentWindowMetadata(ciArtifacts, stage, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+
 		ciArtifacts, err = impl.setGitTriggerData(ciArtifacts)
 		if err != nil {
 			impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
@@ -963,6 +1008,28 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	ciArtifactsResponse.TotalCount = totalCount
 	ciArtifactsResponse.CanApproverDeploy = impl.config.CanApproverDeploy
 	return ciArtifactsResponse, nil
+}
+
+func (impl *AppArtifactManagerImpl) setDeploymentWindowMetadata(ciArtifacts []bean2.CiArtifactBean, stage bean.WorkflowType, pipeline *pipelineConfig.Pipeline) ([]bean2.CiArtifactBean, error) {
+
+	artifactIds := make([]int, 0, len(ciArtifacts))
+	for _, artifact := range ciArtifacts {
+		artifactIds = append(artifactIds, artifact.Id)
+	}
+
+	deploymentWindowDataMap, err := impl.getDeploymentWindowAuditData(artifactIds, pipeline.Id, stage)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment window audit data for artifacts", "err", err, "artifacts", artifactIds, "pipelineId", pipeline.Id)
+		return ciArtifacts, err
+	}
+
+	for i, _ := range ciArtifacts {
+		if data, ok := deploymentWindowDataMap[ciArtifacts[i].Id]; ok {
+			ciArtifacts[i].DeploymentWindowArtifactMetadata = data
+			ciArtifacts[i].AppliedFiltersTimestamp = data.TriggeredAt
+		}
+	}
+	return ciArtifacts, nil
 }
 
 func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, pipeline *pipelineConfig.Pipeline) ([]bean2.CiArtifactBean, error) {
@@ -1002,7 +1069,7 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
 		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
-			//need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+			// need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
 			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
@@ -1039,7 +1106,7 @@ func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArti
 			// if external webhook continue
 			continue
 		}
-		//linked ci case
+		// linked ci case
 		if artifact.ParentCiArtifact != 0 {
 			artifactsWithParentIndexes = append(artifactsWithParentIndexes, i)
 			parentArtifactIds = append(parentArtifactIds, artifact.ParentCiArtifact)
@@ -1092,7 +1159,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	var ciArtifacts []*bean2.CiArtifactBean
 	totalCount := 0
-	//1)get current deployed artifact on this pipeline
+	// 1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, "", 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", listingFilterOpts.PipelineId, "currentStageType", listingFilterOpts.StageType, "err", err)
@@ -1103,7 +1170,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	currentRunningArtifactId := 0
 	currentRunningWorkflowStatus := ""
 
-	//no artifacts deployed on this pipeline yet
+	// no artifacts deployed on this pipeline yet
 	if len(latestWf) > 0 {
 
 		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
@@ -1112,7 +1179,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 		currentRunningArtifactId = currentRunningArtifact.Id
 		currentRunningWorkflowStatus = latestWf[0].Status
-		//current deployed artifact should always be computed, as we have to show it every time
+		// current deployed artifact should always be computed, as we have to show it every time
 		mInfo, err := parseMaterialInfo([]byte(currentRunningArtifact.MaterialInfo), currentRunningArtifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
@@ -1138,10 +1205,10 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			currentRunningArtifactBean.CiWorkflowId = *currentRunningArtifact.WorkflowId
 		}
 	}
-	//2) get artifact list limited by filterOptions
+	// 2) get artifact list limited by filterOptions
 
-	//if approval configured and request is for deploy stage, fetch approved images only
-	if listingFilterOpts.ApprovalNodeConfigured && listingFilterOpts.StageType == bean.CD_WORKFLOW_TYPE_DEPLOY && !isApprovalNode { //currently approval node is configured for this deploy stage
+	// if approval configured and request is for deploy stage, fetch approved images only
+	if listingFilterOpts.ApprovalNodeConfigured && listingFilterOpts.StageType == bean.CD_WORKFLOW_TYPE_DEPLOY && !isApprovalNode { // currently approval node is configured for this deploy stage
 		ciArtifacts, totalCount, err = impl.fetchApprovedArtifacts(listingFilterOpts, currentRunningArtifactBean)
 		if err != nil {
 			impl.logger.Errorw("error in fetching approved artifacts for cd pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)
@@ -1151,7 +1218,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	} else {
 
-		//if parent pipeline is CI/WEBHOOK, get all the ciArtifacts limited by listingFilterOpts
+		// if parent pipeline is CI/WEBHOOK, get all the ciArtifacts limited by listingFilterOpts
 		if listingFilterOpts.ParentStageType == bean.CI_WORKFLOW_TYPE || listingFilterOpts.ParentStageType == bean.WEBHOOK_WORKFLOW_TYPE {
 			ciArtifacts, totalCount, err = impl.buildArtifactsForCIParentV2(listingFilterOpts, isApprovalNode)
 			if err != nil {
@@ -1164,7 +1231,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			} else if listingFilterOpts.ParentStageType == pipelineBean.WorkflowTypePost {
 				listingFilterOpts.PluginStage = repository.POST_CD
 			}
-			//if parent pipeline is PRE_CD/POST_CD/CD, then compute ciArtifacts using listingFilterOpts
+			// if parent pipeline is PRE_CD/POST_CD/CD, then compute ciArtifacts using listingFilterOpts
 			ciArtifacts, totalCount, err = impl.buildArtifactsForCdStageV2(listingFilterOpts, isApprovalNode)
 			if err != nil {
 				impl.logger.Errorw("error in getting ci artifacts for ci/webhook type parent", "pipelineId", listingFilterOpts.PipelineId, "parentPipelineId", listingFilterOpts.ParentId, "parentStageType", listingFilterOpts.ParentStageType, "currentStageType", listingFilterOpts.StageType, "err", err)
@@ -1198,8 +1265,8 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	}
 
-	//we don't need currently deployed artifact for approvalNode explicitly
-	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
+	// we don't need currently deployed artifact for approvalNode explicitly
+	// if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
 	if !isApprovalNode && currentRunningArtifactBean != nil {
 		// listingFilterOpts.SearchString is always like %?%
 		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
@@ -1221,10 +1288,10 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 	}
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdArtifacts))
 
-	//get artifact running on parent cd
+	// get artifact running on parent cd
 	artifactRunningOnParentCd := 0
 	if listingFilterOpts.ParentCdId > 0 {
-		//TODO: check if we can fetch LastSuccessfulTriggerOnParent wfr along with last running wf
+		// TODO: check if we can fetch LastSuccessfulTriggerOnParent wfr along with last running wf
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, "", 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
@@ -1247,7 +1314,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 			Image:        artifact.Image,
 			ImageDigest:  artifact.ImageDigest,
 			MaterialInfo: mInfo,
-			//TODO:LastSuccessfulTriggerOnParent
+			// TODO:LastSuccessfulTriggerOnParent
 			Scanned:                artifact.Scanned,
 			ScanEnabled:            artifact.ScanEnabled,
 			RunningOnParentCd:      artifact.Id == artifactRunningOnParentCd,
@@ -1319,8 +1386,8 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	}
 	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
 
-	//get approval metadata for above ciArtifacts and current running artifact
-	//TODO Gireesh: init array with default size and using append is not optimized
+	// get approval metadata for above ciArtifacts and current running artifact
+	// TODO Gireesh: init array with default size and using append is not optimized
 	artifactIds := make([]int, 0, len(artifacts)+1)
 	for _, item := range artifacts {
 		artifactIds = append(artifactIds, item.Id)
@@ -1336,7 +1403,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 		return ciArtifacts, totalCount, err
 	}
 
-	//TODO Gireesh: this needs refactoring
+	// TODO Gireesh: this needs refactoring
 	for _, artifact := range artifacts {
 		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
 		if err != nil {
@@ -1393,7 +1460,7 @@ func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository
 	filterState, _, err := impl.resourceFilterService.CheckForResource(filters, image, releaseTags)
 	if err != nil {
 		impl.logger.Errorw("error in evaluating filters for the artifacts", "image", image, "releaseTags", releaseTags)
-		//not returning error by choice
+		// not returning error by choice
 	}
 	return filterState
 }

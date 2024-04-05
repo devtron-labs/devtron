@@ -75,6 +75,7 @@ type ValuesOverrideRequest struct {
 	ProjectId                             int                         `json:"-"`
 	IsProdEnv                             bool                        `json:"-"`
 	Image                                 string                      `json:"-"`
+	TriggerMetadata                       string                      `json:"-"`
 }
 
 type BulkCdDeployEvent struct {

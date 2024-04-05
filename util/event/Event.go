@@ -25,6 +25,7 @@ const (
 	Fail
 	Approval
 	ConfigApproval
+	Blocked
 )
 
 type PipelineType string
