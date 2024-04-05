@@ -744,7 +744,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	} else if util.IsHelmApp(upgradeAppRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionHistorySucceeded(upgradeAppRequest.InstalledAppVersionHistoryId, upgradeAppRequest.DeploymentAppType)
+		err = impl.appStoreDeploymentDBService.MarkHelmInstalledAppDeploymentSucceeded(upgradeAppRequest.InstalledAppVersionHistoryId)
 		if err != nil {
 			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 			return nil, err
@@ -760,8 +760,8 @@ func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionReq
 		impl.logger.Errorw("error while installing app via helm", "error", err)
 		return installAppVersionRequest, err
 	}
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionHistorySucceeded(installAppVersionRequest.InstalledAppVersionHistoryId, installAppVersionRequest.DeploymentAppType)
+	if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
+		err = impl.appStoreDeploymentDBService.MarkHelmInstalledAppDeploymentSucceeded(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if err != nil {
 			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 			return installAppVersionRequest, err
