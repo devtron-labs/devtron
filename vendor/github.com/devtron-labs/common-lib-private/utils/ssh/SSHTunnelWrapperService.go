@@ -145,6 +145,10 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 	return portUsed, nil
 }
 
+func hasScheme(url string) bool {
+	return len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")
+}
+
 func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(registry *bean.RegistryConfig) (int, error) {
 	portUsed := 0
 	availablePort, err := impl.getAvailablePort()
@@ -159,8 +163,13 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(regist
 	} else {
 		portUsed = availablePort
 	}
-	// our server url is actually the remote we are trying to connect, splitting it to get host and port
-	remoteAddress, remotePort, err := impl.extractHostAndPostFromUrl(registry.RegistryUrl)
+
+	// our registry url is actually the remote we are trying to connect, splitting it to get host and port
+	registryUrl := registry.RegistryUrl
+	if hasScheme(registry.RegistryUrl) {
+		registryUrl = fmt.Sprintf("https://%s", registry.RegistryUrl)
+	}
+	remoteAddress, remotePort, err := impl.extractHostAndPostFromUrl(registryUrl)
 	if err != nil {
 		impl.logger.Errorw("error in extracting host and port from registry host address", "err", err)
 		return portUsed, err
