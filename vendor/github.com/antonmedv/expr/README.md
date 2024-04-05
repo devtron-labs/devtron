@@ -1,9 +1,9 @@
 # Expr 
-[![Build Status](https://travis-ci.org/antonmedv/expr.svg?branch=master)](https://travis-ci.org/antonmedv/expr) 
+[![test](https://github.com/antonmedv/expr/actions/workflows/test.yml/badge.svg)](https://github.com/antonmedv/expr/actions/workflows/test.yml) 
 [![Go Report Card](https://goreportcard.com/badge/github.com/antonmedv/expr)](https://goreportcard.com/report/github.com/antonmedv/expr) 
 [![GoDoc](https://godoc.org/github.com/antonmedv/expr?status.svg)](https://godoc.org/github.com/antonmedv/expr)
 
-<img src="docs/images/logo-small.png" width="150" alt="expr logo" align="right">
+<img src="https://expr.medv.io/img/logo-small.png" width="150" alt="expr logo" align="right"/>
 
 **Expr** package provides an engine that can compile and evaluate expressions. 
 An expression is a one-liner that returns a value (mostly, but not limited to, booleans).
@@ -50,13 +50,13 @@ go get github.com/antonmedv/expr
 
 ## Documentation
 
-* See [Getting Started](docs/Getting-Started.md) page for developer documentation.
-* See [Language Definition](docs/Language-Definition.md) page to learn the syntax.
+* See [Getting Started](https://expr.medv.io/docs/Getting-Started) page for developer documentation.
+* See [Language Definition](https://expr.medv.io/docs/Language-Definition) page to learn the syntax.
 
 ## Expr Code Editor
 
-<a href="http://bit.ly/expr-code-editor">
-	<img src="https://antonmedv.github.io/expr/ogimage.png" align="center" alt="Expr Code Editor" width="1200">
+<a href="https://bit.ly/expr-code-editor">
+  <img src="https://antonmedv.github.io/expr/ogimage.png" align="center" alt="Expr Code Editor" width="1200"/>
 </a>
 
 Also, I have an embeddable code editor written in JavaScript which allows editing expressions with syntax highlighting and autocomplete based on your types declaration.
@@ -136,28 +136,25 @@ func main() {
 }
 ```
 
-## Contributing
+## Who uses Expr?
 
-**Expr** consist of a few packages for parsing source code to AST, type checking AST, compiling to bytecode and VM for running bytecode program.
-
-Also expr provides powerful tool [exe](cmd/exe) for debugging. It has interactive terminal debugger for our bytecode virtual machine.
-
-<p align="center">
-    <img src="docs/images/debug.gif" alt="debugger" width="605">
-</p>
-    
-
-## Who is using Expr?
-
-* <a href="https://aviasales.ru"><img alt="Aviasales" height="18" src="https://cdn.worldvectorlogo.com/logos/aviasales-4.svg"></a> [Aviasales](https://aviasales.ru) are actively using Expr for different parts of the search engine.
-* <a href="https://argoproj.github.io/argo-rollouts/"><img alt="Argo" height="18" src="https://argoproj.github.io/argo-rollouts/assets/logo.png"></a> [Argo Rollouts](https://argoproj.github.io/argo-rollouts/) - Progressive Delivery for Kubernetes.
-* <a href="https://argoproj.github.io/argo/"><img alt="Argo" height="18" src="https://argoproj.github.io/argo/assets/logo.png"></a> [Argo Workflows](https://argoproj.github.io/argo/) - The workflow engine for KubernetesOverview.
-* <a href="https://crowdsec.net"><img alt="CrowdSec" height="18" src="https://crowdsec.net/wp-content/uploads/thegem-logos/logo_8b2bcaf21851f390f18ea9600e6a9fa3_1x.png"></a> [Crowdsec](https://crowdsec.net/) - A security automation tool.
-* [Mystery Minds](https://www.mysteryminds.com/en/) uses Expr to allow easy yet powerful customization of its matching algorithm.
-* <a href="https://www.qiniu.com/"><img height="18" src="https://www.qiniu.com/assets/img-horizontal-white-en-572b4c91fddcae4c9cf38ba89c9477397a2e1ffb74ec1c8f43e73cdfb860bbc6.png"></a> [qiniu](https://www.qiniu.com/) qiniu cloud use Expr in trade systems.
+* [Aviasales](https://aviasales.ru) uses Expr as a business rule engine for our flight search engine.
+* [Wish.com](https://www.wish.com) uses Expr for decision-making rule engine in the Wish Assistant.
+* [Argo](https://argoproj.github.io) uses Expr in Argo Rollouts and Argo Workflows for Kubernetes.
+* [Crowdsec](https://crowdsec.net) uses Expr in a security automation tool.
+* [FACEIT](https://www.faceit.com) uses Expr to allow customization of its eSports matchmaking algorithm.
+* [qiniu](https://www.qiniu.com) uses Expr in trade systems.
+* [Junglee Games](https://www.jungleegames.com/) uses Expr for an in house marketing retention tool [Project Audience](https://www.linkedin.com/pulse/meet-project-audience-our-no-code-swiss-army-knife-product-bharti).
+* [OpenTelemetry](https://opentelemetry.io) uses Expr in the OpenTelemetry Collector.
+* [Philips Labs](https://github.com/philips-labs/tabia) uses Expr in Tabia, a tool for collecting insights on the characteristics of our code bases.
+* [CoreDNS](https://coredns.io) uses Expr in CoreDNS, a DNS server.
+* [Chaos Mesh](https://chaos-mesh.org) uses Expr in Chaos Mesh, a cloud-native Chaos Engineering platform.
+* [Milvus](https://milvus.io) uses Expr in Milvus, an open-source vector database.
+* [Visually.io](https://visually.io) uses Expr as a business rule engine for our personalization targeting algorithm.
+* [Akvorado](https://github.com/akvorado/akvorado) uses Expr to classify exporters and interfaces in network flows.
 
 [Add your company too](https://github.com/antonmedv/expr/edit/master/README.md)
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/antonmedv/expr/blob/master/LICENSE)
