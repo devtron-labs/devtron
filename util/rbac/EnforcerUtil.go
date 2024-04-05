@@ -425,7 +425,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		}
 	}
 	if environmentIdentifier2 == "" {
-		return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName), ""
+		return strings.ToLower(fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName)), ""
 	}
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
