@@ -583,7 +583,7 @@ func getAppInstallationMode(appOfferingMode string) string {
 }
 
 func (impl *AppStoreDeploymentDBServiceImpl) validateGitOpsRequest(allowCustomRepository bool, gitOpsRepoURL string) (err error) {
-	if allowCustomRepository && (len(gitOpsRepoURL) != 0 && gitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT) {
+	if !allowCustomRepository && (len(gitOpsRepoURL) != 0 && gitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT) {
 		impl.logger.Errorw("invalid installRequest", "error", "custom repo url is not valid, as the global configuration is updated")
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusConflict,
