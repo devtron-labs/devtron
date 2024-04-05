@@ -887,28 +887,50 @@ func ConvertToCore(uns unstructured.UnstructuredList) runtime.Object {
 
 }
 
+//	convertToCoreList function takes in three parameters:
+//
+// - uns: an unstructured.UnstructuredList containing a list of unstructured objects
+// - itemPtr: a pointer to an instance of a structured object representing an item in the list
+// - listPtr: a pointer to an instance of a structured object representing the list
+// The function returns a runtime.Object, which represents the structured list.
 func convertToCoreList(uns unstructured.UnstructuredList, itemPtr, listPtr interface{}) runtime.Object {
+	// Create a new slice to hold the items, based on the type of itemPtr
 	items := reflect.New(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem())).Interface()
+
+	// Iterate through each item in the unstructured list
 	for _, item := range uns.Items {
+		// Create a new instance of the structured item
 		obj := reflect.New(reflect.TypeOf(itemPtr).Elem()).Interface()
+
+		// Convert the unstructured item to the structured item
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), obj); err != nil {
 			fmt.Println("Error converting item:", err)
 			continue
 		}
+
+		// Append the converted item to the items slice
 		reflect.ValueOf(items).Elem().Set(reflect.Append(reflect.ValueOf(items).Elem(), reflect.ValueOf(obj).Elem()))
 	}
 
+	// Create a new instance of the structured list
 	list := reflect.New(reflect.TypeOf(listPtr).Elem()).Interface()
+
+	// Get the value of the list instance
 	listValue := reflect.ValueOf(list).Elem()
+
+	// Set the TypeMeta field of the list with the metadata from the unstructured list
 	listValue.FieldByName("TypeMeta").Set(reflect.ValueOf(metav1.TypeMeta{
 		Kind:       uns.GetKind(),
 		APIVersion: uns.GetAPIVersion(),
 	}))
-	// Initialize the Items field as a slice
+
+	// Initialize the Items field of the list as an empty slice
 	listValue.FieldByName("Items").Set(reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem()), 0, 0))
-	// Set the Items field with the items slice
+
+	// Set the Items field of the list with the converted items slice
 	listValue.FieldByName("Items").Set(reflect.ValueOf(items).Elem())
 
+	// Return the list as a runtime.Object
 	return list.(runtime.Object)
 }
 
