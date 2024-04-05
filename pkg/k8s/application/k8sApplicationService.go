@@ -716,7 +716,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		filteredResources.SetKind(resources.GetKind())
 		filteredResources.SetAPIVersion(resources.GetAPIVersion())
 		resources = filteredResources
-		lst := ConvertToCore(resources)
+		lst := convertToCore(resources)
 		p := printers.NewTableGenerator()
 		util4.AddHandlers(p)
 		//objk := resource.GetObjectKind()
@@ -774,7 +774,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	return resourceList, nil
 }
 
-func ConvertToCore(uns unstructured.UnstructuredList) runtime.Object {
+func convertToCore(uns unstructured.UnstructuredList) runtime.Object {
 	kind := uns.GetObjectKind().GroupVersionKind().Kind
 
 	switch kind {
