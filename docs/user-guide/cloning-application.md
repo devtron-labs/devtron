@@ -21,3 +21,7 @@ Now click on `Clone App` to clone the selected application.
 
 New application with a duplicate template is created.
 
+{% hint style="warning" %}
+In case the application you are cloning had a [GitOps Configuration](./creating-application/gitops-config.md), it won't be copied to your cloned application.
+{% endhint %}
+
