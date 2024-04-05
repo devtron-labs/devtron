@@ -49,8 +49,8 @@ type AppStoreDeploymentDBService interface {
 	MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, UserId int32, tx *pg.Tx) error
 	// MarkInstalledAppVersionModelInActive will mark the given repository.InstalledAppVersions inactive
 	MarkInstalledAppVersionModelInActive(installedAppVersionModel *repository.InstalledAppVersions, UserId int32, tx *pg.Tx) error
-	// MarkInstalledAppVersionHistorySucceeded will mark the repository.InstalledAppVersionHistory Status - Succeeded
-	MarkInstalledAppVersionHistorySucceeded(versionHistoryId int, deploymentAppType string) error
+	// MarkHelmInstalledAppDeploymentSucceeded will mark the helm installed repository.InstalledAppVersionHistory Status - Succeeded
+	MarkHelmInstalledAppDeploymentSucceeded(versionHistoryId int) error
 	// UpdateInstalledAppVersionHistoryStatus will update the Status in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryStatus(versionHistoryId int, status string) error
 }
@@ -354,16 +354,25 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName str
 }
 
 func (impl *AppStoreDeploymentDBServiceImpl) InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	//step 4 db operation status update to deploy success
+	// step 1  update installed_apps.status to deploy success
 	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return err
 	}
 
-	//step 5 create build history first entry for install app version for argocd or helm type deployments
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.MarkInstalledAppVersionHistorySucceeded(installAppVersionRequest.InstalledAppVersionHistoryId, installAppVersionRequest.DeploymentAppType)
+	// step 2 mark deployment succeeded for manifest download type helm charts
+	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded)
+		if err != nil {
+			impl.logger.Errorw("error on updating deployment status to history for chart store deployment", "versionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "error", err)
+			return err
+		}
+	}
+
+	// step 3 mark deployment succeeded for helm installed helm charts
+	if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
+		err = impl.MarkHelmInstalledAppDeploymentSucceeded(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if err != nil {
 			impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
 			return err
@@ -427,39 +436,29 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistorySta
 	return nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) MarkInstalledAppVersionHistorySucceeded(versionHistoryId int, deploymentAppType string) error {
-	if util.IsManifestDownload(deploymentAppType) {
-		err := impl.UpdateInstalledAppVersionHistoryStatus(versionHistoryId, pipelineConfig.WorkflowSucceeded)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return err
-		}
+func (impl *AppStoreDeploymentDBServiceImpl) MarkHelmInstalledAppDeploymentSucceeded(versionHistoryId int) error {
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(versionHistoryId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+		return err
 	}
-
-	if util.IsHelmApp(deploymentAppType) {
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(versionHistoryId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return err
-		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
-			InstallAppVersionHistoryId: installedAppVersionHistory.Id,
-			Message:                    "Release Installed",
-			IsReleaseInstalled:         true,
-			ErrorInInstallation:        false,
-		}
-		data, err := json.Marshal(helmInstallStatus)
-		if err != nil {
-			impl.logger.Errorw("error in marshalling helmInstallStatus message")
-			return err
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = string(data)
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return err
-		}
+	installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+	helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
+		InstallAppVersionHistoryId: installedAppVersionHistory.Id,
+		Message:                    "Release Installed",
+		IsReleaseInstalled:         true,
+		ErrorInInstallation:        false,
+	}
+	data, err := json.Marshal(helmInstallStatus)
+	if err != nil {
+		impl.logger.Errorw("error in marshalling helmInstallStatus message")
+		return err
+	}
+	installedAppVersionHistory.HelmReleaseStatusConfig = string(data)
+	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+	if err != nil {
+		impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
+		return err
 	}
 	return nil
 }
