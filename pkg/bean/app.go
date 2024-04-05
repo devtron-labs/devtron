@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -838,6 +839,8 @@ type CiArtifactBean struct {
 	CiPipelineId            int                                  `json:"-"`
 	CredentialsSourceType   string                               `json:"-"`
 	CredentialsSourceValue  string                               `json:"-"`
+
+	DeploymentWindowArtifactMetadata deploymentWindow.DeploymentWindowAuditData `json:"deploymentWindowArtifactMetadata"`
 }
 
 type CiArtifactResponse struct {
