@@ -362,6 +362,7 @@ message RegistryCredential {
   bool IsPublic = 9;
   RemoteConnectionConfig RemoteConnectionConfig = 10;
   string Connection = 11;
+  string RegistryName = 12;
 }
 
 
