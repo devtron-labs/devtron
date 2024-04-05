@@ -113,6 +113,7 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerConfig     *EphemeralContainerConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 	celEvaluatorService          resourceFilter.CELEvaluatorService
+	printers                     *printers.HumanReadableGenerator
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
@@ -127,6 +128,8 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		Logger.Errorw("error in parsing EphemeralContainerConfig from env", "err", err)
 		return nil, err
 	}
+	printers := printers.NewTableGenerator()
+	util4.AddHandlers(printers)
 	return &K8sApplicationServiceImpl{
 		logger:                       Logger,
 		clusterService:               clusterService,
@@ -142,6 +145,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerConfig:     ephemeralContainerConfig,
 		argoApplicationService:       argoApplicationService,
 		celEvaluatorService:          celEvaluatorService,
+		printers:                     printers,
 	}, nil
 }
 
@@ -720,8 +724,6 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		filteredResources.SetAPIVersion(resources.GetAPIVersion())
 		resources = filteredResources
 		lst := convertToCore(resources)
-		p := printers.NewTableGenerator()
-		util4.AddHandlers(p)
 		t := &metav1.Table{}
 		if lst == nil {
 			t, err = convertUnstructuredToTable(resources)
@@ -729,7 +731,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 				fmt.Println("error")
 			}
 		} else {
-			t, err = p.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
+			t, err = impl.printers.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
 			if err != nil {
 				fmt.Println("error")
 			}
