@@ -1,0 +1,147 @@
+SCHEMA -
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release Schema",
+  "type": "object",
+  "properties":
+  {
+    "version":
+    {
+      "type": "string"
+    },
+    "kind":
+    {
+      "type": "string"
+    },
+    "overview":
+    {
+      "type": "object",
+      "properties":
+      {
+        "id":
+        {
+          "type": "number"
+        },
+        "releaseVersion":
+        {
+          "type": "string",
+        },
+        "name":
+        {
+          "type": "string"
+        },
+        "icon":
+        {
+          "type": "string",
+          "contentEncoding": "base64"
+        },
+        "releaseNote":
+        {
+          "type":"string"
+        },
+        "description":
+        {
+          "type": "string"
+        },
+        "createdOn":
+        {
+          "type": "string"
+        },
+        "createdBy":
+        {
+          "type": "object",
+          "refType": "#/references/users"
+        },
+        "tags":
+        {
+          "additionalProperties":
+          {
+            "type": "string"
+          }
+        },
+        "metadata":
+        {}
+      },
+      "required":
+      [
+        "id",
+        "releaseVersion",
+        "metadata"
+      ]
+    },
+    "dependencies":
+    {
+      "type": "array"
+    }
+  },
+  "required":
+  [
+    "version",
+    "kind",
+    "overview"
+  ]
+}
+
+OBJECT -
+
+{
+  "kind": "release",
+  "version": "v1",
+  "overview":
+  {
+    "id": 17,
+    "releaseVersion": "v1.10.9",
+    "metadata":
+    {}
+  },
+  "dependencies":
+  [   {
+    "name": "orchestrator-enterprise",
+    "index": 1,
+    "dependentOnIndex": 0,
+    "typeOfDependency": "stage", //for categorisation
+  },
+    {
+      "id": 7,
+      "name": "orchestrator-enterprise", //app. Cd pipelines or
+      "index": 0,
+      "dependentOnIndex": 0,
+      "typeOfDependency": "upstream",
+      "devtronResourceId": 2,
+      "dependentOnParentIndex": 0,
+      "devtronResourceSchemaId": 1,
+      "childInheritance" : [
+        {
+          "type" : "cd",  //to be replaced by resource Id
+          "selector" : ["*"],
+        }
+      ],
+      "config" : {
+        "image": "",
+        "commitSource": {}
+      }
+    },
+    {
+      "id": 11,
+      "name": "kubelink-enterprise", //app
+      "index": 1,
+      "dependentOnIndex": 0,
+      "typeOfDependency": "upstream",
+      "devtronResourceId": 2,
+      "dependentOnParentIndex": 0,
+      "devtronResourceSchemaId": 1,
+      "childInheritance" : [
+        {
+          "type" : "cd",  //to be replaced by resource Id
+          "selector" : ["cd1","cd2"],
+        }
+      ],
+      "config" : {
+        "image": "",
+        "commitSource": {}
+      }
+    }
+  ]
+}
+
