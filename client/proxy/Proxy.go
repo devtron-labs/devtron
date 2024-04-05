@@ -17,13 +17,13 @@ const Dashboard = "dashboard"
 const Proxy = "proxy"
 
 func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func(writer http.ResponseWriter, request *http.Request) {
-	proxy := GetProxyServer(serverAddr, transport, Dashboard, "")
+	proxy := GetProxyServer(serverAddr, transport, Dashboard, "", NewNoopActivityLogger())
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
 	}
 }
 
-func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string) *httputil.ReverseProxy {
+func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger) *httputil.ReverseProxy {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -36,9 +36,20 @@ func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclud
 		request.URL.Scheme = target.Scheme
 		request.URL.Path = rewriteRequestUrl(basePathToInclude, path, pathToExclude)
 		fmt.Printf("%s\n", request.URL.Path)
+		activityLogger.LogActivity()
 	}
 	return proxy
 }
+
+type RequestActivityLogger interface {
+	LogActivity()
+}
+
+func NewNoopActivityLogger() RequestActivityLogger { return NoopActivityLogger{} }
+
+type NoopActivityLogger struct{}
+
+func (logger NoopActivityLogger) LogActivity() {}
 
 func rewriteRequestUrl(basePathToInclude string, path string, pathToExclude string) string {
 	parts := strings.Split(path, "/")
@@ -69,7 +80,7 @@ func NewProxyTransport() *http.Transport {
 
 func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
 	serverAddr := fmt.Sprintf("http://%s:%s", connection.Host, connection.Port)
-	proxy := GetProxyServer(serverAddr, transport, Proxy, "")
+	proxy := GetProxyServer(serverAddr, transport, Proxy, "", NewNoopActivityLogger())
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if len(connection.PassKey) > 0 {

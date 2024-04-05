@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/util"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -115,4 +116,8 @@ func setKubernetesDefaults(config *rest.Config) error {
 		config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	}
 	return rest.SetKubernetesDefaults(config)
+}
+
+func randRange(min, max int) int {
+	return rand.Intn(max-min) + min
 }

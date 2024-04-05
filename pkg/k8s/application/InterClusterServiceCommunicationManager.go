@@ -9,26 +9,28 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type InterClusterServiceCommunicationHandler interface {
 	GetClusterServiceProxyHandler(ctx context.Context, clusterServiceKey ClusterServiceKey) (*httputil.ReverseProxy, error)
-	GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (string, error)
+	GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (int, error)
 }
 
 type InterClusterServiceCommunicationHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	portForwardManager  PortForwardManager
-	clusterServiceCache map[ClusterServiceKey]ProxyServerMetadata
+	clusterServiceCache map[ClusterServiceKey]*ProxyServerMetadata
 }
 
 type ProxyServerMetadata struct {
-	forwardedPort string
-	proxyServer   *httputil.ReverseProxy
+	forwardedPort         int
+	lastActivityTimestamp time.Time
+	proxyServer           *httputil.ReverseProxy
 }
 
-func NewInterClusterServiceCommunicationHandlerImpl(logger *zap.SugaredLogger, portForwardManager PortForwardManager) (InterClusterServiceCommunicationHandler, error) {
-	clusterServiceCache := map[ClusterServiceKey]ProxyServerMetadata{}
+func NewInterClusterServiceCommunicationHandlerImpl(logger *zap.SugaredLogger, portForwardManager PortForwardManager) (*InterClusterServiceCommunicationHandlerImpl, error) {
+	clusterServiceCache := map[ClusterServiceKey]*ProxyServerMetadata{}
 	return &InterClusterServiceCommunicationHandlerImpl{logger: logger, portForwardManager: portForwardManager, clusterServiceCache: clusterServiceCache}, nil
 }
 
@@ -41,16 +43,16 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyH
 	return reverseProxy.proxyServer, nil
 }
 
-func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (string, error) {
+func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (int, error) {
 	proxyMetadata, err := impl.getProxyMetadata(ctx, clusterServiceKey)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	return proxyMetadata.forwardedPort, nil
 }
 
-func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx context.Context, clusterServiceKey ClusterServiceKey) (ProxyServerMetadata, error) {
-	var reverseProxy ProxyServerMetadata
+func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx context.Context, clusterServiceKey ClusterServiceKey) (*ProxyServerMetadata, error) {
+	var reverseProxy *ProxyServerMetadata
 	if proxyMetadata, ok := impl.clusterServiceCache[clusterServiceKey]; ok {
 		reverseProxy = proxyMetadata
 	} else {
@@ -62,15 +64,34 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx co
 		}
 		forwardedPort, err := impl.portForwardManager.ForwardPort(ctx, portForwardRequest)
 		if err != nil {
-			return ProxyServerMetadata{}, err
+			return &ProxyServerMetadata{}, err
 		}
 		proxyTransport := proxy.NewProxyTransport()
-		serverAddr := fmt.Sprintf("http://localhost:%s", forwardedPort)
-		proxyServer := proxy.GetProxyServer(serverAddr, proxyTransport, "/orchestrator/k8s", "") //TODO Fix this
-		reverseProxy = ProxyServerMetadata{forwardedPort: forwardedPort, proxyServer: proxyServer}
+		serverAddr := fmt.Sprintf("http://localhost:%d", forwardedPort)
+		proxyServer := proxy.GetProxyServer(serverAddr, proxyTransport, "orchestrator", "", NewClusterServiceActivityLogger(clusterServiceKey, impl.callback)) //TODO Fix this
+		reverseProxy = &ProxyServerMetadata{forwardedPort: forwardedPort, proxyServer: proxyServer}
 		impl.clusterServiceCache[clusterServiceKey] = reverseProxy
+		go func() {
+			// inactivity handling
+			for {
+				proxyServerMetadata := impl.clusterServiceCache[clusterServiceKey]
+				lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
+				if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
+					forwardedPort := proxyServerMetadata.forwardedPort
+					impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
+					delete(impl.clusterServiceCache, clusterServiceKey)
+					return
+				}
+				time.Sleep(10 * time.Second)
+			}
+		}()
 	}
 	return reverseProxy, nil
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) callback(clusterServiceKey ClusterServiceKey) {
+	proxyServerMetadata := impl.clusterServiceCache[clusterServiceKey]
+	proxyServerMetadata.lastActivityTimestamp = time.Now()
 }
 
 type ClusterServiceKey string
@@ -93,4 +114,18 @@ func (key ClusterServiceKey) GetServiceName() string {
 }
 func (key ClusterServiceKey) GetServicePort() string {
 	return strings.Split(string(key), "_$_")[3]
+}
+
+type ClusterServiceActivityLogger struct {
+	proxy.RequestActivityLogger
+	clusterServiceKey ClusterServiceKey
+	callback          func(clusterServiceKey ClusterServiceKey)
+}
+
+func NewClusterServiceActivityLogger(clusterServiceKey ClusterServiceKey, callback func(clusterServiceKey ClusterServiceKey)) ClusterServiceActivityLogger {
+	return ClusterServiceActivityLogger{clusterServiceKey: clusterServiceKey, callback: callback}
+}
+
+func (csal ClusterServiceActivityLogger) LogActivity() {
+	csal.callback(csal.clusterServiceKey)
 }

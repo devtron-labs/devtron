@@ -1152,8 +1152,15 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	podName := vars["name"]
-	namespace := vars["namespace"]
+	queryValues := r.URL.Query()
+	podName := queryValues.Get("name")
+	namespace := queryValues.Get("namespace")
+	if len(podName) == 0 {
+		podName = "*"
+	}
+	if len(namespace) == 0 {
+		namespace = "*"
+	}
 	allowed, err := handler.k8sApplicationService.ValidatePodResource(token, clusterId, namespace, podName, handler.verifyRbacForResource)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusConflict)
@@ -1168,5 +1175,6 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
 		return
 	}
+	r.Header.Add("X-PASS-KEY", "random-string")
 	proxyHandler.ServeHTTP(w, r)
 }

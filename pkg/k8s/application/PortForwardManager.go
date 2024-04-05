@@ -19,33 +19,47 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type PortForwardManager interface {
-	ForwardPort(ctx context.Context, request bean.PortForwardRequest) (string, error)
+	ForwardPort(ctx context.Context, request bean.PortForwardRequest) (int, error)
+	StopPortForwarding(ctx context.Context, port int) bool
 }
 
 type PortForwardManagerImpl struct {
 	logger           *zap.SugaredLogger
 	k8sCommonService k8s.K8sCommonService
+	stopChannels     map[int]chan struct{}
 }
 
-func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K8sCommonService) (PortForwardManager, error) {
+func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K8sCommonService) (*PortForwardManagerImpl, error) {
 	return &PortForwardManagerImpl{
 		logger:           logger,
 		k8sCommonService: k8sCommonService,
+		stopChannels:     make(map[int]chan struct{}),
 	}, nil
 }
 
-func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bean.PortForwardRequest) (string, error) {
+func (impl *PortForwardManagerImpl) StopPortForwarding(ctx context.Context, port int) bool {
+	if stopChannel, ok := impl.stopChannels[port]; ok {
+		close(stopChannel)
+		delete(impl.stopChannels, port)
+		return true
+	}
+	return false
+}
+
+func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bean.PortForwardRequest) (int, error) {
 	pod, service, err := impl.getServicePod(ctx, request)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	if pod.Status.Phase != corev1.PodRunning {
-		return "", fmt.Errorf("unable to forward port because pod is not running. Current status=%v", pod.Status.Phase)
+		return 0, fmt.Errorf("unable to forward port because pod is not running. Current status=%v", pod.Status.Phase)
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -58,13 +72,13 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 	portString, portToAllocate := impl.getPortString(request.TargetPort)
 	portForwarderOps.Ports, err = translateServicePortToTargetPort([]string{portString}, *service, *pod)
 
-	returnCtx, returnCtxCancel := context.WithCancel(ctx)
-	defer returnCtxCancel()
+	//returnCtx, returnCtxCancel := context.WithCancel(ctx)
+	//defer returnCtxCancel()
 
 	go func() {
 		select {
 		case <-signals:
-		case <-returnCtx.Done():
+			//case <-returnCtx.Done():
 		}
 		if portForwarderOps.StopChannel != nil {
 			close(portForwarderOps.StopChannel)
@@ -73,15 +87,15 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 
 	config, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	err = setKubernetesDefaults(config)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	req := restClient.Post().
 		Resource("pods").
@@ -102,6 +116,8 @@ func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bea
 	case <-portForwarderOps.ReadyChannel:
 	case portForwardErr = <-portFwdErrChan:
 	}
+	impl.stopChannels[portToAllocate] = portForwarderOps.StopChannel
+	portForwarderOps.forwardedPort = portToAllocate
 	return portToAllocate, portForwardErr
 }
 
@@ -129,13 +145,21 @@ func (impl *PortForwardManagerImpl) getServicePod(ctx context.Context, request b
 	return pod, service, nil
 }
 
-func (impl *PortForwardManagerImpl) getPortString(servicePort string) (string, string) {
+func (impl *PortForwardManagerImpl) getPortString(servicePort string) (string, int) {
 	unUsedport := impl.getUnUsedPort()
-	return unUsedport + ":" + servicePort, unUsedport
+	return strconv.Itoa(unUsedport) + ":" + servicePort, unUsedport
 }
 
-func (impl *PortForwardManagerImpl) getUnUsedPort() string {
-	return "8001"
+func (impl *PortForwardManagerImpl) getUnUsedPort() int {
+	// handle case where all ports are used
+	if len(impl.stopChannels) >= 1000 {
+		return -1
+	}
+	randomPort := randRange(7000, 8000)
+	if _, ok := impl.stopChannels[randomPort]; !ok {
+		return randomPort
+	}
+	return impl.getUnUsedPort()
 }
 
 type portForwarder interface {
@@ -143,12 +167,13 @@ type portForwarder interface {
 }
 
 func NewDefaultPortForwardOptions() *PortForwardOptions {
-	streams := IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	return &PortForwardOptions{
-		PortForwarder: &defaultPortForwarder{
-			IOStreams: streams,
-		},
+	portFwdOptions := &PortForwardOptions{
+		StopChannel:  make(chan struct{}, 1),
+		ReadyChannel: make(chan struct{}),
 	}
+	streams := IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	portFwdOptions.PortForwarder = &defaultPortForwarder{IOStreams: streams}
+	return portFwdOptions
 }
 
 type defaultPortForwarder struct {
@@ -168,16 +193,31 @@ func (f *defaultPortForwarder) ForwardPorts(method string, url *url.URL, opts *P
 	return fw.ForwardPorts()
 }
 
+//type ActivityLogger interface {
+//	logActivity(response []byte)
+//}
+
 // PortForwardOptions contains all the options for running the port-forward cli command.
 type PortForwardOptions struct {
-	Namespace     string
-	PodName       string
-	Config        *rest.Config
-	Address       []string // []string{"localhost"}
-	Ports         []string
-	PortForwarder portForwarder
-	StopChannel   chan struct{}
-	ReadyChannel  chan struct{}
+	//ActivityLogger
+	Namespace             string
+	PodName               string
+	Config                *rest.Config
+	Address               []string // []string{"localhost"}
+	Ports                 []string
+	PortForwarder         portForwarder
+	StopChannel           chan struct{}
+	ReadyChannel          chan struct{}
+	lastActivityTimestamp time.Time
+	forwardedPort         int
+}
+
+func (opts *PortForwardOptions) logActivity(response []byte) {
+	stdResponse := string(response)
+	fmt.Println("response", stdResponse)
+	if strings.Contains(stdResponse, "Handling connection") {
+		opts.lastActivityTimestamp = time.Now()
+	}
 }
 
 // IOStreams provides the standard names for iostreams.  This is useful for embedding and for unit testing.
@@ -189,4 +229,18 @@ type IOStreams struct {
 	Out io.Writer
 	// ErrOut think, os.Stderr
 	ErrOut io.Writer
+}
+
+type customWriter struct {
+	io.Writer
+	//activityLogger ActivityLogger
+}
+
+func NewCustomWriter() io.Writer {
+	return &customWriter{}
+}
+
+func (writer *customWriter) Write(p []byte) (n int, err error) {
+	//writer.activityLogger.logActivity(p)
+	return len(p), nil
 }
