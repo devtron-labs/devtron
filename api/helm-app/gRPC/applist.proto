@@ -363,6 +363,7 @@ message RegistryCredential {
   RemoteConnectionConfig RemoteConnectionConfig = 10;
   string Connection = 11;
   string RegistryName = 12;
+  string RegistryCertificate = 13;
 }
 
 
