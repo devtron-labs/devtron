@@ -102,6 +102,7 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
 			RepoName:     appStoreAppVersion.AppStore.Name,
 			IsPublic:     ociRegistryConfig.IsPublic,
+			Connection:   appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
@@ -285,6 +286,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			RegistryType: string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
 			RepoName:     appStoreApplicationVersion.AppStore.Name,
 			IsPublic:     ociRegistryConfig.IsPublic,
+			Connection:   appStoreApplicationVersion.AppStore.DockerArtifactStore.Connection,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{

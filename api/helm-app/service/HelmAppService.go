@@ -926,6 +926,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
 			RepoName:     appStoreAppVersion.AppStore.Name,
 			IsPublic:     ociRegistryConfig.IsPublic,
+			Connection:   appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{

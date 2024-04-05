@@ -873,6 +873,7 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		SecretKey:    bean.AWSSecretAccessKey,
 		RegistryType: string(bean.RegistryType),
 		IsPublic:     bean.IsPublic,
+		Connection:   bean.Connection,
 	}
 	return impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
 }
