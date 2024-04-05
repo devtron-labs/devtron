@@ -28,6 +28,8 @@ import (
 	resourceV1alpha1 "k8s.io/api/resource/v1alpha1"
 	schedulingV1 "k8s.io/api/scheduling/v1"
 	storageV1beta1 "k8s.io/api/storage/v1beta1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/duration"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubernetes/pkg/apis/flowcontrol"
 	"k8s.io/kubernetes/pkg/apis/rbac"
@@ -35,6 +37,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
@@ -719,28 +722,19 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		lst := convertToCore(resources)
 		p := printers.NewTableGenerator()
 		util4.AddHandlers(p)
-		//objk := resource.GetObjectKind()
-		//gvk := objk.GroupVersionKind()
-		//fmt.Println(gvk)
-		//fmt.Println(objk)
-		//cm := core.ConfigMap{}
-		//runtime.DefaultUnstructuredConverter.FromUnstructured(resource.UnstructuredContent(), &cm)
-		t, err := p.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
-		if err != nil {
-			fmt.Println("error")
+		t := &metav1.Table{}
+		if lst == nil {
+			t, err = convertUnstructuredToTable(resources)
+			if err != nil {
+				fmt.Println("error")
+			}
+		} else {
+			t, err = p.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
+			if err != nil {
+				fmt.Println("error")
+			}
 		}
-		//t.Rows = make([]metav1.TableRow, 0)
-		//for _, itm := range itms {
-		//	if itm == nil {
-		//		continue
-		//	}
-		//	r, err := p.GenerateTable(itm, printers.GenerateOptions{NoHeaders: true})
-		//	if err != nil {
-		//		fmt.Println("error")
-		//	}
-		//	t.Rows = append(t.Rows, r.Rows...)
-		//}
-		//t, err := p.GenerateTable(&cm, printers.GenerateOptions{})
+
 		fmt.Printf("+%v\n", t)
 		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
 		if err != nil {
@@ -885,6 +879,42 @@ func convertToCore(uns unstructured.UnstructuredList) runtime.Object {
 		return nil
 	}
 
+}
+
+func convertUnstructuredToTable(uns unstructured.UnstructuredList) (*metav1.Table, error) {
+	columnDefinitions := []metav1.TableColumnDefinition{
+		{Name: "Name", Type: "string", Format: "name", Description: metav1.ObjectMeta{}.SwaggerDoc()["name"]},
+		{Name: "Labels", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["labels"]},
+		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
+	}
+	table := metav1.Table{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       uns.GetKind(),
+			APIVersion: uns.GetAPIVersion(),
+		},
+		ColumnDefinitions: columnDefinitions,
+		Rows:              nil,
+	}
+	rows := make([]metav1.TableRow, 0)
+	for _, item := range uns.Items {
+		row := metav1.TableRow{
+			Object: runtime.RawExtension{Object: &item},
+		}
+		row.Cells = append(row.Cells, item.GetName(), labels.FormatLabels(item.GetLabels()), translateTimestampSince(item.GetCreationTimestamp()))
+		rows = append(rows, row)
+	}
+	table.Rows = rows
+	return &table, nil
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
 }
 
 //	convertToCoreList function takes in three parameters:
