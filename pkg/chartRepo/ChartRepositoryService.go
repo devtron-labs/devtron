@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -671,8 +672,8 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 
 	// Trigger chart sync job, ignore error
 	chartProviderConfig := &ChartProviderConfig{
-		ChartProviderId: "*",
-		IsOCIRegistry:   true,
+		ChartProviderId: strconv.Itoa(chartRepo.Id),
+		IsOCIRegistry:   false,
 	}
 	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
@@ -694,8 +695,8 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 
 	// Trigger chart sync job, ignore error
 	chartProviderConfig := &ChartProviderConfig{
-		ChartProviderId: "*",
-		IsOCIRegistry:   true,
+		ChartProviderId: strconv.Itoa(chartRepo.Id),
+		IsOCIRegistry:   false,
 	}
 	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
