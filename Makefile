@@ -43,6 +43,7 @@ test-integration:
 	export INTEGRATION_TEST_ENV_ID=$(docker run --env-file=wireNil.env  --privileged -d --name dind-test -v $PWD/:/test/ docker:dind)
 	docker exec ${INTEGRATION_TEST_ENV_ID} sh -c "cd test && ./tests/integrationTesting/create-test-env.sh"
 	docker exec ${INTEGRATION_TEST_ENV_ID} sh -c "cd test && ./tests/integrationTesting/run-integration-test.sh"
+	docker exec ${INTEGRATION_TEST_ENV_ID} sh -c "cd test && go run ."
 run: build
 	./devtron
 
