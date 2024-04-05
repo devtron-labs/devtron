@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/sshTunnel"
+	"github.com/devtron-labs/common-lib/utils"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	"go.uber.org/zap"
@@ -145,10 +146,6 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 	return portUsed, nil
 }
 
-func hasScheme(url string) bool {
-	return len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")
-}
-
 func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(registry *bean.RegistryConfig) (int, error) {
 	portUsed := 0
 	availablePort, err := impl.getAvailablePort()
@@ -165,11 +162,7 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(regist
 	}
 
 	// our registry url is actually the remote we are trying to connect, splitting it to get host and port
-	registryUrl := registry.RegistryUrl
-	if hasScheme(registry.RegistryUrl) {
-		registryUrl = fmt.Sprintf("https://%s", registry.RegistryUrl)
-	}
-	remoteAddress, remotePort, err := impl.extractHostAndPostFromUrl(registryUrl)
+	remoteAddress, remotePort, err := impl.extractHostAndPostFromUrl(utils.GetUrlWithScheme(registry.RegistryUrl))
 	if err != nil {
 		impl.logger.Errorw("error in extracting host and port from registry host address", "err", err)
 		return portUsed, err
