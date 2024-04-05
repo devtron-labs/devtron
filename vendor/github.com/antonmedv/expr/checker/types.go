@@ -2,88 +2,60 @@ package checker
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/antonmedv/expr/ast"
+	"github.com/antonmedv/expr/conf"
 )
 
 var (
-	nilType       = reflect.TypeOf(nil)
-	boolType      = reflect.TypeOf(true)
-	integerType   = reflect.TypeOf(int(0))
-	floatType     = reflect.TypeOf(float64(0))
-	stringType    = reflect.TypeOf("")
-	arrayType     = reflect.TypeOf([]interface{}{})
-	mapType       = reflect.TypeOf(map[string]interface{}{})
-	interfaceType = reflect.TypeOf(new(interface{})).Elem()
+	nilType      = reflect.TypeOf(nil)
+	boolType     = reflect.TypeOf(true)
+	integerType  = reflect.TypeOf(0)
+	floatType    = reflect.TypeOf(float64(0))
+	stringType   = reflect.TypeOf("")
+	arrayType    = reflect.TypeOf([]interface{}{})
+	mapType      = reflect.TypeOf(map[string]interface{}{})
+	anyType      = reflect.TypeOf(new(interface{})).Elem()
+	timeType     = reflect.TypeOf(time.Time{})
+	durationType = reflect.TypeOf(time.Duration(0))
+	functionType = reflect.TypeOf(new(func(...interface{}) (interface{}, error))).Elem()
+	errorType    = reflect.TypeOf((*error)(nil)).Elem()
 )
 
-func typeWeight(t reflect.Type) int {
-	switch t.Kind() {
-	case reflect.Uint:
-		return 1
-	case reflect.Uint8:
-		return 2
-	case reflect.Uint16:
-		return 3
-	case reflect.Uint32:
-		return 4
-	case reflect.Uint64:
-		return 5
-	case reflect.Int:
-		return 6
-	case reflect.Int8:
-		return 7
-	case reflect.Int16:
-		return 8
-	case reflect.Int32:
-		return 9
-	case reflect.Int64:
-		return 10
-	case reflect.Float32:
-		return 11
-	case reflect.Float64:
-		return 12
-	default:
-		return 0
-	}
-}
-
 func combined(a, b reflect.Type) reflect.Type {
-	if typeWeight(a) > typeWeight(b) {
+	if a.Kind() == b.Kind() {
 		return a
-	} else {
-		return b
 	}
+	if isFloat(a) || isFloat(b) {
+		return floatType
+	}
+	return integerType
 }
 
-func dereference(t reflect.Type) reflect.Type {
-	if t == nil {
-		return nil
+func anyOf(t reflect.Type, fns ...func(reflect.Type) bool) bool {
+	for _, fn := range fns {
+		if fn(t) {
+			return true
+		}
 	}
-	if t.Kind() == reflect.Ptr {
-		t = dereference(t.Elem())
-	}
-	return t
+	return false
 }
 
-func isComparable(l, r reflect.Type) bool {
-	l = dereference(l)
-	r = dereference(r)
-
-	if l == nil || r == nil { // It is possible to compare with nil.
+func or(l, r reflect.Type, fns ...func(reflect.Type) bool) bool {
+	if isAny(l) && isAny(r) {
 		return true
 	}
-	if l.Kind() == r.Kind() {
+	if isAny(l) && anyOf(r, fns...) {
 		return true
 	}
-	if isInterface(l) || isInterface(r) {
+	if isAny(r) && anyOf(l, fns...) {
 		return true
 	}
 	return false
 }
 
-func isInterface(t reflect.Type) bool {
-	t = dereference(t)
+func isAny(t reflect.Type) bool {
 	if t != nil {
 		switch t.Kind() {
 		case reflect.Interface:
@@ -94,14 +66,11 @@ func isInterface(t reflect.Type) bool {
 }
 
 func isInteger(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			fallthrough
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -109,12 +78,9 @@ func isInteger(t reflect.Type) bool {
 }
 
 func isFloat(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
 		case reflect.Float32, reflect.Float64:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -125,13 +91,30 @@ func isNumber(t reflect.Type) bool {
 	return isInteger(t) || isFloat(t)
 }
 
+func isTime(t reflect.Type) bool {
+	if t != nil {
+		switch t {
+		case timeType:
+			return true
+		}
+	}
+	return isAny(t)
+}
+
+func isDuration(t reflect.Type) bool {
+	if t != nil {
+		switch t {
+		case durationType:
+			return true
+		}
+	}
+	return false
+}
+
 func isBool(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
 		case reflect.Bool:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -139,12 +122,9 @@ func isBool(t reflect.Type) bool {
 }
 
 func isString(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
 		case reflect.String:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -152,12 +132,11 @@ func isString(t reflect.Type) bool {
 }
 
 func isArray(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
+		case reflect.Ptr:
+			return isArray(t.Elem())
 		case reflect.Slice, reflect.Array:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -165,12 +144,11 @@ func isArray(t reflect.Type) bool {
 }
 
 func isMap(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
+		case reflect.Ptr:
+			return isMap(t.Elem())
 		case reflect.Map:
-			return true
-		case reflect.Interface:
 			return true
 		}
 	}
@@ -178,9 +156,10 @@ func isMap(t reflect.Type) bool {
 }
 
 func isStruct(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
+		case reflect.Ptr:
+			return isStruct(t.Elem())
 		case reflect.Struct:
 			return true
 		}
@@ -189,9 +168,10 @@ func isStruct(t reflect.Type) bool {
 }
 
 func isFunc(t reflect.Type) bool {
-	t = dereference(t)
 	if t != nil {
 		switch t.Kind() {
+		case reflect.Ptr:
+			return isFunc(t.Elem())
 		case reflect.Func:
 			return true
 		}
@@ -199,117 +179,50 @@ func isFunc(t reflect.Type) bool {
 	return false
 }
 
-func fieldType(ntype reflect.Type, name string) (reflect.Type, bool) {
-	ntype = dereference(ntype)
-	if ntype != nil {
-		switch ntype.Kind() {
-		case reflect.Interface:
-			return interfaceType, true
-		case reflect.Struct:
-			// First check all struct's fields.
-			for i := 0; i < ntype.NumField(); i++ {
-				f := ntype.Field(i)
-				if f.Name == name {
-					return f.Type, true
-				}
-			}
-
-			// Second check fields of embedded structs.
-			for i := 0; i < ntype.NumField(); i++ {
-				f := ntype.Field(i)
-				if f.Anonymous {
-					if t, ok := fieldType(f.Type, name); ok {
-						return t, true
-					}
-				}
-			}
-		case reflect.Map:
-			return ntype.Elem(), true
-		}
-	}
-
-	return nil, false
-}
-
-func methodType(t reflect.Type, name string) (reflect.Type, bool, bool) {
+func fetchField(t reflect.Type, name string) (reflect.StructField, bool) {
 	if t != nil {
-		// First, check methods defined on type itself,
-		// independent of which type it is.
-		if m, ok := t.MethodByName(name); ok {
-			if t.Kind() == reflect.Interface {
-				// In case of interface type method will not have a receiver,
-				// and to prevent checker decreasing numbers of in arguments
-				// return method type as not method (second argument is false).
-				return m.Type, false, true
-			} else {
-				return m.Type, true, true
+		// First check all structs fields.
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			// Search all fields, even embedded structs.
+			if conf.FieldName(field) == name {
+				return field, true
 			}
 		}
 
-		d := t
-		if t.Kind() == reflect.Ptr {
-			d = t.Elem()
-		}
-
-		switch d.Kind() {
-		case reflect.Interface:
-			return interfaceType, false, true
-		case reflect.Struct:
-			// First, check all struct's fields.
-			for i := 0; i < d.NumField(); i++ {
-				f := d.Field(i)
-				if !f.Anonymous && f.Name == name {
-					return f.Type, false, true
+		// Second check fields of embedded structs.
+		for i := 0; i < t.NumField(); i++ {
+			anon := t.Field(i)
+			if anon.Anonymous {
+				if field, ok := fetchField(anon.Type, name); ok {
+					field.Index = append(anon.Index, field.Index...)
+					return field, true
 				}
 			}
-
-			// Second, check fields of embedded structs.
-			for i := 0; i < d.NumField(); i++ {
-				f := d.Field(i)
-				if f.Anonymous {
-					if t, method, ok := methodType(f.Type, name); ok {
-						return t, method, true
-					}
-				}
-			}
-
-		case reflect.Map:
-			return d.Elem(), false, true
 		}
 	}
-	return nil, false, false
+	return reflect.StructField{}, false
 }
 
-func indexType(ntype reflect.Type) (reflect.Type, bool) {
-	ntype = dereference(ntype)
-	if ntype == nil {
+func deref(t reflect.Type) (reflect.Type, bool) {
+	if t == nil {
 		return nil, false
 	}
-
-	switch ntype.Kind() {
-	case reflect.Interface:
-		return interfaceType, true
-	case reflect.Map, reflect.Array, reflect.Slice:
-		return ntype.Elem(), true
+	if t.Kind() == reflect.Interface {
+		return t, true
 	}
-
-	return nil, false
-}
-
-func isFuncType(ntype reflect.Type) (reflect.Type, bool) {
-	ntype = dereference(ntype)
-	if ntype == nil {
-		return nil, false
+	found := false
+	for t != nil && t.Kind() == reflect.Ptr {
+		e := t.Elem()
+		switch e.Kind() {
+		case reflect.Struct, reflect.Map, reflect.Array, reflect.Slice:
+			return t, false
+		default:
+			found = true
+			t = e
+		}
 	}
-
-	switch ntype.Kind() {
-	case reflect.Interface:
-		return interfaceType, true
-	case reflect.Func:
-		return ntype, true
-	}
-
-	return nil, false
+	return t, found
 }
 
 func isIntegerOrArithmeticOperation(node ast.Node) bool {
