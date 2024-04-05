@@ -38,7 +38,7 @@ func (impl *RemoteConnectionServiceImpl) CreateOrUpdateRemoteConnectionConfig(re
 		return err
 	}
 	config := adapter.ConvertRemoteConnectionConfigBeanToRemoteConnectionConfig(reqBean, userId)
-	if existingConfig == nil {
+	if existingConfig == nil || existingConfig.Id == 0 {
 		err = impl.remoteConnectionRepository.Save(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving server connection config", "err", err)

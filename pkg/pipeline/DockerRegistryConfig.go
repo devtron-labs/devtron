@@ -536,13 +536,13 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 
 	// 3- update registryConnectionConfig in server_connection_config table for this docker registry
 	if bean.RemoteConnectionConfig != nil {
+		bean.RemoteConnectionConfig.RemoteConnectionConfigId = existingStore.RemoteConnectionConfigId
 		err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.RemoteConnectionConfig.RemoteConnectionConfigId)
 			return nil, err
 		}
 	}
-	existingStore.RemoteConnectionConfigId = bean.RemoteConnectionConfig.RemoteConnectionConfigId
 
 	// 4- update docker_registry_config
 	if bean.Password == "" {

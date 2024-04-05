@@ -29,7 +29,7 @@ type ClusterBean struct {
 	ClusterUpdated          bool                             `json:"clusterUpdated"`
 	ToConnectWithSSHTunnel  bool                             `json:"toConnectWithSSHTunnel,omitempty"`
 	SSHTunnelConfig         *SSHTunnelConfig                 `json:"sshTunnelConfig,omitempty"`
-	RemoteConnectionConfig  *bean.RemoteConnectionConfigBean `json:"-"`
+	RemoteConnectionConfig  *bean.RemoteConnectionConfigBean `json:"remoteConnectionConfig"`
 }
 
 type VirtualClusterBean struct {
