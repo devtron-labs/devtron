@@ -1,4 +1,5 @@
 ## Bugs
+- fix: chart sync job optimisation (#4631)
 - fix: depandabot version upgrade (#4792)
 - fix: injected app-serveice dependency into DeployedApplicationEventProcessor service (#4875)
 - fix: update argo app repo url in patch (#4876)
