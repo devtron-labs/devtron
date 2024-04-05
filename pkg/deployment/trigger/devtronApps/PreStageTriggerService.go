@@ -267,7 +267,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		TriggerMetadata:       request.TriggerMessage,
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	span.End()
 	if err != nil {
 		return nil, nil, err

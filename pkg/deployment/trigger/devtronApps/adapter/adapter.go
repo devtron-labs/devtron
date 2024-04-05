@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"time"
 )
 
 func SetPipelineFieldsInOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
@@ -44,5 +45,16 @@ func GetVulnerabilityCheckRequest(cdPipeline *pipelineConfig.Pipeline, imageDige
 	return &bean.VulnerabilityCheckRequest{
 		CdPipeline:  cdPipeline,
 		ImageDigest: imageDigest,
+	}
+}
+
+func GetTriggerOperationDto(triggerRequest bean.TriggerRequest, executorType pipelineConfig.WorkflowExecutorType, pipelineId int, scope resourceQualifiers.Scope, triggeredAt time.Time, overrideCdWrfId int) *bean.TriggerOperationDto {
+	return &bean.TriggerOperationDto{
+		TriggerRequest:  triggerRequest,
+		ExecutorType:    executorType,
+		PipelineId:      pipelineId,
+		Scope:           scope,
+		OverrideCdWrfId: overrideCdWrfId,
+		TriggeredAt:     triggeredAt,
 	}
 }

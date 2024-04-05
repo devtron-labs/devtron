@@ -96,3 +96,12 @@ type VulnerabilityCheckRequest struct {
 	ImageDigest string
 	CdPipeline  *pipelineConfig.Pipeline
 }
+
+type TriggerOperationDto struct {
+	TriggerRequest  TriggerRequest
+	ExecutorType    pipelineConfig.WorkflowExecutorType
+	PipelineId      int
+	Scope           resourceQualifiers.Scope
+	TriggeredAt     time.Time
+	OverrideCdWrfId int
+}
