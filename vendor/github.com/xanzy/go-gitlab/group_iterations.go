@@ -86,5 +86,5 @@ func (s *GroupIterationsService) ListGroupIterations(gid interface{}, opt *ListG
 		return nil, nil, err
 	}
 
-	return gis, resp, err
+	return gis, resp, nil
 }

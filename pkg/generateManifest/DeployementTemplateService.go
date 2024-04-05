@@ -148,15 +148,15 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 			return nil, err
 		}
 
-	for _, env := range publishedOnEnvs {
-		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartRefId:      env.ChartRefId,
-			EnvironmentId:   env.EnvironmentId,
-			EnvironmentName: env.EnvironmentName,
-			Type:            repository.PublishedOnEnvironments,
+		for _, env := range publishedOnEnvs {
+			item := &repository.DeploymentTemplateComparisonMetadata{
+				ChartRefId:      env.ChartRefId,
+				EnvironmentId:   env.EnvironmentId,
+				EnvironmentName: env.EnvironmentName,
+				Type:            repository.PublishedOnEnvironments,
+			}
+			responseList = append(responseList, item)
 		}
-		responseList = append(responseList, item)
-	}
 
 		deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
 		if err != nil && !util.IsErrNoRows(err) {
