@@ -949,6 +949,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	decoder := json.NewDecoder(r.Body)
 	token := r.Header.Get("token")
 	var request k8s.ResourceRequestBean
+	filter := r.URL.Query().Get("filter")
+	labelSelector := r.URL.Query().Get("labelSelector")
+	fieldSelector := r.URL.Query().Get("fieldSelector")
+
+	request.Filter = filter
+	request.LabelSelector = labelSelector
+	request.FieldSelector = fieldSelector
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
