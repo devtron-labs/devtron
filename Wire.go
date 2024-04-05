@@ -1033,7 +1033,6 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
-
 	)
 	return &App{}, nil
 }
