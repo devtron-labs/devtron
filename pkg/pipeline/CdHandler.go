@@ -722,13 +722,12 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 
 	if showAppliedFilters {
-
-		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
+		appliedFilterStateMap, appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
 		if err != nil {
 			// not returning error by choice
 			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
 		}
-		workflowResponse.AppliedFiltersState = resourceFilter.ALLOW
+		workflowResponse.AppliedFiltersState = appliedFilterStateMap[workflow.CiArtifactId]
 		workflowResponse.AppliedFilters = appliedFiltersMap[workflow.CiArtifactId]
 		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStampMap[workflow.CiArtifactId]
 	}

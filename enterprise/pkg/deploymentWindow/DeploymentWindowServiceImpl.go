@@ -491,6 +491,12 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 }
 
 func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
+
+	_, err := impl.globalPolicyManager.GetPolicyById(profile.Id)
+	if err != nil {
+		return nil, GetNotFoundError(err)
+	}
+
 	tx, err := impl.tx.StartTx()
 	if err != nil {
 		return nil, err

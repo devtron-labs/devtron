@@ -766,6 +766,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
+	if wfr != nil && wfr.CdWorkflow != nil {
+		wfr.CdWorkflow.CiArtifactId = override.CiArtifactId
+	}
 	event = impl.eventFactory.BuildExtraCDData(event, wfr, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {

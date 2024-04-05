@@ -74,7 +74,7 @@ func (s *ResourceStateEventsService) ListIssueStateEvents(pid interface{}, issue
 		return nil, resp, err
 	}
 
-	return ses, resp, err
+	return ses, resp, nil
 }
 
 // GetIssueStateEvent gets a single issue-state-event.
@@ -99,7 +99,7 @@ func (s *ResourceStateEventsService) GetIssueStateEvent(pid interface{}, issue i
 		return nil, resp, err
 	}
 
-	return se, resp, err
+	return se, resp, nil
 }
 
 // ListMergeStateEvents retrieves resource state events for the specified
@@ -125,7 +125,7 @@ func (s *ResourceStateEventsService) ListMergeStateEvents(pid interface{}, reque
 		return nil, resp, err
 	}
 
-	return ses, resp, err
+	return ses, resp, nil
 }
 
 // GetMergeRequestStateEvent gets a single merge request state event.
@@ -150,5 +150,5 @@ func (s *ResourceStateEventsService) GetMergeRequestStateEvent(pid interface{}, 
 		return nil, resp, err
 	}
 
-	return se, resp, err
+	return se, resp, nil
 }

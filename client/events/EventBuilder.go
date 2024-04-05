@@ -229,7 +229,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		}
 		event.Payload = payload
 	} else if event.PipelineId > 0 {
-		impl.setMaterialForPayload(event, payload)
+		impl.setMaterialForPayload(event, payload, 0)
 		event.Payload = payload
 	}
 
@@ -246,13 +246,13 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) setMaterialForPayload(event Event, payload *Payload) {
+func (impl *EventSimpleFactoryImpl) setMaterialForPayload(event Event, payload *Payload, artifactId int) {
 	pipeline, err := impl.pipelineRepository.FindById(event.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipeline", pipeline)
 	}
 	if pipeline != nil {
-		material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, 0)
+		material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, artifactId)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
 		}
@@ -267,7 +267,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraBlockedTriggerData(event Event, st
 	payload.Stage = string(stage)
 	payload.TimeWindowComment = timeWindowComment
 	if event.PipelineId > 0 {
-		impl.setMaterialForPayload(event, payload)
+		impl.setMaterialForPayload(event, payload, artifact.Id)
 	}
 	if artifact != nil {
 		payload.DockerImageUrl = artifact.Image

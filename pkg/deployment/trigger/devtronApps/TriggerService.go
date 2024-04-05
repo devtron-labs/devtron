@@ -136,7 +136,7 @@ type TriggerServiceImpl struct {
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	helmAppClient gRPC.HelmAppClient // TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -290,7 +290,7 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 		return err
 	}
 
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(preStage, triggerRequest.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", triggerRequest.Pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", triggerRequest.TriggeredBy)
@@ -299,7 +299,7 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 
 	triggerRequest.TriggerContext.Context = context.Background()
 	if len(triggerRequest.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
-		//pre stage exists
+		// pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", triggerRequest.Artifact.Id, "pipelineId", triggerRequest.Pipeline.Id)
 		triggerRequest.RefCdWorkflowRunnerId = 0
 		triggerRequest.TriggerType = bean.Automatic
@@ -1144,37 +1144,13 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
-		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.checkIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, nil
 }
 
-// checkIfRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
-	monoRepoMigrationRequired := false
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
-		return false
-	}
-	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName, err = impl.getAcdAppGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
-		if err != nil || gitOpsRepoName == "" {
-			return false
-		}
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
-		monoRepoMigrationRequired = true
-	}
-	return monoRepoMigrationRequired
-}
-
 // getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 func (impl *TriggerServiceImpl) getAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	//this method should only call in case of argo-integration and gitops configured
+	// this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
@@ -1418,11 +1394,11 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, err
 	}
-	//if status, ok:=status.FromError(err);ok{
+	// if status, ok:=status.FromError(err);ok{
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, envOverride.Chart.GitRepoUrl, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
 				ChartLocation:  envOverride.Chart.ChartLocation,
@@ -1434,6 +1410,9 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 			if err != nil {
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
+			}
+			if envOverride.Chart.GitRepoUrl != argoApplication.Spec.Source.RepoURL {
+				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
 		} else {
@@ -1455,7 +1434,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 }
 
 func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
-	//repo has been registered while helm create
+	// repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("no chart found ", "app", appId)
@@ -1469,7 +1448,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 	if pipeline.DeploymentAppCreated {
 		return argoAppName, nil
 	} else {
-		//create
+		// create
 		appNamespace := envConfigOverride.Namespace
 		if appNamespace == "" {
 			appNamespace = "default"
@@ -1491,7 +1470,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 		if err != nil {
 			return "", err
 		}
-		//update cd pipeline to mark deployment app created
+		// update cd pipeline to mark deployment app created
 		_, err = impl.updatePipeline(pipeline, userId)
 		if err != nil {
 			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
@@ -1543,6 +1522,7 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 		impl.logger.Errorw("could not get wf runner", "err", err)
 	}
 	wfr.TriggerMetadata = overrideRequest.TriggerMetadata
+	wfr.CdWorkflow = &pipelineConfig.CdWorkflow{CiArtifactId: artifact.Id}
 	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
@@ -1596,7 +1576,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 
 	if err == pg.ErrNoRows && !isScanEnabled {
-		//ignoring if no rows are found and scan is disabled
+		// ignoring if no rows are found and scan is disabled
 		return nil
 	}
 
@@ -1710,7 +1690,7 @@ func (impl *TriggerServiceImpl) checkDeploymentTriggeredAlready(wfId int) bool {
 	return deploymentTriggeredAlready
 }
 
-//TO check where to put, got from oss enterprise diff
+// TO check where to put, got from oss enterprise diff
 
 func (impl *TriggerServiceImpl) PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error {
 
