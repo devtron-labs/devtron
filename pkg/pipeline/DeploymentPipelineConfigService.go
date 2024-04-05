@@ -146,7 +146,6 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentConfig                  *util2.DeploymentServiceTypeConfig
 	application                       application.ServiceClient
 	customTagService                  CustomTagService
-	devtronAppCMCSService             DevtronAppCMCSService
 	ciPipelineConfigService           CiPipelineConfigService
 	buildPipelineSwitchService        BuildPipelineSwitchService
 	argoClientWrapperService          argocdServer.ArgoClientWrapperService
@@ -172,7 +171,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
 	application application.ServiceClient, customTagService CustomTagService,
-	devtronAppCMCSService DevtronAppCMCSService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
@@ -208,7 +206,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		deploymentConfig:                  envVariables.DeploymentServiceTypeConfig,
 		application:                       application,
 		chartService:                      chartService,
-		devtronAppCMCSService:             devtronAppCMCSService,
 		customTagService:                  customTagService,
 		ciPipelineConfigService:           ciPipelineConfigService,
 		buildPipelineSwitchService:        buildPipelineSwitchService,

@@ -319,7 +319,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistoryWit
 
 func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName string, teamId int, userId int32) error {
 	appModel, err := impl.appRepository.FindActiveByName(appName)
-	if err != nil && util.IsErrNoRows(err) {
+	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel", "err", err)
 		return err
 	}
@@ -482,7 +482,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 		return nil, err
 	}
 	if activeApp != nil && activeApp.Id > 0 {
-		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
+		impl.logger.Infow("app already exists", "name", createRequest.AppName)
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			Code:            constants.AppAlreadyExists.Code,
