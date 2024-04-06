@@ -114,12 +114,12 @@ spec:
         - name: devtron
           {{- if $.Values.installer.modules }}
           {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
-          image: {{ $.Values.components.devtron.cicdImage }}
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.devtron "image" $.Values.components.devtron.cicdImage  "digest" $.Values.components.devtron.cicdImageDigest  "global" $.Values.global ) }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.devtron "image" $.Values.components.devtron.image  "digest" $.Values.components.devtron.digest  "global" $.Values.global ) }}
           {{- end }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.devtron "image" $.Values.components.devtron.image  "digest" $.Values.components.devtron.digest  "global" $.Values.global ) }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}

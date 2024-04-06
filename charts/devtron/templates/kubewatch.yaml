@@ -176,7 +176,7 @@ spec:
       {{- end }}
       containers:
         - name: kubewatch
-          image: {{ .image }}
+          image: {{ include "fullImage" (dict "currentPosition" $.Values.components.kubewatch  "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:

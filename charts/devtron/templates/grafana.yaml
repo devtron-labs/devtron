@@ -17,14 +17,14 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: grafana-restart
-        image: "quay.io/devtron/kubectl:latest"
+        image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.grafanaOrgJob   "global" $.Values.global ) }}
         command: ["sh", "/tmp/kubectl-grafana.sh"]
         volumeMounts:
           - name: grafana-org-volume
             mountPath: "/tmp/"
       initContainers:
       - name: grafana-org
-        image: quay.io/devtron/k8s-utils:tutum-curl
+        image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.grafanaOrgJob.initContainers   "global" $.Values.global ) }}
         command: ["sh","/tmp/org.sh"]
         env:
           - name: GRAFANA_PASSWORD
@@ -512,24 +512,22 @@ spec:
         runAsUser: 472
       initContainers:
         - name: init-chown-data
-          image: "quay.io/devtron/busybox:1.31.1"
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.initContainer.chownData   "global" $.Values.global ) }}
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: false
             runAsUser: 0
           command: ["chown", "-R", "472:472", "/var/lib/grafana"]
-          resources:
-            {}
+          resources: {}
           volumeMounts:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: download-dashboards
-          image: "quay.io/devtron/curl:7.73.0"
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.initContainer.downloadDashboards   "global" $.Values.global ) }}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
-          resources:
-            {}
+          resources: {}
           env:
           volumeMounts:
             - name: config
@@ -538,7 +536,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: grafana-sc-datasources
-          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.initContainer.grafanaDatasources   "global" $.Values.global ) }}
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
@@ -557,7 +555,7 @@ spec:
       containers:
       {{- with $.Values.monitoring.grafana.grafanaDashboards }}
         - name: grafana-sc-dashboard
-          image: {{ .image }}
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana   "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           env:
             - name: METHOD
@@ -578,7 +576,7 @@ spec:
           {{- end }}
       {{- with $.Values.monitoring.grafana}}
         - name: grafana
-          image: {{ .image }}
+          image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana   "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           volumeMounts:
             - name: config
@@ -662,7 +660,7 @@ spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: "quay.io/devtron/bats:v1.4.1"
+      image: {{ include "fullImage"   (dict "currentPosition" $.Values.monitoring.grafana.devtronGrafanaTest   "global" $.Values.global ) }}
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:
