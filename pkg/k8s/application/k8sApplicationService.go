@@ -688,13 +688,11 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	}
 
 	resources := resp.Resources
-	fmt.Println(resources.GetObjectKind().GroupVersionKind().Kind)
 	if len(request.Filter) > 0 {
 		filteredResources := unstructured.UnstructuredList{}
 		filteredItems := make([]interface{}, 0)
 		//resource := unstructured.Unstructured{}
 		for _, v := range resp.Resources.Items {
-			fmt.Println(v.GetObjectKind().GroupVersionKind().Kind)
 			celRequest := resourceFilter.CELRequest{
 				Expression: request.Filter,
 				ExpressionMetadata: resourceFilter.ExpressionMetadata{
@@ -728,19 +726,18 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		if lst == nil {
 			t, err = convertUnstructuredToTable(resources)
 			if err != nil {
-				fmt.Println("error")
+				impl.logger.Errorw("error in converting unstructured content to table", "err", err)
 			}
 		} else {
 			t, err = impl.printers.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
 			if err != nil {
-				fmt.Println("error")
+				impl.logger.Errorw("error in generating table", "err", err)
 			}
 		}
 
-		fmt.Printf("+%v\n", t)
 		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
 		if err != nil {
-			fmt.Println(err)
+			impl.logger.Errorw("error in converting table to unstructured data", "err", err)
 		}
 		resources.SetUnstructuredContent(m)
 	}
@@ -877,7 +874,6 @@ func convertToCore(uns unstructured.UnstructuredList) runtime.Object {
 	case "PodSchedulingList":
 		return convertToCoreList(uns, &resourceV1alpha1.PodScheduling{}, &resourceV1alpha1.PodSchedulingList{})
 	default:
-		fmt.Println("Unsupported kind:", kind)
 		return nil
 	}
 
@@ -936,7 +932,6 @@ func convertToCoreList(uns unstructured.UnstructuredList, itemPtr, listPtr inter
 
 		// Convert the unstructured item to the structured item
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), obj); err != nil {
-			fmt.Println("Error converting item:", err)
 			continue
 		}
 
