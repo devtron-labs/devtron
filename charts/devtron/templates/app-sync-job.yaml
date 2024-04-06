@@ -13,7 +13,7 @@ spec:
       serviceAccountName: devtron
       initContainers:
       - name: migration-wait
-        image: "quay.io/devtron/kubectl:latest"
+        image: {{ include "fullImage"   (dict "currentPosition" $.Values.kubectlUtility "global" $.Values.global ) }}
         command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
         {{- if .Values.components.migrator }}
         {{- if .Values.components.migrator.appSync }}
@@ -31,7 +31,7 @@ spec:
       {{- end }}
       containers:
       - name: chart-sync
-        image: quay.io/devtron/chart-sync:d0dcc590-373-21074
+        image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.appsyncjob "image" $.Values.components.appsyncjob.extraImage "digest" $.Values.components.appsyncjob.extraDigest "global" $.Values.global ) }}
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
         securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 10 }}
@@ -80,7 +80,7 @@ spec:
           {{- end }}
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:d0dcc590-373-21074
+            image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.appsyncjob.chartsync "global" $.Values.global ) }}
             {{- if and $.Values.global $.Values.global.containerSecurityContext }}
             securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 14 }}
