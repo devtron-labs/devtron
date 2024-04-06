@@ -735,11 +735,15 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 			}
 		}
 
-		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
-		if err != nil {
-			impl.logger.Errorw("error in converting table to unstructured data", "err", err)
+		if err != nil || t == nil {
+			resources.Items = nil
+		} else {
+			m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
+			if err != nil {
+				impl.logger.Errorw("error in converting table to unstructured data", "err", err)
+			}
+			resources.SetUnstructuredContent(m)
 		}
-		resources.SetUnstructuredContent(m)
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := resourceIdentifierCloned
