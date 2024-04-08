@@ -59,35 +59,38 @@ type K8sApplicationRestHandler interface {
 	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
+	DebugPodInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	k8sApplicationService  application2.K8sApplicationService
-	pump                   connector.Pump
-	terminalSessionHandler terminal.TerminalSessionHandler
-	enforcer               casbin.Enforcer
-	validator              *validator.Validate
-	enforcerUtil           rbac.EnforcerUtil
-	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	helmAppService         client.HelmAppService
-	userService            user.UserService
-	k8sCommonService       k8s.K8sCommonService
+	logger                                  *zap.SugaredLogger
+	k8sApplicationService                   application2.K8sApplicationService
+	pump                                    connector.Pump
+	terminalSessionHandler                  terminal.TerminalSessionHandler
+	enforcer                                casbin.Enforcer
+	validator                               *validator.Validate
+	enforcerUtil                            rbac.EnforcerUtil
+	enforcerUtilHelm                        rbac.EnforcerUtilHelm
+	helmAppService                          client.HelmAppService
+	userService                             user.UserService
+	k8sCommonService                        k8s.K8sCommonService
+	interClusterServiceCommunicationHandler application2.InterClusterServiceCommunicationHandler
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, interClusterServiceCommunicationHandler application2.InterClusterServiceCommunicationHandler) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
-		logger:                 logger,
-		k8sApplicationService:  k8sApplicationService,
-		pump:                   pump,
-		terminalSessionHandler: terminalSessionHandler,
-		enforcer:               enforcer,
-		validator:              validator,
-		enforcerUtilHelm:       enforcerUtilHelm,
-		enforcerUtil:           enforcerUtil,
-		helmAppService:         helmAppService,
-		userService:            userService,
-		k8sCommonService:       k8sCommonService,
+		logger:                                  logger,
+		k8sApplicationService:                   k8sApplicationService,
+		pump:                                    pump,
+		terminalSessionHandler:                  terminalSessionHandler,
+		enforcer:                                enforcer,
+		validator:                               validator,
+		enforcerUtilHelm:                        enforcerUtilHelm,
+		enforcerUtil:                            enforcerUtil,
+		helmAppService:                          helmAppService,
+		userService:                             userService,
+		k8sCommonService:                        k8sCommonService,
+		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
 	}
 }
 
@@ -1134,4 +1137,44 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		return resourceRequestBean
 	}
 	return resourceRequestBean
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterid not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	queryValues := r.URL.Query()
+	podName := queryValues.Get("name")
+	namespace := queryValues.Get("namespace")
+	if len(podName) == 0 {
+		podName = "*"
+	}
+	if len(namespace) == 0 {
+		namespace = "*"
+	}
+	allowed, err := handler.k8sApplicationService.ValidatePodResource(token, clusterId, namespace, podName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	proxyHandler, err := handler.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(r.Context(), application2.NewClusterServiceKey(clusterId, "scoop-stage-mon-service", "monitoring", "80"))
+	if err != nil {
+		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
+		return
+	}
+	r.Header.Add("X-PASS-KEY", "random-string")
+	proxyHandler.ServeHTTP(w, r)
 }

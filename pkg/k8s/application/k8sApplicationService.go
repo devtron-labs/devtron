@@ -96,6 +96,7 @@ type K8sApplicationService interface {
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s3.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -415,6 +416,21 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error) {
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return false, err
+	}
+	clusterName := clusterBean.ClusterName
+	resourceIdentifier := k8s3.ResourceIdentifier{
+		Name:             podName,
+		Namespace:        namespace,
+		GroupVersionKind: schema.GroupVersionKind{Version: "v1", Kind: "Pod"},
+	}
+	return rbacForResource(token, clusterName, resourceIdentifier, casbin.ActionGet), nil
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
@@ -1350,7 +1366,7 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error) {
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
-		if k8s.IsResourceNotFoundErr(err) {
+		if IsResourceNotFoundErr(err) {
 			return nil, &utils.ApiError{Code: "404",
 				HttpStatusCode:  http.StatusNotFound,
 				InternalMessage: err.Error(),
