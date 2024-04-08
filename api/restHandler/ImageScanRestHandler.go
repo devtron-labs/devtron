@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"net/http"
 	"strconv"
 
@@ -71,7 +72,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var request *security.ImageScanRequest
+	var request *securityBean.ImageScanRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("request err, ScanExecutionList", "err", err, "payload", request)
@@ -83,8 +84,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -127,8 +128,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -178,7 +179,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		}
 	}
 	image := v.Get("image")
-	request := &security.ImageScanRequest{
+	request := &securityBean.ImageScanRequest{
 		ImageScanDeployInfoId: imageScanDeployInfoId,
 		Image:                 image,
 		ArtifactId:            artifactId,
@@ -186,11 +187,11 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		EnvId:                 envId,
 	}
 
-	executionDetail, err := impl.imageScanService.FetchExecutionDetailResult(request)
+	executionDetail, err := impl.imageScanService.FetchExecutionDetailResult(r.Context(), request)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchExecutionDetail", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			common.WriteJsonResp(w, nil, &security.ImageScanExecutionDetail{}, http.StatusOK)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanExecutionDetail{}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -226,7 +227,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	var appId, envId int
-	request := &security.ImageScanRequest{}
+	request := &securityBean.ImageScanRequest{}
 	appIds := v.Get("appId")
 	if len(appIds) > 0 {
 		appId, err := strconv.Atoi(appIds)
@@ -295,8 +296,8 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	if err != nil {
 		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}

@@ -18,8 +18,12 @@
 package repository
 
 import (
+	"context"
+	"github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
+	"go.opentelemetry.io/otel"
 	"strconv"
 )
 
@@ -29,18 +33,24 @@ type NotificationSettingsRepository interface {
 	FindNotificationSettingsViewById(id int) (*NotificationSettingsView, error)
 	FindNotificationSettingsViewByIds(id []*int) ([]*NotificationSettingsView, error)
 	UpdateNotificationSettingsView(notificationSettingsView *NotificationSettingsView, tx *pg.Tx) (*NotificationSettingsView, error)
-	SaveNotificationSetting(notificationSettings *NotificationSettings, tx *pg.Tx) (*NotificationSettings, error)
 	UpdateNotificationSettings(notificationSettings *NotificationSettings, tx *pg.Tx) (*NotificationSettings, error)
+	UpdateNotificationRules(notificationRules []*NotificationRule, tx *pg.Tx) (int, error)
+	FindNotificationRulesBySettingIds(settingIds []int) ([]*NotificationRule, error)
 	FindNotificationSettingsByViewId(viewId int) ([]NotificationSettings, error)
+	FindAllNotificationRuleIds(viewId int) ([]int, error)
 	SaveAllNotificationSettings(notificationSettings []NotificationSettings, tx *pg.Tx) (int, error)
+	SaveNotificationRule(notificationRule *NotificationRule, tx *pg.Tx) (*NotificationRule, error)
 	DeleteNotificationSettingsByConfigId(viewId int, tx *pg.Tx) (int, error)
-	FindAll(offset int, size int) ([]*NotificationSettingsView, error)
+	DeleteNotificationRulesByViewId(notificationRuleIds []int, tx *pg.Tx) (int, error)
+	FindAll(offset int, size int, internalOnly bool) ([]*NotificationSettingsView, error)
 	DeleteNotificationSettingsViewById(id int, tx *pg.Tx) (int, error)
 
 	FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error)
+	FetchNotificationSettingByViewId(viewId int) ([]NotificationSettings, error)
 	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error)
+	FindNotificationSettingsWithRules(ctx context.Context, eventId int, req GetRulesRequest) ([]NotificationSettings, error)
 }
 
 type NotificationSettingsRepositoryImpl struct {
@@ -55,9 +65,7 @@ type NotificationSettingsView struct {
 	tableName struct{} `sql:"notification_settings_view" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	Config    string   `sql:"config"`
-	//ConfigName    string   `sql:"config_name"`
-	//AppId         *int     `sql:"app_id"`
-	//EnvironmentId *int     `sql:"env_id"`
+	Internal  bool     `sql:"internal"`
 	sql.AuditLog
 }
 
@@ -73,16 +81,36 @@ type NotificationSettingsViewWithAppEnv struct {
 }
 
 type NotificationSettings struct {
-	tableName    struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	TeamId       *int     `sql:"team_id"`
-	AppId        *int     `sql:"app_id"`
-	EnvId        *int     `sql:"env_id"`
-	PipelineId   *int     `sql:"pipeline_id"`
-	PipelineType string   `sql:"pipeline_type"`
-	EventTypeId  int      `sql:"event_type_id"`
-	Config       string   `sql:"config"`
-	ViewId       int      `sql:"view_id"`
+	tableName            struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
+	Id                   int      `sql:"id,pk"`
+	TeamId               *int     `sql:"team_id"`
+	AppId                *int     `sql:"app_id"`
+	EnvId                *int     `sql:"env_id"`
+	PipelineId           *int     `sql:"pipeline_id"`
+	PipelineType         string   `sql:"pipeline_type"`
+	EventTypeId          int      `sql:"event_type_id"`
+	Config               string   `sql:"config"`
+	ViewId               int      `sql:"view_id"`
+	NotificationRuleId   int      `sql:"notification_rule_id"`
+	AdditionalConfigJson string   `sql:"additional_config_json"` // user defined config json;
+	NotificationRule     *NotificationRule
+}
+
+type ImageScanFilterFlags struct {
+	DiffViewEnabled bool `json:"diffViewEnabled,omitempty"`
+}
+
+type ImageScanFilterConditions struct {
+	Severity         []string `json:"severity,omitempty"`
+	PolicyPermission []string `json:"policyPermission,omitempty"`
+}
+
+type NotificationRule struct {
+	tableName     struct{}           `sql:"notification_rule" pg:",discard_unknown_columns"`
+	Id            int                `sql:"id,pk"`
+	ConditionType bean.ConditionType `sql:"condition_type"` // 0 -> FAIL; 1 -> PASS;
+	Expression    string             `sql:"expression"`     // CEL expression; conditions based on event variables
+	sql.AuditLog
 }
 
 type SettingOptionDTO struct {
@@ -97,16 +125,38 @@ type SettingOptionDTO struct {
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
-	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).Count()
+	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				WhereOr("internal IS NULL").
+				WhereOr("internal = ?", false)
+			return query, nil
+		}).
+		Count()
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (impl *NotificationSettingsRepositoryImpl) FindAll(offset int, size int) ([]*NotificationSettingsView, error) {
+func (impl *NotificationSettingsRepositoryImpl) FindAll(offset int, size int, internalOnly bool) ([]*NotificationSettingsView, error) {
 	var ns []*NotificationSettingsView
-	err := impl.dbConnection.Model(&ns).Order("created_on desc").Offset(offset).Limit(size).Select()
+	query := impl.dbConnection.Model(&ns)
+	if internalOnly {
+		query = query.Where("internal = ?", true)
+	} else {
+		query = query.
+			WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+				query = query.
+					WhereOr("internal IS NULL").
+					WhereOr("internal = ?", false)
+				return query, nil
+			})
+	}
+	err := query.Order("created_on desc").
+		Offset(offset).
+		Limit(size).
+		Select()
 	if err != nil {
 		return nil, err
 	}
@@ -150,14 +200,6 @@ func (impl *NotificationSettingsRepositoryImpl) UpdateNotificationSettingsView(n
 	return notificationSettingsView, nil
 }
 
-func (impl *NotificationSettingsRepositoryImpl) SaveNotificationSetting(notificationSettings *NotificationSettings, tx *pg.Tx) (*NotificationSettings, error) {
-	err := tx.Insert(notificationSettings)
-	if err != nil {
-		return nil, err
-	}
-	return notificationSettings, nil
-}
-
 func (impl *NotificationSettingsRepositoryImpl) SaveAllNotificationSettings(notificationSettings []NotificationSettings, tx *pg.Tx) (int, error) {
 	res, err := tx.Model(&notificationSettings).Insert()
 	if err != nil {
@@ -166,12 +208,42 @@ func (impl *NotificationSettingsRepositoryImpl) SaveAllNotificationSettings(noti
 	return res.RowsAffected(), nil
 }
 
+func (impl *NotificationSettingsRepositoryImpl) SaveNotificationRule(notificationRule *NotificationRule, tx *pg.Tx) (*NotificationRule, error) {
+	err := tx.Insert(notificationRule)
+	if err != nil {
+		return nil, err
+	}
+	return notificationRule, nil
+}
+
 func (impl *NotificationSettingsRepositoryImpl) UpdateNotificationSettings(notificationSettings *NotificationSettings, tx *pg.Tx) (*NotificationSettings, error) {
 	err := tx.Update(notificationSettings)
 	if err != nil {
 		return nil, err
 	}
 	return notificationSettings, nil
+}
+
+func (impl *NotificationSettingsRepositoryImpl) UpdateNotificationRules(notificationRules []*NotificationRule, tx *pg.Tx) (int, error) {
+	res, err := tx.Model(&notificationRules).Update()
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected(), nil
+}
+
+func (impl *NotificationSettingsRepositoryImpl) FindNotificationRulesBySettingIds(settingIds []int) ([]*NotificationRule, error) {
+	if settingIds == nil || len(settingIds) == 0 {
+		return nil, pg.ErrNoRows
+	}
+	var notificationRules []*NotificationRule
+	err := impl.dbConnection.Model(&notificationRules).
+		Where("notification_setting_id in (?)", pg.In(settingIds)).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return notificationRules, nil
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByViewId(viewId int) ([]NotificationSettings, error) {
@@ -183,9 +255,35 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByViewId
 	return notificationSettings, nil
 }
 
+func (impl *NotificationSettingsRepositoryImpl) FindAllNotificationRuleIds(viewId int) ([]int, error) {
+	var notificationRuleIds []int
+	err := impl.dbConnection.
+		Model((*NotificationSettings)(nil)).
+		Column("notification_rule_id").
+		Where("view_id = ?", viewId).
+		Where("notification_rule_id IS NOT NULL").
+		Select(&notificationRuleIds)
+	return notificationRuleIds, err
+}
+
 func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationSettingsByConfigId(viewId int, tx *pg.Tx) (int, error) {
 	var notificationSettings *NotificationSettings
 	res, err := tx.Model(notificationSettings).Where("view_id = ?", viewId).Delete()
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected(), nil
+}
+
+func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationRulesByViewId(notificationRuleIds []int, tx *pg.Tx) (int, error) {
+	if notificationRuleIds == nil {
+		return 0, pg.ErrNoRows
+	}
+	var notificationRules *NotificationRule
+	res, err := tx.
+		Model(notificationRules).
+		Where("id in (?)", pg.In(notificationRuleIds)).
+		Delete()
 	if err != nil {
 		return 0, err
 	}
@@ -297,6 +395,14 @@ type SearchRequest struct {
 	UserId       int32  `json:"-"`
 }
 
+type GetRulesRequest struct {
+	TeamId       int
+	EnvId        int
+	AppId        int
+	PipelineId   int
+	PipelineType string
+}
+
 func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error) {
 	var ns []NotificationSettings
 	queryTemp := "select ns.team_id,ns.env_id,ns.app_id,ns.pipeline_id,ns.pipeline_type from notification_settings ns" +
@@ -308,10 +414,98 @@ func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingGroupBy(
 	return ns, err
 }
 
+func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingByViewId(viewId int) ([]NotificationSettings, error) {
+	var notificationSettings []NotificationSettings
+	err := impl.dbConnection.
+		Model(&notificationSettings).
+		Column("notification_settings.*", "NotificationRule").
+		Where("view_id = ?", viewId).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return notificationSettings, err
+}
+
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error) {
 	var notificationSettings []*NotificationSettings
 	err := impl.dbConnection.Model(&notificationSettings).Where("config::text like ?", "%dest\":\""+configType+"%").
 		Where("config::text like ?", "%configId\":"+strconv.Itoa(configId)+"%").Select()
+	if err != nil {
+		return nil, err
+	}
+	return notificationSettings, nil
+}
+
+func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsWithRules(ctx context.Context, eventId int, req GetRulesRequest) ([]NotificationSettings, error) {
+	_, span := otel.Tracer("NotificationSettingsRepository").Start(ctx, "FindNotificationSettingsWithRules")
+	defer span.End()
+	if len(req.PipelineType) == 0 || eventId == 0 {
+		return nil, pg.ErrNoRows
+	}
+	var notificationSettings []NotificationSettings
+	err := impl.dbConnection.
+		Model(&notificationSettings).
+		Column("notification_settings.*", "NotificationRule").
+		Where("notification_settings.pipeline_type = ?", req.PipelineType).
+		Where("notification_settings.event_type_id = ?", eventId).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				Where("notification_settings.app_id = ?", req.AppId).
+				WhereOr("notification_settings.env_id IS NULL").
+				WhereOr("notification_settings.team_id IS NULL").
+				WhereOr("notification_settings.pipeline_id IS NULL").
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("notification_settings.app_id IS NULL").
+						WhereOr("notification_settings.env_id = ?", req.EnvId).
+						WhereOr("notification_settings.team_id IS NULL").
+						WhereOr("notification_settings.pipeline_id IS NULL").
+						WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+							query = query.
+								Where("notification_settings.app_id IS NULL").
+								WhereOr("notification_settings.env_id IS NULL").
+								WhereOr("notification_settings.team_id = ?", req.TeamId).
+								WhereOr("notification_settings.pipeline_id IS NULL").
+								WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+									query = query.
+										Where("notification_settings.app_id IS NULL").
+										WhereOr("notification_settings.env_id IS NULL").
+										WhereOr("notification_settings.team_id IS NULL").
+										WhereOr("notification_settings.pipeline_id = ?", req.PipelineId).
+										WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+											query = query.
+												Where("notification_settings.app_id IS NULL").
+												WhereOr("notification_settings.env_id = ?", req.EnvId).
+												WhereOr("notification_settings.team_id = ?", req.TeamId).
+												WhereOr("notification_settings.pipeline_id IS NULL").
+												WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+													query = query.
+														Where("notification_settings.app_id = ?", req.AppId).
+														WhereOr("notification_settings.env_id IS NULL").
+														WhereOr("notification_settings.team_id = ?", req.TeamId).
+														WhereOr("notification_settings.pipeline_id IS NULL").
+														WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+															query = query.
+																Where("notification_settings.app_id = ?", req.AppId).
+																WhereOr("notification_settings.env_id = ?", req.EnvId).
+																WhereOr("notification_settings.team_id = ?", req.TeamId).
+																WhereOr("notification_settings.pipeline_id = ?", req.PipelineId)
+															return query, nil
+														})
+													return query, nil
+												})
+											return query, nil
+										})
+									return query, nil
+								})
+							return query, nil
+						})
+					return query, nil
+				})
+			return query, nil
+		}).
+		Select()
 	if err != nil {
 		return nil, err
 	}
