@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -46,6 +47,7 @@ type AppCloneService interface {
 type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineBuilder         pipeline.PipelineBuilder
+	attributesService       attributes.AttributesService
 	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appWorkflowService      appWorkflow.AppWorkflowService
@@ -62,6 +64,7 @@ type AppCloneServiceImpl struct {
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
+	attributesService attributes.AttributesService,
 	chartService chart.ChartService,
 	configMapService pipeline.ConfigMapService,
 	appWorkflowService appWorkflow.AppWorkflowService,
@@ -75,6 +78,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
+		attributesService:       attributesService,
 		chartService:            chartService,
 		configMapService:        configMapService,
 		appWorkflowService:      appWorkflowService,
@@ -984,7 +988,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.pipelineBuilder.GetDeploymentConfigMap(refCdPipeline.EnvironmentId)
+	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}

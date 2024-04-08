@@ -24,7 +24,6 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -70,8 +69,6 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
-	GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request)
-	GetChartForParticularTrigger(w http.ResponseWriter, r *http.Request)
 	MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request)
 	TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request)
 }
@@ -83,13 +80,13 @@ type InstalledAppRestHandlerImpl struct {
 	enforcerUtil                            rbac.EnforcerUtil
 	enforcerUtilHelm                        rbac.EnforcerUtilHelm
 	installedAppService                     FullMode.InstalledAppDBExtendedService
-	fullModeDeploymentService               deployment.FullModeDeploymentService
 	installedAppResourceService             resource.InstalledAppResourceService
 	chartGroupService                       chartGroup.ChartGroupService
 	validator                               *validator.Validate
 	clusterService                          cluster.ClusterService
 	acdServiceClient                        application.ServiceClient
 	appStoreDeploymentService               service.AppStoreDeploymentService
+	appStoreDeploymentDBService             service.AppStoreDeploymentDBService
 	helmAppClient                           client.HelmAppClient
 	argoUserService                         argo.ArgoUserService
 	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
@@ -100,10 +97,11 @@ type InstalledAppRestHandlerImpl struct {
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	installedAppService FullMode.InstalledAppDBExtendedService, fullModeDeploymentService deployment.FullModeDeploymentService,
+	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
 	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
@@ -116,13 +114,13 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		enforcerUtil:                            enforcerUtil,
 		enforcerUtilHelm:                        enforcerUtilHelm,
 		installedAppService:                     installedAppService,
-		fullModeDeploymentService:               fullModeDeploymentService,
 		installedAppResourceService:             installedAppResourceService,
 		chartGroupService:                       chartGroupService,
 		validator:                               validator,
 		clusterService:                          clusterService,
 		acdServiceClient:                        acdServiceClient,
 		appStoreDeploymentService:               appStoreDeploymentService,
+		appStoreDeploymentDBService:             appStoreDeploymentDBService,
 		helmAppClient:                           helmAppClient,
 		argoUserService:                         argoUserService,
 		cdApplicationStatusUpdateHandler:        cdApplicationStatusUpdateHandler,
@@ -147,7 +145,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppOverview", "err", err, "appId", installedApp.AppId, "installedAppId", installedAppId)
@@ -377,7 +375,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		} else {
 			visited[item.AppName] = true
 		}
-		isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(item.AppStoreVersion)
+		isChartRepoActive, err := handler.appStoreDeploymentDBService.IsChartProviderActive(item.AppStoreVersion)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -516,7 +514,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 			return
 		}
 	}
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(installedAppId)
 	if err != nil {
 		handler.Logger.Error("request err, NonCascadeDeleteCdPipeline", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -600,7 +598,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
@@ -721,7 +719,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledAppV2, app store", "installedAppId", installedAppId, "envId", envId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
@@ -856,111 +854,6 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	handler.installedAppResourceService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
-}
-
-func (handler *InstalledAppRestHandlerImpl) GetChartForLatestDeployment(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installedAppId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	envId, err := strconv.Atoi(vars["envId"])
-
-	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-	var ok bool
-	if object2 == "" {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
-	} else {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	manifestByteArr, err := handler.fullModeDeploymentService.GetChartBytesForLatestDeployment(installedAppId, appDetail.AppStoreInstalledAppVersionId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	//TODO: move below to custom function
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(manifestByteArr)
-	return
-}
-
-func (handler *InstalledAppRestHandlerImpl) GetChartForParticularTrigger(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installedAppId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envId, err := strconv.Atoi(vars["envId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	installedAppVersionHistoryId, err := strconv.Atoi(vars["installedAppVersionHistoryId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
-	if err != nil {
-		handler.Logger.Errorw("request err, GetChartForLatestDeployment", "err", err, "installedAppId", installedAppId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-	var ok bool
-	if object2 == "" {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
-	} else {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	manifestByteArr, err := handler.fullModeDeploymentService.GetChartBytesForParticularDeployment(installedAppId, appDetail.AppStoreInstalledAppVersionId, installedAppVersionHistoryId)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	//TODO: move below to custom function
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(manifestByteArr)
-	return
 }
 
 func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request) {
