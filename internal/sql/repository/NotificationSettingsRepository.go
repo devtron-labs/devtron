@@ -20,6 +20,7 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"strconv"
 )
 
@@ -97,7 +98,14 @@ type SettingOptionDTO struct {
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
-	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).Count()
+	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				WhereOr("internal IS NULL").
+				WhereOr("internal = ?", false)
+			return query, nil
+		}).
+		Count()
 	if err != nil {
 		return 0, err
 	}
@@ -106,7 +114,18 @@ func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
 
 func (impl *NotificationSettingsRepositoryImpl) FindAll(offset int, size int) ([]*NotificationSettingsView, error) {
 	var ns []*NotificationSettingsView
-	err := impl.dbConnection.Model(&ns).Order("created_on desc").Offset(offset).Limit(size).Select()
+	err := impl.dbConnection.
+		Model(&ns).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				WhereOr("internal IS NULL").
+				WhereOr("internal = ?", false)
+			return query, nil
+		}).
+		Order("created_on desc").
+		Offset(offset).
+		Limit(size).
+		Select()
 	if err != nil {
 		return nil, err
 	}
