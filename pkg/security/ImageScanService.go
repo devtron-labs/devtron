@@ -19,7 +19,8 @@ package security
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -42,7 +43,7 @@ type ImageScanService interface {
 	FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	FetchMinScanResultByAppIdAndEnvId(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error)
-	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean.VulnerabilityCheckRequest) (bool, error)
+	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -576,7 +577,7 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 		return nil, err
 	}
 
-	envMap := make(map[int]cluster.EnvironmentBean)
+	envMap := make(map[int]bean.EnvironmentBean)
 	environments, err := impl.envService.GetAllActive()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching vulnerability exposure", "err", err)
@@ -612,7 +613,7 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	return vulnerabilityExposureListingResponse, nil
 }
 
-func (impl ImageScanServiceImpl) GetArtifactVulnerabilityStatus(ctx context.Context, request *bean.VulnerabilityCheckRequest) (bool, error) {
+func (impl ImageScanServiceImpl) GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error) {
 	isVulnerable := false
 	if len(request.ImageDigest) > 0 {
 		var cveStores []*security.CveStore
