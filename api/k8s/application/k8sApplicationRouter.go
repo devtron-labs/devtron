@@ -79,7 +79,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
 
-	k8sAppRouter.Path("/pod/all").
+	k8sAppRouter.Path("/pod").
 		Queries("clusterId", "{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
 
