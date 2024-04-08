@@ -3,14 +3,17 @@ package git
 import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"testing"
 )
 
 func getTestGithubClient() GitHubClient {
 	logger, err := util.NewSugardLogger()
-	gitCliUtl := NewGitCliUtil(logger)
-	gitService := NewGitOpsHelperImpl(&bean2.GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
+	gitService := NewGitOpsHelperImpl(
+		&git.BasicAuth{
+			Username: "nishant",
+			Password: "",
+		}, logger)
 
 	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
 	if err != nil {
