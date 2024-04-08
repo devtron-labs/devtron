@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/podutils"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -146,20 +147,30 @@ func (impl *PortForwardManagerImpl) getServicePod(ctx context.Context, request b
 }
 
 func (impl *PortForwardManagerImpl) getPortString(servicePort string) (string, int) {
-	unUsedport := impl.getUnUsedPort()
+	unUsedport, _ := impl.getUnUsedPort()
 	return strconv.Itoa(unUsedport) + ":" + servicePort, unUsedport
 }
 
-func (impl *PortForwardManagerImpl) getUnUsedPort() int {
+func (impl *PortForwardManagerImpl) getUnUsedPort() (int, error) {
 	// handle case where all ports are used
-	if len(impl.stopChannels) >= 1000 {
-		return -1
+	//if len(impl.stopChannels) >= 1000 {
+	//	return -1
+	//}
+	//randomPort := randRange(7000, 8000)
+	//if _, ok := impl.stopChannels[randomPort]; !ok {
+	//	return randomPort
+	//}
+	//return impl.getUnUsedPort()
+	ln, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		impl.logger.Errorw("error occurred while generating random port", "err", err)
+		return -1, err
 	}
-	randomPort := randRange(7000, 8000)
-	if _, ok := impl.stopChannels[randomPort]; !ok {
-		return randomPort
+	port := ln.Addr().(*net.TCPAddr).Port
+	if err = ln.Close(); err != nil {
+		impl.logger.Warnf("failed to close %v: %v", ln, err)
 	}
-	return impl.getUnUsedPort()
+	return port, nil
 }
 
 type portForwarder interface {
