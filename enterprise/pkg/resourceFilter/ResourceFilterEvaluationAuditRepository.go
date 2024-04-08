@@ -102,7 +102,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByMultiRefAndMultiSubject(re
 		Where("reference_id IN (?)", pg.In(referenceIds)).
 		Where("subject_type = ?", subjectType).
 		Where("subject_id IN (?) ", pg.In(subjectIds)).
-		Where("resource_type = ?", FILTER_CONDITION).
+		Where("filter_type = ?", FILTER_CONDITION).
 		Select()
 	if err == pg.ErrNoRows {
 		return res, nil
