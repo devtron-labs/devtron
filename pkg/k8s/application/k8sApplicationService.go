@@ -12,6 +12,7 @@ import (
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 
@@ -70,54 +71,73 @@ type K8sApplicationService interface {
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 	ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
+	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 }
 
 type K8sApplicationServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	clusterService               cluster.ClusterService
-	pump                         connector.Pump
-	helmAppService               client.HelmAppService
-	K8sUtil                      *k8s2.K8sUtilExtended
-	aCDAuthConfig                *util3.ACDAuthConfig
-	K8sResourceHistoryService    kubernetesResourceAuditLogs.K8sResourceHistoryService
-	k8sCommonService             k8s.K8sCommonService
-	terminalSession              terminal.TerminalSessionHandler
-	ephemeralContainerService    cluster.EphemeralContainerService
-	ephemeralContainerRepository repository.EphemeralContainersRepository
-	ephemeralContainerConfig     *EphemeralContainerConfig
-	argoApplicationService       argoApplication.ArgoApplicationService
+	logger                                  *zap.SugaredLogger
+	clusterService                          cluster.ClusterService
+	pump                                    connector.Pump
+	helmAppService                          client.HelmAppService
+	K8sUtil                                 *k8s2.K8sUtilExtended
+	aCDAuthConfig                           *util3.ACDAuthConfig
+	K8sResourceHistoryService               kubernetesResourceAuditLogs.K8sResourceHistoryService
+	k8sCommonService                        k8s.K8sCommonService
+	terminalSession                         terminal.TerminalSessionHandler
+	ephemeralContainerService               cluster.EphemeralContainerService
+	ephemeralContainerRepository            repository.EphemeralContainersRepository
+	k8sAppConfig                            *K8sAppConfig
+	argoApplicationService                  argoApplication.ArgoApplicationService
+	interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler
+	scoopClusterServiceMap                  map[int]ScoopServiceClusterConfig
 }
 
-func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	argoApplicationService argoApplication.ArgoApplicationService) (*K8sApplicationServiceImpl, error) {
-	ephemeralContainerConfig := &EphemeralContainerConfig{}
-	err := env.Parse(ephemeralContainerConfig)
+	argoApplicationService argoApplication.ArgoApplicationService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler) (*K8sApplicationServiceImpl, error) {
+	k8sAppConfig := &K8sAppConfig{}
+	err := env.Parse(k8sAppConfig)
 	if err != nil {
-		Logger.Errorw("error in parsing EphemeralContainerConfig from env", "err", err)
+		logger.Errorw("error in parsing K8sAppConfig from env", "err", err)
 		return nil, err
 	}
+	scoopConfig := make(map[int]ScoopServiceClusterConfig)
+	scoopClusterConfig := k8sAppConfig.ScoopClusterConfig
+	err = json.Unmarshal([]byte(scoopClusterConfig), &scoopConfig)
+	if err != nil {
+		logger.Warnw("error occurred while parsing scoop cluster config", "scoopClusterConfig", scoopClusterConfig, "err", err)
+	}
 	return &K8sApplicationServiceImpl{
-		logger:                       Logger,
-		clusterService:               clusterService,
-		pump:                         pump,
-		helmAppService:               helmAppService,
-		K8sUtil:                      K8sUtil,
-		aCDAuthConfig:                aCDAuthConfig,
-		K8sResourceHistoryService:    K8sResourceHistoryService,
-		k8sCommonService:             k8sCommonService,
-		terminalSession:              terminalSession,
-		ephemeralContainerService:    ephemeralContainerService,
-		ephemeralContainerRepository: ephemeralContainerRepository,
-		ephemeralContainerConfig:     ephemeralContainerConfig,
-		argoApplicationService:       argoApplicationService,
+		logger:                                  logger,
+		clusterService:                          clusterService,
+		pump:                                    pump,
+		helmAppService:                          helmAppService,
+		K8sUtil:                                 K8sUtil,
+		aCDAuthConfig:                           aCDAuthConfig,
+		K8sResourceHistoryService:               K8sResourceHistoryService,
+		k8sCommonService:                        k8sCommonService,
+		terminalSession:                         terminalSession,
+		ephemeralContainerService:               ephemeralContainerService,
+		ephemeralContainerRepository:            ephemeralContainerRepository,
+		k8sAppConfig:                            k8sAppConfig,
+		argoApplicationService:                  argoApplicationService,
+		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
+		scoopClusterServiceMap:                  scoopConfig,
 	}, nil
 }
 
-type EphemeralContainerConfig struct {
+type K8sAppConfig struct {
 	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
+	ScoopClusterConfig          string `env:"SCOOP_CLUSTER_CONFIG" envDefault:"{}"`
+}
+
+type ScoopServiceClusterConfig struct {
+	ServiceName string `json:"serviceName"`
+	Namespace   string `json:"namespace"`
+	PassKey     string `json:"passKey"`
+	Port        string `json:"port"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
@@ -1058,6 +1078,20 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 	return resp, nil
 }
 
+func (impl *K8sApplicationServiceImpl) GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error) {
+	// read scoop service metadata from config
+	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
+	if !ok {
+		return nil, scoopConfig, errors.New("scoop not configured")
+	}
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, scoopConfig.ServiceName, scoopConfig.Namespace, scoopConfig.Port))
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching scoop proxy handler", "clusterId", clusterId, "err", err)
+		return nil, scoopConfig, err
+	}
+	return proxyHandler, scoopConfig, nil
+}
+
 func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error) {
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
@@ -1169,7 +1203,7 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 
 	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
 	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	ephemeralRegex := impl.ephemeralContainerConfig.EphemeralServerVersionRegex
+	ephemeralRegex := impl.k8sAppConfig.EphemeralServerVersionRegex
 	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
 	if err != nil {
 		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)

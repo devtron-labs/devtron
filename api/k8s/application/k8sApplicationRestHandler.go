@@ -63,34 +63,32 @@ type K8sApplicationRestHandler interface {
 }
 
 type K8sApplicationRestHandlerImpl struct {
-	logger                                  *zap.SugaredLogger
-	k8sApplicationService                   application2.K8sApplicationService
-	pump                                    connector.Pump
-	terminalSessionHandler                  terminal.TerminalSessionHandler
-	enforcer                                casbin.Enforcer
-	validator                               *validator.Validate
-	enforcerUtil                            rbac.EnforcerUtil
-	enforcerUtilHelm                        rbac.EnforcerUtilHelm
-	helmAppService                          client.HelmAppService
-	userService                             user.UserService
-	k8sCommonService                        k8s.K8sCommonService
-	interClusterServiceCommunicationHandler application2.InterClusterServiceCommunicationHandler
+	logger                 *zap.SugaredLogger
+	k8sApplicationService  application2.K8sApplicationService
+	pump                   connector.Pump
+	terminalSessionHandler terminal.TerminalSessionHandler
+	enforcer               casbin.Enforcer
+	validator              *validator.Validate
+	enforcerUtil           rbac.EnforcerUtil
+	enforcerUtilHelm       rbac.EnforcerUtilHelm
+	helmAppService         client.HelmAppService
+	userService            user.UserService
+	k8sCommonService       k8s.K8sCommonService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, interClusterServiceCommunicationHandler application2.InterClusterServiceCommunicationHandler) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
-		logger:                                  logger,
-		k8sApplicationService:                   k8sApplicationService,
-		pump:                                    pump,
-		terminalSessionHandler:                  terminalSessionHandler,
-		enforcer:                                enforcer,
-		validator:                               validator,
-		enforcerUtilHelm:                        enforcerUtilHelm,
-		enforcerUtil:                            enforcerUtil,
-		helmAppService:                          helmAppService,
-		userService:                             userService,
-		k8sCommonService:                        k8sCommonService,
-		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
+		logger:                 logger,
+		k8sApplicationService:  k8sApplicationService,
+		pump:                   pump,
+		terminalSessionHandler: terminalSessionHandler,
+		enforcer:               enforcer,
+		validator:              validator,
+		enforcerUtilHelm:       enforcerUtilHelm,
+		enforcerUtil:           enforcerUtil,
+		helmAppService:         helmAppService,
+		userService:            userService,
+		k8sCommonService:       k8sCommonService,
 	}
 }
 
@@ -1170,11 +1168,11 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	proxyHandler, err := handler.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(r.Context(), application2.NewClusterServiceKey(clusterId, "scoop-stage-mon-service", "monitoring", "80"))
+	scoopServiceProxyHandler, scoopConfig, err := handler.k8sApplicationService.GetScoopServiceProxyHandler(r.Context(), clusterId)
 	if err != nil {
 		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
 		return
 	}
-	r.Header.Add("X-PASS-KEY", "random-string")
-	proxyHandler.ServeHTTP(w, r)
+	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
+	scoopServiceProxyHandler.ServeHTTP(w, r)
 }
