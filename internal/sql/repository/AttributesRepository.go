@@ -18,6 +18,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
@@ -43,6 +44,13 @@ type AttributesRepository interface {
 // TODO:caching because of high traffic calls clean this after proper fix
 var attributeForEnforcedDeploymentTypeConfig *Attributes
 
+func invalidateEnforcedDeploymentCache(model *Attributes) {
+	if model.Key != bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG {
+		return
+	}
+	attributeForEnforcedDeploymentTypeConfig = nil
+}
+
 type AttributesRepositoryImpl struct {
 	dbConnection *pg.DB
 }
@@ -57,27 +65,44 @@ func (impl *AttributesRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 
 func (repo AttributesRepositoryImpl) Save(model *Attributes, tx *pg.Tx) (*Attributes, error) {
 	err := tx.Insert(model)
-	return model, err
+	if err != nil {
+		return model, err
+	}
+	// reset cached data
+	invalidateEnforcedDeploymentCache(model)
+	return model, nil
 }
 
 func (repo AttributesRepositoryImpl) Update(model *Attributes, tx *pg.Tx) error {
 	err := tx.Update(model)
-	return err
+	if err != nil {
+		return err
+	}
+	// reset cached data
+	invalidateEnforcedDeploymentCache(model)
+	return nil
 }
 
 func (repo AttributesRepositoryImpl) FindByKey(key string) (*Attributes, error) {
-	model := &Attributes{}
-
-	if key == "enforceDeploymentTypeConfig" && attributeForEnforcedDeploymentTypeConfig != nil {
+	// use cached data if existing
+	if key == bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG &&
+		attributeForEnforcedDeploymentTypeConfig != nil {
 		return attributeForEnforcedDeploymentTypeConfig, nil
-	} else {
-		err := repo.dbConnection.Model(model).Where("key = ?", key).Where("active = ?", true).
-			Select()
-		if key == "enforceDeploymentTypeConfig" && err != nil {
-			attributeForEnforcedDeploymentTypeConfig = model
-		}
+	}
+	model := &Attributes{}
+	err := repo.dbConnection.
+		Model(model).
+		Where("key = ?", key).
+		Where("active = ?", true).
+		Select()
+	if err != nil {
 		return model, err
 	}
+	// update cached data if not existing
+	if key == bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG {
+		attributeForEnforcedDeploymentTypeConfig = model
+	}
+	return model, nil
 }
 
 func (repo AttributesRepositoryImpl) FindById(id int) (*Attributes, error) {

@@ -48,6 +48,7 @@ type EventFactory interface {
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
+	SetAdditionalImageScanData(event *Event, ciPipelineId int, artifactId int)
 }
 
 type EventSimpleFactoryImpl struct {
@@ -150,6 +151,14 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 	event.CorrelationId = fmt.Sprintf("%s", correlationId)
 	event.EventTime = time.Now().Format(bean.LayoutRFC3339)
 	return event
+}
+
+func (impl *EventSimpleFactoryImpl) SetAdditionalImageScanData(event *Event, ciPipelineId int, artifactId int) {
+	material, err := impl.getCiMaterialInfo(ciPipelineId, artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getting material", "ciPipelineId", ciPipelineId, "artifactId", artifactId, "err", err)
+	}
+	event.Payload.MaterialTriggerInfo = material
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event {
@@ -367,6 +376,7 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 	}
 	return materialTriggerInfo, nil
 }
+
 func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {

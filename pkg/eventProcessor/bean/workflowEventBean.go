@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"time"
 )
 
@@ -32,6 +33,15 @@ type AsyncCdDeployEvent struct {
 type ImageDetailsFromCR struct {
 	ImageDetails []types.ImageDetail `json:"imageDetails"`
 	Region       string              `json:"region"`
+}
+
+type ImageScanningEvent struct {
+	CiPipelineId int                    `json:"ciPipelineId"`
+	CdPipelineId int                    `json:"cdPipelineId"`
+	TriggerBy    int                    `json:"triggeredBy" validate:"required"`
+	Image        string                 `json:"image" validate:"required"`
+	Digest       string                 `json:"digest" validate:"required"`
+	PipelineType eventUtil.PipelineType `json:"PipelineType" validate:"oneof=CI PRE-CD POST-CD"`
 }
 
 type CiCompleteEvent struct {
