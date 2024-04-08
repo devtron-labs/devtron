@@ -27,6 +27,7 @@
 ## Documentation
 - doc: Added EnvVariablesFromFieldPath in Deployment Template (#4852)
 ## Others
+- chore: migration support for notification db changes (#4906)
 - chore: App Store refactoring v4 (#4647)
 - chore: Resource mapping refactoring (#4813)
 - misc: Refactoring Pagerduty Issue Calculator script (#4856)
