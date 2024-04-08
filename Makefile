@@ -43,7 +43,7 @@ test-integration:
 	docker run --env-file=wireNil.env  --privileged -d --name dind-test -v $(PWD)/:/test/ docker:dind
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/create-test-env.sh"
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/run-integration-test.sh"
-	docker exec dind-test sh -c 'PG_ADDR=$(kubectl get node  --no-headers  -o custom-columns=INTERNAL-IP:status.addresses[0].address) NATS_SERVER_HOST=nats://$(PG_ADDR):30236 sh -c "cd test && go run ."'
+	docker exec dind-test sh -c 'PG_ADDR=$$(kubectl get node  --no-headers  -o custom-columns=INTERNAL-IP:status.addresses[0].address) NATS_SERVER_HOST=nats://$$PG_ADDR:30236 sh -c "cd test && go run ."'
 run: build
 	./devtron
 
