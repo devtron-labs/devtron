@@ -54,33 +54,3 @@ type RotatePodResourceResponse struct {
 	k8s.ResourceIdentifier
 	ErrorResponse string `json:"errorResponse"`
 }
-
-//const Job = "Job"
-//const Deployment = "Deployment"
-//const StatefulSet = "StatefulSet"
-//const DaemonSet = "DaemonSet"
-//const ReplicaSet = "ReplicaSet"
-//const Rollout = "Rollout"
-//const ReplicationController = "ReplicationController"
-//const Pod = "Pod"
-//const CronJob = "CronJob"
-//const Containers = "containers"
-//const InitContainers = "initContainers"
-//const EphemeralContainers = "ephemeralContainers"
-//const IMAGE = "image"
-
-//var commonContainerPath = []string{"spec", "template", "spec"}
-//var cronJobContainerPath = []string{"spec", "jobTemplate", "spec", "spec"}
-//var podContainerPath = []string{"spec"}
-//
-//var KindToPath = map[string][]string{
-//	Deployment:            commonContainerPath,
-//	Job:                   commonContainerPath,
-//	StatefulSet:           commonContainerPath,
-//	DaemonSet:             commonContainerPath,
-//	ReplicaSet:            commonContainerPath,
-//	Rollout:               commonContainerPath,
-//	ReplicationController: commonContainerPath,
-//	Pod:                   podContainerPath,
-//	CronJob:               cronJobContainerPath,
-//}
