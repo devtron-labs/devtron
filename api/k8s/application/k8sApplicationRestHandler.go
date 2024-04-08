@@ -217,9 +217,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.Res
 	}
 	info, err := handler.k8sCommonService.GetResourceSecurityInfo(r.Context(), request)
 	if err != nil {
-		return
-	}
-	if err != nil {
 		handler.logger.Errorw("error in getting security details for resource", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
@@ -228,79 +225,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.Res
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
-	//decoder := json.NewDecoder(r.Body)
-	//var request k8s.ResourceRequestBean
-	//err := decoder.Decode(&request)
-	//if err != nil {
-	//	handler.logger.Errorw("error in decoding request body", "err", err)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-	//vars := r.URL.Query()
-	//request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
-	//rbacObject := ""
-	//rbacObject2 := ""
-	//envObject := ""
-	//token := r.Header.Get("token")
-	//if request.AppId != "" && request.AppType == bean2.HelmAppType {
-	//	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	//	if err != nil {
-	//		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
-	//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//		return
-	//	}
-	//	//setting appIdentifier value in request
-	//	request.AppIdentifier = appIdentifier
-	//	request.ClusterId = request.AppIdentifier.ClusterId
-	//	if request.DeploymentType == bean2.HelmInstalledType {
-	//		valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-	//		if err != nil || !valid {
-	//			handler.logger.Errorw("error in validating resource request", "err", err)
-	//			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//			return
-	//		}
-	//	} else if request.DeploymentType == bean2.ArgoInstalledType {
-	//		//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
-	//	}
-	//	// RBAC enforcer applying for Helm App
-	//	rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
-	//	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
-	//	if !ok {
-	//		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-	//		return
-	//	}
-	//	// RBAC enforcer Ends
-	//} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
-	//	devtronAppIdentifier, err := handler.k8sApplicationService.DecodeDevtronAppId(request.AppId)
-	//	if err != nil {
-	//		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
-	//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//		return
-	//	}
-	//	//setting devtronAppIdentifier value in request
-	//	request.DevtronAppIdentifier = devtronAppIdentifier
-	//	request.ClusterId = request.DevtronAppIdentifier.ClusterId
-	//	if request.DeploymentType == bean2.HelmInstalledType {
-	//		//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
-	//	} else if request.DeploymentType == bean2.ArgoInstalledType {
-	//		//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
-	//	}
-	//	// RBAC enforcer applying for Devtron App
-	//	envObject = handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
-	//	hasReadAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
-	//	if !hasReadAccessForEnv {
-	//		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-	//		return
-	//	}
-	//	// RBAC enforcer Ends
-	//}
-	//// Invalid cluster id
-	//if request.ClusterId <= 0 {
-	//	common.WriteJsonResp(w, errors.New("can not resource manifest as target cluster is not provided"), nil, http.StatusBadRequest)
-	//	return
-	//}
 	token := r.Header.Get("token")
-
 	request, err := handler.validateGetResourceRequest(w, r)
 	if err != nil {
 		return

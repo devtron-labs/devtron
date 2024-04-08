@@ -18,6 +18,7 @@
 package security
 
 import (
+	"fmt"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"golang.org/x/exp/maps"
 	"time"
@@ -647,28 +648,18 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 
 	imageScanResults, err := impl.scanResultRepository.FindByImages(images)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in fetching image scan result %w", err)
 	}
-	imageToLatestHistoryId := make(map[string]int)
-	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
-	for _, result := range imageScanResults {
-		image := result.ImageScanExecutionHistory.Image
-		imageToExecutionResults[image] = append(imageToExecutionResults[image], result)
-
-		if id, ok := imageToLatestHistoryId[image]; !ok {
-			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
-		} else if result.ImageScanExecutionHistoryId > id {
-			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
-		}
-	}
+	imageToLatestHistoryId, imageToExecutionResults := impl.getImageHistoryAndExecResults(imageScanResults)
 
 	for image, results := range imageToExecutionResults {
 		imageToExecutionResults[image] = filterResultsForHistoryId(results, imageToLatestHistoryId[image])
 	}
 
-	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(maps.Values(imageToLatestHistoryId))
+	historyIds := maps.Values(imageToLatestHistoryId)
+	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(historyIds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in fetching GetAllScanHistoriesByExecutionHistoryIds %w %v", err, historyIds)
 	}
 	historyIdToMapping := make(map[int]*security.ScanToolExecutionHistoryMapping)
 	for _, mapping := range historyMappings {
@@ -678,32 +669,7 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	results := make([]*ImageScanResult, 0)
 	for image, executionResults := range imageToExecutionResults {
 		historyMapping := historyIdToMapping[executionResults[0].ImageScanExecutionHistoryId]
-		var vulnerabilities []*Vulnerabilities
-		var highCount, moderateCount, lowCount int
-		var cveStores []*security.CveStore
-		for _, item := range executionResults {
-			vulnerability := &Vulnerabilities{
-				CVEName:  item.CveStore.Name,
-				CVersion: item.CveStore.Version,
-				FVersion: item.CveStore.FixedVersion,
-				Package:  item.CveStore.Package,
-				Severity: item.CveStore.Severity.String(),
-			}
-			if item.CveStore.Severity == security.Critical {
-				highCount = highCount + 1
-			} else if item.CveStore.Severity == security.Medium {
-				moderateCount = moderateCount + 1
-			} else if item.CveStore.Severity == security.Low {
-				lowCount = lowCount + 1
-			}
-			vulnerabilities = append(vulnerabilities, vulnerability)
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		severityCount := &SeverityCount{
-			High:     highCount,
-			Moderate: moderateCount,
-			Low:      lowCount,
-		}
+		vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
 		scanResult := ScanResult{
 			Vulnerabilities: vulnerabilities,
 			SeverityCount:   severityCount,
@@ -729,19 +695,61 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 		})
 		impl.sendForScan(image)
 	}
-
-	//TODO send not scanned results to image-scanner through nats
 	return results, nil
 }
 
-func (impl ImageScanServiceImpl) sendForScan(image string) {
-	go func() {
-		err := impl.policyService.SendEventToClairUtility(&ScanEvent{
-			Image:  image,
-			UserId: 1,
-		})
-		if err != nil {
-			impl.Logger.Errorw("error in sending image scan event", "err", err, "image", image)
+func (impl ImageScanServiceImpl) getVulnerabilitiesAndSeverityCount(executionResults []*security.ImageScanExecutionResult) ([]*Vulnerabilities, *SeverityCount) {
+	var vulnerabilities []*Vulnerabilities
+	var highCount, moderateCount, lowCount int
+	var cveStores []*security.CveStore
+	for _, item := range executionResults {
+		vulnerability := &Vulnerabilities{
+			CVEName:  item.CveStore.Name,
+			CVersion: item.CveStore.Version,
+			FVersion: item.CveStore.FixedVersion,
+			Package:  item.CveStore.Package,
+			Severity: item.CveStore.Severity.String(),
 		}
-	}()
+		if item.CveStore.Severity == security.Critical {
+			highCount = highCount + 1
+		} else if item.CveStore.Severity == security.Medium {
+			moderateCount = moderateCount + 1
+		} else if item.CveStore.Severity == security.Low {
+			lowCount = lowCount + 1
+		}
+		vulnerabilities = append(vulnerabilities, vulnerability)
+		cveStores = append(cveStores, &item.CveStore)
+	}
+	severityCount := &SeverityCount{
+		High:     highCount,
+		Moderate: moderateCount,
+		Low:      lowCount,
+	}
+	return vulnerabilities, severityCount
+}
+
+func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults []*security.ImageScanExecutionResult) (map[string]int, map[string][]*security.ImageScanExecutionResult) {
+	imageToLatestHistoryId := make(map[string]int)
+	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
+	for _, result := range imageScanResults {
+		image := result.ImageScanExecutionHistory.Image
+		imageToExecutionResults[image] = append(imageToExecutionResults[image], result)
+
+		if id, ok := imageToLatestHistoryId[image]; !ok {
+			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
+		} else if result.ImageScanExecutionHistoryId > id {
+			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
+		}
+	}
+	return imageToLatestHistoryId, imageToExecutionResults
+}
+
+func (impl ImageScanServiceImpl) sendForScan(image string) {
+	err := impl.policyService.SendEventToClairUtilityAsync(&ScanEvent{
+		Image:  image,
+		UserId: 1,
+	})
+	if err != nil {
+		impl.Logger.Errorw("error in sending image scan event", "err", err, "image", image)
+	}
 }

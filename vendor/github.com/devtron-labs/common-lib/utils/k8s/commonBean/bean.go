@@ -24,11 +24,32 @@ const (
 	NamespaceKind                = "Namespace"
 	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 	Spec                         = "spec"
+	Template                     = "template"
 	Ports                        = "ports"
 	Port                         = "port"
 	Subsets                      = "subsets"
 	Nodes                        = "nodes"
+	Containers                   = "containers"
+	InitContainers               = "initContainers"
+	EphemeralContainers          = "ephemeralContainers"
+	Image                        = "image"
 )
+
+var commonContainerPath = []string{Spec, Template, Spec}
+var cronJobContainerPath = []string{Spec, Template, Spec, Spec}
+var podContainerPath = []string{Spec}
+
+var KindToPath = map[string][]string{
+	DeploymentKind:                commonContainerPath,
+	JobKind:                       commonContainerPath,
+	StatefulSetKind:               commonContainerPath,
+	DaemonSetKind:                 commonContainerPath,
+	ReplicaSetKind:                commonContainerPath,
+	K8sClusterResourceRolloutKind: commonContainerPath,
+	K8sClusterResourceReplicationControllerKind: commonContainerPath,
+	PodKind:                       podContainerPath,
+	K8sClusterResourceCronJobKind: cronJobContainerPath,
+}
 
 const (
 	PersistentVolumeClaimsResourceType = "persistentvolumeclaims"

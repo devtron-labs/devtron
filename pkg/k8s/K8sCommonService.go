@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -19,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -713,78 +713,16 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error) {
 	resource, err := impl.GetResource(ctx, request)
 	if err != nil {
+		impl.logger.Errorw("error in fetching manifest", "err", err, "request", request.K8sRequest)
 		return nil, err
 	}
 
 	manifestResponse := resource.ManifestResponse
-	images := extractImages(manifestResponse.Manifest)
+	images := k8sObjectsUtil.ExtractImages(manifestResponse.Manifest)
 	scanResults, err := impl.imageScanService.FetchScanResultsForImages(images)
 	if err != nil {
+		impl.logger.Errorw("error in fetching scan results for images", "err", err, "images", images)
 		return nil, err
 	}
 	return scanResults, nil
-}
-
-const Job = "Job"
-const Deployment = "Deployment"
-const StatefulSet = "StatefulSet"
-const DaemonSet = "DaemonSet"
-const ReplicaSet = "ReplicaSet"
-const Rollout = "Rollout"
-const ReplicationController = "ReplicationController"
-const Pod = "Pod"
-const CronJob = "CronJob"
-const Containers = "containers"
-const InitContainers = "initContainers"
-const EphemeralContainers = "ephemeralContainers"
-
-var commonContainerPath = []string{"spec", "template", "spec"}
-var cronJobContainerPath = []string{"spec", "jobTemplate", "spec", "spec"}
-var podContainerPath = []string{"spec"}
-
-var kindToPath = map[string][]string{
-	Deployment:            commonContainerPath,
-	Job:                   commonContainerPath,
-	StatefulSet:           commonContainerPath,
-	DaemonSet:             commonContainerPath,
-	ReplicaSet:            commonContainerPath,
-	Rollout:               commonContainerPath,
-	ReplicationController: commonContainerPath,
-	Pod:                   podContainerPath,
-	CronJob:               cronJobContainerPath,
-}
-
-func GetPath(item string, path []string) []string {
-	return append(path, item)
-}
-
-func extractImages(obj unstructured.Unstructured) []string {
-	images := make([]string, 0)
-
-	kind := obj.GetKind()
-	subPath, ok := kindToPath[kind]
-	if !ok {
-		return images
-	}
-	allContainers := make([]interface{}, 0)
-	containers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(Containers, subPath)...)
-	if len(containers) > 0 {
-		allContainers = append(allContainers, containers...)
-	}
-	iContainers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(InitContainers, subPath)...)
-	if len(iContainers) > 0 {
-		allContainers = append(allContainers, iContainers...)
-	}
-	ephContainers, _, _ := unstructured.NestedSlice(obj.Object, GetPath(EphemeralContainers, subPath)...)
-	if len(ephContainers) > 0 {
-		allContainers = append(allContainers, ephContainers...)
-	}
-	for _, container := range allContainers {
-		containerMap := container.(map[string]interface{})
-		if image, ok := containerMap["image"].(string); ok {
-			images = append(images, image)
-		}
-
-	}
-	return images
 }
