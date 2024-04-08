@@ -114,11 +114,19 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
+
+	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PreDeploy)
+	if err != nil {
+		return err
+	}
+
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
+
+	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
 	if filterEvaluationAudit != nil {
 		// update resource_filter_evaluation entry with wfrId and type
@@ -272,6 +280,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
 		ReferenceId:           request.TriggerContext.ReferenceId,
+		TriggerMetadata:       request.TriggerMessage,
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
 	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)

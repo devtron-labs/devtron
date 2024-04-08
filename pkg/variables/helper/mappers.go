@@ -34,14 +34,18 @@ func GetIdentifierTypeFromResourceKey(searchableKeyId int, resourceKeyMap map[in
 	}
 }
 
-func GetIdentifierKey(identifierType models.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
-	switch identifierType {
-	case models.ApplicationName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
-	case models.ClusterName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
-	case models.EnvName:
-		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+func GetSelectorForAttributeType(attributeType models.AttributeType) resourceQualifiers.QualifierSelector {
+	switch attributeType {
+	case models.ApplicationEnv:
+		return resourceQualifiers.ApplicationEnvironmentSelector
+	case models.Application:
+		return resourceQualifiers.ApplicationSelector
+	case models.Env:
+		return resourceQualifiers.EnvironmentSelector
+	case models.Cluster:
+		return resourceQualifiers.ClusterSelector
+	case models.Global:
+		return resourceQualifiers.GlobalSelector
 	default:
 		return 0
 	}

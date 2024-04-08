@@ -19,6 +19,7 @@ package rbac
 
 import (
 	"fmt"
+	"golang.org/x/exp/maps"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -66,6 +67,7 @@ type EnforcerUtil interface {
 	GetTeamNoEnvRBACNameByAppName(appName string) string
 	GetTeamNoEnvRBACNameByAppId(appId int) string
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
+	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
 	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
@@ -109,6 +111,56 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		},
 		enforcer: enforcer,
 	}
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string {
+	objects := make(map[int]map[int]string)
+
+	applications, err := impl.appRepo.FindByIds(util.GetReferencedArray(maps.Keys(appIdToEnvIds)))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching apps")
+		return objects
+	}
+	appIdToApp := make(map[int]*app.App)
+	for _, application := range applications {
+		appIdToApp[application.Id] = application
+	}
+	envIds := make([]int, 0)
+	envs := maps.Values(appIdToEnvIds)
+	for _, env := range envs {
+		for _, envId := range env {
+			envIds = append(envIds, envId)
+		}
+	}
+	environments, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
+		return objects
+	}
+	envIdIdToEnv := make(map[int]*repository.Environment)
+	for _, env := range environments {
+		envIdIdToEnv[env.Id] = env
+	}
+
+	for appId, envIds := range appIdToEnvIds {
+		var application *app.App
+		var ok bool
+		if application, ok = appIdToApp[appId]; !ok {
+			continue
+		}
+		var appName = application.AppName
+		for _, envId := range envIds {
+
+			var env *repository.Environment
+			var ok bool
+			if env, ok = envIdIdToEnv[envId]; !ok {
+				continue
+			}
+			object := map[int]string{env.Id: fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)}
+			objects[appId] = object
+		}
+	}
+	return objects
 }
 
 func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string) {

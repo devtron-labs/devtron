@@ -52,7 +52,7 @@ type WorkspaceMembers struct {
 
 func (t *Permission) GetUserPermissions(organization, member string) (*Permission, error) {
 	urlStr := t.c.requestUrl("/workspaces/%s/permissions?q=user.nickname=\"%s\"", organization, member)
-	response, err := t.c.executePaginated("GET", urlStr, "")
+	response, err := t.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (t *Permission) GetUserPermissions(organization, member string) (*Permissio
 
 func (t *Permission) GetUserPermissionsByUuid(organization, member string) (*Permission, error) {
 	urlStr := t.c.requestUrl("/workspaces/%s/permissions?q=user.uuid=\"%s\"", organization, member)
-	response, err := t.c.executePaginated("GET", urlStr, "")
+	response, err := t.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (t *Permission) GetUserPermissionsByUuid(organization, member string) (*Per
 
 func (t *Workspace) List() (*WorkspaceList, error) {
 	urlStr := t.c.requestUrl("/workspaces")
-	response, err := t.c.executePaginated("GET", urlStr, "")
+	response, err := t.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (t *Workspace) Get(workspace string) (*Workspace, error) {
 
 func (w *Workspace) Members(teamname string) (*WorkspaceMembers, error) {
 	urlStr := w.c.requestUrl("/workspaces/%s/members", teamname)
-	response, err := w.c.executePaginated("GET", urlStr, "")
+	response, err := w.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (w *Workspace) Members(teamname string) (*WorkspaceMembers, error) {
 
 func (w *Workspace) Projects(teamname string) (*ProjectsRes, error) {
 	urlStr := w.c.requestUrl("/workspaces/%s/projects/", teamname)
-	response, err := w.c.executePaginated("GET", urlStr, "")
+	response, err := w.c.executePaginated("GET", urlStr, "", nil)
 	if err != nil {
 		return nil, err
 	}
