@@ -7,6 +7,7 @@ import (
 	"fmt"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -15,6 +16,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DeployedAppService interface {
@@ -23,12 +25,13 @@ type DeployedAppService interface {
 }
 
 type DeployedAppServiceImpl struct {
-	logger               *zap.SugaredLogger
-	k8sCommonService     k8s.K8sCommonService
-	cdTriggerService     devtronApps.TriggerService
-	envRepository        repository.EnvironmentRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	logger                  *zap.SugaredLogger
+	k8sCommonService        k8s.K8sCommonService
+	cdTriggerService        devtronApps.TriggerService
+	envRepository           repository.EnvironmentRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	deploymentWindowService deploymentWindow.DeploymentWindowService
 }
 
 func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
@@ -36,14 +39,17 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	cdTriggerService devtronApps.TriggerService,
 	envRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedAppServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	deploymentWindowService deploymentWindow.DeploymentWindowService,
+) *DeployedAppServiceImpl {
 	return &DeployedAppServiceImpl{
-		logger:               logger,
-		k8sCommonService:     k8sCommonService,
-		cdTriggerService:     cdTriggerService,
-		envRepository:        envRepository,
-		pipelineRepository:   pipelineRepository,
-		cdWorkflowRepository: cdWorkflowRepository,
+		logger:                  logger,
+		k8sCommonService:        k8sCommonService,
+		cdTriggerService:        cdTriggerService,
+		envRepository:           envRepository,
+		pipelineRepository:      pipelineRepository,
+		cdWorkflowRepository:    cdWorkflowRepository,
+		deploymentWindowService: deploymentWindowService,
 	}
 }
 
@@ -102,8 +108,25 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 	return id, err
 }
 
+func (impl *DeployedAppServiceImpl) checkForDeploymentWindow(podRotateRequest *bean.PodRotateRequest) (*bean.PodRotateRequest, error) {
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
+	if err != nil {
+		return podRotateRequest, fmt.Errorf("error in getting deployment window state %v", err)
+	}
+	if !actionState.IsActionAllowedWithBypass() {
+		return podRotateRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+	}
+	return podRotateRequest, nil
+}
+
 func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*k8s.RotatePodResponse, error) {
+
 	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
+	podRotateRequest, err := impl.checkForDeploymentWindow(podRotateRequest)
+	if err != nil {
+		return nil, err
+	}
+
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
 	environment, err := impl.envRepository.FindById(environmentId)

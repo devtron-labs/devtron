@@ -293,3 +293,14 @@ func GetCommaSepratedStringWithComma[T int | string](appIds []T) string {
 	}
 	return appIdsString
 }
+
+func GetCommaSeperatedForMulti(identifiers []string) string {
+	result := ""
+	for i, identifier := range identifiers {
+		result += fmt.Sprintf("(%v)", identifier)
+		if i != len(identifiers)-1 {
+			result += ","
+		}
+	}
+	return result
+}

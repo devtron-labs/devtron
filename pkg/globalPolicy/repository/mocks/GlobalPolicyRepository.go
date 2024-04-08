@@ -31,7 +31,7 @@ func (_m *GlobalPolicyRepository) CommitTransaction(tx *pg.Tx) error {
 }
 
 // Create provides a mock function with given fields: model
-func (_m *GlobalPolicyRepository) Create(model *repository.GlobalPolicy) error {
+func (_m *GlobalPolicyRepository) Create(model *repository.GlobalPolicy, tx *pg.Tx) error {
 	ret := _m.Called(model)
 
 	var r0 error

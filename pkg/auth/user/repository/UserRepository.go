@@ -60,6 +60,8 @@ type UserRepository interface {
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
 	GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error)
 	GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error)
+	GetSuperAdmins() ([]int32, error)
+	FetchUserDetailByEmails(emails []string) ([]UserModel, error)
 }
 
 type UserRepositoryImpl struct {
@@ -95,6 +97,8 @@ type UserRoleModel struct {
 	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
 	sql.AuditLog
 }
+
+const SuperAdminAction = "super-admin"
 
 func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {
 	err := tx.Insert(userModel)
@@ -211,6 +215,37 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	}
 
 	return users, nil
+}
+func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
+	userIds := make([]int32, 0)
+
+	query := "SELECT ur.user_id FROM user_roles ur" +
+		" INNER JOIN roles r ON r.id = ur.role_id" +
+		" WHERE r.action = ?"
+
+	_, err := impl.dbConnection.Query(&userIds, query, SuperAdminAction)
+	if err != nil {
+		return userIds, err
+	}
+	return userIds, nil
+}
+
+func (impl UserRepositoryImpl) FetchUserDetailByEmails(emails []string) ([]UserModel, error) {
+	//impl.Logger.Info("reached at FetchUserDetailByEmail:")
+	var userModels []UserModel
+
+	//var model UserModel
+	err := impl.dbConnection.Model(&userModels).
+		Column("id", "email_id").
+		Where("email_id IN (?)", pg.In(emails)).
+		Where("active = ?", true).
+		Select()
+
+	if err != nil && err != pg.ErrNoRows {
+		return userModels, err
+	}
+
+	return userModels, nil
 }
 
 func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserInfo, error) {

@@ -3,6 +3,7 @@ module github.com/devtron-labs/devtron
 go 1.20
 
 require (
+	github.com/Azure/go-autorest/autorest/date v0.3.0
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/argoproj/argo-cd/v2 v2.8.13
@@ -20,8 +21,8 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
-	github.com/devtron-labs/authenticator v0.4.35-0.20240321064236-a95dc8d0403f
-	github.com/devtron-labs/common-lib v0.0.16-0.20240326053557-bff4518a731d
+	github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470
+	github.com/devtron-labs/common-lib v0.0.16-0.20240405133916-bd0ca854307d
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/evanphx/json-patch v5.6.0+incompatible
@@ -75,8 +76,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.20.0
 	go.opentelemetry.io/otel/trace v1.20.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.17.0
-	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
+	golang.org/x/crypto v0.19.0
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 	golang.org/x/oauth2 v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
@@ -108,7 +109,6 @@ require (
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
-	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect
@@ -257,14 +257,14 @@ require (
 	go.starlark.net v0.0.0-20220328144851-d1966c6b9fcd // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.13.0 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.126.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
