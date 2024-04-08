@@ -21,9 +21,9 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
-	github.com/devtron-labs/authenticator v0.4.35-0.20240313095124-d00f3ff035b6
-	github.com/devtron-labs/common-lib v0.0.16-0.20240404105222-a97eb62df3b3
-	github.com/devtron-labs/common-lib-private v0.0.14-0.20240301113626-305856902377
+	github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470
+	github.com/devtron-labs/common-lib v0.0.16-0.20240405133916-bd0ca854307d
+	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -260,7 +260,7 @@ require (
 	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
