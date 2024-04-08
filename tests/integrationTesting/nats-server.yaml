@@ -38,33 +38,39 @@ apiVersion: v1
 kind: Service
 metadata:
   name: devtron-nats
-  namespace: "devtroncd"
-  labels:
-    helm.sh/chart: nats-0.9.2
-
-    app.kubernetes.io/name: nats
-    app.kubernetes.io/instance: devtron-nats
-    app.kubernetes.io/version: "2.6.3"
-    app.kubernetes.io/managed-by: Helm
+  namespace: devtroncd
 spec:
-  selector:
-
-    app.kubernetes.io/name: nats
-    app.kubernetes.io/instance: devtron-nats
-  clusterIP: None
   ports:
     - name: client
+      nodePort: 30236
       port: 4222
+      protocol: TCP
+      targetPort: 4222
     - name: cluster
       port: 6222
+      protocol: TCP
+      targetPort: 6222
     - name: monitor
       port: 8222
+      protocol: TCP
+      targetPort: 8222
     - name: metrics
       port: 7777
+      protocol: TCP
+      targetPort: 7777
     - name: leafnodes
       port: 7422
+      protocol: TCP
+      targetPort: 7422
     - name: gateways
       port: 7522
+      protocol: TCP
+      targetPort: 7522
+  selector:
+    app.kubernetes.io/instance: devtron-nats
+    app.kubernetes.io/name: nats
+  sessionAffinity: None
+  type: NodePort
 ---
 # Source: nats/templates/statefulset.yaml
 apiVersion: apps/v1

@@ -20,7 +20,6 @@ kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.ya
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-secret.yaml
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/nats-server.yaml
-kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-nats-nodeport.yaml
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' $PWD/tests/integrationTesting/migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' $PWD/tests/integrationTesting/migrator.yaml -i
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml
@@ -53,6 +52,4 @@ helm dependency up
 helm template devtron . --set installer.modules={cicd} -s templates/workflow.yaml >./argo_wf.yaml
 kubectl apply -f ./argo_wf.yaml
 while [ ! $(kubectl -n argo get deployment workflow-controller -o jsonpath="{.status.readyReplicas}")  ]; do sleep 10; done
-export NATS_SERVER_HOST=nats://$(kubectl get node  --no-headers  -o custom-columns=INTERNAL-IP:status.addresses[0].address):30236
-export PG_ADDR=$(kubectl get node  --no-headers  -o custom-columns=INTERNAL-IP:status.addresses[0].address)
 cd $PWD
