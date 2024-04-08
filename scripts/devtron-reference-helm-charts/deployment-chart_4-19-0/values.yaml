@@ -16,6 +16,7 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
+    protocol: TCP
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
@@ -42,7 +43,18 @@ Spec:
   Key: ""
 #  Key: kops.k8s.io/instancegroup 
   Values: ""
-
+affinity:
+  enabled: true
+  values:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In
+            values:
+            - S1
+        topologyKey: topology.kubernetes.io/zone  
 
 image:
   pullPolicy: IfNotPresent
@@ -337,6 +349,7 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: "HTTPS"
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -570,12 +583,13 @@ ConfigSecrets:
 #     key2: abc-2
 
 
-initContainers: []
+initContainers: 
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-  # - name: volume-mount-hack
-  #   image: busybox
-  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  - name: volume-mount-hack
+    image: busybox
+    command: ["sh", "-c", "chown -R 1000:1000 logs"]
+    args: ["clone", "kamal"]
   #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
@@ -583,7 +597,17 @@ initContainers: []
   # # This will assign your application's docker image to init container.
   #   reuseContainerImage: true
 
-containers: []
+containers: 
+  - name: poll-services
+    reuseContainerImage: true
+    command:
+      - /bin/bash
+      - -c
+      - bash /tmp/curl.sh
+    volumeMounts:
+      - mountPath: /tmp/curl.sh
+        name: curl-services-cm-vol
+        subPath: curl.sh
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
   #- name: volume-mount-hack
@@ -702,3 +726,11 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+peristentVolumeClaim: 
+  name: kamal-pvc
+  storageClassName: gp2
+  storage: 8Gi
+  accessMode: 
+  - ReadWriteOnce
+  volumeMode: 
+  mountPath: "/tmp"

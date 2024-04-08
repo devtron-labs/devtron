@@ -1,0 +1,24 @@
+{{- if .Values.peristentVolumeClaim.name }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{.Values.peristentVolumeClaim.name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}    
+{{- with .Values.peristentVolumeClaim }}  
+spec:
+  accessModes:
+{{- range .accessMode }}  
+    - {{ . }}
+{{- end }}    
+  resources:
+    requests:
+      storage: {{ .storage | default "5Gi" }}
+  storageClassName: {{ .storageClassName | default "default"  }}
+  volumeMode: {{ .volumeMode | default "Filesystem" }}
+{{- end }}  
+{{- end }}
