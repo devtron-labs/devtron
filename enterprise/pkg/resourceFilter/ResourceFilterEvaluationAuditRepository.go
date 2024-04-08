@@ -163,7 +163,7 @@ func (repo *FilterEvaluationAuditRepositoryImpl) UpdateRefTypeAndRefId(id int, r
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", 1).
 		Where("id = ?", id).
-		Where("resource_type = ?", FILTER_CONDITION).
+		Where("filter_type = ?", FILTER_CONDITION).
 		Update()
 	return err
 }
