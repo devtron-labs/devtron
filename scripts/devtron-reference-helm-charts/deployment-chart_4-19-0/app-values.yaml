@@ -41,6 +41,7 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
+    protocol: TCP
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
@@ -393,6 +394,19 @@ Spec:
     Key: ""
     #  Key: kops.k8s.io/instancegroup
     Values: ""
+
+affinity:
+  enabled: false
+  values:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In
+            values:
+            - S1
+        topologyKey: topology.kubernetes.io/zone     
 
 ambassadorMapping:
   enabled: false
