@@ -29,8 +29,8 @@ import (
 )
 
 func main() {
-	globalEnvVariables, err := util2.GetGlobalEnvVariables()
-	if globalEnvVariables.ExecuteWireNilChecker {
+	globalEnvVariables, err := util2.GetEnvironmentVariables()
+	if globalEnvVariables.GlobalEnvVariables.ExecuteWireNilChecker {
 		fmt.Println("inside execute function.....")
 		CheckIfNilInWire()
 		return
