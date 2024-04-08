@@ -29,7 +29,7 @@ type WebhookConfig struct {
 	WebHookUrl  string                 `sql:"web_hook_url"`
 	ConfigName  string                 `sql:"config_name"`
 	Header      map[string]interface{} `sql:"header"`
-	Payload     map[string]interface{} `sql:"payload"`
+	Payload     string                 `sql:"payload"`
 	Description string                 `sql:"description"`
 	OwnerId     int32                  `sql:"owner_id"`
 	Active      bool                   `sql:"active"`
