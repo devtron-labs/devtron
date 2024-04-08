@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deprecate latest in app store app version (#4896)
 - fix: rbac fix in case of project in upper case (#4840)
 - fix: use join cookie logic to extract token (#4892)
 - fix: chart sync job optimisation (#4631)
