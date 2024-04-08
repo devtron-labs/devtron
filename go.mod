@@ -325,7 +325,3 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
-
-replace github.com/devtron-labs/common-lib-private => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib-private
-
-replace github.com/devtron-labs/common-lib => /Users/pghildiy/go/src/github.com/devtron-labs/common-lib
