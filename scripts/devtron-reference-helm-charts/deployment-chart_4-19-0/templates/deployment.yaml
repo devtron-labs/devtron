@@ -11,6 +11,11 @@
   {{- end }}
   {{- end }}
 
+  {{- $hasPVCExists := false -}}
+  {{- if .Values.peristentVolumeClaim.name }}
+  {{- $hasPVCExists = true }}
+  {{- end }}
+
   {{- $hasSecretEnvExists := false -}}
   {{- $hasSecretVolumeExists := false -}}
   {{- if .Values.ConfigSecrets.enabled }}
@@ -46,7 +51,6 @@ metadata:
   annotations:
 {{ toYaml .Values.deploymentAnnotations | indent 4 }}
 {{- end }}
-
 spec:
   selector:
     matchLabels:
@@ -94,11 +98,18 @@ spec:
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
 {{- end }}
+{{- if $.Values.affinity }}
+      affinity: 
+{{ toYaml .Values.affinity | indent 8 }}
+{{- end }}
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
 {{- else  }}
       serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
+{{- if $.Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+{{- end }}      
   {{- if .Values.tolerations }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
@@ -129,6 +140,10 @@ spec:
           {{- end }}
 {{- end }}
 {{- end }}
+{{- if $.Values.topologySpreadConstraint }}
+      topologySpreadConstraints: 
+{{ toYaml .Values.topologySpreadConstraint }}  
+{{- end }}    
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
@@ -151,6 +166,10 @@ spec:
           command:
 {{ toYaml .command | indent 12 -}}
 {{- end}}
+{{- if .args}}
+          args:
+{{ toYaml .args | indent 12 -}}
+{{- end}}
 {{- if .resources}}
           resources:
 {{ toYaml .resources | indent 12 -}}
@@ -166,64 +185,6 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-{{- if $.Values.appMetrics }}
-        - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          {{- if $.Values.envoyproxy.lifecycle }}
-          lifecycle:
-{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
-          {{- else if $.Values.containerSpec.lifecycle.enabled }}
-          lifecycle:
-           {{- if $.Values.containerSpec.lifecycle.preStop }}
-           preStop:
-{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
-           {{- end }}
-          {{- end }}
-          resources:
-{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
-          ports:
-            - containerPort: 9901
-              protocol: TCP
-              name: envoy-admin
-              {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
-              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
-              protocol: TCP
-              {{- end }}
-          command: ["/usr/local/bin/envoy"]
-          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
-          volumeMounts:
-            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
-              mountPath: /etc/envoy-config/
-{{- end}}
-{{- if $.Values.containers }}
-{{- range $i, $c := .Values.containers }}
-{{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
-          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
-          imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if .securityContext }}
-          securityContext:
-{{ toYaml .securityContext | indent 12 }}
-{{- end }}
-{{- if .command}}
-          command:
-{{ toYaml .command | indent 12 -}}
-{{- end}}
-{{- if .resources}}
-          resources:
-{{ toYaml .resources | indent 12 -}}
-{{- end}}
-{{- if .volumeMounts}}
-          volumeMounts:
-{{ toYaml .volumeMounts | indent 12 -}}
-{{- end}}
-{{- else}}
-        -
-{{ toYaml . | indent 10 }}
-{{- end}}
-{{- end}}
-{{- end}}
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
@@ -256,7 +217,7 @@ spec:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
-              protocol: TCP
+              protocol: {{ .protocol }}
           {{- end}}
 {{- if and $.Values.command.enabled $.Values.command.workingDir }}
           workingDir: {{ $.Values.command.workingDir }}
@@ -348,6 +309,7 @@ spec:
             httpGet:
               path: {{ $.Values.LivenessProbe.Path  }}
               port: {{ $.Values.LivenessProbe.port }}
+              scheme: {{ $.Values.LivenessProbe.scheme }}
             {{- if $.Values.LivenessProbe.httpHeaders }}
               httpHeaders:
               {{- range $.Values.LivenessProbe.httpHeaders}}
@@ -381,6 +343,7 @@ spec:
             httpGet:
               path: {{ $.Values.ReadinessProbe.Path  }}
               port: {{ $.Values.ReadinessProbe.port }}
+              scheme: {{ $.Values.ReadinessProbe.scheme }}
             {{- if $.Values.ReadinessProbe.httpHeaders }}
               httpHeaders:
               {{- range $.Values.ReadinessProbe.httpHeaders}}
@@ -447,6 +410,10 @@ spec:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
+{{- if  $.Values.peristentVolumeClaim.name }}
+            - name: {{ .Values.peristentVolumeClaim.name }}-vol
+              mountPath: {{ .Values.peristentVolumeClaim.mountPath | default "/tmp" }}
+{{- end}}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
@@ -486,8 +453,66 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}      
+{{- if $.Values.appMetrics }}
+        - name: envoy
+          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          {{- if $.Values.envoyproxy.lifecycle }}
+          lifecycle:
+{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
+          {{- else if $.Values.containerSpec.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
+           preStop:
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
+           {{- end }}
+          {{- end }}
+          resources:
+{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
+          ports:
+            - containerPort: 9901
+              protocol: TCP
+              name: envoy-admin
+              {{- range $index, $element := .Values.ContainerPort }}
+            - name: {{ $element.name}}
+              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
+              protocol: TCP
+              {{- end }}
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+          volumeMounts:
+            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
+              mountPath: /etc/envoy-config/
+{{- end}}
+{{- if $.Values.containers }}
+{{- range $i, $c := .Values.containers }}
+{{- if .reuseContainerImage}}
+        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .securityContext }}
+          securityContext:
+{{ toYaml .securityContext | indent 12 }}
+{{- end }}
+{{- if .command}}
+          command:
+{{ toYaml .command | indent 12 -}}
+{{- end}}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
+{{- if .volumeMounts}}
+          volumeMounts:
+{{ toYaml .volumeMounts | indent 12 -}}
+{{- end}}
+{{- else}}
+        -
+{{ toYaml . | indent 10 }}
+{{- end}}
+{{- end}}
+{{- end}}
 
       volumes:
   {{- if $.Values.appMetrics }}
@@ -498,6 +523,11 @@ spec:
 {{- with .Values.volumes }}
 {{ toYaml . | trim | indent 8 }}
 {{- end }}
+{{- if .Values.peristentVolumeClaim.name }}
+        - name: {{.Values.peristentVolumeClaim.name}}-vol
+          persistentVolumeClaim:
+            claimName: {{.Values.peristentVolumeClaim.name }}
+{{- end}}
       {{- if .Values.ConfigMaps.enabled }}
       {{- range .Values.ConfigMaps.maps }}
       {{- if eq .type "volume"}}
@@ -533,8 +563,8 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
+      {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+      {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
 
   revisionHistoryLimit: 3
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
