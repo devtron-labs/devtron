@@ -104,13 +104,9 @@ type ImageScanExecutionDetail struct {
 	Image                 string `json:"image,omitempty"`
 	PodName               string `json:"podName,omitempty"`
 	ReplicaSet            string `json:"replicaSet,omitempty"`
-	//Vulnerabilities       []*Vulnerabilities `json:"vulnerabilities,omitempty"`
-	//SeverityCount         *SeverityCount     `json:"severityCount,omitempty"`
-	//ExecutionTime         time.Time          `json:"executionTime,omitempty"`
-	ScanEnabled bool   `json:"scanEnabled,notnull"`
-	Scanned     bool   `json:"scanned,notnull"`
-	ObjectType  string `json:"objectType,notnull"`
-	//ScanToolId            int                `json:"scanToolId,omitempty""`
+	ScanEnabled           bool   `json:"scanEnabled,notnull"`
+	Scanned               bool   `json:"scanned,notnull"`
+	ObjectType            string `json:"objectType,notnull"`
 	ScanResult
 }
 
@@ -546,12 +542,9 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 			ScanToolId:      scantoolId,
 		},
 		ImageScanDeployInfoId: scanDeployInfo.Id,
-		//SeverityCount:         severityCount,
-		//ExecutionTime:         executionTime,
-		ObjectType:  scanDeployInfo.ObjectType,
-		ScanEnabled: true,
-		Scanned:     true,
-		//ScanToolId:            scantoolId,
+		ObjectType:            scanDeployInfo.ObjectType,
+		ScanEnabled:           true,
+		Scanned:               true,
 	}
 	return imageScanResponse, nil
 }
