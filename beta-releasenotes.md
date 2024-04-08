@@ -17,6 +17,7 @@
 - fix: extra check added for mono-repo migraiton (#4764)
 - fix: trim space from git repo Url on create and update material (#4787)
 ## Enhancements
+- feat: Added the Devtron CI Trigger Plugin (#4908)
 - feat:MailMaster Plugin v1.0 (#4825)
 - feat: Add support for git hash in the app and app group overview section _revised (#4836)
 - feat:Github Pull Request Closer (#4833)
