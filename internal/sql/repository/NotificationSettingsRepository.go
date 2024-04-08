@@ -55,9 +55,7 @@ type NotificationSettingsView struct {
 	tableName struct{} `sql:"notification_settings_view" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	Config    string   `sql:"config"`
-	//ConfigName    string   `sql:"config_name"`
-	//AppId         *int     `sql:"app_id"`
-	//EnvironmentId *int     `sql:"env_id"`
+	Internal  bool     `sql:"internal"`
 	sql.AuditLog
 }
 
@@ -73,16 +71,18 @@ type NotificationSettingsViewWithAppEnv struct {
 }
 
 type NotificationSettings struct {
-	tableName    struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	TeamId       *int     `sql:"team_id"`
-	AppId        *int     `sql:"app_id"`
-	EnvId        *int     `sql:"env_id"`
-	PipelineId   *int     `sql:"pipeline_id"`
-	PipelineType string   `sql:"pipeline_type"`
-	EventTypeId  int      `sql:"event_type_id"`
-	Config       string   `sql:"config"`
-	ViewId       int      `sql:"view_id"`
+	tableName            struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
+	Id                   int      `sql:"id,pk"`
+	TeamId               *int     `sql:"team_id"`
+	AppId                *int     `sql:"app_id"`
+	EnvId                *int     `sql:"env_id"`
+	PipelineId           *int     `sql:"pipeline_id"`
+	PipelineType         string   `sql:"pipeline_type"`
+	EventTypeId          int      `sql:"event_type_id"`
+	Config               string   `sql:"config"`
+	ViewId               int      `sql:"view_id"`
+	NotificationRuleId   int      `sql:"notification_rule_id"`
+	AdditionalConfigJson string   `sql:"additional_config_json"` // user defined config json;
 }
 
 type SettingOptionDTO struct {
