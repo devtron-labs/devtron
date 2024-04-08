@@ -95,6 +95,19 @@ OBJECT -
     "metadata":
     {}
   },
+  "status": {
+          "health" : {},
+          "config": {
+              "lock" : true,
+              "status" : "Ready For release"
+          }
+  },
+  "taskMapping": [
+          {
+              "taskId": 1,
+              "dependencyForTask" : "1", //index of dependency on which task is to be performed
+          }
+  ],
   "dependencies":
   [   {
     "name": "orchestrator-enterprise",
@@ -104,9 +117,9 @@ OBJECT -
   },
     {
       "id": 7,
-      "name": "orchestrator-enterprise", //app. Cd pipelines or
+      "name": "orchestrator-enterprise", //app
       "index": 0,
-      "dependentOnIndex": 0,
+      "dependentOnIndex": [0],
       "typeOfDependency": "upstream",
       "devtronResourceId": 2,
       "dependentOnParentIndex": 0,
@@ -126,7 +139,7 @@ OBJECT -
       "id": 11,
       "name": "kubelink-enterprise", //app
       "index": 1,
-      "dependentOnIndex": 0,
+      "dependentOnIndex": [0],
       "typeOfDependency": "upstream",
       "devtronResourceId": 2,
       "dependentOnParentIndex": 0,

@@ -36,7 +36,7 @@ type DevtronResourceObjectAudit struct {
 	Id                      int                `sql:"id,pk"`
 	DevtronResourceObjectId int                `sql:"devtron_resource_object_id"`
 	ObjectData              string             `sql:"object_data"` //json string
-	AuditOperation          AuditOperationType `sql:"audit_operation"     `
+	AuditOperation          AuditOperationType `sql:"audit_operation"`
 	sql.AuditLog
 }
 

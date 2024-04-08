@@ -4,32 +4,8 @@ POLICY FOR RELEASE OBJECT CONFIG STATUS CHANGE -
     "definitions":
     [
         {
-        	"from" : "anyStage",
-        	"possibleTo" : [],
-
-        }
-    ],
-    "selectors":
-    [
-        {
-            "devtronResourceId": 10, //for release resource
-            "resourceObjectPath" : ".status.config.status",
-            "name": "*",
-        }
-    ],
-    "consequence" : "BLOCK"
-}
-
-
-
-POLICY FOR CONFIG CHANGE OF RELEASE OBJECT -
-
-{
-    "definitions":
-    [
-        {
-        	"from" : "anyStage",
-        	"to" : [],
+        	"to" : "anyStage",
+        	"possibleFrom" : [],
 
         }
     ],
