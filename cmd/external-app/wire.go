@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -237,6 +238,9 @@ func InitializeApp() (*App, error) {
 
 		repository5.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository5.TimeWindowRepository), new(*repository5.TimeWindowRepositoryImpl)),
+
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
 	)
 	return &App{}, nil
 }
