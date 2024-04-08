@@ -18,7 +18,6 @@
 package security
 
 import (
-	"fmt"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"golang.org/x/exp/maps"
 	"time"
@@ -650,13 +649,10 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	if err != nil {
 		return nil, err
 	}
-	//foundImages := make([]string, 0)
 	imageToLatestHistoryId := make(map[string]int)
 	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
 	for _, result := range imageScanResults {
 		image := result.ImageScanExecutionHistory.Image
-		//historyIds = append(historyIds, result.ImageScanExecutionHistoryId)
-		//foundImages = append(foundImages, result.ImageScanExecutionHistory.Image)
 		imageToExecutionResults[image] = append(imageToExecutionResults[image], result)
 
 		if id, ok := imageToLatestHistoryId[image]; !ok {
@@ -731,7 +727,6 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 			Image: image,
 			State: 0,
 		})
-		fmt.Println(image)
 		impl.sendForScan(image)
 	}
 
