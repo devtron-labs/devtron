@@ -79,4 +79,5 @@ type InstalledAppInfo struct {
 	TeamId                int    `json:"teamId"`
 	TeamName              string `json:"teamName"`
 	DeploymentType        string `json:"deploymentType"`
+	HelmPackageName       string `json:"helmPackageName"`
 }

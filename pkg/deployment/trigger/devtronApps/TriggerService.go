@@ -168,7 +168,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
-	globalEnvVariables *util3.GlobalEnvVariables,
+	envVariables *util3.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
@@ -218,7 +218,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
-		globalEnvVariables:                  globalEnvVariables,
+		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
 		scanResultRepository:                scanResultRepository,
@@ -1152,7 +1152,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
