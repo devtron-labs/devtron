@@ -1,4 +1,5 @@
 ## Bugs
+- fix: rbac fix in case of project in upper case (#4840)
 - fix: use join cookie logic to extract token (#4892)
 - fix: chart sync job optimisation (#4631)
 - fix: depandabot version upgrade (#4792)
