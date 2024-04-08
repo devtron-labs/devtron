@@ -139,6 +139,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		return nil, fmt.Errorf("error in committing values and requirements to git repository")
 	}
 	gitOpsResponse.GitHash = gitHash
+	gitOpsResponse.ChartGitAttribute = &commonBean.ChartGitAttribute{RepoUrl: installAppVersionRequest.GitOpsRepoURL, ChartLocation: installAppVersionRequest.ACDAppName}
 	return gitOpsResponse, nil
 }
 
