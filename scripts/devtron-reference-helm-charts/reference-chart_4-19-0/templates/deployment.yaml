@@ -186,64 +186,6 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-{{- if $.Values.appMetrics }}
-        - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          {{- if $.Values.envoyproxy.lifecycle }}
-          lifecycle:
-{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
-          {{- else if $.Values.containerSpec.lifecycle.enabled }}
-          lifecycle:
-           {{- if $.Values.containerSpec.lifecycle.preStop }}
-           preStop:
-{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
-           {{- end }}
-          {{- end }}
-          resources:
-{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
-          ports:
-            - containerPort: 9901
-              protocol: TCP
-              name: envoy-admin
-              {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
-              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
-              protocol: TCP
-              {{- end }}
-          command: ["/usr/local/bin/envoy"]
-          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
-          volumeMounts:
-            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
-              mountPath: /etc/envoy-config/
-{{- end}}
-{{- if $.Values.containers }}
-{{- range $i, $c := .Values.containers }}
-{{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
-          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
-          imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if .securityContext }}
-          securityContext:
-{{ toYaml .securityContext | indent 12 }}
-{{- end }}
-{{- if .command}}
-          command:
-{{ toYaml .command | indent 12 -}}
-{{- end}}
-{{- if .resources}}
-          resources:
-{{ toYaml .resources | indent 12 -}}
-{{- end}}
-{{- if .volumeMounts}}
-          volumeMounts:
-{{ toYaml .volumeMounts | indent 12 -}}
-{{- end}}
-{{- else}}
-        -
-{{ toYaml . | indent 10 }}
-{{- end}}
-{{- end}}
-{{- end}}
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
@@ -503,7 +445,65 @@ spec:
           {{- end }}
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}      
+{{- if $.Values.appMetrics }}
+        - name: envoy
+          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          {{- if $.Values.envoyproxy.lifecycle }}
+          lifecycle:
+{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
+          {{- else if $.Values.containerSpec.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
+           preStop:
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
+           {{- end }}
+          {{- end }}
+          resources:
+{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
+          ports:
+            - containerPort: 9901
+              protocol: TCP
+              name: envoy-admin
+              {{- range $index, $element := .Values.ContainerPort }}
+            - name: {{ $element.name}}
+              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
+              protocol: TCP
+              {{- end }}
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+          volumeMounts:
+            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
+              mountPath: /etc/envoy-config/
+{{- end}}
+{{- if $.Values.containers }}
+{{- range $i, $c := .Values.containers }}
+{{- if .reuseContainerImage}}
+        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .securityContext }}
+          securityContext:
+{{ toYaml .securityContext | indent 12 }}
+{{- end }}
+{{- if .command}}
+          command:
+{{ toYaml .command | indent 12 -}}
+{{- end}}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
+{{- if .volumeMounts}}
+          volumeMounts:
+{{ toYaml .volumeMounts | indent 12 -}}
+{{- end}}
+{{- else}}
+        -
+{{ toYaml . | indent 10 }}
+{{- end}}
+{{- end}}
+{{- end}}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
