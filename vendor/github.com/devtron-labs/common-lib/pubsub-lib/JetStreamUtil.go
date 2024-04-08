@@ -98,6 +98,9 @@ const (
 	CD_PIPELINE_DELETE_EVENT_TOPIC      string = "CD-PIPELINE-DELETE-EVENT"
 	CD_PIPELINE_DELETE_EVENT_GROUP      string = "CD-PIPELINE-DELETE-EVENT-GROUP"
 	CD_PIPELINE_DELETE_EVENT_DURABLE    string = "CD-PIPELINE-DELETE-EVENT-DURABLE"
+	NOTIFICATION_EVENT_TOPIC            string = "NOTIFICATION_EVENT_TOPIC"
+	NOTIFICATION_EVENT_GROUP            string = "NOTIFICATION_EVENT_GROUP"
+	NOTIFICATION_EVENT_DURABLE          string = "NOTIFICATION_EVENT_DURABLE"
 )
 
 type NatsTopic struct {
@@ -143,6 +146,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
 
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
+	NOTIFICATION_EVENT_TOPIC:          {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -177,6 +181,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	DEVTRON_TEST_CONSUMER:               {},
 	CD_STAGE_SUCCESS_EVENT_DURABLE:      {},
 	CD_PIPELINE_DELETE_EVENT_DURABLE:    {},
+	NOTIFICATION_EVENT_DURABLE:          {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string
@@ -323,7 +328,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
-	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
+	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects) || (toUpdateConfig.Replicas != existingConfig.Replicas)) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
 		existingConfig.Subjects = newStreamSubjects
 		configChanged = true
