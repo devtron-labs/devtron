@@ -18,7 +18,6 @@
 package EAMode
 
 import (
-	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
@@ -27,10 +26,10 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreRepo "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -41,7 +40,7 @@ import (
 )
 
 type InstalledAppDBService interface {
-	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
+	GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	GetInstalledAppById(installedAppId int) (*appStoreRepo.InstalledApps, error)
@@ -77,13 +76,13 @@ func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
+func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error) {
 	applicationType := "DEVTRON-CHART-STORE"
 	var clusterIdsConverted []int32
 	for _, clusterId := range filter.ClusterIds {
 		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
 	}
-	installedAppsResponse := openapi.AppList{
+	installedAppsResponse := appStoreBean.AppListDetail{
 		ApplicationType: &applicationType,
 		ClusterIds:      &clusterIdsConverted,
 	}
@@ -94,7 +93,7 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 		impl.Logger.Error(err)
 		return installedAppsResponse, err
 	}
-	var helmAppsResponse []openapi.HelmApp
+	var helmAppsResponse []appStoreBean.HelmAppDetails
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
 		if appLocal.TeamId == 0 && appLocal.AppOfferingMode != util3.SERVER_MODE_HYPERION {
@@ -105,14 +104,15 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 		projectId := int32(appLocal.TeamId)
 		envId := int32(appLocal.EnvironmentId)
 		clusterId := int32(appLocal.ClusterId)
-		environmentDetails := openapi.AppEnvironmentDetail{
-			EnvironmentName: &appLocal.EnvironmentName,
-			EnvironmentId:   &envId,
-			Namespace:       &appLocal.Namespace,
-			ClusterName:     &appLocal.ClusterName,
-			ClusterId:       &clusterId,
+		environmentDetails := appStoreBean.EnvironmentDetails{
+			EnvironmentName:      &appLocal.EnvironmentName,
+			EnvironmentId:        &envId,
+			Namespace:            &appLocal.Namespace,
+			ClusterName:          &appLocal.ClusterName,
+			ClusterId:            &clusterId,
+			IsVirtualEnvironment: &appLocal.IsVirtualEnvironment,
 		}
-		helmAppResp := openapi.HelmApp{
+		helmAppResp := appStoreBean.HelmAppDetails{
 			AppName:           &appLocal.AppName,
 			ChartName:         &appLocal.AppStoreApplicationName,
 			AppId:             &appId,
@@ -171,6 +171,7 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 	} else {
 		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
 	}
+
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
 		AppId:                         installedAppVerison.InstalledApp.App.Id,
@@ -191,6 +192,10 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
+		HelmPackageName: adapter.GetGeneratedHelmPackageName(
+			installedAppVerison.InstalledApp.App.AppName,
+			installedAppVerison.InstalledApp.Environment.Name,
+			installedAppVerison.InstalledApp.UpdatedOn),
 	}
 	userInfo, err := impl.UserService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
