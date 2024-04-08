@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
@@ -161,7 +162,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-7 build app detail url (if error, then return success as operations has been completed already, just result is sent to be nil)
-	hostUrlAttribute, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrlAttribute, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil || hostUrlAttribute == nil {
 		impl.logger.Errorw("error while getting host url attribute from DB", "error", err)
 		return nil, "", "", http.StatusOK

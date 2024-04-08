@@ -217,7 +217,7 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 		}
 
 		// Check to ensure that delete request for app was received
-		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
+		installedApp, err := impl.installedAppService.GetInstalledAppById(model.InstalledAppId)
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
 			return fmt.Errorf("app not found in database %s", err)
