@@ -39,22 +39,24 @@ waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
 
 Spec:
- Affinity:
-  type: required    #required/preferred
-  Key: kkk
+ Affinity: #required/preferred
+  Key: 
 #  Key: kops.k8s.io/instancegroup 
-  Values: jjjsj
-  preferences:
-    - weight: 5
-      key: key1
-      values:
-        - riya
-        - value2
-    - weight: 30
-      key: key2
-      values:
-        - akash
-        - value4
+  Values: 
+
+
+affinity:
+  enabled: false
+  values:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In
+            values:
+            - S1
+        topologyKey: topology.kubernetes.io/zone    
 
 
 image:
@@ -160,14 +162,14 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: "HTTPS"
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -445,13 +447,9 @@ ConfigSecrets:
 #     key2: abc-2
 
 
-initContainers: 
+initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-  - name: volume-mount-hack
-    image: busybox
-    command: ["sh", "-c", "chown -R 1000:1000 logs"]
-    args: ["clone", "kamal"]
   #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
@@ -518,19 +516,13 @@ winterSoldier:
   # timeRanges: []
   action: sleep
   targetReplicas: []
-  fieldSelector: []
+  fieldSelector: [] 
   type: Rollout
   # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
-topologySpreadConstraints: 
-  - maxSkew: 1
-    topologyKey: zone
-    whenUnsatisfiable: DoNotSchedule
-    autoLabelSelector: true
-    matchLabelKeys:
-    - kamal
-    - riya
-    customLabelSelector: {}
+topologySpreadConstraints: []
+
+schedulerName: ""
 
 envoyproxy:
  image: docker.io/envoyproxy/envoy:v1.16.0
@@ -630,3 +622,7 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+
+
+peristentVolumeClaim: {}
+  

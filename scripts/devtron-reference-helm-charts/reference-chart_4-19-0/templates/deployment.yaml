@@ -11,6 +11,11 @@
   {{- end }}
   {{- end }}
 
+  {{- $hasPVCExists := false -}}
+  {{- if .Values.peristentVolumeClaim.name }}
+  {{- $hasPVCExists = true }}
+  {{- end }}
+
   {{- $hasSecretEnvExists := false -}}
   {{- $hasSecretVolumeExists := false -}}
   {{- if .Values.ConfigSecrets.enabled }}
@@ -41,12 +46,10 @@ metadata:
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
-
 {{- if .Values.rolloutAnnotations }}
   annotations:
 {{ toYaml .Values.rolloutAnnotations | indent 4 }}
 {{- end }}
-
 spec:
   selector:
     matchLabels:
@@ -83,10 +86,9 @@ spec:
       hostAliases:
 {{ toYaml .Values.hostAliases | indent 8 }}
 {{- end }}
-{{- if and $.Values.Spec.Affinity.type }}
+{{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
-{{- if eq .Values.Spec.Affinity.type "required" }}        
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
@@ -94,25 +96,18 @@ spec:
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
-{{- end }} 
-{{- if eq .Values.Spec.Affinity.type "preferred" }} 
-          preferredDuringSchedulingIgnoredDuringExecution:
-{{- range $index, $item := .Values.Spec.Affinity.preferences }}
-          - weight: {{ $item.weight }}
-            preference:
-              matchExpressions:
-                - key: {{ $item.key }}
-                  operator: In
-                  values:
-{{ toYaml $item.values | indent 18 }}                  
-{{- end }}
-{{- end }} 
+{{- else if $.Values.affinity.enabled }}
+      affinity: 
+{{ toYaml .Values.affinity.values | indent 8 }}
 {{- end }}
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
 {{- else  }}
       serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
+{{- if $.Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+{{- end }}      
   {{- if .Values.tolerations }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
@@ -129,21 +124,13 @@ spec:
       - maxSkew: {{ .maxSkew }}
         topologyKey: {{ .topologyKey }}
         whenUnsatisfiable: {{ .whenUnsatisfiable }}
-{{- if .minDomains}}        
-        minDomains: {{ .minDomains }}
-{{- end}} 
-{{- if .matchLabelKeys }}       
-        matchLabelKeys: 
-{{- range .matchLabelKeys }}        
-        - {{ . }}  
-{{- end }}         
-{{- end }}        
-{{- if .nodeAffinityPolicy }}        
-        nodeAffinityPolicy: {{ .nodeAffinityPolicy }} 
- {{- end }} 
-{{- if .nodeTaintsPolicy }}        
-        nodeTaintsPolicy: {{ .nodeTaintsPolicy }}
-{{- end }}         
+{{- if .minDomains }}
+        minDomains: {{ .minDomains}}
+{{- end }}
+{{- if .matchLabelKeys }}
+        matchLabelKeys:
+{{ toYaml .matchLabelKeys | indent 10 }}
+{{- end }}               
         labelSelector:
           matchLabels:
           {{- if and .autoLabelSelector .customLabelSelector }}
@@ -157,7 +144,7 @@ spec:
 {{ toYaml .customLabelSelector | indent 12 }}
           {{- end }}
 {{- end }}
-{{- end }}
+{{- end }}    
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
@@ -472,6 +459,10 @@ spec:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
+{{- if  $.Values.peristentVolumeClaim.name }}
+            - name: {{ .Values.peristentVolumeClaim.name }}-vol
+              mountPath: {{ .Values.peristentVolumeClaim.mountPath | default "/tmp" }}
+{{- end}}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
@@ -511,15 +502,19 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
-
+          {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
           configMap:
             name: sidecar-config-{{ template ".Chart.Name .name" $ }}
   {{- end }}
+{{- if .Values.peristentVolumeClaim.name }}
+        - name: {{.Values.peristentVolumeClaim.name}}-vol
+          persistentVolumeClaim:
+            claimName: {{.Values.peristentVolumeClaim.name }}
+{{- end}}
 {{- with .Values.volumes }}
 {{ toYaml . | trim | indent 8 }}
 {{- end }}
@@ -540,7 +535,6 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-
       {{- if .Values.ConfigSecrets.enabled }}
       {{- range .Values.ConfigSecrets.secrets }}
       {{- if eq .type "volume"}}
@@ -558,9 +552,8 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-
+          {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
   revisionHistoryLimit: 3
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
