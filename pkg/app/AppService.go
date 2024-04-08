@@ -1103,7 +1103,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	} else {
 		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.FinishedOn = time.Now()
+			installedAppVersionHistory.SetFinishedOn()
 		} else {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
 		}
