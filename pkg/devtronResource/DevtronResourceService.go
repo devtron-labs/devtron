@@ -18,7 +18,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"github.com/juju/errors"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/xeipuuv/gojsonschema"
@@ -148,19 +147,6 @@ func (impl *DevtronResourceServiceImpl) GetResourceObject(req *bean.DevtronResou
 		impl.logger.Errorw("error in getting devtronResourceSchema", "err", err, "request", req)
 		return nil, err
 	}
-	referencedPaths, schemaWithUpdatedRefData, err := getReferencedPathsAndUpdatedSchema(resourceSchema.Schema)
-	if err != nil {
-		impl.logger.Errorw("err, getReferencedPathsAndUpdatedSchema", "err", err, "schema", resourceSchema.Schema)
-		return nil, err
-	}
-	//we need to get metadata from the resource schema because it is the only part which is being used at UI.
-	//In future iterations, this should be removed and made generic for the user to work on the whole object.
-	responseSchema, err := impl.getUpdatedSchemaWithAllRefObjectValues(schemaWithUpdatedRefData, referencedPaths)
-	if err != nil {
-		impl.logger.Errorw("error, getUpdatedSchemaWithAllRefObjectValues", "err", err,
-			"schemaWithUpdatedRefData", schemaWithUpdatedRefData, "referencedPaths", referencedPaths)
-		return nil, err
-	}
 	existingResourceObject, err := impl.getExistingDevtronObject(req.OldObjectId, resourceSchema.Id, req.Name)
 	if err != nil {
 		impl.logger.Errorw("error in getting object by id or name", "err", err, "request", req)
@@ -168,13 +154,14 @@ func (impl *DevtronResourceServiceImpl) GetResourceObject(req *bean.DevtronResou
 	}
 	resourceObject := &bean.DevtronResourceObjectBean{
 		DevtronResourceObjectDescriptorBean: req,
-		Schema:                              responseSchema,
 	}
-	//checking if resource object exists
-	if existingResourceObject != nil && existingResourceObject.Id > 0 {
-		//getting metadata out of this object
-		metadataObject := gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectMetadataPath)
-		resourceObject.ObjectData = metadataObject.Raw
+	for _, component := range req.UIComponents {
+		f := getApiResourceKindUIComponentFunc(req.Kind, component) //getting function for component requested from UI
+		err = f(impl, resourceSchema, existingResourceObject, resourceObject)
+		if err != nil {
+			impl.logger.Errorw("error, updateCatalogDataInResourceObj", "err", err, "req", req)
+			return nil, err
+		}
 	}
 	return resourceObject, nil
 }
@@ -766,31 +753,6 @@ func (impl *DevtronResourceServiceImpl) getKindSubKindOfResourceBySchemaObject(d
 	return kind, subKind
 }
 
-func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithAllRefObjectValues(schema string, referencedPaths map[string]bool) (string, error) {
-	//we need to get metadata from the resource schema because it is the only part which is being used at UI.
-	//In future iterations, this should be removed and made generic for the user to work on the whole object.
-	responseSchemaResult := gjson.Get(schema, bean.ResourceSchemaMetadataPath)
-	responseSchema := responseSchemaResult.String()
-	var err error
-	for refPath := range referencedPaths {
-		refPathSplit := strings.Split(refPath, "/")
-		if len(refPathSplit) < 3 {
-			return responseSchema, fmt.Errorf("invalid schema found, references not mentioned correctly")
-		}
-		resourceKind := refPathSplit[2]
-		if resourceKind == string(bean.DevtronResourceUser) {
-			responseSchema, err = impl.getUpdatedSchemaWithUserRefDetails(resourceKind, responseSchema)
-			if err != nil {
-				impl.logger.Errorw("error, getUpdatedSchemaWithUserRefDetails", "err", err)
-			}
-		} else {
-			impl.logger.Errorw("error while extracting kind of resource; kind not supported as of now", "resource kind", resourceKind)
-			return responseSchema, errors.New(fmt.Sprintf("%s kind is not supported", resourceKind))
-		}
-	}
-	return responseSchema, nil
-}
-
 func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithUserRefDetails(resourceKind, responseSchema string) (string, error) {
 	userModel, err := impl.userRepository.GetAllActiveUsers()
 	if err != nil {
@@ -1103,24 +1065,6 @@ func appendDbObjectArgDetails(argValues *[]interface{}, argTypes *[]string, sche
 	*argValues = append(*argValues, argValue)
 	*argTypes = append(*argTypes, argType)
 	*schemaIds = append(*schemaIds, schemaId)
-}
-
-func getReferencedPathsAndUpdatedSchema(schema string) (map[string]bool, string, error) {
-	referencedPaths := make(map[string]bool)
-	schemaJsonMap := make(map[string]interface{})
-	schemaWithUpdatedRefData := ""
-	err := json.Unmarshal([]byte(schema), &schemaJsonMap)
-	if err != nil {
-		return referencedPaths, schemaWithUpdatedRefData, err
-	}
-	getRefTypeInJsonAndAddRefKey(schemaJsonMap, referencedPaths)
-	//marshaling new schema with $ref keys
-	responseSchemaByte, err := json.Marshal(schemaJsonMap)
-	if err != nil {
-		return referencedPaths, schemaWithUpdatedRefData, err
-	}
-	schemaWithUpdatedRefData = string(responseSchemaByte)
-	return referencedPaths, schemaWithUpdatedRefData, nil
 }
 
 func validateSchemaAndObjectData(schema, objectData string) (*gojsonschema.Result, error) {

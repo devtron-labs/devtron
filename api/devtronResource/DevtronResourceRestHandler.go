@@ -58,6 +58,7 @@ const (
 	QueryParamIsExposed              = "onlyIsExposed"
 	QueryParamId                     = "id"
 	QueryParamName                   = "name"
+	QueryParamComponent              = "component"
 	ResourceUpdateSuccessMessage     = "Resource object updated successfully."
 	DependenciesUpdateSuccessMessage = "Resource dependencies updated successfully."
 )
@@ -96,6 +97,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceObject(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
 		return
 	}
+	//TODO: common out the above logic and get component query param array by decoder
 	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
 	if err != nil {
 		handler.logger.Errorw("error in resolveKindSubKindValues, GetResourceObject", "err", err, "kindVar", kindVar)

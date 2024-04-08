@@ -27,12 +27,13 @@ type DevtronResourceSchemaRequestBean struct {
 }
 
 type DevtronResourceObjectDescriptorBean struct {
-	Kind        string `json:"kind,omitempty"`
-	SubKind     string `json:"subKind,omitempty"`
-	Version     string `json:"version,omitempty"`
-	OldObjectId int    `json:"id,omitempty"` //here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
-	Name        string `json:"name,omitempty"`
-	SchemaId    int    `json:"schemaId"`
+	Kind         string   `json:"kind,omitempty"`
+	SubKind      string   `json:"subKind,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	OldObjectId  int      `json:"id,omitempty"` //here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
+	Name         string   `json:"name,omitempty"`
+	SchemaId     int      `json:"schemaId"`
+	UIComponents []string `json:"-"`
 }
 
 type DevtronResourceObjectBean struct {
@@ -117,6 +118,8 @@ const (
 	DevtronResourceJob                DevtronResourceKind = "job"
 	DevtronResourceUser               DevtronResourceKind = "users"
 	DevtronResourceCdPipeline         DevtronResourceKind = "cd-pipeline"
+	DevtronResourceReleaseTrack       DevtronResourceKind = "release-track"
+	DevtronResourceRelease            DevtronResourceKind = "release"
 )
 
 func (n DevtronResourceKind) ToString() string {
@@ -126,7 +129,8 @@ func (n DevtronResourceKind) ToString() string {
 type DevtronResourceVersion string
 
 const (
-	DevtronResourceVersion1 DevtronResourceVersion = "v1"
+	DevtronResourceVersion1      DevtronResourceVersion = "v1"
+	DevtronResourceVersionAlpha1 DevtronResourceVersion = "alpha1"
 )
 
 func (n DevtronResourceVersion) ToString() string {
@@ -169,6 +173,13 @@ const (
 func (v ValueType) ToString() string {
 	return string(v)
 }
+
+type DevtronResourceUIComponent string
+
+const (
+	UIComponentCatalog  DevtronResourceUIComponent = "catalog"
+	UIComponentOverview DevtronResourceUIComponent = "overview"
+)
 
 const (
 	KindKey                    = "kind"
