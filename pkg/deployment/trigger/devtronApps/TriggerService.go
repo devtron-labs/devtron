@@ -657,7 +657,7 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 		impl.logger.Errorw("err in creating cdWorkflowRunner, performOperationsForAutoOrManualTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 		return nil, 0, "", err
 	}
-	//TODO check runner.id as pointer need to replace this
+
 	impl.createAuditDataForDeploymentWindowBypass(triggerOperationReq.TriggerRequest, runner.Id)
 	if filterEvaluationAudit != nil {
 		// update resource_filter_evaluation entry with wfrId and type
