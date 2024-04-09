@@ -646,7 +646,6 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	}
 	scanHistoryIdToHistory := make(map[int]*security.ImageScanExecutionHistory, 0)
 	for _, scanHistory := range scanHistories {
-		//scanHistoryIds = append(scanHistoryIds, scanHistory.Id)
 		scanHistoryIdToHistory[scanHistory.Id] = scanHistory
 	}
 
@@ -670,10 +669,6 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	}
 
 	historyIdToImage, imageToExecutionResults := impl.getImageHistoryAndExecResults(imageScanResults)
-
-	//for image, results := range imageToExecutionResults {
-	//	imageToExecutionResults[image] = filterResultsForHistoryId(results, imageToLatestHistoryId[image])
-	//}
 
 	historyIds := maps.Keys(historyIdToImage)
 	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(historyIds)
@@ -699,37 +694,19 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 			State: historyMapping.State,
 			Error: historyMapping.ErrorMessage,
 		}
-		//executionResults := make([]*security.ImageScanExecutionResult, 0)
+		scanResult := ScanResult{
+			ExecutionTime: historyMapping.ExecutionStartTime,
+			ScanToolId:    historyMapping.ScanToolId,
+		}
+
 		if executionResults, ok := imageToExecutionResults[image]; ok && historyMapping.State == 1 {
 			vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
-			scanResult := ScanResult{
-				Vulnerabilities: vulnerabilities,
-				SeverityCount:   severityCount,
-				ExecutionTime:   historyMapping.ExecutionStartTime,
-				ScanToolId:      historyMapping.ScanToolId,
-			}
-			result.ScanResult = scanResult
+			scanResult.Vulnerabilities = vulnerabilities
+			scanResult.SeverityCount = severityCount
 		}
+		result.ScanResult = scanResult
 		results = append(results, result)
 	}
-	//
-	//results := make([]*ImageScanResult, 0)
-	//for image, executionResults := range imageToExecutionResults {
-	//	historyMapping := historyIdToMapping[executionResults[0].ImageScanExecutionHistoryId]
-	//	vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
-	//	scanResult := ScanResult{
-	//		Vulnerabilities: vulnerabilities,
-	//		SeverityCount:   severityCount,
-	//		ExecutionTime:   historyMapping.ExecutionStartTime,
-	//		ScanToolId:      historyMapping.ScanToolId,
-	//	}
-	//	results = append(results, &ImageScanResult{
-	//		ScanResult: scanResult,
-	//		Image:      image,
-	//		State:      historyMapping.State,
-	//		Error:      historyMapping.ErrorMessage,
-	//	})
-	//}
 
 	for _, image := range images {
 		if _, ok := imageToExecutionResults[image]; ok {
