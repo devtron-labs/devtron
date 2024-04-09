@@ -16,6 +16,7 @@ func CheckIfNilInWire() {
 	nilFieldsMap := make(map[string]bool)
 	checkNilFields(app, nilFieldsMap)
 	fmt.Println("NIL Fields present in impls are: ", nilFieldsMap)
+	fmt.Println(len(nilFieldsMap))
 }
 
 func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
