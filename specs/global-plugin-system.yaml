@@ -1,0 +1,615 @@
+openapi: "3.0.3"
+info:
+  title: "Plugin System Integration - CI Stages"
+  description: |
+    This API facilitates the management of plugins used in pre/post CI or CD steps,
+    enhancing the customization and automation capabilities of CI/CD pipelines.
+  version: "1.0.0"
+
+paths:
+  /orchestrator/plugin/global/detail/{pluginId}:
+    get:
+      description: >
+        Retrieve detailed information about a specific plugin by its ID. Before proceeding to Patch Plugin, ensure to retrieve the plugin details using this endpoint as the same object will be used in the patch action of the global plugin.
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the plugin
+
+      responses:
+        '200':
+          description: successfully return the Detailed information about the plugin
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: Bad request, Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized, not found or invalid API token provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '403':
+          description: Forbidden, user is not allowed to access this plugin information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found, the plugin with the specified ID does not exist
+
+        '500':
+          description: Internal server error, could not retrieve plugin details
+          content:
+            application/json:
+              schema:
+                $ref:  '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/detail/all:
+    get:
+      description: >
+        Get detailed information of available plugins.
+      operationId: GetAllDetailedPluginInfo
+      responses:
+        '200':
+          description: A list of plugins with detailed information
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PluginMetaDataDto'
+        '401':
+          description: Unauthorized user, Invalid or missing API token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden, user is not authorized to access this resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error, could not fetch the plugin details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+  /orchestrator/plugin/global/:
+    post:
+      summary: "Manipulating the Global Plugin"
+      description: |
+        Allows for the management (creation, update, or deletion) of global plugins through a single endpoint. This endpoint is versatile and supports various actions based on the provided `action` field in the request payload. Before performing any action, ensure to retrieve detailed information about the plugin by its ID using the endpoint `/orchestrator/plugin/global/detail/{pluginId}`. The same or modified object retrieved can be used in the request payload for this endpoint.
+      operationId: "PatchPlugin"
+      requestBody:
+        description: "A JSON Object containing the PluginMetaData fields, including the specific action to be performed."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PluginMetaDataDto'
+      responses:
+        '200':
+          description: "Successfully processed the global plugin operation. The response includes the updated plugin data."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginMetaDataDto'
+        '400':
+          description: "Bad Request due to input validation errors or incorrect request body format."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: "Unauthorized access attempt. This may occur if the user does not have the necessary permissions for the operation."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: "Internal Server Error indicating an unexpected condition that prevented the request from being fulfilled."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/plugin/global/list/global-variable:
+    get:
+      description: Get list of all global variables.
+      operationId: GetAllGlobalVariables
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The ID of the application for which global variables are retrieved.
+
+      responses:
+        '200':
+          description: Successfully returns all global variables.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    description: Status code.
+                  status:
+                    type: string
+                    description: Status.
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GlobalVariable'
+        '400':
+          description: Bad Request. Input validation error or wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+
+
+components:
+  schemas:
+    GlobalVariable:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the global variable.
+        value:
+          type: string
+          description: Optional.The value of the global variable.
+        format:
+          type: string
+          description: The format of the value.
+        description:
+          type: string
+          description: A description of the global variable and its purpose.
+        stageType:
+          type: string
+          description: The type of stage this global variable is associated with.
+      required:
+        - name
+        - format
+        - description
+        - type
+
+
+    PluginMetaDataDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the plugin.
+        name:
+          type: string
+          description: Name of the plugin.
+        description:
+          type: string
+          description: Detailed description of what the plugin does.
+        type:
+          type: string
+          enum: [SHARED, PRESET]
+          description: >
+            Type of the plugin indicating whether it's a SHARED plugin accessible by all users or a PRESET plugin provided by the system.
+        icon:
+          type: string
+          description: URL or a base64 encoded string representing an icon for the plugin
+          example: https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/k6-plugin-icon.png
+        tags:
+          type: array
+          items:
+            type: string
+          description: A list of tags associated with the plugin for categorization and search.
+        action:
+          type: integer
+          description: |
+            This field represents the action to be performed with this plugin metadata. 
+            - Use `0` to create a new plugin.
+            - Use `1` to update an existing plugin.
+            - Use `2` to delete a plugin.
+    
+            If you're opting to update an existing plugin (action `1`), 
+            please take note:
+            - Ensure that the request body parameters are accurate before updating.
+            - Your request body (payload) will discard all previous updates and be treated as final.
+
+        pluginStage:
+          type: string
+          description: Optional. Specifies the stage of the CI/CD pipeline or both (CI/CD) where this plugin can be used.
+        pluginSteps:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginStepsDto'
+          description: Optional, A list of steps defined for the plugin. Each step contains specific instructions or actions the plugin will perform.
+      required:
+        - name
+        - description
+        - type
+        - icon
+        - tags
+        - action
+
+    PluginStepsDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier of the plugin step.
+        name:
+          type: string
+          description: Name of the plugin step.
+        description:
+          type: string
+          description: Detailed description of what the plugin step does.
+        index:
+          type: integer
+          description: The order index of the plugin step within the plugin.
+        stepType:
+          type: string
+          enum: [INLINE, REF_PLUGIN]
+          description: Type of the plugin step, indicating whether it's an INLINE step defined within the plugin or a REF_PLUGIN step referencing another plugin.
+        refPluginId:
+          type: integer
+          description: Unique identifier of the plugin used as reference by this step.
+        outputDirectoryPath:
+          type: array
+          items:
+            type: string
+          description: Paths to directories where the output of the plugin step should be stored.
+        dependentOnStep:
+          type: string
+          description: Identifier of the step, this step depends on to run. It can be used to establish execution order.
+        pluginStepVariable:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginVariableDto'
+          description: Optional. A list of variables associated with this plugin step.
+        pluginPipelineScript:
+          allOf:
+            - $ref: '#/components/schemas/PluginPipelineScript'
+            - description: Script associated with this plugin step to be executed as part of the pipeline. Optional.
+      required:
+        - name
+        - description
+        - index
+        - stepType
+        - refPluginId
+        - outputDirectoryPath
+        - dependentOnStep
+
+    PluginVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The unique identifier of the plugin variable.
+        name:
+          type: string
+          description: The name of the plugin variable.
+        format:
+          type: string
+          description: The format of the variable value.
+          enum:
+            - STRING
+            - NUMBER
+            - BOOL
+            - DATE
+          example:
+            - STRING
+        description:
+          type: string
+          description: A description of the plugin variable.
+        isExposed:
+          type: boolean
+          description: Indicates whether the variable is exposed.
+        allowEmptyValue:
+          type: boolean
+          description: Indicates whether an empty value is allowed for the variable.
+        defaultValue:
+          type: string
+          description: The default value of the variable.
+        value:
+          type: string
+          description: The value of the variable.
+        variableType:
+          type: string
+          description: |
+            The type of the variable. This specifies whether the variable is required by the plugin (Marked as INPUT type) or whether that variable is produced by the plugin (Marked as OUTPUT type).
+          enum:
+            - OUTPUT
+            - INPUT
+          example:
+            - INPUT
+        valueType:
+          type: string
+          description: |
+            The value type of the variable. Specifies whether the plugin uses a new value provided by the user (marked as NEW), retrieves the value from the previous step (marked as FROM_PREVIOUS_STEP), or fetches a global value (marked as GLOBAL).
+            This indicates whether the plugin utilizes a new user-provided value, a value from a previous step, or a global value.
+          enum:
+            - NEW
+            - FROM_PREVIOUS_STEP
+            - GLOBAL
+          example:
+            - NEW
+        previousStepIndex:
+          type: integer
+          description: The index of the previous step.
+        variableStepIndex:
+          type: integer
+          description: The index of the variable step.
+        variableStepIndexInPlugin:
+          type: integer
+          description: The index of the variable step in the plugin.
+        referenceVariableName:
+          type: string
+          description: The name of the reference variable.
+        pluginStepCondition:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/PluginStepCondition'
+              - description: The conditions associated with the plugin variable.
+      required:
+        - name
+        - format
+        - description
+        - isExposed
+        - allowEmptyValue
+        - defaultValue
+        - variableType
+        - variableStepIndex
+        - variableStepIndexInPlugin
+
+
+    PluginStepCondition:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The unique identifier of the plugin step condition.
+        pluginStepId:
+          type: integer
+          description: The identifier of the plugin step associated with this condition.
+        conditionVariableId:
+          type: integer
+          description: The identifier of the variable on which the condition is written.
+        conditionType:
+          type: string
+          description: >
+            The type of condition.
+            Possible values are:
+            - SKIP: Skips the plugin step.
+            - TRIGGER: Triggers the plugin step.
+            - SUCCESS: Executes the plugin step on success.
+            - FAIL: Executes the plugin step on failure.
+          enum:
+            - SKIP
+            - TRIGGER
+            - SUCCESS
+            - FAIL
+          example: SKIP
+        conditionalOperator:
+          type: string
+          description: The operator used in the condition.
+        conditionalValue:
+          type: string
+          description: The value associated with the condition.
+        deleted :
+          type: boolean
+          description: Specifies whether the condition is deleted.
+      required:
+        - pluginStepId
+        - conditionVariableId
+        - conditionType
+        - conditionalOperator
+        - conditionalValue
+        - deleted
+
+    PluginPipelineScript:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The unique identifier of the plugin pipeline script.
+        script:
+          type: string
+          description: The script associated with the plugin pipeline.
+        storeScriptAt:
+          type: string
+          description: The location where the script is stored.
+        type:
+          type: string
+          description: >
+            Specifies the type of script.
+            Possible values are:
+             - SHELL: Shell script.
+             - DOCKERFILE: Dockerfile script.
+             - CONTAINER_IMAGE: Container image script.
+          enum:
+            - SHELL
+            - DOCKERFILE
+            - CONTAINER_IMAGE
+          example:
+            - SHELL
+        dockerfileExists:
+          type: boolean
+          description: Indicates whether a Dockerfile exists for the script.
+        mountPath:
+          type: string
+          description: The path where the script is mounted.
+        mountCodeToContainer:
+          type: boolean
+          description: Indicates whether code is mounted to the container.
+        mountCodeToContainerPath:
+          type: string
+          description: The path where code is mounted to the container.
+        mountDirectoryFromHost:
+          type: boolean
+          description: Indicates whether a directory is mounted from the host.
+        containerImagePath:
+          type: string
+          description: The path to the container image.
+        imagePullSecretType:
+          type: string
+          description: >
+            Specifies the type of image pull secret.
+            Possible values are:
+            - CONTAINER_REGISTRY: Container registry image pull secret.
+            - SECRET_PATH: Secret path image pull secret.
+          enum:
+            - CONTAINER_REGISTRY
+            - SECRET_PATH
+          example:
+            - CONTAINER_REGISTRY
+
+        imagePullSecret:
+          type: string
+          description: The image pull secret.
+        deleted:
+          type: boolean
+          description: Indicates whether the plugin pipeline script is deleted.
+        pathArgPortMapping:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScriptPathArgPortMapping'
+          description: The path argument port mappings associated with the plugin pipeline script.
+      required:
+        - script
+        - storeScriptAt
+        - type
+        - dockerfileExists
+        - mountPath
+        - mountCodeToContainer
+        - mountCodeToContainerPath
+        - mountDirectoryFromHost
+        - containerImagePath
+        - imagePullSecretType
+        - imagePullSecret
+        - deleted
+        - pathArgPortMapping
+
+
+    ScriptPathArgPortMapping:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The unique identifier of the script path argument port mapping.
+        typeOfMapping:
+          type: string
+          description: >
+            Specifies the type of mapping.
+            Possible values are:
+            - FILE_PATH
+            - DOCKER_ARG
+            - PORT
+          enum:
+            - FILE_PATH
+            - DOCKER_ARG
+            - PORT
+          example:
+            - PORT
+        filePathOnDisk:
+          type: string
+          description: The file path on the local disk.
+        filePathOnContainer:
+          type: string
+          description: The file path on the container.
+        command:
+          type: string
+          description: The command associated with the mapping.
+        args:
+          type: array
+          items:
+            type: string
+          description: The arguments associated with the command.
+        portOnLocal:
+          type: integer
+          description: The port on the local machine.
+        portOnContainer:
+          type: integer
+          description: The port on the container.
+        scriptId:
+          type: integer
+          description: The identifier of the script associated with the mapping.
+      required:
+        - typeOfMapping
+        - filePathOnDisk
+        - filePathOnContainer
+        - command
+        - args
+        - portOnLocal
+        - portOnContainer
+        - scriptId
+
+
+    Error:
+      title: Error
+      type: object
+      description: "A general error schema returned when status is not 200 OK"
+      properties:
+        code:
+          type: string
+          description: "a code for this particular error"
+        message:
+          type: string
+          description: "a message with further detail"
+
+
+
+
+
+
+
+

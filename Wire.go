@@ -25,6 +25,7 @@ import (
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	chartGroup2 "github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -91,6 +92,8 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
+	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -140,6 +143,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	globalPolicy2 "github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
@@ -184,7 +188,6 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
-		util4.NewK8sUtilExtended,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
@@ -196,6 +199,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util2.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -213,10 +217,13 @@ func InitializeApp() (*App, error) {
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		deploymentWindow.DeploymentWindowWireSet,
+		commonPolicyActions.CommonPolicyActionWireSet,
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -226,7 +233,6 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		// sql.GetConfig,
 		eClient.GetEventClientConfig,
-		util2.GetGlobalEnvVariables,
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
@@ -239,6 +245,9 @@ func InitializeApp() (*App, error) {
 		sse.NewSSE,
 		trigger2.NewPipelineTriggerRouter,
 		wire.Bind(new(trigger2.PipelineTriggerRouter), new(*trigger2.PipelineTriggerRouterImpl)),
+
+		util4.NewK8sUtilExtended,
+		wire.Bind(new(k8s2.K8sService), new(*util4.K8sUtilExtended)),
 
 		// ---- pprof start ----
 		restHandler.NewPProfRestHandler,
@@ -297,7 +306,7 @@ func InitializeApp() (*App, error) {
 		app4.NewAppRepositoryImpl,
 		wire.Bind(new(app4.AppRepository), new(*app4.AppRepositoryImpl)),
 
-		pipeline4.GetDeploymentServiceTypeConfig,
+		//util2.GetEnvironmentVariables,
 
 		pipeline4.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline4.PipelineBuilder), new(*pipeline4.PipelineBuilderImpl)),
@@ -450,11 +459,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		//app.GetConfig,
+		// app.GetConfig,
 
 		pipeline4.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
@@ -785,7 +794,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		//history starts
+		// history starts
 		history.NewPipelineHistoryRestHandlerImpl,
 		wire.Bind(new(history.PipelineHistoryRestHandler), new(*history.PipelineHistoryRestHandlerImpl)),
 
@@ -849,13 +858,13 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewPipelineStageService,
 		wire.Bind(new(pipeline4.PipelineStageService), new(*pipeline4.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		util2.GetDevtronSecretName,
+		//util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -1021,6 +1030,14 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
+
+		globalPolicy2.NewGlobalPolicyDataManagerImpl,
+		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
+
+		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
+		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
+
+		appStoreRestHandler.AppStoreWireSet,
 	)
 	return &App{}, nil
 }

@@ -245,6 +245,7 @@ const (
 	ParamTypeString  ParamValuesType = "string"
 	ParamTypeObject  ParamValuesType = "object"
 	ParamTypeInteger ParamValuesType = "integer"
+	ParamTypeBool    ParamValuesType = "bool"
 	ParamTypeList    ParamValuesType = "list"
 )
 

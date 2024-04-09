@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -180,7 +179,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 			return err
 		}
 
-		scopeIdToVarData, err := impl.createVariableScopes(payload, varNameIdMap, auditLog, tx)
+		scopeIdToVarData, err := impl.createVariableScopes(payload, varNameIdMap, auditLog.CreatedBy, tx)
 		if err != nil {
 			return err
 		}
@@ -237,111 +236,61 @@ func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.P
 	return variableNameToId, nil
 }
 
-func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, auditLog sql.AuditLog, tx *pg.Tx) (map[int]string, error) {
-	appNameToIdMap, envNameToIdMap, clusterNameToIdMap, err := impl.getAttributesIdMapping(payload)
+func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, userId int32, tx *pg.Tx) (map[int]string, error) {
+
+	attributesMappings, err := impl.getAttributesIdMapping(payload)
 	if err != nil {
 		impl.logger.Errorw("error in getting  variable AttributeNameToIdMappings", "err", err)
 		return nil, err
 	}
-	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+
 	variableScopes := make([]*models.VariableScope, 0)
 	for _, variable := range payload.Variables {
-
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
-			var varValue string
 			varValue, err := utils.StringifyValue(value.VariableValue.Value)
 			if err != nil {
 				return nil, err
 			}
-			if value.AttributeType == models.Global {
-				scope := &models.VariableScope{
-					QualifierMapping: &resourceQualifiers.QualifierMapping{
-						ResourceId:   variableId,
-						ResourceType: resourceQualifiers.Variable,
-						QualifierId:  int(helper.GetQualifierId(value.AttributeType)),
-						Active:       true,
-						AuditLog:     auditLog,
-					},
-					Data: varValue,
-				}
-				variableScopes = append(variableScopes, scope)
-			} else {
-				var compositeString string
-				if value.AttributeType == models.ApplicationEnv {
-					compositeString = fmt.Sprintf("%v-%s-%s", variableId, value.AttributeParams[models.ApplicationName], value.AttributeParams[models.EnvName])
-				}
-				for identifierType, IdentifierName := range value.AttributeParams {
-					identifierValue, err := helper.GetIdentifierValue(identifierType, appNameToIdMap, IdentifierName, envNameToIdMap, clusterNameToIdMap)
-					if err != nil {
-						impl.logger.Errorw("error in getting identifierValue", "err", err)
-						return nil, err
-					}
-					scope := &models.VariableScope{
-						QualifierMapping: &resourceQualifiers.QualifierMapping{
-							ResourceId:            variableId,
-							QualifierId:           int(helper.GetQualifierId(value.AttributeType)),
-							IdentifierKey:         helper.GetIdentifierKey(identifierType, searchableKeyNameIdMap),
-							IdentifierValueInt:    identifierValue,
-							Active:                true,
-							CompositeKey:          compositeString,
-							IdentifierValueString: IdentifierName,
-							AuditLog:              auditLog,
-						},
-						Data: varValue,
-					}
-					variableScopes = append(variableScopes, scope)
-				}
+			selector := helper.GetSelectorForAttributeType(value.AttributeType)
+			selection, err := helper.GetSelectionIdentifiersForAttributes(selector, value.AttributeParams, attributesMappings)
+			if err != nil {
+				impl.logger.Errorw("error in getting identifierValue", "err", err)
+				return nil, err
 			}
+			varScope := &models.VariableScope{
+				Data: varValue,
+				ResourceMappingSelection: &resourceQualifiers.ResourceMappingSelection{
+					ResourceType:        resourceQualifiers.Variable,
+					ResourceId:          variableId,
+					QualifierSelector:   selector,
+					SelectionIdentifier: selection,
+				},
+			}
+			variableScopes = append(variableScopes, varScope)
 		}
 	}
-	parentVariableScope := make([]*resourceQualifiers.QualifierMapping, 0)
-	childrenVariableScope := make([]*resourceQualifiers.QualifierMapping, 0)
-	parentScopesMap := make(map[string]*resourceQualifiers.QualifierMapping)
 
+	varScopeToSelection := make(map[*resourceQualifiers.ResourceMappingSelection]*models.VariableScope)
+	selections := make([]*resourceQualifiers.ResourceMappingSelection, 0)
 	for _, scope := range variableScopes {
-		if scope.QualifierId == 1 && scope.IdentifierKey == searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
-			childrenVariableScope = append(childrenVariableScope, scope.QualifierMapping)
-		} else {
-			parentVariableScope = append(parentVariableScope, scope.QualifierMapping)
-			if scope.QualifierId == 1 {
-				parentScopesMap[scope.CompositeKey] = scope.QualifierMapping
-			}
-		}
+		varScopeToSelection[scope.ResourceMappingSelection] = scope
+		selections = append(selections, scope.ResourceMappingSelection)
 	}
-	var parentVarScope []*resourceQualifiers.QualifierMapping
-	var childVarScope []*resourceQualifiers.QualifierMapping
 
-	if len(parentVariableScope) > 0 {
-		parentVarScope, err = impl.qualifierMappingService.CreateQualifierMappings(parentVariableScope, tx)
-		if err != nil {
-			impl.logger.Errorw("error in getting parentVarScope", "parentVarScope", parentVarScope, "err", err)
-			return nil, err
-		}
+	savedSelections, err := impl.qualifierMappingService.CreateMappingsForSelections(tx, userId, selections)
+	if err != nil {
+		return nil, err
 	}
 	scopeIdToVarData := make(map[int]string)
-	for _, parentVar := range variableScopes {
-		scopeIdToVarData[parentVar.Id] = parentVar.Data
-	}
-	for _, childScope := range childrenVariableScope {
-		parentScope, exists := parentScopesMap[childScope.CompositeKey]
-		if exists {
-			childScope.ParentIdentifier = parentScope.Id
-		}
-	}
-	if len(childrenVariableScope) > 0 {
-		childVarScope, err = impl.qualifierMappingService.CreateQualifierMappings(childrenVariableScope, tx)
-		if err != nil {
-			impl.logger.Errorw("error in getting childVarScope", err, childVarScope)
-			return nil, err
-		}
+	for _, savedSelection := range savedSelections {
+		scopeIdToVarData[savedSelection.Id] = varScopeToSelection[savedSelection].Data //parentVar.Data
 	}
 	return scopeIdToVarData, nil
 }
 
-func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int]int {
+func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
 	variableIdToVariableScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
-	variableIdToSelectedScopeId := make(map[int]int)
 	for _, vScope := range varScope {
 		variableId := vScope.ResourceId
 		variableIdToVariableScopes[variableId] = append(variableIdToVariableScopes[variableId], vScope)
@@ -362,7 +311,7 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 		}
 
 		for _, qualifier := range resourceQualifiers.CompoundQualifiers {
-			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], resourceQualifiers.GetNumOfChildQualifiers(qualifier))
+			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], qualifier)
 			if selectedScope != nil {
 				selectedScopes = append(selectedScopes, selectedScope)
 			}
@@ -370,6 +319,12 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 		variableIdToVariableScopes[variableId] = selectedScopes
 	}
 
+	return variableIdToVariableScopes
+
+}
+
+func (impl *ScopedVariableServiceImpl) getScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
+	variableIdToSelectedScopeId := make(map[int]int)
 	var minScope *resourceQualifiers.QualifierMapping
 	for variableId, scopes := range variableIdToVariableScopes {
 		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
@@ -380,7 +335,8 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 	return variableIdToSelectedScopeId
 }
 
-func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*resourceQualifiers.QualifierMapping, numQualifiers int) *resourceQualifiers.QualifierMapping {
+func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*resourceQualifiers.QualifierMapping, qualifier resourceQualifiers.Qualifier) *resourceQualifiers.QualifierMapping {
+	numQualifiers := resourceQualifiers.GetNumOfChildQualifiers(qualifier)
 	parentIdToChildScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
 	parentScopeIdToScope := make(map[int]*resourceQualifiers.QualifierMapping, 0)
 	parentScopeIds := make([]int, 0)
@@ -471,7 +427,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return nil, err
 	}
 
-	variableIdToSelectedScopeId := impl.getMatchedScopedVariables(varScope)
+	matchedScopes := impl.getMatchedScopedVariables(varScope)
+	variableIdToSelectedScopeId := impl.getScopeWithPriority(matchedScopes)
 
 	scopeIds := make([]int, 0)
 	foundVarIds := make([]int, 0) // the variable IDs which have data
@@ -750,7 +707,7 @@ func getAuditLog(payload models.Payload) sql.AuditLog {
 	return auditLog
 }
 
-func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Payload) (map[string]int, map[string]int, map[string]int, error) {
+func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Payload) (*helper.AttributesMappings, error) {
 	appNames, envNames, clusterNames := helper.GetAttributeNames(payload)
 	var appNameToId []*app.App
 	var err error
@@ -758,7 +715,7 @@ func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Pay
 		appNameToId, err = impl.appRepository.FindByNames(appNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting appNameToId", err)
-			return nil, nil, nil, err
+			return nil, err
 		}
 	}
 	appNameToIdMap := make(map[string]int)
@@ -772,7 +729,7 @@ func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Pay
 		envNameToId, err = impl.environmentRepository.FindByNames(envNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting envNameToId", err)
-			return nil, nil, nil, err
+			return nil, err
 		}
 	}
 	for _, val := range envNameToId {
@@ -784,7 +741,7 @@ func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Pay
 		clusterNameToId, err = impl.clusterRepository.FindByNames(clusterNames)
 		if err != nil {
 			impl.logger.Errorw("error in getting clusterNameToId", err)
-			return nil, nil, nil, err
+			return nil, err
 		}
 
 	}
@@ -792,5 +749,9 @@ func (impl *ScopedVariableServiceImpl) getAttributesIdMapping(payload models.Pay
 	for _, name := range clusterNameToId {
 		clusterNameToIdMap[name.ClusterName] = name.Id
 	}
-	return appNameToIdMap, envNameToIdMap, clusterNameToIdMap, nil
+	return &helper.AttributesMappings{
+		AppNameToId:     appNameToIdMap,
+		EnvNameToId:     envNameToIdMap,
+		ClusterNameToId: clusterNameToIdMap,
+	}, nil
 }

@@ -10,7 +10,7 @@ type InstalledAppVirtualDeploymentService interface {
 	GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error)
 }
 
-func (impl *FullModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+func (impl *FullModeDeploymentServiceEnterpriseImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
 
 	chartBytes := make([]byte, 0)
 
@@ -45,7 +45,7 @@ func (impl *FullModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(inst
 	return chartBytes, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
+func (impl *FullModeDeploymentServiceEnterpriseImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
 
 	chartBytes := make([]byte, 0)
 

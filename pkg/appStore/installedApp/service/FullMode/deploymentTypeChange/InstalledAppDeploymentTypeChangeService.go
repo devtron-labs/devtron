@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -54,7 +54,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	environmentRepository         repository5.EnvironmentRepository
 	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
-	k8sUtil                       *k8s2.K8sUtilExtended
+	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
 	eaModeDeploymentService       EAMode.EAModeDeploymentService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
@@ -71,7 +71,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
-	k8sUtil *k8s2.K8sUtilExtended, fullModeDeploymentService deployment.FullModeDeploymentService,
+	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
