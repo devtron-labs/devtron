@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -17,6 +18,17 @@ func CheckIfNilInWire() {
 	checkNilFields(app, nilFieldsMap)
 	fmt.Println("NIL Fields present in impls are: ", nilFieldsMap)
 	fmt.Println("output=", len(nilFieldsMap))
+	file, errs := os.Create("output.env")
+	if errs != nil {
+		log.Println("Failed to create file:", errs)
+		return
+	}
+	defer file.Close()
+	_, errs = file.WriteString(fmt.Sprintf("OUTPUT=%d", len(nilFieldsMap)))
+	if errs != nil {
+		log.Println("Failed to write to file:", errs)
+		return
+	}
 }
 
 func checkNilFields(obj interface{}, nilObjMap map[string]bool) {

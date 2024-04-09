@@ -40,7 +40,7 @@ test-unit:
 	go test ./pkg/pipeline
 
 test-integration:
-	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro docker:dind
+	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tmp docker:dind
 	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/"
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/create-test-env.sh"
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/run-integration-test.sh"
