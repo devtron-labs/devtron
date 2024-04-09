@@ -8,8 +8,8 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	util4 "github.com/devtron-labs/devtron/api/util"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
@@ -29,14 +29,15 @@ import (
 	resourceV1alpha1 "k8s.io/api/resource/v1alpha1"
 	schedulingV1 "k8s.io/api/scheduling/v1"
 	storageV1beta1 "k8s.io/api/storage/v1beta1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/duration"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubernetes/pkg/apis/flowcontrol"
 	"k8s.io/kubernetes/pkg/apis/rbac"
 	"net/http"
-	"reflect"
 	"net/http/httputil"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -114,13 +115,13 @@ type K8sApplicationServiceImpl struct {
 	terminalSession              terminal.TerminalSessionHandler
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
-	k8sAppConfig                            *K8sAppConfig
+	k8sAppConfig                 *K8sAppConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 
 	// nil for EA mode
-	deploymentWindowService deploymentWindow.DeploymentWindowService
-	celEvaluatorService          resourceFilter.CELEvaluatorService
-	printers                     *printers.HumanReadableGenerator
+	deploymentWindowService                 deploymentWindow.DeploymentWindowService
+	celEvaluatorService                     resourceFilter.CELEvaluatorService
+	printers                                *printers.HumanReadableGenerator
 	interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler
 	scoopClusterServiceMap                  map[int]ScoopServiceClusterConfig
 }
@@ -130,7 +131,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
-	celEvaluatorService resourceFilter.CELEvaluatorService,  interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
+	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
 	k8sAppConfig := &K8sAppConfig{}
 	err := env.Parse(k8sAppConfig)
@@ -160,8 +161,8 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository:            ephemeralContainerRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
-		celEvaluatorService:          celEvaluatorService,
-		printers:                     printers,
+		celEvaluatorService:                     celEvaluatorService,
+		printers:                                printers,
 		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
 		scoopClusterServiceMap:                  scoopConfig,
 	}, nil
@@ -712,10 +713,24 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		},
 	}
 	if len(request.LabelSelector) > 0 {
-		listOptions.LabelSelector = request.LabelSelector
+		for _, labelSelector := range request.LabelSelector {
+			_, err = labels.Parse(labelSelector)
+			if err != nil {
+				return resourceList, err
+			}
+		}
+		labelSelectorString := strings.Join(request.LabelSelector, ",")
+		listOptions.LabelSelector = labelSelectorString
 	}
 	if len(request.FieldSelector) > 0 {
-		listOptions.FieldSelector = request.FieldSelector
+		for _, fieldSelector := range request.FieldSelector {
+			_, err = fields.ParseSelector(fieldSelector)
+			if err != nil {
+				return resourceList, err
+			}
+		}
+		FieldSelectorString := strings.Join(request.FieldSelector, ",")
+		listOptions.FieldSelector = FieldSelectorString
 	}
 	asTable := len(request.Filter) == 0
 	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace, asTable, listOptions)
