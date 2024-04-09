@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger"
 	"github.com/google/wire"
 )
@@ -15,4 +16,5 @@ var DeploymentWireSet = wire.NewSet(
 	manifest.DeploymentManifestWireSet,
 	trigger.DeploymentTriggerWireSet,
 	deployedApp.DeployedAppWireSet,
+	providerConfig.DeploymentProviderConfigWireSet,
 )

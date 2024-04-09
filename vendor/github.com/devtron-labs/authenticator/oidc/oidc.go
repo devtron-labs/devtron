@@ -107,7 +107,7 @@ type ClientApp struct {
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 	cache OIDCStateStorage
-	//used to verify user by email before setting cookie
+	// used to verify user by email before setting cookie
 	userVerifier UserVerifier
 
 	RedirectUrlSanitiser RedirectUrlSanitiser
@@ -337,9 +337,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			//if b.Path == r.Path {
+			// if b.Path == r.Path {
 			//	return true
-			//}
+			// }
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
@@ -552,7 +552,7 @@ func AppendClaimsAuthenticationRequestParameter(opts []oauth2.AuthCodeOption, re
 	if len(requestedClaims) == 0 {
 		return opts
 	}
-	log.Infof("RequestedClaims: %s\n", requestedClaims)
+	log.Infof("RequestedClaims: %v\n", requestedClaims)
 	claimsRequestParameter, err := createClaimsAuthenticationRequestParameter(requestedClaims)
 	if err != nil {
 		log.Errorf("Failed to create OIDC claims authentication request parameter from config: %s", err)
