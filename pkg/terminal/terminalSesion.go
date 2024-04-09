@@ -293,14 +293,13 @@ func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-
+	isErroredConnectionTermination := false
+	middleware.IncTerminalSessionRequestCounter(SessionInitiating, strconv.FormatBool(isErroredConnectionTermination))
+	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
 	err = execWithStreamOptions(ctx, exec, streamOptions)
 	if err != nil {
 		return err
 	}
-	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
-	isErroredConnectionTermination := false
-	middleware.IncTerminalSessionRequestCounter(SessionInitiating, strconv.FormatBool(isErroredConnectionTermination))
 	return nil
 }
 
