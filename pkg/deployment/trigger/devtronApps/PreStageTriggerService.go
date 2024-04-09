@@ -87,17 +87,9 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy)
-	feasibilityResponse, err := impl.CheckFeasibility(triggerRequirementRequest)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, artifact.Id, pipelineStageType, stageId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
-		return err
-	}
-
-	filterIdVsState, filters := feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
 		return err
 	}
 

@@ -80,21 +80,13 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
 	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy)
-	feasibilityResponse, err := impl.CheckFeasibility(triggerRequirementRequest)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, cdWf.CiArtifact.Id, pipelineStageType, stageId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerPostStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
-	filterIdVsState, filters := feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
 	// overriding request from feasibility request
 	request = feasibilityResponse.TriggerRequest
-
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
-		return err
-	}
 
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {

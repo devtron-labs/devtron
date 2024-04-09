@@ -560,9 +560,41 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
+// createAuditForFeasibility creates audit currrently in case of filters fail and error when nil
+func (impl *TriggerServiceImpl) createAuditForFeasibility(createAudit bool, subjectId int, refType resourceFilter.ReferenceType, refId int, filters []*resourceFilter.FilterMetaDataBean, filterIdVsState map[int]resourceFilter.FilterState) *resourceFilter.ResourceFilterEvaluationAudit {
+	// creating audit only when error occurred due to filters fail or err is nil because in other err cases filter audit is not required.
+	if createAudit {
+		// store evaluated result
+		filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, subjectId, refType, refId, filters, filterIdVsState)
+		if err != nil {
+			impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "subjectId", subjectId, "refId", refId)
+		}
+		return filterEvaluationAudit
+	}
+	return nil
+}
+
+// checkFeasibilityAndCreateAudit first checks feasibility and creates audit if createAudit flag comes to true
+func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequirementRequest *bean.TriggerRequirementRequestDto, subjectId int, refType resourceFilter.ReferenceType, refId int) (*bean.TriggerFeasibilityResponse, *resourceFilter.ResourceFilterEvaluationAudit, error) {
+	var filters []*resourceFilter.FilterMetaDataBean
+	var filterIdVsState map[int]resourceFilter.FilterState
+	feasibilityResponse, createAudit, err := impl.CheckFeasibility(triggerRequirementRequest)
+	if feasibilityResponse != nil {
+		filterIdVsState, filters = feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
+	}
+	// this operation is independent of the error occured
+	filterEvaluationAudit := impl.createAuditForFeasibility(createAudit, subjectId, refType, refId, filters, filterIdVsState)
+	// handling error from CheckFeasibility
+	if err != nil {
+		impl.logger.Errorw("error encountered in checkFeasibilityAndCreateAudit", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
+		return nil, nil, err
+	}
+	return feasibilityResponse, filterEvaluationAudit, nil
+}
+
 // checkFeasibilityAndAuditStateChanges performs the feasibility and required operation before actual deployment for both auto and manual deploy
 // step1:checks feasibility if any policy is blocking the deployment
-// step2: Creates filter evaluation audit when feasibility is passed
+// step2: Creates filter evaluation audit irrespective of err in filter and deployment window block
 // step3: gets or create cd workflow basis of auto or manual deployment
 // step4: creates cdWorkflowRunner
 // step5: createAuditDataForDeploymentWindowBypass
@@ -573,19 +605,12 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 	ciArtifactId := triggerOperationReq.TriggerRequest.Artifact.Id
 	triggeredBy := triggerOperationReq.TriggerRequest.TriggeredBy
 	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy)
-	feasibilityResponse, err := impl.CheckFeasibility(triggerRequirementRequest)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error encountered in performOperationsForAutoOrManualTrigger", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return nil, 0, "", err
 	}
 
-	filterIdVsState, filters := feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", cdPipeline.Id, "artifactId", ciArtifactId)
-		return nil, 0, "", err
-	}
 	//overriding the request from feasibility response
 	triggerOperationReq.TriggerRequest = feasibilityResponse.TriggerRequest
 
