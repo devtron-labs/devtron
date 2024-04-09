@@ -262,8 +262,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 		itr := 0
 		for _, val := range workflowIdToObjectMap {
 			rbacObjects = append(rbacObjects, val)
-			// doing this here as casbin returns lowercase objects which will not match in case of Project with uppercase letters, not done in enterprise as we use custom enforcer which returns the map with given expected rbac objects
-			workNameObjectMap[strings.ToLower(val)] = workflowsList[itr]
+			workNameObjectMap[val] = workflowsList[itr]
 			itr++
 		}
 

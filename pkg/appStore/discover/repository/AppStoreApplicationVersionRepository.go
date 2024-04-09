@@ -18,6 +18,7 @@
 package appStoreDiscoverRepository
 
 import (
+	"fmt"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -114,27 +115,33 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 			query = " ch.name as chart_name, das.id as docker_artifact_store_id"
 		}
 	}
+
+	latestAppStoreVersionQuery := " SELECT MAX(asv.id) as id " +
+		" FROM app_store_application_version asv " +
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true) " +
+		" GROUP BY asv.app_store_id "
+
 	if updateAction == QUERY_JOIN_UPDTAE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))" +
+				fmt.Sprintf(" WHERE (asv.id IN (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", latestAppStoreVersionQuery) +
 				" AND (ch.id IN (?) OR das.id IN (?))"
 		} else if len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE asv.latest IS TRUE AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)" +
+				fmt.Sprintf(" WHERE asv.id IN (%s) AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)", latestAppStoreVersionQuery) +
 				" AND das.id IN (?)"
 		} else if len(filter.ChartRepoId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
-				" WHERE asv.latest IS TRUE AND ch.active IS TRUE" +
+				fmt.Sprintf(" WHERE asv.id IN (%s) AND ch.active IS TRUE", latestAppStoreVersionQuery) +
 				" AND ch.id IN (?)"
 		} else {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				" WHERE (asv.latest IS TRUE AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))"
+				fmt.Sprintf(" WHERE (asv.id IN (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", latestAppStoreVersionQuery)
 		}
 	}
 	return query
@@ -187,7 +194,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindById(id int) (*AppStore
 		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo", "AppStore.DockerArtifactStore", "AppStore.DockerArtifactStore.OCIRegistryConfig").
 		Join("INNER JOIN app_store aps on app_store_application_version.app_store_id = aps.id").
 		Join("LEFT JOIN chart_repo ch on aps.chart_repo_id = ch.id").
-		Join("LEFT JOIN docker_artifact_store das on aps.docker_artifact_store_id = das.id").
+		Join("LEFT JOIN docker_artifact_store das on (aps.docker_artifact_store_id = das.id and das.active IS TRUE)").
 		Join("LEFT JOIN oci_registry_config orc on orc.docker_artifact_store_id=das.id").
 		Relation("AppStore.DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
@@ -249,7 +256,7 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindByAppStoreName(name st
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error) {
 	var chartRepos []*appStoreBean.ChartRepoSearch
-	//eryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
+	// eryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
 	queryTemp := "select asv.id as app_store_application_version_id, asv.version, asv.deprecated, aps.id as chart_id," +
 		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
 		" from app_store_application_version asv" +
