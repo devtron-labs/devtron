@@ -25,6 +25,7 @@ const (
 	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 	Spec                         = "spec"
 	Template                     = "template"
+	JobTemplate                  = "jobTemplate"
 	Ports                        = "ports"
 	Port                         = "port"
 	Subsets                      = "subsets"
@@ -36,7 +37,7 @@ const (
 )
 
 var commonContainerPath = []string{Spec, Template, Spec}
-var cronJobContainerPath = []string{Spec, Template, Spec, Spec}
+var cronJobContainerPath = []string{Spec, JobTemplate, Spec, Template, Spec}
 var podContainerPath = []string{Spec}
 
 var KindToPath = map[string][]string{

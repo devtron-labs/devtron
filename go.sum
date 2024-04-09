@@ -221,8 +221,8 @@ github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc h1:VRRKCwnzq
 github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470 h1:AUTYcDnL6w6Ux+264VldYaOUQAP6pDZ5Tq8wCKJyiEg=
 github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
-github.com/devtron-labs/common-lib v0.0.16-0.20240409085150-0573f2751f0d h1:zomsZqqVYxIR0idSc+NuWL7AaCivY1tO9/zAjSD0XmM=
-github.com/devtron-labs/common-lib v0.0.16-0.20240409085150-0573f2751f0d/go.mod h1:mzEk3pf4JDXsOPNvCxjoSnsMBTwmt4A73Qc2tobLkZM=
+github.com/devtron-labs/common-lib v0.0.16-0.20240409121008-40b15e136000 h1:CIW8ozRjzGQ1AHpu/8xsgWaBjc2EsQexU6ZNmr9dXTk=
+github.com/devtron-labs/common-lib v0.0.16-0.20240409121008-40b15e136000/go.mod h1:mzEk3pf4JDXsOPNvCxjoSnsMBTwmt4A73Qc2tobLkZM=
 github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15 h1:w+ijdSjf8Dshaw5vmSrOlTyDBF+sxtKG5rm8dm2tUmQ=
 github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15/go.mod h1:geXjSWHrhRO8/AxFIvONeTgc1rZiFiGA8arGekL6JCE=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
