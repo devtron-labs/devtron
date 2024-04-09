@@ -25,11 +25,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"go.uber.org/zap"
 )
 
 type InstalledAppDBExtendedService interface {
@@ -44,23 +40,14 @@ type InstalledAppDBExtendedServiceImpl struct {
 	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
-func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
-	installedAppRepository repository2.InstalledAppRepository,
-	appRepository app.AppRepository,
-	userService user.UserService,
-	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
+func NewInstalledAppDBExtendedServiceImpl(
+	installedAppDBServiceImpl *EAMode.InstalledAppDBServiceImpl,
 	appStatusService appStatus.AppStatusService,
 	gitOpsConfigReadService config.GitOpsConfigReadService) *InstalledAppDBExtendedServiceImpl {
 	return &InstalledAppDBExtendedServiceImpl{
-		InstalledAppDBServiceImpl: &EAMode.InstalledAppDBServiceImpl{
-			Logger:                        logger,
-			InstalledAppRepository:        installedAppRepository,
-			AppRepository:                 appRepository,
-			UserService:                   userService,
-			InstalledAppRepositoryHistory: installedAppRepositoryHistory,
-		},
-		appStatusService:        appStatusService,
-		gitOpsConfigReadService: gitOpsConfigReadService,
+		InstalledAppDBServiceImpl: installedAppDBServiceImpl,
+		appStatusService:          appStatusService,
+		gitOpsConfigReadService:   gitOpsConfigReadService,
 	}
 }
 

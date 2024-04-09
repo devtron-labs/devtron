@@ -80,6 +80,7 @@ type MuxRouter struct {
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
+	AppStoreRouterEnterprise           appStore.AppStoreRouterEnterprise
 	ChartRepositoryRouter              chartRepo.ChartRepositoryRouter
 	ReleaseMetricsRouter               ReleaseMetricsRouter
 	deploymentGroupRouter              DeploymentGroupRouter
@@ -145,7 +146,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
 	UserRouter user.UserRouter,
-	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
+	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, AppStoreRouterEnterprise appStore.AppStoreRouterEnterprise, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
@@ -190,6 +191,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,
 		AppStoreRouter:                     AppStoreRouter,
+		AppStoreRouterEnterprise:           AppStoreRouterEnterprise,
 		ChartRepositoryRouter:              chartRepositoryRouter,
 		ReleaseMetricsRouter:               ReleaseMetricsRouter,
 		deploymentGroupRouter:              deploymentGroupRouter,
@@ -336,6 +338,7 @@ func (r MuxRouter) Init() {
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
 	r.AppStoreRouter.Init(appStoreRouter)
+	r.AppStoreRouterEnterprise.Init(appStoreRouter)
 
 	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
 	r.ChartRepositoryRouter.Init(chartRepoRouter)

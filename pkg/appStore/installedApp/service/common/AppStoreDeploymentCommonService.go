@@ -22,11 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
-	"path"
 	"sigs.k8s.io/yaml"
 )
 
@@ -37,8 +34,6 @@ type AppStoreDeploymentCommonService interface {
 	GetRequirementsString(appStoreVersionId int) (string, error)
 	// CreateChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 	CreateChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error)
-	// BuildChartWithValuesAndRequirementsConfig
-	BuildChartWithValuesAndRequirementsConfig(appName, valuesString, requirementsString, chartName, chartVersion string) (chartBytesArr []byte, err error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -124,34 +119,4 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(chart
 		return chartCreateResponse, err
 	}
 	return chartCreateResponse, nil
-}
-
-func (impl AppStoreDeploymentCommonServiceImpl) BuildChartWithValuesAndRequirementsConfig(appName, valuesString, requirementsString, chartName, chartVersion string) (chartBytesArr []byte, err error) {
-
-	chartBytesArr = make([]byte, 0)
-	chartCreateRequest := adapter.ParseChartCreateRequest(appName, false)
-	chartCreateResponse, err := impl.CreateChartProxyAndGetPath(chartCreateRequest)
-	if err != nil {
-		impl.logger.Errorw("error in building chart", "err", err)
-	}
-
-	valuesFilePath := path.Join(chartCreateResponse.BuiltChartPath, "values.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(valuesString), 0600)
-	if err != nil {
-		return chartBytesArr, nil
-	}
-
-	requirementsFilePath := path.Join(chartCreateResponse.BuiltChartPath, "requirements.yaml")
-	err = ioutil.WriteFile(requirementsFilePath, []byte(requirementsString), 0600)
-	if err != nil {
-		return chartBytesArr, nil
-	}
-
-	chartBytesArr, err = impl.chartTemplateService.LoadChartInBytes(chartCreateResponse.BuiltChartPath, true, chartName, chartVersion)
-	if err != nil {
-		impl.logger.Errorw("error in loading chart in bytes", "err", err)
-		return chartBytesArr, nil
-	}
-
-	return chartBytesArr, err
 }

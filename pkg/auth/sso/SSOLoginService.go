@@ -102,13 +102,13 @@ const (
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sUtilExtended, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper,
+	K8sUtil *k8s.K8sUtilExtended, envVariables *util2.EnvironmentVariables, userAuthOidcHelper authentication.UserAuthOidcHelper,
 	globalAuthConfigService auth.GlobalAuthorisationConfigService) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:                  logger,
 		ssoLoginRepository:      ssoLoginRepository,
 		K8sUtil:                 K8sUtil,
-		devtronSecretConfig:     devtronSecretConfig,
+		devtronSecretConfig:     envVariables.DevtronSecretConfig,
 		userAuthOidcHelper:      userAuthOidcHelper,
 		globalAuthConfigService: globalAuthConfigService,
 	}

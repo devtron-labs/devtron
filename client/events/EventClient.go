@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/module"
 	"net/http"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -75,30 +75,31 @@ type Event struct {
 }
 
 type Payload struct {
-	AppName               string               `json:"appName"`
-	EnvName               string               `json:"envName"`
-	PipelineName          string               `json:"pipelineName"`
-	Source                string               `json:"source"`
-	DockerImageUrl        string               `json:"dockerImageUrl"`
-	TriggeredBy           string               `json:"triggeredBy"`
-	Stage                 string               `json:"stage"`
-	DeploymentHistoryLink string               `json:"deploymentHistoryLink"`
-	AppDetailLink         string               `json:"appDetailLink"`
-	DownloadLink          string               `json:"downloadLink"`
-	BuildHistoryLink      string               `json:"buildHistoryLink"`
-	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
-	ApprovedByEmail       []string             `json:"approvedByEmail"`
-	FailureReason         string               `json:"failureReason"`
-	Providers             []*Provider          `json:"providers"`
-	ImageTagNames         []string             `json:"imageTagNames"`
-	ImageComment          string               `json:"imageComment"`
-	ImageApprovalLink     string               `json:"imageApprovalLink"`
-	ProtectConfigFileType string               `json:"protectConfigFileType"`
-	ProtectConfigFileName string               `json:"protectConfigFileName"`
-	ProtectConfigComment  string               `json:"protectConfigComment"`
-	ProtectConfigLink     string               `json:"protectConfigLink"`
-	ApprovalLink          string               `json:"approvalLink"`
-	TimeWindowComment     string               `json:"timeWindowComment"`
+	AppName                string               `json:"appName"`
+	EnvName                string               `json:"envName"`
+	PipelineName           string               `json:"pipelineName"`
+	Source                 string               `json:"source"`
+	DockerImageUrl         string               `json:"dockerImageUrl"`
+	TriggeredBy            string               `json:"triggeredBy"`
+	Stage                  string               `json:"stage"`
+	DeploymentHistoryLink  string               `json:"deploymentHistoryLink"`
+	AppDetailLink          string               `json:"appDetailLink"`
+	DownloadLink           string               `json:"downloadLink"`
+	BuildHistoryLink       string               `json:"buildHistoryLink"`
+	MaterialTriggerInfo    *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail        []string             `json:"approvedByEmail"`
+	FailureReason          string               `json:"failureReason"`
+	Providers              []*Provider          `json:"providers"`
+	ImageTagNames          []string             `json:"imageTagNames"`
+	ImageComment           string               `json:"imageComment"`
+	ImageApprovalLink      string               `json:"imageApprovalLink"`
+	ProtectConfigFileType  string               `json:"protectConfigFileType"`
+	ProtectConfigFileName  string               `json:"protectConfigFileName"`
+	ProtectConfigComment   string               `json:"protectConfigComment"`
+	ProtectConfigLink      string               `json:"protectConfigLink"`
+	ApprovalLink           string               `json:"approvalLink"`
+	TimeWindowComment      string               `json:"timeWindowComment"`
+	ImageScanExecutionInfo json.RawMessage      `json:"imageScanExecutionInfo"`
 }
 
 type CiPipelineMaterialResponse struct {
@@ -217,7 +218,7 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 		isPostStageExist = true
 	}
 
-	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributesRepository.FindByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
