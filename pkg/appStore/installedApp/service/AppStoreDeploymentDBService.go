@@ -567,7 +567,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createEnvironmentIfNotExists(instal
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
-	if env.Id != 0 {
+	if env != nil && env.Id != 0 {
 		return env, nil
 	}
 	// create env
