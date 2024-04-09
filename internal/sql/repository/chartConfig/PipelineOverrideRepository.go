@@ -52,6 +52,8 @@ type PipelineOverride struct {
 	Pipeline          *pipelineConfig.Pipeline
 }
 
+// PipelineOverrideRepository should be used by only manifest.ManifestCreationService and devtronApps.TriggerService
+// For read services use configHistory.PipelineConfigOverrideReadService instead
 type PipelineOverrideRepository interface {
 	Save(*PipelineOverride) error
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
@@ -63,6 +65,7 @@ type PipelineOverrideRepository interface {
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	FetchLatestNDeployedArtifacts(appId, environmentId, limit int) (pipelineOverrides []*PipelineOverride, err error)
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
@@ -180,6 +183,18 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 		Where("pipeline.environment_id =?", environmentId).
 		Order("id DESC").
 		Limit(1).
+		Select()
+	return overrides, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FetchLatestNDeployedArtifacts(appId, environmentId, limit int) (pipelineOverrides []*PipelineOverride, err error) {
+	var overrides []*PipelineOverride
+	err = impl.dbConnection.Model(&overrides).
+		Column("pipeline_override.ci_artifact_id").
+		Where("pipeline.app_id =? ", appId).
+		Where("pipeline.environment_id =?", environmentId).
+		Order("id DESC").
+		Limit(limit).
 		Select()
 	return overrides, err
 }

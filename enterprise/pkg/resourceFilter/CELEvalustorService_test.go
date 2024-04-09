@@ -15,7 +15,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
-			Expression: "'latest' in releaseTags",
+			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
 				Params: params,
 			},
@@ -31,7 +31,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
-			Expression: "'latest' in releaseTags",
+			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
 				Params: params,
 			},
@@ -47,7 +47,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 		params := getParamsFromArtifact(artifact, releaseTags)
 
 		evalReq := CELRequest{
-			Expression: "'latest' in releaseTags",
+			Expression: "'latest' in imageLabels",
 			ExpressionMetadata: ExpressionMetadata{
 				Params: params,
 			},

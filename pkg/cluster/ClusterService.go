@@ -86,7 +86,6 @@ type ClusterBean struct {
 	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
-	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 	ToConnectWithSSHTunnel  bool                       `json:"toConnectWithSSHTunnel"`
 	SSHTunnelConfig         *SSHTunnelConfig           `json:"sshTunnelConfig,omitempty"`

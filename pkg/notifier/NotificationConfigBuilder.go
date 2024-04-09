@@ -19,17 +19,24 @@ package notifier
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
+	"strings"
 	"time"
 )
 
 type NotificationConfigBuilder interface {
 	BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
-	BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
+	BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView, eventIdRuleIdMapping map[int]int) ([]repository.NotificationSettings, error)
 	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*client.Provider) (repository.NotificationSettings, error)
+	BuildNotificationRules(filterCondition map[int]string, userId int32) (map[int]*repository.NotificationRule, error)
+	GenerateAdditionalConfigByEventIds(additionalConfigJson map[int]string) (map[int]string, error)
+	UpdateExpressionInNotificationRules(eventIdToNotificationRule map[int]*repository.NotificationRule, filterCondition map[int]string, userId int32) ([]*repository.NotificationRule, error)
 }
 
 type NotificationConfigBuilderImpl struct {
@@ -68,8 +75,12 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 		return nil, err
 	}
 	currentTime := time.Now()
+	if slices.Contains(notificationSettingsRequest.EventTypeIds, int(util.ImageScanning)) {
+		notificationSettingsRequest.IsInternal = true
+	}
 	notificationSettingsView := &repository.NotificationSettingsView{
-		Config: string(config),
+		Config:   string(config),
+		Internal: notificationSettingsRequest.IsInternal,
 		//ConfigName:    notificationSettingsRequest.ConfigName,
 		//AppId:         notificationSettingsRequest.AppId,
 		//EnvironmentId: notificationSettingsRequest.EnvId,
@@ -87,7 +98,7 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 	return notificationSettingsView, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error) {
+func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView, eventIdRuleIdMapping map[int]int) ([]repository.NotificationSettings, error) {
 	var notificationSettings []repository.NotificationSettings
 	type LocalRequest struct {
 		Id         int  `json:"id"`
@@ -138,18 +149,136 @@ func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificat
 	} else {
 		tempRequest = append(tempRequest, &LocalRequest{PipelineId: notificationSettingsRequest.PipelineId})
 	}
-
+	eventIdToAdditionalConfig, err := impl.GenerateAdditionalConfigByEventIds(notificationSettingsRequest.AdditionalConfigJson)
+	if err != nil {
+		impl.logger.Error("error in unmarshalling additional config", "additionalConfig", notificationSettingsRequest.AdditionalConfigJson, "err", err)
+		return nil, err
+	}
 	for _, item := range tempRequest {
 		for _, e := range notificationSettingsRequest.EventTypeIds {
 			notificationSetting, err := impl.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, notificationSettingsRequest.PipelineType, e, notificationSettingsView.Id, notificationSettingsRequest.Providers)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Error("error in json marshalling", "providers", notificationSettingsRequest.Providers, "err", err)
 				return nil, err
+			}
+			if eventIdRuleIdMapping != nil && eventIdRuleIdMapping[notificationSetting.EventTypeId] != 0 {
+				notificationSetting.NotificationRuleId = eventIdRuleIdMapping[notificationSetting.EventTypeId]
+			}
+			if eventIdToAdditionalConfig != nil && len(eventIdToAdditionalConfig[notificationSetting.EventTypeId]) != 0 {
+				notificationSetting.AdditionalConfigJson = eventIdToAdditionalConfig[notificationSetting.EventTypeId]
 			}
 			notificationSettings = append(notificationSettings, notificationSetting)
 		}
 	}
 	return notificationSettings, nil
+}
+
+func (impl NotificationConfigBuilderImpl) UpdateExpressionInNotificationRules(eventIdToNotificationRule map[int]*repository.NotificationRule, filterCondition map[int]string, userId int32) ([]*repository.NotificationRule, error) {
+	expression, err := impl.GenerateFilterExpression(filterCondition)
+	if err != nil {
+		impl.logger.Errorw("error in filter expression", "filterCondition", filterCondition)
+		return nil, err
+	}
+	if expression == nil {
+		return nil, nil
+	}
+	var updatedNotificationRules []*repository.NotificationRule
+	for eventId, notificationRule := range eventIdToNotificationRule {
+		if len(expression[eventId]) == 0 || notificationRule == nil {
+			continue
+		}
+		updatedNotificationRule := *notificationRule
+		updatedNotificationRule.Expression = expression[eventId]
+		updatedNotificationRule.UpdateAuditLog(userId)
+		updatedNotificationRules = append(updatedNotificationRules, &updatedNotificationRule)
+	}
+	return updatedNotificationRules, nil
+}
+
+func (impl NotificationConfigBuilderImpl) BuildNotificationRules(filterCondition map[int]string, userId int32) (map[int]*repository.NotificationRule, error) {
+	expression, err := impl.GenerateFilterExpression(filterCondition)
+	if err != nil {
+		impl.logger.Errorw("error in generating filter expression", "filterCondition", filterCondition, "err", err)
+		return nil, err
+	}
+	if expression == nil {
+		return nil, nil
+	}
+	notificationRulesMap := make(map[int]*repository.NotificationRule)
+	for eventId, _ := range filterCondition {
+		if !slices.Contains(util.RulesSupportedEvents, eventId) ||
+			expression[eventId] == "" {
+			continue
+		}
+		notificationRule := repository.NotificationRule{
+			ConditionType: notifierBean.PASS,
+			Expression:    expression[eventId],
+		}
+		notificationRule.CreateAuditLog(userId)
+		notificationRulesMap[eventId] = &notificationRule
+	}
+	return notificationRulesMap, nil
+}
+
+func (impl NotificationConfigBuilderImpl) GenerateAdditionalConfigByEventIds(additionalConfigJson map[int]string) (map[int]string, error) {
+	if additionalConfigJson == nil {
+		return nil, nil
+	}
+	if value, ok := additionalConfigJson[int(util.ImageScanning)]; ok {
+		var filterFlagsJson map[int]string
+		if value == "" {
+			return filterFlagsJson, nil
+		}
+		var flags repository.ImageScanFilterFlags
+		err := json.Unmarshal([]byte(value), &flags)
+		if err != nil {
+			return filterFlagsJson, err
+		}
+		flagsJson, err := json.Marshal(flags)
+		if err != nil {
+			return filterFlagsJson, err
+		}
+		filterFlagsJson = make(map[int]string)
+		filterFlagsJson[int(util.ImageScanning)] = string(flagsJson)
+		return filterFlagsJson, nil
+	}
+	return nil, nil
+}
+
+func (impl NotificationConfigBuilderImpl) GenerateFilterExpression(filterCondition map[int]string) (map[int]string, error) {
+	if filterCondition == nil {
+		return nil, nil
+	}
+	if value, ok := filterCondition[int(util.ImageScanning)]; ok {
+		var filterExpression map[int]string
+		if value == "" {
+			return filterExpression, nil
+		}
+		var filters repository.ImageScanFilterConditions
+		err := json.Unmarshal([]byte(value), &filters)
+		if err != nil {
+			return filterExpression, err
+		}
+		var severityExpression, policyExpression, expression string
+		if filters.Severity != nil {
+			severityExpression = fmt.Sprintf("%s in ['%s']", notifierBean.Severity, strings.Join(filters.Severity, "', '"))
+		}
+		if filters.PolicyPermission != nil {
+			policyExpression = fmt.Sprintf("%s in ['%s']", notifierBean.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
+		}
+
+		if len(severityExpression) != 0 && len(policyExpression) != 0 {
+			expression = fmt.Sprintf("%s && %s", severityExpression, policyExpression)
+		} else if len(severityExpression) != 0 {
+			expression = severityExpression
+		} else if len(policyExpression) != 0 {
+			expression = policyExpression
+		}
+		filterExpression = make(map[int]string)
+		filterExpression[int(util.ImageScanning)] = expression
+		return filterExpression, nil
+	}
+	return nil, nil
 }
 
 func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationSettingsRequest *NotificationSettingRequest, notificationSettingsView *repository.NotificationSettingsView, eventTypeId int) (repository.NotificationSettings, error) {
