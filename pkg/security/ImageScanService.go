@@ -700,7 +700,7 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 			Error: historyMapping.ErrorMessage,
 		}
 		//executionResults := make([]*security.ImageScanExecutionResult, 0)
-		if executionResults, ok := imageToExecutionResults[image]; ok {
+		if executionResults, ok := imageToExecutionResults[image]; ok && historyMapping.State == 1 {
 			vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
 			scanResult := ScanResult{
 				Vulnerabilities: vulnerabilities,
