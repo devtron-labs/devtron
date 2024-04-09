@@ -18,7 +18,7 @@ func CheckIfNilInWire() {
 	checkNilFields(app, nilFieldsMap)
 	fmt.Println("NIL Fields present in impls are: ", nilFieldsMap)
 	fmt.Println("output=", len(nilFieldsMap))
-	file, errs := os.Create("/tempfile/output.env")
+	file, errs := os.Create("/test/output.env")
 	if errs != nil {
 		log.Println("Failed to create file:", errs)
 		return
