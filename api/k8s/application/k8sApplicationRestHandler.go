@@ -60,6 +60,7 @@ type K8sApplicationRestHandler interface {
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
 	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
+	DebugPodInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -1160,4 +1161,44 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		return resourceRequestBean
 	}
 	return resourceRequestBean
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterid not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	queryValues := r.URL.Query()
+	podName := queryValues.Get("name")
+	namespace := queryValues.Get("namespace")
+	if len(podName) == 0 {
+		podName = "*"
+	}
+	if len(namespace) == 0 {
+		namespace = "*"
+	}
+	allowed, err := handler.k8sApplicationService.ValidatePodResource(token, clusterId, namespace, podName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	scoopServiceProxyHandler, scoopConfig, err := handler.k8sApplicationService.GetScoopServiceProxyHandler(r.Context(), clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
+		return
+	}
+	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
+	scoopServiceProxyHandler.ServeHTTP(w, r)
 }

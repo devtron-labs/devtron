@@ -81,4 +81,9 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/resource/security").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceSecurityInfo).Methods("POST")
+
+	k8sAppRouter.Path("/pod").
+		Queries("clusterId", "{clusterId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
+
 }
