@@ -98,7 +98,6 @@ OBJECT -
             "dependentOnIndex": [],
             "typeOfDependency": "child",
             "devtronResourceId": 9,
-            "dependentOnParentIndex": 0,
             "devtronResourceSchemaId": 9
         },
         {

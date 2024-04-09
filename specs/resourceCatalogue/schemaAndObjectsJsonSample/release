@@ -96,11 +96,11 @@ OBJECT -
     {}
   },
   "status": {
-          "health" : {},
           "config": {
               "lock" : true,
               "status" : "Ready For release"
-          }
+          },
+
   },
   "taskMapping": [
           {
@@ -109,17 +109,18 @@ OBJECT -
           }
   ],
   "dependencies":
-  [   {
+  [
+  {
     "name": "orchestrator-enterprise",
     "index": 1,
     "dependentOnIndex": 0,
-    "typeOfDependency": "stage", //for categorisation
+    "typeOfDependency": "level", //for categorisation
   },
     {
       "id": 7,
       "name": "orchestrator-enterprise", //app
       "index": 0,
-      "dependentOnIndex": [0],
+      "dependentOnIndex": [1],
       "typeOfDependency": "upstream",
       "devtronResourceId": 2,
       "dependentOnParentIndex": 0,
