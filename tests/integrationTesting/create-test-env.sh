@@ -18,6 +18,8 @@ kubectl create ns devtron-cd
 kubectl create ns devtron-ci
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-secret.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/nats-server.yaml
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' $PWD/tests/integrationTesting/migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' $PWD/tests/integrationTesting/migrator.yaml -i
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml

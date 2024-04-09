@@ -1,7 +1,9 @@
 package util
 
 import (
+	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/go-errors/errors"
 )
 
 type EnvironmentVariables struct {
@@ -19,11 +21,7 @@ type GlobalEnvVariables struct {
 	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
-}
-
-type DevtronSecretConfig struct {
-	DevtronSecretName         string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
-	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
+	ExecuteWireNilChecker          bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
 }
 
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
@@ -37,4 +35,18 @@ func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 		return nil, err
 	}
 	return cfg, err
+}
+
+type DevtronSecretConfig struct {
+	DevtronSecretName         string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
+}
+
+func GetDevtronSecretName() (*DevtronSecretConfig, error) {
+	secretConfig := &DevtronSecretConfig{}
+	err := env.Parse(secretConfig)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("could not get devtron secret name from environment : %v", err))
+	}
+	return secretConfig, err
 }

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	util2 "github.com/devtron-labs/devtron/util"
 	"log"
 	"os"
 	"os/signal"
@@ -28,7 +29,12 @@ import (
 )
 
 func main() {
-
+	globalEnvVariables, err := util2.GetEnvironmentVariables()
+	if globalEnvVariables.GlobalEnvVariables.ExecuteWireNilChecker {
+		fmt.Println("inside execute function.....")
+		CheckIfNilInWire()
+		return
+	}
 	app, err := InitializeApp()
 	if err != nil {
 		log.Panic(err)
