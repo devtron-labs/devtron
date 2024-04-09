@@ -12,9 +12,14 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
 VALUES (
     nextval('id_seq_plugin_pipeline_script'),
     E'#!/bin/bash
-triggeredFromAppName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.appName\')
-triggeredFromPipelineName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.pipelineName\')
-
+pipeline_type=$(echo $CI_CD_EVENT | jq -r \'.type\')
+if [ $pipeline_type == "CI" ]; then
+    triggeredFromAppName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.appName\')
+    triggeredFromPipelineName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.pipelineName\')
+elif [ $pipeline_type == "CD" ]; then
+    triggeredFromAppName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.extraEnvironmentVariables.APP_NAME\')
+    triggeredFromPipelineName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.Pipeline.Name\')
+fi
 sleep_time=5
 is_number() {
     [[ "$1" =~ ^[0-9]+$ ]]
