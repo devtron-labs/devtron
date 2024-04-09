@@ -724,10 +724,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
 	installedApp.UpdateAuditLog(upgradeAppRequest.UserId)
-	installedApp.GitOpsRepoUrl = gitOpsResponse.ChartGitAttribute.RepoUrl
-	//handling for backward compatibility
 	if monoRepoMigrationRequired {
-		installedApp.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsResponse.ChartGitAttribute.RepoUrl)
+		//if monorepo case is true then repoUrl is changed then also update repo url in database
+		installedApp.GitOpsRepoUrl = gitOpsResponse.ChartGitAttribute.RepoUrl
+		installedApp.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsResponse.ChartGitAttribute.RepoUrl) //handling for backward compatibility
 	}
 	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
