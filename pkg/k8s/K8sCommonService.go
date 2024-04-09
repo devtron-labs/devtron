@@ -45,6 +45,8 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+
+	//Get vulnerabilities
 	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error)
 }
 type K8sCommonServiceImpl struct {

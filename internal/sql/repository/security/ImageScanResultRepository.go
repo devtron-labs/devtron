@@ -103,9 +103,15 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionId(scanExecutionId
 
 func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionIds(ids []int) ([]*ImageScanExecutionResult, error) {
 	var models []*ImageScanExecutionResult
+	if len(ids) == 0 {
+		return models, nil
+	}
 	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_result.image_scan_execution_history_id in(?)", pg.In(ids)).
 		Select()
+	if err == pg.ErrNoRows {
+		return models, nil
+	}
 	return models, err
 }
 

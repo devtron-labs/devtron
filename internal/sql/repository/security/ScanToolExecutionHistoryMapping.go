@@ -17,7 +17,7 @@ type ScanToolExecutionHistoryMapping struct {
 	ExecutionFinishTime         time.Time                            `sql:"execution_finish_time,notnull"`
 	State                       serverBean.ScanExecutionProcessState `sql:"state"`
 	TryCount                    int                                  `sql:"try_count"`
-	ErrorMessage                string                               `sql:"errorMessage"`
+	ErrorMessage                string                               `sql:"error_message"`
 	sql.AuditLog
 }
 

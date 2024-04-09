@@ -21,6 +21,7 @@ import (
 	"fmt"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 	"time"
 
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -639,17 +640,42 @@ func filterResultsForHistoryId(results []*security.ImageScanExecutionResult, id 
 
 func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*ImageScanResult, error) {
 
-	imageScanResults, err := impl.scanResultRepository.FindByImages(images)
+	scanHistories, err := impl.scanHistoryRepository.FindByImages(images)
+	if err != nil {
+		return nil, fmt.Errorf("error in fetching image scan history %w", err)
+	}
+	scanHistoryIdToHistory := make(map[int]*security.ImageScanExecutionHistory, 0)
+	for _, scanHistory := range scanHistories {
+		//scanHistoryIds = append(scanHistoryIds, scanHistory.Id)
+		scanHistoryIdToHistory[scanHistory.Id] = scanHistory
+	}
+
+	historyIdsWithScanResults := make([]int, 0)
+	imageScanResults, err := impl.scanResultRepository.FetchByScanExecutionIds(maps.Keys(scanHistoryIdToHistory))
 	if err != nil {
 		return nil, fmt.Errorf("error in fetching image scan result %w", err)
-	}
-	imageToLatestHistoryId, imageToExecutionResults := impl.getImageHistoryAndExecResults(imageScanResults)
 
-	for image, results := range imageToExecutionResults {
-		imageToExecutionResults[image] = filterResultsForHistoryId(results, imageToLatestHistoryId[image])
+	}
+	for _, result := range imageScanResults {
+		historyIdsWithScanResults = append(historyIdsWithScanResults, result.ImageScanExecutionHistoryId)
+	}
+	for _, id := range maps.Keys(scanHistoryIdToHistory) {
+		if !slices.Contains(historyIdsWithScanResults, id) {
+			imageScanResults = append(imageScanResults, &security.ImageScanExecutionResult{
+				Id:                          0,
+				ImageScanExecutionHistoryId: id,
+				ImageScanExecutionHistory:   *scanHistoryIdToHistory[id],
+			})
+		}
 	}
 
-	historyIds := maps.Values(imageToLatestHistoryId)
+	historyIdToImage, imageToExecutionResults := impl.getImageHistoryAndExecResults(imageScanResults)
+
+	//for image, results := range imageToExecutionResults {
+	//	imageToExecutionResults[image] = filterResultsForHistoryId(results, imageToLatestHistoryId[image])
+	//}
+
+	historyIds := maps.Keys(historyIdToImage)
 	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(historyIds)
 	if err != nil {
 		return nil, fmt.Errorf("error in fetching GetAllScanHistoriesByExecutionHistoryIds %w %v", err, historyIds)
@@ -660,23 +686,50 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	}
 
 	results := make([]*ImageScanResult, 0)
-	for image, executionResults := range imageToExecutionResults {
-		historyMapping := historyIdToMapping[executionResults[0].ImageScanExecutionHistoryId]
-		vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
-		scanResult := ScanResult{
-			Vulnerabilities: vulnerabilities,
-			SeverityCount:   severityCount,
-			ExecutionTime:   historyMapping.ExecutionStartTime,
-			ScanToolId:      historyMapping.ScanToolId,
-		}
-		results = append(results, &ImageScanResult{
-			ScanResult: scanResult,
-			Image:      image,
-			State:      historyMapping.State,
-			Error:      historyMapping.ErrorMessage,
-		})
 
+	for _, historyMapping := range historyMappings {
+		var image string
+		if img, ok := historyIdToImage[historyMapping.Id]; ok {
+			image = img
+		} else {
+			continue
+		}
+		result := &ImageScanResult{
+			Image: image,
+			State: historyMapping.State,
+			Error: historyMapping.ErrorMessage,
+		}
+		//executionResults := make([]*security.ImageScanExecutionResult, 0)
+		if executionResults, ok := imageToExecutionResults[image]; ok {
+			vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
+			scanResult := ScanResult{
+				Vulnerabilities: vulnerabilities,
+				SeverityCount:   severityCount,
+				ExecutionTime:   historyMapping.ExecutionStartTime,
+				ScanToolId:      historyMapping.ScanToolId,
+			}
+			result.ScanResult = scanResult
+		}
+		results = append(results, result)
 	}
+	//
+	//results := make([]*ImageScanResult, 0)
+	//for image, executionResults := range imageToExecutionResults {
+	//	historyMapping := historyIdToMapping[executionResults[0].ImageScanExecutionHistoryId]
+	//	vulnerabilities, severityCount := impl.getVulnerabilitiesAndSeverityCount(executionResults)
+	//	scanResult := ScanResult{
+	//		Vulnerabilities: vulnerabilities,
+	//		SeverityCount:   severityCount,
+	//		ExecutionTime:   historyMapping.ExecutionStartTime,
+	//		ScanToolId:      historyMapping.ScanToolId,
+	//	}
+	//	results = append(results, &ImageScanResult{
+	//		ScanResult: scanResult,
+	//		Image:      image,
+	//		State:      historyMapping.State,
+	//		Error:      historyMapping.ErrorMessage,
+	//	})
+	//}
 
 	for _, image := range images {
 		if _, ok := imageToExecutionResults[image]; ok {
@@ -721,8 +774,9 @@ func (impl ImageScanServiceImpl) getVulnerabilitiesAndSeverityCount(executionRes
 	return vulnerabilities, severityCount
 }
 
-func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults []*security.ImageScanExecutionResult) (map[string]int, map[string][]*security.ImageScanExecutionResult) {
+func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults []*security.ImageScanExecutionResult) (map[int]string, map[string][]*security.ImageScanExecutionResult) {
 	imageToLatestHistoryId := make(map[string]int)
+	historyIdToImage := make(map[int]string)
 	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
 	for _, result := range imageScanResults {
 		image := result.ImageScanExecutionHistory.Image
@@ -730,14 +784,28 @@ func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults 
 
 		if id, ok := imageToLatestHistoryId[image]; !ok {
 			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
+			historyIdToImage[result.ImageScanExecutionHistoryId] = image
 		} else if result.ImageScanExecutionHistoryId > id {
 			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
+			historyIdToImage[result.ImageScanExecutionHistoryId] = image
 		}
 	}
-	return imageToLatestHistoryId, imageToExecutionResults
+
+	for image, results := range imageToExecutionResults {
+		imageToExecutionResults[image] = filterResultsForHistoryId(results, imageToLatestHistoryId[image])
+	}
+
+	for id, image := range historyIdToImage {
+		if _, ok := imageToExecutionResults[image]; !ok {
+			delete(historyIdToImage, id)
+		}
+	}
+
+	return historyIdToImage, imageToExecutionResults
 }
 
 func (impl ImageScanServiceImpl) sendForScan(image string) {
+	//either propagate user id or use system constant
 	err := impl.policyService.SendEventToClairUtilityAsync(&ScanEvent{
 		Image:  image,
 		UserId: 1,

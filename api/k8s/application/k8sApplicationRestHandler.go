@@ -135,6 +135,8 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
+// validate and enrich
+// todo seprate concerns of both
 func (handler *K8sApplicationRestHandlerImpl) validateGetResourceRequest(w http.ResponseWriter, r *http.Request) (*k8s.ResourceRequestBean, error) {
 	decoder := json.NewDecoder(r.Body)
 	var request k8s.ResourceRequestBean
