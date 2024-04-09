@@ -31,7 +31,7 @@ import (
 func main() {
 	globalEnvVariables, err := util2.GetEnvironmentVariables()
 	if err != nil {
-		fmt.Println("error while getting env variables reason:", err)
+		log.Println("error while getting env variables reason:", err)
 		return
 	}
 	if globalEnvVariables.GlobalEnvVariables.ExecuteWireNilChecker {

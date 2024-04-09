@@ -69,8 +69,26 @@ func canFieldTypeBeNil(field reflect.Value) bool {
 func canSkipFieldStructCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
 	valName = strings.ToLower(valName)
-	if valName == "githubclient" && (fieldName == "client" || fieldName == "gitopshelper") {
+	if valName == "cicdconfig" {
 		return true
+	}
+	fieldAndValName := map[string][]string{
+		"app":                          {"enforcerv2", "server"},
+		"githubclient":                 {"client", "gitopshelper"},
+		"gitfactory":                   {"client"},
+		"argocdconnectionmanagerimpl":  {"argocdsettings"},
+		"enforcerimpl":                 {"cache", "enforcerv2"},
+		"helmappclientimpl":            {"applicationserviceclient"},
+		"modulecronserviceimpl":        {"cron"},
+		"oteltracingserviceimpl":       {"traceprovider"},
+		"terminalaccessrepositoryimpl": {"templatescache"},
+	}
+	if _, ok := fieldAndValName[valName]; ok {
+		for _, ignoreFieldName := range fieldAndValName[valName] {
+			if ignoreFieldName == fieldName {
+				return true
+			}
+		}
 	}
 	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
 		if fieldName == str {
