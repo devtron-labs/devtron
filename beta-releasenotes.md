@@ -1,4 +1,5 @@
 ## Bugs
+- fix: link external helm app to chart store (#4919)
 - fix: Corrected the error of fetching app name and pipeline name from CI_CD_EVENT (#4911)
 - fix:job name support added in input variables (#4863)
 - fix:duplicate workflow name fixed (#4841)
