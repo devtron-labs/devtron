@@ -58,7 +58,7 @@ type WebhookConfigDto struct {
 	WebhookUrl  string                 `json:"webhookUrl" validate:"required"`
 	ConfigName  string                 `json:"configName" validate:"required"`
 	Header      map[string]interface{} `json:"header"`
-	Payload     map[string]interface{} `json:"payload"`
+	Payload     string                 `json:"payload"`
 	Description string                 `json:"description"`
 	Id          int                    `json:"id" validate:"number"`
 }
