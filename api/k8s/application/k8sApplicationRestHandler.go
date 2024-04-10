@@ -1207,23 +1207,24 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 }
 
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
-	clusterId, err := strconv.Atoi(r.Header.Get("devtron_clusterId"))
+	clusterId, err := strconv.Atoi(r.Header.Get("Devtron_clusterId"))
+
 	if err != nil {
 		handler.logger.Errorw("Error parsing clusterId", "Error: ", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "Error in ClusterID."})
 		return
 	}
-	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, r.Header.Get("devtron_serviceName"), r.Header.Get("devtron_namespace"), r.Header.Get("devtron_servicePort"))
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, r.Header.Get("Devtron_serviceName"), r.Header.Get("Devtron_namespace"), r.Header.Get("Devtron_servicePort"))
 	if err != nil {
 		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
 		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
 		return
 	}
-	r.Header.Del("devtron_clusterId")
-	r.Header.Del("devtron_serviceName")
-	r.Header.Del("devtron_servicePort")
-	r.Header.Del("devtron_namespace")
+	r.Header.Del("Devtron_clusterId")
+	r.Header.Del("Devtron_serviceName")
+	r.Header.Del("Devtron_servicePort")
+	r.Header.Del("Devtron_namespace")
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
 	proxy.ServeHTTP(w, r)
 }
