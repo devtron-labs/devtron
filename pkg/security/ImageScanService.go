@@ -726,6 +726,9 @@ func (impl ImageScanServiceImpl) getVulnerabilitiesAndSeverityCount(executionRes
 	var highCount, moderateCount, lowCount int
 	var cveStores []*security.CveStore
 	for _, item := range executionResults {
+		if item.Id == 0 {
+			continue
+		}
 		vulnerability := &Vulnerabilities{
 			CVEName:  item.CveStore.Name,
 			CVersion: item.CveStore.Version,
