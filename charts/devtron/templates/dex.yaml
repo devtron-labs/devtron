@@ -76,7 +76,7 @@ spec:
       - command:
         - /shared/authenticator
         - rundex
-        image: {{ .image }}
+        image: {{ include "fullImage"   (dict "component" $.Values.components.argocdDexServer   "global" $.Values.global ) }}
         imagePullPolicy: {{ .imagePullPolicy }}
         name: dex
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
@@ -100,7 +100,7 @@ spec:
         - -n
         - /authenticator
         - /shared
-        image: {{ .initContainer.authenticator }}
+        image: {{ include "fullImage"   (dict "component" $.Values.components.argocdDexServer.initContainer "image" $.Values.components.argocdDexServer.initContainer.authenticator  "digest" $.Values.components.argocdDexServer.initContainer.digest  "global" $.Values.global ) }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}

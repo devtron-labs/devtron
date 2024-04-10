@@ -126,6 +126,10 @@ func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, err error) {
 	return secret, nil
 }
 
+func (impl *K8sClient) GetDevtronNamespace() string {
+	return impl.runtimeConfig.DevtronDefaultNamespaceName
+}
+
 // argocd specific conf
 const (
 	SettingAdminPasswordHashKey = "admin.password"
