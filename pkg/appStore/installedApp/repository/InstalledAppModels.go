@@ -37,6 +37,7 @@ type InstalledAppsWithChartDetails struct {
 	AppOfferingMode              string    `json:"app_offering_mode"`
 	AppStatus                    string    `json:"app_status"`
 	DeploymentAppDeleteRequest   bool      `json:"deploymentAppDeleteRequest"`
+	IsVirtualEnvironment         bool      `json:"is_virtual_environment"`
 }
 
 // InstalledAppAndEnvDetails is used to operate on native query; This should be avoided.

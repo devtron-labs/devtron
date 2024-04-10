@@ -20,6 +20,7 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"strconv"
 )
 
@@ -55,9 +56,7 @@ type NotificationSettingsView struct {
 	tableName struct{} `sql:"notification_settings_view" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	Config    string   `sql:"config"`
-	//ConfigName    string   `sql:"config_name"`
-	//AppId         *int     `sql:"app_id"`
-	//EnvironmentId *int     `sql:"env_id"`
+	Internal  bool     `sql:"internal"`
 	sql.AuditLog
 }
 
@@ -73,16 +72,18 @@ type NotificationSettingsViewWithAppEnv struct {
 }
 
 type NotificationSettings struct {
-	tableName    struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	TeamId       *int     `sql:"team_id"`
-	AppId        *int     `sql:"app_id"`
-	EnvId        *int     `sql:"env_id"`
-	PipelineId   *int     `sql:"pipeline_id"`
-	PipelineType string   `sql:"pipeline_type"`
-	EventTypeId  int      `sql:"event_type_id"`
-	Config       string   `sql:"config"`
-	ViewId       int      `sql:"view_id"`
+	tableName            struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
+	Id                   int      `sql:"id,pk"`
+	TeamId               *int     `sql:"team_id"`
+	AppId                *int     `sql:"app_id"`
+	EnvId                *int     `sql:"env_id"`
+	PipelineId           *int     `sql:"pipeline_id"`
+	PipelineType         string   `sql:"pipeline_type"`
+	EventTypeId          int      `sql:"event_type_id"`
+	Config               string   `sql:"config"`
+	ViewId               int      `sql:"view_id"`
+	NotificationRuleId   int      `sql:"notification_rule_id"`
+	AdditionalConfigJson string   `sql:"additional_config_json"` // user defined config json;
 }
 
 type SettingOptionDTO struct {
@@ -97,7 +98,14 @@ type SettingOptionDTO struct {
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
-	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).Count()
+	count, err := impl.dbConnection.Model(&NotificationSettingsView{}).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				WhereOr("internal IS NULL").
+				WhereOr("internal = ?", false)
+			return query, nil
+		}).
+		Count()
 	if err != nil {
 		return 0, err
 	}
@@ -106,7 +114,18 @@ func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
 
 func (impl *NotificationSettingsRepositoryImpl) FindAll(offset int, size int) ([]*NotificationSettingsView, error) {
 	var ns []*NotificationSettingsView
-	err := impl.dbConnection.Model(&ns).Order("created_on desc").Offset(offset).Limit(size).Select()
+	err := impl.dbConnection.
+		Model(&ns).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.
+				WhereOr("internal IS NULL").
+				WhereOr("internal = ?", false)
+			return query, nil
+		}).
+		Order("created_on desc").
+		Offset(offset).
+		Limit(size).
+		Select()
 	if err != nil {
 		return nil, err
 	}
