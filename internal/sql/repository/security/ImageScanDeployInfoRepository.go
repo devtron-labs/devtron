@@ -19,6 +19,7 @@ package security
 
 import (
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
@@ -58,17 +59,6 @@ const (
 	Desc SortOrder = "DESC"
 )
 
-type ImageScanFilter struct {
-	Offset         int    `json:"offset"`
-	Size           int    `json:"size"`
-	CVEName        string `json:"cveName"`
-	AppName        string `json:"appName"`
-	ObjectName     string `json:"objectName"`
-	EnvironmentIds []int  `json:"envIds"`
-	ClusterIds     []int  `json:"clusterIds"`
-	Severity       []int  `json:"severity"`
-}
-
 type ImageScanListingResponse struct {
 	Id               int       `json:"id"`
 	ScanObjectMetaId int       `json:"scanObjectMetaId"`
@@ -88,7 +78,7 @@ type ImageScanDeployInfoRepository interface {
 	FetchListingGroupByObject(size int, offset int) ([]*ImageScanDeployInfo, error)
 	FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error)
 	FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error)
-	ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
+	ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -163,7 +153,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 	return &model, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
+func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
 	query := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
 	_, err := impl.dbConnection.Query(&models, query, size, offset)
@@ -174,7 +164,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *Ima
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	query = query + "select info.scan_object_meta_id, info.object_type, env.environment_name, max(info.id) as id"
 	query = query + " from image_scan_deploy_info info"
@@ -215,7 +205,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	if len(request.AppName) > 0 {
 		query = query + " select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id"
@@ -269,7 +259,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	if request.AppName == "" && request.CVEName == "" && request.ObjectName == "" {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)

@@ -1041,7 +1041,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLo
 
 func (impl *ChartServiceImpl) OverrideGitOpsRepoUrl(appId int, repoUrl string, userId int32) error {
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && util.IsErrNoRows(err) {
+	if err != nil {
 		return err
 	}
 	tx, err := impl.chartRepository.StartTx()

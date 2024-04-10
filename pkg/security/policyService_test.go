@@ -2,6 +2,7 @@ package security
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 	type args struct {
 		cves           []*security.CveStore
 		cvePolicy      map[string]*security.CvePolicy
-		severityPolicy map[security.Severity]*security.CvePolicy
+		severityPolicy map[bean.Severity]*security.CvePolicy
 	}
 	tests := []struct {
 		name string
@@ -25,17 +26,17 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 						Name: "abc",
 					},
 					{
-						Severity: security.Low,
+						Severity: bean.Low,
 					},
 				},
 				cvePolicy: map[string]*security.CvePolicy{
 					"abc": {
-						Action: security.Allow,
+						Action: bean.Allow,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
-					security.Low: {
-						Action: security.Allow,
+				severityPolicy: map[bean.Severity]*security.CvePolicy{
+					bean.Low: {
+						Action: bean.Allow,
 					},
 				},
 			},
@@ -51,10 +52,10 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 				},
 				cvePolicy: map[string]*security.CvePolicy{
 					"abc": {
-						Action: security.Block,
+						Action: bean.Block,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[bean.Severity]*security.CvePolicy{},
 			},
 			want: true,
 		},
@@ -63,13 +64,13 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 			args: args{
 				cves: []*security.CveStore{
 					{
-						Severity: security.High,
+						Severity: bean.High,
 					},
 				},
 				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
-					security.High: {
-						Action: security.Block,
+				severityPolicy: map[bean.Severity]*security.CvePolicy{
+					bean.High: {
+						Action: bean.Block,
 					},
 				},
 			},
@@ -86,10 +87,10 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 				},
 				cvePolicy: map[string]*security.CvePolicy{
 					"abc": {
-						Action: security.Blockiffixed,
+						Action: bean.Blockiffixed,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[bean.Severity]*security.CvePolicy{},
 			},
 			want: true,
 		},
@@ -103,10 +104,10 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 				},
 				cvePolicy: map[string]*security.CvePolicy{
 					"abc": {
-						Action: security.Blockiffixed,
+						Action: bean.Blockiffixed,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[bean.Severity]*security.CvePolicy{},
 			},
 			want: false,
 		},
@@ -115,14 +116,14 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 			args: args{
 				cves: []*security.CveStore{
 					{
-						Severity:     security.High,
+						Severity:     bean.High,
 						FixedVersion: "1.0.0",
 					},
 				},
 				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
-					security.High: {
-						Action: security.Blockiffixed,
+				severityPolicy: map[bean.Severity]*security.CvePolicy{
+					bean.High: {
+						Action: bean.Blockiffixed,
 					},
 				},
 			},
@@ -133,13 +134,13 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 			args: args{
 				cves: []*security.CveStore{
 					{
-						Severity: security.High,
+						Severity: bean.High,
 					},
 				},
 				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
-					security.High: {
-						Action: security.Blockiffixed,
+				severityPolicy: map[bean.Severity]*security.CvePolicy{
+					bean.High: {
+						Action: bean.Blockiffixed,
 					},
 				},
 			},

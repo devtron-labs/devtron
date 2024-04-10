@@ -16,6 +16,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/security"
+	bean2 "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -47,7 +48,7 @@ type K8sCommonService interface {
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
 
 	//Get vulnerabilities
-	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error)
+	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*bean2.ImageScanResult, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -720,7 +721,7 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 	return resourceTree
 }
 
-func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*security.ImageScanResult, error) {
+func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*bean2.ImageScanResult, error) {
 	resource, err := impl.GetResource(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching manifest", "err", err, "request", request.K8sRequest)

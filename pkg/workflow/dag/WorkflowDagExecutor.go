@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -87,6 +88,7 @@ type WorkflowDagExecutorImpl struct {
 	logger                       *zap.SugaredLogger
 	pipelineRepository           pipelineConfig.PipelineRepository
 	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
+	pubSubClient                 *pubsub.PubSubClientServiceImpl
 	ciArtifactRepository         repository.CiArtifactRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
@@ -114,6 +116,7 @@ type WorkflowDagExecutorImpl struct {
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	pubSubClient *pubsub.PubSubClientServiceImpl,
 	ciArtifactRepository repository.CiArtifactRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -134,6 +137,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:           pipelineRepository,
 		cdWorkflowRepository:         cdWorkflowRepository,
+		pubSubClient:                 pubSubClient,
 		ciArtifactRepository:         ciArtifactRepository,
 		enforcerUtil:                 enforcerUtil,
 		appWorkflowRepository:        appWorkflowRepository,
@@ -881,7 +885,32 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 		i += batchSize
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
+	if pipeline.ScanEnabled {
+		event := GetImageScanningEvent(request.UserId, pipeline.Id, request.Image, request.ImageDigest)
+		payload, err := json.Marshal(event)
+		if err != nil {
+			impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
+			return 0, err
+		}
+		// publish nats event for async installation
+		err = impl.pubSubClient.Publish(pubsub.IMAGE_SCANNING_SUCCESS_TOPIC, string(payload))
+		if err != nil {
+			impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.IMAGE_SCANNING_SUCCESS_TOPIC, "payload", payload, "err", err)
+			return 0, err
+		}
+	}
+
 	return buildArtifact.Id, err
+}
+
+func GetImageScanningEvent(triggeredBy int32, ciPipelineId int, image, imageDigest string) bean7.ImageScanningEvent {
+	return bean7.ImageScanningEvent{
+		CiPipelineId: ciPipelineId,
+		TriggerBy:    int(triggeredBy),
+		Image:        image,
+		Digest:       imageDigest,
+		PipelineType: util2.CI,
+	}
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCISuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {

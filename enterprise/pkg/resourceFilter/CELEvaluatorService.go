@@ -10,6 +10,7 @@ import (
 
 type CELEvaluatorService interface {
 	EvaluateCELRequest(request CELRequest) (bool, error)
+	Validate(request CELRequest) (*cel.Ast, *cel.Env, error)
 	ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool)
 }
 
@@ -42,7 +43,7 @@ type CELRequest struct {
 
 func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error) {
 
-	ast, env, err := impl.validate(request)
+	ast, env, err := impl.Validate(request)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while validating CEL request", "request", request, "err", err)
 		return false, err
@@ -72,7 +73,7 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 
 }
 
-func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, error) {
+func (impl *CELServiceImpl) Validate(request CELRequest) (*cel.Ast, *cel.Env, error) {
 
 	var declarations []*expr.Decl
 
@@ -128,7 +129,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			Expression:         e.Expression,
 			ExpressionMetadata: ExpressionMetadata{Params: params},
 		}
-		_, _, err := impl.validate(validateExpression)
+		_, _, err := impl.Validate(validateExpression)
 		if err != nil {
 			errored = true
 			e.ErrorMsg = err.Error()
@@ -147,6 +148,8 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 		return decls.Dyn, nil
 	case ParamTypeInteger:
 		return decls.Int, nil
+	case ParamTypeBool:
+		return decls.Bool, nil
 	case ParamTypeList:
 		return decls.NewListType(decls.String), nil
 	default:

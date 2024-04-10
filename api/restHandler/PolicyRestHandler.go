@@ -21,12 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -222,18 +222,18 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		req.Id = ids
 	}
 	var clusterId, environmentId, appId int
-	var policyLevel security2.PolicyLevel
-	if level == security2.Global.String() {
-		policyLevel = security2.Global
-	} else if level == security2.Cluster.String() {
+	var policyLevel securityBean.PolicyLevel
+	if level == securityBean.Global.String() {
+		policyLevel = securityBean.Global
+	} else if level == securityBean.Cluster.String() {
 		clusterId = req.Id
-		policyLevel = security2.Cluster
-	} else if level == security2.Environment.String() {
+		policyLevel = securityBean.Cluster
+	} else if level == securityBean.Environment.String() {
 		environmentId = req.Id
-		policyLevel = security2.Environment
-	} else if level == security2.Application.String() {
+		policyLevel = securityBean.Environment
+	} else if level == securityBean.Application.String() {
 		appId = req.Id
-		policyLevel = security2.Application
+		policyLevel = securityBean.Application
 	}
 
 	token := r.Header.Get("token")
