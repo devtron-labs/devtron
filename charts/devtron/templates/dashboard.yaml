@@ -79,7 +79,7 @@ spec:
       {{- end }}
       containers:
         - name: dashboard
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.dashboard  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.dashboard  "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:

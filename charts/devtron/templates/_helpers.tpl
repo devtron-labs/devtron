@@ -20,10 +20,10 @@ it randomly.
 {{- end }}
 
 {{- define "fullImage" }}
-{{- $registryName := .currentPosition.registry | default .global.containerRegistry -}}
-{{- $imageName := .image | default .currentPosition.image   -}}
-{{- $imageTag := .tag | default .currentPosition.tag   -}}
-{{- $imageDigest := .digest | default .currentPosition.digest -}}
+{{- $registryName := .component.registry | default .global.containerRegistry -}}
+{{- $imageName := .image | default .component.image   -}}
+{{- $imageTag := .tag | default .component.tag   -}}
+{{- $imageDigest := .digest | default .component.digest -}}
 {{- if and  $registryName $imageName $imageTag $imageDigest }}
     {{- printf "%s/%s:%s@%s" $registryName $imageName $imageTag $imageDigest -}}
 {{- else  if and  $registryName $imageName $imageTag  -}}    

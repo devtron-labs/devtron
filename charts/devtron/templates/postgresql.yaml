@@ -117,7 +117,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres.initContainers  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres.initContainers  "global" $.Values.global ) }}
           imagePullPolicy: "IfNotPresent"
           command:
             - /bin/sh
@@ -145,7 +145,7 @@ spec:
               mountPath: /dev/shm
       containers:
         - name: postgresql-postgresql
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres  "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           securityContext:
             runAsUser: 1001
@@ -212,7 +212,7 @@ spec:
               mountPath: /bitnami/postgresql
               subPath:
         - name: metrics
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres.metrics  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres.metrics  "global" $.Values.global ) }}
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
@@ -453,7 +453,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres.arm  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres.arm  "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .initContainer }}
           {{- if .initContainer.resources }}
@@ -480,7 +480,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres.arm  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres.arm  "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .resources }}
           resources:
@@ -546,7 +546,7 @@ spec:
             - mountPath: /etc/postgresql
               name: configs
         - name: metrics
-          image: {{ include "fullImage"   (dict "currentPosition" $.Values.components.postgres.metrics  "global" $.Values.global ) }}
+          image: {{ include "fullImage"   (dict "component" $.Values.components.postgres.metrics  "global" $.Values.global ) }}
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
