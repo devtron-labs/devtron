@@ -61,6 +61,7 @@ type K8sApplicationRestHandler interface {
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
 	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
 	DebugPodInfo(w http.ResponseWriter, r *http.Request)
+	PortForwarding(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -1203,4 +1204,26 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 	}
 	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
 	scoopServiceProxyHandler.ServeHTTP(w, r)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
+	clusterId, err := strconv.Atoi(r.Header.Get("devtron_clusterId"))
+	if err != nil {
+		handler.logger.Errorw("Error parsing clusterId", "Error: ", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "Error in ClusterID."})
+		return
+	}
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, r.Header.Get("devtron_serviceName"), r.Header.Get("devtron_namespace"), r.Header.Get("devtron_servicePort"))
+	if err != nil {
+		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
+		return
+	}
+	r.Header.Del("devtron_clusterId")
+	r.Header.Del("devtron_serviceName")
+	r.Header.Del("devtron_servicePort")
+	r.Header.Del("devtron_namespace")
+	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
+	proxy.ServeHTTP(w, r)
 }

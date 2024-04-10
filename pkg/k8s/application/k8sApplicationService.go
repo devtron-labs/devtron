@@ -101,6 +101,7 @@ type K8sApplicationService interface {
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 	ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
+	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -1555,4 +1556,9 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 		return false, err
 	}
 	return matched, nil
+}
+
+func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
+	return proxyHandler, err
 }

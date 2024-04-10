@@ -86,4 +86,6 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		Queries("clusterId", "{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
 
+	k8sAppRouter.PathPrefix("/port-forward").HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
+
 }
