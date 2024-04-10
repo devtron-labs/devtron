@@ -44,6 +44,10 @@ SCHEMA -
         {
           "type": "string"
         },
+        "releaseInstruction":
+        {
+          "type": "string"
+        },
         "createdOn":
         {
           "type": "string"
@@ -92,6 +96,7 @@ OBJECT -
   {
     "id": 17,
     "releaseVersion": "v1.10.9",
+    "releaseInstruction": "hello release"
     "metadata":
     {}
   },

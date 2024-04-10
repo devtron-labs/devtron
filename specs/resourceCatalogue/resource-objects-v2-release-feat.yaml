@@ -20,7 +20,7 @@ paths:
           schema:
             type: string
             enum:
-              - "v1"
+              - "alpha1"
         - name: lite
           in: query
           required: false
@@ -67,17 +67,31 @@ paths:
           schema:
             type: string
             enum:
-              - "v1"
+              - "alpha1"
+        - name: id
+          description: id of the resource, either this or name is required. Preferred over name.
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: name
+          description: name of the resource, either this or id is required
+          in: query
+          required: false
+          schema:
+            type: string
         - name: component
           in: query
           required: false
           schema:
             type: array
             description: this string will contain array of components needed in the api call. If nothing is specified catalogue will be sent as before.
-            enum:
-              - "overview"
-              - "status"
-              - "note"
+            items:
+              type: string
+              enum:
+                - "overview"
+                - "configStatus"
+                - "note"
       responses:
         '200':
           description: list response
@@ -110,7 +124,96 @@ paths:
           schema:
             type: string
             enum:
-              - "v1"
+              - "alpha1"
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevtronResourcePutObjectDto'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/resource/dependencies/{kind}/{version}:
+    put:
+      description: create,update resource dependency
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationDependenciesRequest'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      description: create resource dependency
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
       requestBody:
         description: json
         required: true
@@ -166,8 +269,13 @@ components:
           type: string
         objectData:
           type: string
-        status:
-           type: string
+        configStatus:
+          type: object
+          properties:
+            status:
+              type: string
+            lock:
+              type: boolean
         overview:
           type: object
           properties:
@@ -175,8 +283,20 @@ components:
               type: string
             note:
               type: string
-            releaseTrack:
-              type: string
+            parentConfig:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: "type of parent"
+                  example: "releaseTrack"
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: id of the parent resource
+                      example: 1 // id of the release track of which release is part of
             releaseVersion:
               type: string
             createdBy:
@@ -196,31 +316,60 @@ components:
         objectData:
           type: string
           description: field containing json of catalogue data. From v1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
-        action:
-          type: string
-          enum:
-            - "PATCH" #for patching specific path objects like description, readme/notes, name etc
-            - "CREATE" #for creating a new resource
-            - "DELETE" #for deleting the resource
-        actionPayload:
+        dependencyInfo:
+          type: object
+          description: it keep name and type of dependency on which operation is to be performed.
+          properties:
+            name:
+              type: string
+              description: name of the dependency on which operation is to be performed
+              example: "orchestrator"
+            type:
+              type: string
+              description: type of dependency
+              example: "devtron-application"
+        query:
           type: array
           items:
             type: object
+            required:
+              - path
             description: payload containing information on how to execute the action
             properties:
-              patchPath:
+              op:
                 type: string
-                enum:
-                  - "description"
-                  - "note"
-                  - "readme"
-                  - "name"
-              patchData:
+                enum: [ "add", "remove", "replace" ]
+                default: "replace"
+                description: The operation to perform
+              path:
+                  type: string
+                  enum:
+                    - "description"
+                    - "note"
+                    - "readme"
+                    - "name"
+                    - "releaseInstruction"
+                    - "image"
+                    - "commit"
+              value:
                 type: object
                 description: Can be string or object on basis of patching path.
                   For description, note, readme & name object will be string.
                   For creating resource this will be object like '{tag:{a:b},description:hello}'
                   For deleting, no need of resource
+            example:
+              - op: "replace"
+                path: "releaseInstruction"
+                value: "This is a dummy release intruction for release v3.0-beta"
+              - op: "replace"
+                path: "commit"
+                value: "dbc5bfc2240d276891509b7d5ebef97c4a0975d1"
+              - op: "replace"
+                path: "image"
+                value: "shivamnagar409/test:abccdefg"
+              - op: "remove"
+                path: "application"
+                value: 1 // indicating dependency Index of application to be removed
         schema:
           type: object
           description: json object containing the complete schema
@@ -231,6 +380,141 @@ components:
                 metadata:
                   type: object
                   description: field containing all data of catalogue
+    DevtronResourcePutObjectDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        objectData:
+          type: string
+          description: field containing json of catalogue data. From v1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
+        schema:
+          type: object
+          description: json object containing the complete schema
+          properties:
+            overview:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  description: field containing all data of catalogue
+
+    ApplicationDependenciesRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The ID of the application.
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        childDependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChildDependency'
+    Dependency:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the dependency.
+        id:
+          type: integer
+          description: The ID of the dependency.
+        devtronResourceId:
+          type: integer
+        devtronResourceSchemaId:
+          type: integer
+        dependentOnIndex:
+          type: array
+          items:
+            type: integer
+        dependentOnParentIndex:
+          type: integer
+        typeOfDependency:
+          type: string
+          enum: [ 'upstream','level' ]
+        index:
+          type: integer
+        config:
+          type: object
+          properties:
+            image:
+              type: string
+              description: The image configuration.
+            commitSource:
+              type: object
+              description: The commit source configuration.
+        metadata:
+          type: object
+          properties:
+            appName:
+              type: string
+            appId:
+              type: integer
+    ChildDependency:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the child dependency.
+        id:
+          type: integer
+          description: The ID of the child dependency.
+        devtronResourceId:
+          type: integer
+        devtronResourceSchemaId:
+          type: integer
+        dependentOnIndex:
+          type: integer
+        dependentOnParentIndex:
+          type: integer
+        typeOfDependency:
+          type: string
+          enum: [ 'child' ]
+        index:
+          type: integer
+        metadata:
+          type: object
+          properties:
+            appStatus:
+              type: string
+            appName:
+              type: string
+            appId:
+              type: integer
+            environmentId:
+              type: integer
+            environmentName:
+              type: string
+            prod:
+              type: boolean
+            chartRefId:
+              type: integer
+            lastDeployed:
+              type: string
+              format: date-time
+            lastDeployedBy:
+              type: string
+            lastDeployedImage:
+              type: string
+            deploymentAppDeleteRequest:
+              type: boolean
+            description:
+              type: string
+            isVirtualEnvironment:
+              type: boolean
+            clusterId:
+              type: integer
+            pipelineId:
+              type: integer
+            pipelineName:
+              type: string
+            latestCdWorkflowRunnerId:
+              type: integer
     ErrorResponse:
       required:
         - code
