@@ -90,7 +90,6 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 }
 
 func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
-	fmt.Printf("hello my name is laeeq valname is %s fieldname is %s\n", valName, fieldName)
 	if valName == "cicdconfig" {
 		return true
 	}
@@ -107,6 +106,7 @@ func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
 	if _, ok := fieldAndValName[valName]; ok {
 		for _, ignoreFieldName := range fieldAndValName[valName] {
 			if ignoreFieldName == fieldName {
+				fmt.Printf("hello my name is laeeq valname is %s fieldname is %s\n", valName, fieldName)
 				return true
 			}
 		}
