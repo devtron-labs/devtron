@@ -96,18 +96,14 @@ func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
 		return true
 	}
 	fieldAndValName := map[string][]string{
-		"app":                               {"enforcerv2", "server"},
-		"gitfactory":                        {"client"},
-		"argocdconnectionmanagerimpl":       {"argocdsettings"},
-		"enforcerimpl":                      {"cache", "enforcerv2"},
-		"helmappclientimpl":                 {"applicationserviceclient"},
-		"modulecronserviceimpl":             {"cron"},
-		"oteltracingserviceimpl":            {"traceprovider"},
-		"terminalaccessrepositoryimpl":      {"templatescache"}, //this line
-		"appstoredeploymentresthandlerimpl": {"helmappresthandler"},
-		"clusterserviceimpl":                {"clusterrbacserviceimpl"},
-		"enforcerutilhelmimpl":              {"installedapprepository", "apprepository", "teamrepository"},
-		"scopedvariableserviceimpl":         {"devtronresourcesearchablekeyservice"},
+		"app":                          {"enforcerv2", "server"},
+		"gitfactory":                   {"client"},
+		"argocdconnectionmanagerimpl":  {"argocdsettings"},
+		"enforcerimpl":                 {"cache", "enforcerv2"},
+		"helmappclientimpl":            {"applicationserviceclient"},
+		"modulecronserviceimpl":        {"cron"},
+		"oteltracingserviceimpl":       {"traceprovider"},
+		"terminalaccessrepositoryimpl": {"templatescache"},
 	}
 	if _, ok := fieldAndValName[valName]; ok {
 		for _, ignoreFieldName := range fieldAndValName[valName] {
