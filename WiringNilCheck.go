@@ -90,6 +90,8 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 }
 
 func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
+	fieldName = strings.ToLower(fieldName)
+	valName = strings.ToLower(valName)
 	if valName == "cicdconfig" {
 		return true
 	}
