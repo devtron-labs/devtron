@@ -17,16 +17,9 @@ func CheckIfNilInWire() {
 	nilFieldsMap := make(map[string]bool)
 	checkNilFields(app, nilFieldsMap)
 	fmt.Println("NIL Fields present in impls are: ", nilFieldsMap)
-	fmt.Println("output=", len(nilFieldsMap))
-	file, errs := os.Create("/test/output.env")
-	if errs != nil {
-		log.Println("Failed to create file:", errs)
-		return
-	}
-	defer file.Close()
-	_, errs = file.WriteString(fmt.Sprintf("OUTPUT=%d", len(nilFieldsMap)))
-	if errs != nil {
-		log.Println("Failed to write to file:", errs)
+	//writing length of nilFieldsMap in a file (eg. output.env) so that we can export this data in pre ci pipeline bash and can failed the pre ci pipeline if nil nilFieldsMap's length is greater than zero
+	err = writeResultToFile(len(nilFieldsMap))
+	if err != nil {
 		return
 	}
 }
@@ -46,6 +39,9 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 		pkgPath := val.Type().PkgPath()
 		if pkgPath != "main" && !strings.Contains(pkgPath, "devtron-labs/devtron") {
 			//package not from this repo, ignoring
+			continue
+		}
+		if skipUnnecessaryFiledsForCheck(fieldName, valName) { // skip unnecessary fileds and values
 			continue
 		}
 		if !canFieldTypeBeNil(field) { // field can not be nil, skip
@@ -82,12 +78,23 @@ func canFieldTypeBeNil(field reflect.Value) bool {
 func canSkipFieldStructCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
 	valName = strings.ToLower(valName)
+	if valName == "githubclient" && (fieldName == "client" || fieldName == "gitopshelper") {
+		return true
+	}
+	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
+		if fieldName == str {
+			return true
+		}
+	}
+	return false
+}
+
+func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
 	if valName == "cicdconfig" {
 		return true
 	}
 	fieldAndValName := map[string][]string{
 		"app":                          {"enforcerv2", "server"},
-		"githubclient":                 {"client", "gitopshelper"},
 		"gitfactory":                   {"client"},
 		"argocdconnectionmanagerimpl":  {"argocdsettings"},
 		"enforcerimpl":                 {"cache", "enforcerv2"},
@@ -103,18 +110,27 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 			}
 		}
 	}
-	for _, str := range []string{"logger", "dbconnection", "syncedenforcer"} {
-		if fieldName == str {
-			return true
-		}
-	}
 	return false
 }
-
 func GetUnexportedField(field reflect.Value) interface{} {
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
 
 func isExported(fieldName string) bool {
 	return strings.ToUpper(fieldName[0:1]) == fieldName[0:1]
+}
+
+func writeResultToFile(data int) error {
+	file, err := os.Create("/test/output.env")
+	if err != nil {
+		log.Println("Failed to create file:", err)
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(fmt.Sprintf("OUTPUT=%d", data))
+	if err != nil {
+		log.Println("Failed to write to file:", err)
+		return err
+	}
+	return nil
 }
