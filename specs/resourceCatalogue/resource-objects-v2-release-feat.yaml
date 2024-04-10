@@ -45,7 +45,7 @@ paths:
                     properties:
                       totalCount:
                         type: number
-                      data: 
+                      data:
                         type: array
                         items:
                           $ref: '#/components/schemas/DevtronResourceListDto'
@@ -107,8 +107,48 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/DevtronResourceObjectDto'
+    delete:
+      description: delete resource object
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            description: name of the dependency on which operation is to be performed
+            example: "release v2.0"
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/DevtronResourceObjectDto'
     put:
-      description: patch, create, delete resource object
+      description: put resource object
       parameters:
         - name: kind
           in: path
@@ -142,9 +182,104 @@ paths:
                   code:
                     type: integer
                     description: status code
+                    example: 200
                   status:
                     type: string
-                    description: status
+                    description: API status
+                    example: "OK"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      description: create/ update resource object
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevtronResourcePostObjectDto'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                    example: 200
+                  status:
+                    type: string
+                    description: API status
+                    example: "OK"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      description: patch resource object
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release-track"
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevtronResourcePatchObjectDto'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                    example: 200
+                  status:
+                    type: string
+                    description: API status
+                    example: "OK"
         default:
           description: unexpected error
           content:
@@ -240,18 +375,103 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/resource/dependencies/config-options/{kind}/{version}:
+    get:
+      description: List dependencies config options
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "release"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - "alpha1"
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            description: name of the dependency on which operation is to be performed
+            example: "orchestrator"
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            description: type of dependency
+            example: "devtron-application"
+        - name: configOption
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "artifact"
+            description: this string will contain the config, whose options are expected in the response.
+            enum:
+              - "artifact"
+              - "commit"
+        - name: selector
+          in: query
+          required: true
+          schema:
+            type: string
+            description: this will contain the array of config-option identifiers. For git commits and artifacts the selector will be `workflowId|{id}`
+            example: "workflowId|15"
+        - name: searchKey
+          in: query
+          required: false
+          schema:
+            type: string
+            description: this will contain search key and value pair (pipe delimited). For git commits, the searchKey will be `commitHash|{gitHash}`, For artifact tag, the searchKey will be `imageTag|{tag}`
+            example: "commitHash|dc994f3d4885a040122918919898b9e2ce85dea2"
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    properties:
+                      configType:
+                        type: string
+                        example: ciMaterials
+                        enum:
+                          - artifacts
+                          - ciMaterials
+                      dataList:
+                        type: array
+                        example:
+                        oneOf:
+                          - $ref: '#/components/schemas/ArtifactsList'
+                          - $ref: '#/components/schemas/GitCommitsList'
+
 components:
   schemas:
     DevtronResourceListDto:
-        type: object
-        allOf:
-          - $ref: '#/components/schemas/DevtronResourceObjectDto'
-          - type: object
-            properties:
-              childObjects:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DevtronResourceObjectDto'
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/DevtronResourceObjectDto'
+        - type: object
+          properties:
+            childObjects:
+              type: array
+              items:
+                $ref: '#/components/schemas/DevtronResourceObjectDto'
     DevtronResourceObjectDto:
       type: object
       properties:
@@ -302,8 +522,8 @@ components:
             createdBy:
               type: string
             createdOn:
-               type: string
-               format: timestamp
+              type: string
+              format: timestamp
             tags:
               type: object
     DevtronResourcePatchObjectDto:
@@ -315,7 +535,7 @@ components:
           type: string
         objectData:
           type: string
-          description: field containing json of catalogue data. From v1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
+          description: field containing json of catalogue data. From alpha1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
         dependencyInfo:
           type: object
           description: it keep name and type of dependency on which operation is to be performed.
@@ -342,15 +562,15 @@ components:
                 default: "replace"
                 description: The operation to perform
               path:
-                  type: string
-                  enum:
-                    - "description"
-                    - "note"
-                    - "readme"
-                    - "name"
-                    - "releaseInstruction"
-                    - "image"
-                    - "commit"
+                type: string
+                enum:
+                  - "description"
+                  - "note"
+                  - "readme"
+                  - "name"
+                  - "releaseInstruction"
+                  - "image"
+                  - "commit"
               value:
                 type: object
                 description: Can be string or object on basis of patching path.
@@ -389,7 +609,7 @@ components:
           type: string
         objectData:
           type: string
-          description: field containing json of catalogue data. From v1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
+          description: field containing json of catalogue data. From alpha1 api. If action and actionPayload are not received in this api this field will be picked as these fields are added.
         schema:
           type: object
           description: json object containing the complete schema
@@ -400,6 +620,30 @@ components:
                 metadata:
                   type: object
                   description: field containing all data of catalogue
+    DevtronResourcePostObjectDto:
+      type: object
+      properties:
+        id:
+          required: true
+          type: integer
+        name:
+          required: true
+          type: string
+        description:
+          type: string
+        note:
+          type: string
+        status:
+          type: object
+          properties:
+            value:
+              type: string
+            comment:
+              type: string
+        lock:
+          type: boolean
+        tags:
+          type: object
 
     ApplicationDependenciesRequest:
       type: object
@@ -515,6 +759,185 @@ components:
               type: string
             latestCdWorkflowRunnerId:
               type: integer
+
+    ArtifactsList:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactInfoMin'
+        - type: object
+          properties:
+            materialInfo:
+              $ref: '#/components/schemas/MaterialInfos'
+            ciConfigureSourceType:
+              type: string
+              description: git source type
+              example: "SOURCE_TYPE_BRANCH_FIXED"
+              enum:
+                - "SOURCE_TYPE_BRANCH_FIXED"
+                - "SOURCE_TYPE_BRANCH_REGEX"
+                - "SOURCE_TYPE_TAG_ANY"
+                - "WEBHOOK"
+            ciConfigureSourceValue:
+              type: string
+              description: git source branch
+              example: "main"
+            scanned:
+              type: boolean
+              description: if the artifact is scanned
+              example: false
+
+    GitCommitsList:
+      type: array
+      items:
+        type: object
+        properties:
+          builtImages:
+            type: array
+            items:
+              $ref: '#/components/schemas/ArtifactInfoMin'
+          sourceType:
+            type: string
+            description: git source type
+            example: "SOURCE_TYPE_BRANCH_FIXED"
+            enum:
+              - "SOURCE_TYPE_BRANCH_FIXED"
+              - "SOURCE_TYPE_BRANCH_REGEX"
+              - "SOURCE_TYPE_TAG_ANY"
+              - "WEBHOOK"
+          sourceValue:
+            type: string
+            description: git source branch
+            example: "main"
+          sourceRegex:
+            type: string
+            description: git source regular expression
+            example: ".*"
+          lastFetchTime:
+            type: string
+            description: last git fetch time
+            format: date-time
+            example: "2023-11-01T10:19:54Z"
+          isRepoError:
+            type: boolean
+            description: If repository fetch error
+            example: true
+          repoErrorMsg:
+            type: string
+            description: error message for repository fetch
+            example: "404 not found"
+          isBranchError:
+            type: boolean
+            description: If branch fetch error
+            example: true
+          branchErrorMsg:
+            type: string
+            description: error message for repository fetch
+            example: "404 not found"
+          commitInfo:
+            $ref: '#/components/schemas/MaterialInfos'
+
+    MaterialInfos:
+      type: array
+      items:
+        type: object
+        properties:
+          author:
+            type: string
+            description: git commit author
+            example: "devtron-bot"
+          branch:
+            type: string
+            description: git branch
+            example: "main"
+          message:
+            type: string
+            description: git commit message
+            example: "Merge pull request #41 from devtron-labs/config.md\n\ndoc: Create config.md"
+          modifiedTime:
+            type: string
+            description: git commit time
+            example: "2023-10-31T06:37:35Z"
+          revision:
+            type: string
+            description: git commit hash
+            example: "dc994f3d4885a040122918919898b9e2ce85dea2"
+          tag:
+            type: string
+            description: git tag
+            example: ""
+          url:
+            type: string
+            description: git url
+            example: "https://github.com/devtron-labs/kubewatch.git"
+          webhookData:
+            type: object
+            description: webhook based git material data
+            properties:
+              id:
+                type: integer
+                example: 0
+              eventActionType:
+                type: string
+                example: "merged"
+              data:
+                type: object
+                example: null
+
+    ArtifactInfoMin:
+      type: object
+      required:
+        - id
+        - image
+        - createdTime
+      properties:
+        id:
+          type: number
+          description: artifact id
+          example: 1
+        image:
+          type: string
+          description: artifact id
+          example: "docker.io/bitnami/memcached:1-debian-12"
+        imageDigest:
+          type: string
+          description: artifact id
+          example: "sha256:78905fe5e0ee07404377bae57dd384e1027bdc59a1351efd4c4d52990b39cab3"
+        imageReleaseTags:
+          type: array
+          example:
+            - "hotfix-alpha1"
+            - "devtron"
+          items:
+            type: string
+        imageComment:
+          type: string
+          example: "hotfix release for v3.0"
+          description: image release comment
+        latest:
+          type: boolean
+          description: if the latest artifact
+          example: false
+        deployed:
+          type: boolean
+          description: if the deployed artifact
+          example: false
+        deployedOnEnv:
+          type: boolean
+          description: deployed environment name
+          example: "staging"
+        createdTime:
+          type: string
+          format: date-time
+          description: artifact created on time
+          example: "2023-11-01T10:19:54Z"
+        registryType:
+          type: string
+          description: artifact registry store type
+          example: "docker"
+        registryName:
+          type: string
+          description: artifact registry store name
+          example: "devtron-docker"
+
     ErrorResponse:
       required:
         - code
@@ -547,3 +970,6 @@ components:
         userMessage:
           type: string
           description: Error user message
+
+
+
