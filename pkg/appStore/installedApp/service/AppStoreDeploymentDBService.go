@@ -566,34 +566,34 @@ func (impl *AppStoreDeploymentDBServiceImpl) createEnvironmentIfNotExists(instal
 	env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
-	}
-	if env.Id != 0 {
+	} else if env != nil && env.Id != 0 {
 		return env, nil
-	}
-	// create env
-	cluster, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster details", "clusterId", clusterId)
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: err.Error(),
-			UserMessage:     "Invalid cluster details!",
+	} else {
+		// create env
+		cluster, err := impl.clusterService.FindById(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting cluster details", "clusterId", clusterId)
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: err.Error(),
+				UserMessage:     "Invalid cluster details!",
+			}
 		}
-	}
 
-	environmentBean := &clutserBean.EnvironmentBean{
-		Environment: clusterService.BuildEnvironmentName(cluster.ClusterName, namespace),
-		ClusterId:   clusterId,
-		Namespace:   namespace,
-		Default:     false,
-		Active:      true,
-	}
-	envCreateRes, err := impl.environmentService.Create(environmentBean, installAppVersionRequest.UserId)
-	if err != nil {
-		return nil, err
-	}
+		environmentBean := &clutserBean.EnvironmentBean{
+			Environment: clusterService.BuildEnvironmentName(cluster.ClusterName, namespace),
+			ClusterId:   clusterId,
+			Namespace:   namespace,
+			Default:     false,
+			Active:      true,
+		}
+		envCreateRes, err := impl.environmentService.Create(environmentBean, installAppVersionRequest.UserId)
+		if err != nil {
+			return nil, err
+		}
 
-	return envCreateRes, nil
+		return envCreateRes, nil
+	}
 }
 
 func getAppInstallationMode(appOfferingMode string) string {
