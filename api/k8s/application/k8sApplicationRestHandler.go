@@ -1209,10 +1209,12 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
 	clusterId, err := strconv.Atoi(r.Header.Get("Devtron_clusterId"))
 
+	handler.logger.Infow("Headers are : ", r.Header.Get("Devtron_clusterId"), r.Header.Get("Devtron_serviceName"), r.Header.Get("Devtron_servicePort"), r.Header.Get("Devtron_namespace"))
+
 	if err != nil {
 		handler.logger.Errorw("Error parsing clusterId", "Error: ", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "Error in ClusterID."})
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: fmt.Sprintf("Error in parsing clusterId. ClusterId is %s", r.Header.Get("Devtron_clusterId"))})
 		return
 	}
 	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, r.Header.Get("Devtron_serviceName"), r.Header.Get("Devtron_namespace"), r.Header.Get("Devtron_servicePort"))
