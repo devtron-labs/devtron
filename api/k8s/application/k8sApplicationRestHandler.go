@@ -1207,26 +1207,52 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 }
 
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
-	clusterId, err := strconv.Atoi(r.Header.Get("Devtron_clusterId"))
-
-	handler.logger.Infow("Headers are : ", r.Header.Get("Devtron_clusterId"), r.Header.Get("Devtron_serviceName"), r.Header.Get("Devtron_servicePort"), r.Header.Get("Devtron_namespace"))
-
+	clusterIdCookie, err := r.Cookie("devtron.clusterId")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Cluster Id Found."})
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdCookie.Value)
 	if err != nil {
 		handler.logger.Errorw("Error parsing clusterId", "Error: ", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: fmt.Sprintf("Error in parsing clusterId. ClusterId is %s", r.Header.Get("Devtron_clusterId"))})
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: fmt.Sprintf("Error in parsing clusterId. ClusterId is %s", clusterIdCookie.Value)})
 		return
 	}
-	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, r.Header.Get("Devtron_serviceName"), r.Header.Get("Devtron_namespace"), r.Header.Get("Devtron_servicePort"))
+	serviceNameCookie, err := r.Cookie("devtron.serviceName")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Service Name Found."})
+		return
+	}
+	serviceName := serviceNameCookie.Value
+
+	servicePortCookie, err := r.Cookie("devtron.servicePort")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Service Port Found."})
+		return
+	}
+	servicePort := servicePortCookie.Value
+
+	nameSpaceCookie, err := r.Cookie("devtron.nameSpace")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Namespace Found."})
+		return
+	}
+
+	namespace := nameSpaceCookie.Value
+
+	fmt.Println("Values are : ", clusterId, serviceName, namespace, servicePort, r.Cookies())
+
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, serviceName, namespace, servicePort)
 	if err != nil {
 		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
 		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
 		return
 	}
-	r.Header.Del("Devtron_clusterId")
-	r.Header.Del("Devtron_serviceName")
-	r.Header.Del("Devtron_servicePort")
-	r.Header.Del("Devtron_namespace")
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
 	proxy.ServeHTTP(w, r)
 }
