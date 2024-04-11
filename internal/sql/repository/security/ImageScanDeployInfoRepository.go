@@ -46,9 +46,10 @@ type ImageScanDeployInfo struct {
 }
 
 const (
-	ScanObjectType_APP   string = "app"
-	ScanObjectType_CHART string = "chart"
-	ScanObjectType_POD   string = "pod"
+	ScanObjectType_APP           string = "app"
+	ScanObjectType_CHART         string = "chart"
+	ScanObjectType_POD           string = "pod"
+	ScanObjectType_CHART_HISTORY        = "chart-history"
 )
 
 type SortBy string

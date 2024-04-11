@@ -368,7 +368,8 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		return nil, err
 	}
 	response := &openapi2.TemplateChartResponse{
-		Manifest: &templateChartResponse.GeneratedManifest,
+		Manifest:     &templateChartResponse.GeneratedManifest,
+		DockerImages: templateChartResponse.DockerImages,
 	}
 
 	return response, nil

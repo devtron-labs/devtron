@@ -149,6 +149,7 @@ type ScanEvent struct {
 	Token            string `json:"token"`
 	AwsRegion        string `json:"awsRegion"`
 	DockerRegistryId string `json:"dockerRegistryId"`
+	ScanHistoryId    int    `json:"scanHistoryId"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {

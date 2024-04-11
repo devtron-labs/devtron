@@ -12,6 +12,7 @@ type CentralEventProcessor struct {
 	cdPipelineEventProcessor              *in.CDPipelineEventProcessorImpl
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl
 	appStoreAppsEventProcessorImpl        *in.AppStoreAppsEventProcessorImpl
+	chartScanEventProcessorImpl           *in.ChartScanEventProcessorImpl
 }
 
 func NewCentralEventProcessor(logger *zap.SugaredLogger,
@@ -19,7 +20,9 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl,
 	cdPipelineEventProcessor *in.CDPipelineEventProcessorImpl,
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl,
-	appStoreAppsEventProcessorImpl *in.AppStoreAppsEventProcessorImpl) (*CentralEventProcessor, error) {
+	appStoreAppsEventProcessorImpl *in.AppStoreAppsEventProcessorImpl,
+	chartScanEventProcessorImpl *in.ChartScanEventProcessorImpl,
+) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
 		logger:                                logger,
 		workflowEventProcessor:                workflowEventProcessor,
@@ -27,6 +30,7 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 		cdPipelineEventProcessor:              cdPipelineEventProcessor,
 		deployedApplicationEventProcessorImpl: deployedApplicationEventProcessorImpl,
 		appStoreAppsEventProcessorImpl:        appStoreAppsEventProcessorImpl,
+		chartScanEventProcessorImpl:           chartScanEventProcessorImpl,
 	}
 	err := cep.SubscribeAll()
 	if err != nil {
@@ -143,6 +147,12 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 	err = impl.appStoreAppsEventProcessorImpl.SubscribeHelmInstallStatusEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeHelmInstallStatusEvent", "err", err)
+		return err
+	}
+
+	err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
 		return err
 	}
 

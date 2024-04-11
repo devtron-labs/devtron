@@ -424,6 +424,8 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
 	}
 
+	//
+	//Subhashish
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,
 		ClusterId:                    &clusterId,
