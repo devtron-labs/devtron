@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1188,7 +1189,7 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 	if len(namespace) == 0 {
 		namespace = "*"
 	}
-	allowed, err := handler.k8sApplicationService.ValidatePodResource(token, clusterId, namespace, podName, handler.verifyRbacForResource)
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, casbin.ActionGet, podName, handler.verifyRbacForResource)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusConflict)
 		return
@@ -1207,8 +1208,7 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 }
 
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Request Details are : ", r.Cookies(), r.Header, r.Body)
-
+	token := r.Header.Get("token")
 	queryValues := r.URL.Query()
 	clusterIdString := queryValues.Get("clusterId")
 	if len(clusterIdString) == 0 {
@@ -1233,6 +1233,16 @@ func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWrit
 	namespace := queryValues.Get("namespace")
 	if len(namespace) == 0 {
 		common.WriteJsonResp(w, errors.New("namespace not present"), nil, http.StatusBadRequest)
+		return
+	}
+
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Service"}, casbin.ActionUpdate, serviceName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
