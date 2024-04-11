@@ -162,6 +162,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository:            ephemeralContainerRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
+		deploymentWindowService:                 deploymentWindowService,
 		celEvaluatorService:                     celEvaluatorService,
 		printers:                                printers,
 		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
