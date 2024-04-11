@@ -1207,6 +1207,7 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 }
 
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Request Details are : ", r.Cookies(), r.Header, r.Body)
 	clusterIdCookie, err := r.Cookie("devtron.clusterId")
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
