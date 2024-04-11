@@ -57,14 +57,14 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 		clusterId := int32(request.ClusterId)
 		namespace := request.Namespace
 		appName := request.AppName
-		appStoreId := int32(request.AppStoreId)
+		iavId := int32(request.Id)
 
 		manifestRequest := openapi2.TemplateChartRequest{
 			EnvironmentId:                &envId,
 			ClusterId:                    &clusterId,
 			Namespace:                    &namespace,
 			ReleaseName:                  &appName,
-			AppStoreApplicationVersionId: &appStoreId,
+			AppStoreApplicationVersionId: &iavId,
 			ValuesYaml:                   &request.ValuesOverrideYaml,
 		}
 		dockerImages := impl.getDockerImages(manifestRequest)

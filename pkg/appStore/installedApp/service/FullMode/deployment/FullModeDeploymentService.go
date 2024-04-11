@@ -415,6 +415,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
+	//subhashish
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
 
