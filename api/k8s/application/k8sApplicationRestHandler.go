@@ -1208,45 +1208,33 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 
 func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Request Details are : ", r.Cookies(), r.Header, r.Body)
-	clusterIdCookie, err := r.Cookie("devtron.clusterId")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Cluster Id Found."})
-		return
-	}
-	clusterId, err := strconv.Atoi(clusterIdCookie.Value)
-	if err != nil {
-		handler.logger.Errorw("Error parsing clusterId", "Error: ", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: fmt.Sprintf("Error in parsing clusterId. ClusterId is %s", clusterIdCookie.Value)})
-		return
-	}
-	serviceNameCookie, err := r.Cookie("devtron.serviceName")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Service Name Found."})
-		return
-	}
-	serviceName := serviceNameCookie.Value
 
-	servicePortCookie, err := r.Cookie("devtron.servicePort")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Service Port Found."})
+	queryValues := r.URL.Query()
+	clusterIdString := queryValues.Get("clusterId")
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterId not present"), nil, http.StatusBadRequest)
 		return
 	}
-	servicePort := servicePortCookie.Value
-
-	nameSpaceCookie, err := r.Cookie("devtron.nameSpace")
+	clusterId, err := strconv.Atoi(clusterIdString)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(bean.Error{Code: 400, Message: "No Namespace Found."})
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	serviceName := queryValues.Get("serviceName")
+	if len(serviceName) == 0 {
+		common.WriteJsonResp(w, errors.New("serviceName not present"), nil, http.StatusBadRequest)
+		return
+	}
+	servicePort := queryValues.Get("servicePort")
+	if len(servicePort) == 0 {
+		servicePort = "80"
 	}
 
-	namespace := nameSpaceCookie.Value
-
-	fmt.Println("Values are : ", clusterId, serviceName, namespace, servicePort, r.Cookies())
+	namespace := queryValues.Get("namespace")
+	if len(namespace) == 0 {
+		common.WriteJsonResp(w, errors.New("namespace not present"), nil, http.StatusBadRequest)
+		return
+	}
 
 	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, serviceName, namespace, servicePort)
 	if err != nil {

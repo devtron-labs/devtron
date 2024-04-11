@@ -77,6 +77,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx co
 				proxyServerMetadata := impl.clusterServiceCache[clusterServiceKey]
 				lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
 				if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
+					impl.logger.Infow("stopping forwarded port because of inactivity", "forwardedPort", forwardedPort)
 					forwardedPort := proxyServerMetadata.forwardedPort
 					impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
 					delete(impl.clusterServiceCache, clusterServiceKey)

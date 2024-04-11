@@ -1559,6 +1559,7 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 }
 
 func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
+	impl.logger.Infow("received request for port forwarding", "clusterId", clusterId, "serviceName", serviceName, "namespace", namespace, "port", port)
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
 	return proxyHandler, err
 }
