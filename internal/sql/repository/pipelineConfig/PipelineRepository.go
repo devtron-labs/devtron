@@ -94,6 +94,7 @@ type PipelineRepository interface {
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
+	FindAllDeletedPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
@@ -451,6 +452,13 @@ func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*P
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
+		Select()
+	return pipelines, err
+}
+func (impl PipelineRepositoryImpl) FindAllDeletedPipelineInLast24Hour() (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*").
+		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
 		Select()
 	return pipelines, err
 }

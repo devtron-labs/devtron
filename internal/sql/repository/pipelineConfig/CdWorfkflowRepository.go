@@ -57,7 +57,7 @@ type CdWorkflowRepository interface {
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	IsLatestCDWfr(pipelineId, wfrId int) (bool, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
-
+	FindAllTriggeredWorkflowInLast24Hour() (cdWorkflowCount int, err error)
 	GetConnection() *pg.DB
 
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
@@ -357,7 +357,15 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	// TODO - Group By Environment And Pipeline will get latest pipeline from top
 	return cdWorkflow, err
 }
-
+func (impl *CdWorkflowRepositoryImpl) FindAllTriggeredWorkflowInLast24Hour() (cdWorkflowCount int, err error) {
+	var workflowCount int
+	query := "SELECT count(DISTINCT(cd_workflow_id)) FROM cd_workflow_runner WHERE started_on > now() - interval '1 day'"
+	_, err = impl.dbConnection.Query(&workflowCount, query)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching ci workflow", "err", err)
+	}
+	return workflowCount, err
+}
 func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
