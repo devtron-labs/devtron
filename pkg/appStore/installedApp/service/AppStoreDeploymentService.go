@@ -196,7 +196,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 	err = tx.Commit()
 
-	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
+	impl.publishChartScanEvent(installAppVersionRequest)
 
 	err = impl.appStoreDeploymentDBService.InstallAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
@@ -204,6 +204,14 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 
 	return installAppVersionRequest, nil
+}
+
+func (impl *AppStoreDeploymentServiceImpl) publishChartScanEvent(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) {
+	if util2.IsBaseStack() {
+		return
+	}
+	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
+	return
 }
 
 func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -494,6 +502,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
+	impl.publishChartScanEvent(installedApp)
 	return success, nil
 }
 
@@ -759,7 +768,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		}
 	}
 
-	impl.chartScanPublishService.PublishChartScanEvent(upgradeAppRequest)
+	impl.publishChartScanEvent(upgradeAppRequest)
 
 	return upgradeAppRequest, nil
 }
@@ -923,7 +932,7 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	}
 	// STEP-3 ends
 
-	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
+	impl.publishChartScanEvent(installAppVersionRequest)
 
 	return res, nil
 }

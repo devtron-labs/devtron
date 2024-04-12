@@ -24,6 +24,10 @@ func NewChartScanPublishServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
+func NewChartScanPublishServiceImplEA() *ChartScanPublishServiceImpl {
+	return nil
+}
+
 func (impl ChartScanPublishServiceImpl) PublishChartScanEvent(appVersionDto *appStoreBean.InstallAppVersionDTO) error {
 
 	data, err := json.Marshal(appVersionDto)

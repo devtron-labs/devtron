@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -614,11 +615,6 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	//nats event
 	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
 
-	//scan manifest
-	for _, version := range installAppVersions {
-		impl.chartScanPublishService.PublishChartScanEvent(version)
-	}
-
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -941,6 +937,9 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 	if err != nil {
 		impl.logger.Errorw("error", "err", err)
 		return nil, err
+	}
+	if util2.IsFullStack() {
+		impl.chartScanPublishService.PublishChartScanEvent(installedAppVersion)
 	}
 
 	return installedAppVersion, nil

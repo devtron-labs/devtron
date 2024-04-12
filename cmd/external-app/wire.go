@@ -59,6 +59,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -251,6 +252,9 @@ func InitializeApp() (*App, error) {
 
 		resourceFilter.NewCELServiceImpl,
 		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+
+		out.NewChartScanPublishServiceImplEA,
+		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
 	)
 	return &App{}, nil
 }
