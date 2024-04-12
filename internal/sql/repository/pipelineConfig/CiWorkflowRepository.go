@@ -290,9 +290,8 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 func (impl *CiWorkflowRepositoryImpl) FindAllTriggeredWorkflowInLast24Hour() (ciWorkflowCount int, err error) {
 	var wfrList []CiWorkflow
 	err = impl.dbConnection.Model(&wfrList).
-		Column("ci_workflow.*").
-		ColumnExpr("DISTINCT(ci_workflow.ci_pipeline_id)").
-		Where("ci_workflow.started_on > ? ", time.Now().AddDate(0, 0, -1)).
+		ColumnExpr("DISTINCT ci_pipeline_id").
+		Where("started_on > ? ", time.Now().AddDate(0, 0, -1)).
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching ci workflow", "err", err)

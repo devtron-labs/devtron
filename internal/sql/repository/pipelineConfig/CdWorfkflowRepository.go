@@ -358,13 +358,14 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	return cdWorkflow, err
 }
 func (impl *CdWorkflowRepositoryImpl) FindAllTriggeredWorkflowInLast24Hour() (cdWorkflowCount int, err error) {
-	var wfrList []CdWorkflowRunner
+	var wfrList []int
 	err = impl.dbConnection.
-		Model(&wfrList).
-		Column("cd_workflow_runner.*", "CdWorkflow").
-		ColumnExpr("DISTINCT(cd_workflow.pipeline_id)").
-		Where("cd_workflow_runner.workflow_type = ? and cd_workflow_runner.started_on > ?", bean.CD_WORKFLOW_TYPE_DEPLOY, time.Now().AddDate(0, 0, -1)).
-		Select()
+		Model(&CdWorkflow{}).
+		ColumnExpr("DISTINCT pipeline_id").
+		Join("JOIN cd_workflow_runner ON cd_workflow.id = cd_workflow_runner.cd_workflow_id").
+		Where("cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.started_on > ?", bean.CD_WORKFLOW_TYPE_DEPLOY, time.Now().AddDate(0, 0, -1)).
+		Group("cd_workflow.pipeline_id").
+		Select(&wfrList)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching cd workflow", "err", err)
 	}
