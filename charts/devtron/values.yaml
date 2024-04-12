@@ -341,7 +341,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:bdbcef05-334-21577"
+    image: "quay.io/devtron/image-scanner:c0416bc2-334-22111"
   # Values for trivy
   trivy:
     enabled: false
