@@ -41,7 +41,7 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 			//package not from this repo, ignoring
 			continue
 		}
-		if skipUnnecessaryFiledsForCheck(fieldName, valName) { // skip unnecessary fileds and values
+		if skipUnnecessaryFieldsForCheck(fieldName, valName) { // skip unnecessary fileds and values
 			continue
 		}
 		if !canFieldTypeBeNil(field) { // field can not be nil, skip
@@ -89,7 +89,7 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 	return false
 }
 
-func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
+func skipUnnecessaryFieldsForCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
 	valName = strings.ToLower(valName)
 	if valName == "cicdconfig" {
