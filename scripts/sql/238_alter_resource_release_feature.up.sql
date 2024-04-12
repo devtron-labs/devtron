@@ -39,7 +39,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                         "idType":{
                             "type": "string",
                             "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                            "enum": ["resourceId", "oldObjectId"]
+                            "enum": ["resourceObjectId", "oldObjectId"]
                         },
                         "name":
                         {
@@ -115,7 +115,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "name":
                 {
@@ -194,7 +194,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                         "idType":{
                             "type": "string",
                             "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                            "enum": ["resourceId", "oldObjectId"]
+                            "enum": ["resourceObjectId", "oldObjectId"]
                         },
                         "releaseVersion":
                         {
@@ -319,7 +319,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "releaseVersion":
                 {
@@ -448,7 +448,7 @@ set schema='{
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "name":
                 {
@@ -649,7 +649,7 @@ set schema='{
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "name":
                 {
@@ -842,7 +842,7 @@ set schema='{
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "name":
                 {
@@ -1049,7 +1049,7 @@ set schema='{
                 "idType":{
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release track we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceId", "oldObjectId"]
+                    "enum": ["resourceObjectId", "oldObjectId"]
                 },
                 "name":
                 {
