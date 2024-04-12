@@ -85,8 +85,6 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/pod").
 		Queries("clusterId", "{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
-	k8sAppRouter.Path("/scoop/notify").
-		HandlerFunc(impl.k8sApplicationRestHandler.HandleScoopNotificationEvent).Methods("POST")
 
 	k8sAppRouter.PathPrefix("/port-forward").
 		HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
