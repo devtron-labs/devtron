@@ -58,7 +58,6 @@ type FullModeDeploymentService interface {
 	InstalledAppArgoCdService
 	DeploymentStatusService
 	InstalledAppGitOpsService
-	InstalledAppVirtualDeploymentService
 }
 
 type FullModeDeploymentServiceImpl struct {

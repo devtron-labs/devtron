@@ -96,7 +96,7 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*ProfileBean,
 		return nil, err
 	}
 
-	configurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
+	configurationBeans := util.Map(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
@@ -641,7 +641,7 @@ func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (
 		return nil, err
 	}
 
-	infraConfigurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
+	infraConfigurationBeans := util.Map(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
 		return config.ConvertToConfigurationBean()
 	})
 
@@ -842,7 +842,7 @@ func (impl *InfraConfigServiceImpl) fetchIdentifiersWithProfileId(identifierType
 }
 
 func (impl *InfraConfigServiceImpl) sanitizeAndGetUpdatableAndCreatableConfigurationEntities(userId int32, profileName string, configurationBeans []ConfigurationBean) ([]*InfraProfileConfigurationEntity, []*InfraProfileConfigurationEntity, error) {
-	infraConfigurationEntities := util.Transform(configurationBeans, func(config ConfigurationBean) *InfraProfileConfigurationEntity {
+	infraConfigurationEntities := util.Map(configurationBeans, func(config ConfigurationBean) *InfraProfileConfigurationEntity {
 		// user couldn't delete the configuration for default profile, always set this to active
 		if profileName == DEFAULT_PROFILE_NAME {
 			config.Active = true

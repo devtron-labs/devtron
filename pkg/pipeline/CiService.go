@@ -749,7 +749,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 	}
-
+	if pipeline.App.AppType == helper.Job {
+		workflowRequest.AppName = pipeline.App.DisplayName
+	}
 	if dockerRegistry != nil {
 		var registryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean
 		registryConnectionConfig, err = impl.dockerRegistryConfig.GetRemoteConnectionConfigByDockerId(dockerRegistry.Id)

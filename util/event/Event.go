@@ -20,17 +20,23 @@ package util
 type EventType int
 
 const (
-	Trigger EventType = iota + 1
-	Success
-	Fail
-	Approval
-	ConfigApproval
+	Trigger        EventType = 1
+	Success        EventType = 2
+	Fail           EventType = 3
+	Approval       EventType = 4
+	ConfigApproval EventType = 5
+	Blocked 	   EventType = 6
+	ImageScanning  EventType = 8
 )
+
+var RulesSupportedEvents = []int{int(ImageScanning)}
 
 type PipelineType string
 
 const CI PipelineType = "CI"
 const CD PipelineType = "CD"
+const PRE_CD PipelineType = "PRE-CD"
+const POST_CD PipelineType = "POST-CD"
 
 type Level string
 
@@ -48,4 +54,5 @@ type UpdateType string
 const (
 	UpdateEvents     UpdateType = "events"
 	UpdateRecipients UpdateType = "recipients"
+	UpdateRules      UpdateType = "rules"
 )

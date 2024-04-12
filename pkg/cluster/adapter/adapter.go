@@ -1,12 +1,38 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"time"
 )
+
+// NewEnvironmentBean provides a new cluster.EnvironmentBean for the given repository.Environment
+// Note: NewEnvironmentBean doesn't include AppCount and AllowedDeploymentTypes
+func NewEnvironmentBean(envModel *repository.Environment) *bean.EnvironmentBean {
+	envBean := &bean.EnvironmentBean{
+		Id:                    envModel.Id,
+		Environment:           envModel.Name,
+		ClusterId:             envModel.ClusterId,
+		Active:                envModel.Active,
+		Default:               envModel.Default,
+		Namespace:             envModel.Namespace,
+		EnvironmentIdentifier: envModel.EnvironmentIdentifier,
+		Description:           envModel.Description,
+		IsVirtualEnvironment:  envModel.IsVirtualEnvironment,
+	}
+	if envModel.Cluster != nil {
+		envBean.ClusterName = envModel.Cluster.ClusterName
+		envBean.PrometheusEndpoint = envModel.Cluster.PrometheusEndpoint
+		envBean.CdArgoSetup = envModel.Cluster.CdArgoSetup
+		// populate internal use only fields
+		envBean.ClusterServerUrl = envModel.Cluster.ServerUrl
+		envBean.ErrorInConnecting = envModel.Cluster.ErrorInConnecting
+	}
+	return envBean
+}
 
 func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 	if len(model.ProxyUrl) > 0 || model.ToConnectWithSSHTunnel {
@@ -37,7 +63,7 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 	return model
 }
 
-func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
+func ConvertClusterBeanToNewClusterBean(clusterBean *clusterBean.ClusterBean) *clusterBean.ClusterBean {
 	if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// converting old bean to new bean
 		connectionConfig := &remoteConnectionBean.RemoteConnectionConfigBean{}
@@ -61,7 +87,7 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.Clu
 	return clusterBean
 }
 
-func ConvertNewClusterBeanToOldClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
+func ConvertNewClusterBeanToOldClusterBean(clusterBean *clusterBean.ClusterBean) *clusterBean.ClusterBean {
 	if clusterBean.RemoteConnectionConfig != nil {
 		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
 			clusterBean.RemoteConnectionConfig.ProxyConfig != nil {
@@ -79,7 +105,7 @@ func ConvertNewClusterBeanToOldClusterBean(clusterBean *bean.ClusterBean) *bean.
 	return clusterBean
 }
 
-func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster {
+func ConvertClusterBeanToCluster(clusterBean *clusterBean.ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -151,28 +177,28 @@ func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *r
 	return model
 }
 
-func GetClusterBean(model repository.Cluster) bean.ClusterBean {
+func GetClusterBean(model repository.Cluster) clusterBean.ClusterBean {
 	model = *ConvertClusterToNewCluster(&model) // repo model is converted according to new struct
-	clusterBean := bean.ClusterBean{}
-	clusterBean.Id = model.Id
-	clusterBean.ClusterName = model.ClusterName
-	clusterBean.ServerUrl = model.ServerUrl
-	clusterBean.PrometheusUrl = model.PrometheusEndpoint
-	clusterBean.AgentInstallationStage = model.AgentInstallationStage
-	clusterBean.Active = model.Active
-	clusterBean.Config = model.Config
-	clusterBean.K8sVersion = model.K8sVersion
-	clusterBean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
-	clusterBean.IsVirtualCluster = model.IsVirtualCluster
-	clusterBean.ErrorInConnecting = model.ErrorInConnecting
-	clusterBean.PrometheusAuth = &bean.PrometheusAuth{
+	bean := clusterBean.ClusterBean{PrometheusAuth: &clusterBean.PrometheusAuth{}}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	bean.IsVirtualCluster = model.IsVirtualCluster
+	bean.ErrorInConnecting = model.ErrorInConnecting
+	bean.PrometheusAuth = &clusterBean.PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
 		TlsClientCert: model.PTlsClientCert,
 		TlsClientKey:  model.PTlsClientKey,
 	}
 	if model.RemoteConnectionConfig != nil {
-		clusterBean.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
+		bean.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
 			RemoteConnectionConfigId: model.RemoteConnectionConfigId,
 			ConnectionMethod:         model.RemoteConnectionConfig.ConnectionMethod,
 			ProxyConfig: &remoteConnectionBean.ProxyConfig{
@@ -186,5 +212,5 @@ func GetClusterBean(model repository.Cluster) bean.ClusterBean {
 			},
 		}
 	}
-	return clusterBean
+	return bean
 }

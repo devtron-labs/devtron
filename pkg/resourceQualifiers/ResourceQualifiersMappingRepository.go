@@ -29,8 +29,10 @@ type QualifiersMappingRepository interface {
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
 	GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType ResourceType, resourceIds []int, qualifier int) ([]*QualifierMapping, error)
 	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
+	GetQualifierMappingsForListOfQualifierValues(resourceType ResourceType, valuesMap map[Qualifier][][]int, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -46,6 +48,9 @@ func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}, nil
 }
+
+const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
+const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
 
 func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error) {
 	err := tx.Insert(&qualifierMappings)
@@ -95,6 +100,35 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	return qualifierMappings, nil
 }
 
+func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]int, identifierKey int) *orm.Query {
+	if values, ok := valuesMap[qualifier]; ok && len(values[0]) > 0 {
+		query = query.WhereOr(condition,
+			qualifier, identifierKey, pg.In(valuesMap[qualifier][0]),
+		)
+	}
+	return query
+}
+
+func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, drs map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+
+	q = q.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+		if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
+			query = query.WhereOr(appEnvCondition,
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
+				APP_AND_ENV_QUALIFIER,
+			)
+		}
+		query = addCond(query, APP_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID])
+		query = addCond(query, ENV_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID])
+		query = addCond(query, CLUSTER_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID])
+		query = addCond(query, PIPELINE_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID])
+		query = query.WhereOr("(qualifier_id = ?)", GLOBAL_QUALIFIER)
+		return query, nil
+	})
+	return q
+}
+
 func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Query, scope *Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 	return query.Where(
 		"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
@@ -129,6 +163,28 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 
 	err := query.Select()
 	if err != nil {
+		return nil, err
+	}
+	return qualifierMappings, nil
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForListOfQualifierValues(resourceType ResourceType, valuesMap map[Qualifier][][]int, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
+	var qualifierMappings []*QualifierMapping
+	query := repo.dbConnection.Model(&qualifierMappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType)
+
+	if len(resourceIds) > 0 {
+		query = query.Where("resource_id IN (?)", pg.In(resourceIds))
+	}
+
+	// Enterprise Only
+	if valuesMap != nil {
+		query = repo.addScopeWhereClauseBatch(query, valuesMap, searchableIdMap)
+	}
+
+	err := query.Select()
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	return qualifierMappings, nil
@@ -185,6 +241,9 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllByResourceTypeAndQualifier
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	if len(qualifierMappingIds) == 0 {
+		return nil
+	}
 	_, err := tx.Model(&QualifierMapping{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).
@@ -236,6 +295,23 @@ func (repo *QualifiersMappingRepositoryImpl) GetActiveIdentifierCountPerResource
 	counts := make([]ResourceIdentifierCount, 0)
 	_, err := repo.dbConnection.Query(&counts, query, resourceType, identifierKey)
 	return counts, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType ResourceType, resourceIds []int, qualifier int) ([]*QualifierMapping, error) {
+	mappings := make([]*QualifierMapping, 0)
+	if len(resourceIds) == 0 {
+		return mappings, nil
+	}
+	err := repo.dbConnection.Model(&mappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType).
+		Where("resource_id IN (?)", pg.In(resourceIds)).
+		Where("qualifier_id = ?", qualifier).
+		Select()
+	if err == pg.ErrNoRows {
+		err = nil
+	}
+	return mappings, err
 }
 
 func (repo *QualifiersMappingRepositoryImpl) GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error) {

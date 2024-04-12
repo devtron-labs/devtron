@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	clusterBean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -106,7 +107,7 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean request.EnvironmentBean
+	var bean bean2.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Create", "err", err, "payload", bean)
@@ -146,7 +147,7 @@ func (impl EnvironmentRestHandlerImpl) CreateVirtualEnvironment(w http.ResponseW
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean request.VirtualEnvironmentBean
+	var bean bean2.VirtualEnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Create", "err", err, "payload", bean)
@@ -220,10 +221,10 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, environments, http.StatusOK)
 		return
 	}
-	grantedEnvironments := make([]*request.EnvironmentBean, 0)
+	grantedEnvironments := make([]*bean2.EnvironmentBean, 0)
 
 	var envIdentifierList []string
-	envIdentifierMap := make(map[string]*request.EnvironmentBean)
+	envIdentifierMap := make(map[string]*bean2.EnvironmentBean)
 	for _, item := range environments {
 		envIdentifier := strings.ToLower(item.EnvironmentIdentifier)
 		envIdentifierList = append(envIdentifierList, envIdentifier)
@@ -249,7 +250,7 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 		return
 	}
 
-	var result []request.EnvironmentBean
+	var result []bean2.EnvironmentBean
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
@@ -270,7 +271,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var bean request.EnvironmentBean
+	var bean bean2.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
@@ -315,7 +316,7 @@ func (impl EnvironmentRestHandlerImpl) UpdateVirtualEnvironment(w http.ResponseW
 		return
 	}
 
-	var bean request.VirtualEnvironmentBean
+	var bean bean2.VirtualEnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
@@ -401,7 +402,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment = environments
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedEnvironment = make([]request.EnvironmentBean, 0)
+		grantedEnvironment = make([]bean2.EnvironmentBean, 0)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for _, item := range environments {
@@ -448,7 +449,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		return
 	}
 	if len(clusters) == 0 {
-		clusters = make([]*request.ClusterEnvDto, 0)
+		clusters = make([]*bean2.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
@@ -475,7 +476,7 @@ func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean request.EnvironmentBean
+	var bean bean2.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Delete", "err", err, "payload", bean)
@@ -537,7 +538,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 	}
 
 	if len(clusters) == 0 {
-		clusters = make([]*request.ClusterEnvDto, 0)
+		clusters = make([]*bean2.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }

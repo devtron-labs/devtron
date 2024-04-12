@@ -19,9 +19,10 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"time"
 )
 
@@ -105,7 +106,7 @@ type InstallAppVersionDTO struct {
 	IsCustomRepository           bool                           `json:"-"`
 	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
-	Environment                  *repository2.Environment       `json:"-"`
+	Environment                  *bean.EnvironmentBean          `json:"-"`
 	ChartGroupEntryId            int                            `json:"-"`
 	DefaultClusterComponent      bool                           `json:"-"`
 	Status                       AppstoreDeploymentStatus       `json:"-"`
@@ -117,8 +118,20 @@ type InstallAppVersionDTO struct {
 	AppStoreApplicationVersionId int
 }
 
+// UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
+	if chart == nil {
+		return
+	}
 	chart.DeploymentAppType = deploymentAppType
+}
+
+// UpdateACDAppName updates ArgoCd app object name to InstallAppVersionDTO
+func (chart *InstallAppVersionDTO) UpdateACDAppName() {
+	if chart == nil {
+		return
+	}
+	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.EnvironmentName)
 }
 
 func (chart *InstallAppVersionDTO) UpdateCustomGitOpsRepoUrl(allowCustomRepository bool, installAppVersionRequestType InstallAppVersionRequestType) {

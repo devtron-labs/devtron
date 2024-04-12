@@ -3,6 +3,7 @@ module github.com/devtron-labs/devtron
 go 1.20
 
 require (
+	github.com/Azure/go-autorest/autorest/date v0.3.0
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/argoproj/argo-cd/v2 v2.8.13
@@ -20,7 +21,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
-	github.com/devtron-labs/authenticator v0.4.35-0.20240321064236-a95dc8d0403f
+	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
 	github.com/devtron-labs/common-lib v0.0.16-0.20240412072404-71d8bae5ad58
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240412073306-ae446c1f5bf6
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
@@ -108,7 +109,6 @@ require (
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
-	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect

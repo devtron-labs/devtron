@@ -74,6 +74,11 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		impl.logger.Errorw("error, SubscribeCDStageCompleteEvent", "err", err)
 		return err
 	}
+	err = impl.workflowEventProcessor.SubscribeImageScanningSuccessEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeImageScanningSuccessEvent", "err", err)
+		return err
+	}
 	err = impl.workflowEventProcessor.SubscribeTriggerBulkAction()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeTriggerBulkAction", "err", err)
