@@ -272,6 +272,7 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return false, err
 	}
+	defer resp.Body.Close()
 	impl.logger.Debugw("event completed", "event resp", resp)
 	return true, err
 }

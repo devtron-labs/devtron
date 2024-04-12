@@ -19,10 +19,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +48,7 @@ import (
 )
 
 const END_OF_TRANSMISSION = "\u0004"
+const ProcessExitedMsg = "Process exited"
 
 // PtyHandler is what remotecommand expects from a pty
 type PtyHandler interface {
@@ -55,11 +59,17 @@ type PtyHandler interface {
 
 // TerminalSession implements PtyHandler (using a SockJS connection)
 type TerminalSession struct {
-	id            string
-	bound         chan error
-	sockJSSession sockjs.Session
-	sizeChan      chan remotecommand.TerminalSize
-	doneChan      chan struct{}
+	id                string
+	bound             chan error
+	sockJSSession     sockjs.Session
+	sizeChan          chan remotecommand.TerminalSize
+	doneChan          chan struct{}
+	context           context.Context
+	contextCancelFunc context.CancelFunc
+	podName           string
+	namespace         string
+	clusterId         string
+	startedOn         time.Time
 }
 
 // TerminalMessage is the messaging protocol between ShellController and TerminalSession.
@@ -167,6 +177,15 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 	sm.Sessions[sessionId] = session
 }
 
+func (sm *SessionMap) SetTerminalSessionStartTime(sessionId string) {
+	sm.Lock.Lock()
+	defer sm.Lock.Unlock()
+	if session, ok := sm.Sessions[sessionId]; ok {
+		session.startedOn = time.Now()
+		sm.Sessions[sessionId] = session
+	}
+}
+
 // Close shuts down the SockJS connection and sends the status code and reason to the client
 // Can happen if the process exits or if there is an error starting up the process
 // For now the status code is unused and reason is shown to the user (unless "")
@@ -179,12 +198,21 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 		if err != nil {
 			log.Println(err)
 		}
+		isErroredConnectionTermination := isConnectionClosedByError(status)
+		middleware.IncTerminalSessionRequestCounter(SessionTerminated, strconv.FormatBool(isErroredConnectionTermination))
+		middleware.RecordTerminalSessionDurationMetrics(terminalSession.podName, terminalSession.namespace, terminalSession.clusterId, time.Since(terminalSession.startedOn).Seconds())
+		close(terminalSession.doneChan)
+		terminalSession.contextCancelFunc()
 		delete(sm.Sessions, sessionId)
-		if terminalSession.doneChan != nil {
-			close(terminalSession.doneChan)
-		}
 	}
 
+}
+
+func isConnectionClosedByError(status uint32) bool {
+	if status == 2 {
+		return true
+	}
+	return false
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
@@ -247,7 +275,7 @@ func CreateAttachHandler(path string) http.Handler {
 
 // startProcess is called by handleAttach
 // Executed cmd in the container specified in request and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config,
 	cmd []string, ptyHandler PtyHandler, sessionRequest *TerminalSessionRequest) error {
 	namespace := sessionRequest.Namespace
 	podName := sessionRequest.PodName
@@ -266,17 +294,18 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-
-	err = execWithStreamOptions(exec, streamOptions)
+	isErroredConnectionTermination := false
+	middleware.IncTerminalSessionRequestCounter(SessionInitiating, strconv.FormatBool(isErroredConnectionTermination))
+	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
+	err = execWithStreamOptions(ctx, exec, streamOptions)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func execWithStreamOptions(exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
-	return exec.Stream(streamOptions)
+func execWithStreamOptions(ctx context.Context, exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
+	return exec.StreamWithContext(ctx, streamOptions)
 }
 
 func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool, tty bool) (remotecommand.Executor, error) {
@@ -347,32 +376,39 @@ var validShells = []string{"bash", "sh", "powershell", "cmd"}
 // Waits for the SockJS connection to be opened by the client the session to be bound in handleTerminalSession
 func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
 
+	session := terminalSessions.Get(request.SessionId)
+	sessionCtx := session.context
+	timedCtx, _ := context.WithTimeout(sessionCtx, 60*time.Second)
 	select {
-	case <-terminalSessions.Get(request.SessionId).bound:
-		close(terminalSessions.Get(request.SessionId).bound)
+	case <-session.bound:
+		close(session.bound)
 
 		var err error
 		if isValidShell(validShells, request.Shell) {
 			cmd := []string{request.Shell}
 
-			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request)
+			err = startProcess(sessionCtx, k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request)
 		} else {
 			// No Shell given or it was not valid: try some shells until one succeeds or all fail
 			// FIXME: if the first Shell fails then the first keyboard event is lost
 			for _, testShell := range validShells {
 				cmd := []string{testShell}
-				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request); err == nil {
+				if err = startProcess(sessionCtx, k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request); err == nil || errors2.Is(err, context.Canceled) {
 					break
 				}
 			}
 		}
 
-		if err != nil {
+		if err != nil && !errors2.Is(err, context.Canceled) {
 			terminalSessions.Close(request.SessionId, 2, err.Error())
 			return
 		}
 
-		terminalSessions.Close(request.SessionId, 1, "Process exited")
+		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
+	case <-timedCtx.Done():
+		// handle case when connection has not been initiated from FE side within particular time
+		close(session.bound)
+		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
 	}
 }
 
@@ -435,11 +471,17 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		return statusCode, nil, err
 	}
 	req.SessionId = sessionID
+	sessionCtx, cancelFunc := context.WithCancel(context.Background())
 	terminalSessions.Set(sessionID, TerminalSession{
-		id:       sessionID,
-		bound:    make(chan error),
-		sizeChan: make(chan remotecommand.TerminalSize),
-		doneChan: make(chan struct{}),
+		id:                sessionID,
+		bound:             make(chan error),
+		sizeChan:          make(chan remotecommand.TerminalSize),
+		doneChan:          make(chan struct{}),
+		context:           sessionCtx,
+		contextCancelFunc: cancelFunc,
+		podName:           req.PodName,
+		namespace:         req.Namespace,
+		clusterId:         strconv.Itoa(req.ClusterId),
 	})
 	config, client, err := impl.getClientConfig(req)
 
@@ -562,7 +604,7 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 	impl.logger.Debug("reached execWithStreamOptions method call")
-	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
+	err = execWithStreamOptions(context.Background(), exec, remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
