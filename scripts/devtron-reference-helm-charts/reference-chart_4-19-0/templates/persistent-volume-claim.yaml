@@ -1,15 +1,15 @@
-{{- if .Values.peristentVolumeClaim.name }}
+{{- if .Values.persistentVolumeClaim.name }}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{.Values.peristentVolumeClaim.name }}
+  name: {{.Values.persistentVolumeClaim.name }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}    
-{{- with .Values.peristentVolumeClaim }}  
+{{- with .Values.persistentVolumeClaim }}  
 spec:
   accessModes:
 {{- range .accessMode }}  
