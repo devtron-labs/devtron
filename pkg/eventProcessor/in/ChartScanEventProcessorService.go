@@ -57,7 +57,7 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 		clusterId := int32(request.ClusterId)
 		namespace := request.Namespace
 		appName := request.AppName
-		iavId := int32(request.Id)
+		iavId := int32(request.AppStoreVersion)
 
 		manifestRequest := openapi2.TemplateChartRequest{
 			EnvironmentId:                &envId,
