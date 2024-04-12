@@ -2,6 +2,7 @@ package k8sObjectsUtil
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -37,4 +38,16 @@ func ExtractImages(obj unstructured.Unstructured) []string {
 		}
 	}
 	return images
+}
+
+func ExtractImageFromManifestYaml(manifestYaml string) ([]string, error) {
+	parsedManifests, err := yamlUtil.SplitYAMLs([]byte(manifestYaml))
+	if err != nil {
+		return nil, err
+	}
+	dockerImages, err := ExtractAllDockerImages(parsedManifests)
+	if err != nil {
+		return nil, err
+	}
+	return dockerImages, nil
 }

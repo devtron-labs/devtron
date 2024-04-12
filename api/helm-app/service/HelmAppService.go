@@ -991,8 +991,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	response := &openapi2.TemplateChartResponse{
-		Manifest:     &templateChartResponse.GeneratedManifest,
-		DockerImages: templateChartResponse.DockerImages,
+		Manifest: &templateChartResponse.GeneratedManifest,
 	}
 
 	return response, nil

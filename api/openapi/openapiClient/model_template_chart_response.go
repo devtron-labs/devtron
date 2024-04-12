@@ -18,7 +18,6 @@ import (
 type TemplateChartResponse struct {
 	// helm generated manifest
 	Manifest *string `json:"manifest,omitempty"`
-	DockerImages []string `json:"dockerImages"`
 }
 
 // NewTemplateChartResponse instantiates a new TemplateChartResponse object
