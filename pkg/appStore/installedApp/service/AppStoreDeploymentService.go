@@ -196,6 +196,8 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 	err = tx.Commit()
 
+	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
+
 	err = impl.appStoreDeploymentDBService.InstallAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
 		return nil, err
@@ -921,6 +923,8 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 		return nil, err
 	}
 	// STEP-3 ends
+
+	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
 
 	return res, nil
 }

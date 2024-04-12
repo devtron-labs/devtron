@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"time"
@@ -82,6 +83,7 @@ type FullModeDeploymentServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	gitOpsValidationService              validation.GitOpsValidationService
 	environmentRepository                repository5.EnvironmentRepository
+	chartScanPublishService              out.ChartScanPublishService
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -105,7 +107,9 @@ func NewFullModeDeploymentServiceImpl(
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
+	environmentRepository repository5.EnvironmentRepository,
+	chartScanPublishService out.ChartScanPublishService,
+) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -128,6 +132,7 @@ func NewFullModeDeploymentServiceImpl(
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		gitOpsValidationService:              gitOpsValidationService,
 		environmentRepository:                environmentRepository,
+		chartScanPublishService:              chartScanPublishService,
 	}
 }
 
@@ -334,6 +339,8 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 			impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
 		}
 	}
+
+	impl.chartScanPublishService.PublishChartScanEvent(installedApp)
 	//ACD sync operation
 	//impl.appStoreDeploymentFullModeService.SyncACD(installedApp.ACDAppName, ctx)
 	return installedApp, true, nil

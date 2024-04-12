@@ -79,6 +79,7 @@ type ChartGroupServiceImpl struct {
 	gitOperationService                  git.GitOperationService
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
+	chartScanPublishService              out.ChartScanPublishService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -101,7 +102,9 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
-	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
+	chartScanPublishService out.ChartScanPublishService,
+) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -124,6 +127,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:                  gitOperationService,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
+		chartScanPublishService:              chartScanPublishService,
 	}
 	return impl, nil
 }
@@ -609,6 +613,12 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	}
 	//nats event
 	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
+
+	//scan manifest
+	for _, version := range installAppVersions {
+		impl.chartScanPublishService.PublishChartScanEvent(version)
+	}
+
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
