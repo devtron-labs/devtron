@@ -12,7 +12,7 @@
   {{- end }}
 
   {{- $hasPVCExists := false -}}
-  {{- if .Values.peristentVolumeClaim.name }}
+  {{- if .Values.persistentVolumeClaim.name }}
   {{- $hasPVCExists = true }}
   {{- end }}
 
@@ -123,14 +123,7 @@ spec:
 {{- range $.Values.topologySpreadConstraints }}
       - maxSkew: {{ .maxSkew }}
         topologyKey: {{ .topologyKey }}
-        whenUnsatisfiable: {{ .whenUnsatisfiable }}
-{{- if .minDomains }}
-        minDomains: {{ .minDomains}}
-{{- end }}
-{{- if .matchLabelKeys }}
-        matchLabelKeys:
-{{ toYaml .matchLabelKeys | indent 10 }}
-{{- end }}               
+        whenUnsatisfiable: {{ .whenUnsatisfiable }}             
         labelSelector:
           matchLabels:
           {{- if and .autoLabelSelector .customLabelSelector }}
@@ -401,9 +394,9 @@ spec:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
-{{- if  $.Values.peristentVolumeClaim.name }}
-            - name: {{ .Values.peristentVolumeClaim.name }}-vol
-              mountPath: {{ .Values.peristentVolumeClaim.mountPath | default "/tmp" }}
+{{- if  $.Values.persistentVolumeClaim.name }}
+            - name: {{ .Values.persistentVolumeClaim.name }}-vol
+              mountPath: {{ .Values.persistentVolumeClaim.mountPath | default "/tmp" }}
 {{- end}}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
@@ -510,10 +503,10 @@ spec:
           configMap:
             name: sidecar-config-{{ template ".Chart.Name .name" $ }}
   {{- end }}
-{{- if .Values.peristentVolumeClaim.name }}
-        - name: {{.Values.peristentVolumeClaim.name}}-vol
+{{- if .Values.persistentVolumeClaim.name }}
+        - name: {{.Values.persistentVolumeClaim.name}}-vol
           persistentVolumeClaim:
-            claimName: {{.Values.peristentVolumeClaim.name }}
+            claimName: {{.Values.persistentVolumeClaim.name }}
 {{- end}}
 {{- with .Values.volumes }}
 {{ toYaml . | trim | indent 8 }}

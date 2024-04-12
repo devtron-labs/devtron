@@ -624,5 +624,5 @@ imagePullSecrets: []
   # - test2
 
 
-peristentVolumeClaim: {}
+persistentVolumeClaim: {}
   

@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.18
+# Rollout Deployment Chart - v4.19
 
 ## 1. Yaml File -
 
@@ -17,6 +17,7 @@ ContainerPort:
     nodePort: 32056
     supportStreaming: true
     useHTTP2: true
+    protocol: TCP
 ```
 
 | Key | Description |
@@ -29,6 +30,7 @@ ContainerPort:
 | `nodePort` | nodeport of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
 | `useHTTP2` | Envoy container can accept HTTP2 requests. |
+|`protocol`| Protocol for port. Must be UDP, TCP, or SCTP. Defaults to "TCP". |
 
 ### EnvVariables
 ```yaml
@@ -832,6 +834,28 @@ topologySpreadConstraints:
     autoLabelSelector: true
     customLabelSelector: {}
 ```
+
+### Persistent Volume Claim
+You can use persistent volume in your stateless application
+
+```yaml
+persistentVolumeClaim:
+  name: devtron-pvc
+  storageClassName: default
+  storage: 8Gi
+  accessMode: 
+  - ReadWriteOnce
+  volumeMode: 
+  mountPath: "/tmp"
+
+```
+### Scheduler Name
+You can use your custom scheduler for you resources.
+
+```yaml
+schedulerName: "default"
+```
+
 
 ### Deployment Metrics
 
