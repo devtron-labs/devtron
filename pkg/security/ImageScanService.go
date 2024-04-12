@@ -595,6 +595,7 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("error in fetching image scan history %w", err)
 	}
+	impl.Logger.Debugw("scanHistories", "payload", scanHistories)
 	scanHistoryIdToHistory := make(map[int]*security.ImageScanExecutionHistory, 0)
 	for _, scanHistory := range scanHistories {
 		scanHistoryIdToHistory[scanHistory.Id] = scanHistory
@@ -606,6 +607,7 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 		return nil, fmt.Errorf("error in fetching image scan result %w", err)
 
 	}
+	impl.Logger.Debugw("imageScanResults", "payload", imageScanResults)
 	for _, result := range imageScanResults {
 		historyIdsWithScanResults = append(historyIdsWithScanResults, result.ImageScanExecutionHistoryId)
 	}
@@ -621,11 +623,14 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 
 	historyIdToImage, imageToExecutionResults := impl.getImageHistoryAndExecResults(imageScanResults)
 
+	impl.Logger.Debugw("historyIdToImage", "payload", historyIdToImage)
+	impl.Logger.Debugw("imageToExecutionResults", "payload", imageToExecutionResults)
 	historyIds := maps.Keys(historyIdToImage)
 	historyMappings, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(historyIds)
 	if err != nil {
 		return nil, fmt.Errorf("error in fetching GetAllScanHistoriesByExecutionHistoryIds %w %v", err, historyIds)
 	}
+	impl.Logger.Debugw("historyMappings", "payload", historyMappings)
 	historyIdToMapping := make(map[int]*security.ScanToolExecutionHistoryMapping)
 	for _, mapping := range historyMappings {
 		historyIdToMapping[mapping.ImageScanExecutionHistoryId] = mapping
