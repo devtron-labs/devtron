@@ -640,7 +640,7 @@ func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*
 
 	for _, historyMapping := range historyMappings {
 		var image string
-		if img, ok := historyIdToImage[historyMapping.Id]; ok {
+		if img, ok := historyIdToImage[historyMapping.ImageScanExecutionHistoryId]; ok {
 			image = img
 		} else {
 			continue
