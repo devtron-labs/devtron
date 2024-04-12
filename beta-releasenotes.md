@@ -1,4 +1,5 @@
 ## Bugs
+- fix: removed unused dependency (#4916)
 - fix: release not found alert (#4928)
 - fix: link external helm app to chart store (#4919)
 - fix: Corrected the error of fetching app name and pipeline name from CI_CD_EVENT (#4911)
