@@ -1,6 +1,11 @@
 package service
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 
 	"github.com/devtron-labs/authenticator/client"
@@ -8,8 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -50,7 +53,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -59,7 +61,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -67,7 +69,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -100,7 +102,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -109,7 +110,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -117,7 +118,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")
@@ -126,16 +127,13 @@ func TestAppStoreDeploymentService(t *testing.T) {
 
 }
 
-func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDeploymentServiceImpl {
+func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDeploymentDBServiceImpl {
 	sugaredLogger, _ := util.InitLogger()
 
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
-
-	chartGroupDeploymentRepository := repository6.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
-
-	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-
+	attributeRepo := repository.NewAttributesRepositoryImpl(db)
+	discoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
 	k8sUtil := util2.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
@@ -146,33 +144,37 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	userAuthRepositoryImpl := repository5.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository5.NewUserRepositoryImpl(db, sugaredLogger)
 	roleGroupRepositoryImpl := repository5.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	clusterService := cluster.NewClusterServiceImpl(clusterRepository, sugaredLogger, k8sUtil, nil, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
+	clusterService := cluster.NewClusterServiceImpl(clusterRepository,
+		sugaredLogger,
+		k8sUtil,
+		nil,
+		userAuthRepositoryImpl,
+		userRepositoryImpl,
+		roleGroupRepositoryImpl)
 
 	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
-
+	envVariables := &util3.EnvironmentVariables{
+		DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
+			ExternallyManagedDeploymentType: internalUse,
+		},
+	}
 	AppRepository := app.NewAppRepositoryImpl(db, sugaredLogger)
 	InstalledAppRepository := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	InstalledAppVersionHistoryRepository := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
-	ClusterInstalledAppsRepository := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-
-	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(
+	attributeService := attributes.NewAttributesServiceImpl(sugaredLogger, attributeRepo)
+	deploymentOverrideService := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, envVariables, attributeService)
+	appStoreDeploymentDBServiceImpl := NewAppStoreDeploymentDBServiceImpl(
 		sugaredLogger,
 		InstalledAppRepository,
-		chartGroupDeploymentRepository,
-		appStoreDiscoverRepository,
-		environmentRepository,
-		ClusterInstalledAppsRepository,
+		discoverRepository,
 		AppRepository,
-		nil,
-		nil,
 		environmentService,
 		clusterService,
-		nil,
-		nil,
 		InstalledAppVersionHistoryRepository,
-		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
+		envVariables,
 		nil,
+		deploymentOverrideService,
 		nil)
 
-	return AppStoreDeploymentServiceImpl
+	return appStoreDeploymentDBServiceImpl
 }

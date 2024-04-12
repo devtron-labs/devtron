@@ -27,20 +27,25 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 )
 
+// InstalledApps TODO: remove the deprecated column GitOpsRepoName
 type InstalledApps struct {
 	TableName                  struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
 	Id                         int                                   `sql:"id,pk"`
 	AppId                      int                                   `sql:"app_id,notnull"`
 	EnvironmentId              int                                   `sql:"environment_id,notnull"`
 	Active                     bool                                  `sql:"active, notnull"`
-	GitOpsRepoName             string                                `sql:"git_ops_repo_name"`
-	DeploymentAppType          string                                `sql:"deployment_app_type"` // TODO: instead of string, use enum
+	GitOpsRepoName             string                                `sql:"git_ops_repo_name"` // Deprecated; currently in use for backward compatibility
+	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"`  // GitOpsRepoName has been migrated to GitOpsRepoUrl; Make sure to migrate from GitOpsRepoName for future flows
+	IsCustomRepository         bool                                  `sql:"is_custom_repository"`
+	DeploymentAppType          string                                `sql:"deployment_app_type"`
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
 	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
 	Notes                      string                                `json:"notes"`
@@ -61,8 +66,13 @@ func (model *InstalledApps) UpdateStatus(status appStoreBean.AppstoreDeploymentS
 	model.Status = status
 }
 
-func (model *InstalledApps) UpdateGitOpsRepoName(gitOpsRepoName string) {
-	model.GitOpsRepoName = gitOpsRepoName
+func (model *InstalledApps) UpdateGitOpsRepository(gitOpsRepoUrl string, isCustomRepository bool) {
+	if gitOpsRepoUrl == "" {
+		return
+	}
+	model.GitOpsRepoUrl = gitOpsRepoUrl
+	model.IsCustomRepository = isCustomRepository
+	model.GitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl) // Handled for backward compatibility
 }
 
 type InstalledAppVersions struct {
@@ -93,6 +103,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
+	GetInstalledAppsByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
@@ -121,12 +132,17 @@ type InstalledAppRepository interface {
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
 	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
-	GetAllGitOpsDeploymentAppName() ([]string, error)
-	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
+	// GetInstalledAppByGitOpsAppName will return all the active installed_apps with matching `app_name-environment_name`
+	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
+	GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error)
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
 	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error)
+
+	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
+	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error
+	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -191,6 +207,14 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (InstalledApps, error) {
+	var model InstalledApps
+	err := impl.dbConnection.Model(&model).
+		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
+		Where("installed_apps.app_id = ?", appId).Where("installed_apps.active = true").Select()
 	return model, err
 }
 
@@ -347,7 +371,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
-	query = query + " env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
+	query = query + " env.environment_name, env.id as environment_id, env.is_virtual_environment, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated , app_status.status as app_status, ia.deployment_app_delete_request"
 	query = query + " from installed_app_versions iav"
@@ -737,36 +761,28 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(in
 	return installedApps, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllGitOpsDeploymentAppName() ([]string, error) {
-	type GitOpsAppName struct {
-		GitOpsAppName string `sql:"git_ops_app_name"`
-	}
-	var gitOpsApplicationName []*GitOpsAppName
-	allGitOpsAppName := make([]string, 0)
-
-	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name from installed_apps a inner join environment e on a.environment_id=e.id;`
-	_, err := impl.dbConnection.Query(&gitOpsApplicationName, query)
-	if err != nil {
-		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
-		return nil, err
-	}
-
-	for _, item := range gitOpsApplicationName {
-		allGitOpsAppName = append(allGitOpsAppName, item.GitOpsAppName)
-	}
-	return allGitOpsAppName, err
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		// TODO add deployment_app_name filed in installed_apps table
+		Where("CONCAT(app.app_name, ?, environment.environment_name) = ?", "-", acdAppName).
+		Where("installed_apps.active = true").
+		Where("environment.active = true").
+		Limit(1).
+		Select()
+	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error) {
-	var model []*GitOpsAppDetails
-
-	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name, a.id as installed_app_id from installed_apps a 
-    			inner join environment e on a.environment_id=e.id where a.active=true and e.active=true;`
-	_, err := impl.dbConnection.Query(&model, query)
-	if err != nil {
-		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
-		return nil, err
-	}
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App").
+		Where("installed_apps.git_ops_repo_name = ? OR installed_apps.git_ops_repo_url = ?", repoName, repoUrl).
+		Where("installed_apps.active = true").
+		Where("app.active = true").
+		Limit(1).
+		Select()
 	return model, err
 }
 
@@ -821,4 +837,57 @@ func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppI
 		return installStatus.HelmReleaseStatusConfig, "", err
 	}
 	return installStatus.HelmReleaseStatusConfig, installStatus.Status, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string,
+	excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+
+	query := impl.dbConnection.
+		Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.deployment_app_type = ?", deploymentType).
+		Where("installed_apps.active = ?", true)
+
+	if len(excludeAppIds) > 0 {
+		query.Where("installed_apps.app_id not in (?)", pg.In(excludeAppIds))
+	}
+
+	if len(includeAppIds) > 0 {
+		query.Where("installed_apps.app_id in (?)", pg.In(includeAppIds))
+	}
+
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+	return installedApps, nil
+}
+
+// UpdateDeploymentAppTypeInInstalledApp takes in deploymentAppType and list of installedAppIds and
+// updates the deployment_app_type in the table for given ids.
+func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error {
+	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ?, status = ? where id in (?);"
+	var installedApp *InstalledApps
+	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), deployStatus, pg.In(installedAppIdIncludes))
+
+	return err
+}
+
+func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment", "Environment.Cluster").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Join("inner join cluster c on c.id = e.cluster_id").
+		Where("installed_apps.id in (?)", pg.In(ids)).
+		Where("installed_apps.active = true").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching installed apps by ids", "ids", ids)
+	}
+	return installedApps, err
 }

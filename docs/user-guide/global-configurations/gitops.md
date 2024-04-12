@@ -13,8 +13,8 @@ Below are the Git providers which are available in Devtron. Select one of the Gi
 * [BitBucket Cloud](#bitbucket-cloud)
 
 **Note**: The Git provider you select for configuring GitOps will impact the following sections:
-* Deployment Template, [click here](https://docs.devtron.ai/user-guide/creating-application/deployment-template) to learn more.
-* Charts, [click here](https://docs.devtron.ai/user-guide/deploy-chart) to learn more.
+* Deployment Template, [click here](../creating-application/deployment-template.md) to learn more.
+* Charts, [click here](../deploy-chart/README.md) to learn more.
 
 
 

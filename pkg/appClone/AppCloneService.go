@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -45,6 +46,7 @@ type AppCloneService interface {
 type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineBuilder         pipeline.PipelineBuilder
+	attributesService       attributes.AttributesService
 	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appWorkflowService      appWorkflow.AppWorkflowService
@@ -61,6 +63,7 @@ type AppCloneServiceImpl struct {
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
+	attributesService attributes.AttributesService,
 	chartService chart.ChartService,
 	configMapService pipeline.ConfigMapService,
 	appWorkflowService appWorkflow.AppWorkflowService,
@@ -74,6 +77,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
+		attributesService:       attributesService,
 		chartService:            chartService,
 		configMapService:        configMapService,
 		appWorkflowService:      appWorkflowService,
@@ -976,14 +980,14 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.pipelineBuilder.GetDeploymentConfigMap(refCdPipeline.EnvironmentId)
+	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}
 	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
-	isGitopsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
@@ -991,7 +995,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
-	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && isGitopsConfigured {
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfigured {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -1028,9 +1032,10 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId
 	}
 	cdPipelineReq := &bean.CdPipelines{
-		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-		AppId:     req.appId,
-		UserId:    req.userId,
+		Pipelines:     []*bean.CDPipelineConfigObject{cdPipeline},
+		AppId:         req.appId,
+		UserId:        req.userId,
+		IsCloneAppReq: true,
 	}
 	cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 	return cdPipelineRes, err

@@ -23,9 +23,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/attributes"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -39,6 +41,7 @@ type CommonService interface {
 type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	chartRepository             chartRepoRepository.ChartRepository
+	installedAppRepository      repository4.InstalledAppRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
@@ -46,19 +49,24 @@ type CommonServiceImpl struct {
 	environmentRepository       repository3.EnvironmentRepository
 	teamRepository              repository2.TeamRepository
 	appRepository               app.AppRepository
+	gitOpsConfigReadService     config.GitOpsConfigReadService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
+	installedAppRepository repository4.InstalledAppRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
-	environmentRepository repository3.EnvironmentRepository, teamRepository repository2.TeamRepository,
-	appRepository app.AppRepository) *CommonServiceImpl {
+	environmentRepository repository3.EnvironmentRepository,
+	teamRepository repository2.TeamRepository,
+	appRepository app.AppRepository,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
+		installedAppRepository:      installedAppRepository,
 		environmentConfigRepository: environmentConfigRepository,
 		dockerReg:                   dockerReg,
 		attributeRepo:               attributeRepo,
@@ -66,6 +74,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		environmentRepository:       environmentRepository,
 		teamRepository:              teamRepository,
 		appRepository:               appRepository,
+		gitOpsConfigReadService:     gitOpsConfigReadService,
 	}
 	return serviceImpl
 }
@@ -131,7 +140,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributeRepo.FindByKey(bean.HostUrlKey)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err

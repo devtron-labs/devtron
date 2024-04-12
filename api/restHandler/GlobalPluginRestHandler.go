@@ -155,7 +155,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.Respons
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables()
+	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables(app.AppType)
 	if err != nil {
 		handler.logger.Errorw("error in getting global variable list", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

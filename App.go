@@ -35,7 +35,6 @@ import (
 
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -52,7 +51,6 @@ type App struct {
 	Enforcer              *casbin.SyncedEnforcer
 	server                *http.Server
 	db                    *pg.DB
-	pubsubClient          *pubsub.PubSubClientServiceImpl
 	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
@@ -67,7 +65,6 @@ func NewApp(router *router.MuxRouter,
 	sse *sse.SSE,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
@@ -81,7 +78,6 @@ func NewApp(router *router.MuxRouter,
 		SSE:                   sse,
 		Enforcer:              enforcer,
 		db:                    db,
-		pubsubClient:          pubsubClient,
 		serveTls:              false,
 		sessionManager2:       sessionManager2,
 		posthogClient:         posthogClient,
@@ -103,7 +99,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, nil)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)

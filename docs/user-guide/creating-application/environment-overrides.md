@@ -34,11 +34,15 @@ In the `Environment Overrides` section, click on `Allow Override` and make chang
 
 The basic deployment configuration which you specified on the **Basic** GUI section will be visible for you to customize for your environment.
 
-If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration).
+If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](../creating-application/deployment-template/rollout-deployment.md#2.-basic-configuration).
 
 If `Basic` is locked, you can modify the configurations on `Advanced (YAML)` which will be the default page.
 
-**Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment.
+{% hint style="warning" %}
+Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}
+
+**Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment. 
 
 ### ConfigMaps & Secrets
 

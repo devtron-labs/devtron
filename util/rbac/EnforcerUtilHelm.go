@@ -15,13 +15,13 @@ type EnforcerUtilHelm interface {
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
 	GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string)
 	GetAppRBACNameByInstalledAppId(installedAppId int) (string, string)
+	GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string
 }
 type EnforcerUtilHelmImpl struct {
 	logger                 *zap.SugaredLogger
 	clusterRepository      repository.ClusterRepository
 	teamRepository         team.TeamRepository
 	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
 	InstalledAppRepository repository2.InstalledAppRepository
 }
 
@@ -29,7 +29,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	clusterRepository repository.ClusterRepository,
 	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
-	environmentRepository repository.EnvironmentRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
@@ -37,7 +36,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 		clusterRepository:      clusterRepository,
 		teamRepository:         teamRepository,
 		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
 		InstalledAppRepository: installedAppRepository,
 	}
 }
@@ -139,4 +137,19 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 	}
 
 	return rbacOne, ""
+}
+
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string {
+	installedApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app version data", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	project, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching project by teamID", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.AppName)
+	return rbac
 }

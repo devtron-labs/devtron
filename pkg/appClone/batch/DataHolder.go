@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -92,8 +93,8 @@ func executeDataHolderClone(impl DataHolderActionImpl, holder *v1.DataHolder, da
 	if err != nil {
 		return err
 	}
-	var envSrc *cluster.EnvironmentBean
-	var envDest *cluster.EnvironmentBean
+	var envSrc *bean2.EnvironmentBean
+	var envDest *bean2.EnvironmentBean
 	var configData *bean.ConfigDataRequest
 	if holder.Source.Environment != nil {
 		if envSrc, err = impl.envService.FindOne(*holder.Source.Environment); err != nil {
@@ -218,7 +219,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 	if err != nil {
 		return err
 	}
-	var env *cluster.EnvironmentBean
+	var env *bean2.EnvironmentBean
 	if holder.Destination.Environment != nil {
 		if env, err = impl.envService.FindOne(*holder.Destination.Environment); err != nil {
 			return err
@@ -364,7 +365,7 @@ func executeDataHolderCreate(impl DataHolderActionImpl, holder *v1.DataHolder, d
 	if err != nil {
 		return err
 	}
-	var env *cluster.EnvironmentBean
+	var env *bean2.EnvironmentBean
 	var name string
 	if dataType == v1.ConfigMap {
 		name = *holder.Destination.ConfigMap

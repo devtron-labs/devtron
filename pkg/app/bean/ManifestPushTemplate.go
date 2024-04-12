@@ -10,6 +10,7 @@ type ManifestPushTemplate struct {
 	AppId                  int
 	ChartRefId             int
 	EnvironmentId          int
+	EnvironmentName        string
 	UserId                 int32
 	PipelineOverrideId     int
 	AppName                string
@@ -19,15 +20,21 @@ type ManifestPushTemplate struct {
 	ChartVersion           string
 	ChartLocation          string
 	RepoUrl                string
+	IsCustomGitRepository  bool
 	BuiltChartPath         string
 	BuiltChartBytes        *[]byte
 	MergedValues           string
 }
 
 type ManifestPushResponse struct {
-	CommitHash string
-	CommitTime time.Time
-	Error      error
+	OverRiddenRepoUrl string
+	CommitHash        string
+	CommitTime        time.Time
+	Error             error
+}
+
+func (m ManifestPushResponse) IsGitOpsRepoMigrated() bool {
+	return len(m.OverRiddenRepoUrl) != 0
 }
 
 type HelmRepositoryConfig struct {

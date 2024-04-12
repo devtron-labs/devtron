@@ -88,7 +88,6 @@ type ClusterBean struct {
 	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
-	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
@@ -187,6 +186,7 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	IsClusterReachable(clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1129,4 +1129,17 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 		return nil, err
 	}
 	return clusterConfig, nil
+}
+
+func (impl ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)
+		return false, err
+	}
+	if len(cluster.ErrorInConnecting) > 0 {
+		return false, nil
+	}
+	return true, nil
+
 }

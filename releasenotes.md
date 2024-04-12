@@ -1,64 +1,82 @@
-## v0.6.27
+<!--upgrade-prerequisites-required-->
+> **= = = = = IMPORTANT = = = = =**
+
+IF YOU ARE UPGRADING FROM v0.6.24 OR BELOW VERSIONS, THEN RUN THE FOLLOWING COMMANDS AS A PRE-REQUISITE BEFORE UPGRADE:
+```
+export RELEASE_NAME=devtron
+kubectl label clusterrole kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
+kubectl annotate clusterrole kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+kubectl label clusterrolebinding kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
+kubectl annotate clusterrolebinding kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+```
+
+> Ignore the message above if you are not using devtron with cicd mode
+
+> Contact Devtron team on [DISCORD](https://discord.devtron.ai) if you have any concerns.
+<!--upgrade-prerequisites-required-->
+
+## v0.6.28
 
 ## Bugs
-- fix: implemented cache for storing cloud provider  (#4591)
-- fix: panic handling when giving empty values.yaml in custom packaged chart (#4586)
-- fix: 500 fixes second iteration (#4464)
-- fix: sql script added for putting Identifier type=0 for all null values present in generic_note (#4568)
-- fix: Image-Scanner status for failed request (#4513)
-- fix: CD stage trigger is not working for external CI (#4440)
-- fix: resource tree err handling (#4530)
-- fix: error handling for trigger release (#4488)
-- fix: show deployed time for artifacts those were deployed in past (#4446)
-- fix: adding new fields in resource node to identify hooks in case of helm deployment (#4472)
-- fix: panic in app clone service for [linked ci, external ci, linked cd] cases (#4526)
-- fix: Error code changed for resource api (#4414)
-- fix: handle argo delete event for charts and added socket config (#4471)
-- fix: app clone breaking if ci pipeline have same name (#4461)
-- fix: empty pod name (#4454)
-- fix: Manual sync job fix (#4449)
-- fix: linked ci failing for null pipeline_type (#4441)
-- fix: error handling and url fix (#4407)
-- feat: skip bulk build source change (#4357)
+- fix: Not able to see workflow name in case of project with uppercase letters (#4776)
+- fix: provider nil fields (#4758)
+- fix: git material url sanitised (#4742)
+- fix: customTagService missing in workflowdagexec (#4741)
+- fix: packages synced (#4743)
+- fix: wrong registry creds is used in CD stage (PRE/POST) (#4717)
+- fix: force delete option fixed on resource browser and app details page (#4646)
+- fix: 28feb packet common bug fix (#4724)
+- fix: Added argo app stream API response to resource tree API (#4715)
+- fix: wrong image scan execution result (#4691)
+- fix: 5xx 3.0 (#4578)
+- fix: chart repo delete routing (#4692)
+- fix: job workflow req volume mount (#4693)
+- fix: User api version for old apis (#4685)
+- fix: updated rbac for argo apps listing and detail fetch apis (#4678)
+- fix: nil pointer issue in manual sync api (#4681)
+- fix: add milli unit in memory (#4671)
+- fix: resource terminal update api (#4641)
+- fix: chartRef fetch in historical deployment triggers (#4654)
+- fix:version upgrade (#4557)
+- fix: resource tree bad gateway handle (#4613)
+- fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
-- feat: Container Image Exporter Plugin (#4556)
-- feat: using image digest in deployment (#4515)
-- feat: Secret viewable key enhancements in get resource api and draft api (#4537)
-- feat: introduced CASBIN_DATABASE env to make casbin db configurable (#4547)
-- feat: added posthog events for cloud provider and version (#4443)
-- feat: making pre,post,deploy triggers flows idempotent (#4486)
-- feat: Create Dockerslim plugin and Create EKS Cluster plugin (#4525)
-- feat: Adds Copacetic plugin to patch vulnerable images  (#4566)
-- feat: Adds support for gRPC in health probes (#4495)
-- feat: Configurable namespace for secrets in dex config  (#4499)
-- feat: sql script update (#4522)
-- feat: refactoring authorisation checks and support of super-admin in permissions groups. (#4433)
-- feat: add or delete CD pipelines from workflow (#4398)
-- feat: common-lib version update (#4399)
-- feat: flag driven tag based build propogate same tag for CI Build  (#4404)
+- feat: Cosign plugin (#4543)
+- feat: added support for GCS  for image exporter plugin (#4625)
+- feat: Github Release Plugin  (#4761)
+- feat: User defined git repo for GitOps deployment (#4281)
+- feat: change deployment type from gitops to non-gitops and vice-versa for chart store apps (#4666)
+- feat:version upgrade for authenticator (#4651)
+- feat: active inactive user phase 2 (#4624)
+- feat: added support for external argocd apps (#4643)
+- feat: support build infra configurations properties configurable from ui (#4583)
+- perf: adding  support for git cli operations for existing go-git flows (#4602)
+- feat: added proxy in github transport (#4652)
+- feat: active inactive user phase 1 (#4589)
+- feat: added support for multiple gitops configurations on shared clusters (#4622)
+- feat: added support for downloading pod logs (#4539)
 ## Documentation
-- doc: Redirection added for old SSO doc link (#4607)
-- doc: added --reuse-values in troubleshoot (#4577)
-- docs: Segregated SSO Docs + Added Auto-Assign Permissions Feature (#4493)
-- doc: Created Catalog Framework Doc (#4512)
-- doc: Added Minikube Tutorial + Restructured Doc (#4477)
-- doc: Update Helm Installation Command (#4429)
-- docs: Typos fixed in multiple files of user-guide/creating-application (#4098)
-- docs: fix broken links (#4186)
-- doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
-- doc: fixed broken link and improved documentation in usecases (#4097)
+- doc: pending revisions from PR-4753 (#4754)
+- doc: project-level corrections (#4753)
+- doc: Lock Deployment Config (#4732)
+- doc: Link corrections and Fixes (#4733)
+- doc: Navigation and Scaffolding Fixes (#4716)
+- docs: Workflow + Skopeo + Approval + Image Tag at CI + Image Tag + Image Digest at CD (#4507)
+- docs: Added the FAQ for the issue:Git-sensor PVC- disk full  (#4714)
+- doc: Updated PR Validator (#4697)
+- doc: Added Build Infra Doc (#4686)
+- doc: added troubleshooting guide for exit status 128 (#4657)
+- doc: Added redirection with file type (#4675)
+- doc: Fixed Redirections and Broken Links (#4634)
+- doc: Revamped Security Feature Doc (#4349)
 ## Others
-- chore:  Enhanced SonarQube Script by exposing Docker Image (#4600)
-- chore: fix for the extra [ ] in volume mount in statefulset chart (#4553)
-- chore: added recovery in crons recovery (#4592)
-- chore: code refactoring v1 (#4545)
-- chore: panic middleware and proxy handler (#4546)
-- chore: added sql-validator in git-hub action (#4255)
-- chore: Update Issues template and codeowners (#4475)
-- chore: add back argo-assets (#4467)
-- chore: dependabot version upgrade nats metrics oss (#4453)
-- chore: share same nats url used by orchestrator (#4422)
-- chore: migration for global resource schema (#4374)
-
+- misc: Updated new codeowners for migration scripts (#4781)
+- chore: nats common lib version upgrade (#4711)
+- chore: Refactoring dag app services  (#4612)
+- misc: Changed PR template (#4698)
+- chore: AppStore Refactoring v3 (#4621)
+- chore: Update CODEOWNERS (#4630)
+- chore: Refactoring deployment template GitOps & AppStore (#4616)
+- chore: clean appListing api (#4628)
 
 

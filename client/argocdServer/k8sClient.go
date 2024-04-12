@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -35,17 +36,20 @@ const (
 )
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error)
+	CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error)
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
-	logger *zap.SugaredLogger
+	logger  *zap.SugaredLogger
+	k8sUtil *k8s.K8sServiceImpl
 }
 
 func NewArgoK8sClientImpl(logger *zap.SugaredLogger,
+	k8sUtil *k8s.K8sServiceImpl,
 ) *ArgoK8sClientImpl {
 	return &ArgoK8sClientImpl{
-		logger: logger,
+		logger:  logger,
+		k8sUtil: k8sUtil,
 	}
 }
 
@@ -62,7 +66,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(applicationTemplatePath))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -74,9 +78,9 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 		return "", err
 	}
 
-	config, err := rest.InClusterConfig()
+	config, err := impl.k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
+		impl.logger.Errorw("error in getting in cluster rest config", "err", err)
 		return "", err
 	}
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}

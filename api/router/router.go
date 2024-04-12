@@ -19,7 +19,6 @@ package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -39,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -69,10 +67,7 @@ type MuxRouter struct {
 	DockerRegRouter                    DockerRegRouter
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
-	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
-	gitWebhookHandler                  pubsub.GitWebhookHandler
-	appUpdateHandler                   pubsub.ApplicationStatusHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -129,9 +124,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
-	gitWebhookHandler pubsub.GitWebhookHandler,
-	appUpdateHandler pubsub.ApplicationStatusHandler,
-	pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
+	UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
@@ -164,9 +157,6 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		NotificationRouter:                 NotificationRouter,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
-		gitWebhookHandler:                  gitWebhookHandler,
-		appUpdateHandler:                   appUpdateHandler,
-		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,

@@ -9,6 +9,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"net/http"
 	"time"
 
@@ -67,7 +68,7 @@ func (impl *EAModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRequ
 }
 
 func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	installAppVersionRequest.UpdateDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM)
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -322,7 +323,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	return "", errors.New("method GetGitOpsRepoName not implemented")
+	return "", errors.New("this is not implemented")
 }
 
 func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -342,6 +343,13 @@ func (impl *EAModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForF
 // RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 func (impl *EAModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
+}
+func (impl *EAModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error) {
+	return "", false, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {
+	return "", errors.New("this is not implemented")
 }
 
 func (impl *EAModeDeploymentServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -366,4 +374,16 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 
 func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
+	return errors.New("this is not implemented")
 }
