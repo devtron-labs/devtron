@@ -247,7 +247,7 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 
 func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 
-	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_TOPIC, string(body))
+	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_DURABLE, string(body))
 	if err != nil {
 		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
 		return err
@@ -257,7 +257,6 @@ func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 }
 
 // do not call this method if notification module is not installed
-
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 	body, err := json.Marshal(event)
