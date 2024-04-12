@@ -27,6 +27,12 @@ paths:
           schema:
             type: boolean
             description: boolean value declaring that data to be fetched is lite or heavy
+        - name: fetchChild
+          in: query
+          required: false
+          schema:
+            type: boolean
+            description: boolean value declaring that child data to be fetched or not
       responses:
         '200':
           description: list response
@@ -125,6 +131,12 @@ paths:
             type: string
             enum:
               - "alpha1"
+        - name: id
+          description: id of the resource, either this or name is required. Preferred over name.
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: name
           in: query
           required: true
@@ -455,10 +467,10 @@ paths:
                           - ciMaterials
                       dataList:
                         type: array
-                        example:
-                        oneOf:
-                          - $ref: '#/components/schemas/ArtifactsList'
-                          - $ref: '#/components/schemas/GitCommitsList'
+                        items:
+                          oneOf:
+                            - $ref: '#/components/schemas/ArtifactsList'
+                            - $ref: '#/components/schemas/GitCommitsList'
 
 components:
   schemas:
@@ -494,6 +506,7 @@ components:
           properties:
             status:
               type: string
+              default: "Draft"
             lock:
               type: boolean
         overview:
@@ -517,6 +530,10 @@ components:
                       type: integer
                       description: id of the parent resource
                       example: 1 // id of the release track of which release is part of
+                    name:
+                      type: string
+                      description: name of the parent resource
+                      example: "kubernetes" # name of the release track of which release is part of
             releaseVersion:
               type: string
             createdBy:
@@ -571,6 +588,9 @@ components:
                   - "releaseInstruction"
                   - "image"
                   - "commit"
+                  - "status"
+                  - "lock"
+                  - "tags"
               value:
                 type: object
                 description: Can be string or object on basis of patching path.
@@ -590,6 +610,27 @@ components:
               - op: "remove"
                 path: "application"
                 value: 1 // indicating dependency Index of application to be removed
+              - op: "replace"
+                path: "description"
+                value: "This is a dummy description for release v3.0-beta"
+              - op: "replace"
+                path: "note"
+                value: "This is a dummy release note for release v3.0-beta"
+              - op: "add"
+                path: "readme"
+                value: "This is a dummy readme for release v3.0-beta"
+              - op: "replace"
+                path: "name"
+                value: "version3.0-beta"
+              - op: "replace"
+                path: "status"
+                value: { "status": "Ready For release", "comment": "beta release packet for v3.0-beta" } # default value for status would be (Draft)
+              - op: "replace"
+                path: "lock"
+                value: { "lock": true }
+              - op: "remove"
+                path: "tags"
+                value: { "tag": { "update": "patch" } }
         schema:
           type: object
           description: json object containing the complete schema
@@ -622,17 +663,21 @@ components:
                   description: field containing all data of catalogue
     DevtronResourcePostObjectDto:
       type: object
+      required:
+        - "id"
+        - "name"
       properties:
         id:
-          required: true
           type: integer
         name:
-          required: true
           type: string
         description:
           type: string
         note:
           type: string
+        releaseVersion:
+          type: string
+          example: "v0.6.20"
         status:
           type: object
           properties:
@@ -640,6 +685,24 @@ components:
               type: string
             comment:
               type: string
+        parentConfig:
+          type: object
+          properties:
+            type:
+              type: string
+              description: "type of parent"
+              example: "releaseTrack"
+            data:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: id of the parent resource
+                  example: 1 // id of the release track of which release is part of
+                name:
+                  type: string
+                  description: name of the parent resource
+                  example: "kubernetes" # name of the release track of which release is part of
         lock:
           type: boolean
         tags:
