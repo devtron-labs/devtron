@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'The plugin enables users to trigger pre/post/deployment of application. It helps users deploy the application that contains dependencies for their current application.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Devtron CD Trigger v1.0.0','The plugin enables users to trigger pre/post/deployment of application. It helps users deploy the application that contains dependencies for their current application.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png',false,'now()',1,'now()',1);
 
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)VALUES (nextval('id_seq_plugin_stage_mapping'),
@@ -25,7 +25,7 @@ case $TargetTriggerStage in
     TargetTriggerStage="DEPLOY" # Set to DEPLOY if no input provided
     ;;
 *)
-    echo "Error: Invalid CD Workflow Type. Please enter PRE, DEPLOY, or POST. Exiting..."
+    echo "Error: Invalid CD Workflow Type. Please enter PRE/DEPLOY/POST. Exiting..."
     exit 1
     ;;
 esac
@@ -42,6 +42,22 @@ if [ "$StatusTimeOutSeconds" -lt "60" ]; then
     sleepInterval=$(($StatusTimeOutSeconds / 2))
 else
     sleepInterval=30
+fi
+
+verify(){
+    local response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$DevtronEndpoint/orchestrator/devtron/auth/verify")
+    echo $response
+    exit 1
+}
+verify_response=$(verify)
+verify_status=$( echo "$verify_response" | jq \'.code\')
+# echo $verify_status
+if [[ "$verify_status" == "401" ]]; then
+    echo "Enter the valid DevtronApiToken. Exiting..."
+    exit 1
+elif [[ -z "$verify_status" ]]; then
+    echo "Enter the valid DevtronEndpoint. Exiting..."
+    exit 1 
 fi
 
 fetch_app_id() {
@@ -117,14 +133,14 @@ fetch_ci_artifact_id() {
 # Fetch the app ID. Exit the script if the app name is incorrect.
 app_id=$(fetch_app_id)
 if [ $? -ne 0 ]; then
-    echo "Enter the correct App Name. Exiting..."
+    echo "Error: Application \'$DevtronApp\' not found. Enter the correct App Name. Exiting...."
     exit 1
 fi
 
 # Fetch the env ID. Exit the script if the environment name or ID is incorrect.
 env_id=$(fetch_env_id)
 if [ $? -ne 0 ]; then
-    echo "Enter the correct Environment Name. Exiting..."
+    echo "Error: Environment \'$DevtronEnv\' not found. Enter the correct Environment Name. Exiting..."
     exit 1
 fi
 
@@ -138,7 +154,7 @@ fi
 # Fetch the CI Artifact ID based on the commit hash.
 ciArtifactId=$(fetch_ci_artifact_id "$pipeline_id")
 if [ $? -ne 0 ]; then
-    echo "Failed to fetch a valid CI Artifact ID based on the provided GitCommitHash. Exiting..."
+    echo "Enter the correct GitCommitHash. Exiting..."
     exit 1
 fi
 
@@ -160,19 +176,19 @@ trigger_cd_pipeline() {
                                 deploymentWithConfig: $deploymentWithConfig
                             }\')
 
-    curl -X POST "$DevtronEndpoint/orchestrator/app/cd-pipeline/trigger" \\
+    curl -sS -X POST "$DevtronEndpoint/orchestrator/app/cd-pipeline/trigger" \\
         -H "Content-Type: application/json" \\
-        -H "Cookie: argocd.token=$DevtronApiToken" \\
+        -H "token: $DevtronApiToken" \\
         --data "$jsonPayload" \\
         --compressed
 }
 
 echo "Triggering CD Pipeline for App ID: $app_id, Pipeline ID: $pipeline_id, CI Artifact ID: $ciArtifactId, and CD Workflow Type: $TargetTriggerStage"
-trigger_cd_pipeline "$pipeline_id" "$app_id" "$ciArtifactId"
+hello=$(trigger_cd_pipeline "$pipeline_id" "$app_id" "$ciArtifactId")
 
 check_deploy_status() {
     if [ "$StatusTimeOutSeconds" -le "0" ]; then
-        echo "Skipping deployment status check. Taking 0 as a default input"
+        echo "Skipping deployment status check. Taking StatusTimeOutSecond0 as a default input"
         return
     fi
 
