@@ -18,11 +18,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
             "type": "object",
             "properties":
             {
-                "version":
+                "kind":
                 {
                     "const": "release-track"
                 },
-                "kind":
+                "version":
                 {
                     "type": "string",
                     "enum": ["alpha1"]
@@ -94,11 +94,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
     "type": "object",
     "properties":
     {
-        "version":
+        "kind":
         {
             "const": "release-track"
         },
-        "kind":
+        "version":
         {
             "type": "string",
             "enum": ["alpha1"]
@@ -173,11 +173,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
             "type": "object",
             "properties":
             {
-                "version":
+                "kind":
                 {
                     "const": "release"
                 },
-                "kind":
+                "version":
                 {
                     "type": "string",
                     "enum": ["alpha1"]
@@ -298,11 +298,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
     "type": "object",
     "properties":
     {
-        "version":
+        "kind":
         {
             "const": "release"
         },
-        "kind":
+        "version":
         {
             "type": "string",
             "enum": ["alpha1"]
