@@ -17,14 +17,14 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: grafana-restart
-        image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.grafanaOrgJob   "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
         command: ["sh", "/tmp/kubectl-grafana.sh"]
         volumeMounts:
           - name: grafana-org-volume
             mountPath: "/tmp/"
       initContainers:
       - name: grafana-org
-        image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.grafanaOrgJob.initContainers   "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.grafanaOrgJob.curlImage ) }}
         command: ["sh","/tmp/org.sh"]
         env:
           - name: GRAFANA_PASSWORD
@@ -512,7 +512,7 @@ spec:
         runAsUser: 472
       initContainers:
         - name: init-chown-data
-          image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.initContainer.chownData   "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.busyboxImage ) }}
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: false
@@ -523,7 +523,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: download-dashboards
-          image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.initContainer.downloadDashboards   "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.grafanaDashboards.curlImage ) }}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
@@ -536,7 +536,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: grafana-sc-datasources
-          image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.initContainer.grafanaDatasources   "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana.grafanaDashboards "global" $.Values.global ) }}
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
@@ -555,7 +555,7 @@ spec:
       containers:
       {{- with $.Values.monitoring.grafana.grafanaDashboards }}
         - name: grafana-sc-dashboard
-          image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana   "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana.grafanaDashboards "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           env:
             - name: METHOD
@@ -576,7 +576,7 @@ spec:
           {{- end }}
       {{- with $.Values.monitoring.grafana}}
         - name: grafana
-          image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana   "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           volumeMounts:
             - name: config
@@ -660,7 +660,7 @@ spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: {{ include "fullImage"   (dict "component" $.Values.monitoring.grafana.devtronGrafanaTest   "global" $.Values.global ) }}
+      image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.batsImage ) }}
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:

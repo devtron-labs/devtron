@@ -266,7 +266,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: minio
-          image: {{ include "fullImage"   (dict "component" $.Values.minio  "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.minio "global" $.Values.global ) }}
           imagePullPolicy: {{ $.Values.minio.imagePullPolicy }}
 
           command: [ "/bin/sh",
@@ -339,7 +339,7 @@ spec:
       serviceAccountName: "devtron-minio"
       containers:
         - name: minio-mc
-          image: {{ include "fullImage"   (dict "component" $.Values.minio.miniomc  "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.minio "global" $.Values.global "extraImage" $.Values.minio.mbImage ) }}
           imagePullPolicy: {{ $.Values.minio.mbImagePullPolicy }}
           command: ["/bin/sh", "/config/initialize"]
           env:
@@ -385,7 +385,7 @@ spec:
       serviceAccountName: "devtron-minio"
       containers:
         - name: minio
-          image: {{ include "fullImage"   (dict "component" $.Values.minio.miniomc  "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.minio "global" $.Values.global "extraImage" $.Values.minio.gatewayImage ) }}
           imagePullPolicy: IfNotPresent
           command:
             - "/bin/sh"

@@ -123,7 +123,7 @@ spec:
       terminationGracePeriodSeconds: 120
       containers:
       - name: nats
-        image: {{ include "fullImage"   (dict "component" $.Values.components.nats  "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats "global" $.Values.global) }}
         imagePullPolicy: {{ .imagePullPolicy }}
         resources:
           {}
@@ -206,7 +206,7 @@ spec:
       #################################
 
       - name: reloader
-        image: {{ include "fullImage"   (dict "component" $.Values.components.nats.reloader  "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.reloader "global" $.Values.global) }}
         imagePullPolicy: {{ .reloader.imagePullPolicy }}
         resources:
           null
@@ -230,7 +230,7 @@ spec:
       ##############################
 
       - name: metrics
-        image: {{ include "fullImage"   (dict "component" $.Values.components.nats.metrics  "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.metrics "global" $.Values.global) }}
         imagePullPolicy: {{ .metrics.imagePullPolicy }}
         resources:
           {}
@@ -269,7 +269,7 @@ metadata:
 spec:
   containers:
     - name: nats-box
-      image: {{ include "fullImage"   (dict "component" $.Values.components.nats.natsBox  "global" $.Values.global ) }}
+      image: {{ include "common.image" (dict "component" $.Values.components.nats.natsBox "global" $.Values.global) }}
       env:
         - name: NATS_HOST
           value: devtron-nats

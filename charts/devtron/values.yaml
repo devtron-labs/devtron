@@ -12,6 +12,7 @@ global:
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.29-rc.0"
+  registry: ""
   image: inception
   tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
@@ -62,15 +63,17 @@ components:
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
+    registry: ""
     image: "dashboard:8cf929d0-325-22021"
     imagePullPolicy: IfNotPresent
 
   devtron:
+    registry: ""
     image: "hyperion:e7f34f5a-280-22065"
     cicdImage: "devtron:e7f34f5a-434-22047"
     imagePullPolicy: IfNotPresent
-    customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
+    customOverrides: {}
+      # DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
     serviceMonitor:
       enabled: false
     service:
@@ -92,14 +95,20 @@ components:
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
+  ciRunner:
+    registry: ""
+    image: "ci-runner:d5f875c7-138-21576"
+
 
   argocdDexServer:
+    registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
 
   kubelink:
+    registry: ""
     image: "kubelink:2610ac5a-564-21855"
     imagePullPolicy: IfNotPresent
     configs:
@@ -115,8 +124,9 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-  
+
   kubewatch:
+    registry: ""
     image: "kubewatch:91c2cece-419-21178"
     imagePullPolicy: IfNotPresent
     configs:
@@ -125,22 +135,23 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      
+
   postgres:
+    registry: ""
     image: "postgres:11.9.0-debian-10-r26"
-    arm:
-      image: "postgres:11.9"
-    initContainers:
-      image: minideb:latest
+    armImage: "postgres:11.9"
+    initImage: "minideb:latest"
+    imagePullPolicy: "IfNotPresent"
     metrics:
       image: postgres_exporter:v0.4.7
-    imagePullPolicy: "IfNotPresent"
+      armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
-    
+
   gitsensor:
+    registry: ""
     image: "git-sensor:8545feb5-200-22005"
-    imagePullPolicy: "IfNotPresent"
+    imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
     persistence:
@@ -154,9 +165,13 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-  lens: 
+# Values for lens
+  lens:
+    registry: ""
     image: "lens:70577aaa-333-21179"
     imagePullPolicy: IfNotPresent
+    secrets: {}
+    resources: {}
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
@@ -168,9 +183,10 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+# Change below values for nats
   nats:
+    registry: ""
     image: nats:2.9.3-alpine
-    imagePullPolicy: IfNotPresent
     reloader:
       image: nats-server-config-reloader:0.6.2
       imagePullPolicy: IfNotPresent
@@ -184,7 +200,9 @@ components:
     persistence:
       storage: 5Gi
   migrator:
+    registry: ""
     image: "migrator:v4.16.2"
+    kubectlImage: "kubectl:latest"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -194,15 +212,11 @@ components:
         DB_NAME: "git_sensor"
       lens: 
         DB_NAME: "lens"
-    devtron:
-      initContainer:
-          chartFix: 
-            image: devtron-utils:dup-chart-repo-v1.1.0
-  appsyncjob:
-    chartsync:
-        image: chart-sync:d0dcc590-373-21074
-    extraImage: chart-sync:d0dcc590-373-21074
 
+  chartSync:
+    registry: ""
+    image: chart-sync:d0dcc590-373-21074
+  
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -285,6 +299,9 @@ argo-cd:
                 app.kubernetes.io/part-of: argocd
             topologyKey: kubernetes.io/hostname
           weight: 5
+    image:
+      repository: public.ecr.aws/docker/library/redis
+      tag: 7.0.5-alpine
   # argocd-server
   server:
     configEnabled: false
@@ -359,7 +376,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:bdbcef05-334-21577"
+    image: "image-scanner:d554c0f8-334-14015"
   # Values for trivy
   trivy:
     enabled: false
@@ -371,7 +388,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:924a17f6-372-21978"
+  image: "notifier:f2c99941-866-6168"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -389,47 +406,36 @@ minio:
   replicaCount: 1
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   imagePullPolicy: IfNotPresent
-  miniomc:
-    image: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
+  gatewayImage: "minio:RELEASE.2020-12-03T05-49-24Z"
   persistence:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
+  registry: "quay.io/argoproj"
   # Set this to true if you have IMDSv2 enforced or IMDSv1 and v2 on your AWS EKS cluster and false if you are using IMDSv1 with token hop limit set to 1
   IMDSv2Enforced: true
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executor:
-    image: "quay.io/argoproj/argoexec:v3.4.3"
-  IMDSv1:
-    image: quay.io/argoproj/workflow-controller:v3.0.7
+  image: "workflow-controller:v3.4.3"
+  executorImage: "argoexec:v3.4.3"
+  IMDSv1: "workflow-controller:v3.0.7"
 
 # Values for grafana integration
 monitoring:
   grafana:
     enabled: false
+    registry: ""
     image: "grafana:7.3.1"
+    busyboxImage: "busybox:1.31.1"
+    batsImage: "bats:v1.4.1"
     imagePullPolicy: IfNotPresent
     resources: {}
-    initContainer:
-      chownData:
-        image: "busybox:1.31.1"
-      downloadDashboards:
-        image: "curl:7.73.0"
-      grafanaDatasources:
-        image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+    grafanaOrgJob:
+      curlImage: k8s-utils:tutum-curl
     grafanaDashboards:
-      image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+      image: "k8s-sidecar:1.1.0"
+      curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
       resources: {}
-    grafanaOrgJob:
-      image: "kubectl:latest"
-      initContainers:
-        image: k8s-utils:tutum-curl
-    devtronGrafanaTest: 
-      image: "bats:v1.4.1"
     persistence:
       storage: "2Gi"
-
-kubectlUtility:
-  image: kubectl:latest

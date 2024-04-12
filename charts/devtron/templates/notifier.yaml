@@ -76,7 +76,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: notifier
-          image: {{ include "fullImage"   (dict "component" $.Values.notifier  "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.notifier "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           ports:
             - name: app

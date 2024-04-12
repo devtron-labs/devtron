@@ -85,7 +85,7 @@ spec:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       containers:
-        - image: {{ include "fullImage" (dict "component" $.Values.installer  "global" $.Values.global ) }}
+        - image: {{ include "common.image" (dict "component" $.Values.installer  "global" $.Values.global  ) }}
           imagePullPolicy: IfNotPresent
           name: inception
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}

@@ -73,7 +73,7 @@ spec:
       {{- end }}
       containers:
         - name: lens
-          image: {{ include "fullImage" (dict "component" $.Values.components.lens  "global" $.Values.global ) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.lens "global" $.Values.global) }}
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}
