@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/security/bean"
 	"go.opentelemetry.io/otel"
@@ -741,10 +742,9 @@ func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults 
 }
 
 func (impl ImageScanServiceImpl) sendForScan(image string) {
-	//either propagate user id or use system constant
 	err := impl.policyService.SendEventToClairUtilityAsync(&ScanEvent{
 		Image:  image,
-		UserId: 1,
+		UserId: bean3.SYSTEM_USER_ID,
 	})
 	if err != nil {
 		impl.Logger.Errorw("error in sending image scan event", "err", err, "image", image)

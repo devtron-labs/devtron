@@ -157,10 +157,9 @@ func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi
 }
 
 func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string) {
-	//either propagate user id or use system constant
 	err := impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
 		Image:         image,
-		UserId:        1,
+		UserId:        bean.SYSTEM_USER_ID,
 		ScanHistoryId: historyId,
 	})
 	if err != nil {

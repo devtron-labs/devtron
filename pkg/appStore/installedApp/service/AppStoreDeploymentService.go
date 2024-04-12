@@ -663,7 +663,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 	installedAppVersionHistory, err := adapter.NewInstallAppVersionHistoryModel(upgradeAppRequest, pipelineConfig.WorkflowInProgress, helmInstallConfigDTO)
 
-	//Subhashish
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
@@ -741,7 +740,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return nil, err
 	}
-	//Subhashish
+
 	if util.IsManifestDownload(upgradeAppRequest.DeploymentAppType) {
 		upgradeAppRequest.HelmPackageName = adapter.GetGeneratedHelmPackageName(
 			upgradeAppRequest.AppName,
