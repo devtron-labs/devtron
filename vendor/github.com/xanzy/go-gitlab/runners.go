@@ -25,32 +25,34 @@ import (
 // RunnersService handles communication with the runner related methods of the
 // GitLab API.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/runners.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/runners.html
 type RunnersService struct {
 	client *Client
 }
 
 // Runner represents a GitLab CI Runner.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/runners.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/runners.html
 type Runner struct {
-	ID          int    `json:"id"`
-	Description string `json:"description"`
-	Active      bool   `json:"active"`
-	IsShared    bool   `json:"is_shared"`
-	IPAddress   string `json:"ip_address"`
-	RunnerType  string `json:"runner_type"`
-	Name        string `json:"name"`
-	Online      bool   `json:"online"`
-	Status      string `json:"status"`
-	Token       string `json:"token"`
+	ID             int        `json:"id"`
+	Description    string     `json:"description"`
+	Active         bool       `json:"active"`
+	Paused         bool       `json:"paused"`
+	IsShared       bool       `json:"is_shared"`
+	IPAddress      string     `json:"ip_address"`
+	RunnerType     string     `json:"runner_type"`
+	Name           string     `json:"name"`
+	Online         bool       `json:"online"`
+	Status         string     `json:"status"`
+	Token          string     `json:"token"`
+	TokenExpiresAt *time.Time `json:"token_expires_at"`
 }
 
 // RunnerDetails represents the GitLab CI runner details.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/runners.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/runners.html
 type RunnerDetails struct {
-	Active       bool       `json:"active"`
+	Paused       bool       `json:"paused"`
 	Architecture string     `json:"architecture"`
 	Description  string     `json:"description"`
 	ID           int        `json:"id"`
@@ -82,24 +84,30 @@ type RunnerDetails struct {
 		Name   string `json:"name"`
 		WebURL string `json:"web_url"`
 	} `json:"groups"`
+
+	// Deprecated: Use Paused instead. (Deprecated in GitLab 14.8)
+	Active bool `json:"active"`
 }
 
 // ListRunnersOptions represents the available ListRunners() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-owned-runners
+// https://docs.gitlab.com/ee/api/runners.html#list-owned-runners
 type ListRunnersOptions struct {
 	ListOptions
-	Scope   *string   `url:"scope,omitempty" json:"scope,omitempty"`
 	Type    *string   `url:"type,omitempty" json:"type,omitempty"`
 	Status  *string   `url:"status,omitempty" json:"status,omitempty"`
+	Paused  *bool     `url:"paused,omitempty" json:"paused,omitempty"`
 	TagList *[]string `url:"tag_list,comma,omitempty" json:"tag_list,omitempty"`
+
+	// Deprecated: Use Type or Status instead.
+	Scope *string `url:"scope,omitempty" json:"scope,omitempty"`
 }
 
 // ListRunners gets a list of runners accessible by the authenticated user.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-owned-runners
+// https://docs.gitlab.com/ee/api/runners.html#list-owned-runners
 func (s *RunnersService) ListRunners(opt *ListRunnersOptions, options ...RequestOptionFunc) ([]*Runner, *Response, error) {
 	req, err := s.client.NewRequest(http.MethodGet, "runners", opt, options)
 	if err != nil {
@@ -112,14 +120,14 @@ func (s *RunnersService) ListRunners(opt *ListRunnersOptions, options ...Request
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // ListAllRunners gets a list of all runners in the GitLab instance. Access is
 // restricted to users with admin privileges.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-all-runners
+// https://docs.gitlab.com/ee/api/runners.html#list-all-runners
 func (s *RunnersService) ListAllRunners(opt *ListRunnersOptions, options ...RequestOptionFunc) ([]*Runner, *Response, error) {
 	req, err := s.client.NewRequest(http.MethodGet, "runners/all", opt, options)
 	if err != nil {
@@ -132,13 +140,13 @@ func (s *RunnersService) ListAllRunners(opt *ListRunnersOptions, options ...Requ
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // GetRunnerDetails returns details for given runner.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#get-runner-39-s-details
+// https://docs.gitlab.com/ee/api/runners.html#get-runners-details
 func (s *RunnersService) GetRunnerDetails(rid interface{}, options ...RequestOptionFunc) (*RunnerDetails, *Response, error) {
 	runner, err := parseID(rid)
 	if err != nil {
@@ -151,33 +159,36 @@ func (s *RunnersService) GetRunnerDetails(rid interface{}, options ...RequestOpt
 		return nil, nil, err
 	}
 
-	var rs *RunnerDetails
+	rs := new(RunnerDetails)
 	resp, err := s.client.Do(req, &rs)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // UpdateRunnerDetailsOptions represents the available UpdateRunnerDetails() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#update-runner-39-s-details
+// https://docs.gitlab.com/ee/api/runners.html#update-runners-details
 type UpdateRunnerDetailsOptions struct {
 	Description    *string   `url:"description,omitempty" json:"description,omitempty"`
-	Active         *bool     `url:"active,omitempty" json:"active,omitempty"`
+	Paused         *bool     `url:"paused,omitempty" json:"paused,omitempty"`
 	TagList        *[]string `url:"tag_list[],omitempty" json:"tag_list,omitempty"`
 	RunUntagged    *bool     `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
 	Locked         *bool     `url:"locked,omitempty" json:"locked,omitempty"`
 	AccessLevel    *string   `url:"access_level,omitempty" json:"access_level,omitempty"`
 	MaximumTimeout *int      `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+
+	// Deprecated: Use Paused instead. (Deprecated in GitLab 14.8)
+	Active *bool `url:"active,omitempty" json:"active,omitempty"`
 }
 
 // UpdateRunnerDetails updates details for a given runner.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#update-runner-39-s-details
+// https://docs.gitlab.com/ee/api/runners.html#update-runners-details
 func (s *RunnersService) UpdateRunnerDetails(rid interface{}, opt *UpdateRunnerDetailsOptions, options ...RequestOptionFunc) (*RunnerDetails, *Response, error) {
 	runner, err := parseID(rid)
 	if err != nil {
@@ -190,19 +201,19 @@ func (s *RunnersService) UpdateRunnerDetails(rid interface{}, opt *UpdateRunnerD
 		return nil, nil, err
 	}
 
-	var rs *RunnerDetails
+	rs := new(RunnerDetails)
 	resp, err := s.client.Do(req, &rs)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // RemoveRunner removes a runner.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#remove-a-runner
+// https://docs.gitlab.com/ee/api/runners.html#delete-a-runner
 func (s *RunnersService) RemoveRunner(rid interface{}, options ...RequestOptionFunc) (*Response, error) {
 	runner, err := parseID(rid)
 	if err != nil {
@@ -222,7 +233,7 @@ func (s *RunnersService) RemoveRunner(rid interface{}, options ...RequestOptionF
 // options. Status can be one of: running, success, failed, canceled.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-runners-jobs
+// https://docs.gitlab.com/ee/api/runners.html#list-runners-jobs
 type ListRunnerJobsOptions struct {
 	ListOptions
 	Status  *string `url:"status,omitempty" json:"status,omitempty"`
@@ -233,7 +244,7 @@ type ListRunnerJobsOptions struct {
 // ListRunnerJobs gets a list of jobs that are being processed or were processed by specified Runner.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-runner-39-s-jobs
+// https://docs.gitlab.com/ee/api/runners.html#list-runners-jobs
 func (s *RunnersService) ListRunnerJobs(rid interface{}, opt *ListRunnerJobsOptions, options ...RequestOptionFunc) ([]*Job, *Response, error) {
 	runner, err := parseID(rid)
 	if err != nil {
@@ -252,20 +263,20 @@ func (s *RunnersService) ListRunnerJobs(rid interface{}, opt *ListRunnerJobsOpti
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // ListProjectRunnersOptions represents the available ListProjectRunners()
 // options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-project-s-runners
+// https://docs.gitlab.com/ee/api/runners.html#list-projects-runners
 type ListProjectRunnersOptions ListRunnersOptions
 
 // ListProjectRunners gets a list of runners accessible by the authenticated user.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#list-project-s-runners
+// https://docs.gitlab.com/ee/api/runners.html#list-projects-runners
 func (s *RunnersService) ListProjectRunners(pid interface{}, opt *ListProjectRunnersOptions, options ...RequestOptionFunc) ([]*Runner, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -284,14 +295,14 @@ func (s *RunnersService) ListProjectRunners(pid interface{}, opt *ListProjectRun
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // EnableProjectRunnerOptions represents the available EnableProjectRunner()
 // options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#enable-a-runner-in-project
+// https://docs.gitlab.com/ee/api/runners.html#enable-a-runner-in-project
 type EnableProjectRunnerOptions struct {
 	RunnerID int `json:"runner_id"`
 }
@@ -299,7 +310,7 @@ type EnableProjectRunnerOptions struct {
 // EnableProjectRunner enables an available specific runner in the project.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#enable-a-runner-in-project
+// https://docs.gitlab.com/ee/api/runners.html#enable-a-runner-in-project
 func (s *RunnersService) EnableProjectRunner(pid interface{}, opt *EnableProjectRunnerOptions, options ...RequestOptionFunc) (*Runner, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -312,19 +323,19 @@ func (s *RunnersService) EnableProjectRunner(pid interface{}, opt *EnableProject
 		return nil, nil, err
 	}
 
-	var r *Runner
+	r := new(Runner)
 	resp, err := s.client.Do(req, &r)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return r, resp, err
+	return r, resp, nil
 }
 
 // DisableProjectRunner disables a specific runner from project.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#disable-a-runner-from-project
+// https://docs.gitlab.com/ee/api/runners.html#disable-a-runner-from-project
 func (s *RunnersService) DisableProjectRunner(pid interface{}, runner int, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -375,30 +386,33 @@ func (s *RunnersService) ListGroupsRunners(gid interface{}, opt *ListGroupsRunne
 		return nil, resp, err
 	}
 
-	return rs, resp, err
+	return rs, resp, nil
 }
 
 // RegisterNewRunnerOptions represents the available RegisterNewRunner()
 // options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#register-a-new-runner
+// https://docs.gitlab.com/ee/api/runners.html#register-a-new-runner
 type RegisterNewRunnerOptions struct {
-	Token          *string                       `url:"token" json:"token"`
-	Description    *string                       `url:"description,omitempty" json:"description,omitempty"`
-	Info           *RegisterNewRunnerInfoOptions `url:"info,omitempty" json:"info,omitempty"`
-	Active         *bool                         `url:"active,omitempty" json:"active,omitempty"`
-	Locked         *bool                         `url:"locked,omitempty" json:"locked,omitempty"`
-	RunUntagged    *bool                         `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
-	TagList        *[]string                     `url:"tag_list[],omitempty" json:"tag_list,omitempty"`
-	MaximumTimeout *int                          `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+	Token           *string                       `url:"token" json:"token"`
+	Description     *string                       `url:"description,omitempty" json:"description,omitempty"`
+	Info            *RegisterNewRunnerInfoOptions `url:"info,omitempty" json:"info,omitempty"`
+	Active          *bool                         `url:"active,omitempty" json:"active,omitempty"`
+	Paused          *bool                         `url:"paused,omitempty" json:"paused,omitempty"`
+	Locked          *bool                         `url:"locked,omitempty" json:"locked,omitempty"`
+	RunUntagged     *bool                         `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
+	TagList         *[]string                     `url:"tag_list[],omitempty" json:"tag_list,omitempty"`
+	AccessLevel     *string                       `url:"access_level,omitempty" json:"access_level,omitempty"`
+	MaximumTimeout  *int                          `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+	MaintenanceNote *string                       `url:"maintenance_note,omitempty" json:"maintenance_note,omitempty"`
 }
 
 // RegisterNewRunnerInfoOptions represents the info hashmap parameter in
 // RegisterNewRunnerOptions.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#register-a-new-runner
+// https://docs.gitlab.com/ee/api/runners.html#register-a-new-runner
 type RegisterNewRunnerInfoOptions struct {
 	Name         *string `url:"name,omitempty" json:"name,omitempty"`
 	Version      *string `url:"version,omitempty" json:"version,omitempty"`
@@ -410,27 +424,27 @@ type RegisterNewRunnerInfoOptions struct {
 // RegisterNewRunner registers a new Runner for the instance.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#register-a-new-runner
+// https://docs.gitlab.com/ee/api/runners.html#register-a-new-runner
 func (s *RunnersService) RegisterNewRunner(opt *RegisterNewRunnerOptions, options ...RequestOptionFunc) (*Runner, *Response, error) {
 	req, err := s.client.NewRequest(http.MethodPost, "runners", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var r *Runner
+	r := new(Runner)
 	resp, err := s.client.Do(req, &r)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return r, resp, err
+	return r, resp, nil
 }
 
 // DeleteRegisteredRunnerOptions represents the available
 // DeleteRegisteredRunner() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#delete-a-registered-runner
+// https://docs.gitlab.com/ee/api/runners.html#delete-a-runner-by-authentication-token
 type DeleteRegisteredRunnerOptions struct {
 	Token *string `url:"token" json:"token"`
 }
@@ -438,7 +452,7 @@ type DeleteRegisteredRunnerOptions struct {
 // DeleteRegisteredRunner deletes a Runner by Token.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#delete-a-runner-by-authentication-token
+// https://docs.gitlab.com/ee/api/runners.html#delete-a-runner-by-authentication-token
 func (s *RunnersService) DeleteRegisteredRunner(opt *DeleteRegisteredRunnerOptions, options ...RequestOptionFunc) (*Response, error) {
 	req, err := s.client.NewRequest(http.MethodDelete, "runners", opt, options)
 	if err != nil {
@@ -448,10 +462,10 @@ func (s *RunnersService) DeleteRegisteredRunner(opt *DeleteRegisteredRunnerOptio
 	return s.client.Do(req, nil)
 }
 
-// DeleteRegisteredRunnerByID deletes a Runner by ID.
+// DeleteRegisteredRunnerByID deletes a runner by ID.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#delete-a-runner-by-id
+// https://docs.gitlab.com/ee/api/runners.html#delete-a-runner-by-id
 func (s *RunnersService) DeleteRegisteredRunnerByID(rid int, options ...RequestOptionFunc) (*Response, error) {
 	req, err := s.client.NewRequest(http.MethodDelete, fmt.Sprintf("runners/%d", rid), nil, options)
 	if err != nil {
@@ -465,15 +479,15 @@ func (s *RunnersService) DeleteRegisteredRunnerByID(rid int, options ...RequestO
 // VerifyRegisteredRunner() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#verify-authentication-for-a-registered-runner
+// https://docs.gitlab.com/ee/api/runners.html#verify-authentication-for-a-registered-runner
 type VerifyRegisteredRunnerOptions struct {
 	Token *string `url:"token" json:"token"`
 }
 
-// VerifyRegisteredRunner registers a new Runner for the instance.
+// VerifyRegisteredRunner registers a new runner for the instance.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/runners.html#verify-authentication-for-a-registered-runner
+// https://docs.gitlab.com/ee/api/runners.html#verify-authentication-for-a-registered-runner
 func (s *RunnersService) VerifyRegisteredRunner(opt *VerifyRegisteredRunnerOptions, options ...RequestOptionFunc) (*Response, error) {
 	req, err := s.client.NewRequest(http.MethodPost, "runners/verify", opt, options)
 	if err != nil {
@@ -481,4 +495,103 @@ func (s *RunnersService) VerifyRegisteredRunner(opt *VerifyRegisteredRunnerOptio
 	}
 
 	return s.client.Do(req, nil)
+}
+
+type RunnerRegistrationToken struct {
+	Token          *string    `url:"token" json:"token"`
+	TokenExpiresAt *time.Time `url:"token_expires_at" json:"token_expires_at"`
+}
+
+// ResetInstanceRunnerRegistrationToken resets the instance runner registration
+// token.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/runners.html#reset-instances-runner-registration-token
+func (s *RunnersService) ResetInstanceRunnerRegistrationToken(options ...RequestOptionFunc) (*RunnerRegistrationToken, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodPost, "runners/reset_registration_token", nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(RunnerRegistrationToken)
+	resp, err := s.client.Do(req, &r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, nil
+}
+
+// ResetGroupRunnerRegistrationToken resets a group's runner registration token.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/runners.html#reset-groups-runner-registration-token
+func (s *RunnersService) ResetGroupRunnerRegistrationToken(gid interface{}, options ...RequestOptionFunc) (*RunnerRegistrationToken, *Response, error) {
+	group, err := parseID(gid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("groups/%s/runners/reset_registration_token", PathEscape(group))
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(RunnerRegistrationToken)
+	resp, err := s.client.Do(req, &r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, nil
+}
+
+// ResetGroupRunnerRegistrationToken resets a projects's runner registration token.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/runners.html#reset-projects-runner-registration-token
+func (s *RunnersService) ResetProjectRunnerRegistrationToken(pid interface{}, options ...RequestOptionFunc) (*RunnerRegistrationToken, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/runners/reset_registration_token", PathEscape(project))
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(RunnerRegistrationToken)
+	resp, err := s.client.Do(req, &r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, nil
+}
+
+type RunnerAuthenticationToken struct {
+	Token          *string    `url:"token" json:"token"`
+	TokenExpiresAt *time.Time `url:"token_expires_at" json:"token_expires_at"`
+}
+
+// ResetRunnerAuthenticationToken resets a runner's authentication token.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/runners.html#reset-runners-authentication-token-by-using-the-runner-id
+func (s *RunnersService) ResetRunnerAuthenticationToken(rid int, options ...RequestOptionFunc) (*RunnerAuthenticationToken, *Response, error) {
+	u := fmt.Sprintf("runners/%d/reset_authentication_token", rid)
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(RunnerAuthenticationToken)
+	resp, err := s.client.Do(req, &r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, nil
 }

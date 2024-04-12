@@ -10,9 +10,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/go-pg/pg"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -108,6 +111,10 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsFailedPreconditionCode() {
+			return &util.ApiError{HttpStatusCode: http.StatusPreconditionFailed, Code: strconv.Itoa(http.StatusPreconditionFailed), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return err
 	}
 	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
@@ -148,23 +155,23 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
-		appNamespace = "default"
+		appNamespace = cluster2.DEFAULT_NAMESPACE
 	}
-	appreq := &argocdServer.AppTemplate{
+	appReq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
-		TargetServer:    envModel.Cluster.ServerUrl,
+		TargetServer:    envModel.ClusterServerUrl,
 		Project:         "default",
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		AutoSyncEnabled: impl.acdConfig.ArgoCDAutoSyncEnabled,
 	}
-	_, err := impl.argoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+	_, err := impl.argoK8sClient.CreateAcdApp(appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo cd app ", "err", err)

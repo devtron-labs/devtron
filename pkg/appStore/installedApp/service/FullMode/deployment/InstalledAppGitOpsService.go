@@ -16,6 +16,8 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
+
+	//"github.com/xanzy/go-gitlab"
 	"net/http"
 	"regexp"
 )
@@ -285,7 +287,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
-	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName)
+	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, true)
 	chartCreateResponse, err := impl.appStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in building chart proxy", "err", err)
