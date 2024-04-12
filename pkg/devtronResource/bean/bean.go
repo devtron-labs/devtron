@@ -34,6 +34,7 @@ type DevtronResourceObjectDescriptorBean struct {
 	Name         string   `json:"name,omitempty"`
 	SchemaId     int      `json:"schemaId"`
 	UIComponents []string `json:"-"`
+	Id           int      `json:"-"` //this is the field which holds the resourceObjectId i.e. id in devtron_resource_object table. Have not exposed this and taking this value from oldObjectId to maintain backward compatibility
 }
 
 type DevtronResourceObjectBean struct {

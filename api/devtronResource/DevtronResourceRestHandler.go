@@ -86,31 +86,9 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceList(w http.ResponseWr
 }
 
 func (handler *DevtronResourceRestHandlerImpl) GetResourceObject(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	kindVar := vars[PathParamKind]
-	versionVar := vars[PathParamVersion]
-	v := r.URL.Query()
-	idVar := v.Get(QueryParamId)
-	id, err := strconv.Atoi(idVar)
-	nameVar := v.Get(QueryParamName)
-	if err != nil && len(nameVar) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
+	reqBeanDescriptor, caughtError := getDescriptorBeanObj(w, r)
+	if caughtError {
 		return
-	}
-	//TODO: common out the above logic and get component query param array by decoder
-	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
-	if err != nil {
-		handler.logger.Errorw("error in resolveKindSubKindValues, GetResourceObject", "err", err, "kindVar", kindVar)
-		common.WriteJsonResp(w, err, nil, statusCode)
-		return
-	}
-
-	reqBeanDescriptor := &bean.DevtronResourceObjectDescriptorBean{
-		Kind:        kind,
-		SubKind:     subKind,
-		Version:     versionVar,
-		OldObjectId: id, //from FE, we are taking ids of resources entry in their own respective tables
-		Name:        nameVar,
 	}
 	resp, err := handler.devtronResourceService.GetResourceObject(reqBeanDescriptor)
 	if err != nil {
@@ -120,6 +98,40 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceObject(w http.Response
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 	return
+}
+
+func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescriptor *bean.DevtronResourceObjectDescriptorBean, caughtError bool) {
+	vars := mux.Vars(r)
+	kindVar := vars[PathParamKind]
+	versionVar := vars[PathParamVersion]
+	v := r.URL.Query()
+	idVar := v.Get(QueryParamId)
+	id, err := strconv.Atoi(idVar)
+	nameVar := v.Get(QueryParamName)
+	if err != nil && len(nameVar) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, caughtError
+	}
+	//TODO: common out the above logic and get component query param array by decoder
+	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		caughtError = true
+		return nil, caughtError
+	}
+	reqBeanDescriptor = &bean.DevtronResourceObjectDescriptorBean{
+		Kind:    kind,
+		SubKind: subKind,
+		Version: versionVar,
+		Name:    nameVar,
+	}
+	if kind == bean.DevtronResourceRelease.ToString() || kind == bean.DevtronResourceReleaseTrack.ToString() {
+		reqBeanDescriptor.Id = id
+	} else {
+		reqBeanDescriptor.OldObjectId = id //from FE, we are taking ids of resources entry in their own respective tables
+	}
+	return reqBeanDescriptor, caughtError
 }
 
 func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request) {
