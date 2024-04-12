@@ -115,7 +115,7 @@ components:
       keyName: postgresql-password
   
   kubewatch:
-    image: "quay.io/devtron/kubewatch:91c2cece-419-21178"
+    image: "quay.io/devtron/kubewatch:50d4d32d-419-22116"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
