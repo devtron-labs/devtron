@@ -19,7 +19,6 @@ import (
 
 	//"github.com/xanzy/go-gitlab"
 	"net/http"
-	"regexp"
 )
 
 type InstalledAppGitOpsService interface {
@@ -46,20 +45,6 @@ func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *be
 	if err != nil {
 		impl.Logger.Errorw("Error in pushing chart to git", "err", err)
 		return appStoreGitOpsResponse, err
-	}
-	space := regexp.MustCompile(`\s+`)
-	appStoreName := space.ReplaceAllString(installAppVersionRequest.AppName, "-")
-
-	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
-	// mind that this check assumes that gitRepo is already there in configured git-ops repo and in that case manifestResponse's
-	// valuesConfig and requirementsConfig is getting committed to git-ops repo url residing in the db.
-	// step-2 commit dependencies and values in git
-	if !installAppVersionRequest.IsNewGitOpsRepo {
-		githash, err = impl.gitOperationService.CommitRequirementsAndValues(appStoreName, chartGitAttribute.RepoUrl, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
-		if err != nil {
-			impl.Logger.Errorw("error in committing config to git", "err", err)
-			return appStoreGitOpsResponse, err
-		}
 	}
 	appStoreGitOpsResponse.ChartGitAttribute = chartGitAttribute
 	appStoreGitOpsResponse.GitHash = githash
@@ -131,8 +116,11 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		noTargetFoundForRequirements, _ := impl.parseGitRepoErrorResponse(requirementsCommitErr)
 		if noTargetFoundForRequirements || noTargetFoundForValues {
 			//create repo again and try again  -  auto fix
-			*monoRepoMigrationRequired = true // since repo is created again, will use this flag to check if ACD patch operation required
-			installAppVersionRequest.GitOpsRepoURL = ""
+			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL), installAppVersionRequest.UserId)
+			if err != nil {
+				impl.Logger.Errorw("error in creating gitops repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
+				return nil, err
+			}
 			return impl.GitOpsOperations(manifest, installAppVersionRequest)
 		}
 		impl.Logger.Errorw("error in performing GitOps for upgrade deployment", "ValuesCommitErr", valuesCommitErr, "RequirementsCommitErr", requirementsCommitErr)
