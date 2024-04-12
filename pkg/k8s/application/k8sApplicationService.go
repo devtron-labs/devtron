@@ -99,8 +99,9 @@ type K8sApplicationService interface {
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s3.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
-	ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
+	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
+	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -161,6 +162,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository:            ephemeralContainerRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
+		deploymentWindowService:                 deploymentWindowService,
 		celEvaluatorService:                     celEvaluatorService,
 		printers:                                printers,
 		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
@@ -444,7 +446,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ValidatePodResource(token string, clusterId int, namespace string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error) {
+func (impl *K8sApplicationServiceImpl) ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, resourceName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error) {
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
@@ -452,11 +454,11 @@ func (impl *K8sApplicationServiceImpl) ValidatePodResource(token string, cluster
 	}
 	clusterName := clusterBean.ClusterName
 	resourceIdentifier := k8s3.ResourceIdentifier{
-		Name:             podName,
+		Name:             resourceName,
 		Namespace:        namespace,
-		GroupVersionKind: schema.GroupVersionKind{Version: "v1", Kind: "Pod"},
+		GroupVersionKind: resourceGVK,
 	}
-	return rbacForResource(token, clusterName, resourceIdentifier, casbin.ActionGet), nil
+	return rbacForResource(token, clusterName, resourceIdentifier, resourceAction), nil
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
@@ -1555,4 +1557,10 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 		return false, err
 	}
 	return matched, nil
+}
+
+func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
+	impl.logger.Infow("received request for port forwarding", "clusterId", clusterId, "serviceName", serviceName, "namespace", namespace, "port", port)
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
+	return proxyHandler, err
 }

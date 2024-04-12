@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ type K8sApplicationRestHandler interface {
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
 	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
 	DebugPodInfo(w http.ResponseWriter, r *http.Request)
+	PortForwarding(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -1187,7 +1189,7 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 	if len(namespace) == 0 {
 		namespace = "*"
 	}
-	allowed, err := handler.k8sApplicationService.ValidatePodResource(token, clusterId, namespace, podName, handler.verifyRbacForResource)
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, casbin.ActionGet, podName, handler.verifyRbacForResource)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusConflict)
 		return
@@ -1203,4 +1205,53 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 	}
 	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
 	scoopServiceProxyHandler.ServeHTTP(w, r)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	queryValues := r.URL.Query()
+	clusterIdString := queryValues.Get("clusterId")
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterId not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	serviceName := queryValues.Get("serviceName")
+	if len(serviceName) == 0 {
+		common.WriteJsonResp(w, errors.New("serviceName not present"), nil, http.StatusBadRequest)
+		return
+	}
+	servicePort := queryValues.Get("servicePort")
+	if len(servicePort) == 0 {
+		servicePort = "80"
+	}
+
+	namespace := queryValues.Get("namespace")
+	if len(namespace) == 0 {
+		common.WriteJsonResp(w, errors.New("namespace not present"), nil, http.StatusBadRequest)
+		return
+	}
+
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Service"}, casbin.ActionUpdate, serviceName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, serviceName, namespace, servicePort)
+	if err != nil {
+		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
+		return
+	}
+	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
+	proxy.ServeHTTP(w, r)
 }
