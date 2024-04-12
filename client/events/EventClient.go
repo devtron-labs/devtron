@@ -56,7 +56,6 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
-	sendEventOnNats(event Event)
 	WriteNatsEvent(channel string, payload interface{}) error
 }
 
