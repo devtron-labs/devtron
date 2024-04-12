@@ -117,6 +117,16 @@ var DeploymentStatusCronDuration = promauto.NewHistogramVec(prometheus.Histogram
 	Name: "deployment_status_cron_process_time",
 }, []string{"cronName"})
 
+var TerminalSessionRequestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "initiate_terminal_session_request_counter",
+	Help: "count of requests for initiated, established and closed terminal sessions",
+}, []string{"sessionAction", "isError"})
+
+var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "terminal_session_duration",
+	Help: "duration of each terminal session",
+}, []string{"podName", "namespace", "clusterId"})
+
 // prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
 	//	prometheus.MustRegister(requestCounter)
@@ -133,4 +143,12 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
 	})
+}
+
+func IncTerminalSessionRequestCounter(sessionAction string, isError string) {
+	TerminalSessionRequestCounter.WithLabelValues(sessionAction, isError).Inc()
+}
+
+func RecordTerminalSessionDurationMetrics(podName, namespace, clusterId string, sessionDuration float64) {
+	TerminalSessionDuration.WithLabelValues(podName, namespace, clusterId).Observe(sessionDuration)
 }
