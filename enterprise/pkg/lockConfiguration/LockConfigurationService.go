@@ -2,6 +2,7 @@ package lockConfiguration
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -11,6 +12,7 @@ import (
 	"github.com/ohler55/ojg/oj"
 	"go.uber.org/zap"
 	"reflect"
+	"sort"
 	"time"
 )
 
@@ -188,6 +190,13 @@ func checkLockedChanges(currentConfig, savedConfig string, lockedConfigJsonPaths
 		}
 		currentConfigValue := parsedLockedConfigJsonPath.Get(currentConfigParsed)
 		savedConfigValue := parsedLockedConfigJsonPath.Get(savedConfigParsed)
+		// Sort slices before comparison
+		sort.Slice(currentConfigValue, func(i, j int) bool {
+			return fmt.Sprintf("%v", currentConfigValue[i]) < fmt.Sprintf("%v", currentConfigValue[j])
+		})
+		sort.Slice(savedConfigValue, func(i, j int) bool {
+			return fmt.Sprintf("%v", savedConfigValue[i]) < fmt.Sprintf("%v", savedConfigValue[j])
+		})
 		if !reflect.DeepEqual(currentConfigValue, savedConfigValue) {
 			return true
 		}
