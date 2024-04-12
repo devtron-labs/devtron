@@ -127,6 +127,10 @@ func (repo *GlobalPolicyRepositoryImpl) GetByName(name string, policyType bean.G
 		Where("deleted = ?", false).
 		Where("policy_of = ?", policyType).
 		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting policy by name", "err", err, "name", name)
+		return nil, err
+	}
 	return &model, err
 }
 
