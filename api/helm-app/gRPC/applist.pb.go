@@ -429,13 +429,13 @@ type DeployedAppDetail struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	AppId             string                 `protobuf:"bytes,1,opt,name=appId,proto3" json:"appId,omitempty"`
-	AppName           string                 `protobuf:"bytes,2,opt,name=appName,proto3" json:"appName,omitempty"`
-	ChartName         string                 `protobuf:"bytes,3,opt,name=chartName,proto3" json:"chartName,omitempty"`
-	ChartAvatar       string                 `protobuf:"bytes,4,opt,name=chartAvatar,proto3" json:"chartAvatar,omitempty"`
-	EnvironmentDetail *EnvironmentDetails    `protobuf:"bytes,5,opt,name=environmentDetail,proto3" json:"environmentDetail,omitempty"`
+	AppId             string               `protobuf:"bytes,1,opt,name=appId,proto3" json:"appId,omitempty"`
+	AppName           string               `protobuf:"bytes,2,opt,name=appName,proto3" json:"appName,omitempty"`
+	ChartName         string               `protobuf:"bytes,3,opt,name=chartName,proto3" json:"chartName,omitempty"`
+	ChartAvatar       string               `protobuf:"bytes,4,opt,name=chartAvatar,proto3" json:"chartAvatar,omitempty"`
+	EnvironmentDetail *EnvironmentDetails  `protobuf:"bytes,5,opt,name=environmentDetail,proto3" json:"environmentDetail,omitempty"`
 	LastDeployed      *timestamp.Timestamp `protobuf:"bytes,6,opt,name=LastDeployed,proto3" json:"LastDeployed,omitempty"`
-	ChartVersion      string                 `protobuf:"bytes,7,opt,name=chartVersion,proto3" json:"chartVersion,omitempty"`
+	ChartVersion      string               `protobuf:"bytes,7,opt,name=chartVersion,proto3" json:"chartVersion,omitempty"`
 }
 
 func (x *DeployedAppDetail) Reset() {
@@ -659,13 +659,13 @@ type AppDetail struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ApplicationStatus    string                 `protobuf:"bytes,1,opt,name=applicationStatus,proto3" json:"applicationStatus,omitempty"`
-	ReleaseStatus        *ReleaseStatus         `protobuf:"bytes,2,opt,name=releaseStatus,proto3" json:"releaseStatus,omitempty"`
+	ApplicationStatus    string                `protobuf:"bytes,1,opt,name=applicationStatus,proto3" json:"applicationStatus,omitempty"`
+	ReleaseStatus        *ReleaseStatus        `protobuf:"bytes,2,opt,name=releaseStatus,proto3" json:"releaseStatus,omitempty"`
 	LastDeployed         *timestamp.Timestamp  `protobuf:"bytes,6,opt,name=lastDeployed,proto3" json:"lastDeployed,omitempty"`
-	ChartMetadata        *ChartMetadata         `protobuf:"bytes,7,opt,name=chartMetadata,proto3" json:"chartMetadata,omitempty"`
-	ResourceTreeResponse *ResourceTreeResponse  `protobuf:"bytes,8,opt,name=resourceTreeResponse,proto3" json:"resourceTreeResponse,omitempty"`
-	EnvironmentDetails   *EnvironmentDetails    `protobuf:"bytes,9,opt,name=environmentDetails,proto3" json:"environmentDetails,omitempty"`
-	ReleaseExist         bool                   `protobuf:"varint,10,opt,name=ReleaseExist,proto3" json:"ReleaseExist,omitempty"`
+	ChartMetadata        *ChartMetadata        `protobuf:"bytes,7,opt,name=chartMetadata,proto3" json:"chartMetadata,omitempty"`
+	ResourceTreeResponse *ResourceTreeResponse `protobuf:"bytes,8,opt,name=resourceTreeResponse,proto3" json:"resourceTreeResponse,omitempty"`
+	EnvironmentDetails   *EnvironmentDetails   `protobuf:"bytes,9,opt,name=environmentDetails,proto3" json:"environmentDetails,omitempty"`
+	ReleaseExist         bool                  `protobuf:"varint,10,opt,name=ReleaseExist,proto3" json:"ReleaseExist,omitempty"`
 }
 
 func (x *AppDetail) Reset() {
@@ -754,9 +754,9 @@ type AppStatus struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ApplicationStatus string                 `protobuf:"bytes,1,opt,name=applicationStatus,proto3" json:"applicationStatus,omitempty"`
-	ReleaseStatus     string                 `protobuf:"bytes,2,opt,name=ReleaseStatus,proto3" json:"ReleaseStatus,omitempty"`
-	Description       string                 `protobuf:"bytes,3,opt,name=Description,proto3" json:"Description,omitempty"`
+	ApplicationStatus string               `protobuf:"bytes,1,opt,name=applicationStatus,proto3" json:"applicationStatus,omitempty"`
+	ReleaseStatus     string               `protobuf:"bytes,2,opt,name=ReleaseStatus,proto3" json:"ReleaseStatus,omitempty"`
+	Description       string               `protobuf:"bytes,3,opt,name=Description,proto3" json:"Description,omitempty"`
 	LastDeployed      *timestamp.Timestamp `protobuf:"bytes,4,opt,name=LastDeployed,proto3" json:"LastDeployed,omitempty"`
 }
 
@@ -1836,12 +1836,12 @@ type HelmAppDeploymentDetail struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ChartMetadata *ChartMetadata         `protobuf:"bytes,1,opt,name=chartMetadata,proto3" json:"chartMetadata,omitempty"`
-	DockerImages  []string               `protobuf:"bytes,2,rep,name=dockerImages,proto3" json:"dockerImages,omitempty"`
-	Version       int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	ChartMetadata *ChartMetadata       `protobuf:"bytes,1,opt,name=chartMetadata,proto3" json:"chartMetadata,omitempty"`
+	DockerImages  []string             `protobuf:"bytes,2,rep,name=dockerImages,proto3" json:"dockerImages,omitempty"`
+	Version       int32                `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
 	DeployedAt    *timestamp.Timestamp `protobuf:"bytes,4,opt,name=deployedAt,proto3" json:"deployedAt,omitempty"`
-	DeployedBy    string                 `protobuf:"bytes,5,opt,name=deployedBy,proto3" json:"deployedBy,omitempty"`
-	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	DeployedBy    string               `protobuf:"bytes,5,opt,name=deployedBy,proto3" json:"deployedBy,omitempty"`
+	Status        string               `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 }
 
 func (x *HelmAppDeploymentDetail) Reset() {
@@ -2868,7 +2868,7 @@ type TemplateChartResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	GeneratedManifest string   `protobuf:"bytes,1,opt,name=generatedManifest,proto3" json:"generatedManifest,omitempty"`
+	GeneratedManifest string `protobuf:"bytes,1,opt,name=generatedManifest,proto3" json:"generatedManifest,omitempty"`
 }
 
 func (x *TemplateChartResponse) Reset() {

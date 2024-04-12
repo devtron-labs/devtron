@@ -43,7 +43,7 @@ service ApplicationService {
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
-  rpc GetNotes(InstallReleaseRequest) returns(ChartNotesResponse) {}
+  rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
