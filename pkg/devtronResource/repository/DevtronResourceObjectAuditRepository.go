@@ -37,6 +37,7 @@ type DevtronResourceObjectAudit struct {
 	DevtronResourceObjectId int                `sql:"devtron_resource_object_id"`
 	ObjectData              string             `sql:"object_data"` //json string
 	AuditOperation          AuditOperationType `sql:"audit_operation"`
+	AuditOperationPath      string             `sql:"audit_operation_path"` //path in object at which the audit operation is performed
 	sql.AuditLog
 }
 
