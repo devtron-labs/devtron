@@ -18,7 +18,7 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:d0dcc590-373-21074"
+  APP_SYNC_IMAGE: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   USE_ARTIFACT_LISTING_API_V2: "true"
@@ -76,8 +76,9 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-{{- if .customOverrides }}
 data:
+  DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
+{{- if .customOverrides }}
 {{ toYaml .customOverrides | indent 2}}
 {{- end }}
 ---
@@ -113,13 +114,13 @@ spec:
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
-          {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
-          image: {{ $.Values.components.devtron.cicdImage }}
+          {{- if (has "cicd" $.Values.installer.modules) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
           {{- end }}
           {{- else }}
-          image: {{ $.Values.components.devtron.image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}

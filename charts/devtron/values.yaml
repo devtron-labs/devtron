@@ -7,10 +7,13 @@ global:
     allowPrivilegeEscalation: false
     runAsUser: 1000
     runAsNonRoot: true
+  containerRegistry: "quay.io/devtron"
+
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.29"
-  image: quay.io/devtron/inception
+  registry: ""
+  image: inception
   tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
@@ -62,15 +65,17 @@ components:
         ENABLE_EXTERNAL_ARGO_CD: "false"
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
-    image: "quay.io/devtron/dashboard:1c86e84e-325-22108"
+    registry: ""
+    image: "dashboard:1c86e84e-325-22108"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:e7f34f5a-280-22107"
-    cicdImage: "quay.io/devtron/devtron:e7f34f5a-434-22106"
+    registry: ""
+    image: "hyperion:e7f34f5a-280-22107"
+    cicdImage: "devtron:e7f34f5a-434-22106"
     imagePullPolicy: IfNotPresent
-    customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:3de666b1-138-22112"
+    customOverrides: {}
+      # DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
     serviceMonitor:
       enabled: false
     service:
@@ -92,15 +97,21 @@ components:
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
+  ciRunner:
+    registry: ""
+    image: "ci-runner:3de666b1-138-22112"
+
 
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.30.2"
+    registry: ""
+    image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
+      authenticator: "authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:2610ac5a-564-22109"
+    registry: ""
+    image: "kubelink:2610ac5a-564-22109"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -115,9 +126,10 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-  
+
   kubewatch:
-    image: "quay.io/devtron/kubewatch:50d4d32d-419-22116"
+    registry: ""
+    image: "kubewatch:50d4d32d-419-22116"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -125,16 +137,23 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      
+
   postgres:
-    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
-    armImage: "quay.io/devtron/postgres:11.9"
+    registry: ""
+    image: "postgres:11.9.0-debian-10-r26"
+    armImage: "postgres:11.9"
+    initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
+    metrics:
+      image: postgres_exporter:v0.4.7
+      armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
+
   gitsensor:
-    image: "quay.io/devtron/git-sensor:8545feb5-200-22005"
-    imagePullPolicy: "IfNotPresent"
+    registry: ""
+    image: "git-sensor:8545feb5-200-22005"
+    imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
     persistence:
@@ -148,9 +167,13 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-  lens: 
-    image: "quay.io/devtron/lens:70577aaa-333-21179"
+# Values for lens
+  lens:
+    registry: ""
+    image: "lens:70577aaa-333-21179"
     imagePullPolicy: IfNotPresent
+    secrets: {}
+    resources: {}
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
       GIT_SENSOR_URL: git-sensor-service.devtroncd:90
@@ -162,21 +185,26 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+# Change below values for nats
   nats:
+    registry: ""
     image: nats:2.9.3-alpine
-    imagePullPolicy: IfNotPresent
     reloader:
-      image: quay.io/devtron/nats-server-config-reloader:0.6.2
+      image: nats-server-config-reloader:0.6.2
       imagePullPolicy: IfNotPresent
     metrics:
-      image: quay.io/devtron/prometheus-nats-exporter:0.9.0
+      image: prometheus-nats-exporter:0.9.0
       imagePullPolicy: IfNotPresent
+    natsBox:
+      image: nats-box
     serviceMonitor:
       enabled: false
     persistence:
       storage: 5Gi
   migrator:
-    image: "quay.io/devtron/migrator:v4.16.2"
+    registry: ""
+    image: "migrator:v4.16.2"
+    kubectlImage: "kubectl:latest"
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -187,6 +215,10 @@ components:
       lens: 
         DB_NAME: "lens"
 
+  chartSync:
+    registry: ""
+    image: chart-sync:d0dcc590-373-21074
+  
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -269,6 +301,9 @@ argo-cd:
                 app.kubernetes.io/part-of: argocd
             topologyKey: kubernetes.io/hostname
           weight: 5
+    image:
+      repository: public.ecr.aws/docker/library/redis
+      tag: 7.0.5-alpine
   # argocd-server
   server:
     configEnabled: false
@@ -343,7 +378,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:c0416bc2-334-22111"
+    image: "image-scanner:c0416bc2-334-22111"
   # Values for trivy
   trivy:
     enabled: false
@@ -355,7 +390,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:924a17f6-372-22110"
+  image: "notifier:924a17f6-372-22110"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -371,28 +406,37 @@ notifier:
 minio:
   enabled: false
   replicaCount: 1
-  image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
+  image: "minio:RELEASE.2021-02-14T04-01-33Z"
   imagePullPolicy: IfNotPresent
-  mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
+  gatewayImage: "minio:RELEASE.2020-12-03T05-49-24Z"
   persistence:
     storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
+  registry: "quay.io/argoproj"
   # Set this to true if you have IMDSv2 enforced or IMDSv1 and v2 on your AWS EKS cluster and false if you are using IMDSv1 with token hop limit set to 1
   IMDSv2Enforced: true
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
+  image: "workflow-controller:v3.4.3"
+  executorImage: "argoexec:v3.4.3"
+  IMDSv1: "workflow-controller:v3.0.7"
 
 # Values for grafana integration
 monitoring:
   grafana:
     enabled: false
-    image: "quay.io/devtron/grafana:7.3.1"
+    registry: ""
+    image: "grafana:7.3.1"
+    busyboxImage: "busybox:1.31.1"
+    batsImage: "bats:v1.4.1"
     imagePullPolicy: IfNotPresent
     resources: {}
+    grafanaOrgJob:
+      curlImage: k8s-utils:tutum-curl
     grafanaDashboards:
-      image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+      image: "k8s-sidecar:1.1.0"
+      curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
       resources: {}
     persistence:
