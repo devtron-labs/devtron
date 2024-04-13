@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.29-rc.0"
+  release: "v0.6.29"
   image: quay.io/devtron/inception
   tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
