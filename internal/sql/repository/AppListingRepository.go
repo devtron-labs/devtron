@@ -448,11 +448,11 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 		impl.Logger.Warn("unable to fetch app workflow mapping  for pipeline")
 	}
 	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
-		envName, err := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
+		parentEnvironmentName, err := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
 		if err != nil {
 			impl.Logger.Warn("unable to fetch app envName for pipeline")
 		}
-		deploymentDetail.ParentEnvironmentName = envName
+		deploymentDetail.ParentEnvironmentName = parentEnvironmentName
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
