@@ -141,6 +141,7 @@ components:
     registry: ""
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
+    duplicateChart: devtron-utils:dup-chart-repo-v1.1.0
     envVars:
       devtron:
         DB_NAME: "orchestrator"

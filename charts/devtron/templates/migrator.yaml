@@ -33,15 +33,7 @@ spec:
           envFrom:
             - secretRef:
                 name: devtron-secret
-          {{- if $.Values.installer.modules }}
-          {{- if (has "cicd" $.Values.installer.modules) }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
-          {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
-          {{- end }}
-          {{- else }}
-          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
-          {{- end }}
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChart ) }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -51,7 +43,15 @@ spec:
             - /bin/sh
             - -c
             - cp -r /scripts/. /shared/
-          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
+          {{- if $.Values.installer.modules }}
+          {{- if (has "cicd" $.Values.installer.modules) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
