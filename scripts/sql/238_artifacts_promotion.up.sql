@@ -87,11 +87,11 @@ VALUES ('artifactPromoter',
         true);
 
 
-INSERT INTO public.event (id, event_type, description) VALUES (6, 'PROMOTION APPROVAL', '');
+INSERT INTO public.event (id, event_type, description) VALUES (7, 'PROMOTION APPROVAL', '');
 
 
 INSERT INTO "public"."notification_templates" (channel_type, node_type, event_type_id, template_name, template_payload)
-VALUES ('smtp', 'CD', 6, 'image promotion smtp template', '{
+VALUES ('smtp', 'CD', 7, 'image promotion smtp template', '{
     "from": "{{fromEmail}}",
     "to": "{{toEmail}}",
     "subject": "🛎️ Image Promotion Approval Requested | Application: {{appName}} | Target environment: {{envName}}",
@@ -99,7 +99,7 @@ VALUES ('smtp', 'CD', 6, 'image promotion smtp template', '{
 }');
 
 INSERT INTO "public"."notification_templates" (channel_type, node_type, event_type_id, template_name, template_payload)
-VALUES ('ses', 'CD', 6, 'image promotion ses template', '{
+VALUES ('ses', 'CD', 7, 'image promotion ses template', '{
     "from": "{{fromEmail}}",
     "to": "{{toEmail}}",
     "subject": "🛎️ Image Promotion Approval Requested | Application: {{appName}} | Target environment: {{envName}}",
