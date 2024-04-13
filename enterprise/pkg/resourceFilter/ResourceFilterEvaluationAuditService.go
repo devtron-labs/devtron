@@ -19,6 +19,8 @@ type FilterEvaluationAuditService interface {
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]FilterState, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
+	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
+	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
 	SaveFilterEvaluationAudit(tx *pg.Tx, subjectType SubjectType, subjectId int, referenceId int, referenceType ReferenceType, userId int32, filterHistoryObjects string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
 	GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error)
 }
@@ -52,6 +54,23 @@ func (impl *FilterEvaluationAuditServiceImpl) SaveFilterEvaluationAudit(tx *pg.T
 		return nil, err
 	}
 	return createdEvaluationAudit, nil
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error) {
+
+	currentTime := time.Now()
+	auditLog := sql.AuditLog{
+		CreatedOn: currentTime,
+		CreatedBy: 1,
+	}
+
+	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog, filterType)
+	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(nil, &filterEvaluationAudit)
+	if err != nil {
+		impl.logger.Errorw("error in saving resource filter evaluation result in resource_filter_evaluation_audit table", "err", err, "filterEvaluationAudit", filterEvaluationAudit)
+		return savedFilterEvaluationAudit, err
+	}
+	return savedFilterEvaluationAudit, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
@@ -238,4 +257,8 @@ func (impl *FilterEvaluationAuditServiceImpl) createFilterAuditForMissingFilters
 	}
 
 	return filterHistoryObjectMap, err
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error) {
+	return impl.filterEvaluationAuditRepo.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, referenceId, subjectType, subjectIds, filterType)
 }

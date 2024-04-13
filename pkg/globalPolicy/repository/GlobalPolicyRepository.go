@@ -24,7 +24,7 @@ type GlobalPolicyRepository interface {
 	MarkDeletedById(id int, userId int32, tx *pg.Tx) error
 	GetByIds(ids []int) ([]*GlobalPolicy, error)
 	GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error)
-	DeletedById(id int, userId int32) error
+	DeletedById(tx *pg.Tx, id int, userId int32) error
 	DeletedByName(tx *pg.Tx, name string, policyType bean.GlobalPolicyType, userId int32) error
 	GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error)
 	GetIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
@@ -130,7 +130,7 @@ func (repo *GlobalPolicyRepositoryImpl) GetByName(name string, policyType bean.G
 	if err != nil {
 		return nil, err
 	}
-	return &model, nil
+	return &model, err
 }
 
 func (repo *GlobalPolicyRepositoryImpl) GetByNames(names []string, policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error) {
@@ -221,9 +221,9 @@ func (repo *GlobalPolicyRepositoryImpl) GetPolicyByType(policyType *bean.GlobalP
 	return &model, nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) DeletedById(id int, userId int32) error {
+func (repo *GlobalPolicyRepositoryImpl) DeletedById(tx *pg.Tx, id int, userId int32) error {
 	var model GlobalPolicy
-	_, err := repo.dbConnection.Model(&model).
+	_, err := tx.Model(&model).
 		Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", userId).Where("id = ?", id).Update()
 	if err != nil {
@@ -283,6 +283,9 @@ func (repo *GlobalPolicyRepositoryImpl) GetAllActiveByType(policyType bean.Globa
 		Where("deleted = ?", false).
 		Where("policy_of = ?", policyType).
 		Select()
+	if err == pg.ErrNoRows {
+		return model, nil
+	}
 	return model, err
 }
 

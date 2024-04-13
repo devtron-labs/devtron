@@ -5,8 +5,8 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
@@ -307,8 +307,8 @@ type RequestMetaData struct {
 	activeEnvNameIdMap          map[string]int
 	userEnvNames                []string
 	authorisedEnvMap            map[string]bool
-	activeEnvironments          []*cluster.EnvironmentBean
-	activeEnvironmentsMap       map[string]*cluster.EnvironmentBean
+	activeEnvironments          []*bean3.EnvironmentBean
+	activeEnvironmentsMap       map[string]*bean3.EnvironmentBean
 	destinationPipelineMetaData *pipelinesMetaData
 	activeEnvIds                []int
 	activeEnvNames              []string
@@ -422,11 +422,11 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	r.destinationPipelineMetaData = pipelineMetaData
 }
 
-func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, authorizedEnvironmentsMap map[string]bool, activeEnvs []*cluster.EnvironmentBean) {
+func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, authorizedEnvironmentsMap map[string]bool, activeEnvs []*bean3.EnvironmentBean) {
 	r.userEnvNames = userGivenEnvNames
 	r.authorisedEnvMap = authorizedEnvironmentsMap
 	r.activeEnvironments = activeEnvs
-	activeEnvironmentsMap := make(map[string]*cluster.EnvironmentBean)
+	activeEnvironmentsMap := make(map[string]*bean3.EnvironmentBean)
 	activeEnvNames := make([]string, 0, len(r.activeEnvironments))
 	authorisedEnvNames := make([]string, 0, len(r.authorisedEnvMap))
 	activeAuthorisedEnvIds := make([]int, 0, len(r.authorisedEnvMap))
@@ -533,7 +533,7 @@ func (r *RequestMetaData) GetCiArtifactId() int {
 	return r.ciArtifactId
 }
 
-func (r *RequestMetaData) GetActiveEnvironmentsMap() map[string]*cluster.EnvironmentBean {
+func (r *RequestMetaData) GetActiveEnvironmentsMap() map[string]*bean3.EnvironmentBean {
 	return r.activeEnvironmentsMap
 }
 

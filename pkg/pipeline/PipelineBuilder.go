@@ -48,20 +48,10 @@ func GetEcrConfig() (*EcrConfig, error) {
 	return cfg, err
 }
 
-type DeploymentServiceTypeConfig struct {
-	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-}
-
 type SecurityConfig struct {
 	//FORCE_SECURITY_SCANNING flag is being maintained in both dashboard and orchestrator CM's
 	//TODO: rishabh will remove FORCE_SECURITY_SCANNING from dashboard's CM.
 	ForceSecurityScanning bool `env:"FORCE_SECURITY_SCANNING" envDefault:"false"`
-}
-
-func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
-	cfg := &DeploymentServiceTypeConfig{}
-	err := env.Parse(cfg)
-	return cfg, err
 }
 
 type PipelineBuilder interface {
@@ -211,22 +201,14 @@ func getPatchMessage(err error) string {
 	return ""
 }
 
-func allDeploymentConfigTrue(deploymentConfig map[string]bool) bool {
-	for _, value := range deploymentConfig {
-		if !value {
-			return false
-		}
+func (impl *PipelineBuilderImpl) isGitRepoUrlPresent(appId int) bool {
+	fetchedChart, err := impl.chartRepository.FindLatestByAppId(appId)
+
+	if err != nil || len(fetchedChart.GitRepoUrl) == 0 {
+		impl.logger.Errorw("error fetching git repo url or it is not present")
+		return false
 	}
 	return true
-}
-
-func validDeploymentConfigReceived(deploymentConfig map[string]bool, deploymentTypeSent string) bool {
-	for key, value := range deploymentConfig {
-		if value && key == deploymentTypeSent {
-			return true
-		}
-	}
-	return false
 }
 
 type DeploymentType struct {

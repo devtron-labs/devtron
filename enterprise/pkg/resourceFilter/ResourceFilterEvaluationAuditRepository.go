@@ -4,8 +4,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"sort"
 	"time"
 )
+
+type ResourceFilterType int
+
+const FILTER_CONDITION ResourceFilterType = 1
+const ARTIFACT_PROMOTION_POLICY ResourceFilterType = 2
+const DEPLOYMENT_WINDOW ResourceFilterType = 3
 
 type SubjectType int
 
@@ -19,11 +26,9 @@ const PipelineStage ReferenceType = 1
 const CdWorkflowRunner ReferenceType = 2
 const PrePipelineStageYaml ReferenceType = 3
 const PostPipelineStageYaml ReferenceType = 4
-
-type ResourceFilterType int
-
-const FILTER_CONDITION ResourceFilterType = 1
-const ARTIFACT_PROMOTION_POLICY ResourceFilterType = 2
+const Deploy ReferenceType = 5
+const PreDeploy ReferenceType = 6
+const PostDeploy ReferenceType = 7
 
 type ResourceFilterEvaluationAudit struct {
 	tableName            struct{}           `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
@@ -56,6 +61,7 @@ type FilterEvaluationAuditRepository interface {
 	GetConnection() *pg.DB
 	Create(tx *pg.Tx, filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error)
 	GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
+	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
 	GetByMultiRefAndMultiSubject(referenceType ReferenceType, referenceIds []int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	UpdateRefTypeAndRefId(id int, refType ReferenceType, refId int) error
 	GetByIds(ids []int) ([]*ResourceFilterEvaluationAudit, error)
@@ -102,6 +108,36 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByMultiRefAndMultiSubject(re
 		return res, nil
 	}
 	return res, err
+}
+
+func (repo *FilterEvaluationAuditRepositoryImpl) GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error) {
+
+	var res []*ResourceFilterEvaluationAudit
+	err := repo.dbConnection.Model(&res).
+		Where("reference_type = ?", referenceType).
+		Where("reference_id = ?", referenceId).
+		Where("subject_type = ?", subjectType).
+		Where("subject_id IN (?) ", pg.In(subjectIds)).
+		Where("filter_type = ?", filterType).
+		Select()
+	if err == pg.ErrNoRows {
+		return res, nil
+	}
+
+	subjectIdMap := make(map[int][]*ResourceFilterEvaluationAudit)
+	for _, result := range res {
+		subjectIdMap[result.SubjectId] = append(subjectIdMap[result.SubjectId], result)
+	}
+
+	finalListWithLatest := make([]*ResourceFilterEvaluationAudit, 0)
+	for _, subjects := range subjectIdMap {
+		sort.Slice(subjects, func(i, j int) bool {
+			return subjects[i].Id > subjects[j].Id
+		})
+		finalListWithLatest = append(finalListWithLatest, subjects[0])
+	}
+
+	return finalListWithLatest, err
 }
 
 func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error) {

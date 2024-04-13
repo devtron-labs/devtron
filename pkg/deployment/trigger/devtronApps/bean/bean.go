@@ -3,6 +3,7 @@ package bean
 import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
@@ -31,6 +32,8 @@ type TriggerRequest struct {
 	RefCdWorkflowRunnerId  int
 	RunStageInEnvNamespace string
 	WorkflowType           bean.WorkflowType
+	TriggerMessage         string
+	DeploymentWindowState  *deploymentWindow.EnvironmentState
 	TriggerContext
 }
 
@@ -41,6 +44,27 @@ type TriggerContext struct {
 	// ReferenceId is a unique identifier for the workflow runner
 	// refer pipelineConfig.CdWorkflowRunner
 	ReferenceId *string
+
+	// manual or automatic
+	TriggerType TriggerType
+}
+
+type TriggerType int
+
+const (
+	Automatic TriggerType = 1
+	Manual    TriggerType = 2
+)
+
+func (context TriggerContext) IsAutoTrigger() bool {
+	return context.TriggerType == Automatic
+}
+
+func (context TriggerContext) ToTriggerTypeString() string {
+	if context.IsAutoTrigger() {
+		return "AUTO"
+	}
+	return "MANUAL"
 }
 
 type DeploymentType = string

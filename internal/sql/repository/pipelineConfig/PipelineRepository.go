@@ -73,15 +73,19 @@ type Pipeline struct {
 }
 
 type PipelineMetadata struct {
-	Id                int    `sql:"id"`
-	CiPipelineId      int    `sql:"ci_pipeline_id"`
-	EnvironmentId     int    `sql:"environment_id"`
-	EnvironmentName   string `sql:"environment_name"`
-	Default           bool   `sql:"default"`
-	AppId             int    `sql:"app_id"`
-	AppName           string `sql:"app_name"`
-	TeamId            int    `sql:"team_id"`
-	DeploymentAppType string `sql:"deployment_app_type"`
+	Id                         int    `sql:"id"`
+	Name                       string `sql:"pipeline_name,notnull"`
+	CiPipelineId               int    `sql:"ci_pipeline_id"`
+	EnvironmentId              int    `sql:"environment_id"`
+	EnvironmentName            string `sql:"environment_name"`
+	Namespace                  string `sql:"namespace"`
+	Default                    bool   `sql:"default"`
+	AppId                      int    `sql:"app_id"`
+	AppName                    string `sql:"app_name"`
+	TeamId                     int    `sql:"team_id"`
+	DeploymentAppType          string `sql:"deployment_app_type"`
+	DeploymentAppCreated       bool   `sql:"deployment_app_created,notnull"`
+	DeploymentAppDeleteRequest bool   `sql:"deployment_app_delete_request,notnull"`
 }
 
 type UserApprovalConfig struct {
@@ -114,6 +118,7 @@ type PipelineRepository interface {
 	Save(pipeline []*Pipeline, tx *pg.Tx) error
 	Update(pipeline *Pipeline, tx *pg.Tx) error
 	FindActiveByAppId(appId int) (pipelines []*Pipeline, err error)
+	FindPipelineEnvsByAppId(appId int) (pipelines []*Pipeline, err error)
 	Delete(id int, userId int32, tx *pg.Tx) error
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
@@ -247,6 +252,8 @@ func (impl PipelineRepositoryImpl) FindMetadataByIdsIn(ids []int, includeDeleted
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
 			"e.environment_name", "e.default",
+			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
+			"e.namespace",
 			"a.team_id", "a.app_name").
 		Join("inner join environment e on pipeline.environment_id=e.id").
 		Join("inner join app a on pipeline.app_id = a.id").
@@ -385,6 +392,15 @@ func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pi
 	return pipelines, err
 }
 
+func (impl PipelineRepositoryImpl) FindPipelineEnvsByAppId(appId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.environment_id", "pipeline.app_id").
+		Where("app_id = ?", appId).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
@@ -450,6 +466,8 @@ func (impl PipelineRepositoryImpl) FindMetadataById(id int, includeDeleted bool)
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
 			"e.environment_name", "e.default",
+			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
+			"e.namespace",
 			"a.team_id", "a.app_name").
 		Join("inner join environment e on pipeline.environment_id=e.id").
 		Join("inner join app a on pipeline.app_id = a.id").
@@ -468,6 +486,8 @@ func (impl PipelineRepositoryImpl) FindMetadataByAppAndEnv(appId, envId int, env
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
 			"e.environment_name", "e.default",
+			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
+			"e.namespace",
 			"a.team_id", "a.app_name").
 		Join("inner join environment e on pipeline.environment_id=e.id").
 		Join("inner join app a on pipeline.app_id = a.id").

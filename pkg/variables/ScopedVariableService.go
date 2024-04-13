@@ -16,7 +16,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"regexp"
 	"strings"
@@ -249,7 +248,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	for _, variable := range payload.Variables {
 		variableId := variableNameToId[variable.Definition.VarName]
 		for _, value := range variable.AttributeValues {
-			varValue, err := utils.StringifyValue(value.VariableValue)
+			varValue, err := utils.StringifyValue(value.VariableValue.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -273,10 +272,12 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	}
 
 	varScopeToSelection := make(map[*resourceQualifiers.ResourceMappingSelection]*models.VariableScope)
+	selections := make([]*resourceQualifiers.ResourceMappingSelection, 0)
 	for _, scope := range variableScopes {
 		varScopeToSelection[scope.ResourceMappingSelection] = scope
+		selections = append(selections, scope.ResourceMappingSelection)
 	}
-	selections := maps.Keys(varScopeToSelection)
+
 	savedSelections, err := impl.qualifierMappingService.CreateMappingsForSelections(tx, userId, selections)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
@@ -94,8 +95,10 @@ type CdHandlerImpl struct {
 	clusterService                   cluster.ClusterService
 	blobConfigStorageService         BlobStorageConfigService
 	customTagService                 CustomTagService
-	resourceApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
+	deploymentApprovalRepository     pipelineConfig.DeploymentApprovalRepository
 	resourceFilterService            resourceFilter.ResourceFilterService
+	resourceFilterAuditService       resourceFilter.FilterEvaluationAuditService
+	resourceApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
 	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 }
 
@@ -109,9 +112,12 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
-	resourceApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	resourceFilterService resourceFilter.ResourceFilterService,
-	artifactPromotionDataReadService read.ArtifactPromotionDataReadService) *CdHandlerImpl {
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
+	resourceApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                           Logger,
 		userService:                      userService,
@@ -130,8 +136,10 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		clusterService:                   clusterService,
 		blobConfigStorageService:         blobConfigStorageService,
 		customTagService:                 customTagService,
-		resourceApprovalRepository:       resourceApprovalRepository,
+		deploymentApprovalRepository:     deploymentApprovalRepository,
 		resourceFilterService:            resourceFilterService,
+		resourceFilterAuditService:       resourceFilterAuditService,
+		resourceApprovalRepository:       resourceApprovalRepository,
 		artifactPromotionDataReadService: artifactPromotionDataReadService,
 	}
 	config, err := types.GetCdConfig()
@@ -699,6 +707,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		workflowR.CdWorkflow.Pipeline.Environment.Name,
 		imageTag)
 
+	var triggerMetadata string
+	// Currently storing deployment window related info here,
+	//in future it could be expanded to hold more details
+	triggerMetadata, err = impl.getDeploymentWindowAuditMessage(workflow.CiArtifactId, workflowR.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching DeploymentWindowAuditMessage", "cdWorkflowRunnerId", workflowR.Id, "err", err)
+	}
+
 	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{workflow.CiArtifactId}, pipelineId, constants.PROMOTED)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", []int{workflow.CiArtifactId}, "pipelineId", pipelineId, "err", err)
@@ -733,6 +749,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		HelmPackageName:           helmPackageName,
 		ArtifactId:                workflow.CiArtifactId,
 		CiPipelineId:              ciWf.CiPipelineId,
+		TriggerMetadata:           triggerMetadata,
 		PromotionApprovalMetadata: promotionApprovalMetadata,
 	}
 
@@ -1290,4 +1307,22 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 
 func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+}
+
+func (impl *CdHandlerImpl) getDeploymentWindowAuditMessage(artifactId int, wfrId int) (string, error) {
+
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.CdWorkflowRunner, wfrId, resourceFilter.Artifact, []int{artifactId}, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return "", err
+	}
+	if len(filters) != 1 {
+		return "", nil
+	}
+	filter := filters[0]
+
+	if filter == nil || len(filter.FilterHistoryObjects) == 0 {
+		return "", nil
+	}
+	auditData := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
+	return auditData.TriggerMessage, nil
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -601,7 +602,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -776,7 +777,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
 			return nil, err
@@ -1030,7 +1031,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCi(appId int) (ciConfig []*b
 		return nil, err
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1162,7 +1163,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiById(appId int, externalCi
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1652,8 +1653,8 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error) {
-	// getting env Variables from attributes service
-	attributeObj, err := impl.attributesService.GetByKey(attributes.CI_RUNTIME_ENV_VARS)
+	//getting env Variables from attributes service
+	attributeObj, err := impl.attributesService.GetByKey(bean3.CI_RUNTIME_ENV_VARS)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting ci runtime env vars attribute entry", "err", err, "ciPipelineId", ciPipelineId)
 		return nil, err
@@ -1778,7 +1779,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 		return nil, err
 	}
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -2075,7 +2076,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err
 	}
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err

@@ -647,6 +647,7 @@ type WorkflowResponse struct {
 	AppliedFilters            []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
 	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
+	TriggerMetadata           string                                      `json:"triggerMetadata"`
 	PromotionApprovalMetadata *bean4.PromotionApprovalMetaData            `json:"promotionApprovalMetadata"`
 }
 

@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"net/http"
 	"path/filepath"
@@ -742,7 +742,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 	}
-
+	if pipeline.App.AppType == helper.Job {
+		workflowRequest.AppName = pipeline.App.DisplayName
+	}
 	if dockerRegistry != nil {
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id

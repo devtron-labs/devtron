@@ -8,12 +8,14 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
@@ -85,13 +87,18 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
+
+	// nil for EA mode
+	deploymentWindowService deploymentWindow.DeploymentWindowService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	argoApplicationService argoApplication.ArgoApplicationService) (*K8sApplicationServiceImpl, error) {
+	argoApplicationService argoApplication.ArgoApplicationService,
+	deploymentWindowService deploymentWindow.DeploymentWindowService,
+) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -112,6 +119,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
 		argoApplicationService:       argoApplicationService,
+		deploymentWindowService:      deploymentWindowService,
 	}, nil
 }
 
@@ -1042,7 +1050,27 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 	return resp, nil
 }
 
+func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean3.DevtronAppIdentifier, userid int32) error {
+
+	if impl.deploymentWindowService == nil || identifier == nil {
+		return nil
+	}
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), identifier.AppId, identifier.EnvId, userid)
+	if err != nil {
+		return fmt.Errorf("error in getting deployment window state %v", err)
+	}
+	if !actionState.IsActionAllowedWithBypass() {
+		return deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+	}
+	return nil
+}
+
 func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error) {
+
+	err := impl.checkForDeploymentWindow(request.DevtronAppIdentifier, userId)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
 		if k8s.IsResourceNotFoundErr(err) {

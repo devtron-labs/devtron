@@ -18,12 +18,14 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
 	"strings"
 	"time"
@@ -129,6 +131,7 @@ type CiArtifactRepository interface {
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
+	GetByImageAndDigestAndPipelineId(ctx context.Context, image string, imageDigest string, ciPipelineId int) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
@@ -138,7 +141,7 @@ type CiArtifactRepository interface {
 	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
-
+	GetPreviousArtifactOfId(ctx context.Context, ciPipelineId int, artifactId int) (int, error)
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
@@ -180,6 +183,17 @@ func (impl CiArtifactRepositoryImpl) MigrateToWebHookDataSourceType(id int) erro
 	return err
 }
 
+func (impl CiArtifactRepositoryImpl) GetPreviousArtifactOfId(ctx context.Context, ciPipelineId int, artifactId int) (int, error) {
+	_, span := otel.Tracer("CiArtifactRepository").Start(ctx, "GetPreviousArtifactOfId")
+	defer span.End()
+	artifact := &CiArtifact{}
+	err := impl.dbConnection.Model(artifact).
+		Column("ci_artifact.id").
+		Where("ci_artifact.pipeline_id = ? ", ciPipelineId).
+		Where("ci_artifact.id < ?", artifactId).
+		Order("ci_artifact.id desc").Limit(1).Select()
+	return artifact.Id, err
+}
 func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
 	if len(artifactIds) == 0 {
 		impl.logger.Debug("UpdateLatestTimestamp empty list of artifacts, not updating")
@@ -724,6 +738,20 @@ func (impl CiArtifactRepositoryImpl) GetByImageDigest(imageDigest string) (*CiAr
 	err := impl.dbConnection.Model(artifact).
 		Column("ci_artifact.*").
 		Where("ci_artifact.image_digest = ? ", imageDigest).
+		Order("ci_artifact.id desc").Limit(1).
+		Select()
+	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetByImageAndDigestAndPipelineId(ctx context.Context, image string, imageDigest string, ciPipelineId int) (*CiArtifact, error) {
+	_, span := otel.Tracer("CiArtifactRepository").Start(ctx, "GetByImageAndDigestAndPipelineId")
+	defer span.End()
+	artifact := &CiArtifact{}
+	err := impl.dbConnection.Model(artifact).
+		Column("ci_artifact.*").
+		Where("ci_artifact.image_digest = ? ", imageDigest).
+		Where("ci_artifact.image = ?", image).
+		Where("ci_artifact.pipeline_id = ?", ciPipelineId).
 		Order("ci_artifact.id desc").Limit(1).
 		Select()
 	return artifact, err

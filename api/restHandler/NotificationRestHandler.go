@@ -390,8 +390,19 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		return
 	}
 
+	internalOnly := false
+	internalOnlyString := r.URL.Query().Get("internalOnly")
+	if len(internalOnlyString) != 0 {
+		internalOnly, err = strconv.ParseBool(internalOnlyString)
+		if err != nil {
+			impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", offset)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	token := r.Header.Get("token")
-	notificationSettingsViews, totalCount, err := impl.notificationService.FindAll(offset, size)
+	notificationSettingsViews, totalCount, err := impl.notificationService.FindAll(offset, size, internalOnly)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

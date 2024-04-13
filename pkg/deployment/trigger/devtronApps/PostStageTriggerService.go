@@ -30,8 +30,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	cdWf := request.CdWf
 	ctx := context.Background() //before there was only one context. To check why here we are not using ctx from request.TriggerContext
 	var env *repository2.Environment
-	var err error
-	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)
 		return err
@@ -111,11 +110,18 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
+	request.Artifact = cdWf.CiArtifact
+	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PostDeploy)
+	if err != nil {
+		return err
+	}
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
+
+	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
 	if filterEvaluationAudit != nil {
 		// update resource_filter_evaluation entry with wfrId and type

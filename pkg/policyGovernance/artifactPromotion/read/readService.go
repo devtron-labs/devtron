@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
@@ -238,7 +237,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionPolicy(policyId in
 
 func (impl *ArtifactPromotionDataReadServiceImpl) getPromotionApprovalUserMetadata(approvalRequestIds []int) (map[int][]*pipelineConfig.RequestApprovalUserData, error) {
 	requestIdToApprovalUserDataMapping := make(map[int][]*pipelineConfig.RequestApprovalUserData)
-	//TODO: specify join
+	// TODO: specify join
 	promotionApprovalUserDataArray, err := impl.requestApprovalUserdataRepo.FetchApprovalDataForRequests(approvalRequestIds, repository2.ARTIFACT_PROMOTION_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in getting promotionApprovalUserData", "err", err, "promotionApprovalRequestIds", approvalRequestIds)
@@ -497,7 +496,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocompl
 		impl.logger.Errorw("error in getting all global policies by type", "policyType", bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, "err", err)
 		return policyNames, err
 	}
-	policyNames = util2.Map(promotionPolicies, func(policy *repository3.GlobalPolicy) string {
+	policyNames = util2.Map(promotionPolicies, func(policy *bean2.GlobalPolicyBaseModel) string {
 		return policy.Name
 	})
 	return policyNames, nil

@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -16,7 +17,7 @@ import (
 
 type DeleteService interface {
 	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
-	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
+	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
@@ -65,7 +66,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, 
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error {
 	err := impl.environmentService.Delete(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "err", err, "deleteRequest", deleteRequest)

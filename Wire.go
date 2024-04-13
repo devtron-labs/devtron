@@ -25,6 +25,7 @@ import (
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	chartGroup2 "github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -94,6 +95,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
 	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
+	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -191,7 +193,6 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
-		util4.NewK8sUtilExtended,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
@@ -203,6 +204,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util2.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -220,9 +222,11 @@ func InitializeApp() (*App, error) {
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		deploymentWindow.DeploymentWindowWireSet,
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
+
 		artifactApproval.ArtifactApprovalWireSet,
 		artifactPromotion2.ArtifactPromotionWireSet,
 		// -------wireset end ----------
@@ -234,7 +238,6 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		// sql.GetConfig,
 		eClient.GetEventClientConfig,
-		util2.GetGlobalEnvVariables,
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
@@ -247,6 +250,9 @@ func InitializeApp() (*App, error) {
 		sse.NewSSE,
 		trigger2.NewPipelineTriggerRouter,
 		wire.Bind(new(trigger2.PipelineTriggerRouter), new(*trigger2.PipelineTriggerRouterImpl)),
+
+		util4.NewK8sUtilExtended,
+		wire.Bind(new(k8s2.K8sService), new(*util4.K8sUtilExtended)),
 
 		// ---- pprof start ----
 		restHandler.NewPProfRestHandler,
@@ -305,7 +311,7 @@ func InitializeApp() (*App, error) {
 		app4.NewAppRepositoryImpl,
 		wire.Bind(new(app4.AppRepository), new(*app4.AppRepositoryImpl)),
 
-		pipeline4.GetDeploymentServiceTypeConfig,
+		// util2.GetEnvironmentVariables,
 
 		pipeline4.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline4.PipelineBuilder), new(*pipeline4.PipelineBuilderImpl)),
@@ -866,7 +872,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		util2.GetDevtronSecretName,
+		// util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -1033,7 +1039,6 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
-
 		artifactPromotionApprovalRequest.NewRouterImpl,
 		wire.Bind(new(artifactPromotionApprovalRequest.Router), new(*artifactPromotionApprovalRequest.RouterImpl)),
 
@@ -1049,6 +1054,11 @@ func InitializeApp() (*App, error) {
 
 		globalPolicy2.NewGlobalPolicyDataManagerImpl,
 		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
+
+		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
+		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
+
+		appStoreRestHandler.AppStoreWireSet,
 	)
 	return &App{}, nil
 }

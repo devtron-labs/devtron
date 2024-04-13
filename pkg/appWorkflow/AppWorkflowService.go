@@ -60,7 +60,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (bean4.AppWorkflowDto, error)
-
+	IsWorkflowNameFound(workflowName string, appId int) (bool, error)
 	FindAllWorkflowsComponentDetails(appId int) (*bean4.AllAppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean4.AppWorkflowDto, error)
 	FindAllWorkflowsForApps(request bean4.WorkflowNamesRequest) (*bean4.WorkflowNamesResponse, error)
@@ -116,7 +116,10 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req bean4.AppWorkflowDto) (
 	var wf *appWorkflow.AppWorkflow
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
-
+	ok, err := impl.IsWorkflowNameFound(req.Name, req.AppId)
+	if err != nil {
+		return req, err
+	}
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
 			Id:     req.Id,
@@ -127,19 +130,20 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req bean4.AppWorkflowDto) (
 				UpdatedBy: req.UserId,
 			},
 		}
-		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
-	} else {
-		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
-			return req, err
-		}
-		if workflow.Id != 0 {
+		// if workflow name already exists then we will not allow update workflow name with same name
+		if ok {
 			impl.Logger.Errorw("workflow with this name already exist", "err", err)
 			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
 		}
+		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
+	} else {
+		workflowName := req.Name
+		// if workflow already exists then we will assign a new name to the workflow
+		if ok {
+			workflowName = util2.GenerateNewWorkflowName(workflowName)
+		}
 		wf := &appWorkflow.AppWorkflow{
-			Name:   req.Name,
+			Name:   workflowName,
 			AppId:  req.AppId,
 			Active: true,
 			AuditLog: sql.AuditLog{
@@ -960,4 +964,16 @@ func getMappingsFromIds(identifierToNodeMapping map[bean4.PipelineIdentifier]*be
 		result = append(result, *identifierToNodeMapping[identifier])
 	}
 	return result
+}
+
+func (impl AppWorkflowServiceImpl) IsWorkflowNameFound(workflowName string, appId int) (bool, error) {
+	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(workflowName, appId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
+		impl.Logger.Errorw("error in finding workflow by app id and name", "name", workflowName, "appId", appId)
+		return false, err
+	}
+	if workflow.Id != 0 {
+		return true, nil
+	}
+	return false, nil
 }

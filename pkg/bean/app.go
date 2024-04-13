@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -632,15 +633,19 @@ type CDPipelineConfigObject struct {
 }
 
 type CDPipelineMinConfig struct {
-	Id                int
-	CiPipelineId      int
-	EnvironmentId     int
-	EnvironmentName   string
-	IsProdEnv         bool
-	AppId             int
-	AppName           string
-	TeamId            int
-	DeploymentAppType string
+	Id                         int
+	Name                       string
+	CiPipelineId               int
+	EnvironmentId              int
+	EnvironmentName            string
+	Namespace                  string
+	IsProdEnv                  bool
+	AppId                      int
+	AppName                    string
+	TeamId                     int
+	DeploymentAppType          string
+	DeploymentAppDeleteRequest bool
+	DeploymentAppCreated       bool
 }
 
 type CDPipelineAddType string
@@ -835,27 +840,29 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	// TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy               int32                                `json:"triggeredBy"`
-	CiConfigureSourceType     pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue    string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata      *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags          []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment              *repository2.ImageComment            `json:"imageComment"`
-	FilterState               resourceFilter.FilterState           `json:"filterState"`
-	AppliedFilters            []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
-	AppliedFiltersState       resourceFilter.FilterState           `json:"appliedFiltersState"`
-	AppliedFiltersTimestamp   time.Time                            `json:"appliedFiltersTimestamp"`
-	CreatedTime               string                               `json:"createdTime"`
-	ExternalCiPipelineId      int                                  `json:"-"`
-	ParentCiArtifact          int                                  `json:"-"`
-	CiWorkflowId              int                                  `json:"-"`
-	RegistryType              string                               `json:"registryType"`
-	RegistryName              string                               `json:"registryName"`
-	CiPipelineId              int                                  `json:"-"`
-	CredentialsSourceType     string                               `json:"-"`
-	CredentialsSourceValue    string                               `json:"-"`
-	PromotionApprovalMetadata *bean5.PromotionApprovalMetaData     `json:"promotionApprovalMetadata"`
-	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
+	TriggeredBy             int32                                `json:"triggeredBy"`
+	CiConfigureSourceType   pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue  string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment            *repository2.ImageComment            `json:"imageComment"`
+	FilterState             resourceFilter.FilterState           `json:"filterState"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
+	CreatedTime             string                               `json:"createdTime"`
+	ExternalCiPipelineId    int                                  `json:"-"`
+	ParentCiArtifact        int                                  `json:"-"`
+	CiWorkflowId            int                                  `json:"-"`
+	RegistryType            string                               `json:"registryType"`
+	RegistryName            string                               `json:"registryName"`
+	CiPipelineId            int                                  `json:"-"`
+	CredentialsSourceType   string                               `json:"-"`
+	CredentialsSourceValue  string                               `json:"-"`
+
+	DeploymentWindowArtifactMetadata deploymentWindow.DeploymentWindowAuditData `json:"deploymentWindowArtifactMetadata"`
+	PromotionApprovalMetadata        *bean5.PromotionApprovalMetaData           `json:"promotionApprovalMetadata"`
+	DeployedOnEnvironments           []string                                   `json:"deployedOnEnvironments"`
 }
 
 func (c *CiArtifactBean) GetMaterialInfo() ([]repository3.CiMaterialInfo, error) {

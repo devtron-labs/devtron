@@ -260,6 +260,7 @@ const (
 	ParamTypeObject           ParamValuesType = "object"
 	ParamTypeInteger          ParamValuesType = "integer"
 	ParamTypeList             ParamValuesType = "list"
+	ParamTypeBool             ParamValuesType = "bool"
 	ParamTypeCommitDetails    ParamValuesType = "CommitDetails"
 	ParamTypeCommitDetailsMap ParamValuesType = "commitDetailsMap"
 )
@@ -271,6 +272,8 @@ const ContainerImage ParamName = "containerImage"
 const ContainerImageTag ParamName = "containerImageTag"
 const ImageLabels ParamName = "imageLabels"
 const GitCommitDetails ParamName = "gitCommitDetails"
+const Severity ParamName = "severity"
+const PolicyPermission ParamName = "policyPermission"
 
 type ExpressionParam struct {
 	ParamName ParamName       `json:"paramName"`

@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean5 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean6 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -365,10 +366,10 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	environmentNames := make([]string, 0, len(pipelines))
 	appName := ""
 	appId := 0
-	environments := make([]*cluster.EnvironmentBean, 0, len(pipelines))
+	environments := make([]*bean6.EnvironmentBean, 0, len(pipelines))
 	for _, pipeline := range pipelines {
 		environmentNames = append(environmentNames, pipeline.Environment.Name)
-		environment := &cluster.EnvironmentBean{}
+		environment := &bean6.EnvironmentBean{}
 		environment.AdaptFromEnvironment(&pipeline.Environment)
 		environments = append(environments, environment)
 		appName = pipeline.App.AppName

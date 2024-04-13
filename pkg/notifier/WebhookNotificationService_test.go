@@ -31,7 +31,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 					{
 						WebhookUrl: "dfcd nmc dc",
 						ConfigName: "aditya",
-						Payload:    map[string]interface{}{"text": "final"},
+						Payload:    `{"text": "final"}`,
 						Header:     map[string]interface{}{"Content-type": "application/json"},
 					},
 				},
@@ -41,7 +41,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 				{
 					WebHookUrl: "dfcd nmc dc",
 					ConfigName: "aditya",
-					Payload:    map[string]interface{}{"text": "final"},
+					Payload:    `{"text": "final"}`,
 					Header:     map[string]interface{}{"Content-type": "application/json"},
 				},
 			},
@@ -91,7 +91,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 					{
 						WebhookUrl: "djfndgfbd,gds",
 						ConfigName: "aditya",
-						Payload:    map[string]interface{}{"text": "final"},
+						Payload:    `{"text": "final"}`,
 						Header:     map[string]interface{}{"Content-type": "application/json"},
 					},
 				},
@@ -107,7 +107,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 					{
 						WebhookUrl: "d,fm sdfd",
 						ConfigName: "aditya",
-						Payload:    map[string]interface{}{"text": "final"},
+						Payload:    `{"text": "final"}`,
 						Header:     map[string]interface{}{"Content-type": "application/json"},
 					},
 				},
