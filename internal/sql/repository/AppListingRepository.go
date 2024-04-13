@@ -22,10 +22,12 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -87,6 +89,7 @@ type AppListingRepositoryImpl struct {
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
 	environmentRepository            repository2.EnvironmentRepository
 	gitOpsRepository                 GitOpsConfigRepository
+	appWorkflowRepository            appWorkflow2.AppWorkflowRepository
 }
 
 func NewAppListingRepositoryImpl(
@@ -94,13 +97,14 @@ func NewAppListingRepositoryImpl(
 	dbConnection *pg.DB,
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
 	environmentRepository repository2.EnvironmentRepository,
-	gitOpsRepository GitOpsConfigRepository) *AppListingRepositoryImpl {
+	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppListingRepositoryImpl {
 	return &AppListingRepositoryImpl{
 		dbConnection:                     dbConnection,
 		Logger:                           Logger,
 		appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder,
 		environmentRepository:            environmentRepository,
 		gitOpsRepository:                 gitOpsRepository,
+		appWorkflowRepository:            appWorkflowRepository,
 	}
 }
 
@@ -321,6 +325,22 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 	return appEnvArr, appsSize, nil
 }
 
+func (impl AppListingRepositoryImpl) getEnvironmentNameFromPipelineId(pipelineID int) (string, error) {
+	var environmentName string
+	query := "SELECT e.environment_name " +
+		"FROM public.pipeline p " +
+		"JOIN public.environment e ON p.environment_id = e.id WHERE p.id = ?"
+
+	_, err := impl.dbConnection.Query(&environmentName, query, pipelineID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("no environment found for pipeline ID %d", pipelineID)
+		}
+		return "", err
+	}
+	return environmentName, nil
+}
+
 // DeploymentDetailsByAppIdAndEnvId It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
 func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
@@ -340,7 +360,10 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" p.id as cd_pipeline_id," +
+		" p.ci_pipeline_id," +
+		" p.trigger_type" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -422,6 +445,17 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
+	}
+	appWfMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
+	if err != nil {
+		impl.Logger.Warn("unable to fetch app workflow mapping  for pipeline")
+	}
+	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
+		envName, err := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
+		if err != nil {
+			impl.Logger.Warn("unable to fetch app envName for pipeline")
+		}
+		deploymentDetail.ParentEnvironmentName = envName
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
