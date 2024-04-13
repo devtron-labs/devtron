@@ -1,4 +1,6 @@
 ## Bugs
+- fix: removed unused dependency (#4916)
+- fix: release not found alert (#4928)
 - fix: link external helm app to chart store (#4919)
 - fix: Corrected the error of fetching app name and pipeline name from CI_CD_EVENT (#4911)
 - fix:job name support added in input variables (#4863)
@@ -21,6 +23,7 @@
 - fix: extra check added for mono-repo migraiton (#4764)
 - fix: trim space from git repo Url on create and update material (#4787)
 ## Enhancements
+- perf: memory optimizations and prom metrics on terminal session exposed (#4909)
 - feat: Added the Devtron CI Trigger Plugin (#4908)
 - feat:MailMaster Plugin v1.0 (#4825)
 - feat: Add support for git hash in the app and app group overview section _revised (#4836)

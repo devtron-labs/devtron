@@ -10,10 +10,10 @@ global:
   containerRegistry: "quay.io/devtron"
 
 installer:
-  release: "v0.6.29-rc.0"
+  release: "v0.6.29"
   registry: ""
-  image: inception
-  tag: 473deaa4-185-21582
+  image: "inception"
+  tag: "473deaa4-185-21582"
 components:
   dashboard:
     config:
@@ -27,21 +27,23 @@ components:
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
+        SERVICE_WORKER_TIMEOUT: "1"
+        API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:8cf929d0-325-22021"
+    image: "dashboard:1c86e84e-325-22108"
     imagePullPolicy: IfNotPresent
 
   devtron:
     registry: ""
-    image: "hyperion:e7f34f5a-280-22065"
-    cicdImage: "devtron:e7f34f5a-434-22047"
+    image: "hyperion:e7f34f5a-280-22107"
+    cicdImage: "devtron:e7f34f5a-434-22106"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
       # DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
 
   ciRunner:
     registry: ""
-    image: "ci-runner:d5f875c7-138-21576"
+    image: "ci-runner:3de666b1-138-22112"
 
 
   argocdDexServer:
@@ -53,7 +55,7 @@ components:
 
   kubelink:
     registry: ""
-    image: "kubelink:2610ac5a-564-21855"
+    image: "kubelink:2610ac5a-564-22109"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -71,7 +73,7 @@ components:
 
   kubewatch:
     registry: ""
-    image: "kubewatch:91c2cece-419-21178"
+    image: "kubewatch:50d4d32d-419-22116"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -174,7 +176,8 @@ workflowController:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:d554c0f8-334-14015"
+    image: "image-scanner:c0416bc2-334-22111"
+
 # Values for notifier integration
 notifier:
-  image: "notifier:f2c99941-866-6168"
+  image: "notifier:924a17f6-372-22110"
