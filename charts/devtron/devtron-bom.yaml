@@ -27,6 +27,8 @@ components:
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
         ENABLE_EXTERNAL_ARGO_CD: "false"
+        SERVICE_WORKER_TIMEOUT: "1"
+        API_BATCH_SIZE: "30"
   devtron:
     image: "quay.io/devtron/hyperion:e7f34f5a-280-22107"
     cicdImage: "quay.io/devtron/devtron:e7f34f5a-434-22106"
