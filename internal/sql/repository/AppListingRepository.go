@@ -22,7 +22,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
@@ -328,14 +327,12 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 func (impl AppListingRepositoryImpl) getEnvironmentNameFromPipelineId(pipelineID int) (string, error) {
 	var environmentName string
 	query := "SELECT e.environment_name " +
-		"FROM public.pipeline p " +
-		"JOIN public.environment e ON p.environment_id = e.id WHERE p.id = ?"
+		"FROM pipeline p " +
+		"JOIN environment e ON p.environment_id = e.id WHERE p.id = ?"
 
 	_, err := impl.dbConnection.Query(&environmentName, query, pipelineID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("no environment found for pipeline ID %d", pipelineID)
-		}
+		impl.Logger.Errorw("error in finding environment", "err", err, "pipelineID", pipelineID)
 		return "", err
 	}
 	return environmentName, nil
