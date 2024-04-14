@@ -88,6 +88,11 @@ components:
     armImage: "postgres:11.9"
     initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
+    metrics:
+      image: postgres_exporter:v0.4.7
+      armImage: postgres_exporter:v0.10.1
+    persistence:
+      volumeSize: "20Gi"
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
