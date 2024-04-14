@@ -1,5 +1,3 @@
-## v0.6.29
-
 ## Bugs
 - fix: removed unused dependency (#4916)
 - fix: release not found alert (#4928)
