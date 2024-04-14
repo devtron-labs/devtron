@@ -187,3 +187,22 @@ security:
 # Values for notifier integration
 notifier:
   image: "notifier:924a17f6-372-22110"
+# Values for grafana integration
+monitoring:
+  grafana:
+    enabled: false
+    registry: ""
+    image: "grafana:7.3.1"
+    busyboxImage: "busybox:1.31.1"
+    batsImage: "bats:v1.4.1"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    grafanaOrgJob:
+      curlImage: k8s-utils:tutum-curl
+    grafanaDashboards:
+      image: "k8s-sidecar:1.1.0"
+      curlImage: "curl:7.73.0"
+      imagePullPolicy: IfNotPresent
+      resources: {}
+    persistence:
+      storage: "2Gi"
