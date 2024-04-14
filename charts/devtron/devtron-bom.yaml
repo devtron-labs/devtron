@@ -168,7 +168,7 @@ argo-cd:
       imagePullPolicy: IfNotPresent
 # Change below values for workflow controller
 workflowController:
-  registry: ""
+  registry: "quay.io/argoproj"
   IMDSv2Enforced: true
   image: "workflow-controller:v3.0.7"
   executorImage: "argoexec:v3.0.7"
