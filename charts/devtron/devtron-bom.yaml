@@ -170,9 +170,9 @@ argo-cd:
 workflowController:
   registry: "quay.io/argoproj"
   IMDSv2Enforced: true
-  image: "workflow-controller:v3.0.7"
-  executorImage: "argoexec:v3.0.7"
-
+  image: "workflow-controller:v3.4.3"
+  executorImage: "argoexec:v3.4.3"
+  IMDSv1: "workflow-controller:v3.0.7"
 
 security:
   enabled: false
