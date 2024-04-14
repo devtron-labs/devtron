@@ -84,9 +84,9 @@ Orchestrator sends the summary events of the Devtron tool to measure the daily u
 
 Events which are sent by Orchestrator :
 * `Heartbeat`
-* `Summary`
+* `MisConfSummary`
 
-Orchestrator sends the `Summary` event once in 24 hours with the daily operation done by user.
+Orchestrator sends the `MisConfSummary` event once in 24 hours with the daily operation done by user.
 
 Here is a sample summary JSON which is available under properties:
 
