@@ -34,6 +34,7 @@ import (
 this table contains scanned images registry for deployed object and apps,
 images which are deployed on cluster by anyway and has scanned result
 */
+//TODO refactor name and column names Subhashish
 type ImageScanDeployInfo struct {
 	tableName                   struct{} `sql:"image_scan_deploy_info" pg:",discard_unknown_columns"`
 	Id                          int      `sql:"id,pk"`
@@ -49,7 +50,9 @@ const (
 	ScanObjectType_APP           string = "app"
 	ScanObjectType_CHART         string = "chart"
 	ScanObjectType_POD           string = "pod"
-	ScanObjectType_CHART_HISTORY        = "chart-history"
+	ScanObjectType_CHART_HISTORY string = "chart-history"
+	ScanObjectType_CI_Workflow   string = "ci-workflow"
+	ScanObjectType_CD_Workflow   string = "cd-workflow"
 )
 
 type SortBy string
