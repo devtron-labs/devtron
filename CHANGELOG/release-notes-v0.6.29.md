@@ -1,3 +1,5 @@
+## v0.6.29
+
 ## Bugs
 - fix: removed unused dependency (#4916)
 - fix: release not found alert (#4928)
@@ -44,3 +46,5 @@
 - misc: Pagerduty issue template change (#4796)
 - chore: Image scanning refactoring (#4802)
 - chore: refactoring v4 (#4775)
+
+
