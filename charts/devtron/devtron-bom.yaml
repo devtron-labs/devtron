@@ -39,7 +39,6 @@ components:
     cicdImage: "devtron:e7f34f5a-434-22106"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
-      # DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d5f875c7-138-21576"
 
   ciRunner:
     registry: ""
@@ -178,7 +177,7 @@ workflowController:
   image: "workflow-controller:v3.4.3"
   executorImage: "argoexec:v3.4.3"
   IMDSv1: "workflow-controller:v3.0.7"
-
+  IMDSv1executorImage: "argoexec:v3.0.7"
 security:
   enabled: false
   imageScanner:
