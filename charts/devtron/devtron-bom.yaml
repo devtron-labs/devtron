@@ -90,8 +90,6 @@ components:
     metrics:
       image: postgres_exporter:v0.4.7
       armImage: postgres_exporter:v0.10.1
-    persistence:
-      volumeSize: "20Gi"
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -179,7 +177,6 @@ workflowController:
   IMDSv1Image: "workflow-controller:v3.0.7"
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
-  enabled: false
   imageScanner:
     image: "image-scanner:c0416bc2-334-22111"
 
