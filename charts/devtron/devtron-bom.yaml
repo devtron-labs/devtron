@@ -145,7 +145,7 @@ components:
     registry: ""
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
-    duplicateChart: devtron-utils:dup-chart-repo-v1.1.0
+    duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -177,7 +177,7 @@ workflowController:
   image: "workflow-controller:v3.4.3"
   executorImage: "argoexec:v3.4.3"
   IMDSv1: "workflow-controller:v3.0.7"
-  IMDSv1executorImage: "argoexec:v3.0.7"
+  IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   enabled: false
   imageScanner:

@@ -33,7 +33,7 @@ spec:
           envFrom:
             - secretRef:
                 name: devtron-secret
-          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChart ) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChartImage ) }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -385,7 +385,7 @@ spec:
         {{- if not $.Values.installer.arch }}
         image: {{ include "common.image"   (dict "component" $.Values.components.postgres  "global" $.Values.global ) }}
         {{- else }}
-        image: {{ include "common.image"   (dict "component" $.Values.components.postgres.arm  "global" $.Values.global ) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
         {{- end }}
         securityContext:
           allowPrivilegeEscalation: false

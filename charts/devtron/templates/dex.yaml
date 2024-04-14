@@ -100,7 +100,7 @@ spec:
         - -n
         - /authenticator
         - /shared
-        image: {{ include "common.image" (dict "component" $.Values.components.argocdDexServer "global" $.Values.global  "extraImage" .initContainer.authenticator) }}
+        image: {{ include "common.image" (dict "component" $.Values.components.argocdDexServer "global" $.Values.global  "extraImage" $.Values.components.argocdDexServer.initContainer.authenticator) }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
