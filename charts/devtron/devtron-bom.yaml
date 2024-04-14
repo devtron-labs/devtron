@@ -176,7 +176,7 @@ workflowController:
   IMDSv2Enforced: true
   image: "workflow-controller:v3.4.3"
   executorImage: "argoexec:v3.4.3"
-  IMDSv1: "workflow-controller:v3.0.7"
+  IMDSv1Image: "workflow-controller:v3.0.7"
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   enabled: false

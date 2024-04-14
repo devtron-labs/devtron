@@ -1203,7 +1203,7 @@ spec:
         {{- if $.Values.workflowController.IMDSv2Enforced }}
         image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global  ) }}
         {{- else }}
-        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1 ) }}
+        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1Image ) }}
         {{- end }}
         name: workflow-controller
         {{- if $.Values.workflowController.resources }}        
