@@ -27,7 +27,7 @@ DELETE from default_rbac_role_data where role='artifactPromoter';
 
 DELETE from event where id=6;
 
-DELETE from notification_templates where event_type_id=6;
+DELETE from notification_templates where event_type_id=7;
 
 
 
