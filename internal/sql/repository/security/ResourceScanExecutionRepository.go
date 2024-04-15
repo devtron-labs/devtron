@@ -19,7 +19,7 @@ type ResourceScanResult struct {
 type ResourceScanFormat int
 
 const (
-	CycloneDxSbom ResourceScanFormat = 1 //SBOM
+	CycloneDxSbom ResourceScanFormat = 1 // SBOM
 	TrivyJson                        = 2
 	Json                             = 3
 )
@@ -35,7 +35,7 @@ const (
 
 type ResourceScanResultRepository interface {
 	SaveInBatch(tx *pg.Tx, models []*ResourceScanResult) error
-	FetchWithHistoryIds(historyIds []int) (*[]ResourceScanResult, error)
+	FetchWithHistoryIds(historyIds []int) ([]*ResourceScanResult, error)
 }
 
 type ResourceScanResultRepositoryImpl struct {
@@ -53,11 +53,11 @@ func NewResourceScanResultRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 func (impl ResourceScanResultRepositoryImpl) SaveInBatch(tx *pg.Tx, models []*ResourceScanResult) error {
 	return tx.Insert(&models)
 }
-func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) (*[]ResourceScanResult, error) {
-	var model []ResourceScanResult
-	err := impl.dbConnection.Model(&model).Column("resource_scan_result.*", "ImageScanExecutionHistory").
+func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ResourceScanResult, error) {
+	var models []*ResourceScanResult
+	err := impl.dbConnection.Model(&models).Column("resource_scan_result.*", "ImageScanExecutionHistory").
 		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_result.image_scan_execution_history_id").
 		Where("resource_scan_result.image_scan_execution_history_id IN(?) ?", pg.In(historyIds)).Select()
-	return &model, err
+	return models, err
 
 }

@@ -36,6 +36,18 @@ type ImageScanExecutionHistory struct {
 	SourceSubType                 SourceSubType `sql:"source_sub_type"`
 }
 
+func (ih *ImageScanExecutionHistory) IsBuiltImage() bool {
+	return ih.SourceType == 1 && ih.SourceSubType == 1
+}
+
+func (ih *ImageScanExecutionHistory) IsManifestImage() bool {
+	return ih.SourceType == 1 && ih.SourceSubType == 2
+}
+
+func (ih *ImageScanExecutionHistory) IsManifest() bool {
+	return ih.SourceType == 1 && ih.SourceSubType == 2
+}
+
 // multiple history rows for one source event
 type SourceType int
 

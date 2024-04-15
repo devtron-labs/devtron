@@ -160,6 +160,15 @@ type VulnerabilityResponse struct {
 	List    []ImageVulnerability `json:"list"`
 }
 
+func (vr *VulnerabilityResponse) append(iv ImageVulnerability) {
+	vr.List = append(vr.List, iv)
+	summary := iv.Summary
+	for key, val := range summary.Severities {
+		summary.Severities[key] = val + iv.Summary.Severities[key]
+	}
+	vr.Summary = summary
+}
+
 type LicenseResponse struct {
 	Summary Summary         `json:"summary"`
 	List    []ImageLicenses `json:"list"`
