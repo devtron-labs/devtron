@@ -15,5 +15,5 @@ func NewScanningResultRouterImpl(ScanningResultRestHandler ScanningResultRestHan
 }
 
 func (router *ScanningResultRouterImpl) InitScanningResultRouter(configRouter *mux.Router) {
-	configRouter.Path("/scanResults").HandlerFunc(router.ScanningResultRestHandler.ScanResults).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.ScanningResultRestHandler.ScanResults).Methods("GET")
 }

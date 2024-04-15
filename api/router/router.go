@@ -492,4 +492,7 @@ func (r MuxRouter) Init() {
 
 	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
 	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
+
+	scanResultRouter := r.Router.PathPrefix("/orchestrator/scan-result").Subrouter()
+	r.scanningResultRouter.InitScanningResultRouter(scanResultRouter)
 }
