@@ -395,7 +395,7 @@ func (impl *UserTerminalAccessServiceImpl) closeAndCleanTerminalSession(accessSe
 }
 
 func (impl *UserTerminalAccessServiceImpl) closeSession(sessionId string) {
-	impl.terminalSessionHandler.Close(sessionId, 1, "Process exited")
+	impl.terminalSessionHandler.Close(sessionId, 1, terminal.ProcessExitedMsg)
 }
 
 func (impl *UserTerminalAccessServiceImpl) extractMetadataString(request *models.UserTerminalSessionRequest) string {

@@ -24,6 +24,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -64,6 +66,10 @@ type TerminalSession struct {
 	doneChan          chan struct{}
 	context           context.Context
 	contextCancelFunc context.CancelFunc
+	podName           string
+	namespace         string
+	clusterId         string
+	startedOn         time.Time
 }
 
 // TerminalMessage is the messaging protocol between ShellController and TerminalSession.
@@ -171,6 +177,15 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 	sm.Sessions[sessionId] = session
 }
 
+func (sm *SessionMap) SetTerminalSessionStartTime(sessionId string) {
+	sm.Lock.Lock()
+	defer sm.Lock.Unlock()
+	if session, ok := sm.Sessions[sessionId]; ok {
+		session.startedOn = time.Now()
+		sm.Sessions[sessionId] = session
+	}
+}
+
 // Close shuts down the SockJS connection and sends the status code and reason to the client
 // Can happen if the process exits or if there is an error starting up the process
 // For now the status code is unused and reason is shown to the user (unless "")
@@ -183,11 +198,21 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 		if err != nil {
 			log.Println(err)
 		}
+		isErroredConnectionTermination := isConnectionClosedByError(status)
+		middleware.IncTerminalSessionRequestCounter(SessionTerminated, strconv.FormatBool(isErroredConnectionTermination))
+		middleware.RecordTerminalSessionDurationMetrics(terminalSession.podName, terminalSession.namespace, terminalSession.clusterId, time.Since(terminalSession.startedOn).Seconds())
 		close(terminalSession.doneChan)
 		terminalSession.contextCancelFunc()
 		delete(sm.Sessions, sessionId)
 	}
 
+}
+
+func isConnectionClosedByError(status uint32) bool {
+	if status == 2 {
+		return true
+	}
+	return false
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
@@ -269,7 +294,9 @@ func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-
+	isErroredConnectionTermination := false
+	middleware.IncTerminalSessionRequestCounter(SessionInitiating, strconv.FormatBool(isErroredConnectionTermination))
+	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
 	err = execWithStreamOptions(ctx, exec, streamOptions)
 	if err != nil {
 		return err
@@ -452,6 +479,9 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		doneChan:          make(chan struct{}),
 		context:           sessionCtx,
 		contextCancelFunc: cancelFunc,
+		podName:           req.PodName,
+		namespace:         req.Namespace,
+		clusterId:         strconv.Itoa(req.ClusterId),
 	})
 	config, client, err := impl.getClientConfig(req)
 
