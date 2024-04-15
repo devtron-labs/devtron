@@ -3,6 +3,7 @@ package scanningResultsParser
 import (
 	"fmt"
 	"github.com/tidwall/gjson"
+	"time"
 )
 
 type Severity string
@@ -15,16 +16,17 @@ const (
 	UNKNOWN  Severity = "Unknown"
 )
 
-type SeveritySummary struct {
+type Summary struct {
+	ScannedOn  time.Time
 	Severities map[Severity]int
 }
 
-func (summary SeveritySummary) String() string {
+func (summary Summary) String() string {
 	return fmt.Sprintf("%d Critical, %d High, %d Medium, %d Low, %d Unknown", summary.Severities[CRITICAL], summary.Severities[HIGH], summary.Severities[MEDIUM], summary.Severities[LOW], summary.Severities[UNKNOWN])
 }
 
 type Licenses struct {
-	Summary  SeveritySummary
+	Summary  Summary
 	Licenses []License
 }
 
@@ -47,7 +49,7 @@ func getLicense(licenseJson string) License {
 }
 
 type Vulnerabilities struct {
-	Summary         SeveritySummary
+	Summary         Summary
 	Vulnerabilities []Vulnerability
 }
 
@@ -92,11 +94,11 @@ type Configuration struct {
 	CauseMetadata CauseMetadata // CauseMetadata
 }
 
-type MisConfigurations struct {
+type MisConfiguration struct {
 	FilePath       string                  // Target
 	Type           string                  // Type
 	MisConfSummary MisConfigurationSummary // MisConfSummary
-	Summary        SeveritySummary
+	Summary        Summary
 	Configurations []Configuration
 }
 
@@ -105,8 +107,38 @@ type Secret struct {
 	CauseMetadata
 }
 
-type ExposedSecrets struct {
+type ExposedSecret struct {
 	FilePath string // target and class: secret
-	Summary  SeveritySummary
+	Summary  Summary
 	Secrets  []Secret
+}
+
+type MisConfigurations struct {
+	Summary           Summary            `json:"summary"`
+	MisConfigurations []MisConfiguration `json:"misConfigurations"`
+}
+
+type ExposedSecrets struct {
+	Summary        Summary         `json:"summary"`
+	ExposedSecrets []ExposedSecret `json:"exposedSecrets"`
+}
+
+type ImageScanResult struct {
+	Summary       Summary         `json:"summary"`
+	Image         string          `json:"image"`
+	Vulnerability Vulnerabilities `json:"vulnerability"`
+	License       Licenses        `json:"license"`
+	Status        string          `json:"status"`
+	StartedOn     time.Time       `json:"StartedOn"`
+}
+
+type CodeScanResult struct {
+	Vulnerability     Vulnerabilities   `json:"vulnerability"`
+	License           Licenses          `json:"license"`
+	MisConfigurations MisConfigurations `json:"misConfigurations"`
+	ExposedSecrets    ExposedSecrets    `json:"exposedSecrets"`
+}
+
+type ManifestScanResult struct {
+	MisConfigurations MisConfigurations `json:"misConfigurations"`
 }

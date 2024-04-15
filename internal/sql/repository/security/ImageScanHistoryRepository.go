@@ -41,6 +41,7 @@ type ImageScanHistoryRepository interface {
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
 	FindByImages(images []string) ([]*ImageScanExecutionHistory, error)
+	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
 }
 
 type ImageScanHistoryRepositoryImpl struct {
@@ -109,4 +110,11 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImages(images []string) ([]*Ima
 		return model, nil
 	}
 	return model, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FindByIds(ids []int) ([]*ImageScanExecutionHistory, error) {
+	var models = make([]*ImageScanExecutionHistory, 0)
+	err := impl.dbConnection.Model(&models).
+		Where("id IN (? )", ids).Select()
+	return models, err
 }

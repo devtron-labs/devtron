@@ -101,12 +101,12 @@ const (
 	ConfigVal JsonVal = "config"
 )
 
-func ParseMisConfigurations(scanResult string) []*MisConfigurations {
-	MisConfRes := make([]*MisConfigurations, 0)
+func ParseMisConfigurations(scanResult string) []*MisConfiguration {
+	MisConfRes := make([]*MisConfiguration, 0)
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, result gjson.Result) bool {
 			if result.Get(ClassKey.string()).String() == ConfigVal.string() {
-				misConfigurationRes := &MisConfigurations{}
+				misConfigurationRes := &MisConfiguration{}
 				misConfigurationRes.Type = result.Get(TypeKey.string()).String()
 				misConfigurationRes.FilePath = result.Get(FilePathKey.string()).String()
 				misConfigurationRes.MisConfSummary = MisConfigurationSummary{
@@ -169,12 +169,12 @@ const (
 	SecretVal JsonVal = "secret"
 )
 
-func ParseExposedSecrets(scanResult string) []*ExposedSecrets {
-	var exposedSecretsRes []*ExposedSecrets
+func ParseExposedSecrets(scanResult string) []*ExposedSecret {
+	var exposedSecretsRes []*ExposedSecret
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, result gjson.Result) bool {
 			if result.Get(ClassKey.string()).String() == SecretVal.string() {
-				exposedSecrets := &ExposedSecrets{}
+				exposedSecrets := &ExposedSecret{}
 				exposedSecrets.FilePath = result.Get(FilePathKey.string()).String()
 				secrets := make([]Secret, 0)
 				if secretObjs := result.Get("Secrets"); secretObjs.IsArray() {
@@ -217,42 +217,42 @@ func ParseExposedSecrets(scanResult string) []*ExposedSecrets {
 	return exposedSecretsRes
 }
 
-func buildConfigSummary(configs MisConfigurations) SeveritySummary {
+func buildConfigSummary(configs MisConfiguration) Summary {
 	summary := make(map[Severity]int)
 	for _, config := range configs.Configurations {
 		summary[config.Severity] = summary[config.Severity] + 1
 	}
-	return SeveritySummary{
+	return Summary{
 		Severities: summary,
 	}
 
 }
-func buildLicenseSummary(licenses Licenses) SeveritySummary {
+func buildLicenseSummary(licenses Licenses) Summary {
 	summary := make(map[Severity]int)
 	for _, license := range licenses.Licenses {
 		summary[license.Severity] = summary[license.Severity] + 1
 	}
-	return SeveritySummary{
+	return Summary{
 		Severities: summary,
 	}
 }
 
-func buildVulnerabilitySummary(vulnerabilities Vulnerabilities) SeveritySummary {
+func buildVulnerabilitySummary(vulnerabilities Vulnerabilities) Summary {
 	summary := make(map[Severity]int)
 	for _, vulnerability := range vulnerabilities.Vulnerabilities {
 		summary[vulnerability.Severity] = summary[vulnerability.Severity] + 1
 	}
-	return SeveritySummary{
+	return Summary{
 		Severities: summary,
 	}
 }
 
-func buildSecretSummary(exposedSecrets ExposedSecrets) SeveritySummary {
+func buildSecretSummary(exposedSecrets ExposedSecret) Summary {
 	summary := make(map[Severity]int)
 	for _, secret := range exposedSecrets.Secrets {
 		summary[secret.Severity] = summary[secret.Severity] + 1
 	}
-	return SeveritySummary{
+	return Summary{
 		Severities: summary,
 	}
 }
