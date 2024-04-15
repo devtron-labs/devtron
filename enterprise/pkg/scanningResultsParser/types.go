@@ -151,8 +151,9 @@ type K8sManifestScanResponse struct {
 }
 
 type Metadata struct {
-	Status    string    `json:"status"`
-	StartedOn time.Time `json:"StartedOn"`
+	Status       string    `json:"status"`
+	StartedOn    time.Time `json:"StartedOn"`
+	ScanToolName string    `json:"scanToolName"`
 }
 
 type VulnerabilityResponse struct {

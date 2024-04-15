@@ -308,7 +308,7 @@ func InitializeApp() (*App, error) {
 		app4.NewAppRepositoryImpl,
 		wire.Bind(new(app4.AppRepository), new(*app4.AppRepositoryImpl)),
 
-		//util2.GetEnvironmentVariables,
+		// util2.GetEnvironmentVariables,
 
 		pipeline4.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline4.PipelineBuilder), new(*pipeline4.PipelineBuilderImpl)),
@@ -677,8 +677,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
 		security2.NewImageScanHistoryRepositoryImpl,
 		wire.Bind(new(security2.ImageScanHistoryRepository), new(*security2.ImageScanHistoryRepositoryImpl)),
-		security2.NewResourceScanResultRepositoryImpl,
-		wire.Bind(new(security2.ResourceScanResultRepository), new(*security2.ResourceScanResultRepositoryImpl)),
 		security2.NewImageScanResultRepositoryImpl,
 		wire.Bind(new(security2.ImageScanResultRepository), new(*security2.ImageScanResultRepositoryImpl)),
 		security2.NewImageScanObjectMetaRepositoryImpl,
@@ -868,7 +866,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		//util2.GetEnvironmentVariables,
+		// util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,

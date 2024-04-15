@@ -18,34 +18,51 @@
 package security
 
 import (
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type ImageScanExecutionHistory struct {
-	tableName                     struct{}      `sql:"image_scan_execution_history" pg:",discard_unknown_columns"`
-	Id                            int           `sql:"id,pk"`
-	Image                         string        `sql:"image,notnull"`
-	ImageHash                     string        `sql:"image_hash,notnull"` // TODO Migrate to request metadata
-	ExecutionTime                 time.Time     `sql:"execution_time"`
-	ExecutedBy                    int           `sql:"executed_by,notnull"`
-	SourceMetadataJson            string        `sql:"source_metadata_json"`             // to have relevant info to process a scan for a given source type and subtype
-	ExecutionHistoryDirectoryPath string        `sql:"execution_history_directory_path"` // Deprecated
-	SourceType                    SourceType    `sql:"source_type"`
-	SourceSubType                 SourceSubType `sql:"source_sub_type"`
+	tableName                       struct{}      `sql:"image_scan_execution_history" pg:",discard_unknown_columns"`
+	Id                              int           `sql:"id,pk"`
+	Image                           string        `sql:"image,notnull"`
+	ImageHash                       string        `sql:"image_hash,notnull"` // TODO Migrate to request metadata
+	ExecutionTime                   time.Time     `sql:"execution_time"`
+	ExecutedBy                      int           `sql:"executed_by,notnull"`
+	SourceMetadataJson              string        `sql:"source_metadata_json"`             // to have relevant info to process a scan for a given source type and subtype
+	ExecutionHistoryDirectoryPath   string        `sql:"execution_history_directory_path"` // Deprecated
+	SourceType                      SourceType    `sql:"source_type"`
+	SourceSubType                   SourceSubType `sql:"source_sub_type"`
+	ResourceScanExecutionResult     *ResourceScanExecutionResult
+	ScanToolExecutionHistoryMapping *ScanToolExecutionHistoryMapping
 }
 
-func (ih *ImageScanExecutionHistory) IsBuiltImage() bool {
-	return ih.SourceType == 1 && ih.SourceSubType == 1
+func (ed *ExecutionData) IsBuiltImage() bool {
+	return ed.SourceType == SourceTypeImage && ed.SourceSubType == SourceSubTypeCi
 }
 
-func (ih *ImageScanExecutionHistory) IsManifestImage() bool {
-	return ih.SourceType == 1 && ih.SourceSubType == 2
+func (ed *ExecutionData) IsManifestImage() bool {
+	return ed.SourceType == SourceTypeImage && ed.SourceSubType == SourceSubTypeManifest
 }
 
-func (ih *ImageScanExecutionHistory) IsManifest() bool {
-	return ih.SourceType == 1 && ih.SourceSubType == 2
+func (ed *ExecutionData) IsManifest() bool {
+	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeManifest
+}
+
+func (ed *ExecutionData) IsCode() bool {
+	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeCi
+}
+
+type ExecutionData struct {
+	Image         string
+	ScanDataJson  string
+	StartedOn     time.Time
+	ScanToolName  string
+	SourceType    SourceType
+	SourceSubType SourceSubType
+	Status        serverBean.ScanExecutionProcessState
 }
 
 // multiple history rows for one source event
@@ -74,6 +91,7 @@ type ImageScanHistoryRepository interface {
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
 	FindByImages(images []string) ([]*ImageScanExecutionHistory, error)
 	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
+	FetchWithHistoryIds(historyIds []int) ([]*ExecutionData, error)
 }
 
 type ImageScanHistoryRepositoryImpl struct {
@@ -149,4 +167,18 @@ func (impl ImageScanHistoryRepositoryImpl) FindByIds(ids []int) ([]*ImageScanExe
 	err := impl.dbConnection.Model(&models).
 		Where("id IN (? )", ids).Select()
 	return models, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ExecutionData, error) {
+	var models []*ExecutionData
+	query := " SELECT iseh.image,iseh.execution_time AS started_on,iseh.source_type,iseh.source_sub_type,rser.scan_data_json,stehm.state AS status,stm.name AS scan_tool_name" +
+		" FROM image_scan_execution_history iseh " +
+		" INNER JOIN resource_scan_execution_result rser ON iseh.id = rser.image_scan_execution_history_id " +
+		" INNER JOIN scan_tool_execution_history_mapping stehm ON iseh.id = stehm.image_scan_execution_history_id " +
+		" INNER JOIN scan_tool_metadata stm ON stehm.scan_tool_id = stm.id " +
+		" WHERE iseh.id IN (?)"
+
+	_, err := impl.dbConnection.Query(&models, query, pg.In(historyIds))
+	return models, err
+
 }

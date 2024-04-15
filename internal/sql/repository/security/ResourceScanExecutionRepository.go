@@ -13,7 +13,6 @@ type ResourceScanExecutionResult struct {
 	Format                      ResourceScanFormat `sql:"format"`
 	Types                       []ResourceScanType `sql:"types"`
 	ScanToolId                  int                `sql:"scan_tool_id"`
-	ImageScanExecutionHistory   *ImageScanExecutionHistory
 }
 
 type ResourceScanFormat int
@@ -35,7 +34,6 @@ const (
 
 type ResourceScanResultRepository interface {
 	SaveInBatch(tx *pg.Tx, models []*ResourceScanExecutionResult) error
-	FetchWithHistoryIds(historyIds []int) ([]*ResourceScanExecutionResult, error)
 }
 
 type ResourceScanResultRepositoryImpl struct {
@@ -52,13 +50,4 @@ func NewResourceScanResultRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 
 func (impl ResourceScanResultRepositoryImpl) SaveInBatch(tx *pg.Tx, models []*ResourceScanExecutionResult) error {
 	return tx.Insert(&models)
-}
-
-func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ResourceScanExecutionResult, error) {
-	var models []*ResourceScanExecutionResult
-	err := impl.dbConnection.Model(&models).Column("resource_scan_execution_result.*", "ImageScanExecutionHistory").
-		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_execution_result.image_scan_execution_history_id").
-		Where("resource_scan_execution_result.image_scan_execution_history_id IN (?)", pg.In(historyIds)).Select()
-	return models, err
-
 }
