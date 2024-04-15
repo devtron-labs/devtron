@@ -25,6 +25,14 @@ type ACDConfig struct {
 	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
 }
 
+func (config *ACDConfig) IsManualSyncEnabled() bool {
+	return config.ArgoCDAutoSyncEnabled == false
+}
+
+func (config *ACDConfig) IsAutoSyncEnabled() bool {
+	return config.ArgoCDAutoSyncEnabled == true
+}
+
 func GetACDDeploymentConfig() (*ACDConfig, error) {
 	cfg := &ACDConfig{}
 	err := env.Parse(cfg)
@@ -96,12 +104,25 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 }
 
 func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
+
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsManualSyncEnabled() {
+
+		impl.logger.Debugw("terminating any ongoing sync operation before performing manual sync", "argoAppName", argoAppName)
+		_, _ = impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
+			Name: &argoAppName,
+		})
+
 		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
-		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision, Prune: &pruneResources})
+		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+			Revision: &revision,
+			Prune:    &pruneResources,
+			RetryStrategy: &v1alpha1.RetryStrategy{
+				Limit: 1,
+			},
+		})
 		if syncErr != nil {
 			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
 			return syncErr
