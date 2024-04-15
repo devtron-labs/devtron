@@ -70,12 +70,12 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 		return resp, err
 	}
 
-	var imageScanJsons []*string
+	var imageScanJsons map[string]*string
 	var codeScanJson *string
 	var k8sManifestScanJson *string
 	for _, scanHistory := range scanHistories {
 		if scanHistory.ImageScanExecutionHistory.IsBuiltImage() || scanHistory.ImageScanExecutionHistory.IsManifestImage() {
-			imageScanJsons = append(imageScanJsons, &scanHistory.ScanDataJson)
+			imageScanJsons[scanHistory.ImageScanExecutionHistory.Image] = &scanHistory.ScanDataJson
 		} else if scanHistory.ImageScanExecutionHistory.SourceType == 2 && scanHistory.ImageScanExecutionHistory.SourceSubType == 1 {
 			codeScanJson = &scanHistory.ScanDataJson
 		} else {
@@ -91,18 +91,43 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 		resp.KubernetesManifest = *parseManifestPtr
 	}
 
-	// if imageScanResponse := getImageScanResult(imageScanJsons); imageScanResponse != nil {
-	// 	resp.ImageScan = *imageScanResponse
-	// }
+	if imageScanResponse := getImageScanResult(imageScanJsons); imageScanResponse != nil {
+		resp.ImageScan = *imageScanResponse
+	}
 	return resp, err
 }
 
-// func getImageScanResult(imageScanJsons []*string) *ImageScanResponse {
-// 	var parseImage []ImageScanResult
-// 	for _, imageScanJson := range imageScanJsons {
-// 		if imageScanResp := ParseImageScanResult(*imageScanJson); imageScanResp != nil {
-//
-// 		}
-// 	}
-//
-// }
+func getImageScanResult(imageScanJsons map[string]*string) *ImageScanResponse {
+	vulnerabilityResponse := &VulnerabilityResponse{}
+	licensesResponse := &LicenseResponse{}
+	for image, imageScanJson := range imageScanJsons {
+		if imageScanResp := ParseImageScanResult(*imageScanJson); imageScanResp != nil {
+
+			// collect vulnerabilities
+			vulnerabilities := ImageVulnerability{
+				Image: image,
+			}
+			if imageScanResp.Vulnerability != nil {
+				vulnerabilities.Vulnerabilities = *imageScanResp.Vulnerability
+				vulnerabilityResponse.append(vulnerabilities)
+			}
+
+			// collect licenses
+			licenses := ImageLicenses{
+				Image: image,
+			}
+
+			if imageScanResp.License != nil {
+				licenses.Licenses = *imageScanResp.License
+				vulnerabilityResponse.append(vulnerabilities)
+				licensesResponse.append(licenses)
+			}
+
+		}
+	}
+
+	return &ImageScanResponse{
+		Vulnerability: *vulnerabilityResponse,
+		License:       *licensesResponse,
+	}
+}
