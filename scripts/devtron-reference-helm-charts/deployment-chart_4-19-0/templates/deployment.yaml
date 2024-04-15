@@ -97,10 +97,9 @@ spec:
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
-{{- end }}
-{{- if $.Values.affinity }}
+{{- else if $.Values.affinity.enabled }}
       affinity: 
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml .Values.affinity.values | indent 8 }}
 {{- end }}
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
@@ -410,9 +409,9 @@ spec:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
-{{- if  $.Values.peristentVolumeClaim.name }}
-            - name: {{ .Values.peristentVolumeClaim.name }}-vol
-              mountPath: {{ .Values.peristentVolumeClaim.mountPath | default "/tmp" }}
+{{- if  $.Values.persistentVolumeClaim.name }}
+            - name: {{ .Values.persistentVolumeClaim.name }}-vol
+              mountPath: {{ .Values.persistentVolumeClaim.mountPath | default "/tmp" }}
 {{- end}}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
@@ -523,10 +522,10 @@ spec:
 {{- with .Values.volumes }}
 {{ toYaml . | trim | indent 8 }}
 {{- end }}
-{{- if .Values.peristentVolumeClaim.name }}
-        - name: {{.Values.peristentVolumeClaim.name}}-vol
+{{- if .Values.persistentVolumeClaim.name }}
+        - name: {{.Values.persistentVolumeClaim.name}}-vol
           persistentVolumeClaim:
-            claimName: {{.Values.peristentVolumeClaim.name }}
+            claimName: {{.Values.persistentVolumeClaim.name }}
 {{- end}}
       {{- if .Values.ConfigMaps.enabled }}
       {{- range .Values.ConfigMaps.maps }}
