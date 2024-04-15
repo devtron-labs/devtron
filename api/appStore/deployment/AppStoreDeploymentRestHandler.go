@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -69,7 +68,6 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService
 	validator                   *validator.Validate
 	helmAppService              service2.HelmAppService
-	helmAppRestHandler          client.HelmAppRestHandler
 	argoUserService             argo.ArgoUserService
 	attributesService           attributes.AttributesService
 	installAppService           EAMode.InstalledAppDBService
