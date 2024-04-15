@@ -98,6 +98,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -217,6 +218,7 @@ func InitializeApp() (*App, error) {
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		scanningResultsParser.ScanningResultWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
 		commonPolicyActions.CommonPolicyActionWireSet,
 
@@ -675,6 +677,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
 		security2.NewImageScanHistoryRepositoryImpl,
 		wire.Bind(new(security2.ImageScanHistoryRepository), new(*security2.ImageScanHistoryRepositoryImpl)),
+		security2.NewResourceScanResultRepositoryImpl,
+		wire.Bind(new(security2.ResourceScanResultRepository), new(*security2.ResourceScanResultRepositoryImpl)),
 		security2.NewImageScanResultRepositoryImpl,
 		wire.Bind(new(security2.ImageScanResultRepository), new(*security2.ImageScanResultRepositoryImpl)),
 		security2.NewImageScanObjectMetaRepositoryImpl,
