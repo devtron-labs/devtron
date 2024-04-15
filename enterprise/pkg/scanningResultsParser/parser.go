@@ -110,9 +110,9 @@ func ParseMisConfigurations(scanResult string) []*MisConfiguration {
 				misConfigurationRes.Type = result.Get(TypeKey.string()).String()
 				misConfigurationRes.FilePath = result.Get(FilePathKey.string()).String()
 				misConfigurationRes.MisConfSummary = MisConfigurationSummary{
-					Success:    result.Get(SuccessesKey.string()).Int(),
-					Fail:       result.Get(FailuresKey.string()).Int(),
-					Exceptions: result.Get(ExceptionsKey.string()).Int(),
+					success:    result.Get(SuccessesKey.string()).Int(),
+					fail:       result.Get(FailuresKey.string()).Int(),
+					exceptions: result.Get(ExceptionsKey.string()).Int(),
 				}
 
 				// compute misConfiguration
