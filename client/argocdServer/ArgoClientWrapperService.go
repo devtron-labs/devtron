@@ -150,10 +150,10 @@ func (impl *ArgoClientWrapperServiceImpl) UpdateArgoCDSyncModeIfNeeded(ctx conte
 }
 
 func (impl *ArgoClientWrapperServiceImpl) isArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application) bool {
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated != nil {
+	if impl.ACDConfig.IsManualSyncEnabled() && argoApplication.Spec.SyncPolicy.Automated != nil {
 		return true
 	}
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated == nil {
+	if impl.ACDConfig.IsAutoSyncEnabled() && argoApplication.Spec.SyncPolicy.Automated == nil {
 		return true
 	}
 	return false
@@ -162,7 +162,7 @@ func (impl *ArgoClientWrapperServiceImpl) isArgoAppSyncModeMigrationNeeded(argoA
 func (impl *ArgoClientWrapperServiceImpl) CreateRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Application) *v1alpha1.Application {
 	// set automated field in update request
 	var automated *v1alpha1.SyncPolicyAutomated
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsAutoSyncEnabled() {
 		automated = &v1alpha1.SyncPolicyAutomated{
 			Prune: true,
 		}
