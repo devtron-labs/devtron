@@ -31,7 +31,6 @@ func TestParsing(t *testing.T) {
 		misConfigurations := scanningResultsParser.ParseCodeScanResult(jsonStr)
 		assert.NotNil(t, misConfigurations)
 		jsonRes, err := json.Marshal(&misConfigurations)
-		ioutil.WriteFile("../test.json", jsonRes, 0777)
 		assert.NotNil(tt, jsonRes)
 		assert.Nil(tt, err)
 	})
