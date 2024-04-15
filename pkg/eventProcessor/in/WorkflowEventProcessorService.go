@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
@@ -29,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/security"
 	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -76,9 +78,12 @@ type WorkflowEventProcessorImpl struct {
 	pcoReadService                  configHistory.PipelineConfigOverrideReadService
 
 	//repositories import to be removed
-	pipelineRepository   pipelineConfig.PipelineRepository
-	ciArtifactRepository repository.CiArtifactRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	ciArtifactRepository    repository.CiArtifactRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	policyService           security.PolicyService
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
+	imageScanHistoryRepo    security2.ImageScanHistoryRepository
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -101,7 +106,11 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	imageScanService security.ImageScanService,
 	pcoReadService configHistory.PipelineConfigOverrideReadService,
-	notificationConfigService notifier.NotificationConfigService) (*WorkflowEventProcessorImpl, error) {
+	notificationConfigService notifier.NotificationConfigService,
+	policyService security.PolicyService,
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
+	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -128,6 +137,9 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		imageScanService:                imageScanService,
 		pcoReadService:                  pcoReadService,
 		notificationConfigService:       notificationConfigService,
+		policyService:                   policyService,
+		imageScanDeployInfoRepo:         imageScanDeployInfoRepo,
+		imageScanHistoryRepo:            imageScanHistoryRepo,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -791,6 +803,62 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 			impl.logger.Debug(resp)
 		}
+
+		scanRequest := &security.ScanEvent{
+			Image:            ciCompleteEvent.DockerImage,
+			ImageDigest:      ciCompleteEvent.Digest,
+			CiProjectDetails: ciCompleteEvent.CiProjectDetails,
+		}
+		requestJson, _ := json.Marshal(scanRequest)
+		historyCode := &security2.ImageScanExecutionHistory{
+			ExecutionTime:      time.Now(),
+			ExecutedBy:         bean4.SYSTEM_USER_ID,
+			SourceMetadataJson: string(requestJson),
+			SourceType:         security2.SourceTypeCode,
+			SourceSubType:      security2.SourceSubTypeCi,
+		}
+		err = impl.imageScanHistoryRepo.Save(historyCode)
+		if err != nil {
+			impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", historyCode)
+			return
+		}
+		scanRequest.ScanHistoryId = historyCode.Id
+		scanRequestImage := &security.ScanEvent{
+			Image:       ciCompleteEvent.DockerImage,
+			ImageDigest: ciCompleteEvent.Digest,
+		}
+		requestJsonImage, _ := json.Marshal(scanRequestImage)
+		historyImage := &security2.ImageScanExecutionHistory{
+			ExecutionTime:      time.Now(),
+			ExecutedBy:         bean4.SYSTEM_USER_ID,
+			SourceMetadataJson: string(requestJsonImage),
+			SourceType:         security2.SourceTypeCode,
+			SourceSubType:      security2.SourceSubTypeCi,
+		}
+		err = impl.imageScanHistoryRepo.Save(historyImage)
+		if err != nil {
+			impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", historyCode)
+			return
+		}
+		scanRequestImage.ScanHistoryId = historyImage.Id
+		scanDeployObject := &security2.ImageScanDeployInfo{
+			ImageScanExecutionHistoryId: []int{historyCode.Id, historyImage.Id},
+			ScanObjectMetaId:            *ciCompleteEvent.WorkflowId,
+			ObjectType:                  security2.ScanObjectType_CI_Workflow,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: bean4.SYSTEM_USER_ID,
+				UpdatedOn: time.Now(),
+				UpdatedBy: bean4.SYSTEM_USER_ID,
+			},
+		}
+		err = impl.imageScanDeployInfoRepo.Save(scanDeployObject)
+		if err != nil {
+			impl.logger.Error("Error on saving ImageScanDeployInfo", "error", err, "err")
+			return
+		}
+		impl.policyService.SendEventToClairUtilityAsync(scanRequest)
+		impl.policyService.SendEventToClairUtilityAsync(scanRequestImage)
 	}
 
 	// add required logging here
