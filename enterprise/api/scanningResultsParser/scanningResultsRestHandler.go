@@ -52,11 +52,13 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 	v := r.URL.Query()
 	appId, err := strconv.Atoi(v.Get("appId"))
 	if err != nil {
-
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	envId, err := strconv.Atoi(v.Get("envId"))
 	if err != nil {
-
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	//RBAC
 	token := r.Header.Get("token")
@@ -73,7 +75,7 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 	//RBAC
 	resp, err := impl.scanService.GetScanResults(appId, envId)
 	if err != nil {
-		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", "appId %d envId %d", appId, envId)
+		impl.logger.Errorw("service err, scan results", "err", err, "appId %d envId %d", appId, envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 
 		return
