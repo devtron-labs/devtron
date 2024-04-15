@@ -8,7 +8,7 @@ import (
 )
 
 type Service interface {
-	GetScanResults(appId, envId int) error
+	GetScanResults(appId, envId int) (Response, error)
 }
 
 type ServiceImpl struct {
