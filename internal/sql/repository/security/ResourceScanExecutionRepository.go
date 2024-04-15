@@ -5,7 +5,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ResourceScanResult struct {
+type ResourceScanExecutionResult struct {
 	tableName                   struct{}           `sql:"resource_scan_execution_result" pg:",discard_unknown_columns"`
 	Id                          int                `sql:"id,pk"`
 	ImageScanExecutionHistoryId int                `sql:"image_scan_execution_history_id"`
@@ -34,8 +34,8 @@ const (
 )
 
 type ResourceScanResultRepository interface {
-	SaveInBatch(tx *pg.Tx, models []*ResourceScanResult) error
-	FetchWithHistoryIds(historyIds []int) ([]*ResourceScanResult, error)
+	SaveInBatch(tx *pg.Tx, models []*ResourceScanExecutionResult) error
+	FetchWithHistoryIds(historyIds []int) ([]*ResourceScanExecutionResult, error)
 }
 
 type ResourceScanResultRepositoryImpl struct {
@@ -50,11 +50,12 @@ func NewResourceScanResultRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 	}
 }
 
-func (impl ResourceScanResultRepositoryImpl) SaveInBatch(tx *pg.Tx, models []*ResourceScanResult) error {
+func (impl ResourceScanResultRepositoryImpl) SaveInBatch(tx *pg.Tx, models []*ResourceScanExecutionResult) error {
 	return tx.Insert(&models)
 }
-func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ResourceScanResult, error) {
-	var models []*ResourceScanResult
+
+func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ResourceScanExecutionResult, error) {
+	var models []*ResourceScanExecutionResult
 	err := impl.dbConnection.Model(&models).Column("resource_scan_execution_result.*", "ImageScanExecutionHistory").
 		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_execution_result.image_scan_execution_history_id").
 		Where("resource_scan_execution_result.image_scan_execution_history_id IN (?)", pg.In(historyIds)).Select()

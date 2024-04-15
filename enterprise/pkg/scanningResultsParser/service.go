@@ -2,6 +2,7 @@ package scanningResultsParser
 
 import (
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -171,6 +172,7 @@ func loadData(fileName string) string {
 
 	jsonBytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
+		fmt.Println(err)
 		return ""
 	}
 
@@ -179,7 +181,7 @@ func loadData(fileName string) string {
 }
 
 func getImageScanData() map[string]*string {
-	jsonStr := loadData("./tests/image_scan.json")
+	jsonStr := loadData("enterprise/pkg/scanningResultsParser/tests/image_scan.json")
 
 	return map[string]*string{
 		"laeeqa222/myrepo:4a6bb4fb-218-93": &jsonStr,
@@ -187,13 +189,13 @@ func getImageScanData() map[string]*string {
 }
 
 func getK8sManifestScanData() *K8sManifestScanResponse {
-	jsonStr := loadData("./tests/code_scan.json")
+	jsonStr := loadData("enterprise/pkg/scanningResultsParser/tests/code_scan.json")
 	data := ParseK8sConfigScanResult(jsonStr)
 	return data
 }
 
 func getCodeScanData() *CodeScanResponse {
-	jsonStr := loadData("./tests/code_scan.json")
+	jsonStr := loadData("enterprise/pkg/scanningResultsParser/tests/code_scan.json")
 	data := ParseCodeScanResult(jsonStr)
 	return data
 }
