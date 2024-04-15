@@ -51,16 +51,21 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 		impl.logger.Errorw("error in fetching ci artifact", "err", err, "appId", appId, "envId", envId)
 		return resp, err
 	}
-	//  for image(image built by us(devtron)) and code scan result fetching
-	imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(*ciArtifact.WorkflowId, security.ScanObjectType_CI_Workflow)
-	if err != nil {
-		impl.logger.Errorw("error in fetching image scan deploy info for ci workflow", "err", err, "appId", appId, "envId", envId)
-		return resp, err
+
+	imageScanHistoryIds := make([]int, 0)
+	ciWorkflowId := ciArtifact.WorkflowId
+	if ciWorkflowId != nil {
+		//  for image(image built by us(devtron)) and code scan result fetching
+		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(*ciWorkflowId, security.ScanObjectType_CI_Workflow)
+		if err != nil {
+			impl.logger.Errorw("error in fetching image scan deploy info for ci workflow", "err", err, "appId", appId, "envId", envId)
+			return resp, err
+		}
+		imageScanHistoryIds = imageScanDeployInfo.ImageScanExecutionHistoryId
 	}
-	imageScanHistoryIds := imageScanDeployInfo.ImageScanExecutionHistoryId
 
 	// for image(images present in manifests and not built by us) and k8s manifest scan results
-	imageScanDeployInfo, err = impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
+	imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
 		return resp, err
@@ -73,37 +78,65 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 		impl.logger.Errorw("error in fetching resource scan result with history ids given", "err", err, "appId", appId, "envId", envId)
 		return resp, err
 	}
-	var scanInfoImages []security.ResourceScanResult
-	var scanInfoCode security.ResourceScanResult
-	var scanInfoManifest security.ResourceScanResult
-	for _, scanHistory := range *scanHistories {
-		if (scanHistory.ImageScanExecutionHistory.SourceType == 1 && scanHistory.ImageScanExecutionHistory.SourceSubType == 1) || (scanHistory.ImageScanExecutionHistory.SourceType == 1 && scanHistory.ImageScanExecutionHistory.SourceSubType == 2) {
-			scanInfoImages = append(scanInfoImages, scanHistory)
+
+	var imageScanJsons map[string]*string
+	var codeScanJson *string
+	var k8sManifestScanJson *string
+	for _, scanHistory := range scanHistories {
+		if scanHistory.ImageScanExecutionHistory.IsBuiltImage() || scanHistory.ImageScanExecutionHistory.IsManifestImage() {
+			imageScanJsons[scanHistory.ImageScanExecutionHistory.Image] = &scanHistory.ScanDataJson
 		} else if scanHistory.ImageScanExecutionHistory.SourceType == 2 && scanHistory.ImageScanExecutionHistory.SourceSubType == 1 {
-			scanInfoCode = scanHistory
+			codeScanJson = &scanHistory.ScanDataJson
 		} else {
-			scanInfoManifest = scanHistory
+			k8sManifestScanJson = &scanHistory.ScanDataJson
 		}
 	}
 
-	if parseCodePtr := ParseCodeScanResult(scanInfoCode.ScanDataJson); parseCodePtr != nil {
+	if parseCodePtr := ParseCodeScanResult(*codeScanJson); parseCodePtr != nil {
 		resp.CodeScan = *parseCodePtr
 	}
 
-	if parseManifestPtr := ParseK8sConfigScanResult(scanInfoManifest.ScanDataJson); parseManifestPtr != nil {
+	if parseManifestPtr := ParseK8sConfigScanResult(*k8sManifestScanJson); parseManifestPtr != nil {
 		resp.KubernetesManifest = *parseManifestPtr
 	}
 
+	if imageScanResponse := getImageScanResult(imageScanJsons); imageScanResponse != nil {
+		resp.ImageScan = *imageScanResponse
+	}
 	return resp, err
 }
 
-func getImageScanResult() {
-	// var parseImage []ImageScanResult
-	// for _, scanInfo := range scanInfoImages {
-	// 	if imageScanResp := ParseImageScanResult(scanInfo.ScanDataJson); imageScanResp != nil {
-	// 		imageScanResp.
-	// 			parseImage = append(parseImage, *ParseImageScanResult(scanInfo.ScanDataJson))
-	// 	}
-	// }
+func getImageScanResult(imageScanJsons map[string]*string) *ImageScanResponse {
+	vulnerabilityResponse := &VulnerabilityResponse{}
+	licensesResponse := &LicenseResponse{}
+	for image, imageScanJson := range imageScanJsons {
+		if imageScanResp := ParseImageScanResult(*imageScanJson); imageScanResp != nil {
 
+			// collect vulnerabilities
+			vulnerabilities := ImageVulnerability{
+				Image: image,
+			}
+			if imageScanResp.Vulnerability != nil {
+				vulnerabilities.Vulnerabilities = *imageScanResp.Vulnerability
+				vulnerabilityResponse.append(vulnerabilities)
+			}
+
+			// collect licenses
+			licenses := ImageLicenses{
+				Image: image,
+			}
+
+			if imageScanResp.License != nil {
+				licenses.Licenses = *imageScanResp.License
+				vulnerabilityResponse.append(vulnerabilities)
+				licensesResponse.append(licenses)
+			}
+
+		}
+	}
+
+	return &ImageScanResponse{
+		Vulnerability: *vulnerabilityResponse,
+		License:       *licensesResponse,
+	}
 }
