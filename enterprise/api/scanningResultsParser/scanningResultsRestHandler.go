@@ -52,11 +52,13 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 	v := r.URL.Query()
 	appId, err := strconv.Atoi(v.Get("appId"))
 	if err != nil {
-
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	envId, err := strconv.Atoi(v.Get("envId"))
 	if err != nil {
-
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	//RBAC
 	token := r.Header.Get("token")
