@@ -57,7 +57,7 @@ func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []in
 	var models []*ResourceScanResult
 	err := impl.dbConnection.Model(&models).Column("resource_scan_execution_result.*", "ImageScanExecutionHistory").
 		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_execution_result.image_scan_execution_history_id").
-		Where("resource_scan_execution_result.image_scan_execution_history_id IN(?) ?", pg.In(historyIds)).Select()
+		Where("resource_scan_execution_result.image_scan_execution_history_id IN (?)", pg.In(historyIds)).Select()
 	return models, err
 
 }

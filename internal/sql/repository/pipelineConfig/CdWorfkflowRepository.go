@@ -169,8 +169,8 @@ type CdWorkflowRunner struct {
 	tableName                   struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id                          int                  `sql:"id,pk"`
 	Name                        string               `sql:"name"`
-	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType                WorkflowExecutorType `sql:"executor_type"` //awf, system
+	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` // pre,post,deploy
+	ExecutorType                WorkflowExecutorType `sql:"executor_type"` // awf, system
 	Status                      string               `sql:"status"`
 	PodStatus                   string               `sql:"pod_status"`
 	Message                     string               `sql:"message"`
@@ -364,6 +364,26 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdA
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Order("cd_workflow_runner.id DESC").Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "appId", appId, "envId", environmentId, "runnerType", runnerType)
+		return wfr, err
+	}
+	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerTypeAndStatus(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+	var wfr CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		Where("p.environment_id = ?", environmentId).
+		Where("p.app_id = ?", appId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Order("cd_workflow_runner.id DESC").Limit(1).

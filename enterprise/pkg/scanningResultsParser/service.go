@@ -1,10 +1,12 @@
 package scanningResultsParser
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io/ioutil"
 )
@@ -41,6 +43,7 @@ func NewServiceImpl(cdWorkflowRepo pipelineConfig.CdWorkflowRepository,
 }
 
 func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err error) {
+	// todo: remove this
 	if true {
 		return Testdata()
 	}
@@ -70,7 +73,7 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 
 	// for image(images present in manifests and not built by us) and k8s manifest scan results
 	imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
-	if err != nil {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
 		return resp, err
 	}
@@ -176,7 +179,7 @@ func loadData(fileName string) string {
 }
 
 func getImageScanData() map[string]*string {
-	jsonStr := loadData("image_scan.json")
+	jsonStr := loadData("./tests/image_scan.json")
 
 	return map[string]*string{
 		"laeeqa222/myrepo:4a6bb4fb-218-93": &jsonStr,
@@ -184,13 +187,13 @@ func getImageScanData() map[string]*string {
 }
 
 func getK8sManifestScanData() *K8sManifestScanResponse {
-	jsonStr := loadData("code_scan.json")
+	jsonStr := loadData("./tests/code_scan.json")
 	data := ParseK8sConfigScanResult(jsonStr)
 	return data
 }
 
 func getCodeScanData() *CodeScanResponse {
-	jsonStr := loadData("code_scan.json")
+	jsonStr := loadData("./tests/code_scan.json")
 	data := ParseCodeScanResult(jsonStr)
 	return data
 }
