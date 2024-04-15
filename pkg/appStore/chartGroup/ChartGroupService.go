@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -79,6 +80,7 @@ type ChartGroupServiceImpl struct {
 	gitOperationService                  git.GitOperationService
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
+	chartScanPublishService              out.ChartScanPublishService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -101,7 +103,9 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
-	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
+	chartScanPublishService out.ChartScanPublishService,
+) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -124,6 +128,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:                  gitOperationService,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
+		chartScanPublishService:              chartScanPublishService,
 	}
 	return impl, nil
 }
@@ -609,6 +614,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	}
 	//nats event
 	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
+
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -931,6 +937,9 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 	if err != nil {
 		impl.logger.Errorw("error", "err", err)
 		return nil, err
+	}
+	if util2.IsFullStack() {
+		impl.chartScanPublishService.PublishChartScanEvent(installedAppVersion)
 	}
 
 	return installedAppVersion, nil

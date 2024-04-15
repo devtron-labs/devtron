@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
@@ -50,6 +51,7 @@ type PolicyService interface {
 	GetCvePolicy(id int, userId int32) (*security.CvePolicy, error)
 	GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[securityBean.Severity]*security.CvePolicy, error)
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[securityBean.Severity]*security.CvePolicy) bool
+	SendEventToClairUtilityAsync(event *ScanEvent) error
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
@@ -68,6 +70,7 @@ type PolicyServiceImpl struct {
 	scanHistoryRepository         security.ImageScanHistoryRepository
 	cveStoreRepository            security.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	pubSubClient                  *pubsub.PubSubClientServiceImpl
 }
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
@@ -82,7 +85,8 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository, client *http.Client,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
 	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	pubSubClient *pubsub.PubSubClientServiceImpl) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -100,6 +104,7 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 		scanHistoryRepository:         scanHistoryRepository,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
+		pubSubClient:                  pubSubClient,
 	}
 }
 
@@ -144,6 +149,21 @@ type ScanEvent struct {
 	Token            string `json:"token"`
 	AwsRegion        string `json:"awsRegion"`
 	DockerRegistryId string `json:"dockerRegistryId"`
+	ScanHistoryId    int    `json:"scanHistoryId"`
+}
+
+func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling scan event", "err", err, "event", event)
+		return err
+	}
+	err = impl.pubSubClient.Publish(pubsub.TOPIC_CI_SCAN, string(body))
+	if err != nil {
+		impl.logger.Errorw("error in publishing TOPIC_CI_SCAN", "err", err, "eventBody", body)
+		return err
+	}
+	return nil
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
@@ -163,6 +183,7 @@ func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return err
 	}
+	resp.Body.Close()
 	impl.logger.Debugw("response from test suit create api", "status code", resp.StatusCode)
 	return err
 }

@@ -15,6 +15,9 @@ type ResourceRequestBean struct {
 	DevtronAppIdentifier        *bean.DevtronAppIdentifier `json:"-"`         // For Devtron App Resources
 	ClusterId                   int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
+	Filter                      string                     `json:"filter,omitempty"`
+	LabelSelector               []string                   `json:"labelSelector,omitempty"`
+	FieldSelector               []string                   `json:"fieldSelector,omitempty"`
 }
 
 type LogsDownloadBean struct {

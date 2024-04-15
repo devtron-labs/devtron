@@ -41,6 +41,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -83,6 +84,7 @@ type AppStoreDeploymentServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
+	chartScanPublishService              out.ChartScanPublishService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -100,7 +102,9 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	envVariables *util2.EnvironmentVariables,
 	aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
-	appStoreValidator AppStoreValidator) *AppStoreDeploymentServiceImpl {
+	appStoreValidator AppStoreValidator,
+	chartScanPublishService out.ChartScanPublishService,
+) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -119,6 +123,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
+		chartScanPublishService:              chartScanPublishService,
 	}
 }
 
@@ -191,12 +196,22 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 	err = tx.Commit()
 
+	impl.publishChartScanEvent(installAppVersionRequest)
+
 	err = impl.appStoreDeploymentDBService.InstallAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	return installAppVersionRequest, nil
+}
+
+func (impl *AppStoreDeploymentServiceImpl) publishChartScanEvent(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) {
+	if util2.IsBaseStack() {
+		return
+	}
+	impl.chartScanPublishService.PublishChartScanEvent(installAppVersionRequest)
+	return
 }
 
 func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -487,6 +502,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
+	impl.publishChartScanEvent(installedApp)
 	return success, nil
 }
 
@@ -655,6 +671,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		ErrorInInstallation:        false,
 	}
 	installedAppVersionHistory, err := adapter.NewInstallAppVersionHistoryModel(upgradeAppRequest, pipelineConfig.WorkflowInProgress, helmInstallConfigDTO)
+
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
@@ -750,6 +767,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	}
+
+	impl.publishChartScanEvent(upgradeAppRequest)
 
 	return upgradeAppRequest, nil
 }
@@ -912,6 +931,8 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 		return nil, err
 	}
 	// STEP-3 ends
+
+	impl.publishChartScanEvent(installAppVersionRequest)
 
 	return res, nil
 }
