@@ -75,7 +75,7 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 	//RBAC
 	resp, err := impl.scanService.GetScanResults(appId, envId)
 	if err != nil {
-		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", "appId %d envId %d", appId, envId)
+		impl.logger.Errorw("service err, scan results", "err", err, "appId %d envId %d", appId, envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 
 		return
