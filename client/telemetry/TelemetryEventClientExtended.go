@@ -131,12 +131,12 @@ type TelemetryEventDto struct {
 	UserCount                            int                `json:"userCount,omitempty"`
 	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
 	ClusterCount                         int                `json:"clusterCount,omitempty"`
-	CiCreatedPerDay                      int                `json:"ciCreatedPerDay,omitempty"`
-	CdCreatedPerDay                      int                `json:"cdCreatedPerDay,omitempty"`
-	CiDeletedPerDay                      int                `json:"ciDeletedPerDay,omitempty"`
-	CdDeletedPerDay                      int                `json:"cdDeletedPerDay,omitempty"`
-	CiTriggeredPerDay                    int                `json:"ciTriggeredPerDay,omitempty"`
-	CdTriggeredPerDay                    int                `json:"cdTriggeredPerDay,omitempty"`
+	CiCreatedPerDay                      int                `json:"ciCreatedPerDay"`
+	CdCreatedPerDay                      int                `json:"cdCreatedPerDay"`
+	CiDeletedPerDay                      int                `json:"ciDeletedPerDay"`
+	CdDeletedPerDay                      int                `json:"cdDeletedPerDay"`
+	CiTriggeredPerDay                    int                `json:"ciTriggeredPerDay"`
+	CdTriggeredPerDay                    int                `json:"cdTriggeredPerDay"`
 	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
 	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
 	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
