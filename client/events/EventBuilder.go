@@ -512,6 +512,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event,
 		AppName:                          request.AppName,
 		EnvName:                          request.EnvName,
 		PromotionArtifactSource:          request.ArtifactPromotionSource,
+		DockerImageUrl:                   request.ImagePath,
 		ArtifactPromotionRequestViewLink: fmt.Sprintf(ArtifactPromotionRequestViewLink, event.AppId, request.WorkflowId, request.EnvName),
 	}
 
