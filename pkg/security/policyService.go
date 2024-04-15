@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.mag
  *
  */
 
@@ -25,6 +25,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
@@ -137,19 +138,25 @@ type VerifyImageResponse struct {
 }
 
 type ScanEvent struct {
-	Image            string `json:"image"`
-	ImageDigest      string `json:"imageDigest"`
-	AppId            int    `json:"appId"`
-	EnvId            int    `json:"envId"`
-	PipelineId       int    `json:"pipelineId"`
-	CiArtifactId     int    `json:"ciArtifactId"`
-	UserId           int    `json:"userId"`
-	AccessKey        string `json:"accessKey"`
-	SecretKey        string `json:"secretKey"`
-	Token            string `json:"token"`
-	AwsRegion        string `json:"awsRegion"`
-	DockerRegistryId string `json:"dockerRegistryId"`
-	ScanHistoryId    int    `json:"scanHistoryId"`
+	Image            string                   `json:"image"`
+	ImageDigest      string                   `json:"imageDigest"`
+	AppId            int                      `json:"appId"`
+	EnvId            int                      `json:"envId"`
+	PipelineId       int                      `json:"pipelineId"`
+	CiArtifactId     int                      `json:"ciArtifactId"`
+	UserId           int                      `json:"userId"`
+	AccessKey        string                   `json:"accessKey"`
+	SecretKey        string                   `json:"secretKey"`
+	Token            string                   `json:"token"`
+	AwsRegion        string                   `json:"awsRegion"`
+	DockerRegistryId string                   `json:"dockerRegistryId"`
+	ScanHistoryId    int                      `json:"scanHistoryId"`
+	CiProjectDetails []bean2.CiProjectDetails `json:"ciProjectDetails"`
+	SourceType       security.SourceType      `json:"sourceType"`
+	SourceSubType    security.SourceSubType   `json:"sourceSubType"`
+	CiWorkflowId     int                      `json:"ciWorkflowId"`
+	CdWorkflowId     int                      `json:"cdWorkflowId"`
+	ChartHistoryId   int                      `json:"chartHistoryId"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {
