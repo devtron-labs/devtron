@@ -257,6 +257,7 @@ func buildSecretSummary(exposedSecrets ExposedSecret) Summary {
 	}
 }
 
+// ParseImageScanResult will parse the scan results of an image
 func ParseImageScanResult(scanResultJson string) *ImageScanResult {
 	vulnerabilities := parseVulnerabilities(scanResultJson)
 	licenses := parseLicense(scanResultJson)
@@ -266,12 +267,13 @@ func ParseImageScanResult(scanResultJson string) *ImageScanResult {
 	}
 }
 
-func ParseCodeScanResult(scanResultJson string) *CodeScanResult {
+// ParseCodeScanResult will parse the scan results of the code
+func ParseCodeScanResult(scanResultJson string) *CodeScanResponse {
 	vulnerabilities := parseVulnerabilities(scanResultJson)
 	licenses := parseLicense(scanResultJson)
 	misconfigs := parseMisConfigurations(scanResultJson)
 	exposedSecrets := parseExposedSecrets(scanResultJson)
-	codeScanResult := &CodeScanResult{
+	codeScanResult := &CodeScanResponse{
 		Vulnerability: vulnerabilities,
 		License:       licenses,
 	}
@@ -301,9 +303,10 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResult {
 	return codeScanResult
 }
 
-func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResult {
+// ParseK8sConfigScanResult will parse the scan results of manifest
+func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResponse {
 	misconfigs := parseMisConfigurations(scanResultJson)
-	manifestResult := &K8sManifestScanResult{}
+	manifestResult := &K8sManifestScanResponse{}
 	if misconfigs != nil {
 		manifestResult.MisConfigurations = &MisConfigurations{
 			MisConfigurations: misconfigs,

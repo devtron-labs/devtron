@@ -17,7 +17,6 @@ const (
 )
 
 type Summary struct {
-	ScannedOn  time.Time        `json:"startedOn"`
 	Severities map[Severity]int `json:"severities"`
 }
 
@@ -27,7 +26,7 @@ func (summary *Summary) String() string {
 
 type Licenses struct {
 	Summary  Summary   `json:"summary"`
-	Licenses []License `json:"licenses"`
+	Licenses []License `json:"list"`
 }
 
 type License struct {
@@ -50,7 +49,7 @@ func getLicense(licenseJson string) License {
 
 type Vulnerabilities struct {
 	Summary         Summary         `json:"summary"`
-	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
+	Vulnerabilities []Vulnerability `json:"list"`
 }
 
 type Vulnerability struct {
@@ -109,7 +108,7 @@ type MisConfiguration struct {
 	Type           string                  `json:"type"`           // Type
 	MisConfSummary MisConfigurationSummary `json:"misConfSummary"` // MisConfSummary
 	Summary        Summary                 `json:"summary"`
-	Configurations []Configuration         `json:"configurations"`
+	Configurations []Configuration         `json:"list"`
 }
 
 type Secret struct {
@@ -120,17 +119,17 @@ type Secret struct {
 type ExposedSecret struct {
 	FilePath string   `json:"filePath"` // target and class: secret
 	Summary  Summary  `json:"summary"`
-	Secrets  []Secret `json:"secrets"`
+	Secrets  []Secret `json:"list"`
 }
 
 type MisConfigurations struct {
 	Summary           MisConfigurationSummary `json:"summary"`
-	MisConfigurations []*MisConfiguration     `json:"misConfigurations"`
+	MisConfigurations []*MisConfiguration     `json:"list"`
 }
 
 type ExposedSecrets struct {
 	Summary        Summary          `json:"summary"`
-	ExposedSecrets []*ExposedSecret `json:"exposedSecrets"`
+	ExposedSecrets []*ExposedSecret `json:"list"`
 }
 
 type ImageScanResult struct {
@@ -138,7 +137,7 @@ type ImageScanResult struct {
 	License       *Licenses        `json:"license"`
 }
 
-type CodeScanResult struct {
+type CodeScanResponse struct {
 	Vulnerability     *Vulnerabilities   `json:"vulnerability"`
 	License           *Licenses          `json:"license"`
 	MisConfigurations *MisConfigurations `json:"misConfigurations"`
@@ -146,7 +145,7 @@ type CodeScanResult struct {
 	Metadata
 }
 
-type K8sManifestScanResult struct {
+type K8sManifestScanResponse struct {
 	MisConfigurations *MisConfigurations `json:"misConfigurations"`
 	Metadata
 }
@@ -154,4 +153,37 @@ type K8sManifestScanResult struct {
 type Metadata struct {
 	Status    string    `json:"status"`
 	StartedOn time.Time `json:"StartedOn"`
+}
+
+type VulnerabilityResponse struct {
+	Summary Summary              `json:"summary"`
+	List    []ImageVulnerability `json:"list"`
+}
+
+type LicenseResponse struct {
+	Summary Summary         `json:"summary"`
+	List    []ImageLicenses `json:"list"`
+}
+
+type ImageVulnerability struct {
+	Image string `json:"image"`
+	Vulnerabilities
+	Metadata
+}
+
+type ImageLicenses struct {
+	Image string `json:"image"`
+	Licenses
+	Metadata
+}
+
+type ImageScanResponse struct {
+	Vulnerability VulnerabilityResponse `json:"vulnerability"`
+	License       LicenseResponse       `json:"license"`
+}
+
+type Response struct {
+	ImageScan          ImageScanResponse       `json:"imageScan"`
+	CodeScan           CodeScanResponse        `json:"codeScan"`
+	KubernetesManifest K8sManifestScanResponse `json:"kubernetesManifest"`
 }

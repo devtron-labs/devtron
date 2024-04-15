@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"io/ioutil"
 )
 
 type Service interface {
@@ -59,6 +60,47 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) {
 	if err != nil {
 		return
 	}
+
 	fmt.Println(scanHistories)
 
+}
+
+func (impl ServiceImpl) GetTestData(appId, envId int) Response {
+	response := Response{}
+	if imageData := getImageScanData(); imageData != nil {
+
+	}
+	if codeScanData := getCodeScanData(); codeScanData != nil {
+		response.CodeScan = *codeScanData
+	}
+	if manifestData := getK8sManifestScanData(); manifestData != nil {
+		response.KubernetesManifest = *manifestData
+	}
+
+	return response
+}
+
+func loadData(fileName string) string {
+
+	jsonBytes, _ := ioutil.ReadFile(fileName)
+	return string(jsonBytes)
+
+}
+
+func getImageScanData() *ImageScanResult {
+	jsonStr := loadData("image_scan.json")
+	data := ParseImageScanResult(jsonStr)
+	return data
+}
+
+func getK8sManifestScanData() *K8sManifestScanResponse {
+	jsonStr := loadData("code_scan.json")
+	data := ParseK8sConfigScanResult(jsonStr)
+	return data
+}
+
+func getCodeScanData() *CodeScanResponse {
+	jsonStr := loadData("code_scan.json")
+	data := ParseCodeScanResult(jsonStr)
+	return data
 }

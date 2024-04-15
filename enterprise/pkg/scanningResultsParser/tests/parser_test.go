@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/enterprise/pkg/scanningResultsParser"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -20,20 +21,24 @@ func loadData(t *testing.T, fileName string) string {
 
 func TestParsing(t *testing.T) {
 	t.Run("imageScan results", func(tt *testing.T) {
-		json := loadData(t, "image_scan.json")
-		vulns := scanningResultsParser.ParseImageScanResult(json)
+		jsonStr := loadData(t, "image_scan.json")
+		vulns := scanningResultsParser.ParseImageScanResult(jsonStr)
 		assert.NotNil(t, vulns)
 	})
 
 	t.Run("codeScan results", func(tt *testing.T) {
-		json := loadData(t, "code_scan.json")
-		misConfigurations := scanningResultsParser.ParseCodeScanResult(json)
+		jsonStr := loadData(t, "code_scan.json")
+		misConfigurations := scanningResultsParser.ParseCodeScanResult(jsonStr)
 		assert.NotNil(t, misConfigurations)
+		jsonRes, err := json.Marshal(&misConfigurations)
+		ioutil.WriteFile("../test.json", jsonRes, 0777)
+		assert.NotNil(tt, jsonRes)
+		assert.Nil(tt, err)
 	})
 
 	t.Run("ParseMisConfigurations", func(tt *testing.T) {
-		json := loadData(t, "code_scan.json")
-		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(json)
+		jsonStr := loadData(t, "code_scan.json")
+		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(jsonStr)
 		assert.NotNil(t, exposedSecrets)
 	})
 }
