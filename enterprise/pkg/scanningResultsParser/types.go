@@ -162,9 +162,12 @@ type VulnerabilityResponse struct {
 
 func (vr *VulnerabilityResponse) append(iv ImageVulnerability) {
 	vr.List = append(vr.List, iv)
-	summary := vr.Summary
+	summary := iv.Summary
 	for key, val := range summary.Severities {
-		summary.Severities[key] = val + iv.Summary.Severities[key]
+		summary.Severities[key] = val
+		if vr.Summary.Severities != nil {
+			summary.Severities[key] += vr.Summary.Severities[key]
+		}
 	}
 	vr.Summary = summary
 }
@@ -176,9 +179,12 @@ type LicenseResponse struct {
 
 func (lr *LicenseResponse) append(li ImageLicenses) {
 	lr.List = append(lr.List, li)
-	summary := lr.Summary
+	summary := li.Summary
 	for key, val := range summary.Severities {
-		summary.Severities[key] = val + li.Summary.Severities[key]
+		summary.Severities[key] = val
+		if lr.Summary.Severities != nil {
+			summary.Severities[key] += lr.Summary.Severities[key]
+		}
 	}
 	lr.Summary = summary
 }
