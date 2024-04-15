@@ -50,7 +50,9 @@ func parseLicense(scanResult string) *Licenses {
 			return true
 		})
 	}
-	licenseRes.Summary = buildLicenseSummary(*licenseRes)
+	if licenseRes != nil {
+		licenseRes.Summary = buildLicenseSummary(*licenseRes)
+	}
 	return licenseRes
 }
 
@@ -84,7 +86,9 @@ func parseVulnerabilities(scanResult string) *Vulnerabilities {
 			return true
 		})
 	}
-	vulnerabilitiesRes.Summary = buildVulnerabilitySummary(*vulnerabilitiesRes)
+	if vulnerabilitiesRes != nil {
+		vulnerabilitiesRes.Summary = buildVulnerabilitySummary(*vulnerabilitiesRes)
+	}
 	return vulnerabilitiesRes
 }
 
@@ -160,7 +164,9 @@ func parseMisConfigurations(scanResult string) []*MisConfiguration {
 	}
 
 	for _, misConfigurations := range MisConfRes {
-		misConfigurations.Summary = buildConfigSummary(*misConfigurations)
+		if misConfigurations != nil {
+			misConfigurations.Summary = buildConfigSummary(*misConfigurations)
+		}
 	}
 	return MisConfRes
 }
@@ -212,7 +218,9 @@ func parseExposedSecrets(scanResult string) []*ExposedSecret {
 	}
 
 	for _, exposedSecretRes := range exposedSecretsRes {
-		exposedSecretRes.Summary = buildSecretSummary(*exposedSecretRes)
+		if exposedSecretRes != nil {
+			exposedSecretRes.Summary = buildSecretSummary(*exposedSecretRes)
+		}
 	}
 	return exposedSecretsRes
 }

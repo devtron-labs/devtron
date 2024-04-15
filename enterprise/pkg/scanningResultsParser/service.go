@@ -86,33 +86,38 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err err
 			imageScanExecs[scanHistory.Image] = scanHistory
 		} else if scanHistory.IsManifest() {
 			k8sManifestScanExec = scanHistory
-
 		} else {
 			codeScanExec = scanHistory
 
 		}
 	}
 
-	if parseCodePtr := ParseCodeScanResult(codeScanExec.ScanDataJson); parseCodePtr != nil {
-		resp.CodeScan = *parseCodePtr
-		resp.CodeScan.Metadata = Metadata{
-			ScanToolName: codeScanExec.ScanToolName,
-			StartedOn:    codeScanExec.StartedOn,
-			Status:       codeScanExec.Status.String(),
+	if codeScanExec != nil {
+		if parseCodePtr := ParseCodeScanResult(codeScanExec.ScanDataJson); parseCodePtr != nil {
+			resp.CodeScan = *parseCodePtr
+			resp.CodeScan.Metadata = Metadata{
+				ScanToolName: codeScanExec.ScanToolName,
+				StartedOn:    codeScanExec.StartedOn,
+				Status:       codeScanExec.Status.String(),
+			}
 		}
 	}
 
-	if parseManifestPtr := ParseK8sConfigScanResult(k8sManifestScanExec.ScanDataJson); parseManifestPtr != nil {
-		resp.KubernetesManifest = *parseManifestPtr
-		resp.KubernetesManifest.Metadata = Metadata{
-			ScanToolName: k8sManifestScanExec.ScanToolName,
-			StartedOn:    k8sManifestScanExec.StartedOn,
-			Status:       k8sManifestScanExec.Status.String(),
+	if k8sManifestScanExec != nil {
+		if parseManifestPtr := ParseK8sConfigScanResult(k8sManifestScanExec.ScanDataJson); parseManifestPtr != nil {
+			resp.KubernetesManifest = *parseManifestPtr
+			resp.KubernetesManifest.Metadata = Metadata{
+				ScanToolName: k8sManifestScanExec.ScanToolName,
+				StartedOn:    k8sManifestScanExec.StartedOn,
+				Status:       k8sManifestScanExec.Status.String(),
+			}
 		}
 	}
 
-	if imageScanResponse := getImageScanResult(imageScanExecs); imageScanResponse != nil {
-		resp.ImageScan = *imageScanResponse
+	if len(imageScanExecs) > 0 {
+		if imageScanResponse := getImageScanResult(imageScanExecs); imageScanResponse != nil {
+			resp.ImageScan = *imageScanResponse
+		}
 	}
 	return resp, err
 }
