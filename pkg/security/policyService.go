@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.mag
  *
  */
 
@@ -154,6 +154,9 @@ type ScanEvent struct {
 	CiProjectDetails []bean2.CiProjectDetails `json:"ciProjectDetails"`
 	SourceType       security.SourceType      `json:"sourceType"`
 	SourceSubType    security.SourceSubType   `json:"sourceSubType"`
+	CiWorkflowId     int                      `json:"ciWorkflowId"`
+	CdWorkflowId     int                      `json:"cdWorkflowId"`
+	ChartHistoryId   int                      `json:"chartHistoryId"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {

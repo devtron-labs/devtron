@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/security"
 	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -804,60 +803,23 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			impl.logger.Debug(resp)
 		}
 
-		scanRequest := &security.ScanEvent{
+		scanRequestCode := &security.ScanEvent{
 			Image:            ciCompleteEvent.DockerImage,
 			ImageDigest:      ciCompleteEvent.Digest,
 			CiProjectDetails: ciCompleteEvent.CiProjectDetails,
+			SourceType:       security2.SourceTypeCode,
+			SourceSubType:    security2.SourceSubTypeCi,
+			CiWorkflowId:     *ciCompleteEvent.WorkflowId,
 		}
-		requestJson, _ := json.Marshal(scanRequest)
-		historyCode := &security2.ImageScanExecutionHistory{
-			ExecutionTime:      time.Now(),
-			ExecutedBy:         bean4.SYSTEM_USER_ID,
-			SourceMetadataJson: string(requestJson),
-			SourceType:         security2.SourceTypeCode,
-			SourceSubType:      security2.SourceSubTypeCi,
-		}
-		err = impl.imageScanHistoryRepo.Save(historyCode)
-		if err != nil {
-			impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", historyCode)
-			return
-		}
-		scanRequest.ScanHistoryId = historyCode.Id
+
 		scanRequestImage := &security.ScanEvent{
-			Image:       ciCompleteEvent.DockerImage,
-			ImageDigest: ciCompleteEvent.Digest,
+			Image:         ciCompleteEvent.DockerImage,
+			ImageDigest:   ciCompleteEvent.Digest,
+			SourceType:    security2.SourceTypeImage,
+			SourceSubType: security2.SourceSubTypeCi,
+			CiWorkflowId:  *ciCompleteEvent.WorkflowId,
 		}
-		requestJsonImage, _ := json.Marshal(scanRequestImage)
-		historyImage := &security2.ImageScanExecutionHistory{
-			ExecutionTime:      time.Now(),
-			ExecutedBy:         bean4.SYSTEM_USER_ID,
-			SourceMetadataJson: string(requestJsonImage),
-			SourceType:         security2.SourceTypeCode,
-			SourceSubType:      security2.SourceSubTypeCi,
-		}
-		err = impl.imageScanHistoryRepo.Save(historyImage)
-		if err != nil {
-			impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", historyCode)
-			return
-		}
-		scanRequestImage.ScanHistoryId = historyImage.Id
-		scanDeployObject := &security2.ImageScanDeployInfo{
-			ImageScanExecutionHistoryId: []int{historyCode.Id, historyImage.Id},
-			ScanObjectMetaId:            *ciCompleteEvent.WorkflowId,
-			ObjectType:                  security2.ScanObjectType_CI_Workflow,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: bean4.SYSTEM_USER_ID,
-				UpdatedOn: time.Now(),
-				UpdatedBy: bean4.SYSTEM_USER_ID,
-			},
-		}
-		err = impl.imageScanDeployInfoRepo.Save(scanDeployObject)
-		if err != nil {
-			impl.logger.Error("Error on saving ImageScanDeployInfo", "error", err, "err")
-			return
-		}
-		impl.policyService.SendEventToClairUtilityAsync(scanRequest)
+		impl.policyService.SendEventToClairUtilityAsync(scanRequestCode)
 		impl.policyService.SendEventToClairUtilityAsync(scanRequestImage)
 	}
 

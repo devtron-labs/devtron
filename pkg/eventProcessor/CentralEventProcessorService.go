@@ -150,11 +150,11 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
-	if err != nil {
-		impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
-		return err
-	}
+	//err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
+	//if err != nil {
+	//	impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
+	//	return err
+	//}
 
 	//AppStore apps event ends
 
