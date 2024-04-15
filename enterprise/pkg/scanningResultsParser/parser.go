@@ -301,7 +301,7 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResult {
 	return codeScanResult
 }
 
-func ParseK8sConfigResult(scanResultJson string) *K8sManifestScanResult {
+func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResult {
 	misconfigs := parseMisConfigurations(scanResultJson)
 	manifestResult := &K8sManifestScanResult{}
 	if misconfigs != nil {

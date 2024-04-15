@@ -7,35 +7,33 @@ import (
 	"testing"
 )
 
-var json = ""
+func loadData(t *testing.T, fileName string) string {
 
-func loadData(t *testing.T) {
-	if json != "" {
-		return
-	}
-	jsonBytes, err := ioutil.ReadFile("dashboard_code_scan.json")
+	jsonBytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Error(err)
 	}
 
-	json = string(jsonBytes)
+	return string(jsonBytes)
 
 }
 
 func TestParsing(t *testing.T) {
-	loadData(t)
-	t.Run("ParseVulnerabilities", func(tt *testing.T) {
-		vulns := scanningResultsParser.ParseVulnerabilities(json)
+	t.Run("imageScan results", func(tt *testing.T) {
+		json := loadData(t, "image_scan.json")
+		vulns := scanningResultsParser.ParseImageScanResult(json)
 		assert.NotNil(t, vulns)
 	})
 
-	t.Run("ParseMisConfigurations", func(tt *testing.T) {
-		misConfigurations := scanningResultsParser.ParseMisConfigurations(json)
+	t.Run("codeScan results", func(tt *testing.T) {
+		json := loadData(t, "code_scan.json")
+		misConfigurations := scanningResultsParser.ParseCodeScanResult(json)
 		assert.NotNil(t, misConfigurations)
 	})
 
 	t.Run("ParseMisConfigurations", func(tt *testing.T) {
-		exposedSecrets := scanningResultsParser.ParseExposedSecrets(json)
+		json := loadData(t, "code_scan.json")
+		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(json)
 		assert.NotNil(t, exposedSecrets)
 	})
 }
