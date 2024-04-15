@@ -1,8 +1,8 @@
-ALTER TABLE devtron_resource_object
-    ADD COLUMN identifier text;
+ALTER TABLE "public"."devtron_resource_object"
+    ADD COLUMN IF NOT EXISTS identifier text;
 
 ALTER TABLE devtron_resource_object_audit
-    ADD COLUMN audit_operation_path text;
+    ADD COLUMN IF NOT EXISTS audit_operation_path text[];
 
 
 ALTER TABLE devtron_resource_schema ALTER COLUMN version TYPE varchar(10);
