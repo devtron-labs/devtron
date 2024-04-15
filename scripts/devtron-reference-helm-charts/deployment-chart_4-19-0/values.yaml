@@ -332,14 +332,14 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: "HTTPS"
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -347,13 +347,14 @@ LivenessProbe:
 
 
 ReadinessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
