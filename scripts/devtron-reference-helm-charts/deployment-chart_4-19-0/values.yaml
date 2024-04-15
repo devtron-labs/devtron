@@ -354,7 +354,7 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: ""
+  scheme: "" 
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
