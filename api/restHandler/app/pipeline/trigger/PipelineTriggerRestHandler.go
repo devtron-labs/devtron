@@ -140,7 +140,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := context.WithValue(context.Background(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
