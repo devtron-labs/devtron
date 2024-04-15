@@ -1,6 +1,7 @@
 package scanningResultsParser
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -58,5 +59,6 @@ func (impl ServiceImpl) GetScanResults(appId, envId int) {
 	if err != nil {
 		return
 	}
+	fmt.Println(scanHistories)
 
 }

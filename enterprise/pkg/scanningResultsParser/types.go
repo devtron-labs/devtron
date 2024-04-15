@@ -21,7 +21,7 @@ type Summary struct {
 	Severities map[Severity]int `json:"severities"`
 }
 
-func (summary Summary) String() string {
+func (summary *Summary) String() string {
 	return fmt.Sprintf("%d Critical, %d High, %d Medium, %d Low, %d Unknown", summary.Severities[CRITICAL], summary.Severities[HIGH], summary.Severities[MEDIUM], summary.Severities[LOW], summary.Severities[UNKNOWN])
 }
 
@@ -77,7 +77,7 @@ func (summary *MisConfigurationSummary) load() {
 	summary.Severities = severities
 }
 
-func (summary MisConfigurationSummary) String() string {
+func (summary *MisConfigurationSummary) String() string {
 	return fmt.Sprintf("%d Successes, %d Failures, %d Exceptions", summary.success, summary.fail, summary.exceptions)
 }
 
@@ -125,30 +125,33 @@ type ExposedSecret struct {
 
 type MisConfigurations struct {
 	Summary           MisConfigurationSummary `json:"summary"`
-	MisConfigurations []MisConfiguration      `json:"misConfigurations"`
+	MisConfigurations []*MisConfiguration     `json:"misConfigurations"`
 }
 
 type ExposedSecrets struct {
-	Summary        Summary         `json:"summary"`
-	ExposedSecrets []ExposedSecret `json:"exposedSecrets"`
+	Summary        Summary          `json:"summary"`
+	ExposedSecrets []*ExposedSecret `json:"exposedSecrets"`
 }
 
 type ImageScanResult struct {
-	Summary       Summary         `json:"summary"`
-	Image         string          `json:"image"`
-	Vulnerability Vulnerabilities `json:"vulnerability"`
-	License       Licenses        `json:"license"`
-	Status        string          `json:"status"`
-	StartedOn     time.Time       `json:"StartedOn"`
+	Vulnerability *Vulnerabilities `json:"vulnerability"`
+	License       *Licenses        `json:"license"`
 }
 
 type CodeScanResult struct {
-	Vulnerability     Vulnerabilities   `json:"vulnerability"`
-	License           Licenses          `json:"license"`
-	MisConfigurations MisConfigurations `json:"misConfigurations"`
-	ExposedSecrets    ExposedSecrets    `json:"exposedSecrets"`
+	Vulnerability     *Vulnerabilities   `json:"vulnerability"`
+	License           *Licenses          `json:"license"`
+	MisConfigurations *MisConfigurations `json:"misConfigurations"`
+	ExposedSecrets    *ExposedSecrets    `json:"exposedSecrets"`
+	Metadata
 }
 
-type ManifestScanResult struct {
-	MisConfigurations MisConfigurations `json:"misConfigurations"`
+type K8sManifestScanResult struct {
+	MisConfigurations *MisConfigurations `json:"misConfigurations"`
+	Metadata
+}
+
+type Metadata struct {
+	Status    string    `json:"status"`
+	StartedOn time.Time `json:"StartedOn"`
 }

@@ -27,7 +27,7 @@ const (
 	ClassKey          JsonKey = "Class"
 )
 
-func ParseLicense(scanResult string) *Licenses {
+func parseLicense(scanResult string) *Licenses {
 	var licenseRes *Licenses
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, val gjson.Result) bool {
@@ -62,7 +62,7 @@ const (
 	FixedInVersionKey  JsonKey = "FixedVersion"
 )
 
-func ParseVulnerabilities(scanResult string) *Vulnerabilities {
+func parseVulnerabilities(scanResult string) *Vulnerabilities {
 	var vulnerabilitiesRes *Vulnerabilities
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, val gjson.Result) bool {
@@ -101,7 +101,7 @@ const (
 	ConfigVal JsonVal = "config"
 )
 
-func ParseMisConfigurations(scanResult string) []*MisConfiguration {
+func parseMisConfigurations(scanResult string) []*MisConfiguration {
 	MisConfRes := make([]*MisConfiguration, 0)
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, result gjson.Result) bool {
@@ -169,7 +169,7 @@ const (
 	SecretVal JsonVal = "secret"
 )
 
-func ParseExposedSecrets(scanResult string) []*ExposedSecret {
+func parseExposedSecrets(scanResult string) []*ExposedSecret {
 	var exposedSecretsRes []*ExposedSecret
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, result gjson.Result) bool {
@@ -255,4 +255,69 @@ func buildSecretSummary(exposedSecrets ExposedSecret) Summary {
 	return Summary{
 		Severities: summary,
 	}
+}
+
+func ParseImageScanResult(scanResultJson string) *ImageScanResult {
+	vulnerabilities := parseVulnerabilities(scanResultJson)
+	licenses := parseLicense(scanResultJson)
+	return &ImageScanResult{
+		License:       licenses,
+		Vulnerability: vulnerabilities,
+	}
+}
+
+func ParseCodeScanResult(scanResultJson string) *CodeScanResult {
+	vulnerabilities := parseVulnerabilities(scanResultJson)
+	licenses := parseLicense(scanResultJson)
+	misconfigs := parseMisConfigurations(scanResultJson)
+	exposedSecrets := parseExposedSecrets(scanResultJson)
+	codeScanResult := &CodeScanResult{
+		Vulnerability: vulnerabilities,
+		License:       licenses,
+	}
+	if misconfigs != nil {
+		codeScanResult.MisConfigurations = &MisConfigurations{
+			MisConfigurations: misconfigs,
+		}
+		// update summary
+		misconfigSummary := &MisConfigurationSummary{}
+		for _, misconfig := range misconfigs {
+			misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
+			misconfigSummary.fail = misconfigSummary.success + misconfig.MisConfSummary.fail
+			misconfigSummary.exceptions = misconfigSummary.success + misconfig.MisConfSummary.exceptions
+		}
+		misconfigSummary.load()
+		codeScanResult.MisConfigurations.Summary = *misconfigSummary
+	}
+
+	if exposedSecrets != nil {
+		codeScanResult.ExposedSecrets = &ExposedSecrets{
+			ExposedSecrets: exposedSecrets,
+		}
+
+		// 	update summary
+	}
+
+	return codeScanResult
+}
+
+func ParseK8sConfigResult(scanResultJson string) *K8sManifestScanResult {
+	misconfigs := parseMisConfigurations(scanResultJson)
+	manifestResult := &K8sManifestScanResult{}
+	if misconfigs != nil {
+		manifestResult.MisConfigurations = &MisConfigurations{
+			MisConfigurations: misconfigs,
+		}
+		// update summary
+		misconfigSummary := &MisConfigurationSummary{}
+		for _, misconfig := range misconfigs {
+			misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
+			misconfigSummary.fail = misconfigSummary.success + misconfig.MisConfSummary.fail
+			misconfigSummary.exceptions = misconfigSummary.success + misconfig.MisConfSummary.exceptions
+		}
+		misconfigSummary.load()
+		manifestResult.MisConfigurations.Summary = *misconfigSummary
+	}
+
+	return manifestResult
 }
