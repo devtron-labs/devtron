@@ -40,4 +40,10 @@ func TestParsing(t *testing.T) {
 		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(jsonStr)
 		assert.NotNil(t, exposedSecrets)
 	})
+
+	t.Run("test", func(tt *testing.T) {
+		res, err := scanningResultsParser.Testdata()
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+	})
 }

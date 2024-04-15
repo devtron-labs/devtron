@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"go.uber.org/zap"
+	"io/ioutil"
 )
 
 type Service interface {
@@ -40,6 +41,9 @@ func NewServiceImpl(cdWorkflowRepo pipelineConfig.CdWorkflowRepository,
 }
 
 func (impl ServiceImpl) GetScanResults(appId, envId int) (resp Response, err error) {
+	if true {
+		return Testdata()
+	}
 	cdWfRunner, err := impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runner  ", "err", err, "appId", appId, "envId", envId)
@@ -139,4 +143,54 @@ func getImageScanResult(imageScanJsons map[string]*string) *ImageScanResponse {
 		Vulnerability: *vulnerabilityResponse,
 		License:       *licensesResponse,
 	}
+}
+
+func Testdata() (Response, error) {
+	resp := Response{}
+	if parseCodePtr := getCodeScanData(); parseCodePtr != nil {
+		resp.CodeScan = *parseCodePtr
+	}
+
+	if parseManifestPtr := getK8sManifestScanData(); parseManifestPtr != nil {
+		resp.KubernetesManifest = *parseManifestPtr
+	}
+
+	mp := getImageScanData()
+
+	if imageScanResponse := getImageScanResult(mp); imageScanResponse != nil {
+		resp.ImageScan = *imageScanResponse
+	}
+
+	return resp, nil
+}
+
+func loadData(fileName string) string {
+
+	jsonBytes, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return ""
+	}
+
+	return string(jsonBytes)
+
+}
+
+func getImageScanData() map[string]*string {
+	jsonStr := loadData("image_scan.json")
+
+	return map[string]*string{
+		"laeeqa222/myrepo:4a6bb4fb-218-93": &jsonStr,
+	}
+}
+
+func getK8sManifestScanData() *K8sManifestScanResponse {
+	jsonStr := loadData("code_scan.json")
+	data := ParseK8sConfigScanResult(jsonStr)
+	return data
+}
+
+func getCodeScanData() *CodeScanResponse {
+	jsonStr := loadData("code_scan.json")
+	data := ParseCodeScanResult(jsonStr)
+	return data
 }
