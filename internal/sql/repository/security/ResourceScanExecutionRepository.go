@@ -55,9 +55,9 @@ func (impl ResourceScanResultRepositoryImpl) SaveInBatch(tx *pg.Tx, models []*Re
 }
 func (impl ResourceScanResultRepositoryImpl) FetchWithHistoryIds(historyIds []int) (*[]ResourceScanResult, error) {
 	var model []ResourceScanResult
-	err := impl.dbConnection.Model(&model).Column("resource_scan_result.*", "ImageScanExecutionHistory").
-		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_result.image_scan_execution_history_id").
-		Where("resource_scan_result.image_scan_execution_history_id IN(?) ?", pg.In(historyIds)).Select()
+	err := impl.dbConnection.Model(&model).Column("resource_scan_execution_result.*", "ImageScanExecutionHistory").
+		Join("INNER JOIN image_scan_execution_history e on e.id=resource_scan_execution_result.image_scan_execution_history_id").
+		Where("resource_scan_execution_result.image_scan_execution_history_id IN (?)", pg.In(historyIds)).Select()
 	return &model, err
 
 }
