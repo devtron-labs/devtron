@@ -803,24 +803,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			impl.logger.Debug(resp)
 		}
 
-		scanRequestCode := &security.ScanEvent{
-			Image:            ciCompleteEvent.DockerImage,
-			ImageDigest:      ciCompleteEvent.Digest,
-			CiProjectDetails: ciCompleteEvent.CiProjectDetails,
-			SourceType:       security2.SourceTypeCode,
-			SourceSubType:    security2.SourceSubTypeCi,
-			CiWorkflowId:     *ciCompleteEvent.WorkflowId,
-		}
-
-		scanRequestImage := &security.ScanEvent{
-			Image:         ciCompleteEvent.DockerImage,
-			ImageDigest:   ciCompleteEvent.Digest,
-			SourceType:    security2.SourceTypeImage,
-			SourceSubType: security2.SourceSubTypeCi,
-			CiWorkflowId:  *ciCompleteEvent.WorkflowId,
-		}
-		impl.policyService.SendEventToClairUtilityAsync(scanRequestCode)
-		impl.policyService.SendEventToClairUtilityAsync(scanRequestImage)
+		impl.sendForScanV2(ciCompleteEvent)
 	}
 
 	// add required logging here
@@ -840,6 +823,31 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) sendForScanV2(ciCompleteEvent bean.CiCompleteEvent) {
+	if !impl.appServiceConfig.ScanV2Enabled {
+		return
+	}
+	scanRequestCode := &security.ScanEvent{
+		Image:            ciCompleteEvent.DockerImage,
+		ImageDigest:      ciCompleteEvent.Digest,
+		CiProjectDetails: ciCompleteEvent.CiProjectDetails,
+		SourceType:       security2.SourceTypeCode,
+		SourceSubType:    security2.SourceSubTypeCi,
+		CiWorkflowId:     *ciCompleteEvent.WorkflowId,
+		DockerRegistryId: ciCompleteEvent.DockerRegistryId,
+	}
+
+	scanRequestImage := &security.ScanEvent{
+		Image:         ciCompleteEvent.DockerImage,
+		ImageDigest:   ciCompleteEvent.Digest,
+		SourceType:    security2.SourceTypeImage,
+		SourceSubType: security2.SourceSubTypeCi,
+		CiWorkflowId:  *ciCompleteEvent.WorkflowId,
+	}
+	impl.policyService.SendEventToClairUtilityAsync(scanRequestCode)
+	impl.policyService.SendEventToClairUtilityAsync(scanRequestImage)
 }
 
 func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext bean5.TriggerContext, ciPipelineId int, request *bean8.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
