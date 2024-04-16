@@ -182,6 +182,11 @@ security:
 # Values for notifier integration
 notifier:
   image: "notifier:924a17f6-372-22110"
+minio:
+  image: "minio:RELEASE.2021-02-14T04-01-33Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  gatewayImage: "minio:RELEASE.2020-12-03T05-49-24Z"
+
 # Values for grafana integration
 monitoring:
   grafana:
