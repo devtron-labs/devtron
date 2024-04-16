@@ -208,6 +208,7 @@ type ImageScanResponse struct {
 }
 
 type Response struct {
+	Scanned            bool                    `json:"scanned"`
 	ImageScan          ImageScanResponse       `json:"imageScan"`
 	CodeScan           CodeScanResponse        `json:"codeScan"`
 	KubernetesManifest K8sManifestScanResponse `json:"kubernetesManifest"`

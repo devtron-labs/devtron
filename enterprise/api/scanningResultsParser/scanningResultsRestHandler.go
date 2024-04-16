@@ -50,17 +50,36 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 		return
 	}
 	v := r.URL.Query()
-	appId, err := strconv.Atoi(v.Get("appId"))
-	if err != nil {
+	var ciWorkflowId, appId, envId int
+	if appIdStr := v.Get("appId"); appIdStr != "" {
+		appId, err = strconv.Atoi(appIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if envIdStr := v.Get("envId"); envIdStr != "" {
+		envId, err = strconv.Atoi(envIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if ciWorkflowIdStr := v.Get("ciWorkflowId"); ciWorkflowIdStr != "" {
+		ciWorkflowId, err = strconv.Atoi(ciWorkflowIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if ciWorkflowId == 0 && (envId == 0 || appId == 0) {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	envId, err := strconv.Atoi(v.Get("envId"))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
@@ -72,8 +91,8 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
-	resp, err := impl.scanService.GetScanResults(appId, envId)
+	// RBAC
+	resp, err := impl.scanService.GetScanResults(appId, envId, ciWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("service err, scan results", "err", err, "appId %d envId %d", appId, envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
