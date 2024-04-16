@@ -61,13 +61,14 @@ Alternatively, you may use the feature flag **FEATURE_USER_DEFINED_GITOPS_REPO_E
 ![Using Feature Flag](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/dashboard-cm.gif)
 
 1. Go to [Devtron's Resource Browser](../resource-browser.md).
-2. Click your cluster.
+2. Select the cluster where Devtron is running, i.e., `default_cluster`.
 3. Go to the **Config & Storage** dropdown on the left.
 4. Click **ConfigMap**.
-5. Locate the ConfigMap meant for the dashboard of your Devtron instance.
-6. Click **Edit Live Manifest**.
-7. Add the feature flag (with the intended boolean value) within the `data` dictionary 
-8. Click **Apply Changes**.
+5. Use the namespace filter (located on the right-hand side) to select `devtroncd` namespace. Therefore, it will show only the ConfigMaps related to Devtron, and filter out the rest.
+6. Find the ConfigMap meant for the dashboard of your Devtron instance, i.e., `dashboard-cm` (with an optional suffix).
+7. Click **Edit Live Manifest**.
+8. Add the feature flag (with the intended boolean value) within the `data` dictionary 
+9. Click **Apply Changes**.
 
 ---
 
