@@ -8,6 +8,7 @@ import (
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -55,13 +56,15 @@ type HelmAppRestHandlerImpl struct {
 	userAuthService           user.UserService
 	attributesService         attributes.AttributesService
 	serverEnvConfig           *serverEnvConfig.ServerEnvConfig
+	globalEnvVariables        *util2.GlobalEnvVariables
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService service2.HelmAppService, enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
-	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppRestHandlerImpl {
+	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+	globalEnvVariables *util2.GlobalEnvVariables) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                    logger,
 		helmAppService:            helmAppService,
@@ -73,6 +76,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		userAuthService:           userAuthService,
 		attributesService:         attributesService,
 		serverEnvConfig:           serverEnvConfig,
+		globalEnvVariables:        globalEnvVariables,
 	}
 }
 
@@ -160,7 +164,20 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				cancel()
+			}
+		}
+	}()
+
+	res, err := handler.helmAppService.HibernateApplication(installAppCtx, appIdentifier, hibernateRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -192,7 +209,19 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.UnHibernateApplication(r.Context(), appIdentifier, hibernateRequest)
+
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				cancel()
+			}
+		}
+	}()
+	res, err := handler.helmAppService.UnHibernateApplication(installAppCtx, appIdentifier, hibernateRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -353,7 +382,21 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	//RBAC enforcer Ends
 	request.SourceAppType = bean.SOURCE_EXTERNAL_HELM_APP
 	// update application externally
-	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
+
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				cancel()
+			}
+		}
+	}()
+
+	res, err := handler.helmAppService.UpdateApplication(installAppCtx, appIdentifier, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

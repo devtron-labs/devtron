@@ -20,6 +20,7 @@ package trigger
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -29,6 +30,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -71,6 +73,7 @@ type PipelineTriggerRestHandlerImpl struct {
 	deployedAppService          deployedApp.DeployedAppService
 	cdTriggerService            devtronApps.TriggerService
 	workflowEventPublishService out.WorkflowEventPublishService
+	globalEnvVariables          *util.GlobalEnvVariables
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
@@ -79,7 +82,8 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
-	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {
+	workflowEventPublishService out.WorkflowEventPublishService,
+	globalEnvVariables *util.GlobalEnvVariables) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:                  appService,
 		userAuthService:             userAuthService,
@@ -94,6 +98,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deployedAppService:          deployedAppService,
 		cdTriggerService:            cdTriggerService,
 		workflowEventPublishService: workflowEventPublishService,
+		globalEnvVariables:          globalEnvVariables,
 	}
 	return pipelineHandler
 }
@@ -140,7 +145,22 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ctx := context.WithValue(context.Background(), "token", acdToken)
+
+	//triggerCtx will be canceled when triggerTimeout is reached or r.Context() has timed out
+	triggerTimeout := handler.globalEnvVariables.DeploymentTriggerTimeout
+	triggerCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(triggerTimeout)*time.Minute)
+	defer cancel()
+	ctx := context.WithValue(triggerCtx, "token", acdToken)
+
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				cancel()
+			}
+		}
+	}()
+
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
@@ -239,7 +259,21 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	//triggerCtx will be canceled when triggerTimeout is reached or r.Context() has timed out
+	triggerTimeout := handler.globalEnvVariables.DeploymentTriggerTimeout
+	triggerCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(triggerTimeout)*time.Minute)
+	defer cancel()
+	ctx := context.WithValue(triggerCtx, "token", acdToken)
+
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				cancel()
+			}
+		}
+	}()
+
 	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
