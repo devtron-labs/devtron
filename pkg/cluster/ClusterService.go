@@ -69,7 +69,6 @@ const (
 	SECRET_FIELD_UPDATED_ON          = "updated_on"
 	SECRET_FIELD_ACTION              = "action"
 	TokenFilePath                    = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	//SecretDataObfuscatePlaceholder   = "••••••••"
 )
 
 type ClusterService interface {
