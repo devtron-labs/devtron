@@ -188,6 +188,7 @@ func parseExposedSecrets(scanResult string) []*ExposedSecret {
 					secretObjs.ForEach(func(_, secretObj gjson.Result) bool {
 						secret := Secret{
 							RuleId:   secretObj.Get("RuleID").String(),
+							Category: secretObj.Get("Category").String(),
 							Severity: Severity(secretObj.Get(SeverityKey.string()).String()),
 							CauseMetadata: CauseMetadata{
 								StartLine: secretObj.Get("StartLine").Int(),
