@@ -89,7 +89,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 		// 	impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", history)
 		// 	continue
 		// }
-		impl.sendForScan(request.InstalledAppVersionHistoryId, image, "", "")
+		impl.sendForScan(request.InstalledAppVersionHistoryId, image, nil, "")
 		// historyIds = append(historyIds, history.Id)
 	}
 	impl.sendForScan(request.InstalledAppVersionHistoryId, "", resp.ChartBytes, request.ValuesOverrideYaml)
@@ -158,7 +158,7 @@ func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi
 	return images, resp, err
 }
 
-func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes string, valuesYaml string) {
+func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes []byte, valuesYaml string) {
 
 	var err error
 	if len(image) > 0 {

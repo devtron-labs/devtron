@@ -42,15 +42,15 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 func (impl *CentralEventProcessor) SubscribeAll() error {
 	var err error
 
-	//CI pipeline event starts
+	// CI pipeline event starts
 	err = impl.ciPipelineEventProcessor.SubscribeNewCIMaterialEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeNewCIMaterialEvent", "err", err)
 		return err
 	}
-	//CI pipeline event ends
+	// CI pipeline event ends
 
-	//CD pipeline event starts
+	// CD pipeline event starts
 
 	err = impl.cdPipelineEventProcessor.SubscribeCDBulkTriggerTopic()
 	if err != nil {
@@ -64,9 +64,9 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//CD pipeline event ends
+	// CD pipeline event ends
 
-	//Workflow event starts
+	// Workflow event starts
 
 	err = impl.workflowEventProcessor.SubscribeDeployStageSuccessEvent()
 	if err != nil {
@@ -119,9 +119,9 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//Workflow event ends
+	// Workflow event ends
 
-	//Deployed application status event starts (currently only argo)
+	// Deployed application status event starts (currently only argo)
 
 	err = impl.deployedApplicationEventProcessorImpl.SubscribeArgoAppUpdate()
 	if err != nil {
@@ -134,9 +134,9 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//Deployed application status event ends (currently only argo)
+	// Deployed application status event ends (currently only argo)
 
-	//AppStore apps event starts
+	// AppStore apps event starts
 
 	err = impl.appStoreAppsEventProcessorImpl.SubscribeAppStoreAppsBulkDeployEvent()
 	if err != nil {
@@ -150,13 +150,13 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
-	//if err != nil {
-	//	impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
-	//	return err
-	//}
+	err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
+		return err
+	}
 
-	//AppStore apps event ends
+	// AppStore apps event ends
 
 	return nil
 }

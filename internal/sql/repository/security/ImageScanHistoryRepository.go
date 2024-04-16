@@ -57,7 +57,7 @@ func (ed *ExecutionData) IsCode() bool {
 
 func (ed *ExecutionData) ContainsType(typeToCheck ResourceScanType) bool {
 	for _, scanType := range ed.Types {
-		if scanType == typeToCheck {
+		if scanType == int(typeToCheck) {
 			return true
 		}
 	}
@@ -71,7 +71,7 @@ type ExecutionData struct {
 	ScanToolName  string
 	SourceType    SourceType
 	SourceSubType SourceSubType
-	Types         []ResourceScanType
+	Types         []int `sql:"types" pg:",array"`
 	Status        serverBean.ScanExecutionProcessState
 }
 

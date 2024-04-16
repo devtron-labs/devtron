@@ -318,7 +318,7 @@ message RollbackReleaseRequest {
 
 message TemplateChartResponse {
   string generatedManifest = 1;
-  string chartBytes = 2;
+  ChartContent chartBytes = 2;
 }
 
 message HelmInstallCustomRequest {

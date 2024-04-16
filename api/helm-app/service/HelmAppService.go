@@ -993,7 +993,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	response := &openapi2.TemplateChartResponse{
 		Manifest:   &templateChartResponse.GeneratedManifest,
-		ChartBytes: templateChartResponse.ChartBytes,
+		ChartBytes: templateChartResponse.ChartBytes.Content,
 	}
 
 	return response, nil

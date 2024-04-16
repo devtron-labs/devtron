@@ -18,7 +18,7 @@ import (
 type TemplateChartResponse struct {
 	// helm generated manifest
 	Manifest   *string `json:"manifest,omitempty"`
-	ChartBytes string  `json:"chartBytes,omitempty"`
+	ChartBytes []byte  `json:"chartBytes,omitempty"`
 }
 
 // NewTemplateChartResponse instantiates a new TemplateChartResponse object
