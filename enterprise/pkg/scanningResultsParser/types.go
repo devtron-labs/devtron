@@ -113,6 +113,7 @@ type MisConfiguration struct {
 
 type Secret struct {
 	Severity Severity `json:"severity"`
+	RuleId   string   `json:"ruleId"`
 	CauseMetadata
 }
 
