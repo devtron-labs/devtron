@@ -45,15 +45,29 @@ The Git provider you select for configuring GitOps might impact the following se
 
    ![Figure 4: Need for User-defined Git Repo](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/user-defined-git.jpg)
 
-{% hint style="warning" %}
+5. Click **Save**/**Update**. A green tick will appear on the active Git provider.
 
 ### Feature Flag
 
-* **For disabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=false`
-* **For enabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=true`
+Alternatively, you may use the feature flag **FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE** to enable or disable custom GitOps repo.
+
+{% hint style="info" %}
+**For disabling** - `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "false"` <br />
+**For enabling** - `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"`
 {% endhint %}
 
-5. Click **Save**/**Update**. A green tick will appear on the active Git provider.
+#### How to Use Feature Flag
+
+![Using Feature Flag](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/dashboard-cm.gif)
+
+1. Go to [Devtron's Resource Browser](../resource-browser.md).
+2. Click your cluster.
+3. Go to the **Config & Storage** dropdown on the left.
+4. Click **ConfigMap**.
+5. Locate the ConfigMap meant for the dashboard of your Devtron instance.
+6. Click **Edit Live Manifest**.
+7. Add the feature flag (with the intended boolean value) within the `data` dictionary 
+8. Click **Apply Changes**.
 
 ---
 
