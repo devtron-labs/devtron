@@ -386,6 +386,9 @@ security:
   clair:
     enabled: false
     fullnameOverride: clair
+    image:
+      repository: clair
+      tag: 4.3.6
 # Values for notifier integration
 notifier:
   enabled: false

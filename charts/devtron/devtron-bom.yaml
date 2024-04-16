@@ -178,7 +178,10 @@ workflowController:
 security:
   imageScanner:
     image: "image-scanner:c0416bc2-334-22111"
-
+  clair:
+    image:
+      repository: clair
+      tag: 4.3.6
 # Values for notifier integration
 notifier:
   image: "notifier:924a17f6-372-22110"
