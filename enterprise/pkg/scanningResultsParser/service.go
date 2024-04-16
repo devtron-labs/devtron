@@ -1,26 +1,30 @@
 package scanningResultsParser
 
 import (
-	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/go-errors/errors"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type Service interface {
-	GetScanResults(appId, envId, ciWorkflowId int) (Response, error)
+	GetScanResults(appId, envId, ciWorkflowId, installedAppId int) (Response, error)
 }
 
 type ServiceImpl struct {
 	// FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType
-	logger                      *zap.SugaredLogger
-	cdWorkflowRepo              pipelineConfig.CdWorkflowRepository
-	artifactRepo                repository.CiArtifactRepository
-	imageScanningDeployInfoRepo security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository  security.ImageScanHistoryRepository
+	logger                               *zap.SugaredLogger
+	cdWorkflowRepo                       pipelineConfig.CdWorkflowRepository
+	artifactRepo                         repository.CiArtifactRepository
+	imageScanningDeployInfoRepo          security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository           security.ImageScanHistoryRepository
+	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository
+	//appStoreService             service.AppStoreService
+	//appStoreDeploymentService   service2.AppStoreDeploymentService
 }
 
 func NewServiceImpl(cdWorkflowRepo pipelineConfig.CdWorkflowRepository,
@@ -28,58 +32,74 @@ func NewServiceImpl(cdWorkflowRepo pipelineConfig.CdWorkflowRepository,
 	imageScanningDeployInfoRepo security.ImageScanDeployInfoRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	logger *zap.SugaredLogger,
-) *ServiceImpl {
+	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository) *ServiceImpl {
 	return &ServiceImpl{
-		cdWorkflowRepo:              cdWorkflowRepo,
-		artifactRepo:                artifactRepo,
-		imageScanningDeployInfoRepo: imageScanningDeployInfoRepo,
-		imageScanHistoryRepository:  imageScanHistoryRepository,
-		logger:                      logger,
+		cdWorkflowRepo:                       cdWorkflowRepo,
+		artifactRepo:                         artifactRepo,
+		imageScanningDeployInfoRepo:          imageScanningDeployInfoRepo,
+		imageScanHistoryRepository:           imageScanHistoryRepository,
+		logger:                               logger,
+		installedAppVersionHistoryRepository: installedAppVersionHistoryRepository,
 	}
 }
 
-func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId int) (resp Response, err error) {
-
-	var cdWfRunner pipelineConfig.CdWorkflowRunner
-	if appId > 0 && envId > 0 {
-		cdWfRunner, err = impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cd workflow runner  ", "err", err, "appId", appId, "envId", envId)
-			return resp, err
-		}
-	}
-
-	// if ciWorkflowId is given , don't need to fetch the
-	if ciWorkflowId == 0 {
-		ciArtifact, err := impl.artifactRepo.Get(cdWfRunner.CdWorkflow.CiArtifactId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching ci artifact", "err", err, "appId", appId, "envId", envId)
-			return resp, err
-		}
-		if ciArtifact.WorkflowId != nil {
-			ciWorkflowId = *ciArtifact.WorkflowId
-		}
-	}
+func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppId int) (resp Response, err error) {
 
 	imageScanHistoryIds := make([]int, 0)
-	// if ciWorkflowId is still 0 , which means the ciArtifact is not built in devtron, (webhook)
-	if ciWorkflowId != 0 {
-		//  for image(image built by us(devtron)) and code scan result fetching
-		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(ciWorkflowId, security.ScanObjectType_CI_Workflow)
-		if err != nil && !errors.Is(err, pg.ErrNoRows) {
-			impl.logger.Errorw("error in fetching image scan deploy info for ci workflow", "err", err, "appId", appId, "envId", envId)
+	if installedAppId > 0 {
+		versionHistory, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching latest installed app version history", "installedAppId", installedAppId, "err", err)
 			return resp, err
 		}
-		imageScanHistoryIds = imageScanDeployInfo.ImageScanExecutionHistoryId
-	}
+		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(versionHistory.Id, security.ScanObjectType_CHART_HISTORY)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
+			return resp, err
+		}
+		imageScanHistoryIds = append(imageScanHistoryIds, imageScanDeployInfo.ImageScanExecutionHistoryId...)
 
-	// for image(images present in manifests and not built by us) and k8s manifest scan results
-	imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
-		return resp, err
+	} else {
+		var cdWfRunner pipelineConfig.CdWorkflowRunner
+		if appId > 0 && envId > 0 {
+			cdWfRunner, err = impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cd workflow runner  ", "err", err, "appId", appId, "envId", envId)
+				return resp, err
+			}
+		}
+
+		// if ciWorkflowId is given , don't need to fetch the
+		if ciWorkflowId == 0 {
+			ciArtifact, err := impl.artifactRepo.Get(cdWfRunner.CdWorkflow.CiArtifactId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ci artifact", "err", err, "appId", appId, "envId", envId)
+				return resp, err
+			}
+			if ciArtifact.WorkflowId != nil {
+				ciWorkflowId = *ciArtifact.WorkflowId
+			}
+		}
+
+		// if ciWorkflowId is still 0 , which means the ciArtifact is not built in devtron, (webhook)
+		if ciWorkflowId != 0 {
+			//  for image(image built by us(devtron)) and code scan result fetching
+			imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(ciWorkflowId, security.ScanObjectType_CI_Workflow)
+			if err != nil && !errors.Is(err, pg.ErrNoRows) {
+				impl.logger.Errorw("error in fetching image scan deploy info for ci workflow", "err", err, "appId", appId, "envId", envId)
+				return resp, err
+			}
+			imageScanHistoryIds = imageScanDeployInfo.ImageScanExecutionHistoryId
+		}
+
+		// for image(images present in manifests and not built by us) and k8s manifest scan results
+		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
+			return resp, err
+		}
+		imageScanHistoryIds = append(imageScanHistoryIds, imageScanDeployInfo.ImageScanExecutionHistoryId...)
 	}
-	imageScanHistoryIds = append(imageScanHistoryIds, imageScanDeployInfo.ImageScanExecutionHistoryId...)
 
 	// no histories found,so not scanned
 	if len(imageScanHistoryIds) == 0 {

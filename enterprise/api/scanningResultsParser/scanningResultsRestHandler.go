@@ -50,9 +50,17 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 		return
 	}
 	v := r.URL.Query()
-	var ciWorkflowId, appId, envId int
+	var ciWorkflowId, appId, envId, installedAppId int
 	if appIdStr := v.Get("appId"); appIdStr != "" {
 		appId, err = strconv.Atoi(appIdStr)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if installedAppIdStr := v.Get("installedAppId"); installedAppIdStr != "" {
+		installedAppId, err = strconv.Atoi(installedAppIdStr)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -75,10 +83,10 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 		}
 	}
 
-	if ciWorkflowId == 0 && (envId == 0 || appId == 0) {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	//if ciWorkflowId == 0 && (envId == 0 || appId == 0) {
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
 	// RBAC
 	token := r.Header.Get("token")
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -92,7 +100,7 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 		return
 	}
 	// RBAC
-	resp, err := impl.scanService.GetScanResults(appId, envId, ciWorkflowId)
+	resp, err := impl.scanService.GetScanResults(appId, envId, ciWorkflowId, installedAppId)
 	if err != nil {
 		impl.logger.Errorw("service err, scan results", "err", err, "appId %d envId %d", appId, envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
