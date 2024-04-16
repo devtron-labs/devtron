@@ -122,12 +122,15 @@ func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppI
 
 	var imageScanExecs = make(map[string]*security.ExecutionData)
 	var codeScanExec *security.ExecutionData
-	var k8sManifestScanExec *security.ExecutionData
+	var k8sManifestMisConfigScanExec *security.ExecutionData
+	var k8sManifestSecretScanExec *security.ExecutionData
 	for _, scanHistory := range scanHistories {
 		if scanHistory.IsBuiltImage() || scanHistory.IsManifestImage() {
 			imageScanExecs[scanHistory.Image] = scanHistory
-		} else if scanHistory.IsManifest() {
-			k8sManifestScanExec = scanHistory
+		} else if scanHistory.IsManifest() && scanHistory.ContainsType(security.Config) {
+			k8sManifestMisConfigScanExec = scanHistory
+		} else if scanHistory.IsManifest() && scanHistory.ContainsType(security.Secrets) {
+			k8sManifestSecretScanExec = scanHistory
 		} else {
 			codeScanExec = scanHistory
 
@@ -145,13 +148,13 @@ func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppI
 		}
 	}
 
-	if k8sManifestScanExec != nil {
-		if parseManifestPtr := ParseK8sConfigScanResult(k8sManifestScanExec.ScanDataJson); parseManifestPtr != nil {
+	if k8sManifestMisConfigScanExec != nil {
+		if parseManifestPtr := ParseK8sConfigScanResult(k8sManifestMisConfigScanExec.ScanDataJson, k8sManifestSecretScanExec.ScanDataJson); parseManifestPtr != nil {
 			resp.KubernetesManifest = *parseManifestPtr
 			resp.KubernetesManifest.Metadata = Metadata{
-				ScanToolName: k8sManifestScanExec.ScanToolName,
-				StartedOn:    k8sManifestScanExec.StartedOn,
-				Status:       k8sManifestScanExec.Status.String(),
+				ScanToolName: k8sManifestMisConfigScanExec.ScanToolName,
+				StartedOn:    k8sManifestMisConfigScanExec.StartedOn,
+				Status:       k8sManifestMisConfigScanExec.Status.String(),
 			}
 		}
 	}
