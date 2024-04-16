@@ -20,12 +20,6 @@ func GetRemoteConnectionConfigBean(model *repository.RemoteConnectionConfig) *be
 			}
 		}
 		if model.ConnectionMethod == bean.RemoteConnectionMethodSSH {
-			if len(model.SSHPassword) > 0 {
-				model.SSHPassword = bean.SecretDataObfuscatePlaceholder
-			}
-			if len(model.SSHAuthKey) > 0 {
-				model.SSHAuthKey = bean.SecretDataObfuscatePlaceholder
-			}
 			configBean.SSHTunnelConfig = &bean.SSHTunnelConfig{
 				SSHServerAddress: model.SSHServerAddress,
 				SSHUsername:      model.SSHUsername,
