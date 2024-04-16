@@ -55,6 +55,15 @@ func (ed *ExecutionData) IsCode() bool {
 	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeCi
 }
 
+func (ed *ExecutionData) ContainsType(typeToCheck ResourceScanType) bool {
+	for _, scanType := range ed.Types {
+		if scanType == typeToCheck {
+			return true
+		}
+	}
+	return false
+}
+
 type ExecutionData struct {
 	Image         string
 	ScanDataJson  string
@@ -62,6 +71,7 @@ type ExecutionData struct {
 	ScanToolName  string
 	SourceType    SourceType
 	SourceSubType SourceSubType
+	Types         []ResourceScanType
 	Status        serverBean.ScanExecutionProcessState
 }
 
@@ -171,7 +181,7 @@ func (impl ImageScanHistoryRepositoryImpl) FindByIds(ids []int) ([]*ImageScanExe
 
 func (impl ImageScanHistoryRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ExecutionData, error) {
 	var models []*ExecutionData
-	query := " SELECT iseh.image,iseh.execution_time AS started_on,iseh.source_type,iseh.source_sub_type,rser.scan_data_json,stehm.state AS status,stm.name AS scan_tool_name" +
+	query := " SELECT iseh.image,iseh.execution_time AS started_on,iseh.source_type,iseh.source_sub_type,rser.scan_data_json,stehm.state AS status,stm.name AS scan_tool_name, rser.types AS types" +
 		" FROM image_scan_execution_history iseh " +
 		" INNER JOIN resource_scan_execution_result rser ON iseh.id = rser.image_scan_execution_history_id " +
 		" INNER JOIN scan_tool_execution_history_mapping stehm ON iseh.id = stehm.image_scan_execution_history_id " +

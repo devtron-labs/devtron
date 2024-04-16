@@ -37,7 +37,7 @@ func TestParsing(t *testing.T) {
 
 	t.Run("ParseMisConfigurations", func(tt *testing.T) {
 		jsonStr := loadData(t, "code_scan.json")
-		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(jsonStr)
+		exposedSecrets := scanningResultsParser.ParseK8sConfigScanResult(jsonStr, "")
 		assert.NotNil(t, exposedSecrets)
 	})
 
