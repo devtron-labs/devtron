@@ -1000,6 +1000,10 @@ type AppIdentifier struct {
 	ReleaseName string `json:"releaseName"`
 }
 
+func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
+	return r.ReleaseName + "-" + r.Namespace + "-" + strconv.Itoa(r.ClusterId)
+}
+
 func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error) {
 	component := strings.Split(appId, "|")
 	if len(component) != 3 {

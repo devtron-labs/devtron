@@ -42,7 +42,7 @@ type AppStoreDeploymentDBService interface {
 	// UpdateInstalledAppVersionHistoryWithGitHash updates GitHash in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryWithGitHash(versionHistoryId int, gitHash string, userId int32) error
 	// UpdateProjectForHelmApp updates TeamId in the app.App
-	UpdateProjectForHelmApp(appName string, teamId int, userId int32) error
+	UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error
 	// InstallAppPostDbOperation is used to perform Post-Install DB operations in App Store deployments
 	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	// MarkInstalledAppVersionsInactiveByInstalledAppId will mark the repository.InstalledAppVersions inactive for the given InstalledAppId
@@ -114,6 +114,11 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			AppName: installRequest.AppName,
 			TeamId:  installRequest.TeamId,
 			UserId:  installRequest.UserId,
+		}
+		if len(installRequest.DisplayName) > 0 {
+			//this is the case of linking external helm app to devtron chart store
+			appCreateRequest.AppType = helper.ExternalChartStoreApp
+			appCreateRequest.DisplayName = installRequest.DisplayName
 		}
 		appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx, getAppInstallationMode(installRequest.AppOfferingMode))
 		if err != nil {
@@ -317,7 +322,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistoryWit
 	return nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName string, teamId int, userId int32) error {
+func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error {
 	appModel, err := impl.appRepository.FindActiveByName(appName)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel", "err", err)
@@ -343,6 +348,10 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName str
 			AppName: appName,
 			UserId:  userId,
 			TeamId:  teamId,
+		}
+		if len(displayName) > 0 {
+			createAppRequest.AppType = helper.ExternalChartStoreApp
+			createAppRequest.DisplayName = displayName
 		}
 		_, err = impl.createAppForAppStore(&createAppRequest, tx, appInstallationMode)
 		if err != nil {
@@ -496,6 +505,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 		TeamId:          createRequest.TeamId,
 		AppType:         helper.ChartStoreApp,
 		AppOfferingMode: appInstallationMode,
+	}
+	if createRequest.AppType == helper.ExternalChartStoreApp {
+		//when linking ext helm app to chart store, there can be a case that two (or more) external apps can have same name, in diff namespaces or diff
+		//clusters, so now we are storing display_name also to get rid of multiple installed apps pointing to the same app, which caused unwarranted
+		//behaviours. appName in this case will be displayName-namespace-clusterId
+		appModel.DisplayName = createRequest.DisplayName
 	}
 	appModel.CreateAuditLog(createRequest.UserId)
 	err = impl.appRepository.SaveWithTxn(appModel, tx)

@@ -116,6 +116,7 @@ type InstallAppVersionDTO struct {
 	EnvironmentName              string                         `json:"-"`
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
+	DisplayName                  string `json:"-"`
 }
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
@@ -351,11 +352,12 @@ type ChartRepoSearch struct {
 }
 
 type UpdateProjectHelmAppDTO struct {
-	AppId          string `json:"appId"`
-	InstalledAppId int    `json:"installedAppId"`
-	AppName        string `json:"appName"`
-	TeamId         int    `json:"teamId"`
-	UserId         int32  `json:"userId"`
+	AppId               string `json:"appId"`
+	InstalledAppId      int    `json:"installedAppId"`
+	AppName             string `json:"appName"`
+	TeamId              int    `json:"teamId"`
+	UserId              int32  `json:"userId"`
+	UniqueAppIdentifier string `json:"-"`
 }
 
 type AppstoreDeploymentStatus int
