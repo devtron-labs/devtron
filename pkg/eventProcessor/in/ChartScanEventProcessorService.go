@@ -75,29 +75,30 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 
 func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request *appStoreBean.InstallAppVersionDTO) {
 	manifestRequest := impl.buildTemplateChartRequest(request)
-	dockerImages, err := impl.getDockerImages(manifestRequest)
+	dockerImages, resp, err := impl.getDockerImages(manifestRequest)
 	if err != nil {
 		impl.logger.Error("Error on fetching docker images from generated manifest", "error", err, "manifestRequest", manifestRequest)
 		return
 	}
 
-	historyIds := make([]int, 0)
+	// historyIds := make([]int, 0)
 	for _, image := range dockerImages {
-		history := impl.buildImageScanHistoryObject(image)
-		err := impl.imageScanHistoryRepo.Save(history)
-		if err != nil {
-			impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", history)
-			continue
-		}
-		impl.sendForScan(history.Id, image)
-		historyIds = append(historyIds, history.Id)
+		// history := impl.buildImageScanHistoryObject(image)
+		// err := impl.imageScanHistoryRepo.Save(history)
+		// if err != nil {
+		// 	impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", history)
+		// 	continue
+		// }
+		impl.sendForScan(request.InstalledAppVersionHistoryId, image, "", "")
+		// historyIds = append(historyIds, history.Id)
 	}
-	scanDeployObject := impl.buildScanDeployInfoObject(historyIds, request)
-	err = impl.imageScanDeployInfoRepo.Save(scanDeployObject)
-	if err != nil {
-		impl.logger.Error("Error on saving ImageScanDeployInfo", "error", err, "err")
-		return
-	}
+	impl.sendForScan(request.InstalledAppVersionHistoryId, "", resp.ChartBytes, request.ValuesOverrideYaml)
+	// scanDeployObject := impl.buildScanDeployInfoObject(historyIds, request)
+	// err = impl.imageScanDeployInfoRepo.Save(scanDeployObject)
+	// if err != nil {
+	// 	impl.logger.Error("Error on saving ImageScanDeployInfo", "error", err, "err")
+	// 	return
+	// }
 }
 
 func (impl *ChartScanEventProcessorImpl) buildImageScanHistoryObject(image string) *security2.ImageScanExecutionHistory {
@@ -141,27 +142,45 @@ func (impl *ChartScanEventProcessorImpl) buildTemplateChartRequest(request *appS
 		ReleaseName:                  &appName,
 		AppStoreApplicationVersionId: &iavId,
 		ValuesYaml:                   &request.ValuesOverrideYaml,
+		ReturnChartBytes:             true,
 	}
 	return manifestRequest
 }
 
-func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi2.TemplateChartRequest) ([]string, error) {
+func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi2.TemplateChartRequest) ([]string, *openapi2.TemplateChartResponse, error) {
 	ctx := context.Background()
 	resp, err := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
 	if err != nil {
 		impl.logger.Errorw("error in generating manifest", "err", err, "request", manifestRequest)
-		return nil, err
+		return nil, nil, err
 	}
 	images, err := k8sObjectsUtil.ExtractImageFromManifestYaml(resp.GetManifest())
-	return images, err
+	return images, resp, err
 }
 
-func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string) {
-	err := impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
-		Image:         image,
-		UserId:        bean.SYSTEM_USER_ID,
-		ScanHistoryId: historyId,
-	})
+func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes string, valuesYaml string) {
+
+	var err error
+	if len(image) > 0 {
+		err = impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
+			Image:          image,
+			UserId:         bean.SYSTEM_USER_ID,
+			ChartHistoryId: historyId,
+			SourceType:     security2.SourceTypeImage,
+			SourceSubType:  security2.SourceSubTypeManifest,
+		})
+	} else {
+		err = impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
+			UserId:         bean.SYSTEM_USER_ID,
+			ChartHistoryId: historyId,
+			SourceType:     security2.SourceTypeCode,
+			SourceSubType:  security2.SourceSubTypeManifest,
+			ManifestData: &security.ManifestData{
+				ChartData:  []byte(chartBytes),
+				ValuesYaml: []byte(valuesYaml),
+			},
+		})
+	}
 	if err != nil {
 		impl.logger.Errorw("error in sending image scan event", "err", err, "image", image)
 	}

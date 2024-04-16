@@ -17,7 +17,8 @@ import (
 // TemplateChartResponse struct for TemplateChartResponse
 type TemplateChartResponse struct {
 	// helm generated manifest
-	Manifest *string `json:"manifest,omitempty"`
+	Manifest   *string `json:"manifest,omitempty"`
+	ChartBytes string  `json:"chartBytes,omitempty"`
 }
 
 // NewTemplateChartResponse instantiates a new TemplateChartResponse object
@@ -112,5 +113,3 @@ func (v *NullableTemplateChartResponse) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

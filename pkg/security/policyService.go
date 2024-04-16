@@ -157,6 +157,12 @@ type ScanEvent struct {
 	CiWorkflowId     int                      `json:"ciWorkflowId"`
 	CdWorkflowId     int                      `json:"cdWorkflowId"`
 	ChartHistoryId   int                      `json:"chartHistoryId"`
+	ManifestData     *ManifestData            `json:"manifestData"`
+}
+
+type ManifestData struct {
+	ChartData  []byte `json:"chartData"`
+	ValuesYaml []byte `json:"valuesYaml"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {
@@ -222,7 +228,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		appId = app.Id
 		isAppStore = app.AppType == helper.ChartStoreApp
 	} else {
-		//np app do nothing
+		// np app do nothing
 	}
 
 	cvePolicy, severityPolicy, err := impl.GetApplicablePolicy(clusterId, envId, appId, isAppStore)
@@ -245,7 +251,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	scanResultsIdMap := make(map[int]int)
 	for _, image := range verifyImageRequest.Images {
 
-		//TODO - scan only if ci scan enabled
+		// TODO - scan only if ci scan enabled
 
 		scanHistory, err := impl.scanHistoryRepository.FindByImage(image)
 		if err != nil && err != pg.ErrNoRows {
@@ -294,7 +300,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	}
 
 	if objectType == security.ScanObjectType_POD {
-		//TODO create entry
+		// TODO create entry
 		imageScanObjectMeta := &security.ImageScanObjectMeta{
 			Name:   verifyImageRequest.PodName,
 			Image:  strings.Join(verifyImageRequest.Images, ","),
@@ -329,7 +335,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	}
 
 	if len(scanResultsId) > 0 {
-		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) //todo insure this touple unique in db
+		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) // todo insure this touple unique in db
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
 		} else if err == pg.ErrNoRows {
@@ -369,7 +375,7 @@ func (impl *PolicyServiceImpl) GetApplicablePolicy(clusterId, envId, appId int, 
 	} else if clusterId > 0 {
 		policyLevel = securityBean.Cluster
 	} else {
-		//error in case of global or other policy
+		// error in case of global or other policy
 		return nil, nil, fmt.Errorf("policy not identified")
 	}
 
@@ -426,7 +432,7 @@ func (impl *PolicyServiceImpl) getHighestPolicyS(allPolicies map[securityBean.Se
 	return applicablePolicies
 }
 
-//-----------crud api----
+// -----------crud api----
 /*
 Severity/cveId
 --
@@ -584,7 +590,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 		if clusterId == 0 {
 			return nil, fmt.Errorf("cluster id is missing")
 		}
-		//get cluster name
+		// get cluster name
 		cluster, err := impl.clusterService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster details", "id", clusterId, "err", err)
@@ -706,7 +712,7 @@ func (impl *PolicyServiceImpl) getPolicies(policyLevel securityBean.PolicyLevel,
 	}
 	cvePolicy, severityPolicy := impl.getApplicablePolicies(policies)
 	impl.logger.Debugw("policy identified ", "policyLevel", policyLevel)
-	//transform and return
+	// transform and return
 	return cvePolicy, severityPolicy, nil
 }
 

@@ -300,6 +300,7 @@ message InstallReleaseRequest {
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
   ChartContent chartContent = 11;
+  bool  returnChartBytes = 12;
 }
 
 message InstallReleaseResponse {
@@ -317,6 +318,7 @@ message RollbackReleaseRequest {
 
 message TemplateChartResponse {
   string generatedManifest = 1;
+  string chartBytes = 2;
 }
 
 message HelmInstallCustomRequest {

@@ -29,7 +29,8 @@ type TemplateChartRequest struct {
 	// Values yaml
 	ValuesYaml *string `json:"valuesYaml,omitempty"`
 	// Chart Data in case of base deployment template
-	ChartData []byte `json:"chartData,omitempty"`
+	ChartData        []byte `json:"chartData,omitempty"`
+	ReturnChartBytes bool   `json:"-"`
 }
 
 // NewTemplateChartRequest instantiates a new TemplateChartRequest object
