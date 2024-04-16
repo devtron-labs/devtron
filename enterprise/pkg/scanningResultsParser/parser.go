@@ -113,12 +113,13 @@ func parseMisConfigurations(scanResult string) []*MisConfiguration {
 				misConfigurationRes := &MisConfiguration{}
 				misConfigurationRes.Type = result.Get(TypeKey.string()).String()
 				misConfigurationRes.FilePath = result.Get(FilePathKey.string()).String()
-				misConfigurationRes.MisConfSummary = MisConfigurationSummary{
+				misconf := MisConfigurationSummary{
 					success:    result.Get(SuccessesKey.string()).Int(),
 					fail:       result.Get(FailuresKey.string()).Int(),
 					exceptions: result.Get(ExceptionsKey.string()).Int(),
 				}
-
+				misconf.load()
+				misConfigurationRes.MisConfSummary = misconf
 				// compute misConfiguration
 				configurations := make([]Configuration, 0)
 				if misconfigurations := result.Get(MisConfigurationsKey.string()); misconfigurations.IsArray() {
@@ -225,6 +226,16 @@ func parseExposedSecrets(scanResult string) []*ExposedSecret {
 	return exposedSecretsRes
 }
 
+func buildMisConfSummary(configs []Configuration) MisConfigurationSummary {
+	statusMap := make(map[string]int64)
+	for _, config := range configs {
+		statusMap[config.Status] = statusMap[config.Status] + 1
+	}
+	return MisConfigurationSummary{
+		Severities: statusMap,
+	}
+}
+
 func buildConfigSummary(configs MisConfiguration) Summary {
 	summary := make(map[Severity]int)
 	for _, config := range configs.Configurations {
@@ -293,8 +304,8 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResponse {
 		misconfigSummary := &MisConfigurationSummary{}
 		for _, misconfig := range misconfigs {
 			misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
-			misconfigSummary.fail = misconfigSummary.success + misconfig.MisConfSummary.fail
-			misconfigSummary.exceptions = misconfigSummary.success + misconfig.MisConfSummary.exceptions
+			misconfigSummary.fail = misconfigSummary.fail + misconfig.MisConfSummary.fail
+			misconfigSummary.exceptions = misconfigSummary.exceptions + misconfig.MisConfSummary.exceptions
 		}
 		misconfigSummary.load()
 		codeScanResult.MisConfigurations.Summary = *misconfigSummary
@@ -323,8 +334,8 @@ func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResponse {
 		misconfigSummary := &MisConfigurationSummary{}
 		for _, misconfig := range misconfigs {
 			misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
-			misconfigSummary.fail = misconfigSummary.success + misconfig.MisConfSummary.fail
-			misconfigSummary.exceptions = misconfigSummary.success + misconfig.MisConfSummary.exceptions
+			misconfigSummary.fail = misconfigSummary.fail + misconfig.MisConfSummary.fail
+			misconfigSummary.exceptions = misconfigSummary.exceptions + misconfig.MisConfSummary.exceptions
 		}
 		misconfigSummary.load()
 		manifestResult.MisConfigurations.Summary = *misconfigSummary

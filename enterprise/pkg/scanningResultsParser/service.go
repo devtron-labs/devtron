@@ -155,7 +155,6 @@ func getImageScanResult(imageScanExecs map[string]*security.ExecutionData) *Imag
 
 			if imageScanResp.License != nil {
 				licenses.Licenses = *imageScanResp.License
-				vulnerabilityResponse.append(vulnerabilities)
 				licensesResponse.append(licenses)
 			}
 

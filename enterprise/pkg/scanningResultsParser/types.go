@@ -64,14 +64,14 @@ type MisConfigurationSummary struct {
 	success    int64
 	fail       int64
 	exceptions int64
-	Severities map[string]int64 `json:"severities"`
+	Severities map[string]int64 `json:"status"`
 }
 
 func (summary *MisConfigurationSummary) load() {
 	severities := map[string]int64{
 		"success":    summary.success,
-		"fail":       summary.success,
-		"exceptions": summary.success,
+		"fail":       summary.fail,
+		"exceptions": summary.exceptions,
 	}
 	summary.Severities = severities
 }
@@ -123,7 +123,7 @@ type ExposedSecret struct {
 }
 
 type MisConfigurations struct {
-	Summary           MisConfigurationSummary `json:"summary"`
+	Summary           MisConfigurationSummary `json:"misConfSummary"`
 	MisConfigurations []*MisConfiguration     `json:"list"`
 }
 

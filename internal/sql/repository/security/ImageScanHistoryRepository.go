@@ -176,7 +176,9 @@ func (impl ImageScanHistoryRepositoryImpl) FetchWithHistoryIds(historyIds []int)
 		" INNER JOIN resource_scan_execution_result rser ON iseh.id = rser.image_scan_execution_history_id " +
 		" INNER JOIN scan_tool_execution_history_mapping stehm ON iseh.id = stehm.image_scan_execution_history_id " +
 		" INNER JOIN scan_tool_metadata stm ON stehm.scan_tool_id = stm.id " +
-		" WHERE iseh.id IN (?)"
+		" WHERE iseh.id IN (?)" +
+		" ORDER BY iseh.id"
+	// order needed as multiple scans can be performed on a single resource, in runime we will only parse latest entry for each resource
 
 	_, err := impl.dbConnection.Query(&models, query, pg.In(historyIds))
 	return models, err
