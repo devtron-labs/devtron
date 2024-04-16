@@ -7,6 +7,8 @@ const (
 	RemoteConnectionMethodSSH   RemoteConnectionMethod = "SSH"
 )
 
+const SecretDataObfuscatePlaceholder = "••••••••"
+
 type ProxyConfig struct {
 	ProxyUrl string `json:"proxyUrl,omitempty"`
 }

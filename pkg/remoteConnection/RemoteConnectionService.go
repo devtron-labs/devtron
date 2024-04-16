@@ -47,6 +47,12 @@ func (impl *RemoteConnectionServiceImpl) CreateOrUpdateRemoteConnectionConfig(re
 		reqBean.RemoteConnectionConfigId = config.Id
 	} else {
 		config.Id = existingConfig.Id
+		if config.SSHPassword == bean.SecretDataObfuscatePlaceholder {
+			config.SSHPassword = existingConfig.SSHPassword
+		}
+		if config.SSHAuthKey == bean.SecretDataObfuscatePlaceholder {
+			config.SSHAuthKey = existingConfig.SSHAuthKey
+		}
 		config.CreatedBy = existingConfig.CreatedBy
 		config.CreatedOn = existingConfig.CreatedOn
 		err = impl.remoteConnectionRepository.Update(config, tx)

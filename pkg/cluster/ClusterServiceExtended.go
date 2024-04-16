@@ -114,10 +114,10 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterB
 		if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
 			bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
 			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
-				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
 			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
-				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
 		}
 	}

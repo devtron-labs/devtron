@@ -69,7 +69,7 @@ const (
 	SECRET_FIELD_UPDATED_ON          = "updated_on"
 	SECRET_FIELD_ACTION              = "action"
 	TokenFilePath                    = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	SecretDataObfuscatePlaceholder   = "••••••••"
+	//SecretDataObfuscatePlaceholder   = "••••••••"
 )
 
 type ClusterService interface {
@@ -127,14 +127,14 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService, remoteConnectionService remoteConnection.RemoteConnectionService) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:       repository,
-		logger:                  logger,
-		K8sUtil:                 K8sUtil,
-		K8sInformerFactory:      K8sInformerFactory,
-		userAuthRepository:      userAuthRepository,
-		userRepository:          userRepository,
-		roleGroupRepository:     roleGroupRepository,
-		remoteConnectionService: remoteConnectionService,
+		clusterRepository:                repository,
+		logger:                           logger,
+		K8sUtil:                          K8sUtil,
+		K8sInformerFactory:               K8sInformerFactory,
+		userAuthRepository:               userAuthRepository,
+		userRepository:                   userRepository,
+		roleGroupRepository:              roleGroupRepository,
+		remoteConnectionService:          remoteConnectionService,
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
 		userService:                      userService,
 	}
@@ -326,10 +326,10 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*bean.ClusterBean, err
 		if model.RemoteConnectionConfig != nil && model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
 			model.RemoteConnectionConfig.SSHTunnelConfig != nil {
 			if len(model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
-				model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
+				model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
 			if len(model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
-				model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
+				model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
 		}
 	}
@@ -394,10 +394,10 @@ func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*bean.ClusterBean
 	if model.RemoteConnectionConfig != nil && model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
 		model.RemoteConnectionConfig.SSHTunnelConfig != nil {
 		if len(model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
-			model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
+			model.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = remoteConnectionBean.SecretDataObfuscatePlaceholder
 		}
 		if len(model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
-			model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
+			model.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = remoteConnectionBean.SecretDataObfuscatePlaceholder
 		}
 	}
 	return model, nil
@@ -444,10 +444,10 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 
 	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
 		bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
-		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword == SecretDataObfuscatePlaceholder {
+		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword == remoteConnectionBean.SecretDataObfuscatePlaceholder {
 			bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = model.RemoteConnectionConfig.SSHPassword
 		}
-		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey == SecretDataObfuscatePlaceholder {
+		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey == remoteConnectionBean.SecretDataObfuscatePlaceholder {
 			bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = model.RemoteConnectionConfig.SSHPassword
 		}
 	}
