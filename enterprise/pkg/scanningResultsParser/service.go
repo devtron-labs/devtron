@@ -23,8 +23,8 @@ type ServiceImpl struct {
 	imageScanningDeployInfoRepo          security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository           security.ImageScanHistoryRepository
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository
-	//appStoreService             service.AppStoreService
-	//appStoreDeploymentService   service2.AppStoreDeploymentService
+	// appStoreService             service.AppStoreService
+	// appStoreDeploymentService   service2.AppStoreDeploymentService
 }
 
 func NewServiceImpl(cdWorkflowRepo pipelineConfig.CdWorkflowRepository,
@@ -149,7 +149,17 @@ func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppI
 	}
 
 	if k8sManifestMisConfigScanExec != nil {
-		if parseManifestPtr := ParseK8sConfigScanResult(k8sManifestMisConfigScanExec.ScanDataJson, k8sManifestSecretScanExec.ScanDataJson); parseManifestPtr != nil {
+
+		var manifestMisconfigDataJson string
+		if k8sManifestMisConfigScanExec != nil {
+			manifestMisconfigDataJson = k8sManifestMisConfigScanExec.ScanDataJson
+		}
+		var manifestSecretDataJson string
+		if k8sManifestMisConfigScanExec != nil {
+			manifestSecretDataJson = k8sManifestSecretScanExec.ScanDataJson
+		}
+
+		if parseManifestPtr := ParseK8sConfigScanResult(manifestMisconfigDataJson, manifestSecretDataJson); parseManifestPtr != nil {
 			resp.KubernetesManifest = *parseManifestPtr
 			resp.KubernetesManifest.Metadata = Metadata{
 				ScanToolName: k8sManifestMisConfigScanExec.ScanToolName,

@@ -337,41 +337,45 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResponse {
 
 // ParseK8sConfigScanResult will parse the scan results of manifest
 func ParseK8sConfigScanResult(manifestMisconfigDataJson string, manifestSecretDataJson string) *K8sManifestScanResponse {
-	misconfigs := parseMisConfigurations(manifestMisconfigDataJson)
-	exposedSecrets := parseExposedSecrets(manifestSecretDataJson)
 	manifestResult := &K8sManifestScanResponse{}
-	if misconfigs != nil {
-		manifestResult.MisConfigurations = &MisConfigurations{
-			MisConfigurations: misconfigs,
+	if manifestMisconfigDataJson != "" {
+		misconfigs := parseMisConfigurations(manifestMisconfigDataJson)
+		if misconfigs != nil {
+			manifestResult.MisConfigurations = &MisConfigurations{
+				MisConfigurations: misconfigs,
+			}
+			// update summary
+			misconfigSummary := &MisConfigurationSummary{}
+			for _, misconfig := range misconfigs {
+				misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
+				misconfigSummary.fail = misconfigSummary.fail + misconfig.MisConfSummary.fail
+				misconfigSummary.exceptions = misconfigSummary.exceptions + misconfig.MisConfSummary.exceptions
+			}
+			misconfigSummary.load()
+			manifestResult.MisConfigurations.Summary = *misconfigSummary
 		}
-		// update summary
-		misconfigSummary := &MisConfigurationSummary{}
-		for _, misconfig := range misconfigs {
-			misconfigSummary.success = misconfigSummary.success + misconfig.MisConfSummary.success
-			misconfigSummary.fail = misconfigSummary.fail + misconfig.MisConfSummary.fail
-			misconfigSummary.exceptions = misconfigSummary.exceptions + misconfig.MisConfSummary.exceptions
-		}
-		misconfigSummary.load()
-		manifestResult.MisConfigurations.Summary = *misconfigSummary
 	}
 
-	if exposedSecrets != nil {
-		manifestResult.ExposedSecrets = &ExposedSecrets{
-			ExposedSecrets: exposedSecrets,
-		}
-
-		// 	update summary
-		severities := make(map[Severity]int)
-		for _, expoSecret := range exposedSecrets {
-			for key, val := range expoSecret.Summary.Severities {
-				severities[key] += val
+	if manifestSecretDataJson != "" {
+		exposedSecrets := parseExposedSecrets(manifestSecretDataJson)
+		if exposedSecrets != nil {
+			manifestResult.ExposedSecrets = &ExposedSecrets{
+				ExposedSecrets: exposedSecrets,
 			}
-		}
 
-		manifestResult.ExposedSecrets.Summary = Summary{
-			Severities: severities,
-		}
+			// 	update summary
+			severities := make(map[Severity]int)
+			for _, expoSecret := range exposedSecrets {
+				for key, val := range expoSecret.Summary.Severities {
+					severities[key] += val
+				}
+			}
 
+			manifestResult.ExposedSecrets.Summary = Summary{
+				Severities: severities,
+			}
+
+		}
 	}
 	return manifestResult
 }
