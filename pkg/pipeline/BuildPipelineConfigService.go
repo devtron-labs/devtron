@@ -1287,9 +1287,6 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	}
 
 	ciConfig.IsJob = request.IsJob
-	if request.IsJob {
-		request.CiPipeline.PipelineType = CiPipeline.NORMAL_JOB
-	}
 	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
 	switch request.Action {
