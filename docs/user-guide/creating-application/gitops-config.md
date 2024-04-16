@@ -2,6 +2,11 @@
 
 {% hint style="warning" %}
 The 'GitOps Configuration' page appears only if the super-admin has enabled 'Allow changing git repository for application' in [Global Configurations → GitOps](../global-configurations/gitops.md).
+
+### Feature Flag
+
+* **For disabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=false`
+* **For enabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=true`
 {% endhint %}
 
 ## Introduction
@@ -82,5 +87,3 @@ Next, you may proceed to deploy the chart.
 {% hint style="warning" %}
 Once you deploy a helm app with GitOps, you cannot change its GitOps repo.
 {% endhint %}
-
-

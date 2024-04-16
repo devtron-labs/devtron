@@ -45,6 +45,14 @@ The Git provider you select for configuring GitOps might impact the following se
 
    ![Figure 4: Need for User-defined Git Repo](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/user-defined-git.jpg)
 
+{% hint style="warning" %}
+
+### Feature Flag
+
+* **For disabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=false`
+* **For enabling**: `FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE=true`
+{% endhint %}
+
 5. Click **Save**/**Update**. A green tick will appear on the active Git provider.
 
 ---
