@@ -155,7 +155,7 @@ func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppI
 			manifestMisconfigDataJson = k8sManifestMisConfigScanExec.ScanDataJson
 		}
 		var manifestSecretDataJson string
-		if k8sManifestMisConfigScanExec != nil {
+		if k8sManifestSecretScanExec != nil {
 			manifestSecretDataJson = k8sManifestSecretScanExec.ScanDataJson
 		}
 
