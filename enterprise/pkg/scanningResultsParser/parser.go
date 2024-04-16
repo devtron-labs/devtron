@@ -317,6 +317,17 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResponse {
 		}
 
 		// 	update summary
+		severities := make(map[Severity]int)
+		for _, expoSecret := range exposedSecrets {
+			for key, val := range expoSecret.Summary.Severities {
+				severities[key] += val
+			}
+		}
+
+		codeScanResult.ExposedSecrets.Summary = Summary{
+			Severities: severities,
+		}
+
 	}
 
 	return codeScanResult
