@@ -336,6 +336,7 @@ func ParseCodeScanResult(scanResultJson string) *CodeScanResponse {
 // ParseK8sConfigScanResult will parse the scan results of manifest
 func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResponse {
 	misconfigs := parseMisConfigurations(scanResultJson)
+	exposedSecrets := parseExposedSecrets(scanResultJson)
 	manifestResult := &K8sManifestScanResponse{}
 	if misconfigs != nil {
 		manifestResult.MisConfigurations = &MisConfigurations{
@@ -352,5 +353,23 @@ func ParseK8sConfigScanResult(scanResultJson string) *K8sManifestScanResponse {
 		manifestResult.MisConfigurations.Summary = *misconfigSummary
 	}
 
+	if exposedSecrets != nil {
+		manifestResult.ExposedSecrets = &ExposedSecrets{
+			ExposedSecrets: exposedSecrets,
+		}
+
+		// 	update summary
+		severities := make(map[Severity]int)
+		for _, expoSecret := range exposedSecrets {
+			for key, val := range expoSecret.Summary.Severities {
+				severities[key] += val
+			}
+		}
+
+		manifestResult.ExposedSecrets.Summary = Summary{
+			Severities: severities,
+		}
+
+	}
 	return manifestResult
 }

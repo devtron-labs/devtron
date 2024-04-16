@@ -147,6 +147,7 @@ type CodeScanResponse struct {
 
 type K8sManifestScanResponse struct {
 	MisConfigurations *MisConfigurations `json:"misConfigurations"`
+	ExposedSecrets    *ExposedSecrets    `json:"exposedSecrets"`
 	Metadata
 }
 
