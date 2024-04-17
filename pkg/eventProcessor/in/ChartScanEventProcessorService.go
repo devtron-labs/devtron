@@ -109,6 +109,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 	var chartBytes []byte
 	ctx := context.Background()
 	isHelmApp := appVersionDto != nil
+	historyId := 0
 	if isHelmApp {
 		manifestRequest := impl.buildTemplateChartRequest(appVersionDto)
 		resp, err := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
@@ -118,6 +119,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 		}
 		chartBytes = resp.ChartBytes
 		manifest = resp.GetManifest()
+		historyId = appVersionDto.InstalledAppVersionId
 	} else {
 		devtronAppDto := request.DevtronAppDto
 		chartBytes = devtronAppDto.ChartContent
@@ -128,6 +130,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 			return
 		}
 		manifest = chartResponse.GeneratedManifest
+		historyId = devtronAppDto.CdWorkflowRunnerId
 	}
 	dockerImages, err := k8sObjectsUtil.ExtractImageFromManifestYaml(manifest)
 	if err != nil {
@@ -136,9 +139,9 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 	}
 
 	for _, image := range dockerImages {
-		impl.sendForScan(appVersionDto.InstalledAppVersionHistoryId, image, nil, "", isHelmApp)
+		impl.sendForScan(historyId, image, nil, "", isHelmApp)
 	}
-	impl.sendForScan(appVersionDto.InstalledAppVersionHistoryId, "", chartBytes, appVersionDto.ValuesOverrideYaml, isHelmApp)
+	impl.sendForScan(historyId, "", chartBytes, appVersionDto.ValuesOverrideYaml, isHelmApp)
 }
 
 func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean2.DevtronAppDto) (*gRPC.InstallReleaseRequest, error) {
