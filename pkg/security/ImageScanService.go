@@ -715,10 +715,16 @@ func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults 
 	imageToLatestHistoryId := make(map[string]int)
 	historyIdToImage := make(map[int]string)
 	imageToExecutionResults := make(map[string][]*security.ImageScanExecutionResult)
+	imageList := make([]string, 0)
 	for _, result := range imageScanResults {
+
 		image := result.ImageScanExecutionHistory.Image
 		imageToExecutionResults[image] = append(imageToExecutionResults[image], result)
 
+		if slices.Contains(imageList, image) || image == "" {
+			continue
+		}
+		imageList = append(imageList, image)
 		if id, ok := imageToLatestHistoryId[image]; !ok {
 			imageToLatestHistoryId[image] = result.ImageScanExecutionHistoryId
 			historyIdToImage[result.ImageScanExecutionHistoryId] = image
