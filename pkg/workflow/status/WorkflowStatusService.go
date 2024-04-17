@@ -193,7 +193,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 
-		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		if impl.acdConfig.IsManualSyncEnabled() {
 			// if manual sync check for application sync status
 			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 			if !isArgoAppSynced {
@@ -277,7 +277,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			// drop event
 			return nil, isTimelineUpdated
 		}
-		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		if impl.acdConfig.IsManualSyncEnabled() {
 			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 			if !isArgoAppSynced {
 				return nil, isTimelineUpdated
@@ -469,7 +469,7 @@ func (impl *WorkflowStatusServiceImpl) CheckArgoPipelineTimelineStatusPeriodical
 }
 
 func (impl *WorkflowStatusServiceImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelineId int) error {
-	if impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsAutoSyncEnabled() {
 		// don't check for apps if auto sync is enabled
 		return nil
 	}
@@ -528,7 +528,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDDevtronApps(deployedBeforeMinutes 
 }
 
 func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int, installedAppVersionId int) error {
-	if impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsAutoSyncEnabled() {
 		// don't check for apps if auto sync is enabled
 		return nil
 	}

@@ -25,6 +25,14 @@ type ACDConfig struct {
 	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
 }
 
+func (config *ACDConfig) IsManualSyncEnabled() bool {
+	return config.ArgoCDAutoSyncEnabled == false
+}
+
+func (config *ACDConfig) IsAutoSyncEnabled() bool {
+	return config.ArgoCDAutoSyncEnabled == true
+}
+
 func GetACDDeploymentConfig() (*ACDConfig, error) {
 	cfg := &ACDConfig{}
 	err := env.Parse(cfg)
@@ -33,6 +41,10 @@ func GetACDDeploymentConfig() (*ACDConfig, error) {
 	}
 	return cfg, err
 }
+
+const (
+	ErrorOperationAlreadyInProgress = "another operation is already in progress" // this string is returned from argocd
+)
 
 type ArgoClientWrapperService interface {
 
@@ -96,15 +108,43 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 }
 
 func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
+
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsManualSyncEnabled() {
+
 		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
-		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision, Prune: &pruneResources})
+		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+			Revision: &revision,
+			Prune:    &pruneResources,
+		})
 		if syncErr != nil {
-			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
-			return syncErr
+			impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
+			if syncErr.Error() == ErrorOperationAlreadyInProgress {
+				impl.logger.Info("terminating ongoing sync operation and retrying manual sync", "argoAppName", argoAppName)
+				_, terminationErr := impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
+					Name: &argoAppName,
+				})
+				if terminationErr != nil {
+					impl.logger.Errorw("error in terminating sync operation")
+					return fmt.Errorf("error in terminating existing sync, err: %w", terminationErr)
+				}
+				_, syncErr = impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+					Revision: &revision,
+					Prune:    &pruneResources,
+					RetryStrategy: &v1alpha1.RetryStrategy{
+						Limit: 1,
+					},
+				})
+				if syncErr != nil {
+					impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
+					return syncErr
+				}
+			}
+			if syncErr != nil {
+				return syncErr
+			}
 		}
 		impl.logger.Debugw("argocd sync completed", "argoAppName", argoAppName)
 	}
@@ -129,10 +169,9 @@ func (impl *ArgoClientWrapperServiceImpl) UpdateArgoCDSyncModeIfNeeded(ctx conte
 }
 
 func (impl *ArgoClientWrapperServiceImpl) isArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application) bool {
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated != nil {
+	if impl.ACDConfig.IsManualSyncEnabled() && argoApplication.Spec.SyncPolicy.Automated != nil {
 		return true
-	}
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated == nil {
+	} else if impl.ACDConfig.IsAutoSyncEnabled() && argoApplication.Spec.SyncPolicy.Automated == nil {
 		return true
 	}
 	return false
@@ -141,7 +180,7 @@ func (impl *ArgoClientWrapperServiceImpl) isArgoAppSyncModeMigrationNeeded(argoA
 func (impl *ArgoClientWrapperServiceImpl) CreateRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Application) *v1alpha1.Application {
 	// set automated field in update request
 	var automated *v1alpha1.SyncPolicyAutomated
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsAutoSyncEnabled() {
 		automated = &v1alpha1.SyncPolicyAutomated{
 			Prune: true,
 		}
