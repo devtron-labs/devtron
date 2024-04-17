@@ -338,25 +338,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/resource/dependencies/{kind}/{version}:
+  /orchestrator/resource/dependencies/release/alpha1:
     get:
       description: get resource dependency
       parameters:
-        - name: kind
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "release-track"
-              - "release"
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "alpha1"
         - name: id
           description: id of the resource, either this or name or identifier is required. Preferred.
           in: query
@@ -396,21 +381,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     put:
       description: create,update resource dependency
-      parameters:
-        - name: kind
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "release"
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "alpha1"
       requestBody:
         description: json
         required: true
@@ -439,21 +409,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     patch:
       description: create resource dependency
-      parameters:
-        - name: kind
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "release"
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "alpha1"
       requestBody:
         description: json
         required: true
@@ -480,90 +435,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /orchestrator/resource/dependencies/config-options/{kind}/{version}:
-    get:
-      description: List dependencies config options
-      parameters:
-        - name: kind
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "release"
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - "alpha1"
-        - name: name
-          in: query
-          required: true
-          schema:
-            type: string
-            description: name of the dependency on which operation is to be performed
-            example: "orchestrator"
-        - name: type
-          in: query
-          required: true
-          schema:
-            type: string
-            description: type of dependency
-            example: "devtron-application"
-        - name: configOption
-          in: query
-          required: true
-          description: this string will contain the config, whose options are expected in the response.
-          schema:
-            type: string
-            example: "artifact"
-            enum:
-              - "artifact"
-              - "commit"
-        - name: selector
-          in: query
-          required: true
-          schema:
-            type: string
-          description: this will contain the array of config-option identifiers. For git commits and artifacts the selector will be `workflowId|{id}`
-          example: "workflowId|15"
-        - name: searchKey
-          in: query
-          required: false
-          schema:
-            type: string
-            description: this will contain search key and value pair (pipe delimited). For git commits, the searchKey will be `commitHash|{gitHash}`, For artifact tag, the searchKey will be `imageTag|{tag}`
-            example: "commitHash|dc994f3d4885a040122918919898b9e2ce85dea2"
-      responses:
-        '200':
-          description: list response
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    type: object
-                    properties:
-                      configType:
-                        type: string
-                        example: ciMaterials
-                        enum:
-                          - artifacts
-                          - ciMaterials
-                      dataList:
-                        type: array
-                        items:
-                          oneOf:
-                            - $ref: '#/components/schemas/ArtifactsList'
-                            - $ref: '#/components/schemas/GitCommitsList'
 
 components:
   schemas:
@@ -819,10 +690,6 @@ components:
                         data: null
           items:
             $ref: '#/components/schemas/Dependency'
-        childDependencies:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChildDependency'
     Dependency:
       type: object
       properties:

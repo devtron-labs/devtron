@@ -3,25 +3,31 @@ package devtronResource
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-
+	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	serviceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 type DevtronResourceRestHandler interface {
-	GetResourceList(w http.ResponseWriter, r *http.Request)
+	GetAllDevtronResourcesList(w http.ResponseWriter, r *http.Request)
+	GetResourceObjectListByKindAndVersion(w http.ResponseWriter, r *http.Request)
 	GetResourceObject(w http.ResponseWriter, r *http.Request)
+	CreateResourceObject(w http.ResponseWriter, r *http.Request)
 	CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request)
+	PatchResourceObject(w http.ResponseWriter, r *http.Request)
+	DeleteResourceObject(w http.ResponseWriter, r *http.Request)
 	GetResourceDependencies(w http.ResponseWriter, r *http.Request)
 	CreateOrUpdateResourceDependencies(w http.ResponseWriter, r *http.Request)
 	GetSchema(w http.ResponseWriter, r *http.Request)
@@ -52,22 +58,11 @@ func NewDevtronResourceRestHandlerImpl(logger *zap.SugaredLogger, userService us
 	}
 }
 
-const (
-	PathParamKind                    = "kind"
-	PathParamVersion                 = "version"
-	QueryParamIsExposed              = "onlyIsExposed"
-	QueryParamId                     = "id"
-	QueryParamName                   = "name"
-	QueryParamComponent              = "component"
-	ResourceUpdateSuccessMessage     = "Resource object updated successfully."
-	DependenciesUpdateSuccessMessage = "Resource dependencies updated successfully."
-)
-
-func (handler *DevtronResourceRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
+func (handler *DevtronResourceRestHandlerImpl) GetAllDevtronResourcesList(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	onlyIsExposed := false
 	var err error
-	onlyIsExposedStr := v.Get(QueryParamIsExposed)
+	onlyIsExposedStr := v.Get(apiBean.QueryParamIsExposed)
 	if len(onlyIsExposedStr) > 0 {
 		onlyIsExposed, err = strconv.ParseBool(onlyIsExposedStr)
 		if err != nil {
@@ -77,7 +72,37 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceList(w http.ResponseWr
 	}
 	resp, err := handler.devtronResourceService.GetDevtronResourceList(onlyIsExposed)
 	if err != nil {
-		handler.logger.Errorw("service error, GetResourceList", "err", err)
+		handler.logger.Errorw("service error, GetAllDevtronResourcesList", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) GetResourceObjectListByKindAndVersion(w http.ResponseWriter, r *http.Request) {
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	v := r.URL.Query()
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	queryParams := apiBean.GetResourceListQueryParams{}
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	isValidated := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	resp, err := handler.devtronResourceService.ListResourceObjectByKindAndVersion(kind, subKind, versionVar, queryParams.IsLite, queryParams.FetchChild)
+	if err != nil {
+		handler.logger.Errorw("service error, GetAllDevtronResourcesList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -100,61 +125,112 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceObject(w http.Response
 	return
 }
 
-func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescriptor *bean.DevtronResourceObjectDescriptorBean, caughtError bool) {
+func getKindSubKindVersion(w http.ResponseWriter, r *http.Request) (kind string, subKind string, version string, caughtError bool) {
 	vars := mux.Vars(r)
-	kindVar := vars[PathParamKind]
-	versionVar := vars[PathParamVersion]
-	v := r.URL.Query()
-	idVar := v.Get(QueryParamId)
-	id, err := strconv.Atoi(idVar)
-	nameVar := v.Get(QueryParamName)
-	if err != nil && len(nameVar) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
-		caughtError = true
-		return nil, caughtError
-	}
-	//TODO: common out the above logic and get component query param array by decoder
+	kindVar := vars[apiBean.PathParamKind]
+	versionVar := vars[apiBean.PathParamVersion]
 	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		caughtError = true
+	}
+	return kind, subKind, versionVar, caughtError
+}
+
+func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescriptor *serviceBean.DevtronResourceObjectDescriptorBean, caughtError bool) {
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	v := r.URL.Query()
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	queryParams := apiBean.GetResourceQueryParams{}
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if queryParams.Id == 0 && len(queryParams.Name) == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
 		return nil, caughtError
 	}
-	reqBeanDescriptor = &bean.DevtronResourceObjectDescriptorBean{
-		Kind:    kind,
-		SubKind: subKind,
-		Version: versionVar,
-		Name:    nameVar,
+	reqBeanDescriptor = &serviceBean.DevtronResourceObjectDescriptorBean{
+		Kind:         kind,
+		SubKind:      subKind,
+		Version:      versionVar,
+		Name:         queryParams.Name,
+		UIComponents: queryParams.Component,
+		Identifier:   queryParams.Identifier,
 	}
-	if kind == bean.DevtronResourceRelease.ToString() || kind == bean.DevtronResourceReleaseTrack.ToString() {
-		reqBeanDescriptor.Id = id
-	} else {
-		reqBeanDescriptor.OldObjectId = id //from FE, we are taking ids of resources entry in their own respective tables
-	}
+	setIdOrOldObjectIdAndIdTypeBasedOnKind(kind, reqBeanDescriptor, queryParams.Id)
 	return reqBeanDescriptor, caughtError
 }
 
-func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	kindVar := vars[PathParamKind]
-	versionVar := vars[PathParamVersion]
-	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
-	if err != nil {
-		handler.logger.Errorw("error in resolveKindSubKindValues, GetResourceObject", "err", err, "kindVar", kindVar)
-		common.WriteJsonResp(w, err, nil, statusCode)
+func setIdOrOldObjectIdAndIdTypeBasedOnKind(kind string, reqBeanDescriptor *serviceBean.DevtronResourceObjectDescriptorBean, id int) {
+	if kind == serviceBean.DevtronResourceRelease.ToString() || kind == serviceBean.DevtronResourceReleaseTrack.ToString() {
+		reqBeanDescriptor.Id = id
+		reqBeanDescriptor.OldObjectId = 0
+		reqBeanDescriptor.IdType = serviceBean.ResourceObjectIdType
+	} else {
+		reqBeanDescriptor.OldObjectId = id //from FE, we are taking ids of resources entry in their own respective tables
+		reqBeanDescriptor.IdType = serviceBean.OldObjectId
+	}
+}
+
+func (handler *DevtronResourceRestHandlerImpl) CreateResourceObject(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean bean.DevtronResourceObjectBean
-	err = decoder.Decode(&reqBean)
+	var reqBean serviceBean.DevtronResourceObjectBean
+	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	if reqBean.DevtronResourceObjectDescriptorBean == nil {
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
+	}
+	reqBean.Kind = kind
+	reqBean.SubKind = subKind
+	reqBean.Version = version
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, kind, subKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	reqBean.UserId = ctx.GetUserId()
+	err = handler.devtronResourceService.CreateResourceObject(ctx, &reqBean)
+	if err != nil {
+		handler.logger.Errorw("service error, CreateResourceObject", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, apiBean.ResourceCreateSuccessMessage, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var reqBean serviceBean.DevtronResourceObjectBean
+	err := decoder.Decode(&reqBean)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
@@ -164,38 +240,105 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w ht
 		return
 	}
 	if reqBean.DevtronResourceObjectDescriptorBean == nil {
-		reqBean.DevtronResourceObjectDescriptorBean = &bean.DevtronResourceObjectDescriptorBean{}
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
 	}
 	reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
 	reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
 	reqBean.DevtronResourceObjectDescriptorBean.Version = versionVar
-	reqBean.UserId = userId
-	err = handler.devtronResourceService.CreateOrUpdateResourceObject(&reqBean)
+	reqBean.UserId = ctx.GetUserId()
+	err = handler.devtronResourceService.CreateOrUpdateResourceObject(ctx, &reqBean)
 	if err != nil {
 		handler.logger.Errorw("service error, CreateOrUpdateResourceObject", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, ResourceUpdateSuccessMessage, http.StatusOK)
+	common.WriteJsonResp(w, err, apiBean.ResourceUpdateSuccessMessage, http.StatusOK)
+	return
+}
+func (handler *DevtronResourceRestHandlerImpl) PatchResourceObject(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var reqBean serviceBean.DevtronResourceObjectBean
+	err := decoder.Decode(&reqBean)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// struct tags validation
+	err = handler.validator.Struct(reqBean)
+	if err != nil {
+		handler.logger.Errorw("validation err, PatchResourceObject", "err", err, "payload", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, kind, subKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	if reqBean.DevtronResourceObjectDescriptorBean == nil {
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
+	} else {
+		reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
+		reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
+		reqBean.DevtronResourceObjectDescriptorBean.Version = version
+	}
+	setIdOrOldObjectIdAndIdTypeBasedOnKind(kind, reqBean.DevtronResourceObjectDescriptorBean, reqBean.OldObjectId)
+	reqBean.UserId = ctx.GetUserId()
+	resp, err := handler.devtronResourceService.PatchResourceObject(ctx, &reqBean)
+	if err != nil {
+		handler.logger.Errorw("service error, CreateResourceObject", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) DeleteResourceObject(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	reqBeanDescriptor, caughtError := getDescriptorBeanObj(w, r)
+	if caughtError {
+		return
+	}
+	token := r.Header.Get("token")
+	isValidated := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	resp, err := handler.devtronResourceService.DeleteResourceObject(ctx, reqBeanDescriptor)
+	if err != nil {
+		handler.logger.Errorw("service error, GetResourceObject", "err", err, "request", reqBeanDescriptor)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 	return
 }
 
 func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	kindVar := vars[PathParamKind]
-	versionVar := vars[PathParamVersion]
-	v := r.URL.Query()
-	idVar := v.Get(QueryParamId)
-	id, err := strconv.Atoi(idVar)
-	nameVar := v.Get(QueryParamName)
-	if err != nil && len(nameVar) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
 		return
 	}
-	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
-	if err != nil {
-		handler.logger.Errorw("error in resolveKindSubKindValues, GetResourceDependencies", "err", err, "kindVar", kindVar)
-		common.WriteJsonResp(w, err, nil, statusCode)
+	v := r.URL.Query()
+	idVar := v.Get(apiBean.QueryParamId)
+	id, err := strconv.Atoi(idVar)
+	nameVar := v.Get(apiBean.QueryParamName)
+	if err != nil && len(nameVar) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
@@ -204,7 +347,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	reqBeanDescriptor := &bean.DevtronResourceObjectDescriptorBean{
+	reqBeanDescriptor := &serviceBean.DevtronResourceObjectDescriptorBean{
 		Kind:        kind,
 		SubKind:     subKind,
 		Version:     versionVar,
@@ -222,18 +365,13 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 }
 
 func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencies(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	kindVar := vars[PathParamKind]
-	versionVar := vars[PathParamVersion]
-	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
-	if err != nil {
-		handler.logger.Errorw("error in resolveKindSubKindValues, GetResourceObject", "err", err, "kindVar", kindVar)
-		common.WriteJsonResp(w, err, nil, statusCode)
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean bean.DevtronResourceObjectBean
-	err = decoder.Decode(&reqBean)
+	var reqBean serviceBean.DevtronResourceObjectBean
+	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -251,19 +389,19 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencie
 		return
 	}
 	if reqBean.DevtronResourceObjectDescriptorBean == nil {
-		reqBean.DevtronResourceObjectDescriptorBean = &bean.DevtronResourceObjectDescriptorBean{}
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
 	}
 	reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
 	reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
 	reqBean.DevtronResourceObjectDescriptorBean.Version = versionVar
 	reqBean.UserId = userId
-	err = handler.devtronResourceService.CreateOrUpdateResourceDependencies(&reqBean)
+	err = handler.devtronResourceService.CreateOrUpdateResourceDependencies(r.Context(), &reqBean)
 	if err != nil {
 		handler.logger.Errorw("service error, CreateOrUpdateResourceDependencies", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, DependenciesUpdateSuccessMessage, http.StatusOK)
+	common.WriteJsonResp(w, err, apiBean.DependenciesUpdateSuccessMessage, http.StatusOK)
 	return
 }
 
@@ -291,7 +429,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetSchema(w http.ResponseWriter, 
 		return
 	}
 
-	reqBean := &bean.DevtronResourceBean{DevtronResourceId: resourceId}
+	reqBean := &serviceBean.DevtronResourceBean{DevtronResourceId: resourceId}
 
 	resp, err := handler.devtronResourceService.GetSchema(reqBean)
 	if err != nil {
@@ -323,7 +461,7 @@ func (handler *DevtronResourceRestHandlerImpl) UpdateSchema(w http.ResponseWrite
 	dryRun, err := strconv.ParseBool(dryRunString)
 
 	decoder := json.NewDecoder(r.Body)
-	var reqBean bean.DevtronResourceSchemaRequestBean
+	var reqBean serviceBean.DevtronResourceSchemaRequestBean
 	err = decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -340,7 +478,7 @@ func (handler *DevtronResourceRestHandlerImpl) UpdateSchema(w http.ResponseWrite
 		return
 	}
 
-	//resp := &bean.UpdateSchemaResponseBean{}
+	//resp := &serviceBean.UpdateSchemaResponseBean{}
 	resp, err := handler.devtronResourceService.UpdateSchema(&reqBean, dryRun)
 	if err != nil {
 		handler.logger.Errorw("service error, GetSchema", "err", err, "request", reqBean)
@@ -354,12 +492,12 @@ func (handler *DevtronResourceRestHandlerImpl) UpdateSchema(w http.ResponseWrite
 func (handler *DevtronResourceRestHandlerImpl) checkAuthForObject(id int, token, kind, subKind string) bool {
 	isValidated := true
 	switch kind {
-	case bean.DevtronResourceApplication.ToString():
+	case serviceBean.DevtronResourceApplication.ToString():
 		switch subKind {
-		case bean.DevtronResourceDevtronApplication.ToString():
+		case serviceBean.DevtronResourceDevtronApplication.ToString():
 			object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 			isValidated = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-		case bean.DevtronResourceHelmApplication.ToString():
+		case serviceBean.DevtronResourceHelmApplication.ToString():
 			object, object2 := handler.enforcerUtilHelm.GetAppRBACNameByAppId(id)
 			//checking create action because need to check admin role
 			if object2 == "" {
@@ -369,13 +507,17 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForObject(id int, token,
 					handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, object2)
 			}
 		}
-	case bean.DevtronResourceCluster.ToString():
+	case serviceBean.DevtronResourceCluster.ToString():
 		object := handler.enforcerUtil.GetClusterNameRBACObjByClusterId(id)
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, object)
-	case bean.DevtronResourceJob.ToString():
+	case serviceBean.DevtronResourceJob.ToString():
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 		//checking create action because need to check admin role
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, object)
+	case serviceBean.DevtronResourceReleaseTrack.ToString():
+	case serviceBean.DevtronResourceRelease.ToString():
+		// checking for super admin access
+		isValidated = handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	default:
 		isValidated = false
 	}
@@ -385,13 +527,13 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForObject(id int, token,
 func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyGet(id int, token, kind, subKind string) bool {
 	isValidated := true
 	switch kind {
-	case bean.DevtronResourceApplication.ToString():
+	case serviceBean.DevtronResourceApplication.ToString():
 		switch subKind {
-		case bean.DevtronResourceDevtronApplication.ToString():
+		case serviceBean.DevtronResourceDevtronApplication.ToString():
 			//if user has view access in this app then they can get dependency
 			object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 			isValidated = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-		case bean.DevtronResourceHelmApplication.ToString():
+		case serviceBean.DevtronResourceHelmApplication.ToString():
 			object, object2 := handler.enforcerUtilHelm.GetAppRBACNameByAppId(id)
 			//checking create action because need to check admin role
 			if object2 == "" {
@@ -401,10 +543,10 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyGet(id int,
 					handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
 			}
 		}
-	case bean.DevtronResourceCluster.ToString():
+	case serviceBean.DevtronResourceCluster.ToString():
 		object := handler.enforcerUtil.GetClusterNameRBACObjByClusterId(id)
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, object)
-	case bean.DevtronResourceJob.ToString():
+	case serviceBean.DevtronResourceJob.ToString():
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 		//checking create action because need to check admin role
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
@@ -417,14 +559,14 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyGet(id int,
 func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id int, token, kind, subKind string) bool {
 	isValidated := true
 	switch kind {
-	case bean.DevtronResourceApplication.ToString():
+	case serviceBean.DevtronResourceApplication.ToString():
 		switch subKind {
-		case bean.DevtronResourceDevtronApplication.ToString():
+		case serviceBean.DevtronResourceDevtronApplication.ToString():
 			//if user has build and deploy access to any env in this app then they can update dependency
 			//so checking app trigger access
 			object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 			isValidated = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
-		case bean.DevtronResourceHelmApplication.ToString():
+		case serviceBean.DevtronResourceHelmApplication.ToString():
 			object, object2 := handler.enforcerUtilHelm.GetAppRBACNameByAppId(id)
 			//checking create action because need to check admin role
 			if object2 == "" {
@@ -434,10 +576,10 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id i
 					handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, object2)
 			}
 		}
-	case bean.DevtronResourceCluster.ToString():
+	case serviceBean.DevtronResourceCluster.ToString():
 		object := handler.enforcerUtil.GetClusterNameRBACObjByClusterId(id)
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, object)
-	case bean.DevtronResourceJob.ToString():
+	case serviceBean.DevtronResourceJob.ToString():
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
 		//checking create action because need to check admin role
 		isValidated = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, object)

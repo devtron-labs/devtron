@@ -11,6 +11,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/xeipuuv/gojsonschema"
+	"net/http"
 	"reflect"
 	"strings"
 )
@@ -23,12 +24,7 @@ func (impl *DevtronResourceServiceImpl) GetSchema(req *bean.DevtronResourceBean)
 	}
 	if resourceSchema == nil {
 		impl.logger.Errorw("no schema found ", "err", err, "request", req)
-		return nil, &util.ApiError{
-			HttpStatusCode:  404,
-			Code:            "404",
-			UserMessage:     fmt.Sprintf("No schema found for resourceId = %v", req.DevtronResourceId),
-			InternalMessage: "schema not found",
-		}
+		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", fmt.Sprintf("No schema found for resourceId = %v", req.DevtronResourceId), "schema not found")
 	}
 	resource, err := impl.devtronResourceRepository.GetById(req.DevtronResourceId)
 	if err != nil {
@@ -88,12 +84,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	}
 	if resourceSchema == nil || resourceSchema.Id == 0 {
 		impl.logger.Errorw("no schema found ", "err", err, "request", req)
-		return nil, &util.ApiError{
-			HttpStatusCode:  404,
-			Code:            "404",
-			UserMessage:     "schema not found",
-			InternalMessage: err.Error(),
-		}
+		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", "schema not found", err.Error())
 	}
 	oldSchema := resourceSchema.Schema
 	newSchema := req.Schema
@@ -108,12 +99,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	jsonSchemaMap := make(map[string]interface{})
 	err = json.Unmarshal([]byte(fullNewSchema), &jsonSchemaMap)
 	if err != nil {
-		return nil, &util.ApiError{
-			HttpStatusCode:  400,
-			Code:            "400",
-			UserMessage:     "invalid JSON Schema structure",
-			InternalMessage: err.Error(),
-		}
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", "invalid JSON Schema structure", err.Error())
 	}
 
 	// json schema validation
@@ -122,12 +108,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	_, err = sl.Compile(schemaLoader)
 	if err != nil {
 		impl.logger.Errorw("error validating new schema, schema not valid", "err", err, "fullNewSchema", fullNewSchema)
-		return nil, &util.ApiError{
-			HttpStatusCode:  400,
-			Code:            "400",
-			UserMessage:     "Provided schema is not valid",
-			InternalMessage: err.Error(),
-		}
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", "Provided schema is not valid", err.Error())
 	}
 	jsonSchemaMap = make(map[string]interface{})
 	err = json.Unmarshal([]byte(newSchema), &jsonSchemaMap)
@@ -138,12 +119,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	findInvalidPaths(jsonSchemaMap, "", &invalidRefPaths)
 	if len(invalidRefPaths) > 0 {
 		impl.logger.Errorw("error, found invalid paths in schema", "invalidPaths", invalidRefPaths)
-		return nil, &util.ApiError{
-			HttpStatusCode:  400,
-			Code:            "400",
-			UserMessage:     fmt.Sprintf("invalid refType, paths = %s", invalidRefPaths),
-			InternalMessage: fmt.Sprintf("invalid refType, paths = %s", invalidRefPaths),
-		}
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("invalid refType, paths = %s", invalidRefPaths), fmt.Sprintf("invalid refType, paths = %s", invalidRefPaths))
 	}
 
 	// fetch diff b/w json schemas

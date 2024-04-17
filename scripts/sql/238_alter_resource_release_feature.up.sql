@@ -1,5 +1,5 @@
 ALTER TABLE devtron_resource_object_audit
-    ADD COLUMN audit_operation_path text;
+    ADD COLUMN audit_operation_path text[];
 
 
 ALTER TABLE devtron_resource_schema ALTER COLUMN version TYPE varchar(10);
@@ -494,3 +494,6 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
         "status"
     ]
 }',  true, now(), 1, now(), 1);
+
+ALTER TABLE "public"."devtron_resource_object"
+    ADD COLUMN IF NOT EXISTS identifier text;
