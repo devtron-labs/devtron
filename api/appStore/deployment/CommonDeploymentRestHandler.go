@@ -311,19 +311,8 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 		}
 	}()
 
-	//rbac block ends here
-	ctx, cancel := context.WithCancel(installAppCtx)
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
 	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
-		ctx = context.WithValue(installAppCtx, "token", token)
+		installAppCtx = context.WithValue(installAppCtx, "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -331,11 +320,10 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		ctx = context.WithValue(installAppCtx, "token", acdToken)
+		installAppCtx = context.WithValue(installAppCtx, "token", acdToken)
 	}
 
-	defer cancel()
-	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedAppDto, userId)
+	success, err := handler.appStoreDeploymentService.RollbackApplication(installAppCtx, request, installedAppDto, userId)
 	if err != nil {
 		handler.Logger.Errorw("Error in Rollback release", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
