@@ -3,13 +3,13 @@ package out
 import (
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"go.uber.org/zap"
 	"os"
 )
 
 type ChartScanPublishService interface {
-	PublishChartScanEvent(appVersionDto *appStoreBean.InstallAppVersionDTO) error
+	PublishChartScanEvent(chartScanEventBean bean.ChartScanEventBean) error
 }
 
 type ChartScanPublishServiceImpl struct {
@@ -29,13 +29,13 @@ func NewChartScanPublishServiceImplEA() *ChartScanPublishServiceImpl {
 	return nil
 }
 
-func (impl ChartScanPublishServiceImpl) PublishChartScanEvent(appVersionDto *appStoreBean.InstallAppVersionDTO) error {
+func (impl ChartScanPublishServiceImpl) PublishChartScanEvent(chartScanEventBean bean.ChartScanEventBean) error {
 
 	isV2Enabled := os.Getenv("SCAN_V2_ENABLED")
 	if isV2Enabled != "true" {
 		return nil
 	}
-
+	appVersionDto := chartScanEventBean.AppVersionDto
 	data, err := json.Marshal(appVersionDto)
 	if err != nil {
 		return err
