@@ -16,21 +16,21 @@ CREATE table if not exists public.resource_scan_execution_result (
 
 ALTER TABLE public.image_scan_execution_history ADD column IF NOT exists source_type integer NULL;
 ALTER TABLE public.image_scan_execution_history ADD column IF NOT exists source_sub_type integer NULL;
-ALTER TABLE public.image_scan_execution_history RENAME COLUMN if exists scan_event_json TO source_metadata_json;
+ALTER TABLE public.image_scan_execution_history RENAME COLUMN scan_event_json TO source_metadata_json;
 
 
 UPDATE scan_tool_step
 SET cli_command = 'trivy image -f json -o {{.OUTPUT_FILE_PATH}} --timeout {{.timeout}} {{.IMAGE_NAME}} --username {{.USERNAME}} --password {{.PASSWORD}} {{.EXTRA_ARGS}}'
-WHERE scan_tool_id=3,index=1,step_execution_type='CLI';
+WHERE scan_tool_id=3 and  index=1 and step_execution_type='CLI';
 UPDATE scan_tool_step
 SET cli_command = '(export AWS_ACCESS_KEY_ID={{.AWS_ACCESS_KEY_ID}} AWS_SECRET_ACCESS_KEY={{.AWS_SECRET_ACCESS_KEY}} AWS_DEFAULT_REGION={{.AWS_DEFAULT_REGION}}; trivy image -f json -o {{.OUTPUT_FILE_PATH}} --timeout {{.timeout}} {{.IMAGE_NAME}} {{.EXTRA_ARGS}})'
-WHERE scan_tool_id=3,index=2,step_execution_type='CLI';
+WHERE scan_tool_id=3 and index=2 and step_execution_type='CLI';
 UPDATE scan_tool_step
 SET cli_command = 'GOOGLE_APPLICATION_CREDENTIALS="{{.FILE_PATH}}/credentials.json" trivy image -f json -o {{.OUTPUT_FILE_PATH}} --timeout {{.timeout}} {{.IMAGE_NAME}} {{.EXTRA_ARGS}}'
-WHERE scan_tool_id=3,index=3,step_execution_type='CLI';
+WHERE scan_tool_id=3 and index=3 and step_execution_type='CLI';
 UPDATE scan_tool_step
 SET cli_command = 'trivy image -f json -o {{.OUTPUT_FILE_PATH}} --timeout {{.timeout}} {{.IMAGE_NAME}} {{.EXTRA_ARGS}}'
-WHERE scan_tool_id=3,index=5,step_execution_type='CLI';
+WHERE scan_tool_id=3 and index=5 and step_execution_type='CLI';
 
 
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
