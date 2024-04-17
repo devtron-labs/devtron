@@ -8,9 +8,9 @@ type ChartScanEventBean struct {
 }
 
 type DevtronAppDto struct {
-	ChartContent       []byte `json:"chartContent"`
-	ChartVersion       string `json:"chartVersion"`
-	ChartName          string `json:"chartName"`
-	ValuesYaml         string `json:"valuesYaml"`
-	CdWorkflowRunnerId int    `json:"cdWorkflowRunnerId"`
+	ChartContent []byte `json:"chartContent"`
+	ChartVersion string `json:"chartVersion"`
+	ChartName    string `json:"chartName"`
+	ValuesYaml   string `json:"valuesYaml"`
+	CdWorkflowId int    `json:"cdWorkflowRunnerId"`
 }

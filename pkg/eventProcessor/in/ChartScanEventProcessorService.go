@@ -90,7 +90,7 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 		}
 
 		if payload := request.DevtronAppDto; payload != nil {
-			return "got message for CHART_SCAN_TOPIC", []interface{}{"cdWorkflowRunnerId", payload.CdWorkflowRunnerId, "chartName", payload.ChartName}
+			return "got message for CHART_SCAN_TOPIC", []interface{}{"cdWorkflowRunnerId", payload.CdWorkflowId, "chartName", payload.ChartName}
 		}
 		return "got message for CHART_SCAN_TOPIC", []interface{}{}
 	}
@@ -107,6 +107,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 	appVersionDto := request.AppVersionDto
 	var manifest string
 	var chartBytes []byte
+	var valuesYaml string
 	ctx := context.Background()
 	isHelmApp := appVersionDto != nil
 	historyId := 0
@@ -118,6 +119,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 			return
 		}
 		chartBytes = resp.ChartBytes
+		valuesYaml = appVersionDto.ValuesOverrideYaml
 		manifest = resp.GetManifest()
 		historyId = appVersionDto.InstalledAppVersionId
 	} else {
@@ -130,7 +132,8 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 			return
 		}
 		manifest = chartResponse.GeneratedManifest
-		historyId = devtronAppDto.CdWorkflowRunnerId
+		historyId = devtronAppDto.CdWorkflowId
+		valuesYaml = devtronAppDto.ValuesYaml
 	}
 	dockerImages, err := k8sObjectsUtil.ExtractImageFromManifestYaml(manifest)
 	if err != nil {
@@ -141,7 +144,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 	for _, image := range dockerImages {
 		impl.sendForScan(historyId, image, nil, "", isHelmApp)
 	}
-	impl.sendForScan(historyId, "", chartBytes, appVersionDto.ValuesOverrideYaml, isHelmApp)
+	impl.sendForScan(historyId, "", chartBytes, valuesYaml, isHelmApp)
 }
 
 func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean2.DevtronAppDto) (*gRPC.InstallReleaseRequest, error) {
@@ -277,10 +280,9 @@ func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string
 		}
 	} else {
 		scanEvent = &security.ScanEvent{
-			UserId:         bean.SYSTEM_USER_ID,
-			ChartHistoryId: historyId,
-			SourceType:     security2.SourceTypeCode,
-			SourceSubType:  security2.SourceSubTypeManifest,
+			UserId:        bean.SYSTEM_USER_ID,
+			SourceType:    security2.SourceTypeCode,
+			SourceSubType: security2.SourceSubTypeManifest,
 			ManifestData: &security.ManifestData{
 				ChartData:  chartBytes,
 				ValuesYaml: []byte(valuesYaml),

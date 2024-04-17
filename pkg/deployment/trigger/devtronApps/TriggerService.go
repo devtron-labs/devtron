@@ -1310,11 +1310,11 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 		}
 		chartScanEventBean := bean10.ChartScanEventBean{
 			DevtronAppDto: &bean10.DevtronAppDto{
-				ChartContent:       referenceChartByte,
-				ValuesYaml:         valuesOverrideResponse.MergedValues,
-				ChartName:          envOverride.Chart.ChartName,
-				ChartVersion:       envOverride.Chart.ChartVersion,
-				CdWorkflowRunnerId: overrideRequest.CdWorkflowId,
+				ChartContent: referenceChartByte,
+				ValuesYaml:   valuesOverrideResponse.MergedValues,
+				ChartName:    envOverride.Chart.ChartName,
+				ChartVersion: envOverride.Chart.ChartVersion,
+				CdWorkflowId: overrideRequest.CdWorkflowId,
 			},
 		}
 		err = impl.chartScanPublishService.PublishChartScanEvent(chartScanEventBean)
