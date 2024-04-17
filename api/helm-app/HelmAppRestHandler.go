@@ -64,7 +64,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	globalEnvVariables *util2.GlobalEnvVariables) *HelmAppRestHandlerImpl {
+	envVariables *util2.EnvironmentVariables) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                    logger,
 		helmAppService:            helmAppService,
@@ -76,7 +76,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		userAuthService:           userAuthService,
 		attributesService:         attributesService,
 		serverEnvConfig:           serverEnvConfig,
-		globalEnvVariables:        globalEnvVariables,
+		globalEnvVariables:        envVariables.GlobalEnvVariables,
 	}
 }
 

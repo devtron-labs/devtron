@@ -81,7 +81,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	validator *validator.Validate, helmAppService service2.HelmAppService,
 	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
 	installAppService EAMode.InstalledAppDBService,
-	globalEnvVariables *util2.GlobalEnvVariables) *AppStoreDeploymentRestHandlerImpl {
+	envVariables *util2.EnvironmentVariables) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
 		userAuthService:             userAuthService,
@@ -95,7 +95,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		argoUserService:             argoUserService,
 		attributesService:           attributesService,
 		installAppService:           installAppService,
-		globalEnvVariables:          globalEnvVariables,
+		globalEnvVariables:          envVariables.GlobalEnvVariables,
 	}
 }
 

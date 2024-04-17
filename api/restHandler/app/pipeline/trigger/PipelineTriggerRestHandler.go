@@ -83,7 +83,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
 	workflowEventPublishService out.WorkflowEventPublishService,
-	globalEnvVariables *util.GlobalEnvVariables) *PipelineTriggerRestHandlerImpl {
+	EnvVariables *util.EnvironmentVariables) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:                  appService,
 		userAuthService:             userAuthService,
@@ -98,7 +98,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deployedAppService:          deployedAppService,
 		cdTriggerService:            cdTriggerService,
 		workflowEventPublishService: workflowEventPublishService,
-		globalEnvVariables:          globalEnvVariables,
+		globalEnvVariables:          EnvVariables.GlobalEnvVariables,
 	}
 	return pipelineHandler
 }

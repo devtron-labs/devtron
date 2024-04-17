@@ -72,7 +72,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
 	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 ) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
@@ -86,7 +86,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		helmAppService:            helmAppService,
 		helmAppRestHandler:        helmAppRestHandler,
 		argoUserService:           argoUserService,
-		globalEnvVariables:        globalEnvVariables,
+		globalEnvVariables:        envVariables.GlobalEnvVariables,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
