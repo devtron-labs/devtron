@@ -5,6 +5,7 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"go.uber.org/zap"
+	"os"
 )
 
 type ChartScanPublishService interface {
@@ -29,6 +30,11 @@ func NewChartScanPublishServiceImplEA() *ChartScanPublishServiceImpl {
 }
 
 func (impl ChartScanPublishServiceImpl) PublishChartScanEvent(appVersionDto *appStoreBean.InstallAppVersionDTO) error {
+
+	isV2Enabled := os.Getenv("SCAN_V2_ENABLED")
+	if isV2Enabled != "true" {
+		return nil
+	}
 
 	data, err := json.Marshal(appVersionDto)
 	if err != nil {
