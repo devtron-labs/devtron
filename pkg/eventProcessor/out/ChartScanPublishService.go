@@ -35,10 +35,9 @@ func (impl ChartScanPublishServiceImpl) PublishChartScanEvent(chartScanEventBean
 	if isV2Enabled != "true" {
 		return nil
 	}
-	appVersionDto := chartScanEventBean.AppVersionDto
-	data, err := json.Marshal(appVersionDto)
+	data, err := json.Marshal(chartScanEventBean)
 	if err != nil {
-		impl.logger.Errorw("error in marshaling appVersionDto", "appVersionDto", appVersionDto, "err", err)
+		impl.logger.Errorw("error in marshaling appVersionDto", "appVersionDto", chartScanEventBean, "err", err)
 		return err
 	} else {
 		err = impl.pubSubClient.Publish(pubsub.CHART_SCAN_TOPIC, string(data))
