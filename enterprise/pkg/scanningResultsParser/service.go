@@ -93,7 +93,7 @@ func (impl ServiceImpl) GetScanResults(appId, envId, ciWorkflowId, installedAppI
 		}
 
 		// for image(images present in manifests and not built by us) and k8s manifest scan results
-		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.Id, security.ScanObjectType_CD_Workflow)
+		imageScanDeployInfo, err := impl.imageScanningDeployInfoRepo.FindByTypeMetaAndTypeId(cdWfRunner.CdWorkflowId, security.ScanObjectType_CD_Workflow)
 		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in fetching image scan deploy info for cd workflow", "err", err, "appId", appId, "envId", envId)
 			return resp, err
