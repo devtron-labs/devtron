@@ -20,6 +20,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"regexp"
 	"strconv"
 	"strings"
@@ -182,7 +183,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	impl.logger.Info(fmt.Sprintf("apiTokenExists : %s", strconv.FormatBool(apiTokenExists)))
 
 	// step-2 - Build email
-	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, name)
+	email := fmt.Sprintf("%s%s-%s", API_TOKEN_USER_EMAIL_PREFIX, name, util.Generate(4))
 
 	// step-3 - Build token
 	token, err := impl.createApiJwtToken(email, *request.ExpireAtInMs)
