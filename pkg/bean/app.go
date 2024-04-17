@@ -192,8 +192,6 @@ type ExternalCiConfigRole struct {
 // -------------------
 type PatchAction int
 
-//type PipelineType string
-
 const (
 	CREATE        PatchAction = iota
 	UPDATE_SOURCE             //update value of SourceTypeConfig
