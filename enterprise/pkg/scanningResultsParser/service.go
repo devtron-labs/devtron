@@ -218,7 +218,7 @@ func getImageScanResult(imageScanExecs map[string]*security.ExecutionData) *Imag
 	}
 
 	return &ImageScanResponse{
-		Vulnerability: *vulnerabilityResponse,
-		License:       *licensesResponse,
+		Vulnerability: vulnerabilityResponse,
+		License:       licensesResponse,
 	}
 }

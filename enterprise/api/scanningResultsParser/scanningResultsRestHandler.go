@@ -107,6 +107,35 @@ func (impl ScanningResultRestHandlerImpl) ScanResults(w http.ResponseWriter, r *
 
 		return
 	}
+
+	//sanitize resp
+	resp = impl.sanitizeResponse(resp)
+
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 
+}
+
+func (impl ScanningResultRestHandlerImpl) sanitizeResponse(resp scanningResultsParser.Response) scanningResultsParser.Response {
+	if resp.CodeScan.License != nil && len(resp.CodeScan.License.Licenses) == 0 {
+		resp.CodeScan.License = nil
+	}
+	if resp.CodeScan.Vulnerability != nil && len(resp.CodeScan.Vulnerability.Vulnerabilities) == 0 {
+		resp.CodeScan.Vulnerability = nil
+	}
+
+	if resp.CodeScan.ExposedSecrets != nil && len(resp.CodeScan.ExposedSecrets.ExposedSecrets) == 0 {
+		resp.CodeScan.ExposedSecrets = nil
+	}
+
+	if resp.CodeScan.MisConfigurations != nil && len(resp.CodeScan.MisConfigurations.MisConfigurations) == 0 {
+		resp.CodeScan.MisConfigurations = nil
+	}
+
+	if resp.ImageScan.License != nil && len(resp.ImageScan.License.List) == 0 {
+		resp.ImageScan.License = nil
+	}
+	if resp.ImageScan.Vulnerability != nil && len(resp.ImageScan.Vulnerability.List) == 0 {
+		resp.ImageScan.Vulnerability = nil
+	}
+	return resp
 }

@@ -206,8 +206,8 @@ type ImageLicenses struct {
 }
 
 type ImageScanResponse struct {
-	Vulnerability VulnerabilityResponse `json:"vulnerability"`
-	License       LicenseResponse       `json:"license"`
+	Vulnerability *VulnerabilityResponse `json:"vulnerability"`
+	License       *LicenseResponse       `json:"license"`
 }
 
 type Response struct {
