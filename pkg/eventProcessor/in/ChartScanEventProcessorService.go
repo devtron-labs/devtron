@@ -1,8 +1,11 @@
 package in
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
@@ -12,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
@@ -19,8 +23,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"time"
 )
+
+const CHART_SCAN_WORKING_DIR_PATH = "/tmp/scan/charts"
 
 type ChartScanEventProcessorImpl struct {
 	logger                  *zap.SugaredLogger
@@ -31,6 +40,7 @@ type ChartScanEventProcessorImpl struct {
 	policyService           security.PolicyService
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
 	imageScanHistoryRepo    security2.ImageScanHistoryRepository
+	chartTemplateService    util.ChartTemplateService
 }
 
 func NewChartScanEventProcessorImpl(logger *zap.SugaredLogger,
@@ -41,6 +51,7 @@ func NewChartScanEventProcessorImpl(logger *zap.SugaredLogger,
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
 	imageScanHistoryRepo security2.ImageScanHistoryRepository,
 	K8sUtil *k8s.K8sUtilExtended,
+	chartTemplateService util.ChartTemplateService,
 ) *ChartScanEventProcessorImpl {
 	return &ChartScanEventProcessorImpl{
 		logger:                  logger,
@@ -51,13 +62,14 @@ func NewChartScanEventProcessorImpl(logger *zap.SugaredLogger,
 		imageScanHistoryRepo:    imageScanHistoryRepo,
 		helmAppClient:           helmAppClient,
 		K8sUtil:                 K8sUtil,
+		chartTemplateService:    chartTemplateService,
 	}
 }
 
 func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 	callback := func(msg *model.PubSubMsg) {
 		request := &bean2.ChartScanEventBean{}
-		err := json.Unmarshal([]byte(msg.Data), &request)
+		err := json.Unmarshal([]byte(msg.Data), request)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
 			return
@@ -69,17 +81,18 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
 		request := &bean2.ChartScanEventBean{}
-		//TODO KB: handle this
-		payload := request.AppVersionDto
-		if payload != nil {
-			err := json.Unmarshal([]byte(msg.Data), &payload)
-			if err != nil {
-				return "error while unmarshalling InstallAppVersionDTO json object", []interface{}{"error", err}
-			}
-			return "got message for CHART_SCAN_TOPIC", []interface{}{"installedAppVersionId", payload.InstalledAppVersionId, "installedAppVersionHistoryId", payload.InstalledAppVersionHistoryId}
-		} else {
-			return "got message for CHART_SCAN_TOPIC", []interface{}{}
+		err := json.Unmarshal([]byte(msg.Data), &request)
+		if err != nil {
+			return "error while unmarshalling ChartScanEventBean json object", []interface{}{"error", err}
 		}
+		if payload := request.AppVersionDto; payload != nil {
+			return "got message for CHART_SCAN_TOPIC", []interface{}{"installedAppVersionId", payload.InstalledAppVersionId, "installedAppVersionHistoryId", payload.InstalledAppVersionHistoryId}
+		}
+
+		if payload := request.DevtronAppDto; payload != nil {
+			return "got message for CHART_SCAN_TOPIC", []interface{}{"cdWorkflowRunnerId", payload.CdWorkflowRunnerId, "chartName", payload.ChartName}
+		}
+		return "got message for CHART_SCAN_TOPIC", []interface{}{}
 	}
 
 	err := impl.pubSubClient.Subscribe(pubsub.CHART_SCAN_TOPIC, callback, loggerFunc)
@@ -139,6 +152,44 @@ func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean
 		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
+
+	// TODO: refactor this later
+	var b bytes.Buffer
+	writer := gzip.NewWriter(&b)
+	_, err = writer.Write(devtronAppDto.ChartContent)
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+	err = writer.Close()
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+
+	if _, err := os.Stat(CHART_SCAN_WORKING_DIR_PATH); os.IsNotExist(err) {
+		err := os.MkdirAll(CHART_SCAN_WORKING_DIR_PATH, os.ModePerm)
+		if err != nil {
+			impl.logger.Errorw("err in creating dir", "err", err)
+			return nil, err
+		}
+	}
+
+	dir := impl.chartTemplateService.GetDir()
+	referenceChartDir := filepath.Join(CHART_SCAN_WORKING_DIR_PATH, dir)
+	referenceChartDir = fmt.Sprintf("%s.tgz", referenceChartDir)
+	defer impl.chartTemplateService.CleanDir(referenceChartDir)
+	err = ioutil.WriteFile(referenceChartDir, b.Bytes(), os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+
+	chartBytes, err := os.ReadFile(referenceChartDir)
+	if err != nil {
+		fmt.Println("error in reading chartdata from the file ", " filePath : ", referenceChartDir, " err : ", err)
+	}
+
 	installReleaseReq := &gRPC.InstallReleaseRequest{
 		ReleaseIdentifier: generateManifest.ReleaseIdentifier,
 		K8SVersion:        k8sServerVersion.String(),
@@ -146,7 +197,7 @@ func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean
 		ChartName:         devtronAppDto.ChartName,
 		ChartRepository:   generateManifest.ChartRepository,
 		ChartContent: &gRPC.ChartContent{
-			Content: devtronAppDto.ChartContent,
+			Content: chartBytes,
 		},
 	}
 	installReleaseReq.ReleaseIdentifier.ClusterConfig = config

@@ -1034,7 +1034,7 @@ func InitializeApp() (*App, error) {
 	cdPipelineEventProcessorImpl := in.NewCDPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, workflowStatusServiceImpl, triggerServiceImpl, argoUserServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	deployedApplicationEventProcessorImpl := in.NewDeployedApplicationEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, appServiceImpl, gitOpsConfigReadServiceImpl, installedAppDBExtendedServiceImpl, workflowDagExecutorImpl, cdWorkflowCommonServiceImpl, pipelineBuilderImpl, appStoreDeploymentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	appStoreAppsEventProcessorImpl := in.NewAppStoreAppsEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, chartGroupServiceImpl, installedAppVersionHistoryRepositoryImpl)
-	chartScanEventProcessorImpl := in.NewChartScanEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, helmAppServiceImpl, helmAppClientImpl, policyServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, k8sUtilExtended)
+	chartScanEventProcessorImpl := in.NewChartScanEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, helmAppServiceImpl, helmAppClientImpl, policyServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, k8sUtilExtended, chartTemplateServiceImpl)
 	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl, cdPipelineEventProcessorImpl, deployedApplicationEventProcessorImpl, appStoreAppsEventProcessorImpl, chartScanEventProcessorImpl)
 	if err != nil {
 		return nil, err

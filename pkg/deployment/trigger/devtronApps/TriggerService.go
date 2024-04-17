@@ -1310,10 +1310,11 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 		}
 		chartScanEventBean := bean10.ChartScanEventBean{
 			DevtronAppDto: &bean10.DevtronAppDto{
-				ChartContent: referenceChartByte,
-				ValuesYaml:   valuesOverrideResponse.MergedValues,
-				ChartName:    envOverride.Chart.ChartName,
-				ChartVersion: envOverride.Chart.ChartVersion,
+				ChartContent:       referenceChartByte,
+				ValuesYaml:         valuesOverrideResponse.MergedValues,
+				ChartName:          envOverride.Chart.ChartName,
+				ChartVersion:       envOverride.Chart.ChartVersion,
+				CdWorkflowRunnerId: overrideRequest.CdWorkflowId,
 			},
 		}
 		err = impl.chartScanPublishService.PublishChartScanEvent(chartScanEventBean)
@@ -1687,7 +1688,7 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 }
 
 func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool, image string) error {
-	//TODO KB: send NATS event for self consumption
+	// TODO KB: send NATS event for self consumption
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
 	if err != nil && err != pg.ErrNoRows {
