@@ -1,37 +1,57 @@
 package in
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"time"
 )
+
+const CHART_SCAN_WORKING_DIR_PATH = "/tmp/scan/charts"
 
 type ChartScanEventProcessorImpl struct {
 	logger                  *zap.SugaredLogger
 	pubSubClient            *pubsub.PubSubClientServiceImpl
 	helmAppService          service.HelmAppService
+	K8sUtil                 *k8s.K8sUtilExtended
+	helmAppClient           gRPC.HelmAppClient
 	policyService           security.PolicyService
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
 	imageScanHistoryRepo    security2.ImageScanHistoryRepository
+	chartTemplateService    util.ChartTemplateService
 }
 
 func NewChartScanEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	helmAppService service.HelmAppService,
+	helmAppClient gRPC.HelmAppClient,
 	policyService security.PolicyService,
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
 	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+	K8sUtil *k8s.K8sUtilExtended,
+	chartTemplateService util.ChartTemplateService,
 ) *ChartScanEventProcessorImpl {
 	return &ChartScanEventProcessorImpl{
 		logger:                  logger,
@@ -40,13 +60,16 @@ func NewChartScanEventProcessorImpl(logger *zap.SugaredLogger,
 		policyService:           policyService,
 		imageScanDeployInfoRepo: imageScanDeployInfoRepo,
 		imageScanHistoryRepo:    imageScanHistoryRepo,
+		helmAppClient:           helmAppClient,
+		K8sUtil:                 K8sUtil,
+		chartTemplateService:    chartTemplateService,
 	}
 }
 
 func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 	callback := func(msg *model.PubSubMsg) {
-		request := &appStoreBean.InstallAppVersionDTO{}
-		err := json.Unmarshal([]byte(msg.Data), &request)
+		request := &bean2.ChartScanEventBean{}
+		err := json.Unmarshal([]byte(msg.Data), request)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
 			return
@@ -57,12 +80,19 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		payload := &appStoreBean.InstallAppVersionDTO{}
-		err := json.Unmarshal([]byte(msg.Data), &payload)
+		request := &bean2.ChartScanEventBean{}
+		err := json.Unmarshal([]byte(msg.Data), &request)
 		if err != nil {
-			return "error while unmarshalling InstallAppVersionDTO json object", []interface{}{"error", err}
+			return "error while unmarshalling ChartScanEventBean json object", []interface{}{"error", err}
 		}
-		return "got message for CHART_SCAN_TOPIC", []interface{}{"installedAppVersionId", payload.InstalledAppVersionId, "installedAppVersionHistoryId", payload.InstalledAppVersionHistoryId}
+		if payload := request.AppVersionDto; payload != nil {
+			return "got message for CHART_SCAN_TOPIC", []interface{}{"installedAppVersionId", payload.InstalledAppVersionId, "installedAppVersionHistoryId", payload.InstalledAppVersionHistoryId}
+		}
+
+		if payload := request.DevtronAppDto; payload != nil {
+			return "got message for CHART_SCAN_TOPIC", []interface{}{"cdWorkflowRunnerId", payload.CdWorkflowRunnerId, "chartName", payload.ChartName}
+		}
+		return "got message for CHART_SCAN_TOPIC", []interface{}{}
 	}
 
 	err := impl.pubSubClient.Subscribe(pubsub.CHART_SCAN_TOPIC, callback, loggerFunc)
@@ -73,32 +103,108 @@ func (impl *ChartScanEventProcessorImpl) SubscribeChartScanEvent() error {
 	return nil
 }
 
-func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request *appStoreBean.InstallAppVersionDTO) {
-	manifestRequest := impl.buildTemplateChartRequest(request)
-	dockerImages, resp, err := impl.getDockerImages(manifestRequest)
+func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request *bean2.ChartScanEventBean) {
+	appVersionDto := request.AppVersionDto
+	var manifest string
+	var chartBytes []byte
+	ctx := context.Background()
+	isHelmApp := appVersionDto != nil
+	historyId := 0
+	if isHelmApp {
+		manifestRequest := impl.buildTemplateChartRequest(appVersionDto)
+		resp, err := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
+		if err != nil {
+			impl.logger.Errorw("error in generating manifest", "err", err, "request", manifestRequest)
+			return
+		}
+		chartBytes = resp.ChartBytes
+		manifest = resp.GetManifest()
+		historyId = appVersionDto.InstalledAppVersionId
+	} else {
+		devtronAppDto := request.DevtronAppDto
+		chartBytes = devtronAppDto.ChartContent
+		installReleaseReq, err := impl.buildInstallRequest(devtronAppDto)
+		chartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseReq)
+		if err != nil {
+			impl.logger.Errorw("error in generating manifest", "err", err, "request", installReleaseReq)
+			return
+		}
+		manifest = chartResponse.GeneratedManifest
+		historyId = devtronAppDto.CdWorkflowRunnerId
+	}
+	dockerImages, err := k8sObjectsUtil.ExtractImageFromManifestYaml(manifest)
 	if err != nil {
-		impl.logger.Error("Error on fetching docker images from generated manifest", "error", err, "manifestRequest", manifestRequest)
+		impl.logger.Error("Error on fetching docker images from generated manifest", "error", err, "manifest", manifest)
 		return
 	}
 
-	// historyIds := make([]int, 0)
 	for _, image := range dockerImages {
-		// history := impl.buildImageScanHistoryObject(image)
-		// err := impl.imageScanHistoryRepo.Save(history)
-		// if err != nil {
-		// 	impl.logger.Error("Error on saving ImageScanExecutionHistory", "error", err, "history", history)
-		// 	continue
-		// }
-		impl.sendForScan(request.InstalledAppVersionHistoryId, image, nil, "")
-		// historyIds = append(historyIds, history.Id)
+		impl.sendForScan(historyId, image, nil, "", isHelmApp)
 	}
-	impl.sendForScan(request.InstalledAppVersionHistoryId, "", resp.ChartBytes, request.ValuesOverrideYaml)
-	// scanDeployObject := impl.buildScanDeployInfoObject(historyIds, request)
-	// err = impl.imageScanDeployInfoRepo.Save(scanDeployObject)
-	// if err != nil {
-	// 	impl.logger.Error("Error on saving ImageScanDeployInfo", "error", err, "err")
-	// 	return
-	// }
+	impl.sendForScan(historyId, "", chartBytes, appVersionDto.ValuesOverrideYaml, isHelmApp)
+}
+
+func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean2.DevtronAppDto) (*gRPC.InstallReleaseRequest, error) {
+	config, err := impl.helmAppService.GetClusterConf(bean3.DEFAULT_CLUSTER_ID)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+
+	// TODO: refactor this later
+	var b bytes.Buffer
+	writer := gzip.NewWriter(&b)
+	_, err = writer.Write(devtronAppDto.ChartContent)
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+	err = writer.Close()
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+
+	if _, err := os.Stat(CHART_SCAN_WORKING_DIR_PATH); os.IsNotExist(err) {
+		err := os.MkdirAll(CHART_SCAN_WORKING_DIR_PATH, os.ModePerm)
+		if err != nil {
+			impl.logger.Errorw("err in creating dir", "err", err)
+			return nil, err
+		}
+	}
+
+	dir := impl.chartTemplateService.GetDir()
+	referenceChartDir := filepath.Join(CHART_SCAN_WORKING_DIR_PATH, dir)
+	referenceChartDir = fmt.Sprintf("%s.tgz", referenceChartDir)
+	defer impl.chartTemplateService.CleanDir(referenceChartDir)
+	err = ioutil.WriteFile(referenceChartDir, b.Bytes(), os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error on helm install custom while writing chartContent", "err", err)
+		return nil, err
+	}
+
+	chartBytes, err := os.ReadFile(referenceChartDir)
+	if err != nil {
+		fmt.Println("error in reading chartdata from the file ", " filePath : ", referenceChartDir, " err : ", err)
+	}
+
+	installReleaseReq := &gRPC.InstallReleaseRequest{
+		ReleaseIdentifier: generateManifest.ReleaseIdentifier,
+		K8SVersion:        k8sServerVersion.String(),
+		ChartVersion:      devtronAppDto.ChartVersion,
+		ChartName:         devtronAppDto.ChartName,
+		ChartRepository:   generateManifest.ChartRepository,
+		ChartContent: &gRPC.ChartContent{
+			Content: chartBytes,
+		},
+	}
+	installReleaseReq.ReleaseIdentifier.ClusterConfig = config
+	return installReleaseReq, nil
 }
 
 func (impl *ChartScanEventProcessorImpl) buildImageScanHistoryObject(image string) *security2.ImageScanExecutionHistory {
@@ -158,29 +264,35 @@ func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi
 	return images, resp, err
 }
 
-func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes []byte, valuesYaml string) {
+func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes []byte, valuesYaml string, isHelmApp bool) {
 
 	var err error
+	var scanEvent *security.ScanEvent
 	if len(image) > 0 {
-		err = impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
-			Image:          image,
-			UserId:         bean.SYSTEM_USER_ID,
-			ChartHistoryId: historyId,
-			SourceType:     security2.SourceTypeImage,
-			SourceSubType:  security2.SourceSubTypeManifest,
-		})
+		scanEvent = &security.ScanEvent{
+			Image:         image,
+			UserId:        bean.SYSTEM_USER_ID,
+			SourceType:    security2.SourceTypeImage,
+			SourceSubType: security2.SourceSubTypeManifest,
+		}
 	} else {
-		err = impl.policyService.SendEventToClairUtilityAsync(&security.ScanEvent{
+		scanEvent = &security.ScanEvent{
 			UserId:         bean.SYSTEM_USER_ID,
 			ChartHistoryId: historyId,
 			SourceType:     security2.SourceTypeCode,
 			SourceSubType:  security2.SourceSubTypeManifest,
 			ManifestData: &security.ManifestData{
-				ChartData:  []byte(chartBytes),
+				ChartData:  chartBytes,
 				ValuesYaml: []byte(valuesYaml),
 			},
-		})
+		}
 	}
+	if isHelmApp {
+		scanEvent.ChartHistoryId = historyId
+	} else {
+		scanEvent.CdWorkflowId = historyId
+	}
+	err = impl.policyService.SendEventToClairUtilityAsync(scanEvent)
 	if err != nil {
 		impl.logger.Errorw("error in sending image scan event", "err", err, "image", image)
 	}

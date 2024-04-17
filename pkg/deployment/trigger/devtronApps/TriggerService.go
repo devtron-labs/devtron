@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	bean10 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -156,6 +157,7 @@ type TriggerServiceImpl struct {
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository
 	deploymentWindowService       deploymentWindow.DeploymentWindowService
+	chartScanPublishService       out.ChartScanPublishService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -215,6 +217,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
+	chartScanPublishService out.ChartScanPublishService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -275,6 +278,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		deploymentWindowService:             deploymentWindowService,
+		chartScanPublishService:             chartScanPublishService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1267,6 +1271,9 @@ func (impl *TriggerServiceImpl) getManifestPushService(storageType string) app.M
 func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 	triggeredAt time.Time, ctx context.Context) error {
 
+	var referenceChartByte []byte
+	var err error
+
 	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "deployArgocdApp")
 		err := impl.deployArgocdApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
@@ -1277,7 +1284,7 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+		_, referenceChartByte, err = impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
@@ -1285,11 +1292,40 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 		}
 	}
 
+	pipeline := valuesOverrideResponse.Pipeline
+	envOverride := valuesOverrideResponse.EnvOverride
+	if envOverride.Chart != nil && len(pipeline.App.AppName) > 0 {
+		if len(referenceChartByte) == 0 {
+			chartMetaData := &chart.Metadata{
+				Name:    pipeline.App.AppName,
+				Version: envOverride.Chart.ChartVersion,
+			}
+			referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
+			if err != nil {
+				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+				return nil
+			}
+			referenceChartByte = refChartByte
+		}
+		chartScanEventBean := bean10.ChartScanEventBean{
+			DevtronAppDto: &bean10.DevtronAppDto{
+				ChartContent:       referenceChartByte,
+				ValuesYaml:         valuesOverrideResponse.MergedValues,
+				ChartName:          envOverride.Chart.ChartName,
+				ChartVersion:       envOverride.Chart.ChartVersion,
+				CdWorkflowRunnerId: overrideRequest.CdWorkflowId,
+			},
+		}
+		err = impl.chartScanPublishService.PublishChartScanEvent(chartScanEventBean)
+		if err != nil {
+			impl.logger.Errorw("error occurred while publishing scan event", "err", err)
+		}
+	}
 	return nil
 }
 
-func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	triggeredAt time.Time, ctx context.Context) (bool, error) {
+func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (bool, []byte, error) {
 
 	pipeline := valuesOverrideResponse.Pipeline
 	envOverride := valuesOverrideResponse.EnvOverride
@@ -1300,15 +1336,15 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		Version: envOverride.Chart.ChartVersion,
 	}
 	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
-
+	var referenceChartByte []byte
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
-		referenceChartByte := envOverride.Chart.ReferenceChart
+		referenceChartByte = envOverride.Chart.ReferenceChart
 		// here updating reference chart into database.
 		if len(envOverride.Chart.ReferenceChart) == 0 {
 			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
 			if err != nil {
 				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-				return false, err
+				return false, nil, err
 			}
 			ch := envOverride.Chart
 			ch.ReferenceChart = refChartByte
@@ -1317,7 +1353,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			err = impl.chartRepository.Update(ch)
 			if err != nil {
 				impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
-				return false, err
+				return false, nil, err
 			}
 			referenceChartByte = refChartByte
 		}
@@ -1365,12 +1401,12 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
-					return false, apiError
+					return false, nil, apiError
 				}
 				if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 				}
-				return false, err
+				return false, nil, err
 			} else {
 				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
 			}
@@ -1382,7 +1418,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-				return false, err
+				return false, nil, err
 			}
 			if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
 				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
@@ -1400,14 +1436,14 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
-					return false, apiError
+					return false, nil, apiError
 				}
-				return false, err
+				return false, nil, err
 			}
 
 			if pgErr != nil {
 				impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
-				return false, err
+				return false, nil, err
 			}
 
 			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
@@ -1417,10 +1453,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-			return false, err
+			return false, nil, err
 		}
 	}
-	return true, nil
+	return true, referenceChartByte, nil
 }
 
 func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
@@ -1652,7 +1688,7 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 }
 
 func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool, image string) error {
-	//TODO KB: send NATS event for self consumption
+	// TODO KB: send NATS event for self consumption
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
 	if err != nil && err != pg.ErrNoRows {
