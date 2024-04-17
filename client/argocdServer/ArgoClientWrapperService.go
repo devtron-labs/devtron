@@ -42,6 +42,10 @@ func GetACDDeploymentConfig() (*ACDConfig, error) {
 	return cfg, err
 }
 
+const (
+	ErrorOperationAlreadyInProgress = "another operation is already in progress" // this string is returned from argocd
+)
+
 type ArgoClientWrapperService interface {
 
 	// GetArgoAppWithNormalRefresh - refresh app at argocd side
@@ -108,24 +112,35 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
 	if impl.ACDConfig.IsManualSyncEnabled() {
 
-		impl.logger.Debugw("terminating any ongoing sync operation before performing manual sync", "argoAppName", argoAppName)
-		_, _ = impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
-			Name: &argoAppName,
-		})
-
 		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
 		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
 			Revision: &revision,
 			Prune:    &pruneResources,
-			RetryStrategy: &v1alpha1.RetryStrategy{
-				Limit: 1,
-			},
 		})
 		if syncErr != nil {
-			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
-			return syncErr
+			impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
+			if syncErr.Error() == ErrorOperationAlreadyInProgress {
+				impl.logger.Debugw("terminating ongoing sync operation and retrying manual sync", "argoAppName", argoAppName)
+				_, _ = impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
+					Name: &argoAppName,
+				})
+				_, syncErr = impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+					Revision: &revision,
+					Prune:    &pruneResources,
+					RetryStrategy: &v1alpha1.RetryStrategy{
+						Limit: 1,
+					},
+				})
+				if syncErr != nil {
+					impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
+					return syncErr
+				}
+			}
+			if syncErr != nil {
+				return syncErr
+			}
 		}
 		impl.logger.Debugw("argocd sync completed", "argoAppName", argoAppName)
 	}
