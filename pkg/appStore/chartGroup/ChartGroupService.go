@@ -37,6 +37,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	bean3 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -164,10 +165,10 @@ type ChartGroupBean struct {
 
 type ChartGroupEntryBean struct {
 	Id                           int            `json:"id,omitempty"`
-	AppStoreValuesVersionId      int            `json:"appStoreValuesVersionId,omitempty"` //AppStoreVersionValuesId
+	AppStoreValuesVersionId      int            `json:"appStoreValuesVersionId,omitempty"` // AppStoreVersionValuesId
 	AppStoreValuesVersionName    string         `json:"appStoreValuesVersionName,omitempty"`
-	AppStoreValuesChartVersion   string         `json:"appStoreValuesChartVersion,omitempty"`   //chart version corresponding to values
-	AppStoreApplicationVersionId int            `json:"appStoreApplicationVersionId,omitempty"` //AppStoreApplicationVersionId
+	AppStoreValuesChartVersion   string         `json:"appStoreValuesChartVersion,omitempty"`   // chart version corresponding to values
+	AppStoreApplicationVersionId int            `json:"appStoreApplicationVersionId,omitempty"` // AppStoreApplicationVersionId
 	ChartMetaData                *ChartMetaData `json:"chartMetaData,omitempty"`
 	ReferenceType                string         `json:"referenceType, omitempty"`
 }
@@ -179,7 +180,7 @@ type ChartMetaData struct {
 	AppStoreId                 int    `json:"appStoreId"`
 	AppStoreApplicationVersion string `json:"appStoreApplicationVersion"`
 	EnvironmentName            string `json:"environmentName,omitempty"`
-	EnvironmentId              int    `json:"environmentId,omitempty"` //FIXME REMOVE THIS ATTRIBUTE AFTER REMOVING ENVORONMENTID FROM GETINSTALLEDAPPCALL
+	EnvironmentId              int    `json:"environmentId,omitempty"` // FIXME REMOVE THIS ATTRIBUTE AFTER REMOVING ENVORONMENTID FROM GETINSTALLEDAPPCALL
 	IsChartRepoActive          bool   `json:"isChartRepoActive"`
 }
 
@@ -259,20 +260,20 @@ func (impl *ChartGroupServiceImpl) SaveChartGroupEntries(req *ChartGroupBean) (*
 	for _, entryBean := range req.ChartGroupEntries {
 		if entryBean.Id != 0 {
 			oldEntriesMap[entryBean.Id] = entryBean
-			//update
+			// update
 		} else {
-			//create
+			// create
 			newEntries = append(newEntries, entryBean)
 		}
 	}
 	var updateEntries []*repository2.ChartGroupEntry
 	for _, existingEntry := range group.ChartGroupEntries {
 		if entry, ok := oldEntriesMap[existingEntry.Id]; ok {
-			//update
+			// update
 			existingEntry.AppStoreApplicationVersionId = entry.AppStoreApplicationVersionId
 			existingEntry.AppStoreValuesVersionId = entry.AppStoreValuesVersionId
 		} else {
-			//delete
+			// delete
 			existingEntry.Deleted = true
 		}
 		existingEntry.UpdatedBy = req.UserId
@@ -337,7 +338,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 	} else {
 		referenceType = appStoreBean.REFERENCE_TYPE_TEMPLATE
 		valueVersionName = chartGroupEntry.AppStoreValuesVersion.Name
-		//FIXME: orm join not working.  to quick fix it
+		// FIXME: orm join not working.  to quick fix it
 		valuesVersion, err := impl.appStoreVersionValuesRepository.FindById(chartGroupEntry.AppStoreValuesVersionId)
 		if err != nil {
 			return nil
@@ -345,7 +346,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 			appStoreValuesChartVersion = valuesVersion.AppStoreApplicationVersion.Version
 		}
 
-		//appStoreValuesChartVersion = chartGroupEntry.AppStoreValuesVersion.AppStoreApplicationVersion.Version
+		// appStoreValuesChartVersion = chartGroupEntry.AppStoreValuesVersion.AppStoreApplicationVersion.Version
 	}
 	var chartRepoName string
 	var isChartRepoActive bool
@@ -431,7 +432,7 @@ func (impl *ChartGroupServiceImpl) GetChartGroupWithInstallationDetail(chartGrou
 	}
 	for _, groupDeployments := range groupDeploymentMap {
 		installedChartData := &InstalledChartData{}
-		//installedChartData.InstallationTime
+		// installedChartData.InstallationTime
 		for _, deployment := range groupDeployments {
 			installedChartData.InstallationTime = deployment.CreatedOn
 			versions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(deployment.InstalledAppId)
@@ -510,13 +511,13 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 }
 
 func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
-	//finding existing
+	// finding existing
 	existingChartGroup, err := impl.chartGroupRepository.FindById(req.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "err", err, "id", req.Id)
 		return err
 	}
-	//finding chart mappings by group id
+	// finding chart mappings by group id
 	chartGroupMappings, err := impl.chartGroupEntriesRepository.FindEntriesWithChartMetaByChartGroupId([]int{req.Id})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting chart group entries, DeleteChartGroup", "err", err, "chartGroupId", req.Id)
@@ -535,7 +536,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	//deleting chart mapping in group
+	// deleting chart mapping in group
 	if len(chartGroupMappingIds) > 0 {
 		_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds, tx)
 		if err != nil {
@@ -543,13 +544,13 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 			return err
 		}
 	}
-	//deleting chart group
+	// deleting chart group
 	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart group", "err", err, "chartGroupId", existingChartGroup.Id)
 		return err
 	}
-	//deleting auth roles entries for this chart group
+	// deleting auth roles entries for this chart group
 	err = impl.userAuthService.DeleteRoles(bean.CHART_GROUP_TYPE, req.Name, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
@@ -564,7 +565,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 
 func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
-	//save in db
+	// save in db
 	// raise nats event
 
 	var installAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
@@ -606,13 +607,13 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 			}
 		}
 	}
-	//commit transaction
+	// commit transaction
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
 	}
-	//nats event
+	// nats event
 	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
 
 	// TODO refactoring: why empty obj ??
@@ -811,7 +812,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 
 func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
-	//save in db
+	// save in db
 	// raise nats event
 
 	var installAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
@@ -860,13 +861,13 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 			}
 		}
 	}
-	//commit transaction
+	// commit transaction
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
 	}
-	//nats event
+	// nats event
 
 	for _, versions := range installAppVersions {
 		_, err := impl.PerformDeployStage(versions.InstalledAppVersionId, versions.InstalledAppVersionHistoryId, chartGroupInstallRequest.UserId)
@@ -890,7 +891,7 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 	}
 	installedAppVersion.InstalledAppVersionHistoryId = installedAppVersionHistoryId
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
-		//this method should only call in case of argo-integration installed and git-ops has configured
+		// this method should only call in case of argo-integration installed and git-ops has configured
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
@@ -932,14 +933,14 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 		}
 	}
 
-	//step 4 db operation status triggered
+	// step 4 db operation status triggered
 	_, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
 	if err != nil {
 		impl.logger.Errorw("error", "err", err)
 		return nil, err
 	}
 	if util2.IsFullStack() {
-		impl.chartScanPublishService.PublishChartScanEvent(installedAppVersion)
+		impl.chartScanPublishService.PublishChartScanEvent(bean3.ChartScanEventBean{AppVersionDto: installedAppVersion})
 	}
 
 	return installedAppVersion, nil
@@ -952,8 +953,8 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
-		//step 2 git operation pull push
-		//TODO: save git Timeline here
+		// step 2 git operation pull push
+		// TODO: save git Timeline here
 		appStoreGitOpsResponse, err := impl.fullModeDeploymentService.GenerateManifestAndPerformGitOperations(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
@@ -1051,7 +1052,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		installedAppVersion.Status == appStoreBean.GIT_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
-		//step 3 acd operation register, sync
+		// step 3 acd operation register, sync
 		_, err := impl.fullModeDeploymentService.InstallApp(installedAppVersion, chartGitAttr, ctx, nil)
 		if err != nil {
 			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
