@@ -29,9 +29,11 @@ const (
 
 func parseLicense(scanResult string) *Licenses {
 	var licenseRes *Licenses
-	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
+	results := gjson.Get(scanResult, Results.string())
+	if results.IsArray() {
 		results.ForEach(func(_, val gjson.Result) bool {
-			if val.Get(ClassKey.string()).String() == "license-file" {
+			keyName := val.Get(ClassKey.string()).String()
+			if keyName == "license-file" || keyName == "license" {
 				licenseRes = &Licenses{}
 				if licenses := val.Get("Licenses"); licenses.IsArray() {
 					licenses.ForEach(func(_, licenseVal gjson.Result) bool {
