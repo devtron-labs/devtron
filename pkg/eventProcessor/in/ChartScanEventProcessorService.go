@@ -121,7 +121,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 		chartBytes = resp.ChartBytes
 		valuesYaml = appVersionDto.ValuesOverrideYaml
 		manifest = resp.GetManifest()
-		historyId = appVersionDto.InstalledAppVersionId
+		historyId = appVersionDto.InstalledAppVersionHistoryId
 	} else {
 		devtronAppDto := request.DevtronAppDto
 		chartBytes = devtronAppDto.ChartContent
