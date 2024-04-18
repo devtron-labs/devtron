@@ -12,6 +12,8 @@
 
 [Base Deployment Template](deployment-template.md)
 
+[GitOps Configuration](gitops-config.md)
+
 [Workflow Editor](workflow/README.md)
 
 [ConfigMaps](config-maps.md)
