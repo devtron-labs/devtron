@@ -205,6 +205,7 @@ func (impl *ChartScanEventProcessorImpl) buildInstallRequest(devtronAppDto *bean
 		ChartContent: &gRPC.ChartContent{
 			Content: chartBytes,
 		},
+		ValuesYaml: devtronAppDto.ValuesYaml,
 	}
 	installReleaseReq.ReleaseIdentifier.ClusterConfig = config
 	return installReleaseReq, nil
