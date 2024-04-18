@@ -128,8 +128,8 @@ type CiPipelineRepository interface {
 	FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
-	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
-	FindAllDeletedPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
+	FindAllPipelineCountInLast24Hour() (pipelineCount int, err error)
+	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
 	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
@@ -503,19 +503,19 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 	return ciPipelines, err
 }
 
-func (impl *CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
+func (impl *CiPipelineRepositoryImpl) FindAllPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
 		Column("ci_pipeline.*").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
 }
-func (impl *CiPipelineRepositoryImpl) FindAllDeletedPipelineInLast24Hour() (pipelines []*CiPipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
+func (impl *CiPipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
 		Column("ci_pipeline.*").
 		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
 }
 
 func (impl *CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error) {

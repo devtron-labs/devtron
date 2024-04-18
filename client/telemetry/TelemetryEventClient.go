@@ -75,7 +75,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient gRPC.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
-	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImpl, error) {
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
@@ -97,7 +97,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	SummaryCronExpr := envVariables.PostHogClientConfig.SummaryCron
 	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)

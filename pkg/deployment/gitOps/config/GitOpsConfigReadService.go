@@ -139,12 +139,13 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
-	count := 0
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return count, err
-	}
-	count = len(models)
-	return count, nil
+	//count := 0
+	//models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
+	//if err != nil && err != pg.ErrNoRows {
+	//	impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
+	//	return count, err
+	//}
+	//count = len(models)
+	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
+	return count, err
 }

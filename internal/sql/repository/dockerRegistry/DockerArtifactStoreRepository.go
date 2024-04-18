@@ -92,6 +92,7 @@ type DockerArtifactStoreRepository interface {
 	FindActiveDefaultStore() (*DockerArtifactStore, error)
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
+	FindAllDockerArtifactCount() (int, error)
 	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error)
@@ -169,7 +170,19 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 		Select()
 	return providers, err
 }
-
+func (impl DockerArtifactStoreRepositoryImpl) FindAllDockerArtifactCount() (int, error) {
+	dockerArtifactCount, err := impl.dbConnection.Model(&DockerArtifactStore{}).
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Where("docker_artifact_store.active = ?", true).
+		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE"), nil
+		}).
+		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
+		}).
+		Count()
+	return dockerArtifactCount, err
+}
 func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).

@@ -8,11 +8,8 @@ type EnvironmentVariables struct {
 	GlobalEnvVariables          *GlobalEnvVariables
 	DevtronSecretConfig         *DevtronSecretConfig
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
-	PostHogClientConfig         *PostHogClientConfig
 }
-type PostHogClientConfig struct {
-	SummaryCron string `env:"POSTHOG_SUMMARY_CRON_EXPR" envDefault:"0 0 * * *"` //  Default Run once a day, midnight
-}
+
 type DeploymentServiceTypeConfig struct {
 	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
@@ -34,7 +31,6 @@ func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 		GlobalEnvVariables:          &GlobalEnvVariables{},
 		DevtronSecretConfig:         &DevtronSecretConfig{},
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
-		PostHogClientConfig:         &PostHogClientConfig{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {

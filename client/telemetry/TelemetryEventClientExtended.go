@@ -64,7 +64,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
-	gitOpsConfigReadService config.GitOpsConfigReadService, envVariables *util.EnvironmentVariables) (*TelemetryEventClientImplExtended, error) {
+	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -107,7 +107,6 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	SummaryCronExpr := envVariables.PostHogClientConfig.SummaryCron
 	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
@@ -205,71 +204,71 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
-	environments, err := impl.environmentService.GetAllActive()
+	environmentCount, err := impl.environmentService.GetAllActiveEnvironmentCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		environmentCount = -1
 	}
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		prodApps = -1
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		nonProdApps = -1
 	}
 
-	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
+	ciPipelineCount, err := impl.ciPipelineRepository.FindAllPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		ciPipelineCount = -1
 	}
-	ciPipelineDeleted, err := impl.ciPipelineRepository.FindAllDeletedPipelineInLast24Hour()
+	ciPipelineDeletedCount, err := impl.ciPipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		ciPipelineDeletedCount = -1
 	}
-	ciPipelineTriggered, err := impl.ciWorkflowRepository.FindAllTriggeredWorkflowInLast24Hour()
+	ciPipelineTriggeredCount, err := impl.ciWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		ciPipelineTriggeredCount = -1
 	}
 
-	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
+	cdPipelineCount, err := impl.pipelineRepository.FindAllPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		cdPipelineCount = -1
 	}
-	cdPipelineDeleted, err := impl.pipelineRepository.FindAllDeletedPipelineInLast24Hour()
+	cdPipelineDeletedCount, err := impl.pipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		cdPipelineDeletedCount = -1
 	}
-	cdPipelineTriggered, err := impl.cdWorkflowRepository.FindAllTriggeredWorkflowInLast24Hour()
+	cdPipelineTriggeredCount, err := impl.cdWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		cdPipelineTriggeredCount = -1
 	}
-	gitAccounts, err := impl.gitProviderRepository.FindAll()
+	gitAccounts, err := impl.gitProviderRepository.FindAllGitProviderCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, setting value to -1", "err", err)
+		gitAccounts = -1
 	}
 
 	gitOpsCount, err := impl.gitOpsConfigReadService.GetConfiguredGitOpsCount()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,setting value to -1", "err", err)
+		gitOpsCount = -1
 	}
 
-	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
+	containerRegistryCount, err := impl.dockerArtifactStoreRepository.FindAllDockerArtifactCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,setting value to -1", "err", err)
+		containerRegistryCount = -1
 	}
 
 	//appSetup := false
@@ -326,18 +325,18 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
-	payload.RegistryCount = len(containerRegistry)
+	payload.RegistryCount = containerRegistryCount
 	payload.SSOLogin = ssoSetup
 	payload.UserCount = len(users)
-	payload.EnvironmentCount = len(environments)
+	payload.EnvironmentCount = environmentCount
 	payload.ClusterCount = len(clusters)
-	payload.CiCreatedPerDay = len(ciPipeline)
-	payload.CiDeletedPerDay = len(ciPipelineDeleted)
-	payload.CiTriggeredPerDay = ciPipelineTriggered
-	payload.CdCreatedPerDay = len(cdPipeline)
-	payload.CdDeletedPerDay = len(cdPipelineDeleted)
-	payload.CdTriggeredPerDay = cdPipelineTriggered
-	payload.GitAccountsCount = len(gitAccounts)
+	payload.CiCreatedPerDay = ciPipelineCount
+	payload.CiDeletedPerDay = ciPipelineDeletedCount
+	payload.CiTriggeredPerDay = ciPipelineTriggeredCount
+	payload.CdCreatedPerDay = cdPipelineCount
+	payload.CdDeletedPerDay = cdPipelineDeletedCount
+	payload.CdTriggeredPerDay = cdPipelineTriggeredCount
+	payload.GitAccountsCount = gitAccounts
 	payload.GitOpsCount = gitOpsCount
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit

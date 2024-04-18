@@ -298,7 +298,7 @@ func InitializeApp() (*App, error) {
 	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(db)
 	providerIdentifierServiceImpl := providerIdentifier.NewProviderIdentifierServiceImpl(sugaredLogger)
 	cronLoggerImpl := cron.NewCronLoggerImpl(sugaredLogger)
-	telemetryEventClientImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sServiceImpl, acdAuthConfig, userServiceImpl, attributesRepositoryImpl, ssoLoginServiceImpl, posthogClient, moduleRepositoryImpl, serverDataStoreServerDataStore, userAuditServiceImpl, helmAppClientImpl, installedAppRepositoryImpl, providerIdentifierServiceImpl, cronLoggerImpl, environmentVariables)
+	telemetryEventClientImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sServiceImpl, acdAuthConfig, userServiceImpl, attributesRepositoryImpl, ssoLoginServiceImpl, posthogClient, moduleRepositoryImpl, serverDataStoreServerDataStore, userAuditServiceImpl, helmAppClientImpl, installedAppRepositoryImpl, providerIdentifierServiceImpl, cronLoggerImpl)
 	if err != nil {
 		return nil, err
 	}
