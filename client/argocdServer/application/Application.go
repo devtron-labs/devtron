@@ -284,7 +284,6 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			}
 		}
 	}
-	newPodNames := make(map[string]bool, 0)
 	// for rollout we compare pod hash
 	for _, rolloutManifest := range rolloutManifests {
 		if _, ok := rolloutManifest["kind"]; ok {
@@ -303,6 +302,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			}
 		}
 	}
+	newPodNames := make(map[string]bool, 0)
 
 	if _, ok := statefulSetManifest["kind"]; ok {
 		newPodNames = getStatefulSetNewPods(statefulSetManifest, podManifests)
@@ -330,21 +330,10 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		}
 	}
 
-	//podMetaData := make([]*PodMetadata, 0)
-	duplicateCheck := make(map[string]bool)
-	if len(newReplicaSets) > 0 {
-		results := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
-		for _, meta := range results {
-			duplicateCheck[meta.Name] = true
-			podMetaData = append(podMetaData, meta)
-		}
-	}
 	if newPodNames != nil {
 		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
 		for _, meta := range results {
-			if _, ok := duplicateCheck[meta.Name]; !ok {
-				podMetaData = append(podMetaData, meta)
-			}
+			podMetaData = append(podMetaData, meta)
 		}
 	}
 	return

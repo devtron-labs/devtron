@@ -65,6 +65,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			queryNodes = append(queryNodes, node)
 		}
 		if node.Kind == "ReplicaSet" {
+			needPods = true
 			for _, pr := range podParents {
 				if pr == node.Name {
 					queryNodes = append(queryNodes, node)
