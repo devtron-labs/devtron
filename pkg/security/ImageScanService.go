@@ -592,9 +592,16 @@ func filterResultsForHistoryId(results []*security.ImageScanExecutionResult, id 
 
 func (impl ImageScanServiceImpl) FetchScanResultsForImages(images []string) ([]*bean.ImageScanResult, error) {
 
-	scanHistories, err := impl.scanHistoryRepository.FindByImages(images)
+	scanHistoriesResult, err := impl.scanHistoryRepository.FindByImages(images)
 	if err != nil {
 		return nil, fmt.Errorf("error in fetching image scan history %w", err)
+	}
+	scanHistories := make([]*security.ImageScanExecutionHistory, 0)
+	for _, history := range scanHistoriesResult {
+		if history.SourceType != 0 {
+			continue
+		}
+		scanHistories = append(scanHistories, history)
 	}
 	impl.Logger.Debugw("scanHistories", "payload", scanHistories)
 	scanHistoryIdToHistory := make(map[int]*security.ImageScanExecutionHistory, 0)
