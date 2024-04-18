@@ -331,7 +331,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	if newPodNames != nil {
-		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		results := buildPodMetadataFromPod(resp, podManifests, newPodNames, newReplicaSets)
 		for _, meta := range results {
 			podMetaData = append(podMetaData, meta)
 		}

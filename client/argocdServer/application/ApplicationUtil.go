@@ -325,7 +325,7 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 	return ""
 }
 
-func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*argoApplication.PodMetadata) {
+func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool, newReplicaSets []string) (podMetadata []*argoApplication.PodMetadata) {
 	containerMapping := make(map[string][]*string)
 	initContainerMapping := make(map[string][]*string)
 	for _, pod := range podManifests {
@@ -336,9 +336,26 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
 
+	isNew := false
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
-			isNew := newPodNames[node.Name]
+			parentName := ""
+			for _, p := range node.ParentRefs {
+				if p.Kind == "ReplicaSet" {
+					parentName = p.Name
+				}
+			}
+			if parentName != "" {
+				for _, newReplicaSet := range newReplicaSets {
+					if parentName == newReplicaSet {
+						isNew = true
+						break
+					}
+				}
+			}
+			if !isNew {
+				isNew = newPodNames[node.Name]
+			}
 			metadata := argoApplication.PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
