@@ -288,7 +288,6 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 func (impl *CiWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error) {
-	//var wfrList []CiWorkflow
 	cnt, err := impl.dbConnection.Model(&CiWorkflow{}).
 		ColumnExpr("DISTINCT ci_pipeline_id").
 		Where("started_on > ? ", time.Now().AddDate(0, 0, -1)).

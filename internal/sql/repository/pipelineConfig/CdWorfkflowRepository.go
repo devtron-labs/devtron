@@ -358,7 +358,6 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	return cdWorkflow, err
 }
 func (impl *CdWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error) {
-	//var wfrList []int
 	cnt, err := impl.dbConnection.
 		Model(&CdWorkflow{}).
 		ColumnExpr("DISTINCT pipeline_id").
