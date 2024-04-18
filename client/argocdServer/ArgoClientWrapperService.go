@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
@@ -121,7 +122,8 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 		})
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
-			if syncErr.Error() == ErrorOperationAlreadyInProgress {
+			statusCode, msg := util.GetClientDetailedError(syncErr)
+			if statusCode.IsFailedPreconditionCode() && msg == ErrorOperationAlreadyInProgress {
 				impl.logger.Info("terminating ongoing sync operation and retrying manual sync", "argoAppName", argoAppName)
 				_, terminationErr := impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
 					Name: &argoAppName,
@@ -141,12 +143,11 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 					impl.logger.Errorw("error in syncing argoCD app", "app", argoAppName, "err", syncErr)
 					return syncErr
 				}
-			}
-			if syncErr != nil {
+			} else {
 				return syncErr
 			}
 		}
-		impl.logger.Debugw("argocd sync completed", "argoAppName", argoAppName)
+		impl.logger.Infow("argocd sync completed", "argoAppName", argoAppName)
 	}
 	refreshErr := impl.GetArgoAppWithNormalRefresh(context, argoAppName)
 	if refreshErr != nil {
