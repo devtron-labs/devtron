@@ -429,7 +429,7 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(ctx *util2
 	promotionPolicies := make([]*bean.PromotionPolicy, 0)
 
 	sortRequest := impl.parseSortByRequest(policyMetadataRequest)
-	globalPolicies, err := impl.globalPolicyDataManager.GetPolicyByCriteria(policyMetadataRequest.Search, sortRequest)
+	globalPolicies, err := impl.globalPolicyDataManager.GetPolicyByCriteria(bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, policyMetadataRequest.Search, sortRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policies by name search string", "policyMetadataRequest", policyMetadataRequest, "err", err)
 		return nil, err
