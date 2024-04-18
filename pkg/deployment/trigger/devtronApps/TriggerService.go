@@ -708,6 +708,26 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 }
 
 func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineConfig.Pipeline, ciArtifact *repository3.CiArtifact, deployStage bean3.WorkflowType) (bool, error) {
+
+	// fetch latest workflow to find current running artifact
+	//TODO: optimize this query
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(
+		pipeline.Id,
+		deployStage,
+		"",
+		1,
+		[]string{bean7.Healthy, bean7.SUCCEEDED, bean7.Progressing})
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", pipeline.Id, "currentStageType", deployStage, "err", err)
+		return false, err
+	}
+	if len(latestWf) > 0 {
+		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
+		if currentRunningArtifact.Id == ciArtifact.Id{
+			return true, nil
+		}
+	}
+
 	parentId, parentType, _, err := impl.cdPipelineConfigService.ExtractParentMetaDataByPipeline(pipeline, deployStage)
 	if err != nil {
 		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipeline.Id, "err", err)
@@ -737,6 +757,7 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 		return artifactAvailable, nil
 	}
 	return false, nil
+
 }
 
 func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
