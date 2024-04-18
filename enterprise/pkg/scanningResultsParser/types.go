@@ -165,15 +165,14 @@ type VulnerabilityResponse struct {
 }
 
 func (vr *VulnerabilityResponse) append(iv ImageVulnerability) {
-	vr.List = append(vr.List, iv)
-	summary := iv.Summary
-	for key, val := range summary.Severities {
-		summary.Severities[key] = val
-		if vr.Summary.Severities != nil {
-			summary.Severities[key] += vr.Summary.Severities[key]
-		}
+	if vr.Summary.Severities == nil {
+		vr.Summary.Severities = make(map[Severity]int)
 	}
-	vr.Summary = summary
+
+	vr.List = append(vr.List, iv)
+	for key, val := range iv.Summary.Severities {
+		vr.Summary.Severities[key] += val
+	}
 }
 
 type LicenseResponse struct {
@@ -182,15 +181,13 @@ type LicenseResponse struct {
 }
 
 func (lr *LicenseResponse) append(li ImageLicenses) {
-	lr.List = append(lr.List, li)
-	summary := li.Summary
-	for key, val := range summary.Severities {
-		summary.Severities[key] = val
-		if lr.Summary.Severities != nil {
-			summary.Severities[key] += lr.Summary.Severities[key]
-		}
+	if lr.Summary.Severities == nil {
+		lr.Summary.Severities = make(map[Severity]int)
 	}
-	lr.Summary = summary
+	lr.List = append(lr.List, li)
+	for key, val := range li.Summary.Severities {
+		lr.Summary.Severities[key] += val
+	}
 }
 
 type ImageVulnerability struct {
