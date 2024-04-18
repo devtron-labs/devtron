@@ -25,7 +25,7 @@
   {{- end }}
 
 {{ if eq .Values.kind "CronJob" }}
-{{ if semverCompare "<1.21" .Capabilities.KubeVersion.GitVersion -}}
+{{ if semverCompare "<1.21.0-0" .Capabilities.KubeVersion.Version -}}
 apiVersion: batch/v1beta1
 {{- else }}
 apiVersion: batch/v1
@@ -42,7 +42,7 @@ spec:
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
   startingDeadlineSeconds: {{ $.Values.cronjobConfigs.startingDeadlineSeconds }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
-  {{ if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion -}}
+  {{ if semverCompare ">1.20.0-0" .Capabilities.KubeVersion.Version -}}
   suspend: {{ $.Values.cronjobConfigs.suspend }}
   {{- end }}
   successfulJobsHistoryLimit: {{ $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
