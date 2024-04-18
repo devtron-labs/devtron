@@ -10,7 +10,7 @@ import (
 )
 
 var AppStoreDeploymentWireSet = wire.NewSet(
-	service.GetDeploymentServiceTypeConfig,
+	//util.GetDeploymentServiceTypeConfig,
 	repository.NewClusterInstalledAppsRepositoryImpl,
 	wire.Bind(new(repository.ClusterInstalledAppsRepository), new(*repository.ClusterInstalledAppsRepositoryImpl)),
 	appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
@@ -19,6 +19,8 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 	service.NewAppStoreDeploymentServiceImpl,
 	wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
+	service.NewAppStoreDeploymentDBServiceImpl,
+	wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 	NewAppStoreDeploymentRestHandlerImpl,
 	wire.Bind(new(AppStoreDeploymentRestHandler), new(*AppStoreDeploymentRestHandlerImpl)),
 	NewAppStoreDeploymentRouterImpl,

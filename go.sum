@@ -114,8 +114,8 @@ github.com/apparentlymart/go-textseg v1.0.0 h1:rRmlIsPEEhUTIKQb7T++Nz/A5Q6C9IuX2
 github.com/apparentlymart/go-textseg v1.0.0/go.mod h1:z96Txxhf3xSFMPmb5X/1W05FF/Nj9VFpLOpjS5yuumk=
 github.com/apparentlymart/go-textseg/v13 v13.0.0 h1:Y+KvPE1NYz0xl601PVImeQfFyEy6iT90AvPUL1NNfNw=
 github.com/apparentlymart/go-textseg/v13 v13.0.0/go.mod h1:ZK2fH7c4NqDTLtiYLvIkEghdlcqw7yxLeM89kiTRPUo=
-github.com/argoproj/argo-cd/v2 v2.8.13 h1:DrKWdEGVOwiyC4zgS7vB9ngP16xumA6x5/AgN/stJw0=
-github.com/argoproj/argo-cd/v2 v2.8.13/go.mod h1:3GmH9xEJtiWZNfZ5hx1qdzbF2t9gIS/3vNV5vJBmI/g=
+github.com/argoproj/argo-cd/v2 v2.8.14 h1:sxRIFxcmORSkBEcbVD5j7NokaLIno8BrjIJyobyIrTs=
+github.com/argoproj/argo-cd/v2 v2.8.14/go.mod h1:3GmH9xEJtiWZNfZ5hx1qdzbF2t9gIS/3vNV5vJBmI/g=
 github.com/argoproj/argo-workflows/v3 v3.4.3 h1:4pt7+Rjy9Lzq/r6dWp6wL8mr3ucPHSsGIlWwoP3fueM=
 github.com/argoproj/argo-workflows/v3 v3.4.3/go.mod h1:Od1rQK5j9/WefqFaUsIwAqTialDhLlhups0RE/WYzz4=
 github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814 h1:oTaLRbCwjnGtScIX2ZRdIEDsiDxonwh9/BbUxdXrjYc=
@@ -205,8 +205,8 @@ github.com/deckarep/golang-set v1.8.0 h1:sk9/l/KqpunDwP7pSjUg0keiOOLEnOBHzykLrsP
 github.com/deckarep/golang-set v1.8.0/go.mod h1:5nI87KwE7wgsBU1F4GKAw2Qod7p5kyS383rP6+o6qqo=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4 h1:YcpmyvADGYw5LqMnHqSkyIELsHCGF6PkrmM31V8rF7o=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4/go.mod h1:zAg7JM8CkOJ43xKXIj7eRO9kmWm/TW578qo+oDO6tuM=
-github.com/devtron-labs/authenticator v0.4.35-0.20240321064236-a95dc8d0403f h1:TPpMSx7NZUo+CX4CBfc39q0dak8OurrQnymTupJkE0Y=
-github.com/devtron-labs/authenticator v0.4.35-0.20240321064236-a95dc8d0403f/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
+github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470 h1:AUTYcDnL6w6Ux+264VldYaOUQAP6pDZ5Tq8wCKJyiEg=
+github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
 github.com/devtron-labs/common-lib v0.0.16-0.20240326053557-bff4518a731d h1:YMJPqkVb11zU6QXMovLGR3xuzV7D8Hv7fIYEcML/FUw=
 github.com/devtron-labs/common-lib v0.0.16-0.20240326053557-bff4518a731d/go.mod h1:6QrrtLoLnuEdHkrx5HqkEVwMxEmnhAH1R/SJVMswuCc=
 github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534 h1:TElPRU69QedW7DIQiiQxtjwSQ6cK0fCTAMGvSLhP0ac=

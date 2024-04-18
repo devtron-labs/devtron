@@ -85,7 +85,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	deployedAppService deployedApp.DeployedAppService,
 	webhookService pipeline.WebhookService,
 	validator *validator.Validate,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -106,7 +106,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		deployedAppService:              deployedAppService,
 		webhookService:                  webhookService,
 		validator:                       validator,
-		globalEnvVariables:              globalEnvVariables,
+		globalEnvVariables:              envVariables.GlobalEnvVariables,
 		cdWorkflowCommonService:         cdWorkflowCommonService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
@@ -795,12 +795,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
 			return
 		}
-		impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
-		//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
-		//trying to delete deployment app once
-		err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
-		if err != nil {
-			impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+		if pipeline.DeploymentAppType == bean5.Helm {
+			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
+			//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+			//trying to delete deployment app once
+			err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+			}
 		}
 	}
 	// add required logging here

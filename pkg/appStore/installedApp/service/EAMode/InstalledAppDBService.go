@@ -18,19 +18,20 @@
 package EAMode
 
 import (
-	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	appStoreRepo "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -39,43 +40,49 @@ import (
 )
 
 type InstalledAppDBService interface {
-	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
+	GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
-	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
+	GetInstalledAppById(installedAppId int) (*appStoreRepo.InstalledApps, error)
 	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
+	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 }
 
 type InstalledAppDBServiceImpl struct {
 	Logger                        *zap.SugaredLogger
-	InstalledAppRepository        repository2.InstalledAppRepository
+	InstalledAppRepository        appStoreRepo.InstalledAppRepository
 	AppRepository                 app.AppRepository
 	UserService                   user.UserService
-	InstalledAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository
+	EnvironmentService            cluster.EnvironmentService
+	InstalledAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository
 }
 
 func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
-	installedAppRepository repository2.InstalledAppRepository,
+	installedAppRepository appStoreRepo.InstalledAppRepository,
 	appRepository app.AppRepository,
 	userService user.UserService,
-	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository) *InstalledAppDBServiceImpl {
+	environmentService cluster.EnvironmentService,
+	installedAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository) *InstalledAppDBServiceImpl {
 	return &InstalledAppDBServiceImpl{
 		Logger:                        logger,
 		InstalledAppRepository:        installedAppRepository,
 		AppRepository:                 appRepository,
 		UserService:                   userService,
+		EnvironmentService:            environmentService,
 		InstalledAppRepositoryHistory: installedAppRepositoryHistory,
 	}
 }
 
-func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
+func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error) {
 	applicationType := "DEVTRON-CHART-STORE"
 	var clusterIdsConverted []int32
 	for _, clusterId := range filter.ClusterIds {
 		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
 	}
-	installedAppsResponse := openapi.AppList{
+	installedAppsResponse := appStoreBean.AppListDetail{
 		ApplicationType: &applicationType,
 		ClusterIds:      &clusterIdsConverted,
 	}
@@ -86,7 +93,7 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 		impl.Logger.Error(err)
 		return installedAppsResponse, err
 	}
-	var helmAppsResponse []openapi.HelmApp
+	var helmAppsResponse []appStoreBean.HelmAppDetails
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
 		if appLocal.TeamId == 0 && appLocal.AppOfferingMode != util3.SERVER_MODE_HYPERION {
@@ -97,14 +104,15 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 		projectId := int32(appLocal.TeamId)
 		envId := int32(appLocal.EnvironmentId)
 		clusterId := int32(appLocal.ClusterId)
-		environmentDetails := openapi.AppEnvironmentDetail{
-			EnvironmentName: &appLocal.EnvironmentName,
-			EnvironmentId:   &envId,
-			Namespace:       &appLocal.Namespace,
-			ClusterName:     &appLocal.ClusterName,
-			ClusterId:       &clusterId,
+		environmentDetails := appStoreBean.EnvironmentDetails{
+			EnvironmentName:      &appLocal.EnvironmentName,
+			EnvironmentId:        &envId,
+			Namespace:            &appLocal.Namespace,
+			ClusterName:          &appLocal.ClusterName,
+			ClusterId:            &clusterId,
+			IsVirtualEnvironment: &appLocal.IsVirtualEnvironment,
 		}
-		helmAppResp := openapi.HelmApp{
+		helmAppResp := appStoreBean.HelmAppDetails{
 			AppName:           &appLocal.AppName,
 			ChartName:         &appLocal.AppStoreApplicationName,
 			AppId:             &appId,
@@ -163,6 +171,7 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 	} else {
 		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
 	}
+
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
 		AppId:                         installedAppVerison.InstalledApp.App.Id,
@@ -183,6 +192,10 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
+		HelmPackageName: adapter.GetGeneratedHelmPackageName(
+			installedAppVerison.InstalledApp.App.AppName,
+			installedAppVerison.InstalledApp.Environment.Name,
+			installedAppVerison.InstalledApp.UpdatedOn),
 	}
 	userInfo, err := impl.UserService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -196,7 +209,7 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 	return appDetail, nil
 }
 
-func (impl *InstalledAppDBServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppById(installedAppId int) (*appStoreRepo.InstalledApps, error) {
 	installedApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppId)
 	if err != nil {
 		return nil, err
@@ -234,4 +247,63 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByInstalledAppId(installed
 	}
 	installedApp := &installedAppVersion.InstalledApp
 	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
+}
+
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+	model, err := impl.InstalledAppRepository.GetInstalledAppVersion(id)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
+		}
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	// update InstallAppVersion configurations
+	installAppVersion := &appStoreBean.InstallAppVersionDTO{
+		Id:                    model.Id,
+		InstalledAppVersionId: model.Id,
+		ValuesOverrideYaml:    model.ValuesYaml,
+		ReferenceValueKind:    model.ReferenceValueKind,
+		ReferenceValueId:      model.ReferenceValueId,
+		InstalledAppId:        model.InstalledAppId,
+		AppStoreVersion:       model.AppStoreApplicationVersionId, //check viki
+		UserId:                userId,
+	}
+
+	// update App configurations
+	adapter.UpdateAppDetails(installAppVersion, &model.InstalledApp.App)
+
+	// update InstallApp configurations
+	adapter.UpdateInstallAppDetails(installAppVersion, &model.InstalledApp)
+
+	// update AppStoreApplication configurations
+	adapter.UpdateAppStoreApplicationDetails(installAppVersion, &model.AppStoreApplicationVersion)
+
+	environment, err := impl.EnvironmentService.GetExtendedEnvBeanById(installAppVersion.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("fetching environment error", "envId", installAppVersion.EnvironmentId, "err", err)
+		return nil, err
+	}
+	// update environment details configurations
+	adapter.UpdateAdditionalEnvDetails(installAppVersion, environment)
+	return installAppVersion, err
+}
+
+func (impl *InstalledAppDBServiceImpl) CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error) {
+	installedAppVersion := adapter.NewInstalledAppVersionModel(installAppVersionRequest)
+	_, err := impl.InstalledAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	return installedAppVersion, nil
+}
+
+func (impl *InstalledAppDBServiceImpl) UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error) {
+	_, err := impl.InstalledAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	return installedAppVersion, nil
 }
