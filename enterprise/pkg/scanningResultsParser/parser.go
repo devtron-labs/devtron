@@ -66,11 +66,10 @@ const (
 )
 
 func parseVulnerabilities(scanResult string) *Vulnerabilities {
-	var vulnerabilitiesRes *Vulnerabilities
+	vulnerabilitiesRes := &Vulnerabilities{}
 	if results := gjson.Get(scanResult, Results.string()); results.IsArray() {
 		results.ForEach(func(_, val gjson.Result) bool {
 			if vulnerabilities := val.Get(VulnerabilitiesKey.string()); vulnerabilities.IsArray() {
-				vulnerabilitiesRes = &Vulnerabilities{}
 				vulnerabilities.ForEach(func(_, vulnerability gjson.Result) bool {
 					license := Vulnerability{
 						CVEId:          vulnerability.Get(CVEIdKey.string()).String(),
