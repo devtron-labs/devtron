@@ -45,9 +45,6 @@ func validateCreateReleaseTrackRequest(reqBean *bean.DevtronResourceObjectBean) 
 }
 
 func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTrackRequest(reqBean *bean.DevtronResourceObjectBean) error {
-	// for bean.DevtronResourceReleaseTrack
-	// there is no OldObjectId, here the ObjectId -> ResourceObjectId (own id)
-	reqBean.IdType = bean.ResourceObjectIdType
 	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
 		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
 		// considering the user details are already verified; this error indicates to an internal db error.
@@ -102,4 +99,8 @@ func (impl *DevtronResourceServiceImpl) setReleaseTrackOverviewFieldsInObjectDat
 		}
 	}
 	return objectData, nil
+}
+
+func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseTrackResourceObj(object *repository.DevtronResourceObject) (string, error) {
+	return gjson.Get(object.ObjectData, bean.ResourceObjectNamePath).String(), nil
 }

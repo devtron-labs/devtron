@@ -3,7 +3,6 @@ package devtronResource
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 )
 
@@ -39,8 +38,9 @@ func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, versi
 		return nil
 	}
 }
-func getFuncToGetResourceKindIdentifier(kind string, subKind string, version string) func(*bean.DevtronResourceObjectBean) string {
-	if f, ok := getResourceKindIdentifierFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+
+func getFuncToBuildIdentifierForResourceObj(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error) {
+	if f, ok := buildIdentifierForResourceObjFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
 		return nil
@@ -83,9 +83,21 @@ var populateDefaultValuesForCreateResourceRequestFuncMap = map[string]func(*Devt
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).populateDefaultValuesForCreateReleaseTrackRequest,
 }
 
-var getResourceKindIdentifierFuncMap = map[string]func(*bean.DevtronResourceObjectBean) string{
-	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1):      helper.GetIdentifierForRelease,
-	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): helper.GetIdentifierForReleaseTrack,
+var buildIdentifierForResourceObjFuncMap = map[string]func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error){
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceDevtronApplication,
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronAppResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceHelmApplication,
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierFormHelmAppResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceCluster, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForClusterResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceJob, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronJobResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceCdPipeline, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForCdPipelineResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForReleaseResourceObj,
+	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForReleaseTrackResourceObj,
 }
 
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {

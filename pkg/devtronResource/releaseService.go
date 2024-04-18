@@ -1,6 +1,7 @@
 package devtronResource
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
@@ -127,9 +128,6 @@ func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error
 }
 
 func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
-	// for bean.DevtronResourceRelease
-	// there is no OldObjectId, here the ObjectId -> ResourceObjectId (own id)
-	reqBean.IdType = bean.ResourceObjectIdType
 	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
 		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
 		// considering the user details are already verified; this error indicates to an internal db error.
@@ -214,4 +212,10 @@ func (impl *DevtronResourceServiceImpl) setReleaseOverviewFieldsInObjectData(obj
 		}
 	}
 	return objectData, nil
+}
+
+func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseResourceObj(object *repository.DevtronResourceObject) (string, error) {
+	releaseVersion := gjson.Get(object.ObjectData, bean.ResourceObjectReleaseVersionPath).String()
+	releaseTrackConfig := impl.getParentConfigVariablesFromDependencies(object.ObjectData)
+	return fmt.Sprintf("%s-%s", releaseTrackConfig.Data.Name, releaseVersion), nil
 }

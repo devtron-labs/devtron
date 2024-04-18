@@ -32,13 +32,32 @@ type DevtronResourceObjectDescriptorBean struct {
 	Kind         string                       `json:"kind,omitempty"`
 	SubKind      string                       `json:"subKind,omitempty"`
 	Version      string                       `json:"version,omitempty"`
-	OldObjectId  int                          `json:"id,omitempty"` //here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
-	Name         string                       `json:"name,omitempty"`
+	OldObjectId  int                          `json:"id,omitempty"`   // here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
+	Name         string                       `json:"name,omitempty"` // Name will only be used as a metadata for resource object json. Name can not be privileged for getting repository.DevtronResourceObject
 	SchemaId     int                          `json:"schemaId"`
-	Identifier   string                       `json:"identifier,omitempty"`
+	Identifier   string                       `json:"-"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
 	UIComponents []DevtronResourceUIComponent `json:"-"`
-	Id           int                          `json:"-"` //this is the field which holds the resourceObjectId i.e. id in devtron_resource_object table. Have not exposed this and taking this value from oldObjectId to maintain backward compatibility
-	IdType       IdType                       `json:"-"` // internal , for release and release-track idType will be resourceObjectId
+	Id           int                          `json:"-"` // This is the field which holds the resourceObjectId i.e. id in devtron_resource_object table. Have not exposed this and taking this value from oldObjectId to maintain backward compatibility
+	IdType       IdType                       `json:"-"` // internal, for release and release-track IdType will be repository.DevtronResourceObject.(Id)
+}
+
+func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int {
+	if reqBean.IdType == OldObjectId {
+		return reqBean.OldObjectId
+	} else if reqBean.IdType == ResourceObjectIdType {
+		return reqBean.Id
+	}
+	return 0
+}
+
+func (reqBean *DevtronResourceObjectDescriptorBean) SetResourceIdBasedOnIdType(id int) {
+	if reqBean.IdType == OldObjectId {
+		reqBean.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables
+		reqBean.Id = 0           // reqBean.Id and reqBean.OldObjectId both can not be used at a time
+	} else if reqBean.IdType == ResourceObjectIdType {
+		reqBean.Id = id
+		reqBean.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
+	}
 }
 
 type DevtronResourceObjectBean struct {
@@ -108,8 +127,6 @@ type DevtronResourceDependencyBean struct {
 	OldObjectId             int                              `json:"id"` //have both oldObjectId and resourceObjectId
 	DevtronResourceId       int                              `json:"devtronResourceId"`
 	DevtronResourceSchemaId int                              `json:"devtronResourceSchemaId"`
-	ResourceKind            string                           `json:"resourceKind"`
-	ResourceVersion         string                           `json:"resourceVersion"`
 	DependentOnIndex        int                              `json:"dependentOnIndex,omitempty"`
 	DependentOnParentIndex  int                              `json:"dependentOnParentIndex,omitempty"`
 	TypeOfDependency        DevtronResourceDependencyType    `json:"typeOfDependency"`

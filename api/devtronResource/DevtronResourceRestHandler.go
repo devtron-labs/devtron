@@ -160,22 +160,11 @@ func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescri
 		Kind:         kind,
 		SubKind:      subKind,
 		Version:      versionVar,
-		UIComponents: queryParams.Component,
+		OldObjectId:  queryParams.Id,
 		Identifier:   queryParams.Identifier,
+		UIComponents: queryParams.Component,
 	}
-	setIdOrOldObjectIdAndIdTypeBasedOnKind(kind, reqBeanDescriptor, queryParams.Id)
 	return reqBeanDescriptor, caughtError
-}
-
-func setIdOrOldObjectIdAndIdTypeBasedOnKind(kind string, reqBeanDescriptor *serviceBean.DevtronResourceObjectDescriptorBean, id int) {
-	if kind == serviceBean.DevtronResourceRelease.ToString() || kind == serviceBean.DevtronResourceReleaseTrack.ToString() {
-		reqBeanDescriptor.Id = id
-		reqBeanDescriptor.OldObjectId = 0
-		reqBeanDescriptor.IdType = serviceBean.ResourceObjectIdType
-	} else {
-		reqBeanDescriptor.OldObjectId = id //from FE, we are taking ids of resources entry in their own respective tables
-		reqBeanDescriptor.IdType = serviceBean.OldObjectId
-	}
 }
 
 func (handler *DevtronResourceRestHandlerImpl) CreateResourceObject(w http.ResponseWriter, r *http.Request) {
@@ -241,9 +230,9 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w ht
 	if reqBean.DevtronResourceObjectDescriptorBean == nil {
 		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
 	}
-	reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
-	reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
-	reqBean.DevtronResourceObjectDescriptorBean.Version = versionVar
+	reqBean.Kind = kind
+	reqBean.SubKind = subKind
+	reqBean.Version = versionVar
 	reqBean.UserId = ctx.GetUserId()
 	err = handler.devtronResourceService.CreateOrUpdateResourceObject(ctx, &reqBean)
 	if err != nil {
@@ -292,7 +281,6 @@ func (handler *DevtronResourceRestHandlerImpl) PatchResourceObject(w http.Respon
 		reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
 		reqBean.DevtronResourceObjectDescriptorBean.Version = version
 	}
-	setIdOrOldObjectIdAndIdTypeBasedOnKind(kind, reqBean.DevtronResourceObjectDescriptorBean, reqBean.OldObjectId)
 	reqBean.UserId = ctx.GetUserId()
 	resp, err := handler.devtronResourceService.PatchResourceObject(ctx, &reqBean)
 	if err != nil {
@@ -328,28 +316,15 @@ func (handler *DevtronResourceRestHandlerImpl) DeleteResourceObject(w http.Respo
 }
 
 func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.ResponseWriter, r *http.Request) {
-	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	reqBeanDescriptor, caughtError := getDescriptorBeanObj(w, r)
 	if caughtError {
 		return
 	}
-	v := r.URL.Query()
-	idVar := v.Get(apiBean.QueryParamId)
-	id, err := strconv.Atoi(idVar)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id"), nil, http.StatusBadRequest)
-		return
-	}
 	token := r.Header.Get("token")
-	isValidated := handler.checkAuthForDependencyGet(id, token, kind, subKind)
+	isValidated := handler.checkAuthForDependencyGet(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
 	if !isValidated {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
-	}
-	reqBeanDescriptor := &serviceBean.DevtronResourceObjectDescriptorBean{
-		Kind:        kind,
-		SubKind:     subKind,
-		Version:     versionVar,
-		OldObjectId: id, //from FE, we are taking ids of resources entry in their own respective tables
 	}
 	resp, err := handler.devtronResourceService.GetResourceDependencies(reqBeanDescriptor)
 	if err != nil {
@@ -362,6 +337,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 }
 
 func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencies(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
 	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
 	if caughtError {
 		return
@@ -374,11 +350,6 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencie
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	token := r.Header.Get("token")
 	isValidated := handler.checkAuthForDependencyUpdate(reqBean.OldObjectId, token, kind, subKind)
 	if !isValidated {
@@ -388,10 +359,10 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencie
 	if reqBean.DevtronResourceObjectDescriptorBean == nil {
 		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
 	}
-	reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
-	reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
-	reqBean.DevtronResourceObjectDescriptorBean.Version = versionVar
-	reqBean.UserId = userId
+	reqBean.Kind = kind
+	reqBean.SubKind = subKind
+	reqBean.Version = versionVar
+	reqBean.UserId = ctx.GetUserId()
 	err = handler.devtronResourceService.CreateOrUpdateResourceDependencies(r.Context(), &reqBean)
 	if err != nil {
 		handler.logger.Errorw("service error, CreateOrUpdateResourceDependencies", "err", err, "request", reqBean)

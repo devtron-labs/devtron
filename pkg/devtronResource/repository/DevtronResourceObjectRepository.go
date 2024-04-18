@@ -13,12 +13,12 @@ type DevtronResourceObjectRepository interface {
 	GetConnection() *pg.DB
 	Save(tx *pg.Tx, model *DevtronResourceObject) error
 	Update(tx *pg.Tx, model *DevtronResourceObject) error
+	UpdateIdentifier(id, devtronResourceSchemaId int, identifier string) error
+
 	// FindByIdAndSchemaId will fetch the DevtronResourceObject by DevtronResourceObject.Id and DevtronResourceObject.DevtronResourceSchemaId
-	FindByIdAndSchemaId(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
-	// FindById will fetch the DevtronResourceObject by DevtronResourceObject.Id
 	//
 	// DevtronResourceObject.Id is unique and incremental for all kinds of resource (Applications/Job/Release/ReleaseTrack)
-	FindById(id int) (*DevtronResourceObject, error)
+	FindByIdAndSchemaId(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	// GetAllWithSchemaId will list out all the objects specific to a resource schema
 	GetAllWithSchemaId(devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	// FindByOldObjectId will fetch the DevtronResourceObject by DevtronResourceObject.OldObjectId
@@ -28,22 +28,25 @@ type DevtronResourceObjectRepository interface {
 	// For example: In DevtronResourceObject OldObjectId for Application resource -> app.id
 	FindByOldObjectId(oldObjectId, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	GetAllObjectByIdsOrOldObjectIds(objectIds, oldObjectIds []int, devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
-	CheckIfExistById(id, devtronResourceSchemaId int) (bool, error)
 	FindAllObjects() ([]*DevtronResourceObject, error)
 	FindByObjectName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	FindByObjectIdentifier(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
+
+	CheckIfExistById(id, devtronResourceSchemaId int) (bool, error)
 	CheckIfExistByName(name string, devtronResourceSchemaId int) (bool, error)
 	CheckIfExistByIdentifier(identifier string, devtronResourceSchemaId int) (bool, error)
+
 	SoftDeleteById(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	SoftDeleteByName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	SoftDeleteByIdentifier(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
+
 	GetChildObjectsByParentArgAndSchemaId(argumentValue interface{}, argumentType string,
 		devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	GetDownstreamObjectsByParentArgAndSchemaIds(argumentValues []interface{}, argumentTypes []string,
 		devtronResourceSchemaIds []int) ([]*DevtronResourceObject, error)
 	GetObjectsByArgAndSchemaIds(allArgumentValues []interface{},
 		allArgumentTypes []string, devtronSchemaIdsForArgsForAllArguments []int) ([]*DevtronResourceObject, error)
-	GetBySchemaIdAndOldObjectIdsMap(mapOfResourceSchemaIdAndDependencyIds map[int][]int) ([]*DevtronResourceObject, error)
+
 	DeleteObject(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
 	DeleteDependencyInObjectData(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
 	DeleteKeysFromObjectData(tx *pg.Tx, pathsToRemove []string, resourceId int, userId int) error
@@ -102,6 +105,14 @@ func (repo *DevtronResourceObjectRepositoryImpl) Update(tx *pg.Tx, model *Devtro
 	return err
 }
 
+func (repo *DevtronResourceObjectRepositoryImpl) UpdateIdentifier(id, devtronResourceSchemaId int, identifier string) error {
+	var devtronResourceObject DevtronResourceObject
+	_, err := repo.dbConnection.Model(&devtronResourceObject).Where("id =?", id).
+		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
+		Set("identifier = ?", identifier).Update()
+	return err
+}
+
 func (repo *DevtronResourceObjectRepositoryImpl) FindByOldObjectId(oldObjectId, devtronResourceSchemaId int) (*DevtronResourceObject, error) {
 	var devtronResourceObject DevtronResourceObject
 	err := repo.dbConnection.Model(&devtronResourceObject).Where("old_object_id =?", oldObjectId).
@@ -123,20 +134,6 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByIdAndSchemaId(id, devtron
 	if err != nil {
 		repo.logger.Errorw("error in getting devtronResourceObject by id and devtronResourceSchemaId", "err", err,
 			"id", id, "devtronResourceSchemaId", devtronResourceSchemaId)
-		return nil, err
-	}
-	return &devtronResourceObject, nil
-}
-
-func (repo *DevtronResourceObjectRepositoryImpl) FindById(id int) (*DevtronResourceObject, error) {
-	var devtronResourceObject DevtronResourceObject
-	err := repo.dbConnection.Model(&devtronResourceObject).
-		Where("id =?", id).
-		Where("deleted = ?", false).
-		Select()
-	if err != nil {
-		repo.logger.Errorw("error in getting devtronResourceObject by id", "err", err,
-			"id", id)
 		return nil, err
 	}
 	return &devtronResourceObject, nil
@@ -332,27 +329,6 @@ func (repo *DevtronResourceObjectRepositoryImpl) GetObjectsByArgAndSchemaIds(all
 	if err != nil {
 		repo.logger.Errorw("error, GetObjectsByArgAndSchemaIds", "err", err, "allArgumentValues", allArgumentValues,
 			"allArgumentTypes", allArgumentTypes, "devtronResourceSchemaIds", devtronSchemaIdsForArgsForAllArguments)
-		return nil, err
-	}
-	return models, nil
-}
-
-func (repo *DevtronResourceObjectRepositoryImpl) GetBySchemaIdAndOldObjectIdsMap(mapOfResourceSchemaIdAndDependencyIds map[int][]int) ([]*DevtronResourceObject, error) {
-	var models []*DevtronResourceObject
-	query := repo.dbConnection.Model(&models).Where("deleted = ?", false)
-	query.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-		for devtronResourceSchemaId, dependencyIds := range mapOfResourceSchemaIdAndDependencyIds {
-			query.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-				query = query.Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
-					Where("old_object_id in (?)", pg.In(dependencyIds))
-				return query, nil
-			})
-		}
-		return query, nil
-	})
-	err := query.Select()
-	if err != nil {
-		repo.logger.Errorw("error, GetBySchemaIdAndOldObjectIdsMap", "err", err, "mapOfResourceSchemaIdAndDependencyIds", mapOfResourceSchemaIdAndDependencyIds)
 		return nil, err
 	}
 	return models, nil

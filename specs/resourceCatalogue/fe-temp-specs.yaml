@@ -348,6 +348,13 @@ paths:
           required: false
           schema:
             type: integer
+        - name: name
+          description: name of the resource, either this or id or identifier is required
+            It can be used as query param where name is a unique constraint.
+          in: query
+          required: false
+          schema:
+            type: string
         - name: identifier
           description: identifier of the resource is the unique string combination, either this or id or name is required.
             For some resource it can be resource name or a combination of resource property.
@@ -358,24 +365,6 @@ paths:
           schema:
             type: string
             example: "{releaseTrackName}-{releaseVersion}"
-        - name: lite
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-          description: boolean value declaring that data to be fetched is lite or heavy
-        - name: dependencyInfo
-          in: query
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-          description: pipeline seperated dependency selector condition with (format|key) eg. for getting specific dependency from the list
-          example:
-            - application/devtron-application|v1|id|12
-            - application/devtron-application|v1|identifier|orchestrator
       responses:
         '200':
           description: list response
@@ -551,16 +540,14 @@ components:
               type: number
               description: id of the dependency on which operation is to be performed
               example: 1
-            identifier:
+            dependencyName:
               type: string
               description: name of the dependency on which operation is to be performed
               example: "orchestrator"
-            resourceKind:
-              type: string
-              example: "application/devtron-application"
-            resourceVersion:
-              type: string
-              example: "v1"
+            schemaId:
+              type: number
+              description: schema id of the dependency on which operation is to be performed
+              example: 8
 
         query:
           type: array
@@ -680,16 +667,16 @@ components:
               dependentOnIndexes:
                 - 0
               typeOfDependency: upstream
-              resourceKind: "application/devtron-application"
-              resourceVersion: "v1"
+              devtronResourceId: 5
+              devtronResourceSchemaId: 6
               config:
-               artifactConfig:
+                - artifactConfig:
                     artifactId: 1
                     image: "docker.io/bitnami/memcached:1-debian-12"
                     registryType: "docker"
                     registryName: "devtron-docker"
-               workflowId: 576
-               commitSource:
+                - workflowId: 576
+                - commitSource:
                     - author: "devtron-bot"
                       branch: "main"
                       message: "Merge pull request #41 from devtron-labs/config.md\n\ndoc: Create config.md"
@@ -706,23 +693,30 @@ components:
     Dependency:
       type: object
       properties:
+        name:
+          type: string
+          description: The name of the dependency.
         id:
           type: integer
           description: The ID of the dependent resource object.
             For dependency type application/ job/ cluster it will the  appId/ jobId/ clusterId.
             If the dependency type is release/ release track, it will the  releaseId/ releaseTrackId.
-        resourceKind:
-          type: string
-          example: "application/devtron-application"
-        resourceVersion:
-          type: string
-          example: "v1"
+        devtronResourceId:
+          type: integer
+          description: The devtron resource ID of the dependency.
+            For release dependency will be devtron application
+        devtronResourceSchemaId:
+          type: integer
+          description: The devtron resource schema ID of the dependency.
+            For release dependency will be devtron application
         dependentOnIndexes:
           type: array
           items:
             type: number
           description: The index of the superior dependencies.
             For release the applications will have the index of level (typeOfDependency).
+        dependentOnParentIndex:
+          type: integer
         typeOfDependency:
           type: string
           enum: [ 'upstream','level' ]
@@ -732,8 +726,6 @@ components:
         config:
           type: object
           properties:
-            releaseInstruction:
-              type: string
             artifactConfig:
               type: object
               description: The image configuration.
@@ -754,9 +746,9 @@ components:
                   type: string
                   description: artifact registry store name
                   example: "devtron-docker"
-            ciWorkflowId:
+            workflowId:
               type: number
-              description: ci workflow id
+              description: application workflow id
               example: 29
             commitSource:
               type: array
