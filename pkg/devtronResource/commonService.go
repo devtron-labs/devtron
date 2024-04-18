@@ -133,7 +133,7 @@ func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithAllRefObjectValues(s
 }
 
 func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithUserRefDetails(resourceKind, responseSchema string) (string, error) {
-	userModel, err := impl.userRepository.GetAllActiveUsers()
+	userModel, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching all users", "err", err, "resource kind", resourceKind)
 		return responseSchema, err
