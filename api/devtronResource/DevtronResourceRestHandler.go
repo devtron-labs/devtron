@@ -151,8 +151,8 @@ func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if queryParams.Id == 0 && len(queryParams.Name) == 0 && len(queryParams.Identifier) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name or identifier"), nil, http.StatusBadRequest)
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
 		caughtError = true
 		return nil, caughtError
 	}
@@ -160,7 +160,6 @@ func getDescriptorBeanObj(w http.ResponseWriter, r *http.Request) (reqBeanDescri
 		Kind:         kind,
 		SubKind:      subKind,
 		Version:      versionVar,
-		Name:         queryParams.Name,
 		UIComponents: queryParams.Component,
 		Identifier:   queryParams.Identifier,
 	}
@@ -336,9 +335,8 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 	v := r.URL.Query()
 	idVar := v.Get(apiBean.QueryParamId)
 	id, err := strconv.Atoi(idVar)
-	nameVar := v.Get(apiBean.QueryParamName)
-	if err != nil && len(nameVar) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id, name"), nil, http.StatusBadRequest)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id"), nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
@@ -352,7 +350,6 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 		SubKind:     subKind,
 		Version:     versionVar,
 		OldObjectId: id, //from FE, we are taking ids of resources entry in their own respective tables
-		Name:        nameVar,
 	}
 	resp, err := handler.devtronResourceService.GetResourceDependencies(reqBeanDescriptor)
 	if err != nil {

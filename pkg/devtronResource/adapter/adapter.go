@@ -20,11 +20,9 @@ func BuildConfigStatusSchemaData(status *bean.ConfigStatus) *bean.ReleaseConfigS
 	}
 }
 
-func BuildDependencyData(name string, id, devtronResourceId, devtronResourceSchemaId int,
-	maxIndex float64, dependencyType bean.DevtronResourceDependencyType, idType bean.IdType) *bean.DevtronResourceDependencyBean {
+func BuildDependencyData(id, devtronResourceId, devtronResourceSchemaId int, maxIndex float64, dependencyType bean.DevtronResourceDependencyType, idType bean.IdType) *bean.DevtronResourceDependencyBean {
 	maxIndex++
 	return &bean.DevtronResourceDependencyBean{
-		Name:                    name,
 		OldObjectId:             id,
 		IdType:                  idType,
 		Index:                   int(maxIndex),

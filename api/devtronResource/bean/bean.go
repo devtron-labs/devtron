@@ -4,7 +4,6 @@ import "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 
 type GetResourceQueryParams struct {
 	Id         int                               `schema:"id"`
-	Name       string                            `schema:"name"`
 	Component  []bean.DevtronResourceUIComponent `schema:"component"`
 	Identifier string                            `schema:"identifier"`
 }

@@ -105,7 +105,6 @@ type ResourceParentData struct {
 }
 
 type DevtronResourceDependencyBean struct {
-	Name                    string                           `json:"name"`
 	OldObjectId             int                              `json:"id"` //have both oldObjectId and resourceObjectId
 	DevtronResourceId       int                              `json:"devtronResourceId"`
 	DevtronResourceSchemaId int                              `json:"devtronResourceSchemaId"`

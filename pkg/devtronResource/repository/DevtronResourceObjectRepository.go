@@ -69,8 +69,8 @@ type DevtronResourceObject struct {
 	tableName               struct{} `sql:"devtron_resource_object" pg:",discard_unknown_columns"`
 	Id                      int      `sql:"id,pk"`
 	OldObjectId             int      `sql:"old_object_id"` //id of object present across different tables, idea is to migrate this new object id
-	Name                    string   `sql:"name"`
-	Identifier              string   `sql:"identifier"` // unique identifier for identification for release - its release-track-name and version, for release-track will be name
+	name                    string   `sql:"name"`          // making this private as this will not be used in future as well, it is not unique, everything will work on id
+	Identifier              string   `sql:"identifier"`    // unique identifier for identification for release - its release-track-name and version, for release-track will be name
 	DevtronResourceId       int      `sql:"devtron_resource_id"`
 	DevtronResourceSchemaId int      `sql:"devtron_resource_schema_id"`
 	ObjectData              string   `sql:"object_data"` //json string
