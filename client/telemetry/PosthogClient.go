@@ -36,7 +36,7 @@ type PosthogClient struct {
 var (
 	PosthogApiKey        string = ""
 	PosthogEndpoint      string = "https://app.posthog.com"
-	SummaryCronExpr      string = "0 0 * * *" //  Default Run once a day, midnight
+	SummaryCronExpr      string = "0 0 * * *" // Run once a day, midnight
 	HeartbeatCronExpr    string = "0 0/6 * * *"
 	CacheExpiry          int    = 1440
 	PosthogEncodedApiKey string = ""
