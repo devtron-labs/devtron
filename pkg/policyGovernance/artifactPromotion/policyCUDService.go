@@ -77,8 +77,8 @@ func (impl *PromotionPolicyServiceImpl) AddUpdateEventObserver(hook func(tx *pg.
 }
 
 func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error {
-	validateResp, valid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
-	if valid {
+	validateResp, inValid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
+	if inValid {
 		err := errors.New("invalid filter conditions : " + fmt.Sprint(validateResp))
 		return util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid conditions statements : " + err.Error())
 	}

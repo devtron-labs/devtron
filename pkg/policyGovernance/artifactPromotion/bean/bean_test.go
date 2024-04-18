@@ -14,7 +14,7 @@ func TestPolicyBean(t *testing.T) {
 	}
 
 	policyBean2 := PromotionPolicy{
-		Name:       "hello",
+		Name:       "   ",
 		Conditions: nil,
 	}
 	val, _ := util.IntValidator()
