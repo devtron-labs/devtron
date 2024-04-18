@@ -41,7 +41,7 @@ INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,
                                                                                                               (SELECT id from plugin_metadata where name='Vulnerabilty_Scanner v1.0.0'),1,'now()',1,'now()',1);
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
-VALUES ( nextval('id_seq_plugin_pipeline_script'),'
+VALUES ( nextval('id_seq_plugin_pipeline_script'),
          E'#!/bin/bash
 
 json_data="$CI_CD_EVENT"
@@ -101,7 +101,7 @@ if [[ $(echo "$response" | jq -r \'.status\') == "OK" ]]; then
     1,
     'now()',
     1
-);'
+);
 
 
 
