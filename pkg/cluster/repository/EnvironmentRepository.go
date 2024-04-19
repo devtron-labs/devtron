@@ -261,8 +261,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveEnvironmentCount() 
 	cnt, err := repositoryImpl.
 		dbConnection.Model(&Environment{}).
 		Where("environment.active = ?", true).
-		Column("environment.*", "Cluster").
-		Join("inner join cluster c on environment.cluster_id = c.id").
+		Column("environment.id").
 		Count()
 	return cnt, err
 }

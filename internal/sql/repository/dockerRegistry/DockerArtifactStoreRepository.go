@@ -172,14 +172,8 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 }
 func (impl DockerArtifactStoreRepositoryImpl) FindAllDockerArtifactCount() (int, error) {
 	dockerArtifactCount, err := impl.dbConnection.Model(&DockerArtifactStore{}).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Column("docker_artifact_store.*").
 		Where("docker_artifact_store.active = ?", true).
-		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
-			return q.Where("deleted IS FALSE"), nil
-		}).
-		Relation("IpsConfig", func(q *orm.Query) (query *orm.Query, err error) {
-			return q.JoinOn("(ips_config.active=true or ips_config is null)"), nil
-		}).
 		Count()
 	return dockerArtifactCount, err
 }

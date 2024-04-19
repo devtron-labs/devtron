@@ -450,14 +450,14 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 
 func (impl PipelineRepositoryImpl) FindAllPipelineCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
-		Column("pipeline.*").
+		Column("pipeline.id").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
 		Count()
 	return pipelineCount, err
 }
 func (impl PipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
-		Column("pipeline.*").
+		Column("pipeline.id").
 		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
 		Count()
 	return pipelineCount, err
