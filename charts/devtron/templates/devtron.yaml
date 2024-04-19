@@ -77,10 +77,10 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 data:
-  DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 {{- if .customOverrides }}
 {{ toYaml .customOverrides | indent 2}}
 {{- end }}
+  DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
