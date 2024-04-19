@@ -58,6 +58,7 @@ type UserService interface {
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
+	GetEmailFromToken(token string) (string, error)
 	GetEmailAndVersionFromToken(token string) (string, string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -1228,17 +1229,6 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	embeddedTokenVersion, _ := strconv.Atoi(version)
-	isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(email, embeddedTokenVersion)
-	if err != nil || !isProvidedTokenValid {
-		impl.logger.Errorw("token is not valid", "error", err, "token", token)
-		err := &util.ApiError{
-			Code:            constants.UserNotFoundForToken,
-			InternalMessage: "user not found for token",
-			UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
-		}
-		return http.StatusUnauthorized, "", err
-	}
 	userInfo, err := impl.GetUserByEmail(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
@@ -1249,7 +1239,63 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		}
 		return http.StatusUnauthorized, "", err
 	}
+	if userInfo.UserType == bean.USER_TYPE_API_TOKEN {
+		embeddedTokenVersion, _ := strconv.Atoi(version)
+		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(email, embeddedTokenVersion)
+		if err != nil || !isProvidedTokenValid {
+			impl.logger.Errorw("token is not valid", "error", err, "token", token)
+			err := &util.ApiError{
+				Code:            constants.UserNotFoundForToken,
+				InternalMessage: "user not found for token",
+				UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
+			}
+			return http.StatusUnauthorized, "", err
+		}
+	}
 	return userInfo.Id, userInfo.UserType, nil
+}
+
+func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
+	if token == "" {
+		impl.logger.Infow("no token provided")
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "no token provided",
+		}
+		return "", err
+	}
+
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
+	if err != nil {
+		impl.logger.Errorw("failed to verify token", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "failed to verify token",
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return "", err
+	}
+
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		impl.logger.Errorw("failed to MapClaims", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "token invalid",
+			UserMessage:     "token verification failed while parsing token",
+		}
+		return "", err
+	}
+
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
+
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
+	}
+
+	return email, nil
 }
 
 func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, string, error) {
