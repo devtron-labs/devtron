@@ -213,6 +213,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		Description:  *request.Description,
 		ExpireAtInMs: *request.ExpireAtInMs,
 		Token:        token,
+		Version:      tokenVersion,
 		AuditLog:     sql.AuditLog{UpdatedOn: time.Now()},
 	}
 	if apiTokenExists {
