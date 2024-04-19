@@ -169,7 +169,12 @@ func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
 	return approvalsGot >= p.ApprovalMetaData.ApprovalCount
 }
 func (p *PromotionPolicy) CanImageBuilderApprove(imageBuiltByUserId, approvingUserId int32) bool {
-	return !p.ApprovalMetaData.AllowImageBuilderFromApprove && imageBuiltByUserId == approvingUserId
+	// is user image builder
+	imageBuilder := imageBuiltByUserId == approvingUserId
+	// if user is image builder, then the flag
+
+	//
+	return imageBuilder && !p.ApprovalMetaData.AllowImageBuilderFromApprove
 }
 
 func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingUserId int32) bool {

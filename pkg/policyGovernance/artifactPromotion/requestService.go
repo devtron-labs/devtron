@@ -830,6 +830,7 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 		return nil, err
 	}
 
+	respMap := crossWorkflowPromotionValidation(metadata, allAppWorkflowMappings)
 	if metadata.GetSourceTypeStr() == constants.SOURCE_TYPE_CD {
 
 		// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
@@ -848,10 +849,36 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 			errMsg := fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName())
 			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
-		respMap := runSourceAndDestinationTopologyValidations(metadata, allAppWorkflowMappings)
-		return respMap, nil
+		topologyValidationRespMap := runSourceAndDestinationTopologyValidations(metadata, allAppWorkflowMappings)
+		for env, resp := range topologyValidationRespMap {
+			if _, ok := respMap[env]; !ok {
+				respMap[env] = resp
+			}
+		}
 	}
-	return nil, nil
+	return respMap, nil
+}
+
+func crossWorkflowPromotionValidation(metadata *bean.RequestMetaData, allAppWorkflowMappings []bean4.AppWorkflowMappingDto) map[string]bean.EnvironmentPromotionMetaData {
+	responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
+	for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
+		// if pipeline is not found in the requested workflow, we should reject the request for the particular pipeline
+		if !util3.Contains(allAppWorkflowMappings, func(appWorkflowMapping bean4.AppWorkflowMappingDto) bool {
+			return appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ComponentId == pipelineId
+		}) {
+			envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
+			resp := bean.EnvironmentPromotionMetaData{
+				Name:                       envName,
+				PromotionValidationMessage: constants.PIPELINE_NOT_FOUND,
+			}
+			cdPipeline := metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId]
+			if cdPipeline != nil {
+				resp.IsVirtualEnvironment = cdPipeline.Environment.IsVirtualEnvironment
+			}
+			responseMap[envName] = resp
+		}
+	}
+	return responseMap
 }
 
 func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []bean4.AppWorkflowMappingDto) map[string]bean.EnvironmentPromotionMetaData {
