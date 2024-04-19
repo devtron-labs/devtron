@@ -20,6 +20,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
 	"strings"
@@ -61,8 +62,6 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 		apiTokenRepository:    apiTokenRepository,
 	}
 }
-
-const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 
@@ -177,7 +176,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	impl.logger.Info(fmt.Sprintf("apiTokenExists : %s", strconv.FormatBool(apiTokenExists)))
 
 	// step-2 - Build email and version
-	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, name)
+	email := fmt.Sprintf("%s%s", userBean.API_TOKEN_USER_EMAIL_PREFIX, name)
 	var tokenVersion int
 	if apiTokenExists {
 		tokenVersion = apiToken.Version + 1

@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"log"
 	"math/rand"
 	"net/http"
@@ -33,7 +32,7 @@ import (
 
 	"github.com/devtron-labs/authenticator/middleware"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/go-pg/pg"
 
@@ -490,7 +489,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
-	if strings.HasPrefix(emailId, apiToken.API_TOKEN_USER_EMAIL_PREFIX) {
+	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) {
 		embeddedTokenVersion, _ := strconv.Atoi(version)
 		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(emailId, embeddedTokenVersion)
 		if err != nil || !isProvidedTokenValid {
@@ -511,15 +510,15 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
 	var roleModels []*repository.RoleModel
 	switch entityType {
-	case bean2.PROJECT_TYPE:
+	case userBean.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
-	case bean2.ENV_TYPE:
+	case userBean.ENV_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName, envIdentifier)
-	case bean2.APP_TYPE:
+	case userBean.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
-	case bean2.CHART_GROUP_TYPE:
+	case userBean.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
-	case bean2.WorkflowType:
+	case userBean.WorkflowType:
 		roleModels, err = impl.userAuthRepository.GetRolesForWorkflow(workflowName, entityName)
 	}
 	if err != nil {
