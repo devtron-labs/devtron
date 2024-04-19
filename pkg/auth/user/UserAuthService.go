@@ -26,6 +26,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -473,9 +474,21 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
-	emailId, err := impl.userService.GetEmailFromToken(token)
+	emailId, version, err := impl.userService.GetEmailAndVersionFromToken(token)
 	if err != nil {
 		impl.logger.Errorw("AuthVerification failed ", "error", err)
+		return false, err
+	}
+	embeddedTokenVersion, _ := strconv.Atoi(version)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(emailId, embeddedTokenVersion)
+	if err != nil || !isProvidedTokenValid {
+		impl.logger.Errorw("token is not valid", "error", err, "token", token)
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user not found for token",
+			UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
+		}
 		return false, err
 	}
 	exists := impl.userService.UserExists(emailId)

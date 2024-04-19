@@ -159,7 +159,7 @@ func (mr *MockUserServiceMockRecorder) GetByIds(ids interface{}) *gomock.Call {
 // GetEmailFromToken mocks base method.
 func (m *MockUserService) GetEmailFromToken(token string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEmailFromToken", token)
+	ret := m.ctrl.Call(m, "GetEmailAndVersionFromToken", token)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -168,7 +168,7 @@ func (m *MockUserService) GetEmailFromToken(token string) (string, error) {
 // GetEmailFromToken indicates an expected call of GetEmailFromToken.
 func (mr *MockUserServiceMockRecorder) GetEmailFromToken(token interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailFromToken", reflect.TypeOf((*MockUserService)(nil).GetEmailFromToken), token)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailAndVersionFromToken", reflect.TypeOf((*MockUserService)(nil).GetEmailFromToken), token)
 }
 
 // GetLoggedInUser mocks base method.

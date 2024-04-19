@@ -24,6 +24,7 @@ import (
 	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +58,7 @@ type UserService interface {
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
-	GetEmailFromToken(token string) (string, error)
+	GetEmailAndVersionFromToken(token string) (string, string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
@@ -1222,9 +1223,20 @@ func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 
 func (impl *UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
 	_, span := otel.Tracer("userService").Start(context, "GetUserByToken")
-	email, err := impl.GetEmailFromToken(token)
+	email, version, err := impl.GetEmailAndVersionFromToken(token)
 	span.End()
 	if err != nil {
+		return http.StatusUnauthorized, "", err
+	}
+	embeddedTokenVersion, _ := strconv.Atoi(version)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(email, embeddedTokenVersion)
+	if err != nil || !isProvidedTokenValid {
+		impl.logger.Errorw("token is not valid", "error", err, "token", token)
+		err := &util.ApiError{
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user not found for token",
+			UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
+		}
 		return http.StatusUnauthorized, "", err
 	}
 	userInfo, err := impl.GetUserByEmail(email)
@@ -1240,14 +1252,14 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 	return userInfo.Id, userInfo.UserType, nil
 }
 
-func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
+func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, string, error) {
 	if token == "" {
 		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
 		}
-		return "", err
+		return "", "", err
 	}
 
 	claims, err := impl.sessionManager2.VerifyToken(token)
@@ -1259,7 +1271,7 @@ func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 			InternalMessage: "failed to verify token",
 			UserMessage:     "token verification failed while getting logged in user",
 		}
-		return "", err
+		return "", "", err
 	}
 
 	mapClaims, err := jwt.MapClaims(claims)
@@ -1270,17 +1282,18 @@ func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 			InternalMessage: "token invalid",
 			UserMessage:     "token verification failed while parsing token",
 		}
-		return "", err
+		return "", "", err
 	}
 
 	email := jwt.GetField(mapClaims, "email")
 	sub := jwt.GetField(mapClaims, "sub")
+	tokenVersion := jwt.GetField(mapClaims, "version")
 
 	if email == "" && (sub == "admin" || sub == "admin:login") {
 		email = "admin"
 	}
 
-	return email, nil
+	return email, tokenVersion, nil
 }
 
 func (impl *UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {

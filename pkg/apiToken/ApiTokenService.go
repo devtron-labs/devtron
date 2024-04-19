@@ -66,11 +66,6 @@ const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 
-type ApiTokenCustomClaims struct {
-	Email string `json:"email"`
-	jwt.RegisteredClaims
-}
-
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting active api tokens")
 	apiTokensFromDb, err := impl.apiTokenRepository.FindAllActive()
@@ -181,11 +176,15 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 
 	impl.logger.Info(fmt.Sprintf("apiTokenExists : %s", strconv.FormatBool(apiTokenExists)))
 
-	// step-2 - Build email
+	// step-2 - Build email and version
 	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, name)
+	tokenVersion := 1
+	if apiTokenExists {
+		tokenVersion = apiToken.Version + 1
+	}
 
 	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, *request.ExpireAtInMs)
+	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -254,14 +253,17 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
+	tokenVersion := apiToken.Version + 1
+
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		token, err := impl.createApiJwtToken(apiToken.User.EmailId, *request.ExpireAtInMs)
+		token, err := impl.createApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
 		if err != nil {
 			return nil, err
 		}
 		apiToken.Token = token
+		apiToken.Version = tokenVersion
 	}
 
 	// step-3 - update in DB
@@ -322,24 +324,41 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 
 }
 
-func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) createApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		return "", err
+	}
+	claims := &ApiTokenCustomClaims{
+		email,
+		strconv.Itoa(tokenVersion),
+		registeredClaims,
+	}
+	token, err := impl.generateToken(claims, secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (impl ApiTokenServiceImpl) setRegisteredClaims(expireAtInMs int64) (jwt.RegisteredClaims, []byte, error) {
 	secretByteArr, err := impl.apiTokenSecretService.GetApiTokenSecretByteArr()
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret", "error", err)
-		return "", err
+		return jwt.RegisteredClaims{}, secretByteArr, err
 	}
 
 	registeredClaims := jwt.RegisteredClaims{
 		Issuer: middleware.ApiTokenClaimIssuer,
 	}
+
 	if expireAtInMs > 0 {
 		registeredClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(expireAtInMs/1000, 0))
 	}
+	return registeredClaims, secretByteArr, nil
+}
 
-	claims := &ApiTokenCustomClaims{
-		email,
-		registeredClaims,
-	}
+func (impl ApiTokenServiceImpl) generateToken(claims *ApiTokenCustomClaims, secretByteArr []byte) (string, error) {
 	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := unsignedToken.SignedString(secretByteArr)
 	if err != nil {

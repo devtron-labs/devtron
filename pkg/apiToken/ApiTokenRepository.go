@@ -29,6 +29,7 @@ type ApiToken struct {
 	Id           int      `sql:"id,pk"`
 	UserId       int32    `sql:"user_id, notnull"`
 	Name         string   `sql:"name, notnull"`
+	Version      int      `sql:"version, notnull"`
 	Description  string   `sql:"description, notnull"`
 	ExpireAtInMs int64    `sql:"expire_at_in_ms"`
 	Token        string   `sql:"token, notnull"`
