@@ -509,6 +509,9 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx *util3.Requ
 		return nil, err
 	}
 
+	if len(promotionRequests) == 0 {
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr)
+	}
 	// policies fetched form above policy ids
 	policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, request.AppId, metadata.GetActiveAuthorisedPipelineEnvIds())
 	if err != nil {
