@@ -228,10 +228,10 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(ctx *util3.R
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
 			environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 			continue
-		} else if policy.CanImageBuilderApprove(artifact.CreatedBy, ctx.GetUserId()) {
+		} else if policy.BlockImageBuilderToApprove(artifact.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG)
-		} else if policy.CanPromoteRequesterApprove(request.CreatedBy, ctx.GetUserId()) {
+		} else if policy.BlockPromotionRequesterToApprove(request.CreatedBy, ctx.GetUserId()) {
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG)
 		}

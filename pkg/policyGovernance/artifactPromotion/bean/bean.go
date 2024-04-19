@@ -168,16 +168,15 @@ type PromotionPolicy struct {
 func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
 	return approvalsGot >= p.ApprovalMetaData.ApprovalCount
 }
-func (p *PromotionPolicy) CanImageBuilderApprove(imageBuiltByUserId, approvingUserId int32) bool {
+func (p *PromotionPolicy) BlockImageBuilderToApprove(imageBuiltByUserId, approvingUserId int32) bool {
 	// is user image builder
 	imageBuilder := imageBuiltByUserId == approvingUserId
-	// if user is image builder, then the flag
-
-	//
-	return imageBuilder && !p.ApprovalMetaData.AllowImageBuilderFromApprove
+	// block image builder if the flag is disabled
+	imageBuilderBlocked := imageBuilder && !p.ApprovalMetaData.AllowImageBuilderFromApprove
+	return imageBuilderBlocked
 }
 
-func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingUserId int32) bool {
+func (p *PromotionPolicy) BlockPromotionRequesterToApprove(requestedUserId, approvingUserId int32) bool {
 	return !p.ApprovalMetaData.AllowRequesterFromApprove && requestedUserId == approvingUserId
 }
 
@@ -186,7 +185,7 @@ func (p *PromotionPolicy) BlockApproverFromDeploy() bool {
 }
 
 func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {
-	return p.CanImageBuilderApprove(imageBuiltByUserId, approvingUserId) && p.CanPromoteRequesterApprove(requestedUserId, approvingUserId)
+	return !p.BlockImageBuilderToApprove(imageBuiltByUserId, approvingUserId) && !p.BlockPromotionRequesterToApprove(requestedUserId, approvingUserId)
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {
