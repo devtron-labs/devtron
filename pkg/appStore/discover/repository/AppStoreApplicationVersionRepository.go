@@ -35,7 +35,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
 	GetChartInfoById(id int) (*AppStoreApplicationVersion, error)
-	FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error)
+	FindLatestAppStoreVersionIdByAppStoreName(name string) (int, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
 
@@ -228,14 +228,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id
 	return appStoreApplicationVersions, err
 }
 
-func (impl *AppStoreApplicationVersionRepositoryImpl) FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error) {
-	var appStoreWithVersion appStoreBean.AppStoreWithVersion
-	queryTemp := "select asv.id as app_store_application_version_id from app_store_application_version asv  inner join app_store ap on asv.app_store_id = ap.id and ap.name like ? order by asv.id desc limit 1;"
-	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, name)
-	if err != nil {
-		return nil, err
-	}
-	return &appStoreWithVersion, err
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindLatestAppStoreVersionIdByAppStoreName(name string) (int, error) {
+	var appStoreApplicationVersionId int
+	queryTemp := "SELECT MAX(asv.id) AS app_store_application_version_id  FROM app_store_application_version AS asv  JOIN app_store AS ap ON asv.app_store_id = ap.id WHERE ap.name = ?;"
+	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, queryTemp, name)
+	return appStoreApplicationVersionId, err
 }
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error) {
