@@ -1001,6 +1001,9 @@ type AppIdentifier struct {
 }
 
 func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
+	//we store all helm releases in kubelink cache with key as what is returned from this func, this is
+	//the case where an app across diff namespace or cluster can have same name, so to identify then uniquely
+	//below implementation would serve as good unique identifier for a external app.
 	return r.ReleaseName + "-" + r.Namespace + "-" + strconv.Itoa(r.ClusterId)
 }
 
