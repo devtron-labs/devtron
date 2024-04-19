@@ -5,11 +5,12 @@ import (
 )
 
 const (
-	DaemonSetPodDeleteError  = "cannot delete DaemonSet-managed Pods"
-	DnsLookupNoSuchHostError = "no such host"
-	TimeoutError             = "timeout"
-	NotFound                 = "not found"
-	ConnectionRefused        = "connection refused"
+	DaemonSetPodDeleteError     = "cannot delete DaemonSet-managed Pods"
+	DnsLookupNoSuchHostError    = "no such host"
+	TimeoutError                = "timeout"
+	NotFound                    = "not found"
+	ConnectionRefused           = "connection refused"
+	AppNotLinkedToChartStoreErr = "app not yet linked with any chart from chart-store in devtron, hence can't perform update operation from devtron ui"
 )
 
 func IsClusterUnReachableError(err error) bool {

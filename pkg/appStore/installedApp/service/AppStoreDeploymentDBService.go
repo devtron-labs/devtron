@@ -327,6 +327,9 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel", "err", err)
 		return err
+	} else {
+		// for already linked project to app-> this case needs to be handled here
+		// in that case appModel will come as empty. in that case it will go and create new entry in app find app name by display name only
 	}
 
 	var appInstallationMode string

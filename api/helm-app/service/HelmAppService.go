@@ -623,6 +623,15 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
+	if request.SourceAppType == bean.SOURCE_EXTERNAL_HELM_APP {
+		_, err := impl.installedAppRepository.GetInstalledAppByAppName(app.GetUniqueAppNameIdentifier())
+		if err != nil && util.IsErrNoRows(err) {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: AppNotLinkedToChartStoreErr, UserMessage: AppNotLinkedToChartStoreErr}
+		} else {
+			impl.logger.Errorw("error in fetching installed app from appName unique identifier", "appNameUniqueIdentifier", app.GetUniqueAppNameIdentifier())
+			return nil, err
+		}
+	}
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
@@ -1023,6 +1032,9 @@ type AppIdentifier struct {
 }
 
 func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
+	//we store all helm releases in kubelink cache with key as what is returned from this func, this is
+	//the case where an app across diff namespace or cluster can have same name, so to identify then uniquely
+	//below implementation would serve as good unique identifier for a external app.
 	return r.ReleaseName + "-" + r.Namespace + "-" + strconv.Itoa(r.ClusterId)
 }
 

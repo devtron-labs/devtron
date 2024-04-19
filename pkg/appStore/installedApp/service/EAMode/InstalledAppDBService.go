@@ -122,6 +122,10 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 			LastDeployedAt:    &appLocal.UpdatedOn,
 			AppStatus:         &appLocal.AppStatus,
 		}
+		if len(appLocal.DisplayName) > 0 {
+			//case of external app where display name is stored in app table
+			helmAppResp.AppName = &appLocal.DisplayName
+		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
 	installedAppsResponse.HelmApps = &helmAppsResponse
