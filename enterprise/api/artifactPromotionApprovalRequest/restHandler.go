@@ -210,16 +210,20 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 func (handler *RestHandlerImpl) promotionMaterialRequestRbac(w http.ResponseWriter, request *bean3.PromotionMaterialRequest, ctx *util.RequestCtx) (isAuthenticated bool, hasTriggerAccess bool) {
 
+	appObj := handler.enforcerUtil.GetAppRBACNameByAppId(request.GetAppId())
+	envObjects := handler.enforcerUtil.GetEnvRBACArrayByAppId(request.GetAppId())
+
 	if request.IsCINode() || request.IsWebhookNode() || request.IsCDNode() {
 		// check if user has trigger access for any one env for this app
-		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
-		if !hasTriggerAccess {
+		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(appObj, envObjects, ctx.GetToken())
+		hasViewAccess := handler.checkViewAccessForAnyEnv(appObj, envObjects, ctx.GetToken())
+		if !hasViewAccess {
 			common.WriteJsonResp(w, fmt.Errorf(unAuthorisedUser), unAuthorisedUser, http.StatusForbidden)
 			return false, false
 		}
 	} else if request.IsPendingForUserRequest() {
 		// for this request user rbac is applied at service level, artifacts for only those pipelines on which user has image promoter acccess are returned
-		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(ctx.GetToken(), request.GetAppId())
+		hasTriggerAccess = handler.checkTriggerAccessForAnyEnv(appObj, envObjects, ctx.GetToken())
 		return true, hasTriggerAccess
 
 	} else if request.IsPromotionApprovalPendingNode() {
@@ -357,14 +361,26 @@ func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.Response
 	return true
 }
 
-func (handler *RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId int) bool {
+func (handler *RestHandlerImpl) checkViewAccessForAnyEnv(appObj string, envObjects []string, token string) bool {
 
-	appObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, appObj); !ok {
+		return false
+	}
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envObjects)
+	for _, isAuthorised := range results {
+		if isAuthorised {
+			return true
+		}
+	}
+	return false
+}
+
+func (handler *RestHandlerImpl) checkTriggerAccessForAnyEnv(appObj string, envObjects []string, token string) bool {
+
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObj); !ok {
 		return false
 	}
 
-	envObjects := handler.enforcerUtil.GetEnvRBACArrayByAppId(appId)
 	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjects)
 	for _, isAuthorised := range results {
 		if isAuthorised {

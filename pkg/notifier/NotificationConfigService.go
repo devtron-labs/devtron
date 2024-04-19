@@ -1445,7 +1445,7 @@ func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata
 		status = bean.Approved
 	case constants.ALREADY_APPROVED, constants.ARTIFACT_ALREADY_PROMOTED:
 		status = bean.AlreadyApproved
-	case constants.PromotionRequestStale:
+	case constants.PromotionRequestStale, constants.ArtifactPromotionRequestNotFoundErr:
 		status = bean.RequestCancelled
 	default:
 		status = bean.Errored
