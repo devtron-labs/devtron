@@ -35,7 +35,7 @@ import (
 )
 
 type CiPipeline struct {
-	tableName                struct{} `sql:"ci_pipelinegggg" pg:",discard_unknown_columns"`
+	tableName                struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
 	Id                       int      `sql:"id,pk"`
 	AppId                    int      `sql:"app_id"`
 	App                      *app.App
