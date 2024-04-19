@@ -230,7 +230,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion appStoreBean.AppStoreWithVersion
-	queryTemp := "select * from app_store_application_version asv  inner join app_store ap on asv.app_store_id = ap.id and ap.name like ? order by asv.id desc limit 1;"
+	queryTemp := "select asv.id as app_store_application_version_id from app_store_application_version asv  inner join app_store ap on asv.app_store_id = ap.id and ap.name like ? order by asv.id desc limit 1;"
 	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, name)
 	if err != nil {
 		return nil, err
