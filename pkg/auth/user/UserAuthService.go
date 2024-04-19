@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"log"
 	"math/rand"
 	"net/http"
@@ -490,8 +491,9 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		return false, err
 	}
 	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) {
+		tokenName := helper.ExtractTokenNameFromEmail(emailId)
 		embeddedTokenVersion, _ := strconv.Atoi(version)
-		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(emailId, embeddedTokenVersion)
+		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
 		if err != nil || !isProvidedTokenValid {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
 			err := &util.ApiError{

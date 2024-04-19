@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
-	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strconv"
@@ -1240,8 +1240,9 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		return http.StatusUnauthorized, "", err
 	}
 	if userInfo.UserType == bean.USER_TYPE_API_TOKEN {
+		tokenName := userHelper.ExtractTokenNameFromEmail(email)
 		embeddedTokenVersion, _ := strconv.Atoi(version)
-		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByEmailIdAndToken(email, embeddedTokenVersion)
+		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
 		if err != nil || !isProvidedTokenValid {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
 			err := &util.ApiError{
@@ -1443,7 +1444,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequ
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, 0, len(models))
 	for _, model := range models {
-		if !helper2.IsSystemOrAdminUserByEmail(model.EmailId) {
+		if !userHelper.IsSystemOrAdminUserByEmail(model.EmailId) {
 			filteredUserIds = append(filteredUserIds, model.Id)
 		}
 	}
