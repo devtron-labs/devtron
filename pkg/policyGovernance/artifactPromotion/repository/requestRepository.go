@@ -159,7 +159,8 @@ func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int
 func (repo *RequestRepositoryImpl) FindRequestsByArtifactAndOptionalEnv(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 
-	query := fmt.Sprintf("select * from artifact_promotion_approval_request apar"+
+	query := fmt.Sprintf("SELECT apar.* "+
+		" FROM artifact_promotion_approval_request apar"+
 		" inner join pipeline p on apar.destination_pipeline_id=p.id "+
 		"inner join environment e on p.environment_id=e.id where apar.status = %d and apar.artifact_id = %d and p.deleted=false ", status, artifactId)
 
