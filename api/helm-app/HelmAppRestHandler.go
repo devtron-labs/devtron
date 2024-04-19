@@ -224,7 +224,9 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	//for external-apps appName would be uniqueIdentifier
+	appName := appIdentifier.GetUniqueAppNameIdentifier()
+	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

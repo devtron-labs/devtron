@@ -20,6 +20,7 @@ type InstalledAppsWithChartDetails struct {
 	ChartRepoName                string    `json:"chart_repo_name"`
 	DockerArtifactStoreId        string    `json:"docker_artifact_store_id"`
 	AppName                      string    `json:"app_name"`
+	DisplayName                  string    `json:"display_name"`
 	EnvironmentName              string    `json:"environment_name"`
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
 	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`

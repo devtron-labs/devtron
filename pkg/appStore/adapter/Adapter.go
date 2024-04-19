@@ -216,6 +216,10 @@ func UpdateAppDetails(request *appStoreBean.InstallAppVersionDTO, app *app.App) 
 	request.AppName = app.AppName
 	request.TeamId = app.TeamId
 	request.AppOfferingMode = app.AppOfferingMode
+	// for external apps, AppName is unique identifier(appName-ns-clusterId), hence DisplayName should be used in that case
+	if len(app.DisplayName) > 0 {
+		request.AppName = app.DisplayName
+	}
 }
 
 // UpdateInstallAppDetails update repository.InstalledApps data into the same InstallAppVersionDTO
