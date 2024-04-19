@@ -26,35 +26,33 @@ func getResourceObjectIdAndType(existingResourceObject *repository.DevtronResour
 	return objectId, idType
 }
 
-func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies(objectData string) (parentConfig *bean.ResourceParentConfig) {
+func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies(objectData string) (parentConfig *bean.ResourceParentConfig, parentResourceSchemaId int) {
 	if gjson.Get(objectData, bean.ResourceObjectDependenciesPath).Exists() {
-		var parentResourceId, parentResourceObjectId int
-		var parentResourceObjectName string
+		var parentResourceObjectId int
 		gjson.Get(objectData, bean.ResourceObjectDependenciesPath).ForEach(
 			func(key, value gjson.Result) bool {
 				if gjson.Get(value.Raw, bean.TypeOfDependencyKey).String() == bean.DevtronResourceDependencyTypeParent.ToString() {
-					parentResourceId = int(gjson.Get(value.Raw, bean.DevtronResourceIdKey).Int())
+					parentResourceSchemaId = int(gjson.Get(value.Raw, bean.DevtronResourceSchemaIdKey).Int())
 					parentResourceObjectId = int(gjson.Get(value.Raw, bean.IdKey).Int())
-					parentResourceObjectName = gjson.Get(value.Raw, bean.NameKey).String()
 					return false
 				}
 				return true
 			},
 		)
-		if parentResourceId > 0 {
-			parentResource := impl.devtronResourcesMapById[parentResourceId]
-			if parentResource != nil {
+		if parentResourceSchemaId > 0 {
+			parentResourceSchema := impl.devtronResourcesSchemaMapById[parentResourceSchemaId]
+			if parentResourceSchema != nil {
+				kind, subKind := impl.getKindSubKindOfResourceBySchemaObject(parentResourceSchema)
 				parentConfig = &bean.ResourceParentConfig{
-					Type: bean.DevtronResourceKind(parentResource.Kind),
-					Data: &bean.ResourceParentData{
-						Id:   parentResourceObjectId,
-						Name: parentResourceObjectName,
-					},
+					ResourceKind:    bean.DevtronResourceKind(kind),
+					ResourceSubKind: bean.DevtronResourceKind(subKind),
+					ResourceVersion: bean.DevtronResourceVersion(parentResourceSchema.Version),
+					Id:              parentResourceObjectId,
 				}
 			}
 		}
 	}
-	return parentConfig
+	return parentConfig, parentResourceSchemaId
 }
 
 func (impl *DevtronResourceServiceImpl) updateParentConfigInResourceObj(resourceSchema *repository.DevtronResourceSchema,
@@ -64,7 +62,7 @@ func (impl *DevtronResourceServiceImpl) updateParentConfigInResourceObj(resource
 		//getting metadata out of this object
 		resourceObject.OldObjectId, _ = getResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
-		resourceObject.ParentConfig = impl.getParentConfigVariablesFromDependencies(existingResourceObject.ObjectData)
+		resourceObject.ParentConfig, _ = impl.getParentConfigVariablesFromDependencies(existingResourceObject.ObjectData)
 	}
 	return nil
 }

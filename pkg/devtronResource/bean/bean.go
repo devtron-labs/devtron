@@ -103,8 +103,15 @@ type NoteBean struct {
 }
 
 type ResourceParentConfig struct {
-	Type DevtronResourceKind `json:"type"`
-	Data *ResourceParentData `json:"data,omitempty"`
+	Id         int    `json:"id"`
+	Identifier string `json:"identifier,omitempty"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
+	DevtronResourceTypeReq
+}
+
+type DevtronResourceTypeReq struct {
+	ResourceKind    DevtronResourceKind    `json:"resourceKind"`
+	ResourceSubKind DevtronResourceKind    `json:"-"` // ResourceSubKind will be derived internally from the given ResourceKind
+	ResourceVersion DevtronResourceVersion `json:"resourceVersion"`
 }
 
 type PatchQuery struct {
@@ -116,11 +123,6 @@ type PatchQuery struct {
 type DependencyInfo struct {
 	DependencyName string              `json:"dependencyName,omitempty"`
 	DependencyType DevtronResourceKind `json:"dependencyResourceKind,omitempty"`
-}
-
-type ResourceParentData struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
 }
 
 type DevtronResourceDependencyBean struct {
@@ -392,9 +394,9 @@ const (
 	ResourceNameNotFound             = "Invalid payload data! name is required."
 	ResourceParentConfigNotFound     = "parentConfig is required! parent dependency not defined."
 	ResourceParentConfigDataNotFound = "parentConfig.data is required! parent dependency data not found."
-	InvalidResourceParentConfigData  = "Invalid parentConfig.data! either id or name is required."
-	InvalidResourceParentConfigId    = "Invalid parentConfig id! incorrect parent dependency."
-	InvalidResourceParentConfigType  = "Invalid parentConfig type! incorrect parent dependency."
+	InvalidResourceParentConfigData  = "Invalid parentConfig data! either id or identifier is required."
+	InvalidResourceParentConfigId    = "Invalid parentConfig! incorrect parent dependency."
+	InvalidResourceParentConfigKind  = "Invalid parentConfig kind! incorrect parent dependency."
 	InvalidResourceKindOrComponent   = "Invalid resource kind or component! Implementation not available."
 	InvalidResourceKind              = "Invalid resource kind! Implementation not supported."
 	PatchPathNotSupportedError       = "patch path not supported"

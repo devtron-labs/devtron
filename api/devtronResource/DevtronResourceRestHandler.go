@@ -17,7 +17,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type DevtronResourceRestHandler interface {
@@ -558,13 +557,8 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id i
 }
 
 func resolveKindSubKindValues(kindVar string) (kind, subKind string, statusCode int, err error) {
-	kindSplits := strings.Split(kindVar, "/")
-	if len(kindSplits) == 1 {
-		kind = kindSplits[0]
-	} else if len(kindSplits) == 2 {
-		kind = kindSplits[0]
-		subKind = kindSplits[1]
-	} else {
+	kind, subKind, err = devtronResource.GetKindAndSubKindFrom(kindVar)
+	if err != nil {
 		err = fmt.Errorf("invalid parameter: kind")
 		statusCode = http.StatusBadRequest
 	}

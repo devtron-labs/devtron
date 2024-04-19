@@ -29,7 +29,6 @@ type DevtronResourceObjectRepository interface {
 	FindByOldObjectId(oldObjectId, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	GetAllObjectByIdsOrOldObjectIds(objectIds, oldObjectIds []int, devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	FindAllObjects() ([]*DevtronResourceObject, error)
-	FindByObjectName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	FindByObjectIdentifier(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 
 	CheckIfExistById(id, devtronResourceSchemaId int) (bool, error)
@@ -199,19 +198,6 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindAllObjects() ([]*DevtronRes
 		return nil, err
 	}
 	return models, nil
-}
-
-func (repo *DevtronResourceObjectRepositoryImpl) FindByObjectName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error) {
-	var devtronResourceObject DevtronResourceObject
-	err := repo.dbConnection.Model(&devtronResourceObject).Where("name =?", name).
-		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
-		Where("deleted = ?", false).Select()
-	if err != nil {
-		repo.logger.Errorw("error in getting devtronResourceSchema by name", "err", err,
-			"name", name, "devtronResourceSchemaId", devtronResourceSchemaId)
-		return nil, err
-	}
-	return &devtronResourceObject, nil
 }
 
 func (repo *DevtronResourceObjectRepositoryImpl) FindByObjectIdentifier(identifier string, devtronResourceSchemaId int) (*DevtronResourceObject, error) {

@@ -117,12 +117,12 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataInResourceObj(r
 func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
 	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotFound, bean.ReleaseVersionNotFound)
-	} else if reqBean.ParentConfig == nil || reqBean.ParentConfig.Data == nil {
+	} else if reqBean.ParentConfig == nil {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigNotFound, bean.ResourceParentConfigNotFound)
-	} else if reqBean.ParentConfig.Data.Id == 0 && len(reqBean.ParentConfig.Data.Name) == 0 {
+	} else if reqBean.ParentConfig.Id == 0 && len(reqBean.ParentConfig.Identifier) == 0 {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceParentConfigData, bean.InvalidResourceParentConfigData)
-	} else if reqBean.ParentConfig.Type != bean.DevtronResourceReleaseTrack {
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceParentConfigType, bean.InvalidResourceParentConfigType)
+	} else if reqBean.ParentConfig.ResourceKind != bean.DevtronResourceReleaseTrack {
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceParentConfigKind, bean.InvalidResourceParentConfigKind)
 	}
 	return nil
 }
@@ -216,6 +216,14 @@ func (impl *DevtronResourceServiceImpl) setReleaseOverviewFieldsInObjectData(obj
 
 func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseResourceObj(object *repository.DevtronResourceObject) (string, error) {
 	releaseVersion := gjson.Get(object.ObjectData, bean.ResourceObjectReleaseVersionPath).String()
-	releaseTrackConfig := impl.getParentConfigVariablesFromDependencies(object.ObjectData)
-	return fmt.Sprintf("%s-%s", releaseTrackConfig.Data.Name, releaseVersion), nil
+	releaseTrackConfig, parentResourceSchemaId := impl.getParentConfigVariablesFromDependencies(object.ObjectData)
+	releaseTrackObject, err := impl.devtronResourceObjectRepository.FindByIdAndSchemaId(releaseTrackConfig.Id, parentResourceSchemaId)
+	if err != nil {
+		impl.logger.Errorw("error in getting release track object", "err", err, "id", releaseTrackConfig.Id, "schemaId", parentResourceSchemaId)
+		if util.IsErrNoRows(err) {
+			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceParentConfigId, bean.InvalidResourceParentConfigId)
+		}
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s", gjson.Get(releaseTrackObject.ObjectData, bean.ResourceObjectNamePath).String(), releaseVersion), nil
 }

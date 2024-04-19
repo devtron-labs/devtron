@@ -85,15 +85,16 @@ var populateDefaultValuesForCreateResourceRequestFuncMap = map[string]func(*Devt
 
 var buildIdentifierForResourceObjFuncMap = map[string]func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error){
 	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceDevtronApplication,
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronAppResourceObj,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronAppResourceObj,
 	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceHelmApplication,
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierFormHelmAppResourceObj,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).buildIdentifierFormHelmAppResourceObj,
 	getKeyForKindAndVersion(bean.DevtronResourceCluster, "",
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForClusterResourceObj,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).buildIdentifierForClusterResourceObj,
 	getKeyForKindAndVersion(bean.DevtronResourceJob, "",
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronJobResourceObj,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).buildIdentifierForDevtronJobResourceObj,
 	getKeyForKindAndVersion(bean.DevtronResourceCdPipeline, "",
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForCdPipelineResourceObj,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).buildIdentifierForCdPipelineResourceObj,
+
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForReleaseResourceObj,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
