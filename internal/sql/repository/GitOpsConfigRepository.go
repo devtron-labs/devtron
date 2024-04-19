@@ -93,7 +93,7 @@ func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, e
 	return userModel, err
 }
 func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfigCount() (int, error) {
-	cnt, err := impl.dbConnection.Model(&GitOpsConfig{}).Order("updated_on desc").Count()
+	cnt, err := impl.dbConnection.Model(&GitOpsConfig{}).Count()
 	return cnt, err
 }
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {

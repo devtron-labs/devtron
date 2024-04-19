@@ -128,7 +128,7 @@ type CiPipelineRepository interface {
 	FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
-	FindAllPipelineCountInLast24Hour() (pipelineCount int, err error)
+	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
 	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
@@ -503,16 +503,14 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 	return ciPipelines, err
 }
 
-func (impl *CiPipelineRepositoryImpl) FindAllPipelineCountInLast24Hour() (pipelineCount int, err error) {
+func (impl *CiPipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
-		Column("ci_pipeline.id").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
 		Count()
 	return pipelineCount, err
 }
 func (impl *CiPipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
 	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
-		Column("ci_pipeline.id").
 		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
 		Count()
 	return pipelineCount, err
