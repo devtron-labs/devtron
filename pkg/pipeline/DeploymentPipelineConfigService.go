@@ -1236,6 +1236,21 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines.Pipelines = pipelines
+	pipelineStrategy := make(map[int]*PipelineStrategy, 0)
+	//[]*PipelineStrategy
+	for _, pipeline := range pipelines {
+		//pipelineStrategy.DeploymentTemplate = cdPipeline.DeploymentTemplate
+		//pipelineStrategy.Default = true
+		//pipelineStrategy = append(pipelineStrategy, &PipelineStrategy{
+		//	DeploymentTemplate: pipeline.DeploymentTemplate,
+		//	Default:            true,
+		//})
+		pipelineStrategy[pipeline.AppId] = &PipelineStrategy{
+
+			DeploymentTemplate: pipeline.DeploymentTemplate,
+			Default:            true,
+		}
+	}
 	return cdPipelines, err
 }
 

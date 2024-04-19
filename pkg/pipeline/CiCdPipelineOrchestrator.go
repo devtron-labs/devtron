@@ -1842,11 +1842,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 	}
 
 	// fetch other environments also which are linked with this app
-	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
-		return nil, err
-	}
+	//dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
+	//if err != nil && err != pg.ErrNoRows {
+	//	impl.logger.Errorw("error fetching pipelines for env id", "err", err)
+	//	return nil, err
+	//}
 	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)

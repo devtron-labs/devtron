@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"net/url"
 	"strings"
 	"time"
@@ -292,6 +293,10 @@ type PipelineStrategy struct {
 	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	Config             json.RawMessage                        `json:"config"`
 	Default            bool                                   `json:"default"`
+}
+type RestartPodResponse struct {
+	PipelineStrategy []PipelineStrategy        `json:"pipelineStrategy"`
+	Nodes            []*v1alpha12.ResourceNode `json:"nodes"`
 }
 
 func checkAppReleaseNotExist(err error) bool {

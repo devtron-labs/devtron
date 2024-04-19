@@ -10,6 +10,7 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -86,6 +87,7 @@ type DeploymentTemplateServiceImpl struct {
 	appRepository                    appRepository.AppRepository
 	scopedVariableManager            variables.ScopedVariableManager
 	chartRefService                  chartRef.ChartRefService
+	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -100,7 +102,9 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-	chartRefService chartRef.ChartRefService) *DeploymentTemplateServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
+) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
 		chartService:                     chartService,
@@ -116,6 +120,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		appRepository:                    appRepository,
 		scopedVariableManager:            scopedVariableManager,
 		chartRefService:                  chartRefService,
+		pipelineOverrideRepository:       pipelineOverrideRepository,
 	}
 }
 
@@ -336,10 +341,11 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
+	pco, err := impl.pipelineOverrideRepository.GetLatestRelease(2, 1)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		ChartName:         template,
 		ChartVersion:      version,
-		ValuesYaml:        valuesYaml,
+		ValuesYaml:        pco.PipelineMergedValues,
 		K8SVersion:        k8sServerVersion.String(),
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
