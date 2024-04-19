@@ -460,7 +460,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAnd
 	installedAppVersion := &InstalledAppVersions{}
 	err := impl.dbConnection.
 		Model(installedAppVersion).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Where("ia.id = ?", installedAppId).
 		Where("ia.environment_id = ?", envId).
