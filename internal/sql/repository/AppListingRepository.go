@@ -443,15 +443,9 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
 	}
-	appWfMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
-	if err != nil {
-		impl.Logger.Warn("unable to fetch app workflow mapping  for pipeline")
-	}
+	appWfMapping, _ := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
 	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
-		parentEnvironmentName, err := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
-		if err != nil {
-			impl.Logger.Warn("unable to fetch app envName for pipeline")
-		}
+		parentEnvironmentName, _ := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
 		deploymentDetail.ParentEnvironmentName = parentEnvironmentName
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
