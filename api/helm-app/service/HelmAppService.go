@@ -964,8 +964,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
 		if clientErrCode.IsFailedPreconditionCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
-		}
-		if clientErrCode.IsInvalidArgumentCode() {
+		} else if clientErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
@@ -985,8 +984,7 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.Inst
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
 		if clientErrCode.IsFailedPreconditionCode() {
 			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
-		}
-		if clientErrCode.IsInvalidArgumentCode() {
+		} else if clientErrCode.IsInvalidArgumentCode() {
 			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return notesTxt, err
