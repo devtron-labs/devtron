@@ -331,19 +331,55 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	//podMetaData := make([]*PodMetadata, 0)
-	duplicateCheck := make(map[string]bool)
+	duplicateCheck := make(map[string]string)
 	if len(newReplicaSets) > 0 {
-		results := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		results, duplicateCheckFromReplicaSet := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
-			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
 		}
+		duplicateCheck = duplicateCheckFromReplicaSet
 	}
+
 	if newPodNames != nil {
-		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
-		for _, meta := range results {
-			if _, ok := duplicateCheck[meta.Name]; !ok {
-				podMetaData = append(podMetaData, meta)
+		podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		containersPodMapping := make(map[string][]*string)
+		initContainersPodMapping := make(map[string][]*string)
+		for _, podMetadataFromPod := range podsMetadataFromPods {
+			if _, ok := duplicateCheck[podMetadataFromPod.Name]; !ok {
+				podMetaData = append(podMetaData, podMetadataFromPod)
+			} else {
+				for _, podMetadataFromReplicaSet := range podMetaData {
+					if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
+						if podMetadataFromPod.Containers != nil {
+							containersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.Containers
+							currentPodParentName := duplicateCheck[podMetadataFromPod.Name]
+							for podName, podParentName := range duplicateCheck {
+								if podParentName == currentPodParentName {
+									containersPodMapping[podName] = podMetadataFromPod.Containers
+								}
+							}
+						}
+						if podMetadataFromPod.InitContainers != nil {
+							initContainersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.InitContainers
+							currentPodParentName := duplicateCheck[podMetadataFromPod.Name]
+							for podName, podParentName := range duplicateCheck {
+								if podParentName == currentPodParentName {
+									initContainersPodMapping[podName] = podMetadataFromPod.InitContainers
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		for _, podMetadataFromPods := range podsMetadataFromPods {
+			if _, ok := duplicateCheck[podMetadataFromPods.Name]; ok {
+				for _, val := range podMetaData {
+					if val.Name == podMetadataFromPods.Name {
+						val.Containers = containersPodMapping[podMetadataFromPods.Name]
+						val.InitContainers = initContainersPodMapping[podMetadataFromPods.Name]
+					}
+				}
 			}
 		}
 	}
