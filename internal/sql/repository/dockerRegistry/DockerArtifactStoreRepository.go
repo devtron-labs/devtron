@@ -172,7 +172,6 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 }
 func (impl DockerArtifactStoreRepositoryImpl) FindAllDockerArtifactCount() (int, error) {
 	dockerArtifactCount, err := impl.dbConnection.Model(&DockerArtifactStore{}).
-		Column("docker_artifact_store.id").
 		Where("docker_artifact_store.active = ?", true).
 		Count()
 	return dockerArtifactCount, err
