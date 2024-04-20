@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Devtron CD Trigger v1.0.0','The plugin enables users to trigger pre/post/deployment of application. It helps users deploy the application that contains dependencies for their current application.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Devtron CD Trigger v1.0.0', 'The plugin enables users to trigger pre/post/deployment of application. It helps users deploy the application that contains dependencies for their current application.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png',false,'now()',1,'now()',1);
 
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)VALUES (nextval('id_seq_plugin_stage_mapping'),
@@ -9,7 +9,14 @@ INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
 E'#!/bin/bash
-
+pipeline_type=$(echo $CI_CD_EVENT | jq -r \'.type\')
+if [[ "$pipeline_type" == "CI" ]]; then
+    triggeredFromAppName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.appName\')
+    triggeredFromPipelineName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.pipelineName\')
+elif [[ "$pipeline_type" == "CD" ]]; then
+    triggeredFromAppName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.extraEnvironmentVariables.APP_NAME\')
+    triggeredFromPipelineName=$(echo $CI_CD_EVENT | jq \'.commonWorkflowRequest.Pipeline.Name\')
+fi
 # Convert CD Workflow Type to uppercase to make it case-insensitive
 TargetTriggerStage=$(echo "$TargetTriggerStage" | tr \'[:lower:]\' \'[:upper:]\')
 
@@ -45,7 +52,7 @@ else
 fi
 
 verify(){
-    local response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$DevtronEndpoint/orchestrator/devtron/auth/verify")
+    local response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/devtron/auth/verify")
     echo $response
     exit 1
 }
@@ -65,7 +72,7 @@ fetch_app_id() {
     if [[ "$DevtronApp" =~ ^[0-9]+$ ]]; then
         echo "$DevtronApp"
     else
-        local api_response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$DevtronEndpoint/orchestrator/app/autocomplete")
+        local api_response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/autocomplete")
         local app_id=$(echo "$api_response" | jq -r --arg app_name "$DevtronApp" \'.result[] | select(.name == $app_name) | .id\')
 
         if [[ -z "$app_id" || "$app_id" == "null" ]]; then
@@ -81,7 +88,7 @@ fetch_env_id() {
     if [[ "$DevtronEnv" =~ ^[0-9]+$ ]]; then
         echo "$DevtronEnv"
     else
-        local api_response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$DevtronEndpoint/orchestrator/env/autocomplete")
+        local api_response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/env/autocomplete")
         local env_id=$(echo "$api_response" | jq -r --arg env_name "$DevtronEnv" \'.result[] | select(.environment_name == $env_name) | .id\')
 
         if [[ -z "$env_id" || "$env_id" == "null" ]]; then
@@ -95,7 +102,7 @@ fetch_env_id() {
 fetch_pipeline_id() {
     local app_id=$1
     local env_id=$2
-    local api_response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$DevtronEndpoint/orchestrator/app/app-wf/view/$app_id")
+    local api_response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/app-wf/view/$app_id")
     local pipeline_id=$(echo "$api_response" | jq -r --arg env_id "$env_id" \'.result.cdConfig.pipelines[] | select(.environmentId == ($env_id | tonumber)) | .id\')
 
     if [[ -z "$pipeline_id" || "$pipeline_id" == "null" ]]; then
@@ -110,7 +117,7 @@ fetch_pipeline_id() {
 fetch_ci_artifact_id() {
     local pipeline_id=$1
     local apiUrl="$DevtronEndpoint/orchestrator/app/cd-pipeline/$pipeline_id/material?offset=0&size=20&stage=$TargetTriggerStage"
-    local apiResponse=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$apiUrl")
+    local apiResponse=$(curl -s -H "token: $DevtronApiToken" "$apiUrl")
 
     local ciArtifactId=""
     if [[ -n "$GitCommitHash" ]]; then
@@ -168,12 +175,16 @@ trigger_cd_pipeline() {
         --arg ciArtifactId "$ciArtifactId" \\
         --arg TargetTriggerStage "$TargetTriggerStage" \\
         --arg deploymentWithConfig "LAST_SAVED_CONFIG" \\
+        --arg triggeredFromAppName "$triggeredFromAppName" \\
+        --arg triggeredFromPipelineName "$triggeredFromPipelineName" \\
         \'{
                                 pipelineId: ($pipelineId | tonumber),
                                 appId: ($appId | tonumber),
                                 ciArtifactId: ($ciArtifactId | tonumber),
                                 cdWorkflowType: $TargetTriggerStage,
-                                deploymentWithConfig: $deploymentWithConfig
+                                deploymentWithConfig: $deploymentWithConfig,
+                                triggeredFromAppName: $triggeredFromAppName,
+                                triggeredFromPipelineName: $triggeredFromPipelineName
                             }\')
 
     curl -sS -X POST "$DevtronEndpoint/orchestrator/app/cd-pipeline/trigger" \\
@@ -184,7 +195,7 @@ trigger_cd_pipeline() {
 }
 
 echo "Triggering CD Pipeline for App ID: $app_id, Pipeline ID: $pipeline_id, CI Artifact ID: $ciArtifactId, and CD Workflow Type: $TargetTriggerStage"
-hello=$(trigger_cd_pipeline "$pipeline_id" "$app_id" "$ciArtifactId")
+cd_pipeline=$(trigger_cd_pipeline "$pipeline_id" "$app_id" "$ciArtifactId")
 
 check_deploy_status() {
     if [ "$StatusTimeOutSeconds" -le "0" ]; then
@@ -254,10 +265,10 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES 
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Devtron API Token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEndpoint','STRING','URL of Devtron','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApp','STRING','Devtron Application name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEnv','STRING','Environment name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'StatusTimeOutSeconds','STRING','Maximum time (in seconds) a user can wait for the application to deploy.Enter a postive integer value','t','t',0,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'GitCommitHash','STRING','Git hash from which user wants to deploy its application. By deault it takes latest Artifact ID to deploy the application','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'TargetTriggerStage','STRING','Trigger Stage PRE/DEPLOY/POST, Default DEPLOY','t','t','DEPLOY',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Enter Devtron API Token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEndpoint','STRING','Enter URL of Devtron','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApp','STRING','Enter the Devtron Application name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEnv','STRING','Enter the Environment name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'StatusTimeOutSeconds','STRING','Enter the maximum time (in seconds) a user can wait for the application to deploy.Enter a postive integer value','t','t',0,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'GitCommitHash','STRING','Enter the git hash from which user wants to deploy its application. By deault it takes latest Artifact ID to deploy the application','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron CD Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'TargetTriggerStage','STRING','Enter Trigger Stage PRE/DEPLOY/POST, Default DEPLOY','t','t','DEPLOY',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
