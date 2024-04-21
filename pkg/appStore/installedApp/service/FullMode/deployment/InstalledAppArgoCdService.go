@@ -87,19 +87,29 @@ func (impl *FullModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName strin
 	return isFound, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
-	if isMonoRepoMigrationRequired {
-		// update repo details on ArgoCD as repo is changed
-		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
-		if err != nil {
-			return err
-		}
+func isArgoCdGitOpsRepoUrlOutOfSync(argoApplication *v1alpha1.Application, gitOpsRepoURLInDb string) bool {
+	if argoApplication != nil && argoApplication.Spec.Source != nil {
+		return argoApplication.Spec.Source.RepoURL != gitOpsRepoURLInDb
 	}
+	return false
+}
+
+func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	acdAppName := installAppVersionRequest.ACDAppName
 	argoApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.Logger.Errorw("Service err:UpdateAndSyncACDApps - error in acd app by name", "acdAppName", acdAppName, "err", err)
 		return err
+	}
+	//if either monorepo case is true or there is diff. in git-ops repo url registered with argo-cd and git-ops repo url saved in db,
+	//then sync argo with git-ops repo url from db because we have already pushed changes to that repo
+	isArgoRepoUrlOutOfSync := isArgoCdGitOpsRepoUrlOutOfSync(argoApplication, installAppVersionRequest.GitOpsRepoURL)
+	if isMonoRepoMigrationRequired || isArgoRepoUrlOutOfSync {
+		// update repo details on ArgoCD as repo is changed
+		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
