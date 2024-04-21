@@ -44,10 +44,12 @@ func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies
 			if parentResourceSchema != nil {
 				kind, subKind := impl.getKindSubKindOfResourceBySchemaObject(parentResourceSchema)
 				parentConfig = &bean.ResourceParentConfig{
-					ResourceKind:    bean.DevtronResourceKind(kind),
-					ResourceSubKind: bean.DevtronResourceKind(subKind),
-					ResourceVersion: bean.DevtronResourceVersion(parentResourceSchema.Version),
-					Id:              parentResourceObjectId,
+					DevtronResourceTypeReq: bean.DevtronResourceTypeReq{
+						ResourceKind:    bean.DevtronResourceKind(kind),
+						ResourceSubKind: bean.DevtronResourceKind(subKind),
+						ResourceVersion: bean.DevtronResourceVersion(parentResourceSchema.Version),
+					},
+					Id: parentResourceObjectId,
 				}
 			}
 		}
