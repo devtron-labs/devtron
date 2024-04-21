@@ -20,6 +20,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,13 +67,15 @@ type AppCrudOperationServiceImpl struct {
 	teamRepository         team.TeamRepository
 	genericNoteService     genericNotes.GenericNoteService
 	gitMaterialRepository  pipelineConfig.MaterialRepository
+	helmAppService         client.HelmAppService
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository,
 	userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
 	teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService,
-	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
+	gitMaterialRepository pipelineConfig.MaterialRepository,
+	helmAppService client.HelmAppService) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -82,6 +85,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		teamRepository:         teamRepository,
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
+		helmAppService:         helmAppService,
 	}
 }
 
@@ -436,14 +440,19 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	var err error
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
-		appName := appIdSplitted[2]
+		appIdDecoded, err := impl.helmAppService.DecodeAppId(appId)
+		if err != nil {
+			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
+			return nil, err
+		}
+		appName := appIdDecoded.GetUniqueAppNameIdentifier()
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appName)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app meta data", "err", err)
 			return nil, err
 		}
 		if app.Id == 0 {
-			app.AppName = appName
+			app.AppName = appIdDecoded.ReleaseName
 		}
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
@@ -462,7 +471,10 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		app.Team.Name = InstalledApp.App.Team.Name
 		app.CreatedBy = InstalledApp.App.CreatedBy
 		app.Active = InstalledApp.App.Active
-
+		if len(InstalledApp.App.DisplayName) > 0 {
+			// in case of external apps, we will send display name as appName will be a unique identifier
+			app.AppName = InstalledApp.App.DisplayName
+		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
 			return nil, err
