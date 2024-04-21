@@ -18,6 +18,7 @@
 package app
 
 import (
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -39,9 +40,10 @@ type AppCrudOperationServiceEnterpriseImpl struct {
 
 func NewAppCrudOperationServiceEnterpriseImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
-	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService, gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceEnterpriseImpl {
+	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService, gitMaterialRepository pipelineConfig.MaterialRepository,
+	helmAppService client.HelmAppService) *AppCrudOperationServiceEnterpriseImpl {
 	return &AppCrudOperationServiceEnterpriseImpl{
-		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService, gitMaterialRepository),
+		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService, gitMaterialRepository, helmAppService),
 		logger:                      logger,
 		globalTagService:            globalTagService,
 		appRepository:               appRepository,
