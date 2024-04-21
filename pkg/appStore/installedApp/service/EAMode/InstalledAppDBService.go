@@ -202,6 +202,9 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 			installedAppVerison.InstalledApp.Environment.Name,
 			installedAppVerison.InstalledApp.UpdatedOn),
 	}
+	if len(installedAppVerison.InstalledApp.App.DisplayName) > 0 {
+		deploymentContainer.AppName = installedAppVerison.InstalledApp.App.DisplayName
+	}
 	userInfo, err := impl.UserService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
 		impl.Logger.Errorw("error fetching user info", "err", err)
