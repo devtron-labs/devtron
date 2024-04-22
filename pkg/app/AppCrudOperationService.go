@@ -435,6 +435,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	appIdSplitted := strings.Split(appId, "|")
 	app := &appRepository.App{}
 	var err error
+	var displayName string
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
 		appIdDecoded, err := impl.helmAppService.DecodeAppId(appId)
@@ -450,6 +451,9 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
+		}
+		if len(app.DisplayName) > 0 {
+			displayName = app.DisplayName
 		}
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
@@ -470,7 +474,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		app.Active = InstalledApp.App.Active
 		if len(InstalledApp.App.DisplayName) > 0 {
 			// in case of external apps, we will send display name as appName will be a unique identifier
-			app.AppName = InstalledApp.App.DisplayName
+			displayName = InstalledApp.App.DisplayName
 		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
@@ -499,6 +503,10 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Active:      app.Active,
+	}
+	if len(displayName) > 0 {
+		//special handling for ext-helm apps where name visible on UI is display name
+		info.AppName = displayName
 	}
 	return info, nil
 }
