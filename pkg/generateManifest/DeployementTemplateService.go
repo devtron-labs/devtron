@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -40,6 +41,10 @@ type DeploymentTemplateRequest struct {
 	DeploymentTemplateHistoryId int                               `json:"deploymentTemplateHistoryId,omitempty"`
 	ResourceName                string                            `json:"resourceName"`
 	PipelineId                  int                               `json:"pipelineId"`
+}
+type RotatePodRequest struct {
+	AppIds []int `json:"appIds"`
+	EnvId  int   `json:"envId"`
 }
 
 type RequestDataMode int
@@ -88,6 +93,7 @@ type DeploymentTemplateServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	chartRefService                  chartRef.ChartRefService
 	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
+	chartRepository                  chartRepoRepository.ChartRepository
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -104,6 +110,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	scopedVariableManager variables.ScopedVariableManager,
 	chartRefService chartRef.ChartRefService,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 ) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
@@ -121,6 +128,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		scopedVariableManager:            scopedVariableManager,
 		chartRefService:                  chartRefService,
 		pipelineOverrideRepository:       pipelineOverrideRepository,
+		chartRepository:                  chartRepository,
 	}
 }
 
@@ -343,12 +351,15 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	}
 	pco, err := impl.pipelineOverrideRepository.GetLatestRelease(2, 1)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
-		ChartName:         template,
-		ChartVersion:      version,
-		ValuesYaml:        pco.PipelineMergedValues,
-		K8SVersion:        k8sServerVersion.String(),
-		ChartRepository:   ChartRepository,
-		ReleaseIdentifier: ReleaseIdentifier,
+		ChartName:       template,
+		ChartVersion:    version,
+		ValuesYaml:      pco.PipelineMergedValues,
+		K8SVersion:      k8sServerVersion.String(),
+		ChartRepository: ChartRepository,
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+			ReleaseNamespace: pco.Pipeline.Environment.Namespace,
+			ReleaseName:      "adi-helm-devtron-demo",
+		},
 		ChartContent: &gRPC.ChartContent{
 			Content: chartBytes,
 		},
@@ -370,6 +381,102 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		}
 		return nil, err
 	}
+	response := &openapi2.TemplateChartResponse{
+		Manifest: &templateChartResponse.GeneratedManifest,
+	}
+
+	return response, nil
+}
+
+type ChartRefResponse struct {
+	RefChart     string
+	ChartName    string
+	ChartVersion string
+}
+
+func (impl DeploymentTemplateServiceImpl) GenerateManifestFor(ctx context.Context, rotatePodRequest RotatePodRequest) (*openapi2.TemplateChartResponse, error) {
+	charts, err := impl.chartRepository.FindLatestChartByAppIds(rotatePodRequest.AppIds)
+	var chartRefIds []int
+	for _, ch := range charts {
+		chartRefIds = append(chartRefIds, ch.ChartRefId)
+	}
+
+	if err != nil {
+		impl.Logger.Errorw("error in getting chart", "err", err, "chart", rotatePodRequest.AppIds)
+		return nil, err
+	}
+	for _, appId := range rotatePodRequest.AppIds {
+
+		chartRefId := chart.ChartRefId
+		refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+			return nil, err
+		}
+		outputChartPathDir := fmt.Sprintf("%s-%v", refChart, strconv.FormatInt(time.Now().UnixNano(), 16))
+		if _, err := os.Stat(outputChartPathDir); os.IsNotExist(err) {
+			err = os.Mkdir(outputChartPathDir, 0755)
+			if err != nil {
+				impl.Logger.Errorw("error in creating temp outputChartPathDir", "err", err, "outputChartPathDir", outputChartPathDir, "chartRefId", chartRefId)
+				return nil, err
+			}
+		}
+		//load chart from given refChart
+		chartTmp, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
+		if err != nil {
+			impl.Logger.Errorw("error in LoadChartFromDir", "err", err, "chartRefId", chartRefId)
+			return nil, err
+		}
+
+		//create the .tgz file in temp location
+		chartBytes, err := impl.chartTemplateServiceImpl.CreateZipFileForChart(chartTmp, outputChartPathDir)
+		if err != nil {
+			impl.Logger.Errorw("error in CreateZipFileForChart", "err", err, "chartRefId", chartRefId)
+			return nil, err
+		}
+
+		//deleted the .tgz temp file after reading chart bytes
+		defer impl.chartTemplateServiceImpl.CleanDir(outputChartPathDir)
+
+		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+		if err != nil {
+			impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+			return nil, err
+		}
+		pco, err := impl.pipelineOverrideRepository.GetLatestRelease(appId, rotatePodRequest.EnvId)
+
+		installReleaseRequest := &gRPC.InstallReleaseRequest{
+			ChartName:       template,
+			ChartVersion:    version,
+			ValuesYaml:      pco.PipelineMergedValues,
+			K8SVersion:      k8sServerVersion.String(),
+			ChartRepository: ChartRepository,
+			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+				ReleaseNamespace: pco.Pipeline.Environment.Namespace,
+				ReleaseName:      "adi-helm-devtron-demo",
+			},
+			ChartContent: &gRPC.ChartContent{
+				Content: chartBytes,
+			},
+		}
+		config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+			return nil, err
+		}
+		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+		templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+		if err != nil {
+			impl.Logger.Errorw("error in templating chart", "err", err)
+			clientErrCode, errMsg := util.GetClientDetailedError(err)
+			if clientErrCode.IsInvalidArgumentCode() {
+				return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+			}
+			return nil, err
+		}
+	}
+
 	response := &openapi2.TemplateChartResponse{
 		Manifest: &templateChartResponse.GeneratedManifest,
 	}

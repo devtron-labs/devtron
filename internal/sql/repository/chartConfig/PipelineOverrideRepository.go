@@ -183,6 +183,18 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 		Select()
 	return overrides, err
 }
+func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds, environmentId int) (pipelineOverrides *PipelineOverride, err error) {
+	overrides := &PipelineOverride{}
+	err = impl.dbConnection.Model(overrides).
+		Column("pipeline_override.*", "Pipeline").
+		//Where("pipeline.app_id =? ", appId).
+		Where("pipeline.app_id in (?)", pg.In(appIds)).
+		//Where("pipeline.environment_id =?", environmentId).
+		Order("id DESC").
+		Limit(1).
+		Select()
+	return overrides, err
+}
 
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error) {
 	var overrides []*PipelineOverride

@@ -8,6 +8,11 @@ type PodRotateRequest struct {
 	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
 	UserId              int32                      `json:"-"`
 }
+type PodRotateRequestBulk struct {
+	EnvironmentId       int                        `json:"environmentId" validate:"required"`
+	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
+	UserId              int32                      `json:"-"`
+}
 
 type RequestType string
 

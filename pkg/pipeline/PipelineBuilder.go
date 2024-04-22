@@ -20,7 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"net/url"
 	"strings"
 	"time"
@@ -295,8 +295,7 @@ type PipelineStrategy struct {
 	Default            bool                                   `json:"default"`
 }
 type RestartPodResponse struct {
-	PipelineStrategy []PipelineStrategy        `json:"pipelineStrategy"`
-	Nodes            []*v1alpha12.ResourceNode `json:"nodes"`
+	RestartPodMap map[int]bean3.PodRotateRequestBulk `json:"RestartPodMap"`
 }
 
 func checkAppReleaseNotExist(err error) bool {

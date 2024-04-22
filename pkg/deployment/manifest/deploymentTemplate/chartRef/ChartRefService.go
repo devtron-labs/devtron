@@ -52,6 +52,7 @@ type ChartRefFileOpService interface {
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
 	GetRefChart(chartRefId int) (string, string, string, string, error)
+	GetRefChartBulk(chartRefId []int) (string, string, string, string, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error)
 	GetChartInBytes(chartRefId int) ([]byte, error)
 }
@@ -221,6 +222,62 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, st
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
 		return "", "", "", "", err
 	}
+	return chartPath, template, version, pipelineStrategyPath, nil
+}
+func (impl *ChartRefServiceImpl) GetRefChartBulk(chartRefId []int) (string, string, string, string, error) {
+	var template string
+	var version string
+	//path of file in chart from where strategy config is to be taken
+	var pipelineStrategyPath string
+	chartRefs, err := impl.chartRefRepository.FindByIds(chartRefId)
+	for _, chartRef := range chartRefs {
+		if chartRef.Id > 0 {
+			//chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+			if err != nil {
+				chartRef, err = impl.chartRefRepository.GetDefault()
+				if err != nil {
+					return "", "", "", "", err
+				}
+			} else if chartRef.UserUploaded {
+				refChartLocation := filepath.Join(bean.RefChartDirPath, chartRef.Location)
+				if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
+					chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, bean.RefChartDirPath, chartRef.Location)
+					if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+						err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+						if err1 != nil {
+							impl.logger.Errorw("error in deleting temp dir ", "err", err)
+						}
+					}
+					if err != nil {
+						impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+						return "", "", "", "", err
+					}
+
+				}
+			}
+			template = chartRef.Location
+			version = chartRef.Version
+			pipelineStrategyPath = chartRef.DeploymentStrategyPath
+		}
+		//else {
+		//	chartRef, err := impl.chartRefRepository.GetDefault()
+		//	if err != nil {
+		//		return "", "", "", "", err
+		//	}
+		//	template = chartRef.Location
+		//	version = chartRef.Version
+		//	pipelineStrategyPath = chartRef.DeploymentStrategyPath
+		//}
+
+		//TODO VIKI- fetch from chart ref table
+		chartPath := path.Join(bean.RefChartDirPath, template)
+		valid, err := chartutil.IsChartDir(chartPath)
+		if err != nil || !valid {
+			impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
+			return "", "", "", "", err
+		}
+	}
+
 	return chartPath, template, version, pipelineStrategyPath, nil
 }
 

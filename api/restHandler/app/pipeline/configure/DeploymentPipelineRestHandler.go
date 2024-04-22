@@ -958,6 +958,46 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
+func (handler *PipelineConfigRestHandlerImpl) GetDataForRotatePod(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	var request generateManifest.DeploymentTemplateRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, GetDeploymentTemplate by API", "err", err, "GetYaluesAndManifest", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.Logger.Errorw("request err, userId", "err", err, "payload", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	//RBAC enforcer Ends
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	defer cancel()
+	//TODO fix
+	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
 
 func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
