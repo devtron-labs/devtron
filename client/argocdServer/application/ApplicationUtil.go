@@ -515,3 +515,48 @@ func getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[strin
 	//TODO - new or old logic
 	return
 }
+
+func updatePodMetadataWithDuplicateMapping(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool, duplicatePodToReplicasetMapping map[string]string, podMetaData []*argoApplication.PodMetadata) []*argoApplication.PodMetadata {
+	podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+	containersPodMapping := make(map[string][]*string)
+	initContainersPodMapping := make(map[string][]*string)
+	for _, podMetadataFromPod := range podsMetadataFromPods {
+		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]; !ok {
+			podMetaData = append(podMetaData, podMetadataFromPod)
+		} else {
+			for _, podMetadataFromReplicaSet := range podMetaData {
+				if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
+					if podMetadataFromPod.Containers != nil {
+						containersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.Containers
+						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+						for podName, podParentName := range duplicatePodToReplicasetMapping {
+							if podParentName == currentPodParentName {
+								containersPodMapping[podName] = podMetadataFromPod.Containers
+							}
+						}
+					}
+					if podMetadataFromPod.InitContainers != nil {
+						initContainersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.InitContainers
+						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+						for podName, podParentName := range duplicatePodToReplicasetMapping {
+							if podParentName == currentPodParentName {
+								initContainersPodMapping[podName] = podMetadataFromPod.InitContainers
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	for _, podMetadataFromPods := range podsMetadataFromPods {
+		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPods.Name]; ok {
+			for _, val := range podMetaData {
+				if val.Name == podMetadataFromPods.Name {
+					val.Containers = containersPodMapping[podMetadataFromPods.Name]
+					val.InitContainers = initContainersPodMapping[podMetadataFromPods.Name]
+				}
+			}
+		}
+	}
+	return podMetaData
+}
