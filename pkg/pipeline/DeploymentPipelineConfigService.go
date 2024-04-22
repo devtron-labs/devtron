@@ -2462,15 +2462,16 @@ func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []in
 
 	for _, pipeline := range pipelines {
 		cdPipeline := &bean.CDPipelineMinConfig{
-			Id:                pipeline.Id,
-			CiPipelineId:      pipeline.CiPipelineId,
-			EnvironmentId:     pipeline.EnvironmentId,
-			EnvironmentName:   pipeline.EnvironmentName,
-			IsProdEnv:         pipeline.Default,
-			AppId:             pipeline.AppId,
-			AppName:           pipeline.AppName,
-			TeamId:            pipeline.TeamId,
-			DeploymentAppType: pipeline.DeploymentAppType,
+			Id:                    pipeline.Id,
+			CiPipelineId:          pipeline.CiPipelineId,
+			EnvironmentId:         pipeline.EnvironmentId,
+			EnvironmentName:       pipeline.EnvironmentName,
+			EnvironmentIdentifier: pipeline.EnvironmentIdentifier,
+			IsProdEnv:             pipeline.Default,
+			AppId:                 pipeline.AppId,
+			AppName:               pipeline.AppName,
+			TeamId:                pipeline.TeamId,
+			DeploymentAppType:     pipeline.DeploymentAppType,
 		}
 		cdPipelines = append(cdPipelines, cdPipeline)
 
@@ -2493,6 +2494,7 @@ func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByAppAndEnv(appId, envId
 		CiPipelineId:               pipeline.CiPipelineId,
 		EnvironmentId:              pipeline.EnvironmentId,
 		EnvironmentName:            pipeline.EnvironmentName,
+		EnvironmentIdentifier:      pipeline.EnvironmentIdentifier,
 		Namespace:                  pipeline.Namespace,
 		IsProdEnv:                  pipeline.Default,
 		AppId:                      pipeline.AppId,

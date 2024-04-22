@@ -1837,7 +1837,7 @@ func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bea
 		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
 		return nil, err
 	}
-	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentName, teamObj.Name, bean3.ArtifactPromoter)
+	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentIdentifier, teamObj.Name, bean3.ArtifactPromoter)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promotion approver emails allowed on env", "envName", pipeline.EnvironmentName, "appName", pipeline.AppName, "err", err)
 		return nil, err

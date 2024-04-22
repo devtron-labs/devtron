@@ -638,6 +638,7 @@ type CDPipelineMinConfig struct {
 	CiPipelineId               int
 	EnvironmentId              int
 	EnvironmentName            string
+	EnvironmentIdentifier      string
 	Namespace                  string
 	IsProdEnv                  bool
 	AppId                      int

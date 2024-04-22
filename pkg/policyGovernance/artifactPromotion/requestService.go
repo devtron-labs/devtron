@@ -1195,7 +1195,7 @@ func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationReques
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
 
-	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.Name, team.Name, bean5.ArtifactPromoter)
+	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, team.Name, bean5.ArtifactPromoter)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promoter access emails", "appName", pipeline.App.AppName, "envName", pipeline.Environment.Name, "team", team.Name, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err

@@ -78,6 +78,7 @@ type PipelineMetadata struct {
 	CiPipelineId               int    `sql:"ci_pipeline_id"`
 	EnvironmentId              int    `sql:"environment_id"`
 	EnvironmentName            string `sql:"environment_name"`
+	EnvironmentIdentifier      string `sql:"environment_identifier"`
 	Namespace                  string `sql:"namespace"`
 	Default                    bool   `sql:"default"`
 	AppId                      int    `sql:"app_id"`
@@ -251,7 +252,7 @@ func (impl PipelineRepositoryImpl) FindMetadataByIdsIn(ids []int, includeDeleted
 	query := impl.dbConnection.
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
-			"e.environment_name", "e.default",
+			"e.environment_name", "e.default", "e.environment_identifier",
 			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
 			"e.namespace",
 			"a.team_id", "a.app_name").
@@ -465,7 +466,7 @@ func (impl PipelineRepositoryImpl) FindMetadataById(id int, includeDeleted bool)
 	query := impl.dbConnection.
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
-			"e.environment_name", "e.default",
+			"e.environment_name", "e.default", "e.environment_identifier",
 			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
 			"e.namespace",
 			"a.team_id", "a.app_name").
@@ -485,7 +486,7 @@ func (impl PipelineRepositoryImpl) FindMetadataByAppAndEnv(appId, envId int, env
 	query := impl.dbConnection.
 		Model((*Pipeline)(nil)).
 		Column("pipeline.id", "pipeline.app_id", "pipeline.ci_pipeline_id", "pipeline.environment_id", "pipeline.deployment_app_type",
-			"e.environment_name", "e.default",
+			"e.environment_name", "e.default", "e.environment_identifier",
 			"pipeline.deployment_app_created", "pipeline.deployment_app_delete_request", "pipeline.pipeline_name",
 			"e.namespace",
 			"a.team_id", "a.app_name").
