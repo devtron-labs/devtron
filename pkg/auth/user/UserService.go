@@ -24,7 +24,6 @@ import (
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1240,9 +1239,7 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		return http.StatusUnauthorized, "", err
 	}
 	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
-		tokenName := userHelper.ExtractTokenNameFromEmail(email)
-		embeddedTokenVersion, _ := strconv.Atoi(version)
-		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+		isProvidedTokenValid, err := userHelper.CheckIfTokenIsValid(email, version, impl.userRepository)
 		if err != nil || !isProvidedTokenValid {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
 			err := &util.ApiError{

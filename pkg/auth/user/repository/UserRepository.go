@@ -46,7 +46,7 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	CheckIfUserIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
+	CheckIfTokenIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
 type UserRepositoryImpl struct {
@@ -244,7 +244,7 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) CheckIfUserIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
+func (impl UserRepositoryImpl) CheckIfTokenIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
 	dbTokenVersion := 0
 	query := "SELECT t.version FROM api_token t WHERE t.name = ?"
 	_, err := impl.dbConnection.Query(&dbTokenVersion, query, tokenName)

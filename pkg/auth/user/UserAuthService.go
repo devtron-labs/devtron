@@ -27,7 +27,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -491,9 +490,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		return false, err
 	}
 	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
-		tokenName := helper.ExtractTokenNameFromEmail(emailId)
-		embeddedTokenVersion, _ := strconv.Atoi(version)
-		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+		isProvidedTokenValid, err := helper.CheckIfTokenIsValid(emailId, version, impl.userRepository)
 		if err != nil || !isProvidedTokenValid {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
 			err := &util.ApiError{
@@ -509,6 +506,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	//TODO - extends for other purpose
 	return true, nil
 }
+
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
 	var roleModels []*repository.RoleModel
 	switch entityType {
