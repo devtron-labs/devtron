@@ -54,7 +54,7 @@ type RequestRepository interface {
 	MarkStaleByAppEnvIds(tx *pg.Tx, commaSeperatedAppEnvIds [][]int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int, userId int32) error
 	MarkCancel(requestId int, userId int32) (rowsAffected int, err error)
-	GetArtifactsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error)
+	GetRequestsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error)
 	HasUserApprovedRequest(artifactId, pipelineId int, userId int32) (bool, error)
 }
 
@@ -268,17 +268,17 @@ func (repo *RequestRepositoryImpl) MarkCancel(requestId int, userId int32) (rows
 	return res.RowsAffected(), err
 }
 
-func (repo *RequestRepositoryImpl) GetArtifactsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error) {
-	var ciArtifactIds []int
+func (repo *RequestRepositoryImpl) GetRequestsApprovedByUserForPipelines(pipelineIds []int, userId int32) ([]int, error) {
+	var ids []int
 	if len(pipelineIds) == 0 {
-		return ciArtifactIds, nil
+		return ids, nil
 	}
 	err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
-		Column("artifact_promotion_approval_request.artifact_id").
+		Column("artifact_promotion_approval_request.id").
 		Join("inner join request_approval_user_data on artifact_promotion_approval_request.id = request_approval_user_data.approval_request_id and request_type = ? ", models.ARTIFACT_PROMOTION_APPROVAL).
 		Where("request_approval_user_data.user_id = ? and artifact_promotion_approval_request.status = ? and artifact_promotion_approval_request.destination_pipeline_id in (?)", userId, constants.AWAITING_APPROVAL, pg.In(pipelineIds)).
-		Select(&ciArtifactIds)
-	return ciArtifactIds, err
+		Select(&ids)
+	return ids, err
 }
 
 func (repo *RequestRepositoryImpl) HasUserApprovedRequest(artifactId, pipelineId int, userId int32) (bool, error) {

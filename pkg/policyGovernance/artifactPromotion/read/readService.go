@@ -36,6 +36,8 @@ type ArtifactPromotionDataReadService interface {
 	GetAllPoliciesNameForAutocomplete(ctx *util2.RequestCtx) ([]string, error)
 	GetPendingRequestMapping(ctx *util2.RequestCtx, pipelineIds []int) (map[int]int, error)
 	GetPolicyHistoryIdsByPolicyIds(policyIds []int) ([]int, error)
+
+	// GetArtifactsApprovedByUserForPipeline gets the artifacts which the given user approved them to their respective destination pipelines.
 	GetArtifactsApprovedByUserForPipeline(ctx *util2.RequestCtx, cdPipelineIds []int) ([]int, error)
 	IsUserApprover(artifactId, pipelineId int, userId int32) (bool, error)
 }
@@ -519,13 +521,50 @@ func (impl *ArtifactPromotionDataReadServiceImpl) GetPolicyHistoryIdsByPolicyIds
 	return impl.globalPolicyDataManager.GetPolicyHistoryIdsByPolicyIds(policyIds)
 }
 
+// GetArtifactsApprovedByUserForPipeline gets the artifacts which the given user approved them to their respective destination pipelines.
 func (impl *ArtifactPromotionDataReadServiceImpl) GetArtifactsApprovedByUserForPipeline(ctx *util2.RequestCtx, cdPipelineIds []int) ([]int, error) {
-	ciArtifactIds, err := impl.artifactPromotionApprovalRequestRepository.GetArtifactsApprovedByUserForPipelines(cdPipelineIds, ctx.GetUserId())
+	// 1) get the pending requests for the given destination pipelines.
+	// 2) get the requests that user already approved for the given destination pipelines.
+	// 3) filter out artifact id's for which given user has given approvals
+
+	// requests are the pending requests
+	requests, err := impl.artifactPromotionApprovalRequestRepository.FindPendingByDestinationPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pending requests for destinationPipelines", "destinationPipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
+	requestsMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
+	ciArtifactPendingRequestCountMap := make(map[int]int)
+	for i, request := range requests {
+		if request != nil {
+			requestsMap[requests[i].Id] = requests[i]
+			//  capturing no of pending requests present for this artifact and are not approved by the given user for the given destination pipelines
+			ciArtifactPendingRequestCountMap[request.ArtifactId] += 1
+		}
+	}
+
+	// requestIds are the requests which were already approved by user
+	requestIds, err := impl.artifactPromotionApprovalRequestRepository.GetRequestsApprovedByUserForPipelines(cdPipelineIds, ctx.GetUserId())
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts already approved by user", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
-	return ciArtifactIds, nil
+
+	artifactIds := make([]int, 0, len(ciArtifactPendingRequestCountMap))
+	for _, requestId := range requestIds {
+		request := requestsMap[requestId]
+		if request != nil {
+			// since the request is approved by the user, we will decrease the pending count for this artifact by 1
+			ciArtifactPendingRequestCountMap[request.ArtifactId] -= 1
+
+			// if below condition is true , then the user has approved all the requests for this artifact which were raised against the given destination pipelines
+			if ciArtifactPendingRequestCountMap[request.ArtifactId] == 0 {
+				artifactIds = append(artifactIds, request.ArtifactId)
+			}
+		}
+	}
+
+	return artifactIds, nil
 }
 
 func (impl *ArtifactPromotionDataReadServiceImpl) IsUserApprover(artifactId, pipelineId int, userId int32) (bool, error) {
