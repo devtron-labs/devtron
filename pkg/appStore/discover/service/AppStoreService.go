@@ -75,7 +75,6 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 		ValuesYaml:              chartDetails.ValuesYaml,
 		ChartYaml:               chartDetails.ChartYaml,
 		AppStoreId:              chartDetails.AppStoreId,
-		Latest:                  chartDetails.Latest,
 		CreatedOn:               chartDetails.CreatedOn,
 		UpdatedOn:               chartDetails.UpdatedOn,
 		RawValues:               chartDetails.RawValues,

@@ -148,7 +148,8 @@ type PipelineRepository interface {
 	FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error)
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
-	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
+	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
+	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
@@ -638,12 +639,17 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*").
+func (impl PipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
+}
+func (impl PipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
+		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
+		Count()
+	return pipelineCount, err
 }
 func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
