@@ -381,7 +381,6 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 	timedCtx, _ := context.WithTimeout(sessionCtx, 60*time.Second)
 	select {
 	case <-session.bound:
-		close(session.bound)
 
 		var err error
 		if isValidShell(validShells, request.Shell) {
@@ -407,7 +406,6 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
 	case <-timedCtx.Done():
 		// handle case when connection has not been initiated from FE side within particular time
-		close(session.bound)
 		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
 	}
 }
