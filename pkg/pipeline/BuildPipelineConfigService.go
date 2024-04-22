@@ -29,8 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -495,7 +497,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -570,7 +572,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+			PipelineType:             CiPipeline.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -658,7 +660,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
 			return nil, err
@@ -714,7 +716,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+		PipelineType:             CiPipeline.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -838,7 +840,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+			PipelineType:             CiPipeline.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -887,7 +889,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCi(appId int) (ciConfig []*b
 		return nil, err
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1019,7 +1021,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiById(appId int, externalCi
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1204,7 +1206,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
-			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(pipelineConfigBean.CI_JOB) {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(CiPipeline.CI_JOB) {
 				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
@@ -1236,7 +1238,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 	if pipelineExists {
 		err = &utils.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "pipeline name already exist"}
 		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, fmt.Errorf(pipelineConfigBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
+		return nil, fmt.Errorf(CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
 	}
 
 	if request.IsSwitchCiPipelineRequest() {
@@ -1260,17 +1262,17 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
-	if request.CiPipeline.PipelineType == pipelineConfigBean.CI_JOB {
+	if request.CiPipeline.PipelineType == CiPipeline.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
 			DockerRepository: ciConfig.DockerRepository,
-			CiBuildConfig: &pipelineConfigBean.CiBuildConfigBean{
+			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
 				Id:                        0,
 				GitMaterialId:             request.CiPipeline.CiMaterial[0].GitMaterialId,
 				BuildContextGitMaterialId: request.CiPipeline.CiMaterial[0].GitMaterialId,
 				UseRootBuildContext:       false,
-				CiBuildType:               pipelineConfigBean.SKIP_BUILD_TYPE,
+				CiBuildType:               CiPipeline.SKIP_BUILD_TYPE,
 				DockerBuildConfig:         nil,
 				BuildPackConfig:           nil,
 			},
@@ -1453,15 +1455,15 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := pipelineConfigBean.NORMAL
+		pipelineType := CiPipeline.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = pipelineConfigBean.LINKED
+			pipelineType = CiPipeline.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = pipelineConfigBean.EXTERNAL
-		} else if pipeline.PipelineType == string(pipelineConfigBean.CI_JOB) {
-			pipelineType = pipelineConfigBean.CI_JOB
+			pipelineType = CiPipeline.EXTERNAL
+		} else if pipeline.PipelineType == string(CiPipeline.CI_JOB) {
+			pipelineType = CiPipeline.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1584,7 +1586,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 		return nil, err
 	}
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -1678,7 +1680,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-				PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
+				PipelineType:             CiPipeline.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {
@@ -1870,7 +1872,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err
 	}
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err
