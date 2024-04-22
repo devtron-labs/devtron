@@ -40,6 +40,7 @@ import (
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
+	"net/http"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1447,7 +1448,7 @@ func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata
 	case constants.PromotionRequestStale, constants.ArtifactPromotionRequestNotFoundErr:
 		status = bean.RequestCancelled
 	default:
-		status = bean.Errored
+		return nil, interalUtil.NewApiError().WithUserMessage(approvalResponse[0].PromotionValidationMessage).WithHttpStatusCode(http.StatusForbidden)
 	}
 
 	return &client.PromotionApprovalResponse{
