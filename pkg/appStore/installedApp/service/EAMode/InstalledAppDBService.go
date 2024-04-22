@@ -197,14 +197,11 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
-		HelmPackageName: adapter.GetGeneratedHelmPackageName(
-			installedAppVerison.InstalledApp.App.AppName,
-			installedAppVerison.InstalledApp.Environment.Name,
-			installedAppVerison.InstalledApp.UpdatedOn),
 	}
 	if len(installedAppVerison.InstalledApp.App.DisplayName) > 0 {
 		deploymentContainer.AppName = installedAppVerison.InstalledApp.App.DisplayName
 	}
+	deploymentContainer.HelmPackageName = adapter.GetGeneratedHelmPackageName(deploymentContainer.AppName, deploymentContainer.EnvironmentName, installedAppVerison.InstalledApp.UpdatedOn)
 	userInfo, err := impl.UserService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
 		impl.Logger.Errorw("error fetching user info", "err", err)
