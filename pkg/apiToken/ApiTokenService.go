@@ -170,9 +170,9 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 	var apiTokenExists bool
 	if apiToken != nil && apiToken.Id > 0 {
-		//apiTokenExists = true
+		apiTokenExists = true
 		if apiToken.User.Active {
-			//return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
+			return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
 		}
 	}
 
@@ -233,6 +233,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 	if err != nil {
 		impl.logger.Errorw("error while saving api-token into DB", "error", err)
+		// fetching error code from pg error for Unique key violation constraint
 		pgErr, ok := err.(pg.Error)
 		if ok {
 			errCode, conversionErr := strconv.Atoi(pgErr.Field('C'))
