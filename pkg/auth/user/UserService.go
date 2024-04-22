@@ -1238,6 +1238,9 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		}
 		return http.StatusUnauthorized, "", err
 	}
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
 	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
 		isProvidedTokenValid, err := userHelper.CheckIfTokenIsValid(email, version, impl.userRepository)
 		if err != nil || !isProvidedTokenValid {

@@ -489,6 +489,9 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
 	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
 		isProvidedTokenValid, err := helper.CheckIfTokenIsValid(emailId, version, impl.userRepository)
 		if err != nil || !isProvidedTokenValid {

@@ -245,12 +245,14 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 }
 
 func (impl UserRepositoryImpl) CheckIfTokenIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
-	dbTokenVersion := 0
-	query := "SELECT t.version FROM api_token t WHERE t.name = ?"
-	_, err := impl.dbConnection.Query(&dbTokenVersion, query, tokenName)
+	query := "SELECT t.id FROM api_token t WHERE t.name = ? and t.version = ?"
+	res, err := impl.dbConnection.Exec(query, tokenName, tokenVersion)
 	if err != nil {
 		impl.Logger.Error(err)
 		return false, err
 	}
-	return dbTokenVersion == tokenVersion, nil
+	if res.RowsReturned() > 0 {
+		return true, nil
+	}
+	return false, nil
 }
