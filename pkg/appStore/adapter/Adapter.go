@@ -142,7 +142,7 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 // GenerateInstallAppVersionMinDTO converts repository.InstalledApps db object to appStoreBean.InstallAppVersionDTO bean;
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data
 func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
-	return &appStoreBean.InstallAppVersionDTO{
+	installAppVersionDto := &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:        installedApp.EnvironmentId,
 		InstalledAppId:       installedApp.Id,
 		AppId:                installedApp.AppId,
@@ -156,6 +156,10 @@ func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *ap
 		DeploymentAppType:    installedApp.DeploymentAppType,
 		IsVirtualEnvironment: installedApp.Environment.IsVirtualEnvironment,
 	}
+	if len(installedApp.App.DisplayName) > 0 {
+		installAppVersionDto.AppName = installedApp.App.DisplayName
+	}
+	return installAppVersionDto
 }
 
 func GetGeneratedHelmPackageName(appName, envName string, updatedOn time.Time) string {
