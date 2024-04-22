@@ -37,7 +37,7 @@ The **Ignore Cache** option ignores the previous build cache and creates a fresh
 Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to pass build parameters.
 {% endhint %}
 
-If you wish to pass runtime parameters for a build job, you can provide key-value pairs before triggering the build. Thereafter, you can access those passed values using the keys of your environment variables.
+If you wish to pass runtime parameters for a build job, you can provide key-value pairs before triggering the build. Thereafter, you can access those passed values by referencing the corresponding keys in the environment variable dictionary.
 
 **Steps**
 
