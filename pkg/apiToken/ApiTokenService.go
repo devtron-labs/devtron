@@ -225,7 +225,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		apiTokenSaveRequest.CreatedBy = apiToken.CreatedBy
 		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
 		apiTokenSaveRequest.UpdatedBy = createdBy
-		err = impl.apiTokenRepository.UpdateConcurrently(apiTokenSaveRequest)
+		err = impl.apiTokenRepository.UpdateIf(apiTokenSaveRequest, apiToken.Version)
 	} else {
 		apiTokenSaveRequest.CreatedBy = createdBy
 		apiTokenSaveRequest.CreatedOn = time.Now()
@@ -284,7 +284,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	apiToken.ExpireAtInMs = *request.ExpireAtInMs
 	apiToken.UpdatedBy = updatedBy
 	apiToken.UpdatedOn = time.Now()
-	err = impl.apiTokenRepository.UpdateConcurrently(apiToken)
+	err = impl.apiTokenRepository.UpdateIf(apiToken, apiToken.Version)
 	if err != nil {
 		impl.logger.Errorw("error while updating api-token", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
