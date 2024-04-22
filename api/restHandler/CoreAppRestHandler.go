@@ -2143,6 +2143,26 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 				if ciPipeline.AppId != workflow.CiPipeline.ParentAppId {
 					return fmt.Errorf("invalid parentAppId '%v' for the given parentCiPipeline '%v'", workflow.CiPipeline.ParentAppId, workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
 				}
+				parentMaterialMap := make(map[int]*pipelineConfig.CiPipelineMaterial)
+				for _, material := range ciPipeline.CiPipelineMaterials {
+					parentMaterialMap[material.GitMaterialId] = material
+				}
+				matchedMaterials := 0
+				for _, requestPipelineMaterial := range workflow.CiPipeline.CiPipelineMaterialsConfig {
+					parentMaterial, ok := parentMaterialMap[requestPipelineMaterial.GitMaterialId]
+					if !ok {
+						return fmt.Errorf("invalid material id - request material id should match parent material id for linked ci,  request material id - '%v' ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Value != parentMaterial.Value {
+						return fmt.Errorf(" parentMaterialValue and request material value should match for linked ci - parent material value - %v child value %v ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Type != parentMaterial.Type {
+
+					}
+					if requestPipelineMaterial.CheckoutPath != parentMaterial.CheckoutPath {
+
+					}
+				}
 			}
 			ciMaterialCheckoutPaths := make([]string, 0)
 			for _, ciPipelineMaterialConfig := range workflow.CiPipeline.CiPipelineMaterialsConfig {
