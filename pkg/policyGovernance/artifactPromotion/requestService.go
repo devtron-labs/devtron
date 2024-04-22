@@ -866,6 +866,19 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 				respMap[env] = resp
 			}
 		}
+	} else {
+		artifact := metadata.GetCiArtifact()
+		switch metadata.GetSourceTypeStr() {
+		case constants.SOURCE_TYPE_CI, constants.SOURCE_TYPE_LINKED_CI, constants.SOURCE_TYPE_LINKED_CD, constants.SOURCE_TYPE_JOB_CI:
+			if artifact.PipelineId != metadata.GetSourcePipelineId() {
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactSourceMisMatch).WithInternalMessage(constants.ArtifactSourceMisMatch)
+			}
+		case constants.SOURCE_TYPE_WEBHOOK:
+			if artifact.ExternalCiPipelineId != metadata.GetSourcePipelineId() {
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactSourceMisMatch).WithInternalMessage(constants.ArtifactSourceMisMatch)
+			}
+		}
+
 	}
 	return respMap, nil
 }
