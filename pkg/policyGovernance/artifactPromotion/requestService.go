@@ -510,7 +510,14 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx *util3.Requ
 	}
 
 	if len(promotionRequests) == 0 {
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr)
+		result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
+		for _, resp := range responseMap {
+			resp.PromotionValidationState = constants.ERROR
+			resp.PromotionValidationMessage = constants.ArtifactPromotionRequestNotFoundErr
+			result = append(result, resp)
+
+		}
+		return result, nil
 	}
 	// policies fetched form above policy ids
 	policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(ctx, request.AppId, metadata.GetActiveAuthorisedPipelineEnvIds())

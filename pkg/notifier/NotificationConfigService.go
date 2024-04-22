@@ -37,10 +37,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	util3 "github.com/devtron-labs/devtron/util"
+	util "github.com/devtron-labs/devtron/util/event"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
-
-	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
