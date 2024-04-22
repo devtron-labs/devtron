@@ -331,13 +331,13 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	//podMetaData := make([]*PodMetadata, 0)
-	duplicateCheck := make(map[string]string)
+	duplicatePodToReplicasetMapping := make(map[string]string)
 	if len(newReplicaSets) > 0 {
-		results, duplicateCheckFromReplicaSet := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		results, duplicateMapping := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
 			podMetaData = append(podMetaData, meta)
 		}
-		duplicateCheck = duplicateCheckFromReplicaSet
+		duplicatePodToReplicasetMapping = duplicateMapping
 	}
 
 	if newPodNames != nil {
@@ -345,15 +345,15 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		containersPodMapping := make(map[string][]*string)
 		initContainersPodMapping := make(map[string][]*string)
 		for _, podMetadataFromPod := range podsMetadataFromPods {
-			if _, ok := duplicateCheck[podMetadataFromPod.Name]; !ok {
+			if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]; !ok {
 				podMetaData = append(podMetaData, podMetadataFromPod)
 			} else {
 				for _, podMetadataFromReplicaSet := range podMetaData {
 					if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
 						if podMetadataFromPod.Containers != nil {
 							containersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.Containers
-							currentPodParentName := duplicateCheck[podMetadataFromPod.Name]
-							for podName, podParentName := range duplicateCheck {
+							currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+							for podName, podParentName := range duplicatePodToReplicasetMapping {
 								if podParentName == currentPodParentName {
 									containersPodMapping[podName] = podMetadataFromPod.Containers
 								}
@@ -361,8 +361,8 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 						}
 						if podMetadataFromPod.InitContainers != nil {
 							initContainersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.InitContainers
-							currentPodParentName := duplicateCheck[podMetadataFromPod.Name]
-							for podName, podParentName := range duplicateCheck {
+							currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+							for podName, podParentName := range duplicatePodToReplicasetMapping {
 								if podParentName == currentPodParentName {
 									initContainersPodMapping[podName] = podMetadataFromPod.InitContainers
 								}
@@ -373,7 +373,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			}
 		}
 		for _, podMetadataFromPods := range podsMetadataFromPods {
-			if _, ok := duplicateCheck[podMetadataFromPods.Name]; ok {
+			if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPods.Name]; ok {
 				for _, val := range podMetaData {
 					if val.Name == podMetadataFromPods.Name {
 						val.Containers = containersPodMapping[podMetadataFromPods.Name]

@@ -401,7 +401,7 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 
 func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) ([]*argoApplication.PodMetadata, map[string]string) {
 	replicaSets := make(map[string]map[string]interface{})
-	replicasetPodMapping := make(map[string]string)
+	podToReplicasetMapping := make(map[string]string)
 	var podMetadata []*argoApplication.PodMetadata
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
@@ -424,13 +424,13 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 				}
 				replicaSet := replicaSets[parentName]
 				containers, intContainers := getReplicaSetContainers(replicaSet)
-				replicasetPodMapping[node.Name] = parentName
+				podToReplicasetMapping[node.Name] = parentName
 				metadata := argoApplication.PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
 				podMetadata = append(podMetadata, &metadata)
 			}
 		}
 	}
-	return podMetadata, replicasetPodMapping
+	return podMetadata, podToReplicasetMapping
 }
 
 func getReplicaSetContainers(resource map[string]interface{}) (containers []*string, intContainers []*string) {
