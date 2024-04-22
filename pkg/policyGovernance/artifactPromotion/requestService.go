@@ -556,6 +556,7 @@ func (impl *ApprovalRequestServiceImpl) approveRequests(ctx *util3.RequestCtx, m
 
 		if !policyIdMap[promotionRequest.PolicyId].CanApprove(promotionRequest.CreatedBy, metadata.GetCiArtifact().CreatedBy, ctx.GetUserId()) {
 			resp.PromotionValidationMessage = constants.BLOCKED_BY_POLICY
+			continue
 		}
 		promotionRequestApprovedUserData := &pipelineConfig.RequestApprovalUserData{
 			ApprovalRequestId: promotionRequest.Id,
