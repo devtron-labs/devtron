@@ -38,11 +38,13 @@ type ApiToken struct {
 }
 
 type ApiTokenRepository interface {
-	Save(apiToken *ApiToken) error
-	Update(apiToken *ApiToken) error
+	GetConnection() *pg.DB
+	Save(tx *pg.Tx, apiToken *ApiToken) error
+	Update(tx *pg.Tx, apiToken *ApiToken) error
 	FindAllActive() ([]*ApiToken, error)
 	FindActiveById(id int) (*ApiToken, error)
 	FindByName(name string) (*ApiToken, error)
+	CheckIfTokenExistsByNameAndVersion(tx *pg.Tx, name string, version int) (bool, error)
 }
 
 type ApiTokenRepositoryImpl struct {
@@ -53,12 +55,16 @@ func NewApiTokenRepositoryImpl(dbConnection *pg.DB) *ApiTokenRepositoryImpl {
 	return &ApiTokenRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl ApiTokenRepositoryImpl) Save(apiToken *ApiToken) error {
-	return impl.dbConnection.Insert(apiToken)
+func (impl ApiTokenRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
 
-func (impl ApiTokenRepositoryImpl) Update(apiToken *ApiToken) error {
-	return impl.dbConnection.Update(apiToken)
+func (impl ApiTokenRepositoryImpl) Save(tx *pg.Tx, apiToken *ApiToken) error {
+	return tx.Insert(apiToken)
+}
+
+func (impl ApiTokenRepositoryImpl) Update(tx *pg.Tx, apiToken *ApiToken) error {
+	return tx.Update(apiToken)
 }
 
 func (impl ApiTokenRepositoryImpl) FindAllActive() ([]*ApiToken, error) {
@@ -91,4 +97,13 @@ func (impl ApiTokenRepositoryImpl) FindByName(name string) (*ApiToken, error) {
 		Where("api_token.name = ?", name).
 		Select()
 	return apiToken, err
+}
+
+func (impl ApiTokenRepositoryImpl) CheckIfTokenExistsByNameAndVersion(tx *pg.Tx, name string, version int) (bool, error) {
+	apiToken := &ApiToken{}
+	exists, err := tx.Model(apiToken).
+		Where("name = ?", name).
+		Where("version = ?", version).
+		Exists()
+	return exists, err
 }

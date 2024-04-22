@@ -20,7 +20,9 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -64,6 +66,8 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 }
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
+
+const ConcurrentTokenUpdateRequest = "there is an ongoing request for the token with the same name, please try again after some time"
 
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting active api tokens")
@@ -184,6 +188,27 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		tokenVersion = 1
 	}
 
+	// start db transaction
+	dbConnection := impl.apiTokenRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// check if version has changed - concurrency case
+	hasVersionChanged, err := impl.apiTokenRepository.CheckIfTokenExistsByNameAndVersion(tx, name, tokenVersion)
+	if hasVersionChanged {
+		impl.logger.Errorw("received concurrent request for token update, CreateApiToken", "tokenName", name)
+		return nil, &util.ApiError{
+			HttpStatusCode: http.StatusConflict,
+			Code:           strconv.Itoa(http.StatusConflict),
+			UserMessage:    ConcurrentTokenUpdateRequest,
+		}
+	}
+
 	// step-3 - Build token
 	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
 	if err != nil {
@@ -222,14 +247,20 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		apiTokenSaveRequest.CreatedBy = apiToken.CreatedBy
 		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
 		apiTokenSaveRequest.UpdatedBy = createdBy
-		err = impl.apiTokenRepository.Update(apiTokenSaveRequest)
+		err = impl.apiTokenRepository.Update(tx, apiTokenSaveRequest)
 	} else {
 		apiTokenSaveRequest.CreatedBy = createdBy
 		apiTokenSaveRequest.CreatedOn = time.Now()
-		err = impl.apiTokenRepository.Save(apiTokenSaveRequest)
+		err = impl.apiTokenRepository.Save(tx, apiTokenSaveRequest)
 	}
 	if err != nil {
 		impl.logger.Errorw("error while saving api-token into DB", "error", err)
+		return nil, err
+	}
+
+	// commit db transaction
+	err = tx.Commit()
+	if err != nil {
 		return nil, err
 	}
 
@@ -257,6 +288,27 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	tokenVersion := apiToken.Version + 1
 
+	// start db transaction
+	dbConnection := impl.apiTokenRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// check if version has changed - concurrency case
+	hasVersionChanged, err := impl.apiTokenRepository.CheckIfTokenExistsByNameAndVersion(tx, apiToken.Name, tokenVersion)
+	if hasVersionChanged {
+		impl.logger.Errorw("received concurrent request for token update, CreateApiToken", "apiToken.Name", apiToken.Name)
+		return nil, &util.ApiError{
+			HttpStatusCode: http.StatusConflict,
+			Code:           strconv.Itoa(http.StatusConflict),
+			UserMessage:    ConcurrentTokenUpdateRequest,
+		}
+	}
+
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
@@ -273,9 +325,15 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	apiToken.ExpireAtInMs = *request.ExpireAtInMs
 	apiToken.UpdatedBy = updatedBy
 	apiToken.UpdatedOn = time.Now()
-	err = impl.apiTokenRepository.Update(apiToken)
+	err = impl.apiTokenRepository.Update(tx, apiToken)
 	if err != nil {
 		impl.logger.Errorw("error while updating api-token", "apiTokenId", apiTokenId, "error", err)
+		return nil, err
+	}
+
+	// commit db transaction
+	err = tx.Commit()
+	if err != nil {
 		return nil, err
 	}
 
@@ -299,8 +357,18 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
+	// start db transaction
+	dbConnection := impl.apiTokenRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
 	apiToken.ExpireAtInMs = time.Now().UnixMilli()
-	err = impl.apiTokenRepository.Update(apiToken)
+	err = impl.apiTokenRepository.Update(tx, apiToken)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
@@ -318,6 +386,12 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}
 	if !success {
 		return nil, errors.New(fmt.Sprintf("Couldn't in-activate user corresponds to apiTokenId '%d'", apiTokenId))
+	}
+
+	// commit db transaction
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
 	}
 
 	return &openapi.ActionResponse{
