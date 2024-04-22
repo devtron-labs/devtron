@@ -37,7 +37,7 @@ The **Ignore Cache** option ignores the previous build cache and creates a fresh
 Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to pass build parameters.
 {% endhint %}
 
-If you wish to pass runtime parameters for build job, you can provide key-value pairs before triggering the build. This will inject those key-value pairs as environment variables in CI runner pods and all its containers.
+If you wish to pass runtime parameters for a build job, you can provide key-value pairs before triggering the build. Thereafter, you can access those passed values using the keys of your environment variables.
 
 **Steps**
 
@@ -58,9 +58,7 @@ If you wish to pass runtime parameters for build job, you can provide key-value 
 4. Click **Start Build**.
 
 {% hint style="info" %}
-Passing build parameters is currently not supported for [Linked Build pipeline](../creating-application/workflow/ci-pipeline.md#2-linked-build-pipeline) and [External CI pipeline](../creating-application/workflow/ci-pipeline.md#3-deploy-image-from-external-service).
-
-In case you trigger builds in bulk, you can consider passing build parameters in [Application Group](../application-groups.md).
+In case you trigger builds in bulk, you can consider passing build parameters in [Application Groups](../application-groups.md).
 {% endhint %}
 
 ---
@@ -84,6 +82,3 @@ By selecting the `Artifacts` option, you can download reports related to the tas
 To check for any vulnerabilities in the build image, click on `Security`. Please note that vulnerabilities will only be visible if you have enabled the `Scan for vulnerabilities` option in the advanced options of the CI pipeline before building the image. For more information about this feature, please refer to this [documentation](../../user-guide/security-features.md).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/security-scan-report.jpg)
-
-
-

@@ -213,7 +213,7 @@ If one code is shared across multiple applications, `Linked Build Pipeline` can 
 5. On the **Create linked build pipeline** screen:
     * Search for the application in which the source CI pipeline is present.
     * Select the source CI pipeline from the application that you selected above.
-    * Enter a new name for the linked CI pipeline. It cannot be the same as the source CI pipeline.
+    * Enter a new name for the linked CI pipeline.
 
     ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-linked.jpg)
     
