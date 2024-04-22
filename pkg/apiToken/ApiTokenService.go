@@ -181,8 +181,10 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	// step-2 - Build email and version
 	email := fmt.Sprintf("%s%s", userBean.API_TOKEN_USER_EMAIL_PREFIX, name)
 	var tokenVersion int
+	var previousVersion int
 	if apiTokenExists {
 		tokenVersion = apiToken.Version + 1
+		previousVersion = apiToken.Version
 	} else {
 		tokenVersion = 1
 	}
@@ -225,7 +227,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		apiTokenSaveRequest.CreatedBy = apiToken.CreatedBy
 		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
 		apiTokenSaveRequest.UpdatedBy = createdBy
-		err = impl.apiTokenRepository.UpdateIf(apiTokenSaveRequest, apiToken.Version)
+		err = impl.apiTokenRepository.UpdateIf(apiTokenSaveRequest, previousVersion)
 	} else {
 		apiTokenSaveRequest.CreatedBy = createdBy
 		apiTokenSaveRequest.CreatedOn = time.Now()
@@ -266,6 +268,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
+	previousVersion := apiToken.Version
 	tokenVersion := apiToken.Version + 1
 
 	// step-2 - If expires_at is not same, then token needs to be generated again
@@ -284,7 +287,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	apiToken.ExpireAtInMs = *request.ExpireAtInMs
 	apiToken.UpdatedBy = updatedBy
 	apiToken.UpdatedOn = time.Now()
-	err = impl.apiTokenRepository.UpdateIf(apiToken, apiToken.Version)
+	err = impl.apiTokenRepository.UpdateIf(apiToken, previousVersion)
 	if err != nil {
 		impl.logger.Errorw("error while updating api-token", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
