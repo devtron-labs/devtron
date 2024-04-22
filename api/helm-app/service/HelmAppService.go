@@ -454,12 +454,27 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
+	//for ext apps search app from unique identifier
+	appUniqueIdentifier := app.GetUniqueAppNameIdentifier()
+	model := &repository.InstalledApps{}
 	// For Helm deployments ReleaseName is App.Name
-	model, err := impl.installedAppRepository.GetInstalledAppByAppName(app.ReleaseName)
+	model, err = impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
 	if err != nil {
-		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
-		return nil, err
+		if util.IsErrNoRows(err) {
+			//if error is pg no rows, then find installed app via app.DisplayName because this can also happen that
+			//an ext-app is already linked to devtron, and it's entry in app_name col in app table will not be a unique
+			//identifier but the display name.
+			impl.logger.Debugw("DeleteDBLinkedHelmApplication, not able to find installed app of external app by app unique identifier, hence finding by display name", "appUniqueIdentifier", appUniqueIdentifier)
+			displayName := app.ReleaseName
+			model, err = impl.installedAppRepository.GetInstalledAppByAppName(displayName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching installed app from display name", "appDisplayName", app.ReleaseName, "err", err)
+				return nil, err
+			}
+		} else {
+			impl.logger.Errorw("error in fetching installed app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
+			return nil, err
+		}
 	}
 
 	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
