@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -242,6 +243,9 @@ func InitializeApp() (*App, error) {
 
 		deploymentWindow.NewDeploymentWindowServiceImplEA,
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
+
+		appWorkflow.NewAppWorkflowRepositoryImpl,
+		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
 
 		appStore.AppStoreWireSet,
 	)
