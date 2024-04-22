@@ -674,7 +674,7 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.
 		Model(&installedApps).
-		Column("installed_apps.id", "App.app_name", "Environment.cluster_id", "Environment.namespace").
+		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Where("installed_apps.deployment_app_type = ?", deploymentAppType).
 		Where("app.active = ?", true).
