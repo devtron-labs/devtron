@@ -250,7 +250,6 @@ func handleTerminalSession(session sockjs.Session) {
 	terminalSession.sockJSSession = session
 	terminalSessions.Set(msg.SessionID, terminalSession)
 	terminalSession.bound <- nil
-	close(terminalSession.bound)
 }
 
 type SocketConfig struct {
