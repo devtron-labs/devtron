@@ -65,8 +65,10 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 
-const ConcurrentTokenUpdateRequest = "there is an ongoing request for the token with the same name, please try again after some time"
-const UniqueKeyViolationPgErrorCode = 23505
+const (
+	ConcurrentTokenUpdateRequest  = "there is an ongoing request for the token with the same name, please try again after some time"
+	UniqueKeyViolationPgErrorCode = 23505
+)
 
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting active api tokens")
