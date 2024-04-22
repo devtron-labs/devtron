@@ -564,7 +564,8 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 	newCtx, span := otel.Tracer("DevtronResourceService").Start(ctx, "CreateOrUpdateResourceDependencies")
 	defer span.End()
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
-	err := impl.validateDependencies(req)
+	adapter.SetIdTypeForDependencies(req)
+	err := impl.setDefaultDataAndValidateDependencies(req)
 	if err != nil {
 		impl.logger.Errorw("validation error, CreateOrUpdateResourceDependencies", "err", err, "req", req)
 		return err
@@ -577,9 +578,9 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 	for i := range allRequests {
 		request := allRequests[i]
 		keyToGetSchema := getKeyForADependencyMap(request.OldObjectId, request.SchemaId)
-		devtronResourceSchema := existingObjectsMap[keyToGetSchema]
+		devtronResourceObject := existingObjectsMap[keyToGetSchema]
 		resourceObjReq := adapter.GetResourceObjectRequirementRequest(request, bean.ResourceObjectDependenciesPath, true)
-		err = impl.createOrUpdateDevtronResourceObject(newCtx, resourceObjReq, allRequestSchemas[i], devtronResourceSchema, []string{bean.ResourceObjectDependenciesPath})
+		err = impl.createOrUpdateDevtronResourceObject(newCtx, resourceObjReq, allRequestSchemas[i], devtronResourceObject, []string{bean.ResourceObjectDependenciesPath})
 		if err != nil {
 			impl.logger.Errorw("error, createOrUpdateDevtronResourceObject", "err", err, "request", request)
 			return err
@@ -665,6 +666,13 @@ func (impl *DevtronResourceServiceImpl) createOrUpdateDevtronResourceObject(ctx 
 	devtronResourceObjectPresentAlready := devtronResourceObject != nil && devtronResourceObject.Id > 0
 	initialObjectData := ""
 	if devtronResourceObjectPresentAlready {
+		//update request
+		f := getFuncToHandleResourceObjectUpdateRequest(reqBean.Kind, reqBean.SubKind, reqBean.Version, objectDataPath)
+		if f == nil {
+			//not returning since all resource type do not have update req handle functions
+		} else {
+			f(impl, reqBean, devtronResourceObject)
+		}
 		initialObjectData = devtronResourceObject.ObjectData
 	}
 
@@ -791,36 +799,101 @@ func (impl *DevtronResourceServiceImpl) deleteDevtronResourceObject(id, devtronR
 	return updatedResourceObject, nil
 }
 
-func (impl *DevtronResourceServiceImpl) validateDependencies(req *bean.DevtronResourceObjectBean) error {
+func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(req *bean.DevtronResourceObjectBean) error {
+	if len(req.Dependencies) == 0 {
+		impl.logger.Errorw("invalid request, no dependency in request", "req", req)
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.BadRequestDependenciesErrorMessage, bean.InvalidNoDependencyRequest)
+	}
 	allDependenciesToBeValidated := make([]*bean.DevtronResourceDependencyBean, 0, len(req.Dependencies)+2*len(req.ChildDependencies))
-	allDependenciesToBeValidated = req.Dependencies
-	for _, childDependency := range req.ChildDependencies {
-		allDependenciesToBeValidated = append(allDependenciesToBeValidated, childDependency)
+	for i := range req.Dependencies {
+		dep := req.Dependencies[i]
+		adapter.RemoveRedundantFieldsAndSetDefaultForDependency(dep, false)
+		err := impl.validateDependencyResourceType(dep)
+		if err != nil {
+			return err
+		}
+
+		if checkIfDependencyTypeToBeValidated(dep.TypeOfDependency) {
+			allDependenciesToBeValidated = append(allDependenciesToBeValidated, dep)
+		}
+	}
+	for j := range req.ChildDependencies {
+		childDependency := req.ChildDependencies[j]
+		adapter.RemoveRedundantFieldsAndSetDefaultForDependency(childDependency, true)
+		err := impl.validateDependencyResourceType(childDependency)
+		if err != nil {
+			return err
+		}
+		if checkIfDependencyTypeToBeValidated(childDependency.TypeOfDependency) {
+			allDependenciesToBeValidated = append(allDependenciesToBeValidated, childDependency)
+		}
 		//here assuming that dependencies of childDependency further don't have their own dependencies, i.e. only one level of nesting in resources
-		allDependenciesToBeValidated = append(allDependenciesToBeValidated, childDependency.Dependencies...)
+		for k := range childDependency.Dependencies {
+			depOfChildDep := childDependency.Dependencies[k]
+			adapter.RemoveRedundantFieldsAndSetDefaultForDependency(depOfChildDep, false)
+			err := impl.validateDependencyResourceType(depOfChildDep)
+			if err != nil {
+				return err
+			}
+			if checkIfDependencyTypeToBeValidated(depOfChildDep.TypeOfDependency) {
+				allDependenciesToBeValidated = append(allDependenciesToBeValidated, depOfChildDep)
+			}
+		}
 	}
-	mapOfSchemaIdAndDependencyIds := make(map[int][]int) //map of devtronResourceSchemaId and all its dependencies present in request
-	for _, dependency := range allDependenciesToBeValidated {
-		mapOfSchemaIdAndDependencyIds[dependency.DevtronResourceSchemaId] =
-			append(mapOfSchemaIdAndDependencyIds[dependency.DevtronResourceSchemaId], dependency.OldObjectId)
+	type idIdentifierIndex struct {
+		Ids              []int    //all ids
+		Identifiers      []string //all identifiers
+		IdentifiersIndex []int    //index of dependency in all dependencies array at which this identifier is stored at, will be used to replace identifier with id
 	}
-	invalidSchemaIds := make([]int, 0, len(mapOfSchemaIdAndDependencyIds))
+	mapOfSchemaIdAndDependencyData := make(map[int]idIdentifierIndex)
+	for i, dependency := range allDependenciesToBeValidated {
+		allDependenciesToBeValidated[i].IdType = bean.OldObjectId // currently only apps and cd pipelines are expected in dependencies PUT request
+		if dependency.OldObjectId > 0 {
+			data := mapOfSchemaIdAndDependencyData[dependency.DevtronResourceSchemaId]
+			data.Ids = append(data.Ids, dependency.OldObjectId)
+			mapOfSchemaIdAndDependencyData[dependency.DevtronResourceSchemaId] = data
+		} else {
+			data := mapOfSchemaIdAndDependencyData[dependency.DevtronResourceSchemaId]
+			data.Identifiers = append(data.Identifiers, dependency.Identifier)
+			data.IdentifiersIndex = append(data.IdentifiersIndex, i)
+			mapOfSchemaIdAndDependencyData[dependency.DevtronResourceSchemaId] = data
+		}
+	}
+	internalMessage := ""
+	isRequestInvalid := false
+
+	invalidSchemaIds := make([]int, 0, len(mapOfSchemaIdAndDependencyData))
 	var invalidAppIds []int
+	var invalidAppNames []string
 	var invalidCdPipelineIds []int
 	var err error
-	for devtronResourceSchemaId, dependencyIds := range mapOfSchemaIdAndDependencyIds {
+	for devtronResourceSchemaId, depData := range mapOfSchemaIdAndDependencyData {
 		if devtronResourceSchema, ok := impl.devtronResourcesSchemaMapById[devtronResourceSchemaId]; ok {
+			//TODO: do this through logic route service
 			switch devtronResourceSchema.DevtronResource.Kind {
 			case bean.DevtronResourceDevtronApplication.ToString():
-				invalidAppIds, err = impl.getAppsAndReturnNotFoundIds(dependencyIds)
+				var mapOfAppNameId map[string]int
+				mapOfAppNameId, invalidAppIds, invalidAppNames, err = impl.getAppsMapAndReturnNotFoundIdsAndNames(depData.Ids, depData.Identifiers)
 				if err != nil {
-					impl.logger.Errorw("error, getAppsAndReturnNotFoundIds", "err", err, "appIds", dependencyIds)
+					impl.logger.Errorw("error, getAppsAndReturnNotFoundIds", "err", err, "appIds", depData.Ids)
 					return err
 				}
+				if len(invalidAppIds) == 0 && len(invalidAppNames) == 0 {
+					for i, identifier := range depData.Identifiers {
+						dependencyIndexToBeUpdated := depData.IdentifiersIndex[i]
+						allDependenciesToBeValidated[dependencyIndexToBeUpdated].Identifier = ""
+						allDependenciesToBeValidated[dependencyIndexToBeUpdated].OldObjectId = mapOfAppNameId[identifier]
+					}
+				}
 			case bean.DevtronResourceCdPipeline.ToString():
-				invalidCdPipelineIds, err = impl.getCdPipelinesAndReturnNotFoundIds(dependencyIds)
+				if len(depData.Identifiers) > 0 {
+					isRequestInvalid = true
+					internalMessage += fmt.Sprintf("identifiers not supported in cd pipelines as of now : %v\n", depData.Identifiers)
+				}
+				pipelineIds := depData.Ids
+				invalidCdPipelineIds, err = impl.getCdPipelinesAndReturnNotFoundIds(pipelineIds)
 				if err != nil {
-					impl.logger.Errorw("error, getCdPipelinesAndReturnNotFoundIds", "err", err, "pipelineIds", dependencyIds)
+					impl.logger.Errorw("error, getCdPipelinesAndReturnNotFoundIds", "err", err, "pipelineIds", pipelineIds)
 					return err
 				}
 			default:
@@ -830,8 +903,6 @@ func (impl *DevtronResourceServiceImpl) validateDependencies(req *bean.DevtronRe
 			invalidSchemaIds = append(invalidSchemaIds, devtronResourceSchemaId)
 		}
 	}
-	internalMessage := ""
-	isRequestInvalid := false
 	if len(invalidSchemaIds) > 0 {
 		isRequestInvalid = true
 		internalMessage += fmt.Sprintf("invalid schemaIds : %v\n", invalidSchemaIds)
@@ -839,6 +910,10 @@ func (impl *DevtronResourceServiceImpl) validateDependencies(req *bean.DevtronRe
 	if len(invalidAppIds) > 0 {
 		isRequestInvalid = true
 		internalMessage += fmt.Sprintf("invalid appIds : %v\n", invalidAppIds)
+	}
+	if len(invalidAppNames) > 0 {
+		isRequestInvalid = true
+		internalMessage += fmt.Sprintf("invalid appNames : %v\n", invalidAppNames)
 	}
 	if len(invalidCdPipelineIds) > 0 {
 		isRequestInvalid = true
@@ -860,14 +935,8 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRequestData(req *b
 		}
 		return nil, nil, nil, err
 	}
-	for i := range req.Dependencies {
-		req.Dependencies[i].Metadata = nil //emptying in case UI sends the data back
-		//since child dependencies are included separately in the payload and downstream are not declared explicitly setting this as upstream
-		req.Dependencies[i].TypeOfDependency = bean.DevtronResourceDependencyTypeUpstream
-	}
 	allRequests := make([]*bean.DevtronResourceObjectBean, 0, len(req.ChildDependencies)+1)
 	allRequestSchemas := make([]*repository.DevtronResourceSchema, 0, len(req.ChildDependencies)+1)
-
 	allArgValues := make([]interface{}, 0, len(req.ChildDependencies)+1)
 	allArgTypes := make([]string, 0, len(req.ChildDependencies)+1)
 	devtronSchemaIdsForAllArgs := make([]int, 0, len(req.ChildDependencies)+1)
@@ -875,12 +944,8 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRequestData(req *b
 	//adding oldObjectId and Name for main request
 	appendDbObjectArgDetails(&allArgValues, &allArgTypes, &devtronSchemaIdsForAllArgs, req.OldObjectId, parentDevtronResourceSchema.Id)
 
-	for _, childDependency := range req.ChildDependencies {
-		childDependency.Metadata = nil //emptying in case UI sends the data back
-		for i := range childDependency.Dependencies {
-			childDependency.Dependencies[i].Metadata = nil                                                //emptying in case UI sends the data back
-			childDependency.Dependencies[i].TypeOfDependency = bean.DevtronResourceDependencyTypeUpstream //assuming one level of nesting
-		}
+	for j := range req.ChildDependencies {
+		childDependency := req.ChildDependencies[j]
 		//adding info of parent dependency in this child dependency's dependencies
 		childDependency.Dependencies = append(childDependency.Dependencies, &bean.DevtronResourceDependencyBean{
 			OldObjectId:             req.OldObjectId,
@@ -937,6 +1002,82 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRequestData(req *b
 		return nil, nil, nil, err
 	}
 	return allRequests, allRequestSchemas, existingObjectsMap, nil
+}
+
+func (impl *DevtronResourceServiceImpl) validateDependencyResourceType(dep *bean.DevtronResourceDependencyBean) error {
+	isValidDependencyResourceType := false
+	//first checking the resourceId and schemaId
+	_, ok1 := impl.devtronResourcesMapById[dep.DevtronResourceId]
+	_, ok2 := impl.devtronResourcesSchemaMapById[dep.DevtronResourceSchemaId]
+	isValidDependencyResourceType = ok1 && ok2
+	if !isValidDependencyResourceType { //ids not valid, check if data received from resourceType is correct
+		dtResource, dtSchema, err := impl.getResourceAndSchemaFromResourceType(dep.DevtronResourceTypeReq)
+		if err != nil {
+			//both ids and resource type data invalid
+			return err
+		}
+		//valid resource type data, set ids
+		dep.DevtronResourceId = dtResource.Id
+		dep.DevtronResourceSchemaId = dtSchema.Id
+	}
+	//setting resource type as nil so that it does not get saved in json
+	dep.DevtronResourceTypeReq = nil
+	return nil
+}
+
+func checkIfDependencyTypeToBeValidated(dependencyType bean.DevtronResourceDependencyType) bool {
+	return dependencyType != bean.DevtronResourceDependencyTypeLevel
+}
+
+func (impl *DevtronResourceServiceImpl) getResourceAndSchemaFromResourceType(resourceType *bean.DevtronResourceTypeReq) (dtResource *repository.DevtronResource,
+	dtSchema *repository.DevtronResourceSchema, err error) {
+	kindSplits := strings.Split(resourceType.ResourceKind.ToString(), "/")
+	var ok bool
+	if len(kindSplits) == 1 {
+		//no subKind
+		kind := kindSplits[0]
+		dtResource, ok = impl.devtronResourcesMapByKind[kind]
+		if !ok {
+			impl.logger.Errorw("invalid resourceType", "resourceType", resourceType)
+			return dtResource, dtSchema, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
+		}
+		resourceType.ResourceKind = bean.DevtronResourceKind(kindSplits[0])
+	} else if len(kindSplits) == 2 {
+		kind := kindSplits[0]
+		subKind := kindSplits[1]
+		_, ok = impl.devtronResourcesMapByKind[kind]
+		if !ok {
+			impl.logger.Errorw("invalid resourceType", "resourceType", resourceType)
+			return dtResource, dtSchema, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
+		}
+		dtResource, ok = impl.devtronResourcesMapByKind[subKind]
+		if !ok {
+			impl.logger.Errorw("invalid resourceType", "resourceType", resourceType)
+			return dtResource, dtSchema, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
+		}
+	}
+	//check version
+	if supportedVersionsMap, ok :=
+		bean.DevtronResourceSupportedVersionMap[bean.DevtronResourceKind(dtResource.Kind)]; !ok || !supportedVersionsMap[resourceType.ResourceVersion] {
+		impl.logger.Errorw("invalid resourceType", "resourceType", resourceType)
+		return dtResource, dtSchema, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceVersion, bean.InvalidResourceVersion)
+	}
+	dtSchema, err = impl.getSchemaByResourceIdAndVersion(dtResource.Id, resourceType.ResourceVersion)
+	if err != nil {
+		impl.logger.Errorw("invalid resourceType", "resourceType", resourceType)
+		return dtResource, dtSchema, err
+	}
+	return dtResource, dtSchema, nil
+}
+
+func (impl *DevtronResourceServiceImpl) getSchemaByResourceIdAndVersion(resourceId int,
+	version bean.DevtronResourceVersion) (*repository.DevtronResourceSchema, error) {
+	for _, schema := range impl.devtronResourcesSchemaMapById {
+		if schema.DevtronResourceId == resourceId && schema.Version == version.ToString() {
+			return schema, nil
+		}
+	}
+	return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceVersion, bean.InvalidResourceVersion)
 }
 
 func (impl *DevtronResourceServiceImpl) saveAudit(devtronResourceObject *repository.DevtronResourceObject, auditAction repository.AuditOperationType, auditPath []string) {
@@ -1275,25 +1416,32 @@ func (impl *DevtronResourceServiceImpl) getExistingObjectsMap(allArgValues []int
 	return existingObjectsMap, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getAppsAndReturnNotFoundIds(appIds []int) ([]int, error) {
+func (impl *DevtronResourceServiceImpl) getAppsMapAndReturnNotFoundIdsAndNames(appIds []int, appNames []string) (map[string]int, []int, []string, error) {
 	invalidAppIds := make([]int, 0, len(appIds))
-	mapOfApps := make(map[int]*appRepository.App)
-	apps, err := impl.appRepository.FindAppAndProjectByIdsIn(appIds)
+	invalidAppNames := make([]string, 0, len(appNames))
+	mapOfAppIds := make(map[int]bool)
+	mapOfAppNames := make(map[string]int) //map of appName and its id
+	apps, err := impl.appRepository.FindAppsByIdsOrNames(appIds, appNames)
 	if err != nil {
-		impl.logger.Errorw("error in getting apps by ids", "err", err, "ids", appIds)
-		return invalidAppIds, err
+		impl.logger.Errorw("error in getting apps by ids or names", "err", err, "ids", appIds, "names", appNames)
+		return mapOfAppNames, invalidAppIds, invalidAppNames, err
 	}
 	for _, app := range apps {
-		mapOfApps[app.Id] = app
+		mapOfAppIds[app.Id] = true
+		mapOfAppNames[app.AppName] = app.Id
 	}
-	if len(mapOfApps) != len(appIds) {
-		for _, dependencyId := range appIds {
-			if _, ok := mapOfApps[dependencyId]; !ok {
-				invalidAppIds = append(invalidAppIds, dependencyId)
-			}
+	for _, appId := range appIds {
+		if _, ok := mapOfAppIds[appId]; !ok {
+			invalidAppIds = append(invalidAppIds, appId)
 		}
 	}
-	return invalidAppIds, nil
+	for _, appName := range appNames {
+		if _, ok := mapOfAppNames[appName]; !ok {
+			invalidAppNames = append(invalidAppNames, appName)
+		}
+	}
+
+	return mapOfAppNames, invalidAppIds, invalidAppNames, nil
 }
 
 func (impl *DevtronResourceServiceImpl) getCdPipelinesAndReturnNotFoundIds(pipelineIds []int) ([]int, error) {

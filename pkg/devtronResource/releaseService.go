@@ -9,9 +9,44 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"math"
 	"net/http"
 	"time"
 )
+
+func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req *bean.DevtronResourceObjectBean,
+	existingObj *repository.DevtronResourceObject) {
+	//getting dependencies of existingObj
+	existingDependencies := getDependenciesInObjectDataFromJsonString(existingObj.ObjectData)
+
+	//we need to get parent dependency of release from existing list and add it to update req
+	//and config of dependencies already present since FE does not send them in the request
+
+	mapOfExistingDeps := make(map[string]int) //map of "id-schemaId" and index of dependency
+	existingDepParentTypeIndex := 0           //index of parent type dependency in existing dependencies
+	var reqDependenciesMaxIndex float64
+
+	for i, dep := range existingDependencies {
+		if dep.TypeOfDependency == bean.DevtronResourceDependencyTypeParent {
+			existingDepParentTypeIndex = i
+		}
+		mapOfExistingDeps[getKeyForADependencyMap(dep.OldObjectId, dep.DevtronResourceSchemaId)] = i
+	}
+
+	//updating config
+	for i := range req.Dependencies {
+		dep := req.Dependencies[i]
+		reqDependenciesMaxIndex = math.Max(reqDependenciesMaxIndex, float64(dep.Index))
+		if existingDepIndex, ok := mapOfExistingDeps[getKeyForADependencyMap(dep.OldObjectId, dep.DevtronResourceSchemaId)]; ok {
+			//get config from existing dep and update in request dep config
+			dep.Config = existingDependencies[existingDepIndex].Config
+		}
+	}
+	//adding parent config in request dependencies
+	existingParentDep := existingDependencies[existingDepParentTypeIndex]
+	existingParentDep.Index = int(reqDependenciesMaxIndex + 1) //updating index of parent index
+	req.Dependencies = append(req.Dependencies, existingParentDep)
+}
 
 func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusInResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {

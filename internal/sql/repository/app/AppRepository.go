@@ -86,6 +86,8 @@ type AppRepository interface {
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error)
 
 	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
+
+	FindAppsByIdsOrNames(ids []int, names []string) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -492,6 +494,23 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*A
 		Where("app.id in (?)", pg.In(ids)).
 		Order("app.team_id").
 		Select()
+	return apps, err
+}
+
+// FindAppsByIdsOrNames gets all apps either having id or name given in input. If both of these input arguments are empty, it throws an error
+func (repo AppRepositoryImpl) FindAppsByIdsOrNames(ids []int, names []string) ([]*App, error) {
+	var apps []*App
+	if len(ids) == 0 && len(names) == 0 {
+		return nil, fmt.Errorf("invalid request, no arguments available")
+	}
+	query := repo.dbConnection.Model(&apps).Where("app.active = ?", true)
+	if len(ids) > 0 {
+		query = query.WhereOr("app.id in (?)", pg.In(ids))
+	}
+	if len(names) > 0 {
+		query = query.WhereOr("app.name in (?)", pg.In(names))
+	}
+	err := query.Select()
 	return apps, err
 }
 

@@ -39,8 +39,17 @@ func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, versi
 	}
 }
 
-func getFuncToBuildIdentifierForResourceObj(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error) {
+func getFuncToBuildIdentifierForResourceObj(kind, subKind, version string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error) {
 	if f, ok := buildIdentifierForResourceObjFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getFuncToHandleResourceObjectUpdateRequest(kind, subKind, version, objectUpdatePath string) func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean,
+	*repository.DevtronResourceObject) {
+	if f, ok := handleResourceObjectUpdateReqFuncMap[getKeyForKindVersionAndObjectUpdatePath(kind, subKind, version, objectUpdatePath)]; ok {
 		return f
 	} else {
 		return nil
@@ -101,12 +110,21 @@ var buildIdentifierForResourceObjFuncMap = map[string]func(*DevtronResourceServi
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForReleaseTrackResourceObj,
 }
 
+var handleResourceObjectUpdateReqFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean, *repository.DevtronResourceObject){
+	getKeyForKindVersionAndObjectUpdatePath(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1, bean.ResourceObjectDependenciesPath): (*DevtronResourceServiceImpl).handleReleaseDependencyUpdateRequest,
+}
+
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {
 	return fmt.Sprintf("%s-%s", kind, component)
 }
 
-func getKeyForKindAndVersion[K, S, C ~string](kind K, subKind S, version C) string {
+func getKeyForKindAndVersion[K, S, V ~string](kind K, subKind S, version V) string {
 	return fmt.Sprintf("%s-%s-%s", kind, subKind, version)
+}
+
+func getKeyForKindVersionAndObjectUpdatePath[K, S, V, P ~string](kind K, subKind S, version V, objectUpdatePath P) string {
+	return fmt.Sprintf("%s-%s-%s-%s", kind, subKind, version, objectUpdatePath)
 }
 
 func listApiResourceKindFunc(kind string) func(*DevtronResourceServiceImpl, []*repository.DevtronResourceObject,

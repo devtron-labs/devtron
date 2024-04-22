@@ -125,17 +125,29 @@ type DependencyInfo struct {
 	DependencyType DevtronResourceKind `json:"dependencyResourceKind,omitempty"`
 }
 
+type ResourceParentData struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 type DevtronResourceDependencyBean struct {
+	*DevtronResourceTypeReq
 	OldObjectId             int                              `json:"id"` //have both oldObjectId and resourceObjectId
 	DevtronResourceId       int                              `json:"devtronResourceId"`
 	DevtronResourceSchemaId int                              `json:"devtronResourceSchemaId"`
 	DependentOnIndex        int                              `json:"dependentOnIndex,omitempty"`
+	DependentOnIndexes      []int                            `json:"dependentOnIndexes,omitempty"`
 	DependentOnParentIndex  int                              `json:"dependentOnParentIndex,omitempty"`
 	TypeOfDependency        DevtronResourceDependencyType    `json:"typeOfDependency"`
 	Index                   int                              `json:"index"`
 	Dependencies            []*DevtronResourceDependencyBean `json:"dependencies,omitempty"`
 	Metadata                interface{}                      `json:"metadata,omitempty"`
 	IdType                  IdType                           `json:"idType,omitempty"`
+	Identifier              string                           `json:"identifier,omitempty"`
+	Config                  *DependencyConfigBean            `json:"config,omitempty"`
+}
+
+type DependencyConfigBean struct {
 }
 
 type UpdateSchemaResponseBean struct {
@@ -209,6 +221,7 @@ const (
 	DevtronResourceDependencyTypeChild      DevtronResourceDependencyType = "child"
 	DevtronResourceDependencyTypeUpstream   DevtronResourceDependencyType = "upstream"
 	DevtronResourceDependencyTypeDownStream DevtronResourceDependencyType = "downstream"
+	DevtronResourceDependencyTypeLevel      DevtronResourceDependencyType = "level"
 )
 
 func (n DevtronResourceDependencyType) ToString() string {
@@ -261,6 +274,33 @@ const (
 
 func (n DevtronResourceVersion) ToString() string {
 	return string(n)
+}
+
+var DevtronResourceSupportedVersionMap = map[DevtronResourceKind]map[DevtronResourceVersion]bool{
+	DevtronResourceApplication: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceDevtronApplication: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceHelmApplication: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceCluster: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceJob: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceCdPipeline: {
+		DevtronResourceVersion1: true,
+	},
+	DevtronResourceReleaseTrack: {
+		DevtronResourceVersionAlpha1: true,
+	},
+	DevtronResourceRelease: {
+		DevtronResourceVersionAlpha1: true,
+	},
 }
 
 type DevtronResourceAttributeName string
@@ -399,5 +439,7 @@ const (
 	InvalidResourceParentConfigKind  = "Invalid parentConfig kind! incorrect parent dependency."
 	InvalidResourceKindOrComponent   = "Invalid resource kind or component! Implementation not available."
 	InvalidResourceKind              = "Invalid resource kind! Implementation not supported."
+	InvalidResourceVersion           = "Invalid resource version! Implementation not supported."
 	PatchPathNotSupportedError       = "patch path not supported"
+	InvalidNoDependencyRequest       = "Invalid dependency request. No dependencies present. "
 )
