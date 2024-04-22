@@ -180,8 +180,10 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 
 	// step-2 - Build email and version
 	email := fmt.Sprintf("%s%s", userBean.API_TOKEN_USER_EMAIL_PREFIX, name)
-	var tokenVersion int
-	var previousVersion int
+	var (
+		tokenVersion    int
+		previousVersion int
+	)
 	if apiTokenExists {
 		tokenVersion = apiToken.Version + 1
 		previousVersion = apiToken.Version
