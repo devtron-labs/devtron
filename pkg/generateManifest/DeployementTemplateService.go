@@ -396,9 +396,9 @@ type ChartRefResponse struct {
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifestFor(ctx context.Context, rotatePodRequest RotatePodRequest) (*openapi2.TemplateChartResponse, error) {
 	charts, err := impl.chartRepository.FindLatestChartByAppIds(rotatePodRequest.AppIds)
-	var chartRefIds []int
+	appIdToChartRefId := make(map[int]int)
 	for _, ch := range charts {
-		chartRefIds = append(chartRefIds, ch.ChartRefId)
+		appIdToChartRefId[ch.AppId] = ch.ChartRefId
 	}
 
 	if err != nil {
