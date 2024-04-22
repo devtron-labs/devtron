@@ -1076,6 +1076,13 @@ func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string
 	return fmt.Sprintf("%d|%s|%s", appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 }
 
+func isSameAppName(deployedAppName string, appDto app.App) bool {
+	if len(appDto.DisplayName) > 0 {
+		return deployedAppName == appDto.DisplayName
+	}
+	return deployedAppName == appDto.AppName
+}
+
 func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline, installedHelmApps []*repository.InstalledApps) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
@@ -1103,7 +1110,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 
 			// do not add helm apps in the list which are created using app_store
 			for _, installedHelmApp := range installedHelmApps {
-				if deployedapp.AppName == installedHelmApp.App.AppName && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
+				if isSameAppName(deployedapp.AppName, installedHelmApp.App) && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
 					toExcludeFromList = true
 					break
 				}
