@@ -53,11 +53,17 @@ The **Build & Deploy** tab of your application group enables you to trigger the 
 
     ![Figure 5: Selecting Commit](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-commit-1.jpg)
 
-    Repeat the step for other applications, and then click **Start Build**.
+{% hint style="info" %}
+### Passing Build Parameters [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build.
+{% endhint %}
+
+3. Repeat the step for other applications, and then click **Start Build**.
 
     ![Figure 6: Building Images](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-commit-2.jpg)
 
-3. The builds will be initiated, following which, you can close the `Build image` screen.
+4. The builds will be initiated, following which, you can close the `Build image` screen.
 
     ![Figure 7: Triggered Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/build-image.jpg)
 

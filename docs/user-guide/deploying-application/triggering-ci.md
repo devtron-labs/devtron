@@ -1,6 +1,6 @@
 # Triggering CI Pipelines
 
-To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, clic the **Select Material** button present on the CI pipeline.
+To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, click the **Select Material** button present on the CI pipeline.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material-new.jpg)
 
@@ -10,9 +10,9 @@ Once clicked, a list will appear showing various commits made in the repository,
 
 CI Pipelines with automatic trigger enabled are triggered immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires a manual trigger.
 
-{% hint style="info" %}
+---
 
-### Partal Cloning Feature [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+## Partal Cloning Feature [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 CI builds can be time-consuming for large repositories, especially for enterprises. However, Devtron's partial cloning feature significantly increases cloning speed, reducing the time it takes to clone your source code and leading to faster build times.
 
@@ -22,12 +22,50 @@ CI builds can be time-consuming for large repositories, especially for enterpris
 * Faster software releases
 * Improved productivity
 
-Get in touch with us if you are looking for a way to improve the efficiency of your software development process
-{% endhint %}
+Get in touch with us if you are looking for a way to improve the efficiency of your software development process.
 
 The **Refresh** icon updates the Git Commits section in the CI Pipeline by fetching the latest commits from the repository. Clicking on the refresh icon ensures that you have the most recent commit available.
 
 The **Ignore Cache** option ignores the previous build cache and creates a fresh build. If selected, will take a longer build time than usual.
+
+---
+
+## Passing Build Parameters [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to pass build parameters.
+{% endhint %}
+
+If you wish to pass runtime parameters for build job, you can provide key-value pairs before triggering the build. This will inject those key-value pairs as environment variables in CI runner pods and all its containers.
+
+**Steps**
+
+1. Go to the **Parameters** tab available on the screen where you select the commit.
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-parameter-tab.jpg)
+
+2. Click **+ Add parameter**.
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/add-parameter.jpg)
+
+3. Enter your key-value pair as shown below. 
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/key-value.jpg)
+
+    <br /> Similarly, you may add more than one key-value pair by using the **+ Add Parameter** button.
+
+4. Click **Start Build**.
+
+{% hint style="info" %}
+Passing build parameters is currently not supported for [Linked Build pipeline](../creating-application/workflow/ci-pipeline.md#2-linked-build-pipeline) and [External CI pipeline](../creating-application/workflow/ci-pipeline.md#3-deploy-image-from-external-service).
+
+In case you trigger builds in bulk, you can consider passing build parameters in [Application Group](../application-groups.md).
+{% endhint %}
+
+---
+
+## Fetching Logs and Reports
 
 Click the `CI Pipeline` or navigate to the `Build History` to get the CI pipeline details such as build logs, source code details, artifacts, and vulnerability scan reports.
 
