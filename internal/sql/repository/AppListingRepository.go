@@ -360,7 +360,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
 		" cl.cluster_name," +
-		" cia.image" +
+		" cia.image," +
 		" p.id as cd_pipeline_id," +
 		" p.ci_pipeline_id," +
 		" p.trigger_type" +
