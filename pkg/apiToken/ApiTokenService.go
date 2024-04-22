@@ -68,6 +68,7 @@ var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 const (
 	ConcurrentTokenUpdateRequest  = "there is an ongoing request for the token with the same name, please try again after some time"
 	UniqueKeyViolationPgErrorCode = 23505
+	TokenVersionMismatch          = "token version mismatch"
 )
 
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
@@ -183,12 +184,12 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	// step-2 - Build email and version
 	email := fmt.Sprintf("%s%s", userBean.API_TOKEN_USER_EMAIL_PREFIX, name)
 	var (
-		tokenVersion    int
-		previousVersion int
+		tokenVersion         int
+		previousTokenVersion int
 	)
 	if apiTokenExists {
 		tokenVersion = apiToken.Version + 1
-		previousVersion = apiToken.Version
+		previousTokenVersion = apiToken.Version
 	} else {
 		tokenVersion = 1
 	}
@@ -231,7 +232,9 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		apiTokenSaveRequest.CreatedBy = apiToken.CreatedBy
 		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
 		apiTokenSaveRequest.UpdatedBy = createdBy
-		err = impl.apiTokenRepository.UpdateIf(apiTokenSaveRequest, previousVersion)
+		// update api-token only if `previousTokenVersion` is same as version stored in DB
+		// we are checking this to ensure that two users are not updating the same token at the same time
+		err = impl.apiTokenRepository.UpdateIf(apiTokenSaveRequest, previousTokenVersion)
 	} else {
 		apiTokenSaveRequest.CreatedBy = createdBy
 		apiTokenSaveRequest.CreatedOn = time.Now()
@@ -240,12 +243,17 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	if err != nil {
 		impl.logger.Errorw("error while saving api-token into DB", "error", err)
 		// fetching error code from pg error for Unique key violation constraint
+		// in case of save
 		pgErr, ok := err.(pg.Error)
 		if ok {
 			errCode, conversionErr := strconv.Atoi(pgErr.Field('C'))
 			if conversionErr == nil && errCode == UniqueKeyViolationPgErrorCode {
 				return nil, fmt.Errorf(ConcurrentTokenUpdateRequest)
 			}
+		}
+		// in case of update
+		if errors.Is(err, fmt.Errorf(TokenVersionMismatch)) {
+			return nil, fmt.Errorf(ConcurrentTokenUpdateRequest)
 		}
 		return nil, err
 	}
@@ -272,7 +280,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
-	previousVersion := apiToken.Version
+	previousTokenVersion := apiToken.Version
 	tokenVersion := apiToken.Version + 1
 
 	// step-2 - If expires_at is not same, then token needs to be generated again
@@ -291,7 +299,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	apiToken.ExpireAtInMs = *request.ExpireAtInMs
 	apiToken.UpdatedBy = updatedBy
 	apiToken.UpdatedOn = time.Now()
-	err = impl.apiTokenRepository.UpdateIf(apiToken, previousVersion)
+	err = impl.apiTokenRepository.UpdateIf(apiToken, previousTokenVersion)
 	if err != nil {
 		impl.logger.Errorw("error while updating api-token", "apiTokenId", apiTokenId, "error", err)
 		return nil, err

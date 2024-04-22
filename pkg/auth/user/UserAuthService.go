@@ -490,7 +490,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
-	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) {
+	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
 		tokenName := helper.ExtractTokenNameFromEmail(emailId)
 		embeddedTokenVersion, _ := strconv.Atoi(version)
 		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)

@@ -1239,7 +1239,7 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		}
 		return http.StatusUnauthorized, "", err
 	}
-	if userInfo.UserType == bean.USER_TYPE_API_TOKEN {
+	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
 		tokenName := userHelper.ExtractTokenNameFromEmail(email)
 		embeddedTokenVersion, _ := strconv.Atoi(version)
 		isProvidedTokenValid, err := impl.userRepository.CheckIfUserIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)

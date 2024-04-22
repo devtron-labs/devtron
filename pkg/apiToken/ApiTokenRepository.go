@@ -44,7 +44,7 @@ type ApiTokenRepository interface {
 	FindAllActive() ([]*ApiToken, error)
 	FindActiveById(id int) (*ApiToken, error)
 	FindByName(name string) (*ApiToken, error)
-	UpdateIf(apiToken *ApiToken, previousVersion int) error
+	UpdateIf(apiToken *ApiToken, previousTokenVersion int) error
 }
 
 type ApiTokenRepositoryImpl struct {
@@ -63,16 +63,16 @@ func (impl ApiTokenRepositoryImpl) Update(apiToken *ApiToken) error {
 	return impl.dbConnection.Update(apiToken)
 }
 
-func (impl ApiTokenRepositoryImpl) UpdateIf(apiToken *ApiToken, previousVersion int) error {
+func (impl ApiTokenRepositoryImpl) UpdateIf(apiToken *ApiToken, previousTokenVersion int) error {
 	res, err := impl.dbConnection.Model(apiToken).
-		Where("name = ?", apiToken.Name).
-		Where("version = ?", previousVersion).
+		Where("id = ?", apiToken.Id).
+		Where("version = ?", previousTokenVersion).
 		Update()
 	if err != nil {
 		return err
 	}
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf(ConcurrentTokenUpdateRequest)
+		return fmt.Errorf(TokenVersionMismatch)
 	}
 	return nil
 }
