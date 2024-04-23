@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
 	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
@@ -136,6 +137,7 @@ type MuxRouter struct {
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	commonPolicyRouter                 commonPolicyActions.CommonPolicyRouter
 	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
+	artifactPromotionPolicy            artifactPromotionPolicy.Router
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -173,7 +175,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	deploymentWindowRouter deploymentWindow.DeploymentWindowRouter,
 	commonPolicyRouter commonPolicyActions.CommonPolicyRouter,
-) *MuxRouter {
+	artifactPromotionPolicy artifactPromotionPolicy.Router) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -248,6 +250,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		argoApplicationRouter:              argoApplicationRouter,
 		deploymentWindowRouter:             deploymentWindowRouter,
 		commonPolicyRouter:                 commonPolicyRouter,
+		artifactPromotionPolicy:            artifactPromotionPolicy,
 	}
 	return r
 }
@@ -486,7 +489,9 @@ func (r MuxRouter) Init() {
 	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/global/policy").Subrouter()
 	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
 
-
 	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
 	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
+
+	artifactPromotionPolicyRouter := r.Router.PathPrefix("/orchestrator/artifact-promotion/policy").Subrouter()
+	r.artifactPromotionPolicy.InitRouter(artifactPromotionPolicyRouter)
 }

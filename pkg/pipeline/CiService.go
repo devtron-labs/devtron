@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"net/http"
 	"path/filepath"
@@ -165,7 +166,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 {
+	if trigger.PipelineType == string(constants.CI_JOB) && len(ciMaterials) != 0 {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0

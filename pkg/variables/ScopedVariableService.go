@@ -39,7 +39,7 @@ type ScopedVariableServiceImpl struct {
 	VariableNameConfig                  *VariableConfig
 	VariableCache                       *cache.VariableCacheObj
 
-	//Enterprise only
+	// Enterprise only
 	appRepository         app.AppRepository
 	environmentRepository repository.EnvironmentRepository
 	clusterRepository     repository.ClusterRepository
@@ -53,7 +53,7 @@ func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepos
 		qualifierMappingService:  qualifierMappingService,
 		VariableCache:            &cache.VariableCacheObj{CacheLock: &sync.Mutex{}},
 
-		//Enterprise only
+		// Enterprise only
 		appRepository:                       appRepository,
 		environmentRepository:               environmentRepository,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
@@ -284,7 +284,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	}
 	scopeIdToVarData := make(map[int]string)
 	for _, savedSelection := range savedSelections {
-		scopeIdToVarData[savedSelection.Id] = varScopeToSelection[savedSelection].Data //parentVar.Data
+		scopeIdToVarData[savedSelection.Id] = varScopeToSelection[savedSelection].Data // parentVar.Data
 	}
 	return scopeIdToVarData, nil
 }
@@ -345,7 +345,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 		if scope.ParentIdentifier > 0 {
 			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
 		} else {
-			//is parent so collect IDs and put it in a map for easy retrieval
+			// is parent so collect IDs and put it in a map for easy retrieval
 			parentScopeIds = append(parentScopeIds, scope.Id)
 			parentScopeIdToScope[scope.Id] = scope
 		}
@@ -371,7 +371,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
-	//populating system variables from system metadata
+	// populating system variables from system metadata
 	var systemVariableData, allSystemVariables []*models.ScopedVariableData
 	if scope.SystemMetadata != nil {
 		systemVariableData, allSystemVariables = impl.getSystemVariablesData(scope.SystemMetadata, varNames)
@@ -390,7 +390,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 	if allVariableDefinitions == nil {
 		allVariableDefinitions, err = impl.scopedVariableRepository.GetAllVariables()
 
-		//Cache was not loaded and no active variables found
+		// Cache was not loaded and no active variables found
 		if len(allVariableDefinitions) == 0 {
 			return scopedVariableDataObj, nil
 		}
@@ -483,7 +483,7 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		}
 	}
 
-	//adding variable def for variables which don't have any scoped data defined
+	// adding variable def for variables which don't have any scoped data defined
 	// This only happens when passed var names is null (called from UI to get all variables with or without data)
 	if varNames == nil {
 		for _, definition := range allVariableDefinitions {
@@ -668,7 +668,7 @@ func (impl *ScopedVariableServiceImpl) getVariableScopes(dataForJson []*reposito
 	}
 	scopedVariableMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.Variable, nil, varDefnIds)
 	if err != nil {
-		//TODO KB: handle this
+		// TODO KB: handle this
 		return varIdVsScopeMappings, varScopeIds, err
 	}
 
