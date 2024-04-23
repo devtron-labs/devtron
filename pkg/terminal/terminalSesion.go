@@ -473,7 +473,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	sessionCtx, cancelFunc := context.WithCancel(context.Background())
 	terminalSessions.Set(sessionID, TerminalSession{
 		id:                sessionID,
-		bound:             make(chan error),
+		bound:             make(chan error, 1),
 		sizeChan:          make(chan remotecommand.TerminalSize),
 		doneChan:          make(chan struct{}),
 		context:           sessionCtx,
