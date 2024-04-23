@@ -22,6 +22,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -246,7 +247,7 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 
 func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
 	query := impl.dbConnection.Model().
-		Table(ApiTokenTableName).
+		Table(userBean.ApiTokenTableName).
 		Where("name = ?", tokenName).
 		Where("version = ?", tokenVersion)
 
