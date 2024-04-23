@@ -42,7 +42,7 @@ type AppStoreDeploymentDBService interface {
 	// UpdateInstalledAppVersionHistoryWithGitHash updates GitHash in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryWithGitHash(versionHistoryId int, gitHash string, userId int32) error
 	// UpdateProjectForHelmApp updates TeamId in the app.App
-	UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error
+	UpdateProjectForHelmApp(appName, displayName, namespace string, teamId int, userId int32) error
 	// InstallAppPostDbOperation is used to perform Post-Install DB operations in App Store deployments
 	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	// MarkInstalledAppVersionsInactiveByInstalledAppId will mark the repository.InstalledAppVersions inactive for the given InstalledAppId
@@ -322,14 +322,41 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistoryWit
 	return nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error {
+func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName, namespace string, teamId int, userId int32) error {
 	appModel, err := impl.appRepository.FindActiveByName(appName)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching appModel", "err", err)
-		return err
+	if err != nil && util.IsErrNoRows(err) {
+		// if we can't find by appName then find by display name, if app is found via display name then app was previously assigned with project or linked with devtron with app_name as display_name
+		appModel, err = impl.appRepository.FindActiveByName(displayName)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching appModel by displayName", "displayName", displayName, "err", err)
+			return err
+		}
+		// external app will have a display name, so checking the following case only for external apps
+		if appModel != nil && appModel.Id > 0 && len(displayName) > 0 {
+			/*
+						1. now we will check if for that appModel, installed_app entry present or not,
+					    2. if not, then let the normal flow continue as we can change the app_name with app unique identifier.
+						3. if exists then we will check if request's namespace is same as what present in installed_apps.
+							- if ns doesn't match then update proj. req. is for some other app found in app table via display_name,
+				              in this case create a new entry in app table for the request.
+							- if ns matches, then update proj. req. is for same app present in installed_apps, in that case we will update
+					          the app_name with unique identifier and display_name along with team_id.
+			*/
+			installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(appModel.Id)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching installed app by appId", "appId", appModel.Id, "appName", appName, "err", err)
+				return err
+			}
+			if installedApp.Id > 0 {
+				if namespace != installedApp.Environment.Namespace {
+					//assigning appModel as nil, so that it will create a new entry in app for the request
+					appModel = nil
+				}
+			}
+		}
 	} else {
-		// for already linked project to app-> this case needs to be handled here
-		// in that case appModel will come as empty. in that case it will go and create new entry in app find app name by display name only
+		impl.logger.Errorw("error in fetching appModel by appName", "appName", appName, "err", err)
+		return err
 	}
 
 	var appInstallationMode string
@@ -362,6 +389,10 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 			return err
 		}
 	} else {
+		//this will handle the case when ext-helm app is already assigned to a project and an entry already exist in app table
+		//then this will override app_name with unique identifier app name and update display_name also
+		appModel.AppName = appName
+		appModel.DisplayName = displayName
 		// update team id if appModel exist
 		appModel.TeamId = teamId
 		appModel.UpdateAuditLog(userId)
