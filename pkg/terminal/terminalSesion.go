@@ -92,7 +92,7 @@ func (t TerminalSession) Next() *remotecommand.TerminalSize {
 	select {
 	case size := <-t.sizeChan:
 		return &size
-	case <-t.doneChan:
+	case <-t.doneChan: // TODO KB: need to set this while closing session
 		return nil
 	}
 }
@@ -194,6 +194,7 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 	defer sm.Lock.Unlock()
 	terminalSession := sm.Sessions[sessionId]
 	if terminalSession.sockJSSession != nil {
+		terminalSession.doneChan <- struct{}{} // TODO KB: review this
 		err := terminalSession.sockJSSession.Close(status, reason)
 		if err != nil {
 			log.Println(err)

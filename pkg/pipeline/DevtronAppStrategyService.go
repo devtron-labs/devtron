@@ -96,7 +96,7 @@ func (impl *DevtronAppStrategyServiceImpl) FetchCDPipelineStrategy(appId int) (P
 
 func (impl *DevtronAppStrategyServiceImpl) FetchDefaultCDPipelineStrategy(appId int, envId int) (PipelineStrategy, error) {
 	pipelineStrategy := PipelineStrategy{}
-	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+	cdPipelines, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId, "")
 	if err != nil || (cdPipelines.Pipelines) == nil || len(cdPipelines.Pipelines) == 0 {
 		return pipelineStrategy, err
 	}

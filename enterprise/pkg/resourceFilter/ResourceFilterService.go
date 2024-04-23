@@ -3,6 +3,7 @@ package resourceFilter
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -26,7 +27,7 @@ type ResourceFilterService interface {
 	DeleteFilter(userId int32, id int) error
 
 	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
-	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error)
+	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (FilterState, map[int]FilterState, error)
 
 	// filter evaluation audit
 	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
@@ -352,12 +353,16 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error) {
-	params := getParamsFromArtifact(artifactImage, imageLabels)
+func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (FilterState, map[int]FilterState, error) {
+
 	filterIdVsState := make(map[int]FilterState)
 	finalState := ALLOW
+	params, err := GetParamsFromArtifact(artifactImage, imageLabels, materialInfos)
+	if err != nil {
+		return ERROR, filterIdVsState, err
+	}
 	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, ExpressionMetadata{Params: params})
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter.Conditions, ExpressionMetadata{Params: params})
 		if err != nil {
 			finalState = ERROR
 			filterIdVsState[filter.Id] = ERROR

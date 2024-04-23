@@ -8,6 +8,7 @@ import (
 var CommonPolicyActionWireSet = wire.NewSet(
 	policyGovernance.NewCommonPolicyActionsService,
 	wire.Bind(new(policyGovernance.CommonPolicyActionsService), new(*policyGovernance.CommonPolicyActionsServiceImpl)),
+	wire.Bind(new(policyGovernance.CommonPoliyApplyEventNotifier), new(*policyGovernance.CommonPolicyActionsServiceImpl)),
 	NewCommonPolicyRestHandlerImpl,
 	wire.Bind(new(CommonPolicyRestHandler), new(*CommonPolicyRestHandlerImpl)),
 	NewCommonPolicyRouterImpl,

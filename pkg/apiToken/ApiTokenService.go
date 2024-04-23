@@ -382,6 +382,21 @@ func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int
 	return token, nil
 }
 
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForArtifactPromotion(claims *ArtifactPromotionApprovalNotificationClaims, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		impl.logger.Errorw("error in setting registered claims", "err", err)
+		return "", err
+	}
+	claims.RegisteredClaims = registeredClaims
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := unsignedToken.SignedString(secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
 func (impl ApiTokenServiceImpl) setRegisteredClaims(expireAtInMs int64) (jwt.RegisteredClaims, []byte, error) {
 	secretByteArr, err := impl.apiTokenSecretService.GetApiTokenSecretByteArr()
 	if err != nil {
