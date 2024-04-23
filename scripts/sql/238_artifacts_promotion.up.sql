@@ -3,7 +3,7 @@ ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer NOT 
 
 --  drop the constraint as this is no longer valid
 ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_fkey;
-DROP INDEX deployment_approval_user_data_approval_request_id_user_id_key;
+ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_user_id_key;
 
 -- rename deployment_approval_user_data table to request_approval_user_data
 ALTER TABLE deployment_approval_user_data RENAME TO request_approval_user_data;
