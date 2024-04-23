@@ -252,6 +252,10 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
 		return err
 	}
+	appName := installedApp.App.AppName
+	if len(installedApp.App.DisplayName) > 0 {
+		appName = installedApp.App.DisplayName
+	}
 	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
@@ -300,7 +304,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			ValuesYaml: valuesOverrideYaml,
 			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedApp.Environment.Namespace,
-				ReleaseName:      installedApp.App.AppName,
+				ReleaseName:      appName,
 			},
 			ChartName:                  appStoreApplicationVersion.Name,
 			ChartVersion:               appStoreApplicationVersion.Version,

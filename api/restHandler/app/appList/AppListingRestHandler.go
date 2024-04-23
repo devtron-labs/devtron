@@ -905,6 +905,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
+		if len(installedApp.App.DisplayName) > 0 {
+			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
+		}
 		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
