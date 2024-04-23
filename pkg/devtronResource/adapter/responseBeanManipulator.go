@@ -3,9 +3,6 @@ package adapter
 import "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 
 func removeInternalOnlyFieldsFromDescriptorObjectBean(reqBean *bean.DevtronResourceObjectDescriptorBean) {
-	if len(reqBean.Identifier) != 0 {
-		reqBean.Identifier = ""
-	}
 	if len(reqBean.IdType) != 0 {
 		reqBean.IdType = ""
 	}

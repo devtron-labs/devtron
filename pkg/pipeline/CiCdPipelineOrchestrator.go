@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	devtronResourceAdapter "github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"golang.org/x/exp/slices"
 	"path"
 	"regexp"
@@ -53,7 +54,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -1280,17 +1281,18 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	go func() {
-		var kind, subKind bean6.DevtronResourceKind
+		var kind, subKind devtronResourceBean.DevtronResourceKind
 		switch app.AppType {
 		case helper.CustomApp:
-			kind = bean6.DevtronResourceApplication
-			subKind = bean6.DevtronResourceDevtronApplication
+			kind = devtronResourceBean.DevtronResourceApplication
+			subKind = devtronResourceBean.DevtronResourceDevtronApplication
 		case helper.Job:
-			kind = bean6.DevtronResourceJob
-			// here not doing for helm app because it is deleted in different method (through installed app)
+			kind = devtronResourceBean.DevtronResourceJob
+			//here not doing for helm app because it is deleted in different method (through installed app)
 		}
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(app.Id, kind,
-			subKind, bean6.DevtronResourceVersion1, userId)
+		deleteReq := devtronResourceAdapter.BuildDevtronResourceObjectDescriptorBean(app.Id, kind,
+			subKind, devtronResourceBean.DevtronResourceVersion1, userId)
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting app resource and dependency data", "err", err, "appId", app.Id)
 		}

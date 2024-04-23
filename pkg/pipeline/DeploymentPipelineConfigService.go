@@ -51,7 +51,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -1012,7 +1013,9 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	impl.pipelineConfigEventPublishService.PublishCDPipelineDelete(pipeline.Id, userId)
 
 	go func() {
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(pipeline.Id, bean5.DevtronResourceCdPipeline, "", bean5.DevtronResourceVersion1, userId)
+		deleteReq := adapter.BuildDevtronResourceObjectDescriptorBean(pipeline.Id, devtronResourceBean.DevtronResourceCdPipeline,
+			"", devtronResourceBean.DevtronResourceVersion1, userId)
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting cd pipeline resource and dependency data", "err", err, "pipelineId", pipeline.Id)
 		}

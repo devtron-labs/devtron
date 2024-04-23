@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"time"
 )
@@ -51,6 +52,8 @@ type AppRepository interface {
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
+	FindActiveByNameAndAppType(appName string, appType helper.AppType) (*App, error)
+	FindIdByName(appName string) (int, error)
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
@@ -143,6 +146,34 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
 }
+
+func (repo AppRepositoryImpl) FindIdByName(appName string) (int, error) {
+	var id int
+	err := repo.dbConnection.
+		Model().
+		Table("app").
+		Column("app.id").
+		Where("app_name = ?", appName).
+		Where("active = ?", true).
+		Order("id DESC").Limit(1).
+		Select(&id)
+	// there is only single active app will be present in db with a same name.
+	return id, err
+}
+
+func (repo AppRepositoryImpl) FindActiveByNameAndAppType(appName string, appType helper.AppType) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.
+		Model(pipelineGroup).
+		Where("app_name = ?", appName).
+		Where("app.app_type = ?", appType).
+		Where("active = ?", true).
+		Order("id DESC").Limit(1).
+		Select()
+	// there is only single active app will be present in db with a same name.
+	return pipelineGroup, err
+}
+
 func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.
@@ -503,13 +534,16 @@ func (repo AppRepositoryImpl) FindAppsByIdsOrNames(ids []int, names []string) ([
 	if len(ids) == 0 && len(names) == 0 {
 		return nil, fmt.Errorf("invalid request, no arguments available")
 	}
-	query := repo.dbConnection.Model(&apps).Where("app.active = ?", true)
-	if len(ids) > 0 {
-		query = query.WhereOr("app.id in (?)", pg.In(ids))
-	}
-	if len(names) > 0 {
-		query = query.WhereOr("app.name in (?)", pg.In(names))
-	}
+	query := repo.dbConnection.Model(&apps).Where("app.active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			if len(ids) > 0 {
+				query = query.WhereOr("app.id in (?)", pg.In(ids))
+			}
+			if len(names) > 0 {
+				query = query.WhereOr("app.app_name in (?)", pg.In(names))
+			}
+			return query, nil
+		})
 	err := query.Select()
 	return apps, err
 }

@@ -2,15 +2,30 @@ package bean
 
 import "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 
+type GetQueryParams struct {
+	Id         int    `schema:"id"`
+	Identifier string `schema:"identifier"`
+}
+
+type QueryParams interface {
+	GetQueryParams | GetResourceQueryParams | GetDependencyQueryParams
+}
+
 type GetResourceQueryParams struct {
-	Id         int                               `schema:"id"`
-	Component  []bean.DevtronResourceUIComponent `schema:"component"`
-	Identifier string                            `schema:"identifier"`
+	GetQueryParams
+	Component []bean.DevtronResourceUIComponent `schema:"component"`
+}
+
+type GetDependencyQueryParams struct {
+	GetQueryParams
+	IsLite           bool     `schema:"lite"`
+	DependenciesInfo []string `schema:"dependencyInfo"`
 }
 
 type GetResourceListQueryParams struct {
-	IsLite     bool `schema:"lite"`
-	FetchChild bool `schema:"fetchChild"`
+	IsLite         bool     `schema:"lite"`
+	FetchChild     bool     `schema:"fetchChild"`
+	FilterCriteria []string `schema:"filterCriteria"`
 }
 
 const (

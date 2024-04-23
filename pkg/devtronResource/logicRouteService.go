@@ -2,6 +2,7 @@ package devtronResource
 
 import (
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 )
@@ -41,6 +42,40 @@ func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, versi
 
 func getFuncToBuildIdentifierForResourceObj(kind, subKind, version string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (string, error) {
 	if f, ok := buildIdentifierForResourceObjFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getFuncToUpdateResourceDependenciesDataInResponseObj(kind string, subKind string, version string) func(*DevtronResourceServiceImpl,
+	*bean.DevtronResourceObjectDescriptorBean, *apiBean.GetDependencyQueryParams, *repository.DevtronResourceSchema,
+	*repository.DevtronResourceObject, *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error) {
+	if f, ok := updateResourceDependenciesDataInResponseObjFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func extractConditionsFromFilterCriteria(kind, subKind, version string, resource bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, filterCriteria *bean.FilterCriteriaDecoder) ([]int, error) {
+	if f, ok := extractConditionsFromFilterCriteriaFuncMap[getKeyForKindSubKindVersionResource(kind, subKind, version, resource)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getProcessingFiltersOnResourceObjectsFuncMap(kind, subKind, version string, resource bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error) {
+	if f, ok := getProcessingFiltersFuncMap[getKeyForKindSubKindVersionResource(kind, subKind, version, resource)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func applyFilterResourceKindFunc(kind, subKind, version string) func(impl *DevtronResourceServiceImpl, kind, subKind, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error) {
+	if f, ok := applyFilterResourceKindFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
 		return nil
@@ -110,6 +145,61 @@ var buildIdentifierForResourceObjFuncMap = map[string]func(*DevtronResourceServi
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).buildIdentifierForReleaseTrackResourceObj,
 }
 
+var getResourceIdAndIdTypeFromIdentifierFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.ResourceIdentifier) (int, bean.IdType, error){
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceDevtronApplication,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceHelmApplication,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+	getKeyForKindAndVersion(bean.DevtronResourceCluster, "",
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+	getKeyForKindAndVersion(bean.DevtronResourceJob, "",
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+	getKeyForKindAndVersion(bean.DevtronResourceCdPipeline, "",
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).getIdAndIdTypeFromIdentifierForDevtronApps,
+}
+
+var updateResourceDependenciesDataInResponseObjFuncMap = map[string]func(*DevtronResourceServiceImpl,
+	*bean.DevtronResourceObjectDescriptorBean, *apiBean.GetDependencyQueryParams, *repository.DevtronResourceSchema,
+	*repository.DevtronResourceObject, *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error){
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceDevtronApplication,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).updateV1ResourceDependenciesDataInResponseObj,
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceHelmApplication,
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).updateV1ResourceDependenciesDataInResponseObj,
+	getKeyForKindAndVersion(bean.DevtronResourceCluster, "",
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).updateV1ResourceDependenciesDataInResponseObj,
+	getKeyForKindAndVersion(bean.DevtronResourceJob, "",
+		bean.DevtronResourceVersion1): (*DevtronResourceServiceImpl).updateV1ResourceDependenciesDataInResponseObj,
+
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDependenciesDataInResponseObj,
+}
+
+var updateMetadataInDependencyFuncMap = map[string]func(int, *bean.DependencyMetaDataBean) interface{}{
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceDevtronApplication,
+		bean.DevtronResourceVersion1): updateAppMetaDataInDependencyObj,
+	getKeyForKindAndVersion(bean.DevtronResourceApplication, bean.DevtronResourceHelmApplication,
+		bean.DevtronResourceVersion1): updateAppMetaDataInDependencyObj,
+	getKeyForKindAndVersion(bean.DevtronResourceCdPipeline, "",
+		bean.DevtronResourceVersion1): updateCdPipelineMetaDataInDependencyObj,
+}
+
+var updateDependencyConfigDataFuncMap = map[string]func(string, *bean.DependencyConfigBean, bool) error{
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): updateReleaseDependencyConfigDataInObj,
+}
+
+var extractConditionsFromFilterCriteriaFuncMap = map[string]func(impl *DevtronResourceServiceImpl, filterCriteria *bean.FilterCriteriaDecoder) ([]int, error){
+	getKeyForKindSubKindVersionResource(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack): (*DevtronResourceServiceImpl).getReleaseTrackIdsFromFilterValueBasedOnType,
+}
+
+var getProcessingFiltersFuncMap = map[string]func(impl *DevtronResourceServiceImpl, resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error){
+	getKeyForKindSubKindVersionResource(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack): (*DevtronResourceServiceImpl).getFilteredReleaseObjectsForReleaseTrackIds,
+}
+
 var handleResourceObjectUpdateReqFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean, *repository.DevtronResourceObject){
 	getKeyForKindVersionAndObjectUpdatePath(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1, bean.ResourceObjectDependenciesPath): (*DevtronResourceServiceImpl).handleReleaseDependencyUpdateRequest,
@@ -121,6 +211,10 @@ func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {
 
 func getKeyForKindAndVersion[K, S, V ~string](kind K, subKind S, version V) string {
 	return fmt.Sprintf("%s-%s-%s", kind, subKind, version)
+}
+
+func getKeyForKindSubKindVersionResource[K, S, C ~string](kind K, subKind S, version C, resource bean.DevtronResourceKind) string {
+	return fmt.Sprintf("%s-%s-%s-%s", kind, subKind, version, resource)
 }
 
 func getKeyForKindVersionAndObjectUpdatePath[K, S, V, P ~string](kind K, subKind S, version V, objectUpdatePath P) string {
@@ -139,4 +233,33 @@ func listApiResourceKindFunc(kind string) func(*DevtronResourceServiceImpl, []*r
 var listApiResourceKindFuncMap = map[string]func(impl *DevtronResourceServiceImpl, objects []*repository.DevtronResourceObject,
 	childObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int, isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error){
 	bean.DevtronResourceReleaseTrack.ToString(): (*DevtronResourceServiceImpl).listReleaseTracks,
+	bean.DevtronResourceRelease.ToString():      (*DevtronResourceServiceImpl).listRelease,
+}
+
+var applyFilterResourceKindFuncMap = map[string]func(impl *DevtronResourceServiceImpl, kind, subKind, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease.ToString(), "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).applyFilterCriteriaOnReleaseResourceObjects,
+}
+
+func getFuncToUpdateMetadataInDependency(kind string, subKind string, version string) func(int, *bean.DependencyMetaDataBean) interface{} {
+	if f, ok := updateMetadataInDependencyFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getFuncToUpdateDependencyConfigData(kind string, subKind string, version string) func(string, *bean.DependencyConfigBean, bool) error {
+	if f, ok := updateDependencyConfigDataFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getFuncToGetResourceIdAndIdTypeFromIdentifier(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *bean.ResourceIdentifier) (int, bean.IdType, error) {
+	if f, ok := getResourceIdAndIdTypeFromIdentifierFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
 }

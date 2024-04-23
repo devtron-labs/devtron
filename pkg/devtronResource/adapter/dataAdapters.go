@@ -39,16 +39,38 @@ func GetSuccessPassResponse() *bean.SuccessResponse {
 	}
 }
 
-func GetSuccessFailResponse() *bean.SuccessResponse {
-	return &bean.SuccessResponse{
-		Success: false,
-	}
-}
-
 func BuildUserSchemaData(id int32, emailId string) *bean.UserSchema {
 	return &bean.UserSchema{
 		Id:   id,
 		Name: emailId,
 		Icon: true,
 	}
+}
+func BuildFilterCriteriaDecoder(resource, identifierType, value string) *bean.FilterCriteriaDecoder {
+	return &bean.FilterCriteriaDecoder{
+		Resource: bean.DevtronResourceKind(resource),
+		Type:     bean.FilterCriteriaIdentifier(identifierType),
+		Value:    value,
+	}
+}
+
+func BuildDevtronResourceObjectGetAPIBean() *bean.DevtronResourceObjectGetAPIBean {
+	return &bean.DevtronResourceObjectGetAPIBean{
+		DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
+		DevtronResourceObjectBasicDataBean: &bean.DevtronResourceObjectBasicDataBean{
+			Overview: &bean.ResourceOverview{},
+		},
+	}
+}
+
+func BuildDevtronResourceObjectDescriptorBean(id int, kind, subKind bean.DevtronResourceKind,
+	version bean.DevtronResourceVersion, userId int32) *bean.DevtronResourceObjectDescriptorBean {
+	reqBean := &bean.DevtronResourceObjectDescriptorBean{
+		Kind:    kind.ToString(),
+		SubKind: subKind.ToString(),
+		Version: version.ToString(),
+		UserId:  userId,
+	}
+	SetIdTypeAndResourceIdBasedOnKind(reqBean, id)
+	return reqBean
 }

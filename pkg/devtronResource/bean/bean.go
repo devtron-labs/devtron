@@ -35,12 +35,14 @@ type DevtronResourceObjectDescriptorBean struct {
 	OldObjectId  int                          `json:"id,omitempty"`   // here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
 	Name         string                       `json:"name,omitempty"` // Name will only be used as a metadata for resource object json. Name can not be privileged for getting repository.DevtronResourceObject
 	SchemaId     int                          `json:"schemaId"`
-	Identifier   string                       `json:"-"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
+	Identifier   string                       `json:"identifier,omitempty"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
 	UIComponents []DevtronResourceUIComponent `json:"-"`
-	Id           int                          `json:"-"` // This is the field which holds the resourceObjectId i.e. id in devtron_resource_object table. Have not exposed this and taking this value from oldObjectId to maintain backward compatibility
-	IdType       IdType                       `json:"-"` // internal, for release and release-track IdType will be repository.DevtronResourceObject.(Id)
+	Id           int                          `json:"-"` //this is the field which holds the resourceObjectId i.e. id in devtron_resource_object table. Have not exposed this and taking this value from oldObjectId to maintain backward compatibility
+	IdType       IdType                       `json:"-"` // internal , for release and release-track IdType will be repository.DevtronResourceObject.(Id)
+	UserId       int32                        `json:"-"`
 }
 
+// GetResourceIdByIdType will return the resource id based on id type
 func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int {
 	if reqBean.IdType == OldObjectId {
 		return reqBean.OldObjectId
@@ -50,6 +52,7 @@ func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int 
 	return 0
 }
 
+// SetResourceIdBasedOnIdType will update the resource id/ oldObjectId based on id type
 func (reqBean *DevtronResourceObjectDescriptorBean) SetResourceIdBasedOnIdType(id int) {
 	if reqBean.IdType == OldObjectId {
 		reqBean.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables
@@ -68,9 +71,9 @@ type DevtronResourceObjectBean struct {
 	ChildDependencies []*DevtronResourceDependencyBean `json:"childDependencies"`
 	Overview          *ResourceOverview                `json:"overview,omitempty"`
 	ConfigStatus      *ConfigStatus                    `json:"configStatus,omitempty"`
-	ParentConfig      *ResourceParentConfig            `json:"parentConfig,omitempty"`
+	ParentConfig      *ResourceIdentifier              `json:"parentConfig,omitempty"`
 	PatchQuery        []PatchQuery                     `json:"query,omitempty"`
-	UserId            int32                            `json:"-"`
+	DependencyInfo    *DependencyInfo                  `json:"DependencyInfo,omitempty"`
 }
 
 type DevtronResourceObjectGetAPIBean struct {
@@ -80,11 +83,11 @@ type DevtronResourceObjectGetAPIBean struct {
 }
 
 type DevtronResourceObjectBasicDataBean struct {
-	Schema       string                `json:"schema,omitempty"`
-	CatalogData  string                `json:"objectData,omitempty"` //json key not changed for backward compatibility
-	Overview     *ResourceOverview     `json:"overview,omitempty"`
-	ConfigStatus *ConfigStatus         `json:"configStatus,omitempty"`
-	ParentConfig *ResourceParentConfig `json:"parentConfig,omitempty"`
+	Schema       string              `json:"schema,omitempty"`
+	CatalogData  string              `json:"objectData,omitempty"` //json key not changed for backward compatibility
+	Overview     *ResourceOverview   `json:"overview,omitempty"`
+	ConfigStatus *ConfigStatus       `json:"configStatus,omitempty"`
+	ParentConfig *ResourceIdentifier `json:"parentConfig,omitempty"`
 }
 
 type ResourceOverview struct {
@@ -102,7 +105,7 @@ type NoteBean struct {
 	UpdatedBy *UserSchema `json:"updatedBy"`
 }
 
-type ResourceParentConfig struct {
+type ResourceIdentifier struct {
 	Id         int    `json:"id"`
 	Identifier string `json:"identifier,omitempty"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
 	DevtronResourceTypeReq
@@ -115,15 +118,22 @@ type DevtronResourceTypeReq struct {
 }
 
 type PatchQuery struct {
-	Operation string         `json:"op"` // default is replace
-	Path      PatchQueryPath `json:"path" validate:"required"`
-	Value     interface{}    `json:"value"`
+	Operation PatchQueryOperation `json:"op"` // default is replace
+	Path      PatchQueryPath      `json:"path" validate:"required"`
+	Value     interface{}         `json:"value"`
 }
 
 type DependencyInfo struct {
-	DependencyName string              `json:"dependencyName,omitempty"`
-	DependencyType DevtronResourceKind `json:"dependencyResourceKind,omitempty"`
+	Id              int                    `json:"id"`
+	Identifier      string                 `json:"identifier"`
+	ResourceKind    DevtronResourceKind    `json:"resourceKind,omitempty"`
+	ResourceVersion DevtronResourceVersion `json:"resourceVersion,omitempty"`
 }
+
+const (
+	IdentifierQueryString = "identifier"
+	IdQueryString         = "id"
+)
 
 type ResourceParentData struct {
 	Id   int    `json:"id"`
@@ -148,6 +158,47 @@ type DevtronResourceDependencyBean struct {
 }
 
 type DependencyConfigBean struct {
+	*DevtronAppDependencyConfig
+}
+
+type ArtifactConfig struct {
+	ArtifactId   int             `json:"artifactId"`
+	Image        string          `json:"image"`
+	RegistryType string          `json:"registryType"`
+	RegistryName string          `json:"registryName"`
+	CommitSource []GitCommitData `json:"commitSource,omitempty"`
+}
+
+type GitCommitData struct {
+	Author       string               `json:"author"`
+	Branch       string               `json:"branch"`
+	Message      string               `json:"message"`
+	ModifiedTime time.Time            `json:"modifiedTime"`
+	Revision     string               `json:"revision"`
+	Tag          string               `json:"tag"`
+	Url          string               `json:"url"`
+	WebhookData  *WebHookMaterialInfo `json:"webhookData,omitempty"`
+}
+
+type WebHookMaterialInfo struct {
+	Id              int         `json:"id"`
+	EventActionType string      `json:"eventActionType"`
+	Data            interface{} `json:"data"`
+}
+
+type DevtronAppDependencyConfig struct {
+	ArtifactConfig *ArtifactConfig `json:"artifactConfig"`
+	CiWorkflowId   int             `json:"ciWorkflowId"`
+
+	ReleaseInstruction string `json:"releaseInstruction,omitempty"`
+}
+
+// DependencyMetaDataBean is used internally to set the value of DevtronResourceDependencyBean.Metadata
+type DependencyMetaDataBean struct {
+	// set as DevtronResourceDependencyBean.Metadata if DevtronResourceDependencyBean.TypeOfDependency --> DevtronResourceApplication
+	MapOfAppsMetadata map[int]interface{}
+	// set as DevtronResourceDependencyBean.Metadata if DevtronResourceDependencyBean.TypeOfDependency --> DevtronResourceApplication
+	MapOfCdPipelinesMetadata map[int]interface{}
 }
 
 type UpdateSchemaResponseBean struct {
@@ -178,6 +229,19 @@ type UserSchema struct {
 	Icon bool   `json:"icon"`
 	Name string `json:"name"`
 }
+
+type FilterCriteriaDecoder struct {
+	Resource DevtronResourceKind
+	Type     FilterCriteriaIdentifier
+	Value    string
+}
+
+type FilterCriteriaIdentifier string
+
+const (
+	Identifier FilterCriteriaIdentifier = "identifier"
+	Id         FilterCriteriaIdentifier = "id"
+)
 
 type Status string
 
@@ -371,16 +435,27 @@ const (
 	DevtronResourceIdKey       = "devtronResourceId"
 	DevtronResourceSchemaIdKey = "devtronResourceSchemaId"
 	DependentOnIndexKey        = "dependentOnIndex"
+	DependentOnIndexesKey      = "dependentOnIndexes"
 	DependentOnParentIndexKey  = "dependentOnParentIndex"
+	ConfigKey                  = "config"
 	IconKey                    = "icon"
 	EnumKey                    = "enum"
 	EnumNamesKey               = "enumNames"
 	IndexKey                   = "index"
 
+	IdDbColumnKey          = "id"
 	OldObjectIdDbColumnKey = "old_object_id"
 	NameDbColumnKey        = "name"
 
 	ResourceObjectDependenciesPath = "dependencies"
+
+	DependencyConfigImageKey              = "artifactConfig.image"
+	DependencyConfigArtifactIdKey         = "artifactConfig.artifactId"
+	DependencyConfigRegistryNameKey       = "artifactConfig.registryName"
+	DependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
+	DependencyConfigCiWorkflowKey         = "ciWorkflowId"
+	DependencyConfigCommitSourceKey       = "commitSource"
+	DependencyConfigReleaseInstructionKey = "releaseInstruction"
 
 	ResourceSchemaMetadataPath           = "properties.overview.properties.metadata"
 	ResourceObjectMetadataPath           = "overview.metadata"
@@ -403,7 +478,7 @@ const (
 	ResourceConfigStatusPath         = "status.config"
 	ResourceConfigStatusStatusPath   = "status.config.status"
 	ResourceConfigStatusCommentPath  = "status.config.comment"
-	ResourceConfigStatusIsLockedPath = "status.config.isLocked"
+	ResourceConfigStatusIsLockedPath = "status.config.lock"
 
 	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
 	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
@@ -412,7 +487,13 @@ const (
 )
 
 type PatchQueryPath string
+type PatchQueryOperation string
 
+const (
+	Replace PatchQueryOperation = "replace"
+	Add     PatchQueryOperation = "add"
+	Remove  PatchQueryOperation = "remove"
+)
 const (
 	ReleaseInstructionQueryPath PatchQueryPath = "releaseInstruction"
 	CommitQueryPath             PatchQueryPath = "commit"
@@ -424,22 +505,31 @@ const (
 	StatusQueryPath             PatchQueryPath = "status"
 	LockQueryPath               PatchQueryPath = "lock"
 	TagsQueryPath               PatchQueryPath = "tags"
+	ApplicationQueryPath        PatchQueryPath = "application"
 )
 
 const (
-	ResourceAlreadyExistsMessage     = "Resource already exists!"
-	ResourceDoesNotExistMessage      = "Resource does not exists!"
-	InvalidResourceKindOrVersion     = "Invalid resource kind or version! No resource schema found."
-	ReleaseVersionNotFound           = "Invalid overview data! overview.releaseVersion is required."
-	ResourceNameNotFound             = "Invalid payload data! name is required."
-	ResourceParentConfigNotFound     = "parentConfig is required! parent dependency not defined."
-	ResourceParentConfigDataNotFound = "parentConfig.data is required! parent dependency data not found."
-	InvalidResourceParentConfigData  = "Invalid parentConfig data! either id or identifier is required."
-	InvalidResourceParentConfigId    = "Invalid parentConfig! incorrect parent dependency."
-	InvalidResourceParentConfigKind  = "Invalid parentConfig kind! incorrect parent dependency."
-	InvalidResourceKindOrComponent   = "Invalid resource kind or component! Implementation not available."
-	InvalidResourceKind              = "Invalid resource kind! Implementation not supported."
-	InvalidResourceVersion           = "Invalid resource version! Implementation not supported."
-	PatchPathNotSupportedError       = "patch path not supported"
-	InvalidNoDependencyRequest       = "Invalid dependency request. No dependencies present. "
+	ResourceAlreadyExistsMessage         = "Resource already exists!"
+	ResourceDoesNotExistMessage          = "Resource does not exists!"
+	InvalidResourceSchemaId              = "Invalid resource schema id! No resource schema found."
+	InvalidResourceKindOrVersion         = "Invalid resource kind or version! No resource schema found."
+	ReleaseVersionNotFound               = "Invalid overview data! overview.releaseVersion is required."
+	ResourceNameNotFound                 = "Invalid payload data! name is required."
+	ResourceParentConfigNotFound         = "parentConfig is required! parent dependency not defined."
+	ResourceParentConfigDataNotFound     = "parentConfig.data is required! parent dependency data not found."
+	InvalidResourceParentConfigData      = "Invalid parentConfig data! either id or identifier is required."
+	InvalidResourceRequestDescriptorData = "Invalid request! either id or identifier is required."
+	InvalidResourceParentConfigId        = "Invalid parentConfig! incorrect parent dependency."
+	InvalidResourceParentConfigKind      = "Invalid parentConfig kind! incorrect parent dependency."
+	InvalidResourceKindOrComponent       = "Invalid resource kind or component! Implementation not available."
+	InvalidResourceKind                  = "Invalid resource kind! Implementation not supported."
+	InvalidQueryDependencyInfo           = "Invalid query param: dependencyInfo!"
+	InvalidResourceVersion               = "Invalid resource version! Implementation not supported."
+	PatchPathNotSupportedError           = "patch path not supported"
+	IdTypeNotSupportedError              = "resource object id type not supported"
+	InvalidNoDependencyRequest           = "Invalid dependency request. No dependencies present. "
+	InvalidFilterCriteria                = "invalid format filter criteria "
+	InvalidPatchOperation                = "invalid patch operation or not supported or dependency info not found"
+	ApplicationDependencyFoundError      = "application cannot be patched as other dependencies are dependent on this application"
+	ApplicationDependencyNotFoundError   = "no application found "
 )

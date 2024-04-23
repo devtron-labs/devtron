@@ -16,6 +16,7 @@ func SetIdTypeAndResourceIdBasedOnKind(reqBeanDescriptor *bean.DevtronResourceOb
 	reqBeanDescriptor.SetResourceIdBasedOnIdType(id)
 }
 
+// TODO: use this in PUT request
 func SetIdTypeForDependencies(reqBean *bean.DevtronResourceObjectBean) {
 	//TODO : add common logic for resolving subKind
 	for i := range reqBean.Dependencies {

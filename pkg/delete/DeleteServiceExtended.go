@@ -13,7 +13,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -76,8 +77,9 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 		return err
 	}
 	go func() {
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteRequest.Id, bean6.DevtronResourceCluster,
-			"", bean6.DevtronResourceVersion1, userId)
+		deleteReq := adapter.BuildDevtronResourceObjectDescriptorBean(deleteRequest.Id, devtronResourceBean.DevtronResourceCluster,
+			"", devtronResourceBean.DevtronResourceVersion1, userId)
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting cluster resource and dependency data", "err", err, "clusterId", deleteRequest.Id)
 		}

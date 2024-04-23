@@ -21,6 +21,8 @@ type DevtronResourceObjectRepository interface {
 	FindByIdAndSchemaId(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	// GetAllWithSchemaId will list out all the objects specific to a resource schema
 	GetAllWithSchemaId(devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
+	// GetIdsByIdentifiers returns all the ids of the devtron resource object for provided identifiers
+	GetIdsByIdentifiers(identifiers []string) ([]int, error)
 	// FindByOldObjectId will fetch the DevtronResourceObject by DevtronResourceObject.OldObjectId
 	//
 	// DevtronResourceObject.OldObjectId refers the id column of the resource's own table
@@ -32,11 +34,11 @@ type DevtronResourceObjectRepository interface {
 	FindByObjectIdentifier(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 
 	CheckIfExistById(id, devtronResourceSchemaId int) (bool, error)
+	CheckIfExistByOldObjectId(id, devtronResourceSchemaId int) (bool, error)
 	CheckIfExistByName(name string, devtronResourceSchemaId int) (bool, error)
 	CheckIfExistByIdentifier(identifier string, devtronResourceSchemaId int) (bool, error)
 
 	SoftDeleteById(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
-	SoftDeleteByName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	SoftDeleteByIdentifier(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 
 	GetChildObjectsByParentArgAndSchemaId(argumentValue interface{}, argumentType string,
@@ -46,7 +48,8 @@ type DevtronResourceObjectRepository interface {
 	GetObjectsByArgAndSchemaIds(allArgumentValues []interface{},
 		allArgumentTypes []string, devtronSchemaIdsForArgsForAllArguments []int) ([]*DevtronResourceObject, error)
 
-	DeleteObject(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
+	DeleteObjectByOldObjectId(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) (*DevtronResourceObject, error)
+	DeleteObjectById(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) (*DevtronResourceObject, error)
 	DeleteDependencyInObjectData(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
 	DeleteKeysFromObjectData(tx *pg.Tx, pathsToRemove []string, resourceId int, userId int) error
 	sql.TransactionWrapper
@@ -138,6 +141,17 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByIdAndSchemaId(id, devtron
 	return &devtronResourceObject, nil
 }
 
+func (repo *DevtronResourceObjectRepositoryImpl) GetIdsByIdentifiers(identifiers []string) ([]int, error) {
+	var ids []int
+	err := repo.dbConnection.Model().
+		Table("devtron_resource_object").
+		Column("devtron_resource_object.id").
+		Where("identifier in (?)", pg.In(identifiers)).
+		Where("deleted = ?", false).
+		Select(&ids)
+	return ids, err
+}
+
 func (repo *DevtronResourceObjectRepositoryImpl) GetAllWithSchemaId(devtronResourceSchemaId int) ([]*DevtronResourceObject, error) {
 	var models []*DevtronResourceObject
 	err := repo.dbConnection.Model(&models).
@@ -182,8 +196,22 @@ func (repo *DevtronResourceObjectRepositoryImpl) CheckIfExistById(id, devtronRes
 		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
 		Where("deleted = ?", false).Exists()
 	if err != nil {
-		repo.logger.Errorw("error in getting devtronResourceSchema by oldObjectId", "err", err,
+		repo.logger.Errorw("error in getting devtronResourceSchema by id", "err", err,
 			"id", id, "devtronResourceSchemaId", devtronResourceSchemaId)
+		return false, err
+	}
+	return exists, nil
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) CheckIfExistByOldObjectId(oldObjectId, devtronResourceSchemaId int) (bool, error) {
+	var devtronResourceObject DevtronResourceObject
+	exists, err := repo.dbConnection.Model(&devtronResourceObject).
+		Where("old_object_id =?", oldObjectId).
+		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
+		Where("deleted = ?", false).Exists()
+	if err != nil {
+		repo.logger.Errorw("error in getting devtronResourceSchema by oldObjectId", "err", err,
+			"oldObjectId", oldObjectId, "devtronResourceSchemaId", devtronResourceSchemaId)
 		return false, err
 	}
 	return exists, nil
@@ -242,14 +270,6 @@ func (repo *DevtronResourceObjectRepositoryImpl) CheckIfExistByIdentifier(identi
 func (repo *DevtronResourceObjectRepositoryImpl) SoftDeleteById(id, devtronResourceSchemaId int) (*DevtronResourceObject, error) {
 	var devtronResourceObject DevtronResourceObject
 	_, err := repo.dbConnection.Model(&devtronResourceObject).Where("id =?", id).
-		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
-		Set("deleted = ?", true).Update()
-	return &devtronResourceObject, err
-}
-
-func (repo *DevtronResourceObjectRepositoryImpl) SoftDeleteByName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error) {
-	var devtronResourceObject DevtronResourceObject
-	_, err := repo.dbConnection.Model(&devtronResourceObject).Where("name =?", name).
 		Where("devtron_resource_schema_id = ?", devtronResourceSchemaId).
 		Set("deleted = ?", true).Update()
 	return &devtronResourceObject, err
@@ -320,16 +340,33 @@ func (repo *DevtronResourceObjectRepositoryImpl) GetObjectsByArgAndSchemaIds(all
 	return models, nil
 }
 
-func (repo *DevtronResourceObjectRepositoryImpl) DeleteObject(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error {
-	_, err := tx.Model((*DevtronResourceObject)(nil)).Set("deleted = ?", true).
+func (repo *DevtronResourceObjectRepositoryImpl) DeleteObjectByOldObjectId(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) (*DevtronResourceObject, error) {
+	var devtronResourceObject DevtronResourceObject
+	_, err := tx.Model(&devtronResourceObject).Set("deleted = ?", true).
 		Set("updated_on = ?", time.Now()).Set("updated_by = ?", updatedBy).
 		Where("old_object_id = ?", oldObjectId).Where("devtron_resource_id = ?", devtronResourceId).
 		Where("deleted = ?", false).Update()
 	if err != nil {
-		repo.logger.Errorw("error, DeleteObject", "err", err, "oldObjectId", oldObjectId, "devtronResourceId", devtronResourceId)
-		return err
+		repo.logger.Errorw("error, DeleteObjectByOldObjectId", "err", err, "oldObjectId", oldObjectId, "devtronResourceId", devtronResourceId)
+		return nil, err
 	}
-	return nil
+	return &devtronResourceObject, nil
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) DeleteObjectById(tx *pg.Tx, id, devtronResourceId int, updatedBy int32) (*DevtronResourceObject, error) {
+	var devtronResourceObject DevtronResourceObject
+	_, err := tx.Model(&devtronResourceObject).
+		Set("deleted = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", updatedBy).
+		Where("id = ?", id).
+		Where("devtron_resource_id = ?", devtronResourceId).
+		Where("deleted = ?", false).Update()
+	if err != nil {
+		repo.logger.Errorw("error, DeleteObjectById", "err", err, "id", id, "devtronResourceId", devtronResourceId)
+		return nil, err
+	}
+	return &devtronResourceObject, nil
 }
 
 func (repo *DevtronResourceObjectRepositoryImpl) DeleteDependencyInObjectData(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error {

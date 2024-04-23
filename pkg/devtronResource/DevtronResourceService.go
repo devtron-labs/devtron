@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	repositoryAdapter "github.com/devtron-labs/devtron/pkg/devtronResource/repository/adapter"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
@@ -15,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	apiBean "github.com/devtron-labs/devtron/api/bean"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -41,8 +42,11 @@ type DevtronResourceService interface {
 	// 2. fetchChild
 	//    - true to resource data along with children data 	// includes the ChildObjects also
 	//    - false for resource data only   					// doesn't include the ChildObjects
-	ListResourceObjectByKindAndVersion(kind, subKind, version string, isLite, fetchChild bool) (pagination.PaginatedResponse[*bean.DevtronResourceObjectGetAPIBean], error)
-	// GetResourceObject will get the bean.DevtronResourceObjectGetAPIBean based on the given bean.DevtronResourceObjectDescriptorBean
+	// 3. filterCondition
+	//    - supports filtering on resource object list b=in format resource|type|comma seperated values
+	//    - release-track|id|12,13,14
+	ListResourceObjectByKindAndVersion(kind, subKind, version string, isLite, fetchChild bool, filterCriteria []string) (pagination.PaginatedResponse[*bean.DevtronResourceObjectGetAPIBean], error)
+	// GetResourceObject will get the bean.DevtronResourceObjectBean based on the given bean.DevtronResourceObjectDescriptorBean
 	GetResourceObject(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectGetAPIBean, error)
 	// CreateResourceObject creates resource object corresponding to kind,version according to bean.DevtronResourceObjectBean
 	CreateResourceObject(ctx context.Context, reqBean *bean.DevtronResourceObjectBean) error
@@ -53,12 +57,13 @@ type DevtronResourceService interface {
 	DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error)
 	// GetResourceDependencies will get the bean.DevtronResourceObjectBean based on the given bean.DevtronResourceObjectDescriptorBean
 	// It provides the dependencies and child dependencies []bean.DevtronResourceDependencyBean
-	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectBean, error)
+	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DevtronResourceObjectBean, error)
 	CreateOrUpdateResourceDependencies(ctx context.Context, req *bean.DevtronResourceObjectBean) error
+	// PatchResourceDependencies supports json patch operation corresponding to kind,subKind,version on json object data takes in ([]PatchQuery in DevtronResourceObjectBean), returns error if any
+	PatchResourceDependencies(ctx context.Context, req *bean.DevtronResourceObjectBean) (*bean.SuccessResponse, error)
 	GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error)
 	UpdateSchema(req *bean.DevtronResourceSchemaRequestBean, dryRun bool) (*bean.UpdateSchemaResponseBean, error)
-	DeleteObjectAndItsDependency(oldObjectId int, kind, subKind bean.DevtronResourceKind,
-		version bean.DevtronResourceVersion, updatedBy int32) error
+	DeleteObjectAndItsDependency(req *bean.DevtronResourceObjectDescriptorBean) error
 	FindNumberOfApplicationsWithDependenciesMapped() (int, error)
 }
 
@@ -169,7 +174,7 @@ func (impl *DevtronResourceServiceImpl) GetDevtronResourceList(onlyIsExposed boo
 	return response, nil
 }
 
-func (impl *DevtronResourceServiceImpl) ListResourceObjectByKindAndVersion(kind, subKind, version string, isLite, fetchChild bool) (pagination.PaginatedResponse[*bean.DevtronResourceObjectGetAPIBean], error) {
+func (impl *DevtronResourceServiceImpl) ListResourceObjectByKindAndVersion(kind, subKind, version string, isLite, fetchChild bool, filterCriteria []string) (pagination.PaginatedResponse[*bean.DevtronResourceObjectGetAPIBean], error) {
 	response := pagination.NewPaginatedResponse[*bean.DevtronResourceObjectGetAPIBean]()
 	resourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(kind, subKind, version)
 	if err != nil {
@@ -184,6 +189,21 @@ func (impl *DevtronResourceServiceImpl) ListResourceObjectByKindAndVersion(kind,
 		impl.logger.Errorw("error in getting objects by resourceSchemaId", "err", err, "resourceSchemaId", resourceSchema.Id)
 		return response, err
 	}
+
+	if len(filterCriteria) > 0 {
+		// getting func for applying filter criteria on all resource objects based on kind
+		f := applyFilterResourceKindFunc(kind, subKind, version)
+		if f == nil {
+			return response, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
+		}
+		//applying filters and getting filtered resource objects
+		resourceObjects, err = f(impl, kind, subKind, version, resourceObjects, filterCriteria)
+		if err != nil {
+			impl.logger.Errorw("error in decodeFilterCriteria", "filterCriteria", filterCriteria, "err", err)
+			return response, err
+		}
+	}
+	// filters application ends resource objects are filtered.
 	var childResourceObjects []*repository.DevtronResourceObject
 	resourceObjectIndexChildMap := make(map[int][]int)
 	if fetchChild {
@@ -197,17 +217,26 @@ func (impl *DevtronResourceServiceImpl) ListResourceObjectByKindAndVersion(kind,
 	response.UpdateOffset(0)
 	response.UpdateSize(len(resourceObjects))
 
-	f := listApiResourceKindFunc(kind)
-	if f == nil {
+	f1 := listApiResourceKindFunc(kind)
+	if f1 == nil {
 		impl.logger.Errorw("error kind type not supported", "err", err, "kind", kind)
 		return response, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 	}
-	response.Data, err = f(impl, resourceObjects, childResourceObjects, resourceObjectIndexChildMap, isLite)
+	response.Data, err = f1(impl, resourceObjects, childResourceObjects, resourceObjectIndexChildMap, isLite)
 	if err != nil {
 		impl.logger.Errorw("error in getting list response", "err", err, "kind", kind, "subKind", subKind, "version", version)
 		return response, err
 	}
 	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) getDevtronResourceIdsFromIdentifiers(identifiers []string) ([]int, error) {
+	ids, err := impl.devtronResourceObjectRepository.GetIdsByIdentifiers(identifiers)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getDevtronResourceIdsFromIdentifiers", "err", err, "identifiers", identifiers)
+		return nil, err
+	}
+	return ids, nil
 }
 
 func (impl *DevtronResourceServiceImpl) fetchChildObjectsAndIndexMapForMultipleObjects(resourceObjects []*repository.DevtronResourceObject) ([]*repository.DevtronResourceObject, map[int][]int, error) {
@@ -217,7 +246,10 @@ func (impl *DevtronResourceServiceImpl) fetchChildObjectsAndIndexMapForMultipleO
 	schemaIdObjectIdsMap := make(map[int][]int)
 	schemaIdOldObjectIdsMap := make(map[int][]int)
 	for _, resourceObject := range resourceObjects {
-		childDependencies := getSpecificDependenciesInObjectDataFromJsonString(resourceObject.ObjectData, bean.DevtronResourceDependencyTypeChild)
+		childDependencies, err := impl.getSpecificDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, bean.DevtronResourceDependencyTypeChild)
+		if err != nil {
+			return nil, nil, err
+		}
 		for _, childDependency := range childDependencies {
 			allSchemaIdsInChildObjects[childDependency.DevtronResourceSchemaId] = true
 			if childDependency.IdType == bean.ResourceObjectIdType {
@@ -248,7 +280,10 @@ func (impl *DevtronResourceServiceImpl) fetchChildObjectsAndIndexMapForMultipleO
 		}
 	}
 	for i, resourceObject := range resourceObjects {
-		childDependencies := getSpecificDependenciesInObjectDataFromJsonString(resourceObject.ObjectData, bean.DevtronResourceDependencyTypeChild)
+		childDependencies, err := impl.getSpecificDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, bean.DevtronResourceDependencyTypeChild)
+		if err != nil {
+			return nil, nil, err
+		}
 		for _, childDependency := range childDependencies {
 			if childDependency.IdType == bean.ResourceObjectIdType {
 				if indexOfChild, ok := childObjectIdObjectsMap[fmt.Sprintf("%d-%d", childDependency.OldObjectId, childDependency.DevtronResourceSchemaId)]; ok {
@@ -262,56 +297,6 @@ func (impl *DevtronResourceServiceImpl) fetchChildObjectsAndIndexMapForMultipleO
 		}
 	}
 	return childResourceObjects, resourceObjectIndexChildMap, nil
-}
-
-func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, childObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
-	isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error) {
-	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
-	for i := range resourceObjects {
-		resourceData := &bean.DevtronResourceObjectGetAPIBean{
-			DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
-			DevtronResourceObjectBasicDataBean: &bean.DevtronResourceObjectBasicDataBean{
-				Overview: &bean.ResourceOverview{},
-			},
-		}
-		resourceData.IdType = bean.IdType(gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectIdTypePath).String())
-		if resourceData.IdType == bean.ResourceObjectIdType {
-			resourceData.OldObjectId = resourceObjects[i].Id
-		} else {
-			resourceData.OldObjectId = resourceObjects[i].OldObjectId
-		}
-		resourceData.Overview.Description = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectDescriptionPath).String()
-		resourceData.Name = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectNamePath).String()
-		childIndexes := resourceObjectIndexChildMap[i]
-		for _, childIndex := range childIndexes {
-			childObject := childObjects[childIndex]
-			childData := &bean.DevtronResourceObjectGetAPIBean{
-				DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
-				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
-			}
-			if !isLite {
-				err := impl.updateCompleteReleaseDataInResourceObj(nil, childObject, childData)
-				if err != nil {
-					impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
-					return nil, err
-				}
-			} else {
-				err := impl.updateReleaseOverviewDataInResourceObj(nil, childObject, childData)
-				if err != nil {
-					impl.logger.Errorw("error in getting overview data", "err", err)
-					return nil, err
-				}
-			}
-			resourceData.ChildObjects = append(resourceData.ChildObjects, childData)
-		}
-		err := impl.updateReleaseTrackOverviewDataInResourceObj(nil, resourceObjects[i], resourceData)
-		if err != nil {
-			impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
-			return nil, err
-		}
-		resp = append(resp, resourceData)
-	}
-	return resp, nil
 }
 
 func (impl *DevtronResourceServiceImpl) GetResourceSchemaAndExistingObject(req *bean.DevtronResourceObjectDescriptorBean) (*repository.DevtronResourceSchema, *repository.DevtronResourceObject, error) {
@@ -340,7 +325,7 @@ func (impl *DevtronResourceServiceImpl) GetResourceSchemaAndCheckIfObjectFound(r
 		}
 		return nil, false, err
 	}
-	exists, err := impl.checkIfExistingDevtronObject(reqBean.Id, devtronResourceSchema.Id, reqBean.Identifier)
+	exists, err := impl.checkIfExistingDevtronObject(reqBean.Id, devtronResourceSchema.Id, reqBean.IdType, reqBean.Identifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting object by id or name", "err", err, "request", reqBean)
 		return devtronResourceSchema, false, err
@@ -439,7 +424,7 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 	auditPaths := make([]string, 0, len(req.PatchQuery))
 	jsonPath := ""
 	for _, query := range req.PatchQuery {
-		objectData, jsonPath, err = impl.performPatchOperation(objectData, query)
+		objectData, jsonPath, err = impl.performResourcePatchOperation(objectData, query)
 		if err != nil {
 			impl.logger.Errorw("error encountered in PatchResourceObject", "query", query, "err", err)
 			return nil, err
@@ -461,30 +446,28 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 
 func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
-	devtronResourceSchema, existingResourceObjectFound, err := impl.GetResourceSchemaAndCheckIfObjectFound(req)
+	err := impl.DeleteObjectAndItsDependency(req)
 	if err != nil {
+		impl.logger.Errorw("error in DeleteResourceObject", "request", req)
 		return nil, err
 	}
-	if !existingResourceObjectFound {
-		impl.logger.Errorw("error encountered in DeleteResourceObject", "request", req, "err", err)
-		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
-	}
-	devtronResourceObject, err := impl.deleteDevtronResourceObject(req.Id, devtronResourceSchema.Id, req.Identifier)
-	if err != nil {
-		impl.logger.Errorw("error in DeleteResourceObject", "id", req.Id, "devtronResourceSchemaId", devtronResourceSchema.Id, "identifier", req.Identifier)
-		return nil, err
-	}
-
-	impl.saveAudit(devtronResourceObject, repository.AuditOperationTypeDeleted, nil)
-
 	return adapter.GetSuccessPassResponse(), nil
 }
 
-func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectBean, error) {
+func (impl *DevtronResourceServiceImpl) getResourceDependenciesData(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams,
+	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject) (*bean.DevtronResourceObjectBean, error) {
 	response := &bean.DevtronResourceObjectBean{
 		Dependencies:      make([]*bean.DevtronResourceDependencyBean, 0),
 		ChildDependencies: make([]*bean.DevtronResourceDependencyBean, 0),
 	}
+	f := getFuncToUpdateResourceDependenciesDataInResponseObj(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		return f(impl, req, query, resourceSchema, resourceObject, response)
+	}
+	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DevtronResourceObjectBean, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
 	resourceSchemaOfRequestObject, existingResourceObject, err := impl.GetResourceSchemaAndExistingObject(req)
 	if err != nil {
@@ -500,63 +483,11 @@ func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.Devtro
 			ObjectData:              bean.EmptyJsonObject,
 		}
 	}
-
-	dependenciesOfParent := getDependenciesInObjectDataFromJsonString(existingResourceObject.ObjectData)
-
-	argValuesToGetDownstream := make([]interface{}, 0, len(dependenciesOfParent)+1)
-	argTypesToGetDownstream := make([]string, 0, len(dependenciesOfParent)+1)
-	schemaIdsOfArgsToGetDownstream := make([]int, 0, len(dependenciesOfParent)+1)
-
-	// adding request data for getting downstream args of request resource object
-	appendDependencyArgDetails(&argValuesToGetDownstream, &argTypesToGetDownstream, &schemaIdsOfArgsToGetDownstream, req.OldObjectId, resourceSchemaOfRequestObject.Id)
-
-	nonChildDependenciesOfParent, mapOfNonChildDependenciesAndIndex, childDependenciesOfParent, mapOfChildDependenciesAndIndex,
-		appIdsToGetMetadata, pipelineIdsToGetMetadata, maxIndexInNonChildDependencies, err :=
-		impl.separateNonChildAndChildDependencies(dependenciesOfParent, &argValuesToGetDownstream, &argTypesToGetDownstream, &schemaIdsOfArgsToGetDownstream)
-
-	err = impl.addChildCdPipelinesNotPresentInObjects(&childDependenciesOfParent, mapOfChildDependenciesAndIndex, &pipelineIdsToGetMetadata, existingResourceObject,
-		&argValuesToGetDownstream, &argTypesToGetDownstream, &schemaIdsOfArgsToGetDownstream)
+	response, err := impl.getResourceDependenciesData(req, query, resourceSchemaOfRequestObject, existingResourceObject)
 	if err != nil {
-		impl.logger.Errorw("error, addChildCdPipelinesNotPresentInObjects", "err", err, "childDependencies", childDependenciesOfParent)
+		impl.logger.Errorw("error in getting resource dependencies data", "err", err, "query", query)
 		return nil, err
 	}
-
-	err = impl.updateChildDependenciesWithOwnDependenciesData(req.OldObjectId, resourceSchemaOfRequestObject.Id, mapOfChildDependenciesAndIndex, childDependenciesOfParent, &appIdsToGetMetadata, &pipelineIdsToGetMetadata)
-	if err != nil {
-		impl.logger.Errorw("error, updateChildDependenciesWithOwnDependenciesData", "err", err,
-			"parentOldObjectId", req.OldObjectId, "parentSchemaId", resourceSchemaOfRequestObject.Id)
-		return nil, err
-	}
-
-	downstreamDependencyObjects, err := impl.getDownstreamDependencyObjects(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream)
-	if err != nil {
-		impl.logger.Errorw("err, getDownstreamDependencyObjects", "err", err, "argValues", argValuesToGetDownstream,
-			"argTypes", argTypesToGetDownstream, "schemaIds", schemaIdsOfArgsToGetDownstream)
-		return nil, err
-	}
-
-	indexesToCheckInDownstreamObjectForChildDependency, err :=
-		impl.updateNonChildDependenciesWithDownstreamDependencies(downstreamDependencyObjects, mapOfNonChildDependenciesAndIndex, &nonChildDependenciesOfParent,
-			&appIdsToGetMetadata, &pipelineIdsToGetMetadata, maxIndexInNonChildDependencies)
-	if err != nil {
-		impl.logger.Errorw("error, updateNonChildDependenciesWithDownstreamDependencies", "err", err,
-			"downstreamDependencyObjects", downstreamDependencyObjects)
-		return nil, err
-	}
-
-	impl.updateChildDependenciesWithDownstreamDependencies(indexesToCheckInDownstreamObjectForChildDependency,
-		downstreamDependencyObjects, &pipelineIdsToGetMetadata, mapOfNonChildDependenciesAndIndex, mapOfChildDependenciesAndIndex,
-		nonChildDependenciesOfParent, childDependenciesOfParent)
-	mapOfAppsMetadata, mapOfCdPipelinesMetadata, err := impl.getMapOfAppAndCdPipelineMetadata(appIdsToGetMetadata, pipelineIdsToGetMetadata)
-	if err != nil {
-		impl.logger.Errorw("error, getMapOfAppAndCdPipelineMetadata", "err", "appIds", appIdsToGetMetadata,
-			"pipelineIds", pipelineIdsToGetMetadata)
-		return nil, err
-	}
-	nonChildDependenciesOfParent = impl.getUpdatedDependencyArrayWithMetadata(nonChildDependenciesOfParent, mapOfAppsMetadata, mapOfCdPipelinesMetadata)
-	childDependenciesOfParent = impl.getUpdatedDependencyArrayWithMetadata(childDependenciesOfParent, mapOfAppsMetadata, mapOfCdPipelinesMetadata)
-	response.Dependencies = nonChildDependenciesOfParent
-	response.ChildDependencies = childDependenciesOfParent
 	return adapter.RemoveInternalOnlyFieldsFromResourceObjectBean(response), nil
 }
 
@@ -564,7 +495,6 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 	newCtx, span := otel.Tracer("DevtronResourceService").Start(ctx, "CreateOrUpdateResourceDependencies")
 	defer span.End()
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
-	adapter.SetIdTypeForDependencies(req)
 	err := impl.setDefaultDataAndValidateDependencies(req)
 	if err != nil {
 		impl.logger.Errorw("validation error, CreateOrUpdateResourceDependencies", "err", err, "req", req)
@@ -577,7 +507,7 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 	}
 	for i := range allRequests {
 		request := allRequests[i]
-		keyToGetSchema := getKeyForADependencyMap(request.OldObjectId, request.SchemaId)
+		keyToGetSchema := helper.GetKeyForADependencyMap(request.OldObjectId, request.SchemaId)
 		devtronResourceObject := existingObjectsMap[keyToGetSchema]
 		resourceObjReq := adapter.GetResourceObjectRequirementRequest(request, bean.ResourceObjectDependenciesPath, true)
 		err = impl.createOrUpdateDevtronResourceObject(newCtx, resourceObjReq, allRequestSchemas[i], devtronResourceObject, []string{bean.ResourceObjectDependenciesPath})
@@ -589,37 +519,102 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) DeleteObjectAndItsDependency(oldObjectId int, kind, subKind bean.DevtronResourceKind,
-	version bean.DevtronResourceVersion, updatedBy int32) error {
-	dbConnection := impl.devtronResourceObjectRepository.GetConnection()
-	tx, err := dbConnection.Begin()
+func (impl *DevtronResourceServiceImpl) PatchResourceDependencies(ctx context.Context, req *bean.DevtronResourceObjectBean) (*bean.SuccessResponse, error) {
+	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
+	_, existingResourceObject, err := impl.GetResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
 	if err != nil {
-		impl.logger.Errorw("error in getting transaction", "err", err)
+		return nil, err
+	}
+	// performing json patch operations
+	objectData := existingResourceObject.ObjectData
+	auditPaths := make([]string, 0, len(req.PatchQuery))
+	jsonPath := ""
+	for _, query := range req.PatchQuery {
+		objectData, jsonPath, err = impl.performDependencyPatchPatchOperation(existingResourceObject.DevtronResourceSchemaId, objectData, query, req.DependencyInfo)
+		if err != nil {
+			impl.logger.Errorw("error encountered in PatchResourceObject", "query", query, "err", err)
+			return nil, err
+		}
+		auditPaths = append(auditPaths, jsonPath)
+	}
+	//updating final object data in resource object
+	existingResourceObject.ObjectData = objectData
+	existingResourceObject.UpdatedBy = req.UserId
+	existingResourceObject.UpdatedOn = time.Now()
+	err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
+	if err != nil {
+		impl.logger.Errorw("error encountered in PatchResourceObject", "err", err, "req", existingResourceObject)
+		return nil, err
+	}
+	impl.saveAudit(existingResourceObject, repository.AuditOperationTypePatch, auditPaths)
+	return adapter.GetSuccessPassResponse(), nil
+}
+
+func (impl *DevtronResourceServiceImpl) DeleteObjectAndItsDependency(req *bean.DevtronResourceObjectDescriptorBean) error {
+	tx, err := impl.devtronResourceObjectRepository.StartTx()
+	// Rollback tx on error.
+	defer impl.devtronResourceObjectRepository.RollbackTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in getting transaction, DeleteObject", "err", err)
 		return err
 	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	resourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(kind.ToString(), subKind.ToString(), version.ToString())
+	resourceObjectId := req.GetResourceIdByIdType()
+	resourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(req.Kind, req.SubKind, req.Version)
 	if err != nil {
-		impl.logger.Errorw("error in getting devtronResourceSchema", "err", err, "kind", kind, "subKind", subKind, "version", version)
+		impl.logger.Errorw("error in getting devtronResourceSchema, DeleteObject", "err", err, "kind", req.Kind, "subKind", req.SubKind, "version", req.Version)
 		if util.IsErrNoRows(err) {
 			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrVersion, bean.InvalidResourceKindOrVersion)
 		}
 		return err
 	}
-	err = impl.devtronResourceObjectRepository.DeleteObject(tx, oldObjectId, resourceSchema.DevtronResourceId, updatedBy)
+	if resourceObjectId == 0 {
+		if len(req.Identifier) == 0 {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceRequestDescriptorData, bean.InvalidResourceRequestDescriptorData)
+		}
+		devtronResourceObject, err := impl.devtronResourceObjectRepository.FindByObjectIdentifier(req.Identifier, resourceSchema.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting object by identifier", "err", err, "identifier", req.Identifier, "devtronResourceSchemaId", resourceSchema.Id)
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+		}
+		resourceObjectId, req.IdType = getResourceObjectIdAndType(devtronResourceObject)
+	}
+	exists, err := impl.checkIfDevtronObjectExistsByIdAndIdType(resourceObjectId, resourceSchema.Id, req.IdType)
 	if err != nil {
-		impl.logger.Errorw("error, DeleteObject", "err", err, "oldObjectId", oldObjectId, "devtronResourceId", resourceSchema.DevtronResourceId)
 		return err
 	}
-	err = impl.devtronResourceObjectRepository.DeleteDependencyInObjectData(tx, oldObjectId, resourceSchema.DevtronResourceId, updatedBy)
-	if err != nil {
-		impl.logger.Errorw("error, DeleteDependencyInObjectData", "err", err, "oldObjectId", oldObjectId, "devtronResourceId", resourceSchema.DevtronResourceId)
+	if !exists {
+		impl.logger.Errorw("no resource object found to be deleted, DeleteObject", "id", resourceObjectId, "idType", req.IdType, "err", err)
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	var updatedResourceObject *repository.DevtronResourceObject
+	if req.IdType == bean.ResourceObjectIdType {
+		updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectById(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
+		if err != nil {
+			impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
+			return err
+		}
+	} else if req.IdType == bean.OldObjectId {
+		updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectByOldObjectId(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
+		if err != nil {
+			impl.logger.Errorw("error, DeleteObject", "err", err, "oldObjectId", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
+			return err
+		}
+	} else {
+		err = fmt.Errorf(bean.IdTypeNotSupportedError)
+		impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
 		return err
 	}
-	err = tx.Commit()
+	err = impl.devtronResourceObjectRepository.DeleteDependencyInObjectData(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction, DeleteObjectAndItsDependency", "err", err)
+		impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
+		return err
+	}
+	if updatedResourceObject != nil {
+		impl.saveAudit(updatedResourceObject, repository.AuditOperationTypeDeleted, nil)
+	}
+	err = impl.devtronResourceObjectRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction, DeleteObject", "err", err)
 		return err
 	}
 	return nil
@@ -637,7 +632,11 @@ func (impl *DevtronResourceServiceImpl) FindNumberOfApplicationsWithDependencies
 	countOfApplicationsWithDependenciesMapped := 0
 	for _, object := range resourceObjects {
 		objectData := object.ObjectData
-		dependencies := getDependenciesInObjectDataFromJsonString(objectData)
+		dependencies, err := impl.getDependenciesInObjectDataFromJsonString(object.DevtronResourceSchemaId, objectData, true)
+		if err != nil {
+			impl.logger.Errorw("error in getting dependencies from json object", "err", err)
+			return 0, err
+		}
 		if len(dependencies) > 0 {
 			countOfApplicationsWithDependenciesMapped += 1
 		}
@@ -808,11 +807,6 @@ func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(re
 	for i := range req.Dependencies {
 		dep := req.Dependencies[i]
 		adapter.RemoveRedundantFieldsAndSetDefaultForDependency(dep, false)
-		err := impl.validateDependencyResourceType(dep)
-		if err != nil {
-			return err
-		}
-
 		if checkIfDependencyTypeToBeValidated(dep.TypeOfDependency) {
 			allDependenciesToBeValidated = append(allDependenciesToBeValidated, dep)
 		}
@@ -820,10 +814,6 @@ func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(re
 	for j := range req.ChildDependencies {
 		childDependency := req.ChildDependencies[j]
 		adapter.RemoveRedundantFieldsAndSetDefaultForDependency(childDependency, true)
-		err := impl.validateDependencyResourceType(childDependency)
-		if err != nil {
-			return err
-		}
 		if checkIfDependencyTypeToBeValidated(childDependency.TypeOfDependency) {
 			allDependenciesToBeValidated = append(allDependenciesToBeValidated, childDependency)
 		}
@@ -831,10 +821,6 @@ func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(re
 		for k := range childDependency.Dependencies {
 			depOfChildDep := childDependency.Dependencies[k]
 			adapter.RemoveRedundantFieldsAndSetDefaultForDependency(depOfChildDep, false)
-			err := impl.validateDependencyResourceType(depOfChildDep)
-			if err != nil {
-				return err
-			}
 			if checkIfDependencyTypeToBeValidated(depOfChildDep.TypeOfDependency) {
 				allDependenciesToBeValidated = append(allDependenciesToBeValidated, depOfChildDep)
 			}
@@ -847,6 +833,11 @@ func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(re
 	}
 	mapOfSchemaIdAndDependencyData := make(map[int]idIdentifierIndex)
 	for i, dependency := range allDependenciesToBeValidated {
+		err := impl.validateDependencyResourceType(allDependenciesToBeValidated[i])
+		if err != nil {
+			return err
+		}
+
 		allDependenciesToBeValidated[i].IdType = bean.OldObjectId // currently only apps and cd pipelines are expected in dependencies PUT request
 		if dependency.OldObjectId > 0 {
 			data := mapOfSchemaIdAndDependencyData[dependency.DevtronResourceSchemaId]
@@ -942,7 +933,8 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRequestData(req *b
 	devtronSchemaIdsForAllArgs := make([]int, 0, len(req.ChildDependencies)+1)
 
 	//adding oldObjectId and Name for main request
-	appendDbObjectArgDetails(&allArgValues, &allArgTypes, &devtronSchemaIdsForAllArgs, req.OldObjectId, parentDevtronResourceSchema.Id)
+	isTypeRelease := req.Kind == bean.DevtronResourceRelease.ToString()
+	appendDbObjectArgDetails(&allArgValues, &allArgTypes, &devtronSchemaIdsForAllArgs, req.Id, req.OldObjectId, parentDevtronResourceSchema.Id, isTypeRelease)
 
 	for j := range req.ChildDependencies {
 		childDependency := req.ChildDependencies[j]
@@ -982,7 +974,7 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRequestData(req *b
 		req.Dependencies = append(req.Dependencies, childDependency)
 
 		//adding oldObjectIds or names for getting existing objects
-		appendDbObjectArgDetails(&allArgValues, &allArgTypes, &devtronSchemaIdsForAllArgs, childDependency.OldObjectId, childDependency.DevtronResourceSchemaId)
+		appendDbObjectArgDetails(&allArgValues, &allArgTypes, &devtronSchemaIdsForAllArgs, 0, childDependency.OldObjectId, childDependency.DevtronResourceSchemaId, false)
 	}
 
 	marshaledDependencies, err := json.Marshal(req.Dependencies)
@@ -1134,12 +1126,15 @@ func (impl *DevtronResourceServiceImpl) migrateDataForResourceObjectIdentifier(e
 	if len(existingResourceObject.Identifier) != 0 {
 		return nil
 	}
-	devtronResourceSchema := impl.devtronResourcesSchemaMapById[existingResourceObject.DevtronResourceSchemaId]
-	kind, subKind := impl.getKindSubKindOfResourceBySchemaObject(devtronResourceSchema)
-	identifier, err := impl.getResourceObjectIdentifier(kind, subKind, devtronResourceSchema.Version, existingResourceObject)
+	kind, subKind, version, err := impl.getKindSubKindAndVersionOfResourceBySchemaId(existingResourceObject.DevtronResourceSchemaId)
+	if err != nil {
+		impl.logger.Errorw("error in getting kind and subKind by devtronResourceSchemaId", "err", err, "devtronResourceSchemaId", existingResourceObject.DevtronResourceSchemaId)
+		return err
+	}
+	identifier, err := impl.getResourceObjectIdentifier(kind, subKind, version, existingResourceObject)
 	if err != nil {
 		impl.logger.Errorw("error in building identifier for ResourceObject", "err", err,
-			"kind", kind, "subKind", subKind, "Version", devtronResourceSchema.Version, "existingResourceObjectId", existingResourceObject.Id)
+			"kind", kind, "subKind", subKind, "version", version, "existingResourceObjectId", existingResourceObject.Id)
 		return err
 	}
 	err = impl.devtronResourceObjectRepository.UpdateIdentifier(existingResourceObject.Id, existingResourceObject.DevtronResourceSchemaId, identifier)
@@ -1152,24 +1147,40 @@ func (impl *DevtronResourceServiceImpl) migrateDataForResourceObjectIdentifier(e
 	return nil
 }
 
-// checkIfExistingDevtronObject : this method check if it is existing object in the db.
-func (impl *DevtronResourceServiceImpl) checkIfExistingDevtronObject(id, devtronResourceSchemaId int, identifier string) (bool, error) {
-	var exists bool
-	var err error
-	if id > 0 {
+// checkIfDevtronObjectExistsByIdAndIdType : this method check if it is existing object in the db by resource id or oldObjectId.
+func (impl *DevtronResourceServiceImpl) checkIfDevtronObjectExistsByIdAndIdType(id, devtronResourceSchemaId int, idType bean.IdType) (exists bool, err error) {
+	if idType == bean.ResourceObjectIdType {
 		exists, err = impl.devtronResourceObjectRepository.CheckIfExistById(id, devtronResourceSchemaId)
 		if err != nil {
-			impl.logger.Errorw("error in checking object exists by id or name", "err", err, "id", id, "devtronResourceSchemaId", devtronResourceSchemaId)
-			return false, err
+			return exists, err
+		}
+	} else if idType == bean.OldObjectId {
+		exists, err = impl.devtronResourceObjectRepository.CheckIfExistById(id, devtronResourceSchemaId)
+		if err != nil {
+			return exists, err
+		}
+	} else {
+		return exists, fmt.Errorf(bean.IdTypeNotSupportedError)
+	}
+	return exists, err
+}
+
+// checkIfExistingDevtronObject : this method check if it is existing object in the db.
+func (impl *DevtronResourceServiceImpl) checkIfExistingDevtronObject(id, devtronResourceSchemaId int, idType bean.IdType, identifier string) (exists bool, err error) {
+	if id > 0 {
+		exists, err = impl.checkIfDevtronObjectExistsByIdAndIdType(id, devtronResourceSchemaId, idType)
+		if err != nil {
+			impl.logger.Errorw("error in checking object exists by id", "err", err, "id", id, "idType", idType, "devtronResourceSchemaId", devtronResourceSchemaId)
+			return exists, err
 		}
 	} else if len(identifier) > 0 {
 		exists, err = impl.devtronResourceObjectRepository.CheckIfExistByIdentifier(identifier, devtronResourceSchemaId)
 		if err != nil {
 			impl.logger.Errorw("error in checking object exists by identifier", "err", err, "identifier", identifier, "devtronResourceSchemaId", devtronResourceSchemaId)
-			return false, err
+			return exists, err
 		}
 	}
-	return exists, nil
+	return exists, err
 }
 
 func GetKindAndSubKindFrom(resourceKindVar string) (kind, subKind string, err error) {
@@ -1185,7 +1196,7 @@ func GetKindAndSubKindFrom(resourceKindVar string) (kind, subKind string, err er
 	return kind, subKind, nil
 }
 
-func updateKindAndSubKindParentConfig(parentConfig *bean.ResourceParentConfig) error {
+func updateKindAndSubKindParentConfig(parentConfig *bean.ResourceIdentifier) error {
 	kind, subKind, err := GetKindAndSubKindFrom(parentConfig.ResourceKind.ToString())
 	if err != nil {
 		return err
@@ -1195,7 +1206,7 @@ func updateKindAndSubKindParentConfig(parentConfig *bean.ResourceParentConfig) e
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) getParentResourceObject(ctx context.Context, parentConfig *bean.ResourceParentConfig) (*repository.DevtronResourceObject, error) {
+func (impl *DevtronResourceServiceImpl) getParentResourceObject(ctx context.Context, parentConfig *bean.ResourceIdentifier) (*repository.DevtronResourceObject, error) {
 	_, span := otel.Tracer("DevtronResourceService").Start(ctx, "getParentResourceObject")
 	defer span.End()
 	if parentConfig == nil {
@@ -1232,7 +1243,7 @@ func (impl *DevtronResourceServiceImpl) getParentResourceObject(ctx context.Cont
 	}
 }
 
-func (impl *DevtronResourceServiceImpl) addChildDependencyToParentResourceObj(ctx context.Context, tx *pg.Tx, parentConfig *bean.ResourceParentConfig,
+func (impl *DevtronResourceServiceImpl) addChildDependencyToParentResourceObj(ctx context.Context, tx *pg.Tx, parentConfig *bean.ResourceIdentifier,
 	childResourceObject *repository.DevtronResourceObject, idType bean.IdType) (err error) {
 	newCtx, span := otel.Tracer("DevtronResourceService").Start(ctx, "addChildDependencyToParentResourceObj")
 	defer span.End()
@@ -1241,7 +1252,11 @@ func (impl *DevtronResourceServiceImpl) addChildDependencyToParentResourceObj(ct
 		impl.logger.Errorw("error in getting parent resource object by id or name", "err", err, "parentConfig", parentConfig)
 		return err
 	}
-	dependenciesOfParent := getDependenciesInObjectDataFromJsonString(parentResourceObject.ObjectData)
+	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(parentResourceObject.DevtronResourceSchemaId, parentResourceObject.ObjectData, true)
+	if err != nil {
+		impl.logger.Errorw("error in getting dependencies from json object", "err", err)
+		return err
+	}
 	resourceIdsPresentAlready, maxIndex := getExistingDependencyIdsForResourceType(dependenciesOfParent, childResourceObject.DevtronResourceId)
 	if slices.Contains(resourceIdsPresentAlready, childResourceObject.Id) {
 		// dependency exists
@@ -1265,7 +1280,7 @@ func (impl *DevtronResourceServiceImpl) addChildDependencyToParentResourceObj(ct
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) addParentDependencyToChildResourceObj(ctx context.Context, parentConfig *bean.ResourceParentConfig,
+func (impl *DevtronResourceServiceImpl) addParentDependencyToChildResourceObj(ctx context.Context, parentConfig *bean.ResourceIdentifier,
 	objectDataGeneral string) (string, error) {
 	newCtx, span := otel.Tracer("DevtronResourceService").Start(ctx, "addParentDependencyToChildResourceObj")
 	defer span.End()
@@ -1285,14 +1300,6 @@ func (impl *DevtronResourceServiceImpl) addParentDependencyToChildResourceObj(ct
 		return objectDataGeneral, err
 	}
 	return objectDataGeneral, nil
-}
-
-func getResourceObjectIdValue(reqBean *bean.DevtronResourceObjectBean) int {
-	if reqBean.IdType == bean.ResourceObjectIdType {
-		return reqBean.Id
-	} else {
-		return reqBean.OldObjectId
-	}
 }
 
 func (impl *DevtronResourceServiceImpl) setDevtronManagedFieldsInObjectData(objectData string, reqBean *bean.DevtronResourceObjectBean) (string, error) {
@@ -1318,7 +1325,7 @@ func (impl *DevtronResourceServiceImpl) setDevtronManagedFieldsInObjectData(obje
 			return objectData, err
 		}
 	}
-	objectData, err = sjson.Set(objectData, bean.ResourceObjectIdPath, getResourceObjectIdValue(reqBean))
+	objectData, err = sjson.Set(objectData, bean.ResourceObjectIdPath, reqBean.DevtronResourceObjectDescriptorBean.GetResourceIdByIdType())
 	if err != nil {
 		impl.logger.Errorw("error in setting id in schema", "err", err, "request", reqBean)
 		return objectData, err
@@ -1333,7 +1340,7 @@ func (impl *DevtronResourceServiceImpl) setDevtronManagedFieldsInObjectData(obje
 	return objectData, nil
 }
 
-func (impl *DevtronResourceServiceImpl) performPatchOperation(objectData string, query bean.PatchQuery) (string, string, error) {
+func (impl *DevtronResourceServiceImpl) performResourcePatchOperation(objectData string, query bean.PatchQuery) (string, string, error) {
 	var err error
 	switch query.Path {
 	case bean.DescriptionQueryPath:
@@ -1360,7 +1367,27 @@ func (impl *DevtronResourceServiceImpl) performPatchOperation(objectData string,
 	default:
 		return objectData, "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
 	}
-	return objectData, "", err
+
+}
+
+func (impl *DevtronResourceServiceImpl) performDependencyPatchPatchOperation(devtronResourceSchemaId int, objectData string, query bean.PatchQuery, dependencyInfo *bean.DependencyInfo) (string, string, error) {
+	var err error
+	var pathChanged string
+	switch query.Path {
+	case bean.ApplicationQueryPath:
+		//currently only remove is supported
+		if query.Operation != bean.Remove || dependencyInfo == nil {
+			return objectData, "", util.GetApiErrorAdapter(http.StatusNotFound, "400", bean.InvalidPatchOperation, bean.InvalidPatchOperation)
+		}
+		objectData, pathChanged, err = impl.removeApplicationDependency(devtronResourceSchemaId, objectData, dependencyInfo)
+		return objectData, pathChanged, err
+	case bean.ReleaseInstructionQueryPath:
+		//TODO: to be implemented fully
+		objectData, err = impl.patchReleaseInstructionForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value.(string))
+		return objectData, pathChanged, err
+	default:
+		return objectData, pathChanged, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+	}
 
 }
 
@@ -1368,35 +1395,71 @@ func patchResourceObjectDataAtAPath(objectData string, path string, value interf
 	return sjson.Set(objectData, path, value)
 }
 
-func (impl *DevtronResourceServiceImpl) getMetadataForADependency(resourceSchemaId, oldObjectId int, mapOfAppsMetadata, mapOfCdPipelinesMetadata map[int]interface{}) interface{} {
-	var metadata interface{}
-	if schema, ok := impl.devtronResourcesSchemaMapById[resourceSchemaId]; ok {
-		if schema.DevtronResource.Kind == bean.DevtronResourceDevtronApplication.ToString() {
-			metadata = mapOfAppsMetadata[oldObjectId]
-		} else if schema.DevtronResource.Kind == bean.DevtronResourceCdPipeline.ToString() {
-			metadata = mapOfCdPipelinesMetadata[oldObjectId]
+// removeApplicationDependency remove a application dependency from existing resource object and return updated json object data with error if any, identifier in cse of application is app_name
+func (impl *DevtronResourceServiceImpl) removeApplicationDependency(devtronResourceSchemaId int, objectData string, dependencyInfo *bean.DependencyInfo) (string, string, error) {
+	id, err := impl.findAppIdFromDependencyInfo(dependencyInfo)
+	if err != nil {
+		impl.logger.Errorw("error encountered in removeApplicationDependency", "dependencyInfo", dependencyInfo, "err", err)
+		if util.IsErrNoRows(err) {
+			err = util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ApplicationDependencyNotFoundError, bean.ApplicationDependencyNotFoundError)
 		}
+		return objectData, "", err
 	}
-	if metadata == nil {
-		metadata = make(map[string]interface{})
+	updatedDependencies, indexOfDependencyRemoved, err := impl.getUpdatedDependenciesRemovingParticularWithId(devtronResourceSchemaId, objectData, id)
+	if err != nil {
+		impl.logger.Errorw("error in removeApplicationDependency", "err", err, "id", id)
+		return objectData, "", err
 	}
-	return metadata
+	isDependent := checkIfDependencyIsDependentOnRemovedDependency(updatedDependencies, indexOfDependencyRemoved)
+	if isDependent {
+		return objectData, "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ApplicationDependencyFoundError, bean.ApplicationDependencyFoundError)
+	}
+	objectData, err = sjson.Set(objectData, bean.ResourceObjectDependenciesPath, updatedDependencies)
+	if err != nil {
+		impl.logger.Errorw("error in removeApplicationDependency", "err", err, "updatedDependencies", updatedDependencies)
+		return objectData, "", err
+	}
+
+	return objectData, fmt.Sprintf("%s/%v", bean.ResourceObjectDependenciesPath, indexOfDependencyRemoved), nil
 }
 
-func (impl *DevtronResourceServiceImpl) getDownstreamDependencyObjects(argValuesToGetDownstream []interface{},
-	argTypesToGetDownstream []string, schemaIdsOfArgsToGetDownstream []int) ([]*repository.DevtronResourceObject, error) {
-	downstreamDependencyObjects := make([]*repository.DevtronResourceObject, 0, len(argValuesToGetDownstream))
-	var err error
-	if len(argValuesToGetDownstream) > 0 {
-		downstreamDependencyObjects, err = impl.devtronResourceObjectRepository.GetDownstreamObjectsByParentArgAndSchemaIds(argValuesToGetDownstream,
-			argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting downstream objects by parent old object ids and schema ids", "err", err, "oldObjectIds", argValuesToGetDownstream,
-				"schemaIds", schemaIdsOfArgsToGetDownstream)
-			return nil, err
+func checkIfDependencyIsDependentOnRemovedDependency(updatedDependencies []*bean.DevtronResourceDependencyBean, indexOfDependencyRemoved int) bool {
+	for _, dependency := range updatedDependencies {
+		isDependent := slices.Contains(dependency.DependentOnIndexes, indexOfDependencyRemoved)
+		if isDependent {
+			return isDependent
 		}
 	}
-	return downstreamDependencyObjects, nil
+	return false
+}
+
+func (impl *DevtronResourceServiceImpl) findAppIdFromDependencyInfo(dependencyInfo *bean.DependencyInfo) (int, error) {
+	id := dependencyInfo.Id
+	var err error
+	if id == 0 {
+		// identifier is app_name for application dependency
+		id, err = impl.appRepository.FindIdByName(dependencyInfo.Identifier)
+	}
+	return id, err
+}
+
+func (impl *DevtronResourceServiceImpl) patchReleaseInstructionForApplication(devtronResourceSchemaId int, objectData string, dependencyInfo *bean.DependencyInfo, value string) (string, error) {
+	id, err := impl.findAppIdFromDependencyInfo(dependencyInfo)
+	if err != nil {
+		impl.logger.Errorw("error encountered in removeApplicationDependency", "dependencyInfo", dependencyInfo, "err", err)
+		return objectData, err
+	}
+	updatedDependencies, err := impl.patchReleaseInstructionForADependency(devtronResourceSchemaId, objectData, id, value)
+	if err != nil {
+		impl.logger.Errorw("error in removeApplicationDependency", "err", err, "id", id, "value", value)
+		return objectData, err
+	}
+	objectData, err = sjson.Set(objectData, bean.ResourceObjectDependenciesPath, updatedDependencies)
+	if err != nil {
+		impl.logger.Errorw("error in removeApplicationDependency", "err", err, "updatedDependencies", updatedDependencies)
+		return objectData, err
+	}
+	return objectData, nil
 }
 
 func (impl *DevtronResourceServiceImpl) getExistingObjectsMap(allArgValues []interface{},
@@ -1410,7 +1473,7 @@ func (impl *DevtronResourceServiceImpl) getExistingObjectsMap(allArgValues []int
 			return nil, err
 		}
 		for _, oldObject := range oldObjects {
-			existingObjectsMap[getKeyForADependencyMap(oldObject.OldObjectId, oldObject.DevtronResourceSchemaId)] = oldObject
+			existingObjectsMap[helper.GetKeyForADependencyMap(oldObject.OldObjectId, oldObject.DevtronResourceSchemaId)] = oldObject
 		}
 	}
 	return existingObjectsMap, nil
@@ -1465,6 +1528,15 @@ func (impl *DevtronResourceServiceImpl) getCdPipelinesAndReturnNotFoundIds(pipel
 	return invalidCdPipelineIds, nil
 }
 
+func (impl *DevtronResourceServiceImpl) getKindSubKindAndVersionOfResourceBySchemaId(devtronResourceSchemaId int) (string, string, string, error) {
+	devtronResourceSchema := impl.devtronResourcesSchemaMapById[devtronResourceSchemaId]
+	if devtronResourceSchema == nil {
+		return "", "", "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceSchemaId, bean.InvalidResourceSchemaId)
+	}
+	kind, subKind := impl.getKindSubKindOfResourceBySchemaObject(devtronResourceSchema)
+	return kind, subKind, devtronResourceSchema.Version, nil
+}
+
 func (impl *DevtronResourceServiceImpl) getKindSubKindOfResourceBySchemaObject(devtronResourceSchema *repository.DevtronResourceSchema) (string, string) {
 	kind, subKind := "", ""
 	if devtronResourceSchema != nil {
@@ -1490,194 +1562,6 @@ func (impl *DevtronResourceServiceImpl) getKindSubKindOfResource(devtronResource
 	return kind, subKind
 }
 
-func (impl *DevtronResourceServiceImpl) getMapOfAppAndCdPipelineMetadata(appIdsToGetMetadata, pipelineIdsToGetMetadata []int) (map[int]interface{}, map[int]interface{}, error) {
-	mapOfAppsMetadata := make(map[int]interface{})
-	mapOfCdPipelinesMetadata := make(map[int]interface{})
-	var apps []*appRepository.App
-	var err error
-	if len(appIdsToGetMetadata) > 0 {
-		apps, err = impl.appRepository.FindAppAndProjectByIdsIn(appIdsToGetMetadata)
-		if err != nil {
-			impl.logger.Errorw("error in getting apps by ids", "err", err, "ids", appIdsToGetMetadata)
-			return nil, nil, err
-		}
-	}
-	for _, app := range apps {
-		mapOfAppsMetadata[app.Id] = &struct {
-			AppName string `json:"appName"`
-			AppId   int    `json:"appId"`
-		}{
-			AppName: app.AppName,
-			AppId:   app.Id,
-		}
-	}
-	var pipelineMetadataDtos []*apiBean.EnvironmentForDependency
-	if len(pipelineIdsToGetMetadata) > 0 {
-		pipelineMetadataDtos, err = impl.appListingRepository.FetchDependencyMetadataByPipelineIds(pipelineIdsToGetMetadata)
-		if err != nil {
-			impl.logger.Errorw("error in getting cd pipelines by ids", "err", err, "ids", pipelineIdsToGetMetadata)
-			return nil, nil, err
-		}
-	}
-	for _, pipelineMetadata := range pipelineMetadataDtos {
-		mapOfCdPipelinesMetadata[pipelineMetadata.PipelineId] = pipelineMetadata
-	}
-	return mapOfAppsMetadata, mapOfCdPipelinesMetadata, nil
-}
-
-func (impl *DevtronResourceServiceImpl) getUpdatedDependencyArrayWithMetadata(dependencies []*bean.DevtronResourceDependencyBean, mapOfAppsMetadata, mapOfCdPipelinesMetadata map[int]interface{}) []*bean.DevtronResourceDependencyBean {
-	for _, dependency := range dependencies {
-		dependency.Metadata = impl.getMetadataForADependency(dependency.DevtronResourceSchemaId, dependency.OldObjectId,
-			mapOfAppsMetadata, mapOfCdPipelinesMetadata)
-		for _, nestedDependency := range dependency.Dependencies {
-			nestedDependency.Metadata = impl.getMetadataForADependency(nestedDependency.DevtronResourceSchemaId, nestedDependency.OldObjectId,
-				mapOfAppsMetadata, mapOfCdPipelinesMetadata)
-		}
-	}
-	return dependencies
-}
-
-func (impl *DevtronResourceServiceImpl) updateAppIdAndPipelineIdForADependency(dependency *bean.DevtronResourceDependencyBean,
-	appIdsToGetMetadata, pipelineIdsToGetMetadata *[]int) {
-	resourceSchemaId := dependency.DevtronResourceSchemaId
-	if schema, ok := impl.devtronResourcesSchemaMapById[resourceSchemaId]; ok {
-		if schema.DevtronResource.Kind == bean.DevtronResourceDevtronApplication.ToString() {
-			*appIdsToGetMetadata = append(*appIdsToGetMetadata, dependency.OldObjectId)
-		} else if schema.DevtronResource.Kind == bean.DevtronResourceCdPipeline.ToString() {
-			*pipelineIdsToGetMetadata = append(*pipelineIdsToGetMetadata, dependency.OldObjectId)
-		}
-	}
-}
-
-func (impl *DevtronResourceServiceImpl) separateNonChildAndChildDependencies(dependenciesOfParent []*bean.DevtronResourceDependencyBean,
-	argValuesToGetDownstream *[]interface{}, argTypesToGetDownstream *[]string, schemaIdsOfArgsToGetDownstream *[]int) ([]*bean.DevtronResourceDependencyBean,
-	map[string]int, []*bean.DevtronResourceDependencyBean, map[string]int, []int, []int, int, error) {
-
-	nonChildDependenciesOfParent := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesOfParent))
-	mapOfNonChildDependenciesAndIndex := make(map[string]int, len(dependenciesOfParent)) //map of key : ["oldObjectId-schemaId" or "schemaName-schemaId"] and index of obj in array
-	childDependenciesOfParent := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesOfParent))
-	mapOfChildDependenciesAndIndex := make(map[string]int, len(dependenciesOfParent)) //map of key : ["oldObjectId-schemaId" or "schemaName-schemaId"] and index of obj in array
-
-	var maxIndexInNonChildDependencies float64
-
-	appIdsToGetMetadata := make([]int, 0, len(dependenciesOfParent))
-	pipelineIdsToGetMetadata := make([]int, 0, 2*len(dependenciesOfParent))
-
-	for _, dependencyOfParent := range dependenciesOfParent {
-		dependencyOfParent.Metadata = nil //emptying metadata in case someone sends it with reference to get api response
-		switch dependencyOfParent.TypeOfDependency {
-		case bean.DevtronResourceDependencyTypeUpstream:
-			maxIndexInNonChildDependencies = math.Max(maxIndexInNonChildDependencies, float64(dependencyOfParent.Index))
-			mapOfNonChildDependenciesAndIndex[getKeyForADependencyMap(dependencyOfParent.OldObjectId, dependencyOfParent.DevtronResourceSchemaId)] = len(nonChildDependenciesOfParent)
-			nonChildDependenciesOfParent = append(nonChildDependenciesOfParent, dependencyOfParent)
-		case bean.DevtronResourceDependencyTypeChild:
-			appendDependencyArgDetails(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream, dependencyOfParent.OldObjectId, dependencyOfParent.DevtronResourceSchemaId)
-			mapOfChildDependenciesAndIndex[getKeyForADependencyMap(dependencyOfParent.OldObjectId, dependencyOfParent.DevtronResourceSchemaId)] = len(childDependenciesOfParent)
-			childDependenciesOfParent = append(childDependenciesOfParent, dependencyOfParent)
-		default: //since we are not storing downstream dependencies or any other type, returning error from here for now
-			return nil, nil, nil, nil, nil, nil, int(maxIndexInNonChildDependencies), fmt.Errorf("invalid dependency mapping found")
-		}
-		impl.updateAppIdAndPipelineIdForADependency(dependencyOfParent, &appIdsToGetMetadata, &pipelineIdsToGetMetadata)
-	}
-	return nonChildDependenciesOfParent, mapOfNonChildDependenciesAndIndex, childDependenciesOfParent, mapOfChildDependenciesAndIndex,
-		appIdsToGetMetadata, pipelineIdsToGetMetadata, int(maxIndexInNonChildDependencies), nil
-}
-
-func (impl *DevtronResourceServiceImpl) updateNonChildDependenciesWithDownstreamDependencies(downstreamDependencyObjects []*repository.DevtronResourceObject,
-	mapOfNonChildDependenciesAndIndex map[string]int, nonChildDependenciesOfParent *[]*bean.DevtronResourceDependencyBean,
-	appIdsToGetMetadata, pipelineIdsToGetMetadata *[]int, maxIndexInNonChildDependencies int) ([]int, error) {
-	indexesToCheckInDownstreamObjectForChildDependency := make([]int, 0, len(downstreamDependencyObjects))
-	for i, downstreamObj := range downstreamDependencyObjects {
-		resourceSchemaId := downstreamObj.DevtronResourceSchemaId
-		if schema, ok := impl.devtronResourcesSchemaMapById[resourceSchemaId]; ok {
-			if schema.DevtronResource.Kind == bean.DevtronResourceDevtronApplication.ToString() {
-				mapOfNonChildDependenciesAndIndex[getKeyForADependencyMap(downstreamObj.OldObjectId, downstreamObj.DevtronResourceSchemaId)] = len(*nonChildDependenciesOfParent)
-				maxIndexInNonChildDependencies++ //increasing max index by one, will use this value directly in downstream dependency index
-				//this downstream obj is of devtron app meaning that this obj is downstream of app directly
-				*nonChildDependenciesOfParent = append(*nonChildDependenciesOfParent, &bean.DevtronResourceDependencyBean{
-					OldObjectId:             downstreamObj.OldObjectId,
-					TypeOfDependency:        bean.DevtronResourceDependencyTypeDownStream,
-					DevtronResourceId:       schema.DevtronResourceId,
-					DevtronResourceSchemaId: schema.Id,
-					Index:                   maxIndexInNonChildDependencies,
-				})
-				*appIdsToGetMetadata = append(*appIdsToGetMetadata, downstreamObj.OldObjectId)
-			} else if schema.DevtronResource.Kind == bean.DevtronResourceCdPipeline.ToString() {
-				//here we are assuming that if the type of this downstream is not devtron app then this is cd pipeline(only possible child dependency in parent resource)
-				//and these indexes are processed for downstream of child dependency in parent resource, in future this process will be the main flow, and we'll need to add handling for all type in generic manner
-				indexesToCheckInDownstreamObjectForChildDependency = append(indexesToCheckInDownstreamObjectForChildDependency, i)
-				*pipelineIdsToGetMetadata = append(*pipelineIdsToGetMetadata, downstreamObj.OldObjectId)
-			} else {
-				return nil, fmt.Errorf("invalid dependency mapping found")
-			}
-		}
-	}
-	return indexesToCheckInDownstreamObjectForChildDependency, nil
-}
-
-func (impl *DevtronResourceServiceImpl) updateChildDependenciesWithOwnDependenciesData(parentOldObjectId, parentSchemaId int, mapOfChildDependenciesAndIndex map[string]int, childDependenciesOfParent []*bean.DevtronResourceDependencyBean, appIdsToGetMetadata, pipelineIdsToGetMetadata *[]int) error {
-	parentArgValue, parentArgType := getArgTypeAndValueForADependency(parentOldObjectId)
-	childObjects, err := impl.devtronResourceObjectRepository.GetChildObjectsByParentArgAndSchemaId(parentArgValue, parentArgType, parentSchemaId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error, GetChildObjectsByParentArgAndSchemaId", "err", err, "argValue", parentArgValue, "argType", parentArgType,
-			"schemaId", parentSchemaId)
-		return err
-	}
-	for _, childObject := range childObjects {
-		objectData := childObject.ObjectData
-		nestedDependencies := getDependenciesInObjectDataFromJsonString(objectData)
-		keyForChildDependency := getKeyForADependencyMap(childObject.OldObjectId, childObject.DevtronResourceSchemaId)
-		indexOfChildDependency := mapOfChildDependenciesAndIndex[keyForChildDependency]
-		for _, nestedDependency := range nestedDependencies {
-			if nestedDependency.TypeOfDependency == bean.DevtronResourceDependencyTypeParent {
-				continue
-			}
-			nestedDependency.Metadata = nil //emptying metadata in case someone sends it with reference to get api response
-			childDependenciesOfParent[indexOfChildDependency].Dependencies =
-				append(childDependenciesOfParent[indexOfChildDependency].Dependencies, nestedDependency)
-			impl.updateAppIdAndPipelineIdForADependency(nestedDependency, appIdsToGetMetadata, pipelineIdsToGetMetadata)
-		}
-	}
-	return nil
-}
-
-func (impl *DevtronResourceServiceImpl) updateChildDependenciesWithDownstreamDependencies(indexesToCheckInDownstreamObjectForChildDependency []int,
-	downstreamDependencyObjects []*repository.DevtronResourceObject, pipelineIdsToGetMetadata *[]int,
-	mapOfNonChildDependenciesAndIndex, mapOfChildDependenciesAndIndex map[string]int,
-	nonChildDependenciesOfParent, childDependenciesOfParent []*bean.DevtronResourceDependencyBean) {
-	for _, i := range indexesToCheckInDownstreamObjectForChildDependency {
-		downstreamObj := downstreamDependencyObjects[i]
-		downstreamObjDependencies := getDependenciesInObjectDataFromJsonString(downstreamObj.ObjectData)
-		keyForDownstreamObjInParent := ""
-		keysForDownstreamDependenciesInChild := make([]string, 0, len(downstreamObjDependencies))
-		for _, downstreamDependency := range downstreamObjDependencies {
-			keyForMapOfDependency := getKeyForADependencyMap(downstreamDependency.OldObjectId, downstreamDependency.DevtronResourceSchemaId)
-			if downstreamDependency.TypeOfDependency == bean.DevtronResourceDependencyTypeParent {
-				keyForDownstreamObjInParent = keyForMapOfDependency
-			} else {
-				keysForDownstreamDependenciesInChild = append(keysForDownstreamDependenciesInChild, keyForMapOfDependency)
-			}
-			*pipelineIdsToGetMetadata = append(*pipelineIdsToGetMetadata, downstreamDependency.OldObjectId)
-		}
-		//getting parent index
-		indexOfDownstreamDependencyInParent := mapOfNonChildDependenciesAndIndex[keyForDownstreamObjInParent]
-		for _, keyForDownstreamChildDependencies := range keysForDownstreamDependenciesInChild {
-			//getting index of child dependency where this object is to be added as downstream dependency
-			if indexOfChildDependency, ok := mapOfChildDependenciesAndIndex[keyForDownstreamChildDependencies]; ok {
-				downstreamDependencyInChild := &bean.DevtronResourceDependencyBean{
-					OldObjectId:             downstreamObj.OldObjectId,
-					DependentOnParentIndex:  nonChildDependenciesOfParent[indexOfDownstreamDependencyInParent].Index,
-					TypeOfDependency:        bean.DevtronResourceDependencyTypeDownStream,
-					DevtronResourceId:       downstreamObj.DevtronResourceId,
-					DevtronResourceSchemaId: downstreamObj.DevtronResourceSchemaId,
-				}
-				childDependenciesOfParent[indexOfChildDependency].Dependencies =
-					append(childDependenciesOfParent[indexOfChildDependency].Dependencies, downstreamDependencyInChild)
-			}
-		}
-	}
-}
-
 func getExistingDependencyIdsForResourceType(childDependenciesOfParent []*bean.DevtronResourceDependencyBean, devtronResourceId int) ([]int, float64) {
 	dependenciesPresentAlready := make([]int, 0, len(childDependenciesOfParent))
 	var maxIndex float64
@@ -1688,56 +1572,6 @@ func getExistingDependencyIdsForResourceType(childDependenciesOfParent []*bean.D
 		}
 	}
 	return dependenciesPresentAlready, maxIndex
-}
-
-func (impl *DevtronResourceServiceImpl) addChildCdPipelinesNotPresentInObjects(childDependenciesOfParent *[]*bean.DevtronResourceDependencyBean,
-	mapOfChildDependenciesAndIndex map[string]int, pipelineIdsToGetMetadata *[]int, parentResourceObject *repository.DevtronResourceObject,
-	argValuesToGetDownstream *[]interface{}, argTypesToGetDownstream *[]string, schemaIdsOfArgsToGetDownstream *[]int) error {
-	devtronAppResource := impl.devtronResourcesMapByKind[bean.DevtronResourceDevtronApplication.ToString()]
-	devtronAppResourceId := 0
-	if devtronAppResource != nil {
-		devtronAppResourceId = devtronAppResource.Id
-	}
-
-	if parentResourceObject != nil && parentResourceObject.DevtronResourceId == devtronAppResourceId {
-		cdPipelineResource := impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()]
-		cdPipelineResourceId := 0
-		if cdPipelineResource != nil {
-			cdPipelineResourceId = cdPipelineResource.Id
-		}
-		cdPipelineResourceSchemaId := 0
-		for _, devtronResourceSchema := range impl.devtronResourcesSchemaMapById {
-			if devtronResourceSchema != nil {
-				if devtronResourceSchema.DevtronResourceId == cdPipelineResourceId {
-					cdPipelineResourceSchemaId = devtronResourceSchema.Id
-				}
-			}
-		}
-		cdPipelineIdsPresentAlready, maxIndex := getExistingDependencyIdsForResourceType(*childDependenciesOfParent, cdPipelineResourceId)
-		var pipelinesToBeAdded []*pipelineConfig.Pipeline
-		var err error
-		if len(cdPipelineIdsPresentAlready) > 0 {
-			pipelinesToBeAdded, err = impl.pipelineRepository.FindByIdsNotInAndAppId(cdPipelineIdsPresentAlready, parentResourceObject.OldObjectId)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error, FindByIdsNotInAndAppId", "err", err, "pipelineIdsPresent", cdPipelineIdsPresentAlready, "appId", parentResourceObject.OldObjectId)
-				return err
-			}
-		} else {
-			pipelinesToBeAdded, err = impl.pipelineRepository.FindActiveByAppId(parentResourceObject.OldObjectId)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error, FindActiveByAppId", "err", err, "appId", parentResourceObject.OldObjectId)
-				return err
-			}
-		}
-		for _, pipelineToBeAdded := range pipelinesToBeAdded {
-			childDependency := adapter.BuildDependencyData(pipelineToBeAdded.Id, cdPipelineResourceId, cdPipelineResourceSchemaId, maxIndex, bean.DevtronResourceDependencyTypeChild, "")
-			appendDependencyArgDetails(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream, childDependency.OldObjectId, childDependency.DevtronResourceSchemaId)
-			mapOfChildDependenciesAndIndex[getKeyForADependencyMap(childDependency.OldObjectId, childDependency.DevtronResourceSchemaId)] = len(*childDependenciesOfParent)
-			*childDependenciesOfParent = append(*childDependenciesOfParent, childDependency)
-			*pipelineIdsToGetMetadata = append(*pipelineIdsToGetMetadata, pipelineToBeAdded.Id)
-		}
-	}
-	return nil
 }
 
 // populateDefaultValuesToRequestBean is used to fill the default values of some fields for Create Resource request only.
@@ -1766,38 +1600,18 @@ func (impl *DevtronResourceServiceImpl) setUserProvidedFieldsInObjectData(object
 	return objectData, err
 }
 
-// TODO: check if we can move this
-func appendDependencyArgDetails(argValues *[]interface{}, argTypes *[]string, schemaIds *[]int, oldObjectId, schemaId int) {
-	argValue, argType := getArgTypeAndValueForADependency(oldObjectId)
-	*argValues = append(*argValues, argValue)
-	*argTypes = append(*argTypes, argType)
-	*schemaIds = append(*schemaIds, schemaId)
-}
-
-// TODO: check if we can move this
-func appendDbObjectArgDetails(argValues *[]interface{}, argTypes *[]string, schemaIds *[]int, oldObjectId, schemaId int) {
+func appendDbObjectArgDetails(argValues *[]interface{}, argTypes *[]string, schemaIds *[]int, id, oldObjectId, schemaId int, isTypeRelease bool) {
 	argValue, argType := getArgTypeAndValueForObject(oldObjectId)
+	//TODO : make generic
+	if isTypeRelease {
+		argType = bean.IdDbColumnKey
+		argValue = id
+	}
 	*argValues = append(*argValues, argValue)
 	*argTypes = append(*argTypes, argType)
 	*schemaIds = append(*schemaIds, schemaId)
 }
 
-// TODO: check if we can move this
-func getKeyForADependencyMap(oldObjectId, devtronResourceSchemaId int) string {
-	// key can be "oldObjectId-schemaId" or "name-schemaId"
-	return fmt.Sprintf("%d-%d", oldObjectId, devtronResourceSchemaId)
-}
-
-// TODO: check if we can move this
-func getArgTypeAndValueForADependency(oldObjectId int) (argValue interface{}, argType string) {
-	if oldObjectId > 0 {
-		argValue = oldObjectId
-		argType = bean.IdKey //here we are sending arg as id because in the json object we are keeping this as id only and have named this as oldObjectId outside the json for easier understanding
-	}
-	return argValue, argType
-}
-
-// TODO: check if we can move this
 func getArgTypeAndValueForObject(oldObjectId int) (argValue interface{}, argType string) {
 	if oldObjectId > 0 {
 		argValue = oldObjectId
@@ -1806,38 +1620,78 @@ func getArgTypeAndValueForObject(oldObjectId int) (argValue interface{}, argType
 	return argValue, argType
 }
 
-func getSpecificDependenciesInObjectDataFromJsonString(objectData string, typeOfDependency bean.DevtronResourceDependencyType) []*bean.DevtronResourceDependencyBean {
+func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticularWithId(devtronResourceSchemaId int, objectData string, id int) ([]*bean.DevtronResourceDependencyBean, int, error) {
 	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)
 	dependenciesResultArr := dependenciesResult.Array()
+	indexOfDependencyRemoved := 0
 	dependencies := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesResultArr))
+	kind, subKind, version, err := impl.getKindSubKindAndVersionOfResourceBySchemaId(devtronResourceSchemaId)
+	if err != nil {
+		return nil, 0, err
+	}
+	parentResourceType := &bean.DevtronResourceTypeReq{
+		ResourceKind:    bean.DevtronResourceKind(kind),
+		ResourceSubKind: bean.DevtronResourceKind(subKind),
+		ResourceVersion: bean.DevtronResourceVersion(version),
+	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean := getDependencyBeanFromJsonString(dependencyResult.String())
-		if dependencyBean.TypeOfDependency != typeOfDependency {
+		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), true)
+		if err != nil {
+			return nil, 0, err
+		}
+		if dependencyBean.OldObjectId == id {
+			indexOfDependencyRemoved = dependencyBean.Index
 			continue
 		}
 		dependencies = append(dependencies, dependencyBean)
 	}
-	return dependencies
+	return dependencies, indexOfDependencyRemoved, nil
 }
 
-func getDependenciesInObjectDataFromJsonString(objectData string) []*bean.DevtronResourceDependencyBean {
+func (impl *DevtronResourceServiceImpl) patchReleaseInstructionForADependency(devtronResourceSchemaId int, objectData string, id int, releaseInstruction string) ([]*bean.DevtronResourceDependencyBean, error) {
 	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)
 	dependenciesResultArr := dependenciesResult.Array()
 	dependencies := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesResultArr))
+	kind, subKind, version, err := impl.getKindSubKindAndVersionOfResourceBySchemaId(devtronResourceSchemaId)
+	if err != nil {
+		return nil, err
+	}
+	parentResourceType := &bean.DevtronResourceTypeReq{
+		ResourceKind:    bean.DevtronResourceKind(kind),
+		ResourceSubKind: bean.DevtronResourceKind(subKind),
+		ResourceVersion: bean.DevtronResourceVersion(version),
+	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean := getDependencyBeanFromJsonString(dependencyResult.String())
+		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), true)
+		if err != nil {
+			return nil, err
+		}
+		if dependencyBean.OldObjectId == id {
+			dependencyBean.Config.ReleaseInstruction = releaseInstruction
+		}
 		dependencies = append(dependencies, dependencyBean)
 	}
-	return dependencies
+	return dependencies, nil
 }
 
-func getDependencyBeanFromJsonString(dependency string) *bean.DevtronResourceDependencyBean {
+func (impl *DevtronResourceServiceImpl) getDependencyBeanFromJsonString(parentResourceType *bean.DevtronResourceTypeReq, dependency string, isLite bool) (*bean.DevtronResourceDependencyBean, error) {
 	typeResult := gjson.Get(dependency, bean.TypeOfDependencyKey)
 	typeOfDependency := typeResult.String()
 	devtronResourceIdResult := gjson.Get(dependency, bean.DevtronResourceIdKey)
 	devtronResourceId := int(devtronResourceIdResult.Int())
 	schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
 	schemaId := int(schemaIdResult.Int())
+	var resourceKind bean.DevtronResourceKind
+	var resourceVersion bean.DevtronResourceVersion
+	if schemaId != 0 {
+		kind, subKind, version, err := impl.getKindSubKindAndVersionOfResourceBySchemaId(schemaId)
+		if err != nil {
+			impl.logger.Errorw("error in getting kind and subKind by devtronResourceSchemaId", "err", err, "devtronResourceSchemaId", schemaId)
+			return nil, err
+		}
+		resourceKind = buildExtendedResourceKindUsingKindAndSubKind(kind, subKind)
+		resourceVersion = bean.DevtronResourceVersion(version)
+	}
 	oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
 	oldObjectId := int(oldObjectIdResult.Int())
 	idTypeResult := gjson.Get(dependency, bean.IdTypeKey)
@@ -1846,18 +1700,58 @@ func getDependencyBeanFromJsonString(dependency string) *bean.DevtronResourceDep
 	index := int(indexResult.Int())
 	dependentOnIndexResult := gjson.Get(dependency, bean.DependentOnIndexKey)
 	dependentOnIndex := int(dependentOnIndexResult.Int())
+	dependentOnIndexArrayResult := gjson.Get(dependency, bean.DependentOnIndexesKey)
+	var dependentOnIndexArray []int
+	if dependentOnIndexArrayResult.IsArray() {
+		dependentOnIndexArrayResult.ForEach(
+			func(key, value gjson.Result) bool {
+				dependentOnIndexArray = append(dependentOnIndexArray, int(value.Int()))
+				return true
+			},
+		)
+	}
 	dependentOnParentIndexResult := gjson.Get(dependency, bean.DependentOnParentIndexKey)
 	dependentOnParentIndex := int(dependentOnParentIndexResult.Int())
 	//not handling for nested dependencies
-
+	configDataJsonObj := gjson.Get(dependency, bean.ConfigKey)
+	configData, err := getConfigDataByParentResourceType(parentResourceType, configDataJsonObj.Raw, isLite)
+	if err != nil {
+		return nil, err
+	}
 	return &bean.DevtronResourceDependencyBean{
 		OldObjectId:             oldObjectId,
 		DevtronResourceId:       devtronResourceId,
 		DevtronResourceSchemaId: schemaId,
-		DependentOnIndex:        dependentOnIndex,
-		DependentOnParentIndex:  dependentOnParentIndex,
-		TypeOfDependency:        bean.DevtronResourceDependencyType(typeOfDependency),
-		Index:                   index,
-		IdType:                  idType,
+		DevtronResourceTypeReq: &bean.DevtronResourceTypeReq{
+			ResourceKind:    resourceKind,
+			ResourceVersion: resourceVersion,
+		},
+		DependentOnIndex:       dependentOnIndex,
+		DependentOnIndexes:     dependentOnIndexArray,
+		DependentOnParentIndex: dependentOnParentIndex,
+		TypeOfDependency:       bean.DevtronResourceDependencyType(typeOfDependency),
+		Config:                 configData,
+		Index:                  index,
+		IdType:                 idType,
+	}, nil
+}
+
+func getConfigDataByParentResourceType(parentResourceType *bean.DevtronResourceTypeReq, configDataJsonObj string, isLite bool) (configData *bean.DependencyConfigBean, err error) {
+	f := getFuncToUpdateDependencyConfigData(parentResourceType.ResourceKind.ToString(),
+		parentResourceType.ResourceSubKind.ToString(), parentResourceType.ResourceVersion.ToString())
+	if f != nil {
+		configData = &bean.DependencyConfigBean{}
+		err = f(configDataJsonObj, configData, isLite)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return configData, nil
+}
+
+func buildExtendedResourceKindUsingKindAndSubKind(kind, subKind string) bean.DevtronResourceKind {
+	if len(kind) != 0 && len(subKind) != 0 {
+		return bean.DevtronResourceKind(fmt.Sprintf("%s/%s", kind, subKind))
+	}
+	return bean.DevtronResourceKind(kind)
 }

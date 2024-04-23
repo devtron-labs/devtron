@@ -1,12 +1,16 @@
 package devtronResource
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -103,4 +107,67 @@ func (impl *DevtronResourceServiceImpl) setReleaseTrackOverviewFieldsInObjectDat
 
 func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseTrackResourceObj(object *repository.DevtronResourceObject) (string, error) {
 	return gjson.Get(object.ObjectData, bean.ResourceObjectNamePath).String(), nil
+}
+
+func (impl *DevtronResourceServiceImpl) getReleaseTrackIdsFromFilterValueBasedOnType(filterCriteria *bean.FilterCriteriaDecoder) ([]int, error) {
+	var ids []int
+	var err error
+	if filterCriteria.Type == bean.Id {
+		ids, err = util2.ConvertStringSliceToIntSlice(filterCriteria.Value)
+		if err != nil {
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()))
+		}
+	} else if filterCriteria.Type == bean.Identifier {
+		identifiers := strings.Split(filterCriteria.Value, ",")
+		ids, err = impl.getDevtronResourceIdsFromIdentifiers(identifiers)
+		if err != nil {
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()))
+		}
+	}
+	return ids, nil
+}
+
+func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, childObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
+	isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error) {
+	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
+	for i := range resourceObjects {
+		resourceData := adapter.BuildDevtronResourceObjectGetAPIBean()
+		resourceData.IdType = bean.IdType(gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectIdTypePath).String())
+		if resourceData.IdType == bean.ResourceObjectIdType {
+			resourceData.OldObjectId = resourceObjects[i].Id
+		} else {
+			resourceData.OldObjectId = resourceObjects[i].OldObjectId
+		}
+		resourceData.Overview.Description = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectDescriptionPath).String()
+		resourceData.Name = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectNamePath).String()
+		childIndexes := resourceObjectIndexChildMap[i]
+		for _, childIndex := range childIndexes {
+			childObject := childObjects[childIndex]
+			childData := &bean.DevtronResourceObjectGetAPIBean{
+				DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
+				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
+			}
+			if !isLite {
+				err := impl.updateCompleteReleaseDataInResourceObj(nil, childObject, childData)
+				if err != nil {
+					impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
+					return nil, err
+				}
+			} else {
+				err := impl.updateReleaseOverviewDataInResourceObj(nil, childObject, childData)
+				if err != nil {
+					impl.logger.Errorw("error in getting overview data", "err", err)
+					return nil, err
+				}
+			}
+			resourceData.ChildObjects = append(resourceData.ChildObjects, childData)
+		}
+		err := impl.updateReleaseTrackOverviewDataInResourceObj(nil, resourceObjects[i], resourceData)
+		if err != nil {
+			impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
+			return nil, err
+		}
+		resp = append(resp, resourceData)
+	}
+	return resp, nil
 }
