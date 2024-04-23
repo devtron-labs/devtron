@@ -226,7 +226,7 @@ check_deploy_status() {
         fi
 
         local statusUrl="$DevtronEndpoint/orchestrator/app/workflow/status/$appId/v2"
-        local response=$(curl -s -H "Cookie: argocd.token=$DevtronApiToken" "$statusUrl")
+        local response=$(curl -s -H "token: $DevtronApiToken" "$statusUrl")
         local code=$(echo "$response" | jq -r \'.code\')
 
         if [ "$code" != "200" ]; then
