@@ -245,6 +245,8 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
+// below method does operation on api_token table,
+// we are writing this method here instead of ApiTokenRepository to avoid cyclic import
 func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
 	query := impl.dbConnection.Model().
 		Table(userBean.ApiTokenTableName).
