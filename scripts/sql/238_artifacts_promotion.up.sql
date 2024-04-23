@@ -12,8 +12,6 @@ ALTER TABLE deployment_approval_user_data RENAME TO request_approval_user_data;
 CREATE UNIQUE INDEX "unique_user_request_action"
     ON request_approval_user_data(user_id,approval_request_id,request_type);
 -- 1 for  resource_filter, 2 for artifact promotion policy filter evaluation
-ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 1;
-
 
 
 -- create artifact promotion approval request table
