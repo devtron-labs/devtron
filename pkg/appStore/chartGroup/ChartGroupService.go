@@ -781,7 +781,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 			chartGroupInstallRequest.UserId = userId
 			var chartGroupInstallChartRequests []*ChartGroupInstallChartRequest
 			for _, item := range charts.ChartComponent {
-				appStore, err := impl.appStoreApplicationVersionRepository.FindByAppStoreName(item.Name)
+				appStoreApplicationVersionId, err := impl.appStoreApplicationVersionRepository.FindLatestAppStoreVersionIdByAppStoreName(item.Name)
 				if err != nil {
 					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
 					return false, err
@@ -790,8 +790,8 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 					AppName:            fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
 					EnvironmentId:      env.Id,
 					ValuesOverrideYaml: item.Values,
-					AppStoreVersion:    appStore.AppStoreApplicationVersionId,
-					ReferenceValueId:   appStore.AppStoreApplicationVersionId,
+					AppStoreVersion:    appStoreApplicationVersionId,
+					ReferenceValueId:   appStoreApplicationVersionId,
 					ReferenceValueKind: appStoreBean.REFERENCE_TYPE_DEFAULT,
 				}
 				chartGroupInstallChartRequests = append(chartGroupInstallChartRequests, chartGroupInstallChartRequest)
