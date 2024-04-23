@@ -46,7 +46,7 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	CheckIfTokenIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
+	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
 type UserRepositoryImpl struct {
@@ -244,15 +244,12 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) CheckIfTokenIsValidByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
-	query := "SELECT t.id FROM api_token t WHERE t.name = ? and t.version = ?"
-	res, err := impl.dbConnection.Exec(query, tokenName, tokenVersion)
-	if err != nil {
-		impl.Logger.Error(err)
-		return false, err
-	}
-	if res.RowsReturned() > 0 {
-		return true, nil
-	}
-	return false, nil
+func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
+	query := impl.dbConnection.Model().
+		Table(ApiTokenTableName).
+		Where("name = ?", tokenName).
+		Where("version = ?", tokenVersion)
+
+	exists, err := query.Exists()
+	return exists, err
 }

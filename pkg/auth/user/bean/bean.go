@@ -81,4 +81,7 @@ const (
 	SystemUserId = 1 // we have established System user as 1 while setting up devtron, which are being used for auto-trigger operations
 )
 
-const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+const (
+	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+	ApiTokenTableName = "api_token"
+)

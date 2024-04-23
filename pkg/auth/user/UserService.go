@@ -1256,7 +1256,7 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) error {
 	tokenName := userHelper.ExtractTokenNameFromEmail(email)
 	embeddedTokenVersion, _ := strconv.Atoi(version)
-	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenExistsByTokenNameAndVersion(tokenName, embeddedTokenVersion)
 	if err != nil || !isProvidedTokenValid {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,

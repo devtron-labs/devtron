@@ -3,9 +3,7 @@ package helper
 import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"golang.org/x/exp/slices"
-	"strconv"
 	"strings"
 )
 
@@ -50,11 +48,4 @@ func CheckIfUserIdsExists(userIds []int32) error {
 
 func ExtractTokenNameFromEmail(email string) string {
 	return strings.Split(email, ":")[1]
-}
-
-func CheckIfTokenIsValid(email string, version string, userRepository repository.UserRepository) (bool, error) {
-	tokenName := ExtractTokenNameFromEmail(email)
-	embeddedTokenVersion, _ := strconv.Atoi(version)
-	isProvidedTokenValid, err := userRepository.CheckIfTokenIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
-	return isProvidedTokenValid, err
 }
