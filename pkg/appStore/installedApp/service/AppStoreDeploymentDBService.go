@@ -354,7 +354,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 				}
 			}
 		}
-	} else {
+	} else if err != nil {
 		impl.logger.Errorw("error in fetching appModel by appName", "appName", appName, "err", err)
 		return err
 	}
