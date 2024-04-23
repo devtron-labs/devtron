@@ -22,6 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,27 +77,29 @@ type CdHandler interface {
 }
 
 type CdHandlerImpl struct {
-	Logger                       *zap.SugaredLogger
-	userService                  user.UserService
-	ciLogService                 CiLogService
-	ciArtifactRepository         repository.CiArtifactRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
-	envRepository                repository2.EnvironmentRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	enforcerUtil                 rbac.EnforcerUtil
-	resourceGroupService         resourceGroup2.ResourceGroupService
-	imageTaggingService          ImageTaggingService
-	k8sUtil                      *k8s.K8sUtilExtended
-	workflowService              WorkflowService
-	config                       *types.CdConfig
-	clusterService               cluster.ClusterService
-	blobConfigStorageService     BlobStorageConfigService
-	customTagService             CustomTagService
-	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
-	resourceFilterService        resourceFilter.ResourceFilterService
-	resourceFilterAuditService   resourceFilter.FilterEvaluationAuditService
+	Logger                           *zap.SugaredLogger
+	userService                      user.UserService
+	ciLogService                     CiLogService
+	ciArtifactRepository             repository.CiArtifactRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	envRepository                    repository2.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
+	enforcerUtil                     rbac.EnforcerUtil
+	resourceGroupService             resourceGroup2.ResourceGroupService
+	imageTaggingService              ImageTaggingService
+	k8sUtil                          *k8s.K8sUtilExtended
+	workflowService                  WorkflowService
+	config                           *types.CdConfig
+	clusterService                   cluster.ClusterService
+	blobConfigStorageService         BlobStorageConfigService
+	customTagService                 CustomTagService
+	deploymentApprovalRepository     pipelineConfig.DeploymentApprovalRepository
+	resourceFilterService            resourceFilter.ResourceFilterService
+	resourceFilterAuditService       resourceFilter.FilterEvaluationAuditService
+	resourceApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -109,28 +115,32 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
+	resourceApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService,
 ) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
-		Logger:                       Logger,
-		userService:                  userService,
-		ciLogService:                 ciLogService,
-		cdWorkflowRepository:         cdWorkflowRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		envRepository:                envRepository,
-		pipelineRepository:           pipelineRepository,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		enforcerUtil:                 enforcerUtil,
-		resourceGroupService:         resourceGroupService,
-		imageTaggingService:          imageTaggingService,
-		k8sUtil:                      k8sUtil,
-		workflowService:              workflowService,
-		clusterService:               clusterService,
-		blobConfigStorageService:     blobConfigStorageService,
-		customTagService:             customTagService,
-		deploymentApprovalRepository: deploymentApprovalRepository,
-		resourceFilterService:        resourceFilterService,
-		resourceFilterAuditService:   resourceFilterAuditService,
+		Logger:                           Logger,
+		userService:                      userService,
+		ciLogService:                     ciLogService,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		ciArtifactRepository:             ciArtifactRepository,
+		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		envRepository:                    envRepository,
+		pipelineRepository:               pipelineRepository,
+		ciWorkflowRepository:             ciWorkflowRepository,
+		enforcerUtil:                     enforcerUtil,
+		resourceGroupService:             resourceGroupService,
+		imageTaggingService:              imageTaggingService,
+		k8sUtil:                          k8sUtil,
+		workflowService:                  workflowService,
+		clusterService:                   clusterService,
+		blobConfigStorageService:         blobConfigStorageService,
+		customTagService:                 customTagService,
+		deploymentApprovalRepository:     deploymentApprovalRepository,
+		resourceFilterService:            resourceFilterService,
+		resourceFilterAuditService:       resourceFilterAuditService,
+		resourceApprovalRepository:       resourceApprovalRepository,
+		artifactPromotionDataReadService: artifactPromotionDataReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -445,6 +455,13 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 	for _, item := range cdWorkflowArtifact {
 		artifactIds = append(artifactIds, item.CiArtifactId)
 	}
+
+	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, pipelineId, constants.PROMOTED)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", artifactIds, "pipelineId", pipelineId, "err", err)
+		return cdWorkflowArtifact, err
+	}
+
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
@@ -457,6 +474,9 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		if imageCommentsDataMap[item.CiArtifactId] != nil {
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
+		}
+		if promotionMetadata, ok := artifactIdToPromotionApporvalMetadata[item.CiArtifactId]; ok {
+			item.PromotionApprovalMetadata = promotionMetadata
 		}
 		cdWorkflowArtifact[i] = item
 	}
@@ -600,7 +620,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	approvalRequest := workflowR.DeploymentApprovalRequest
 	if approvalRequest != nil {
 		approvalReqId := workflowR.DeploymentApprovalRequestId
-		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		approvalUserData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId}, models.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return types.WorkflowResponse{}, err
 		}
@@ -695,39 +715,52 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		impl.Logger.Errorw("error in fetching DeploymentWindowAuditMessage", "cdWorkflowRunnerId", workflowR.Id, "err", err)
 	}
 
+	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{workflow.CiArtifactId}, pipelineId, constants.PROMOTED)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", []int{workflow.CiArtifactId}, "pipelineId", pipelineId, "err", err)
+		return types.WorkflowResponse{}, err
+	}
+
+	var promotionApprovalMetadata *bean3.PromotionApprovalMetaData
+	if val, ok := artifactIdToPromotionApporvalMetadata[workflow.CiArtifactId]; ok {
+		promotionApprovalMetadata = val
+	}
+
 	workflowResponse := types.WorkflowResponse{
-		Id:                   workflow.Id,
-		Name:                 workflow.Name,
-		Status:               workflow.Status,
-		PodStatus:            workflow.PodStatus,
-		Message:              workflow.Message,
-		StartedOn:            workflow.StartedOn,
-		FinishedOn:           workflow.FinishedOn,
-		Namespace:            workflow.Namespace,
-		CiMaterials:          ciMaterialsArr,
-		TriggeredBy:          workflow.TriggeredBy,
-		TriggeredByEmail:     triggeredByUserEmailId,
-		Artifact:             workflow.Image,
-		Stage:                workflow.WorkflowType,
-		GitTriggers:          gitTriggers,
-		BlobStorageEnabled:   workflow.BlobStorageEnabled,
-		UserApprovalMetadata: workflow.UserApprovalMetadata,
-		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
-		PodName:              workflowR.PodName,
-		CdWorkflowId:         workflowR.CdWorkflowId,
-		HelmPackageName:      helmPackageName,
-		ArtifactId:           workflow.CiArtifactId,
-		CiPipelineId:         ciWf.CiPipelineId,
-		TriggerMetadata:      triggerMetadata,
+		Id:                        workflow.Id,
+		Name:                      workflow.Name,
+		Status:                    workflow.Status,
+		PodStatus:                 workflow.PodStatus,
+		Message:                   workflow.Message,
+		StartedOn:                 workflow.StartedOn,
+		FinishedOn:                workflow.FinishedOn,
+		Namespace:                 workflow.Namespace,
+		CiMaterials:               ciMaterialsArr,
+		TriggeredBy:               workflow.TriggeredBy,
+		TriggeredByEmail:          triggeredByUserEmailId,
+		Artifact:                  workflow.Image,
+		Stage:                     workflow.WorkflowType,
+		GitTriggers:               gitTriggers,
+		BlobStorageEnabled:        workflow.BlobStorageEnabled,
+		UserApprovalMetadata:      workflow.UserApprovalMetadata,
+		IsVirtualEnvironment:      workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:                   workflowR.PodName,
+		CdWorkflowId:              workflowR.CdWorkflowId,
+		HelmPackageName:           helmPackageName,
+		ArtifactId:                workflow.CiArtifactId,
+		CiPipelineId:              ciWf.CiPipelineId,
+		TriggerMetadata:           triggerMetadata,
+		PromotionApprovalMetadata: promotionApprovalMetadata,
 	}
 
 	if showAppliedFilters {
-		appliedFilterStateMap, appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
+
+		subjectIdVsState, appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
 		if err != nil {
 			// not returning error by choice
 			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
 		}
-		workflowResponse.AppliedFiltersState = appliedFilterStateMap[workflow.CiArtifactId]
+		workflowResponse.AppliedFiltersState = subjectIdVsState[workflow.CiArtifactId]
 		workflowResponse.AppliedFilters = appliedFiltersMap[workflow.CiArtifactId]
 		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStampMap[workflow.CiArtifactId]
 	}

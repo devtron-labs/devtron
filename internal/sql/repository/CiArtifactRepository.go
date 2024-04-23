@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
@@ -99,6 +101,15 @@ func (artifact *CiArtifact) IsRegistryCredentialMapped() bool {
 	return artifact.CredentialsSourceType == GLOBAL_CONTAINER_REGISTRY
 }
 
+func (c *CiArtifact) GetMaterialInfo() ([]CiMaterialInfo, error) {
+	var ciMaterials []CiMaterialInfo
+	err := json.Unmarshal([]byte(c.MaterialInfo), &ciMaterials)
+	if err != nil {
+		return nil, err
+	}
+	return ciMaterials, nil
+}
+
 type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
@@ -134,6 +145,11 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
+	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps *bean.CdNodeMaterialParams) ([]CiArtifact, int, error)
+	FindArtifactsByCIPipelineId(artifactsListingFilterOps *bean.CiNodeMaterialParams) ([]CiArtifact, int, error)
+	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps *bean.ExtCiNodeMaterialParams) ([]CiArtifact, int, error)
+	FindArtifactsPendingForPromotion(request *bean.PromotionPendingNodeMaterialParams) ([]CiArtifact, int, error)
+	IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string, deployStage string) (bool, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -883,4 +899,175 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 		return ciArtifacts, err
 	}
 	return ciArtifacts, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps *bean.CdNodeMaterialParams) ([]CiArtifact, int, error) {
+
+	var ciArtifacts []CiArtifact
+	var ciArtifactsResp []CiArtifactWithExtraData
+
+	query := fmt.Sprintf(" select ci_artifact.*, count(ci_artifact.id) over() as total_count from ci_artifact where ci_artifact.id in "+
+		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.GetCDPipelineId())
+
+	listingOptions := artifactsListingFilterOps.GetListingOptions()
+	searchRegex := listingOptions.GetSearchStringRegex()
+	if searchRegex != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", searchRegex)
+	}
+
+	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", listingOptions.Limit, listingOptions.Offset)
+	query = query + limitOffSetQuery
+
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
+	if err != nil {
+		return ciArtifacts, 0, err
+	}
+
+	var totalCount int
+	if len(ciArtifactsResp) > 0 {
+		totalCount = ciArtifactsResp[0].TotalCount
+	}
+	for _, ciArtifact := range ciArtifactsResp {
+		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
+	}
+	return ciArtifacts, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(request *bean.CiNodeMaterialParams) ([]CiArtifact, int, error) {
+
+	query := impl.dbConnection.Model((*CiArtifact)(nil)).
+		Column("ci_artifact.*").ColumnExpr("COUNT(ci_artifact.id) OVER() AS total_count").
+		Join("join ci_pipeline ON ( ci_pipeline.id = ci_artifact.pipeline_id OR (ci_pipeline.id=ci_artifact.component_id AND ci_artifact.data_source= ? ) )", POST_CI).
+		Where("ci_pipeline.active=true and ci_pipeline.id = ? ", request.GetCiPipelineId())
+
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
+	}
+	query = query.OrderExpr("ci_artifact.id DESC ").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
+	if err != nil {
+		return ciArtifacts, 0, err
+	}
+	return ciArtifacts, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(request *bean.ExtCiNodeMaterialParams) ([]CiArtifact, int, error) {
+
+	query := impl.dbConnection.Model((*CiArtifact)(nil)).
+		Column("ci_artifact.*").ColumnExpr("COUNT(ci_artifact.id) OVER() AS total_count").
+		Join("join external_ci_pipeline on external_ci_pipeline.id = ci_artifact.external_ci_pipeline_id ").
+		Where("external_ci_pipeline.active=true and external_ci_pipeline.id = ? ", request.GetExtCiPipelineId())
+
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
+	}
+	query = query.OrderExpr("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
+	if err != nil {
+		return ciArtifacts, 0, err
+	}
+	return ciArtifacts, totalCount, nil
+
+}
+
+func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(request *bean.PromotionPendingNodeMaterialParams) ([]CiArtifact, int, error) {
+
+	if len(request.GetCDPipelineIds()) == 0 {
+		return []CiArtifact{}, 0, nil
+	}
+	awaitingRequestQuery := impl.dbConnection.Model((*repository.ArtifactPromotionApprovalRequest)(nil)).
+		ColumnExpr("distinct(artifact_id)").
+		Where("destination_pipeline_id in (?) and status = ? ", pg.In(request.GetCDPipelineIds()), constants.AWAITING_APPROVAL)
+
+	excludedArtifactIds := request.GetExcludedArtifactIds()
+	if len(excludedArtifactIds) > 0 {
+		awaitingRequestQuery = awaitingRequestQuery.Where("artifact_id not in (?)", pg.In(excludedArtifactIds))
+	}
+
+	query := impl.dbConnection.Model((*CiArtifact)(nil)).
+		Column("ci_artifact.*").ColumnExpr("COUNT(id) OVER() AS total_count").
+		Where("ci_artifact.id in ( ? ) ", awaitingRequestQuery)
+
+	listingOptions := request.GetListingOptions()
+	if len(listingOptions.SearchString) > 0 {
+		query = query.Where("ci_artifact.image like ?", listingOptions.GetSearchStringRegex())
+	}
+	query = query.OrderExpr("ci_artifact.id DESC").Limit(listingOptions.Limit).Offset(listingOptions.Offset)
+
+	ciArtifacts, totalCount, err := impl.executePromotionNodeQuery(query)
+	if err != nil {
+		return ciArtifacts, 0, err
+	}
+	return ciArtifacts, totalCount, nil
+
+}
+
+func (impl CiArtifactRepositoryImpl) executePromotionNodeQuery(query *orm.Query) ([]CiArtifact, int, error) {
+	var ciArtifactArrResp []CiArtifactWithExtraData
+	var ciArtifacts []CiArtifact
+	err := query.Select(&ciArtifactArrResp)
+	if err != nil {
+		return ciArtifacts, 0, err
+	}
+	var totalCount int
+	if len(ciArtifactArrResp) > 0 {
+		totalCount = ciArtifactArrResp[0].TotalCount
+	}
+	for _, ciArtifactResp := range ciArtifactArrResp {
+		ciArtifacts = append(ciArtifacts, ciArtifactResp.CiArtifact)
+	}
+	return ciArtifacts, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) IsArtifactAvailableForDeployment(pipelineId, parentPipelineId, artifactId int, parentStage, pluginStage string, deployStage string) (bool, error) {
+	//1) check if artifact is present on current pipeline
+	//2) check if artifact is successfully deployed on parent pipeline
+	//3) check if artifact is generated by parent plugin (skopeo)
+	//4) check if artifact is promoted to this environment
+	var Available bool
+	query := fmt.Sprintf(
+		`SELECT count(*) > 0 as Available
+    FROM ci_artifact 
+    WHERE (
+    ( --  checking if artifact is successfully deployed at parent or is deployed on current cd 
+        ci_artifact.id = %d -- doing this for optimization, only checking for current artifact 
+        AND id IN (
+            SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id 
+            FROM cd_workflow_runner 
+            INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id   
+            AND (
+                cd_workflow.pipeline_id in (%d,%d) AND cd_workflow.ci_artifact_id = %d --optimization 
+            )  
+            WHERE (
+                ( 	-- current CD check
+                	cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s'
+                )   
+                OR  
+                (	-- parent CD check
+                    cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s' AND cd_workflow_runner.status IN ('Healthy','Succeeded') 
+                )
+            )
+        )
+    ) 
+    OR ( -- checking if artifact is created at parent stage by plugin (eg: skopeo )
+        ci_artifact.id=%d  
+        AND ci_artifact.component_id = %d   
+        AND ci_artifact.data_source = '%s' 
+    ) 
+    OR id IN (
+        -- check if artifact is promoted directly to this pipeline  
+        SELECT artifact_id 
+        FROM artifact_promotion_approval_request 
+        WHERE status = %d 
+        AND destination_pipeline_id = %d and artifact_id=%d
+    ))`,
+		artifactId, pipelineId, parentPipelineId, artifactId, pipelineId, deployStage, parentPipelineId, parentStage, artifactId, parentPipelineId, pluginStage, constants.PROMOTED, pipelineId, artifactId)
+
+	_, err := impl.dbConnection.Query(&Available, query)
+	if err != nil {
+		return false, err
+	}
+	return Available, nil
 }

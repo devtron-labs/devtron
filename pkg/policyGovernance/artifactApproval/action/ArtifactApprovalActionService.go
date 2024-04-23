@@ -25,8 +25,9 @@ type ArtifactApprovalActionServiceImpl struct {
 	cdTriggerService                devtronApps.TriggerService
 	eventClient                     client2.EventClient
 	eventFactory                    client2.EventFactory
-	appArtifactManager              pipeline.AppArtifactManager
+	imageTaggingService             pipeline.ImageTaggingService
 	deploymentApprovalRepository    pipelineConfig.DeploymentApprovalRepository
+	requestApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
 	ciArtifactRepository            repository.CiArtifactRepository
 	pipelineRepository              pipelineConfig.PipelineRepository
 }
@@ -34,8 +35,9 @@ type ArtifactApprovalActionServiceImpl struct {
 func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	cdTriggerService devtronApps.TriggerService, eventClient client2.EventClient,
-	eventFactory client2.EventFactory, appArtifactManager pipeline.AppArtifactManager,
+	eventFactory client2.EventFactory, imageTaggingService pipeline.ImageTaggingService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	requestApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository) *ArtifactApprovalActionServiceImpl {
 	return &ArtifactApprovalActionServiceImpl{
@@ -44,8 +46,9 @@ func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 		cdTriggerService:                cdTriggerService,
 		eventClient:                     eventClient,
 		eventFactory:                    eventFactory,
-		appArtifactManager:              appArtifactManager,
+		imageTaggingService:             imageTaggingService,
 		deploymentApprovalRepository:    deploymentApprovalRepository,
+		requestApprovalRepository:       requestApprovalRepository,
 		ciArtifactRepository:            ciArtifactRepository,
 		pipelineRepository:              pipelineRepository,
 	}
@@ -84,14 +87,14 @@ func (impl *ArtifactApprovalActionServiceImpl) PerformDeploymentApprovalAction(u
 		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}
-		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+		deploymentApprovalData := &pipelineConfig.RequestApprovalUserData{
 			ApprovalRequestId: approvalRequestId,
 			UserId:            userId,
 			UserResponse:      pipelineConfig.APPROVED,
 		}
 		deploymentApprovalData.CreatedBy = userId
 		deploymentApprovalData.UpdatedBy = userId
-		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		err = impl.requestApprovalRepository.SaveRequestApprovalUserData(deploymentApprovalData)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
 			return &bean4.DeploymentApprovalValidationError{
@@ -182,7 +185,7 @@ func (impl *ArtifactApprovalActionServiceImpl) performNotificationApprovalAction
 		impl.logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
-	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
+	imageComment, imageTagNames, err := impl.imageTaggingService.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching tags and comment", "artifactId", approvalActionRequest.ArtifactId)
 	}

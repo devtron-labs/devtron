@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 	"go.uber.org/zap"
@@ -33,7 +34,7 @@ const (
 )
 
 type ValidateRequestResponse struct {
-	Conditions []ResourceCondition `json:"conditions"`
+	Conditions []util.ResourceCondition `json:"conditions"`
 }
 
 type CELRequest struct {
@@ -57,7 +58,7 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 	expressionMetadata := request.ExpressionMetadata
 	valuesMap := make(map[string]interface{})
 	for _, param := range expressionMetadata.Params {
-		valuesMap[param.ParamName] = param.Value
+		valuesMap[string(param.ParamName)] = param.Value
 	}
 
 	out, _, err := prg.Eval(valuesMap)
@@ -83,7 +84,7 @@ func (impl *CELServiceImpl) Validate(request CELRequest) (*cel.Ast, *cel.Env, er
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid parameter type '%s' for '%s': %v", param.Type, param.Type, err)
 		}
-		declaration := decls.NewVar(param.ParamName, declsType)
+		declaration := decls.NewVar(string(param.ParamName), declsType)
 		declarations = append(declarations, declaration)
 	}
 
@@ -107,20 +108,24 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 	errored := false
 	params := []ExpressionParam{
 		{
-			ParamName: "containerRepository",
+			ParamName: ContainerRepo,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImage",
+			ParamName: ContainerImage,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImageTag",
+			ParamName: ContainerImageTag,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "imageLabels",
+			ParamName: ImageLabels,
 			Type:      ParamTypeList,
+		},
+		{
+			ParamName: GitCommitDetails,
+			Type:      ParamTypeCommitDetailsMap,
 		},
 	}
 
@@ -152,6 +157,8 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 		return decls.Bool, nil
 	case ParamTypeList:
 		return decls.NewListType(decls.String), nil
+	case ParamTypeCommitDetailsMap:
+		return decls.NewMapType(decls.String, decls.Dyn), nil
 	default:
 		return nil, fmt.Errorf("unsupported parameter type: %s", paramType)
 	}

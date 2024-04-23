@@ -14,13 +14,6 @@ const (
 	BuildPipeline      FilterTargetObject = 1
 )
 
-type ResourceConditionType int
-
-const (
-	FAIL ResourceConditionType = iota
-	PASS
-)
-
 type ResourceFilter struct {
 	tableName           struct{}            `sql:"resource_filter" pg:",discard_unknown_columns"`
 	Id                  int                 `sql:"id"`
@@ -33,7 +26,7 @@ type ResourceFilter struct {
 }
 
 type ResourceFilterRepository interface {
-	//transaction util funcs
+	// transaction util funcs
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
 	CreateResourceFilter(tx *pg.Tx, filter *ResourceFilter) (*ResourceFilter, error)
