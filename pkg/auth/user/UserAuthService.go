@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"log"
 	"math/rand"
 	"net/http"
@@ -493,15 +492,9 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	// have version for api-tokens
 	// therefore, for tokens without version we will skip the below part
 	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
-		isProvidedTokenValid, err := helper.CheckIfTokenIsValid(emailId, version, impl.userRepository)
-		if err != nil || !isProvidedTokenValid {
+		err := impl.userService.CheckIfTokenIsValid(emailId, version)
+		if err != nil {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
-			err := &util.ApiError{
-				HttpStatusCode:  http.StatusUnauthorized,
-				Code:            constants.UserNotFoundForToken,
-				InternalMessage: "user not found for token",
-				UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
-			}
 			return false, err
 		}
 	}

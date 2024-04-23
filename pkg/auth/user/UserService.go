@@ -24,6 +24,7 @@ import (
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +74,7 @@ type UserService interface {
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
+	CheckIfTokenIsValid(email string, version string) error
 }
 
 type UserServiceImpl struct {
@@ -1242,18 +1244,29 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 	// have version for api-tokens
 	// therefore, for tokens without version we will skip the below part
 	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
-		isProvidedTokenValid, err := userHelper.CheckIfTokenIsValid(email, version, impl.userRepository)
-		if err != nil || !isProvidedTokenValid {
+		err := impl.CheckIfTokenIsValid(email, version)
+		if err != nil {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
-			err := &util.ApiError{
-				Code:            constants.UserNotFoundForToken,
-				InternalMessage: "user not found for token",
-				UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
-			}
 			return http.StatusUnauthorized, "", err
 		}
 	}
 	return userInfo.Id, userInfo.UserType, nil
+}
+
+func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) error {
+	tokenName := userHelper.ExtractTokenNameFromEmail(email)
+	embeddedTokenVersion, _ := strconv.Atoi(version)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenIsValidByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+	if err != nil || !isProvidedTokenValid {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user not found for token",
+			UserMessage:     fmt.Sprintf("no user found against provided token"),
+		}
+		return err
+	}
+	return nil
 }
 
 func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
