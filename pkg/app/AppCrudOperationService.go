@@ -348,7 +348,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	}
 	appName := app.AppName
-	if app.AppType == helper.Job {
+	if app.AppType == helper.Job || len(app.DisplayName) > 0 {
 		appName = app.DisplayName
 	}
 	noteResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})

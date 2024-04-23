@@ -49,6 +49,8 @@ type InstalledAppDBService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
+
+	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -311,4 +313,8 @@ func (impl *InstalledAppDBServiceImpl) UpdateInstalledAppVersion(installedAppVer
 		return nil, err
 	}
 	return installedAppVersion, nil
+}
+
+func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps) {
+	installedApp.ChangeAppNameToDisplayName()
 }

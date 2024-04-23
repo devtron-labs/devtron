@@ -75,6 +75,10 @@ func (model *InstalledApps) UpdateGitOpsRepository(gitOpsRepoUrl string, isCusto
 	model.GitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl) // Handled for backward compatibility
 }
 
+func (model *InstalledApps) ChangeAppNameToDisplayName() {
+	model.App.AppName = model.App.DisplayName
+}
+
 type InstalledAppVersions struct {
 	TableName                    struct{} `sql:"installed_app_versions" pg:",discard_unknown_columns"`
 	Id                           int      `sql:"id,pk"`
