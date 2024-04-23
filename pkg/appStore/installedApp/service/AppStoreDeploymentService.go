@@ -396,13 +396,20 @@ func isExternalHelmApp(appId string) bool {
 func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
 	var appName string
 	var displayName string
+	var namespace string
 	appName = updateAppRequest.AppName
 	if isExternalHelmApp(updateAppRequest.AppId) {
-		appName = updateAppRequest.UniqueAppIdentifier
+		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in decoding app id for external helm apps", "err", err)
+			return err
+		}
+		appName = appIdentifier.GetUniqueAppNameIdentifier()
 		displayName = updateAppRequest.AppName
+		namespace = appIdentifier.Namespace
 	}
 	impl.logger.Infow("update helm project request", updateAppRequest)
-	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, updateAppRequest.TeamId, updateAppRequest.UserId)
+	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, namespace, updateAppRequest.TeamId, updateAppRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in linking project to helm app", "appName", updateAppRequest.AppName, "err", err)
 		return err

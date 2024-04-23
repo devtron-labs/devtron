@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/util"
 	"regexp"
 	"strconv"
 	"strings"
@@ -48,13 +49,14 @@ type AppCrudOperationService interface {
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
-	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
+	GetHelmAppMetaInfo(appId string, userId int32) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
+	IsExternalAppLinkedToChartStore(appId int, releaseName string) (bool, string, error)
 }
 
 type AppCrudOperationServiceImpl struct {
@@ -428,7 +430,20 @@ func convertUrlToHttpsIfSshType(url string) string {
 	return httpsURL
 }
 
-func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {
+func (impl AppCrudOperationServiceImpl) IsExternalAppLinkedToChartStore(appId int, releaseName string) (bool, string, error) {
+	installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed app by app id for external apps", "appId", appId, "err", err)
+		return false, "", err
+	}
+	if installedApp.Id > 0 {
+		uniqueIdentifierForAlreadyLinkedApp := releaseName + "-" + installedApp.Environment.Namespace + "-" + strconv.Itoa(installedApp.Environment.ClusterId)
+		return true, uniqueIdentifierForAlreadyLinkedApp, nil
+	}
+	return false, "", nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId int32) (*bean.AppMetaInfoDto, error) {
 
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
 	// In this case app details can be fetched using app name / release Name.
@@ -443,11 +458,44 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
 			return nil, err
 		}
-		appName := appIdDecoded.GetUniqueAppNameIdentifier()
-		app, err = impl.appRepository.FindAppAndProjectByAppName(appName)
+		appNameUniqueIdentifier := appIdDecoded.GetUniqueAppNameIdentifier()
+		app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching app meta data", "err", err)
+			impl.logger.Errorw("GetHelmAppMetaInfo, error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 			return nil, err
+		}
+		if util.IsErrNoRows(err) {
+			//find app by display name if not found by unique identifier
+			app, err = impl.appRepository.FindAppAndProjectByAppName(appIdDecoded.ReleaseName)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("GetHelmAppMetaInfo, error in fetching app meta data by display name", "displayName", appIdDecoded.ReleaseName, "err", err)
+				return nil, err
+			}
+			if app.Id > 0 {
+				//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
+				//update this app's app_name with unique identifier along with display_name.
+				isLinked, uniqueIdentifierForAlreadyLinkedApp, err := impl.IsExternalAppLinkedToChartStore(app.Id, appIdDecoded.ReleaseName)
+				if err != nil {
+					impl.logger.Errorw("GetHelmAppMetaInfo, error in checking IsExternalAppLinkedToChartStore", "appId", appId, "err", err)
+					return nil, err
+				}
+				if isLinked {
+					// if installed_app is already present for that display_name then migrate the app_name to unique identifier with installed_app ns and cluster id data
+					app.AppName = uniqueIdentifierForAlreadyLinkedApp
+				} else {
+					//app not found with unique identifier but displayName, hence migrate the app_name to unique identifier and also update display_name
+					app.AppName = appNameUniqueIdentifier
+				}
+
+				app.DisplayName = appIdDecoded.ReleaseName
+				app.UpdatedBy = userId
+				app.UpdatedOn = time.Now()
+				err = impl.appRepository.Update(app)
+				if err != nil {
+					impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+					return nil, err
+				}
+			}
 		}
 		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
