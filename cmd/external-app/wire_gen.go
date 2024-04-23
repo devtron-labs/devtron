@@ -50,6 +50,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository7 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -296,7 +297,8 @@ func InitializeApp() (*App, error) {
 	devtronResourceSchemaAuditRepositoryImpl := repository10.NewDevtronResourceSchemaAuditRepositoryImpl(sugaredLogger, db)
 	devtronResourceObjectAuditRepositoryImpl := repository10.NewDevtronResourceObjectAuditRepositoryImpl(sugaredLogger, db)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(sugaredLogger)
-	appListingRepositoryImpl := repository5.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder, environmentRepositoryImpl, gitOpsConfigRepositoryImpl)
+	appWorkflowRepositoryImpl := appWorkflow.NewAppWorkflowRepositoryImpl(sugaredLogger, db)
+	appListingRepositoryImpl := repository5.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder, environmentRepositoryImpl, gitOpsConfigRepositoryImpl, appWorkflowRepositoryImpl)
 	devtronResourceServiceImpl, err := devtronResource.NewDevtronResourceServiceImpl(sugaredLogger, devtronResourceRepositoryImpl, devtronResourceSchemaRepositoryImpl, devtronResourceObjectRepositoryImpl, devtronResourceSchemaAuditRepositoryImpl, devtronResourceObjectAuditRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, appListingRepositoryImpl, userRepositoryImpl)
 	if err != nil {
 		return nil, err
