@@ -32,11 +32,15 @@ import (
 	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	util3 "github.com/devtron-labs/devtron/util"
+	util "github.com/devtron-labs/devtron/util/event"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
-
-	util "github.com/devtron-labs/devtron/util/event"
+	"net/http"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -60,6 +64,7 @@ type NotificationConfigService interface {
 	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
 	GetNotificationConfigForImageScanSuccess(ctx context.Context, imageScanningEvent *eventProcessorBean.ImageScanningEvent) (*ImageScanNotificationConfig, error)
 	EvaluateNotificationExpression(ctx context.Context, conditionType notifierBean.ConditionType, expression, severity, policyPermission string) (bool, error)
+	ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -79,9 +84,10 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 	configDraftRepository          drafts.ConfigDraftRepository
 	ciArtifactRepository           repository.CiArtifactRepository
-	appArtifactManager             pipeline.AppArtifactManager
+	imageTaggingService            pipeline.ImageTaggingService
 	artifactApprovalActionService  action.ArtifactApprovalActionService
 	celService                     resourceFilter.CELEvaluatorService
+	promotionRequestService        artifactPromotion.ApprovalRequestService
 }
 
 type NotificationSettingRequest struct {
@@ -89,7 +95,7 @@ type NotificationSettingRequest struct {
 	TeamId int  `json:"teamId"`
 	AppId  *int `json:"appId"`
 	EnvId  *int `json:"envId"`
-	//Pipelines    []int             `json:"pipelineIds"`
+	// Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
 	Providers    []client.Provider `json:"providers" validate:"required"`
@@ -199,9 +205,10 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	configDraftRepository drafts.ConfigDraftRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
-	appArtifactManager pipeline.AppArtifactManager,
+	imageTaggingService pipeline.ImageTaggingService,
 	artifactApprovalActionService action.ArtifactApprovalActionService,
 	celService resourceFilter.CELEvaluatorService,
+	promotionRequestService artifactPromotion.ApprovalRequestService,
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
@@ -220,9 +227,10 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
 		configDraftRepository:          configDraftRepository,
 		ciArtifactRepository:           ciArtifactRepository,
-		appArtifactManager:             appArtifactManager,
+		imageTaggingService:            imageTaggingService,
 		artifactApprovalActionService:  artifactApprovalActionService,
 		celService:                     celService,
+		promotionRequestService:        promotionRequestService,
 	}
 }
 
@@ -900,7 +908,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 				}
 			}
 		}
-		//deleting old items
+		// deleting old items
 		_, err = impl.deleteNotificationSettingsAndRules(notificationSettingsRequest.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("error on delete ns", "err", err)
@@ -926,7 +934,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 			return 0, err
 		}
 
-		//UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
+		// UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
 
 		for _, ns := range nsOptions {
 			config, err := json.Marshal(nsConfig.Providers)
@@ -1237,16 +1245,18 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
 		return nil, err
 	}
-	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
+	imageComment, imageTagNames, err := impl.imageTaggingService.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
 		return nil, err
 	}
 
 	return &client.DeploymentApprovalResponse{
-		ImageTagNames:  imageTagNames,
-		ImageComment:   imageComment.Comment,
-		DockerImageUrl: ciArtifact.Image,
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames:  imageTagNames,
+			ImageComment:   imageComment.Comment,
+			DockerImageUrl: ciArtifact.Image,
+		},
 		NotificationMetaData: &client.NotificationMetaData{
 			AppName:    appName,
 			EnvName:    envName,
@@ -1349,12 +1359,12 @@ func (impl *NotificationConfigServiceImpl) GetNotificationConfigForImageScanSucc
 func getParamsForImageScanning(severity string, policyPermission string) []resourceFilter.ExpressionParam {
 	params := []resourceFilter.ExpressionParam{
 		{
-			ParamName: notifierBean.Severity,
+			ParamName: resourceFilter.Severity,
 			Value:     severity,
 			Type:      resourceFilter.ParamTypeString,
 		},
 		{
-			ParamName: notifierBean.PolicyPermission,
+			ParamName: resourceFilter.PolicyPermission,
 			Value:     policyPermission,
 			Type:      resourceFilter.ParamTypeString,
 		},
@@ -1387,11 +1397,11 @@ func (impl *NotificationConfigServiceImpl) EvaluateNotificationExpression(ctx co
 func (impl *NotificationConfigServiceImpl) validateNotificationRule(notificationRulesMap ...*repository.NotificationRule) error {
 	params := []resourceFilter.ExpressionParam{
 		{
-			ParamName: notifierBean.Severity,
+			ParamName: resourceFilter.Severity,
 			Type:      resourceFilter.ParamTypeString,
 		},
 		{
-			ParamName: notifierBean.PolicyPermission,
+			ParamName: resourceFilter.PolicyPermission,
 			Type:      resourceFilter.ParamTypeString,
 		},
 	}
@@ -1412,4 +1422,50 @@ func (impl *NotificationConfigServiceImpl) validateNotificationRule(notification
 		}
 	}
 	return nil
+}
+
+func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error) {
+
+	artifactPromotionApprovalRequest := &bean2.ArtifactPromotionRequest{
+		Action:           constants.ACTION_APPROVE,
+		ArtifactId:       request.ArtifactId,
+		AppId:            request.AppId,
+		EnvironmentNames: []string{request.EnvName},
+		WorkflowId:       request.WorkflowId,
+	}
+	approvalResponse, err := impl.promotionRequestService.HandleArtifactPromotionRequest(ctx, artifactPromotionApprovalRequest, authorizedEnvs)
+	if err != nil {
+		impl.logger.Errorw("error in handling promotion artifact request", "promotionRequest", artifactPromotionApprovalRequest, "err", err)
+		return nil, err
+	}
+
+	var status bean.ApprovalState
+	switch approvalResponse[0].PromotionValidationMessage {
+	case constants.APPROVED:
+		status = bean.Approved
+	case constants.ALREADY_APPROVED, constants.ARTIFACT_ALREADY_PROMOTED:
+		status = bean.AlreadyApproved
+	case constants.PromotionRequestStale, constants.ArtifactPromotionRequestNotFoundErr:
+		status = bean.RequestCancelled
+	default:
+		return nil, interalUtil.NewApiError().WithUserMessage(approvalResponse[0].PromotionValidationMessage).WithHttpStatusCode(http.StatusForbidden)
+	}
+
+	return &client.PromotionApprovalResponse{
+		SourceInfo: request.PromotionSource,
+		Status:     status,
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames: request.ImageTags,
+			ImageComment:  request.ImageComment,
+
+			DockerImageUrl: request.Image,
+		},
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    request.AppName,
+			EnvName:    request.EnvName,
+			ApprovedBy: request.ApiTokenCustomClaims.Email,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}, nil
+
 }

@@ -65,6 +65,8 @@ type AppWorkflowRepository interface {
 	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string, componentIdsFilter []int) error
 	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
 	FindByComponentIdForCiPipelineType(componentId int) ([]*AppWorkflowMapping, error)
+	FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error)
+	FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -96,6 +98,16 @@ type AppWorkflow struct {
 type WorkflowDAG struct {
 	CiPipelines []int `json:"ciPipelines"`
 	CdPipelines []int `json:"cdPipelines"`
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error) {
+	appWorkflowMapping := AppWorkflowMapping{}
+	err := impl.dbConnection.Model(&appWorkflowMapping).
+		Where("app_workflow_id = ?", workflowId).
+		Where("active = ?", true).
+		Where("parent_id IS NULL").
+		Select()
+	return &appWorkflowMapping, err
 }
 
 func (impl AppWorkflowRepositoryImpl) SaveAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error) {
@@ -190,7 +202,7 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflow(appWorkflow *AppWorkflow
 	return nil
 }
 
-//---------------------AppWorkflowMapping-----------------------------------
+// ---------------------AppWorkflowMapping-----------------------------------
 
 type AppWorkflowMapping struct {
 	TableName     struct{} `sql:"app_workflow_mapping" pg:",discard_unknown_columns"`
@@ -514,4 +526,16 @@ func (impl AppWorkflowRepositoryImpl) FindByComponentIdForCiPipelineType(compone
 		Where("app_workflow_mapping.type = ?", CIPIPELINE).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	_, err := impl.dbConnection.Query(
+		&appWorkflowsMapping,
+		"select * from app_workflow_mapping where app_workflow_id = (select app_workflow_id from app_workflow_mapping where component_id = ? and type= 'CD_PIPELINE' ) ", cdPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching all appWorkflowMappings in workflow by cdPipelineId", "cdPipelineId", cdPipelineId)
+		return nil, err
+	}
+	return appWorkflowsMapping, nil
 }

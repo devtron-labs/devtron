@@ -32,8 +32,8 @@ type TriggerRequest struct {
 	RefCdWorkflowRunnerId  int
 	RunStageInEnvNamespace string
 	WorkflowType           bean.WorkflowType
-	TriggerMessage        string
-	DeploymentWindowState *deploymentWindow.EnvironmentState
+	TriggerMessage         string
+	DeploymentWindowState  *deploymentWindow.EnvironmentState
 	TriggerContext
 }
 
@@ -76,3 +76,5 @@ const (
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 	ManifestPush            DeploymentType = "manifest_push"
 )
+
+const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"

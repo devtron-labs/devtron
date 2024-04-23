@@ -27,12 +27,15 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -73,6 +76,7 @@ type NotificationRestHandler interface {
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
 	ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request)
 	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
+	ApproveArtifactPromotion(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig       pipeline.DockerRegistryConfig
@@ -91,6 +95,7 @@ type NotificationRestHandlerImpl struct {
 	pipelineBuilder            pipeline.PipelineBuilder
 	enforcerUtil               rbac.EnforcerUtil
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
+	approvalRequestService     artifactPromotion.ApprovalRequestService
 }
 
 type ChannelDto struct {
@@ -105,6 +110,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl,
+	approvalRequestService artifactPromotion.ApprovalRequestService,
 ) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig:       dockerRegistryConfig,
@@ -123,6 +129,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		pipelineBuilder:            pipelineBuilder,
 		enforcerUtil:               enforcerUtil,
 		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
+		approvalRequestService:     approvalRequestService,
 	}
 }
 
@@ -1221,4 +1228,38 @@ func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
+	if err != nil {
+		return
+	}
+	requestClaims := &apiToken.ArtifactPromotionApprovalNotificationClaims{}
+	err = json.Unmarshal(claimBytes, requestClaims)
+	if err != nil {
+		impl.logger.Errorw("unable to unmarshal request claims", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	teamEnvRbacObj := impl.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(requestClaims.AppId, 0, requestClaims.EnvName)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamEnvRbacObj); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	authorizedEnvironments := make(map[string]bool)
+	authorizedEnvironments[requestClaims.EnvName] = true
+
+	ctx := util2.NewRequestCtx(r.Context())
+	res, err := impl.notificationService.ApprovePromotionRequestAndGetMetadata(ctx, requestClaims, authorizedEnvironments)
+	if err != nil {
+		impl.logger.Errorw("error in handling promotion artifact request", "appId", requestClaims.AppId, "envId", requestClaims.EnvId, "artifactId", requestClaims.ArtifactId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+	return
 }

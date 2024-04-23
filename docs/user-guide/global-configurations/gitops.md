@@ -1,5 +1,9 @@
 # GitOps
 
+
+Devtron uses GitOps to store Kubernetes configuration files of the applications.
+For storing the configuration files and desired state of the applications, Git credentials must be provided at **Global Configurations** > **GitOps** within the Devtron dashboard.
+
 ## Introduction
 
 In Devtron, you can either use Helm or GitOps (Argo CD) to deploy your applications and charts. GitOps is a branch of DevOps that focuses on using Git repositories to manage infrastructure and application code deployments.
@@ -184,7 +188,6 @@ We do **NOT** recommend using GitHub organization that contains your source code
    * Select the option your organization belongs to.
    * Verify your account and click **Next**.
    * Your `GitHub organization name` will be created. 
-
 7. Go to your profile and click **Your organizations** to view all the organizations you created.
 
 For more information about the plans available for your team, see [GitHub's products](https://docs.github.com/en/get-started/learning-about-github/githubs-products). You can also refer [GitHub organization](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations) official doc page for more detail.
@@ -245,4 +248,8 @@ You can also refer [Azure DevOps - Project Creation](https://docs.microsoft.com/
 You can also refer [official Bitbucket Workspace page](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/) for more details.
 
 **Note**:
-* repo - Full control of repositories (Read, Write, Admin, Delete) access. 
+* repo - Full control of repositories (Read, Write, Admin, Delete) access.
+
+Click **Save** to save your GitOps configuration details.
+
+**Note** : A Green tick will appear on the active GitOp provider.
