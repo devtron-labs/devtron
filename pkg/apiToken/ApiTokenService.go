@@ -299,6 +299,8 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	apiToken.ExpireAtInMs = *request.ExpireAtInMs
 	apiToken.UpdatedBy = updatedBy
 	apiToken.UpdatedOn = time.Now()
+	// update api-token only if `previousTokenVersion` is same as version stored in DB
+	// we are checking this to ensure that two users are not updating the same token at the same time
 	err = impl.apiTokenRepository.UpdateIf(apiToken, previousTokenVersion)
 	if err != nil {
 		impl.logger.Errorw("error while updating api-token", "apiTokenId", apiTokenId, "error", err)
