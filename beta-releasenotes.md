@@ -1,4 +1,5 @@
 ## Bugs
+- fix: image promotion sql script (#4996)
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
