@@ -366,7 +366,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 	installAppVersionRequestDto := &appStoreBean.InstallAppVersionDTO{
 		AppName:            appIdentifier.GetUniqueAppNameIdentifier(),
 		UserId:             userId,
-		AppOfferingMode:    util2.SERVER_MODE_HYPERION,
+		AppOfferingMode:    util2.SERVER_MODE_FULL,
 		ClusterId:          appIdentifier.ClusterId,
 		Namespace:          appIdentifier.Namespace,
 		AppStoreVersion:    int(request.GetAppStoreApplicationVersionId()),
