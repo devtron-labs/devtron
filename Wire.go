@@ -92,6 +92,8 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
 	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
@@ -127,6 +129,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/read"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/build"
@@ -160,7 +163,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
+	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -184,6 +188,7 @@ func InitializeApp() (*App, error) {
 
 	wire.Build(
 		// ----- wireset start
+		commonPolicyActions.CommonPolicyActionWireSet,
 		sql.PgSqlWireSet,
 		user.SelfRegistrationWireSet,
 		externalLink.ExternalLinkWireSet,
@@ -220,12 +225,12 @@ func InitializeApp() (*App, error) {
 		argoApplication.ArgoApplicationWireSet,
 		scanningResultsParser.ScanningResultWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
-		commonPolicyActions.CommonPolicyActionWireSet,
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
-		policyGovernance.PolicyGovernanceWireSet,
 
+		artifactApproval.ArtifactApprovalWireSet,
+		artifactPromotion2.ArtifactPromotionWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -588,6 +593,9 @@ func InitializeApp() (*App, error) {
 
 		appWorkflow.NewAppWorkflowServiceImpl,
 		wire.Bind(new(appWorkflow.AppWorkflowService), new(*appWorkflow.AppWorkflowServiceImpl)),
+
+		read.NewAppWorkflowDataReadServiceImpl,
+		wire.Bind(new(read.AppWorkflowDataReadService), new(*read.AppWorkflowDataReadServiceImpl)),
 
 		appWorkflow2.NewAppWorkflowRepositoryImpl,
 		wire.Bind(new(appWorkflow2.AppWorkflowRepository), new(*appWorkflow2.AppWorkflowRepositoryImpl)),
@@ -960,7 +968,8 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-
+		pipelineConfig.NewRequestApprovalUserDataRepositoryImpl,
+		wire.Bind(new(pipelineConfig.RequestApprovalUserdataRepository), new(*pipelineConfig.RequestApprovalUserDataRepositoryImpl)),
 		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		router.NewResourceGroupingRouterImpl,
@@ -1032,6 +1041,18 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
+		artifactPromotionApprovalRequest.NewRouterImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.Router), new(*artifactPromotionApprovalRequest.RouterImpl)),
+
+		artifactPromotionApprovalRequest.NewRestHandlerImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.RestHandler), new(*artifactPromotionApprovalRequest.RestHandlerImpl)),
+		wire.Bind(new(artifactPromotionApprovalRequest.MaterialRestHandler), new(*artifactPromotionApprovalRequest.RestHandlerImpl)),
+
+		artifactPromotionPolicy.NewCommonPolicyRouterImpl,
+		wire.Bind(new(artifactPromotionPolicy.Router), new(*artifactPromotionPolicy.RouterImpl)),
+
+		artifactPromotionPolicy.NewArtifactPromotionPolicyRestHandlerImpl,
+		wire.Bind(new(artifactPromotionPolicy.RestHandler), new(*artifactPromotionPolicy.RestHandlerImpl)),
 
 		globalPolicy2.NewGlobalPolicyDataManagerImpl,
 		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),

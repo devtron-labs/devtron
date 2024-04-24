@@ -118,6 +118,7 @@ func InitializeApp() (*App, error) {
 		devtronResource.DevtronResourceWireSetEA,
 		helper.NewAppListingRepositoryQueryBuilder,
 		repository.NewAppListingRepositoryImpl,
+
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),

@@ -12,5 +12,4 @@ var DeploymentWindowWireSet = wire.NewSet(
 	wire.Bind(new(DeploymentWindowRestHandler), new(*DeploymentWindowRestHandlerImpl)),
 	deploymentWindow.NewDeploymentWindowServiceImpl,
 	wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
-
 )

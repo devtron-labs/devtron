@@ -27,6 +27,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/pkg/errors"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -79,6 +81,8 @@ type AppServiceConfig struct {
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
 	ScanV2Enabled                              bool   `env:"SCAN_V2_ENABLED" envDefault:"false"`
 }
+
+const AppNotFound = "app not found"
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
 	cfg := &AppServiceConfig{}
@@ -135,10 +139,10 @@ type AppService interface {
 	// MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride)
-	//GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
-	//GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
-	//GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
-	//GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
+	// GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
+	// GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
+	// GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
+	// GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
@@ -146,6 +150,7 @@ type AppService interface {
 	// PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 
 	FindAppByNames(names []string) ([]*app.App, error)
+	FindAppById(appId int) (*app.App, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error)
 }
@@ -1163,4 +1168,12 @@ func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, er
 
 func (impl *AppServiceImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error) {
 	return impl.appRepository.FindAppsWithFilter(appNameLike, sortOrder, limit, offset, excludeAppIds)
+}
+
+func (impl *AppServiceImpl) FindAppById(appId int) (*app.App, error) {
+	app, err := impl.appRepository.FindById(appId)
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(AppNotFound)
+	}
+	return app, nil
 }

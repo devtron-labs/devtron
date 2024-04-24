@@ -76,6 +76,10 @@ type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`
 }
 
+//func (variableValue VariableValue) Stringify() (string, error) {
+//	return utils.StringifyValue(variableValue.Value)
+//}
+
 func (value VariableValue) StringValue() string {
 	switch reflect.TypeOf(value.Value).Kind() {
 	case reflect.Int:

@@ -94,4 +94,8 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		HandlerFunc(impl.notificationRestHandler.ApproveDeploymentConfigForNotification).
 		Methods("POST")
 
+	configRouter.Path("/channel/image-promotion/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveArtifactPromotion).
+		Methods("POST")
+
 }

@@ -420,7 +420,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
-	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(configMapRequest.AppId, configMapRequest.EnvironmentId, "")
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(configMapRequest.AppId, configMapRequest.EnvironmentId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
 		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionCreate, object2); !ok2 {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -602,7 +602,7 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
 		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionDelete, object2); !ok2 {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
@@ -711,7 +711,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
 		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionDelete, object2); !ok2 {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
@@ -825,7 +825,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 		}
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId, "")
+	object2 := handler.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId, "")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok && !configApprover {
 		if ok2 := handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionUpdate, object2); !ok2 {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)

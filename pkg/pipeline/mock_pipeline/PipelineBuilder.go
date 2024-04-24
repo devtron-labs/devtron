@@ -505,7 +505,7 @@ func (mr *MockPipelineBuilderMockRecorder) GetCdPipelinesForApp(appId interface{
 // GetCdPipelinesForAppAndEnv mocks base method.
 func (m *MockPipelineBuilder) GetCdPipelinesForAppAndEnv(appId, envId int) (*bean0.CdPipelines, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCdPipelinesForAppAndEnv", appId, envId)
+	ret := m.ctrl.Call(m, "GetCdPipelinesByAppAndEnv", appId, envId)
 	ret0, _ := ret[0].(*bean0.CdPipelines)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -514,7 +514,7 @@ func (m *MockPipelineBuilder) GetCdPipelinesForAppAndEnv(appId, envId int) (*bea
 // GetCdPipelinesForAppAndEnv indicates an expected call of GetCdPipelinesForAppAndEnv.
 func (mr *MockPipelineBuilderMockRecorder) GetCdPipelinesForAppAndEnv(appId, envId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCdPipelinesForAppAndEnv", reflect.TypeOf((*MockPipelineBuilder)(nil).GetCdPipelinesForAppAndEnv), appId, envId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCdPipelinesByAppAndEnv", reflect.TypeOf((*MockPipelineBuilder)(nil).GetCdPipelinesForAppAndEnv), appId, envId)
 }
 
 // GetCiPipeline mocks base method.

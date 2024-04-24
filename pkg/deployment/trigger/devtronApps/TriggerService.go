@@ -41,6 +41,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	constants2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	bean10 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
@@ -54,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
+	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -131,6 +133,8 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
+	artifactPromotionDataReadService    read2.ArtifactPromotionDataReadService
+	cdPipelineConfigService             pipeline.CdPipelineConfigService
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -191,6 +195,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
 	imageTaggingService pipeline.ImageTaggingService,
+
+	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	resourceFilterService resourceFilter.ResourceFilterService,
@@ -217,8 +223,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
-	chartScanPublishService out.ChartScanPublishService,
-) (*TriggerServiceImpl, error) {
+	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
+	chartScanPublishService out.ChartScanPublishService) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -246,6 +252,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
 		artifactApprovalDataReadService:     artifactApprovalDataReadService,
+		cdPipelineConfigService:             cdPipelineConfigService,
+		artifactPromotionDataReadService:    artifactPromotionDataReadService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -374,9 +382,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 		return 0, "", err
 	}
+
 	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	ciArtifactId := overrideRequest.CiArtifactId
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	span.End()
@@ -384,8 +394,25 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("err", "err", err)
 		return 0, "", err
 	}
-	// Migration of deprecated DataSource Type
+	if overrideRequest.IsDeployDeploymentType() || overrideRequest.IsUnknownDeploymentType() {
+		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
+		if err != nil {
+			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
+			return 0, "", err
+		}
+		if !isArtifactAvailable {
+			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE)
+		}
+
+		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
+			return 0, "", err
+		}
+	}
+
 	if artifact.IsMigrationRequired() {
+		// Migration of deprecated DataSource Type
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 		if migrationErr != nil {
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
@@ -426,6 +453,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", err
 		}
 	case bean3.CD_WORKFLOW_TYPE_DEPLOY:
+
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
@@ -454,7 +482,12 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", err
 		}
 
-		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+		materialInfos, err := artifact.GetMaterialInfo()
+		if err != nil {
+			impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifact.Id, "materialInfo", artifact.MaterialInfo, "err", err)
+			return 0, "", err
+		}
+		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
 		if err != nil {
 			return 0, "", err
 		}
@@ -618,6 +651,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 					impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 					return 0, "", err
 				}
+				fmt.Println(pipelineOverride)
+				// TODO: update
 				cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 					DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 					PipelineOverride: pipelineOverride,
@@ -676,6 +711,81 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
+func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineConfig.Pipeline, ciArtifact *repository3.CiArtifact, deployStage bean3.WorkflowType) (bool, error) {
+
+	// fetch latest workflow to find current running artifact
+	//TODO: optimize this query
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(
+		pipeline.Id,
+		deployStage,
+		"",
+		1,
+		[]string{bean7.Healthy, bean7.SUCCEEDED, bean7.Progressing})
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", pipeline.Id, "currentStageType", deployStage, "err", err)
+		return false, err
+	}
+	if len(latestWf) > 0 {
+		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
+		if currentRunningArtifact.Id == ciArtifact.Id{
+			return true, nil
+		}
+	}
+
+	parentId, parentType, _, err := impl.cdPipelineConfigService.ExtractParentMetaDataByPipeline(pipeline, deployStage)
+	if err != nil {
+		impl.logger.Errorw("error in getting parent details for cd pipeline id", "cdPipelineId", pipeline.Id, "err", err)
+		return false, err
+	}
+	if parentType == bean3.CI_WORKFLOW_TYPE {
+		// artifact can be created at post-ci as well
+		if parentId == ciArtifact.PipelineId || (ciArtifact.DataSource == repository3.POST_CI && ciArtifact.ComponentId == parentId) {
+			return true, nil
+		}
+	} else if parentType == bean3.WEBHOOK_WORKFLOW_TYPE {
+		if parentId == ciArtifact.ExternalCiPipelineId {
+			return true, nil
+		}
+	} else {
+		var pluginStage string
+		if parentType == pipelineConfig.WorkflowTypePre {
+			pluginStage = repository3.PRE_CD
+		} else if parentType == pipelineConfig.WorkflowTypePost {
+			pluginStage = repository3.POST_CD
+		}
+		artifactAvailable, err := impl.ciArtifactRepository.IsArtifactAvailableForDeployment(pipeline.Id, parentId, ciArtifact.Id, string(parentType), pluginStage, string(deployStage))
+		if err != nil {
+			impl.logger.Errorw("error in getting if artifact is available for deployment or not ", "pipelineId", pipeline.Id, "parentId", parentId, "parentType", string(parentType), "ciArtifactId", ciArtifact.Id, "err", err)
+			return false, err
+		}
+		return artifactAvailable, nil
+	}
+	return false, nil
+
+}
+
+func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
+	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
+		return false, err
+	}
+	if promotionPolicy != nil && promotionPolicy.Id > 0 {
+		if promotionPolicy.BlockApproverFromDeploy() {
+			isUserApprover, err := impl.artifactPromotionDataReadService.IsUserApprover(artifactId, cdPipeline.Id, userId)
+			if err != nil {
+				impl.logger.Errorw("error in checking if user is approver or not", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
+				return false, err
+			}
+			if isUserApprover {
+				impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
+				return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
+			}
+		}
+	}
+	return false, nil
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 
@@ -713,7 +823,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+	materialInfos, err := artifact.GetMaterialInfo()
+	if err != nil {
+		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifact.Id, "materialInfo", artifact.MaterialInfo, "err", err)
+		return err
+	}
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		return err
 	}
@@ -893,6 +1008,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 			return err
 		}
+		fmt.Println(pipelineOverride)
+		// TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 			DeployStageType:  bean3.CD_WORKFLOW_TYPE_DEPLOY,
 			PipelineOverride: pipelineOverride,

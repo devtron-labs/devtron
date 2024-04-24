@@ -61,6 +61,7 @@ type ImageTaggingService interface {
 	GetUniqueTagsByAppId(appId int) ([]string, error)
 	GetImageTaggingServiceConfig() ImageTaggingServiceConfig
 	FindProdEnvExists(externalCi bool, pipelineIds []int) (bool, error)
+	GetImageTagsAndComment(artifactId int) (repository.ImageComment, []string, error)
 }
 
 type ImageTaggingServiceImpl struct {
@@ -547,4 +548,24 @@ func (impl ImageTaggingServiceImpl) GetUniqueTagsByAppId(appId int) ([]string, e
 		uniqueTags[i] = tag.TagName
 	}
 	return uniqueTags, nil
+}
+
+func (impl ImageTaggingServiceImpl) GetImageTagsAndComment(artifactId int) (repository.ImageComment, []string, error) {
+	var imageTagNames []string
+	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	imageTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	if imageTags != nil && len(imageTags) != 0 {
+		for _, tag := range imageTags {
+			imageTagNames = append(imageTagNames, tag.TagName)
+		}
+	}
+	return imageComment, imageTagNames, nil
 }
