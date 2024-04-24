@@ -5,4 +5,5 @@
 ## Enhancements
 - feat: image promotion migration (#4992)
 ## Documentation
+- doc: Added Linked CI with Child Info + Runtime Build Parameters (#4991)
 ## Others
