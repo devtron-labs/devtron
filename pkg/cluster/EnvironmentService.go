@@ -46,6 +46,7 @@ type EnvironmentService interface {
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAll() ([]bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
+	GetAllActiveEnvironmentCount() (int, error)
 	Delete(deleteReq *bean2.EnvironmentBean, userId int32) error
 	FindClusterByEnvId(id int) (*ClusterBean, error)
 	// FindById provides an exposed struct of bean.EnvironmentBean;
@@ -232,7 +233,10 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]bean2.EnvironmentBean, erro
 	}
 	return beans, nil
 }
-
+func (impl EnvironmentServiceImpl) GetAllActiveEnvironmentCount() (int, error) {
+	cnt, err := impl.environmentRepository.FindAllActiveEnvironmentCount()
+	return cnt, err
+}
 func (impl EnvironmentServiceImpl) FindById(id int) (*bean2.EnvironmentBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
