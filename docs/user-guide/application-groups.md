@@ -53,25 +53,29 @@ The **Build & Deploy** tab of your application group enables you to trigger the 
 
     ![Figure 5: Selecting Commit](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-commit-1.jpg)
 
-3. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing) Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build. 
+3. Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build.
 
-    * Go to the **Parameters** tab.
+{% hint style="info" %}
+Passing build parameters feature is only available in <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg">.
+{% endhint %}
 
-        ![Figure 6: Parameters Tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-parameter-tab.jpg)
+* Go to the **Parameters** tab.
 
-    * Click **+ Add parameter**.
+    ![Figure 6: Parameters Tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-parameter-tab.jpg)
 
-        ![Figure 7: Adding a Parameter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-add-parameter.jpg)
+* Click **+ Add parameter**.
 
-    * Enter your key-value pair as shown below. 
+    ![Figure 7: Adding a Parameter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-add-parameter.jpg)
 
-        ![Figure 8: Entering Key-Value Pair](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-key-value.jpg)
+* Enter your key-value pair as shown below. 
 
-    * You may follow the above steps for other applications too, and then click **Start Build**.
+    ![Figure 8: Entering Key-Value Pair](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-key-value.jpg)
 
-        ![Figure 9: Choosing Commit for Other Application](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-next-app.jpg) <br />
+* You may follow the above steps for other applications too, and then click **Start Build**.
 
-        ![Figure 10: Passing Build Parameters and Triggering Build](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-start-build.jpg)
+    ![Figure 9: Choosing Commit for Other Application](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-next-app.jpg)
+
+    ![Figure 10: Passing Build Parameters and Triggering Build](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/ag-start-build.jpg)
 
 4. The builds will initiate, following which, you can close the `Build image` screen.
 
