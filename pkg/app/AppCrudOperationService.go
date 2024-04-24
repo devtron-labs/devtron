@@ -552,10 +552,6 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 			// in case of external apps, we will send display name as appName will be a unique identifier
 			displayName = InstalledApp.App.DisplayName
 		}
-		if err != nil {
-			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
-			return nil, err
-		}
 	}
 
 	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
