@@ -429,13 +429,6 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 	envMap := metadata.GetActiveEnvironmentsMap()
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
-	for envName, resp := range responseMap {
-		if env, ok := envMap[envName]; ok {
-			resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
-			responseMap[envName] = resp
-		}
-	}
 
 	if len(policiesMap) > 0 {
 		// can be concurrent
@@ -458,7 +451,6 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			}
 			envResp := responseMap[envName]
 			envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-			envResp.PromotionValidationMessage = constants.EMPTY
 			envResp.PromotionPossible = evaluationResult
 			// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 			if !evaluationResult {
@@ -467,7 +459,17 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			responseMap[envName] = envResp
 		}
 	}
-
+	for envName, resp := range responseMap {
+		if env, ok := envMap[envName]; ok {
+			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
+			if resp.PromotionValidationMessage == constants.NO_PERMISSION {
+				resp.PromotionValidationMessage = constants.UNAUTHORIZED
+			} else if !resp.PromotionPossible {
+				resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+			}
+			responseMap[envName] = resp
+		}
+	}
 	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		result = append(result, envResponse)
