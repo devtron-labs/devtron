@@ -247,7 +247,12 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	defer cancel()
 	go func() {
 		ans := impl.getManifestsByBatch(ctx, requests)
-		ch <- ans
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			ch <- ans
+		}
 	}()
 	select {
 	case ans := <-ch:

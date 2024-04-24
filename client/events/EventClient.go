@@ -75,31 +75,34 @@ type Event struct {
 }
 
 type Payload struct {
-	AppName                string               `json:"appName"`
-	EnvName                string               `json:"envName"`
-	PipelineName           string               `json:"pipelineName"`
-	Source                 string               `json:"source"`
-	DockerImageUrl         string               `json:"dockerImageUrl"`
-	TriggeredBy            string               `json:"triggeredBy"`
-	Stage                  string               `json:"stage"`
-	DeploymentHistoryLink  string               `json:"deploymentHistoryLink"`
-	AppDetailLink          string               `json:"appDetailLink"`
-	DownloadLink           string               `json:"downloadLink"`
-	BuildHistoryLink       string               `json:"buildHistoryLink"`
-	MaterialTriggerInfo    *MaterialTriggerInfo `json:"material"`
-	ApprovedByEmail        []string             `json:"approvedByEmail"`
-	FailureReason          string               `json:"failureReason"`
-	Providers              []*Provider          `json:"providers"`
-	ImageTagNames          []string             `json:"imageTagNames"`
-	ImageComment           string               `json:"imageComment"`
-	ImageApprovalLink      string               `json:"imageApprovalLink"`
-	ProtectConfigFileType  string               `json:"protectConfigFileType"`
-	ProtectConfigFileName  string               `json:"protectConfigFileName"`
-	ProtectConfigComment   string               `json:"protectConfigComment"`
-	ProtectConfigLink      string               `json:"protectConfigLink"`
-	ApprovalLink           string               `json:"approvalLink"`
-	TimeWindowComment      string               `json:"timeWindowComment"`
-	ImageScanExecutionInfo json.RawMessage      `json:"imageScanExecutionInfo"`
+	AppName                          string               `json:"appName"`
+	EnvName                          string               `json:"envName"`
+	PipelineName                     string               `json:"pipelineName"`
+	Source                           string               `json:"source"`
+	DockerImageUrl                   string               `json:"dockerImageUrl"`
+	TriggeredBy                      string               `json:"triggeredBy"`
+	Stage                            string               `json:"stage"`
+	DeploymentHistoryLink            string               `json:"deploymentHistoryLink"`
+	AppDetailLink                    string               `json:"appDetailLink"`
+	DownloadLink                     string               `json:"downloadLink"`
+	BuildHistoryLink                 string               `json:"buildHistoryLink"`
+	MaterialTriggerInfo              *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail                  []string             `json:"approvedByEmail"`
+	FailureReason                    string               `json:"failureReason"`
+	Providers                        []*Provider          `json:"providers"`
+	ImageTagNames                    []string             `json:"imageTagNames"`
+	ImageComment                     string               `json:"imageComment"`
+	ImageApprovalLink                string               `json:"imageApprovalLink"`
+	ProtectConfigFileType            string               `json:"protectConfigFileType"`
+	ProtectConfigFileName            string               `json:"protectConfigFileName"`
+	ProtectConfigComment             string               `json:"protectConfigComment"`
+	ProtectConfigLink                string               `json:"protectConfigLink"`
+	ApprovalLink                     string               `json:"approvalLink"`
+	TimeWindowComment                string               `json:"timeWindowComment"`
+	ImageScanExecutionInfo           json.RawMessage      `json:"imageScanExecutionInfo"`
+	ArtifactPromotionRequestViewLink string               `json:"artifactPromotionRequestViewLink"`
+	ArtifactPromotionApprovalLink    string               `json:"artifactPromotionApprovalLink"`
+	PromotionArtifactSource          string               `json:"promotionArtifactSource"`
 }
 
 type CiPipelineMaterialResponse struct {
@@ -272,6 +275,7 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return false, err
 	}
+	defer resp.Body.Close()
 	impl.logger.Debugw("event completed", "event resp", resp)
 	return true, err
 }

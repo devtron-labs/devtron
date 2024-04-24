@@ -147,6 +147,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
+
 	mergeResp, helmPackageName, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {

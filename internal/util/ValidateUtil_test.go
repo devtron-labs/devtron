@@ -56,6 +56,9 @@ func TestValidateGlobalEntityName(t *testing.T) {
 		{
 			Name: "test-",
 		},
+		{
+			Name: " ",
+		},
 	}
 
 	for _, test := range validCases {
