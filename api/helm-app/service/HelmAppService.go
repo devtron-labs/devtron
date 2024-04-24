@@ -57,7 +57,7 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*gRPC.ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
-	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	DeleteDBLinkedHelmApplication(ctx context.Context, appIdentifier *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)
@@ -473,7 +473,53 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
+func (impl *HelmAppServiceImpl) getInstalledAppForAppIdentifier(appIdentifier *AppIdentifier) (*repository.InstalledApps, error) {
+	//for ext apps search app from unique identifier
+	appUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	model, err := impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			//if error is pg no rows, then find installed app via app.DisplayName because this can also happen that
+			//an ext-app is already linked to devtron, and it's entry in app_name col in app table will not be a unique
+			//identifier but the display name.
+			displayName := appIdentifier.ReleaseName
+			model, err = impl.installedAppRepository.GetInstalledAppByAppName(displayName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching installed app from display name", "appDisplayName", displayName, "err", err)
+				return nil, err
+			}
+		} else {
+			impl.logger.Errorw("error in fetching installed app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
+			return nil, err
+		}
+	}
+	return model, nil
+}
+
+func (impl *HelmAppServiceImpl) getAppForAppIdentifier(appIdentifier *AppIdentifier) (*app.App, error) {
+	//for ext apps search app from unique identifier
+	appUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	model, err := impl.appRepository.FindActiveByName(appUniqueIdentifier)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			//if error is pg no rows, then find app via release name because this can also happen that a project is
+			//already assigned a project, and it's entry in app_name col in app table will not be a unique
+			//identifier but the display name i.e. release name.
+			displayName := appIdentifier.ReleaseName
+			model, err = impl.appRepository.FindActiveByName(displayName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching app from display name", "appDisplayName", displayName, "err", err)
+				return nil, err
+			}
+		} else {
+			impl.logger.Errorw("error in fetching app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
+			return nil, err
+		}
+	}
+	return model, nil
+}
+
+func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, appIdentifier *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -482,82 +528,98 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	//for ext apps search app from unique identifier
-	appUniqueIdentifier := app.GetUniqueAppNameIdentifier()
-	model := &repository.InstalledApps{}
-	// For Helm deployments ReleaseName is App.Name
-	model, err = impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
-	if err != nil {
-		if util.IsErrNoRows(err) {
-			//if error is pg no rows, then find installed app via app.DisplayName because this can also happen that
-			//an ext-app is already linked to devtron, and it's entry in app_name col in app table will not be a unique
-			//identifier but the display name.
-			impl.logger.Debugw("DeleteDBLinkedHelmApplication, not able to find installed app of external app by app unique identifier, hence finding by display name", "appUniqueIdentifier", appUniqueIdentifier)
-			displayName := app.ReleaseName
-			model, err = impl.installedAppRepository.GetInstalledAppByAppName(displayName)
+	//model := &repository.InstalledApps{}
+	appModel := &app.App{}
+	var isAppLinkedToChartStore bool // if true, entry present in both app and installed_app table
+
+	installedAppModel, err := impl.getInstalledAppForAppIdentifier(appIdentifier)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching installed app for app identifier", "appIdentifier", appIdentifier, "err", err)
+		return nil, err
+	}
+	if installedAppModel != nil && installedAppModel.Id > 0 {
+		isAppLinkedToChartStore = true
+	}
+	if !isAppLinkedToChartStore {
+		//this means app not found in installed_apps, but a scenario where an external app is only
+		//assigned project and not linked to devtron, in that case only entry in app will be found.
+		appModel, err = impl.getAppForAppIdentifier(appIdentifier)
+		if err != nil {
+			impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching app from appIdentifier", "appIdentifier", appIdentifier, "err", err)
+			return nil, err
+		}
+	}
+
+	if isAppLinkedToChartStore {
+		// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
+		// And if the request is received for the externally installed app, the below condition will handle
+		if installedAppModel.Environment.Namespace != appIdentifier.Namespace {
+			return nil, pg.ErrNoRows
+		}
+
+		// App Delete --> Start
+		//soft delete app
+		appModel := &installedAppModel.App
+		appModel.Active = false
+		appModel.UpdatedBy = userId
+		appModel.UpdatedOn = time.Now()
+		err = impl.appRepository.UpdateWithTxn(appModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting appModel", "app", appModel)
+			return nil, err
+		}
+		// App Delete --> End
+
+		// InstalledApp Delete --> Start
+		// soft delete install app
+		installedAppModel.Active = false
+		installedAppModel.UpdatedBy = userId
+		installedAppModel.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedAppModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error while deleting install app", "error", err)
+			return nil, err
+		}
+		// InstalledApp Delete --> End
+
+		// InstalledAppVersions Delete --> Start
+		models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installedAppModel.Id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching install app versions", "error", err)
+			return nil, err
+		}
+
+		// soft delete install app versions
+		for _, item := range models {
+			item.Active = false
+			item.UpdatedBy = userId
+			item.UpdatedOn = time.Now()
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
 			if err != nil {
-				impl.logger.Errorw("error in fetching installed app from display name", "appDisplayName", app.ReleaseName, "err", err)
+				impl.logger.Errorw("error while fetching from db", "error", err)
 				return nil, err
 			}
-		} else {
-			impl.logger.Errorw("error in fetching installed app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
-			return nil, err
+		}
+		// InstalledAppVersions Delete --> End
+	} else {
+		if appModel != nil && appModel.Id > 0 {
+			// App Delete --> Start
+			//soft delete app
+			appModel.Active = false
+			appModel.UpdatedBy = userId
+			appModel.UpdatedOn = time.Now()
+			err = impl.appRepository.UpdateWithTxn(appModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error in deleting appModel", "app", appModel)
+				return nil, err
+			}
+			// App Delete --> End
 		}
 	}
 
-	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
-	// And if the request is received for the externally installed app, the below condition will handle
-	if model.Environment.Namespace != app.Namespace {
-		return nil, pg.ErrNoRows
-	}
-
-	// App Delete --> Start
-	//soft delete app
-	appModel := &model.App
-	appModel.Active = false
-	appModel.UpdatedBy = userId
-	appModel.UpdatedOn = time.Now()
-	err = impl.appRepository.UpdateWithTxn(appModel, tx)
+	res, err := impl.DeleteApplication(ctx, appIdentifier)
 	if err != nil {
-		impl.logger.Errorw("error in deleting appModel", "app", appModel)
-		return nil, err
-	}
-	// App Delete --> End
-
-	// InstalledApp Delete --> Start
-	// soft delete install app
-	model.Active = false
-	model.UpdatedBy = userId
-	model.UpdatedOn = time.Now()
-	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
-	if err != nil {
-		impl.logger.Errorw("error while deleting install app", "error", err)
-		return nil, err
-	}
-	// InstalledApp Delete --> End
-
-	// InstalledAppVersions Delete --> Start
-	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(model.Id)
-	if err != nil {
-		impl.logger.Errorw("error while fetching install app versions", "error", err)
-		return nil, err
-	}
-
-	// soft delete install app versions
-	for _, item := range models {
-		item.Active = false
-		item.UpdatedBy = userId
-		item.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
-	}
-	// InstalledAppVersions Delete --> End
-	res, err := impl.DeleteApplication(ctx, app)
-	if err != nil {
-		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", app)
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
 		return nil, err
 	}
 
@@ -642,7 +704,7 @@ func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppI
 		_, err := impl.installedAppRepository.GetInstalledAppByAppName(app.GetUniqueAppNameIdentifier())
 		if err != nil && util.IsErrNoRows(err) {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: AppNotLinkedToChartStoreErr, UserMessage: AppNotLinkedToChartStoreErr}
-		} else {
+		} else if err != nil {
 			impl.logger.Errorw("error in fetching installed app from appName unique identifier", "appNameUniqueIdentifier", app.GetUniqueAppNameIdentifier())
 			return nil, err
 		}

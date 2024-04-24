@@ -210,18 +210,25 @@ If one code is shared across multiple applications, `Linked Build Pipeline` can 
 2. On the **App Configuration** page, select **Workflow Editor**.
 3. Select **+ New Workflow**.
 4. Select **Linked Build Pipeline**.
-5. Enter the following fields on the **Create linked build pipeline** screen:
+5. On the **Create linked build pipeline** screen:
+    * Search for the application in which the source CI pipeline is present.
+    * Select the source CI pipeline from the application that you selected above.
+    * Enter a new name for the linked CI pipeline.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-linked.jpg)
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-linked.jpg)
+    
+6. Click **Create Linked CI Pipeline**.
 
-* Select the application in which the source CI pipeline is present.
-* Select the source CI pipeline from the application that you selected above.
-* Enter a name for the linked CI pipeline.
+Thereafter, the source CI pipeline will indicate the number of Linked CI pipelines. Upon clicking it, it will display the child information as shown below. It reveals the applications and environments where Linked CI is used for deployment.
 
-Click **Create Linked CI Pipeline**.
+![Linked CI with Child Information](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linkedci.gif)
 
 After creating a linked CI pipeline, you can create a CD pipeline. 
-Builds cannot be triggered from a linked CI pipeline; they can only be triggered from the source CI pipeline. There will be no images to deploy in the CD pipeline created from the 'linked CI pipeline' at first. To see the images in the CD pipeline of the linked CI pipeline, trigger build in the source CI pipeline. The build images will now be listed in the CD pipeline of the 'linked CI pipeline' whenever you trigger a build in the source CI pipeline.
+
+{% hint style="warning" %}
+Linked CI pipelines can't trigger builds. They rely on the source CI pipeline to build images. Trigger a build in the source CI pipeline to see the images available for deployment in the linked CI pipeline's CD stage.
+{% endhint %}
+
 
 ### 3. Deploy Image from External Service
 
