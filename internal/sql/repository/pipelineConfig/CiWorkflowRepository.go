@@ -43,6 +43,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
+	FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
@@ -286,7 +287,16 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Select()
 	return workflow, err
 }
-
+func (impl *CiWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error) {
+	cnt, err := impl.dbConnection.Model(&CiWorkflow{}).
+		ColumnExpr("DISTINCT ci_pipeline_id").
+		Where("started_on > ? ", time.Now().AddDate(0, 0, -1)).
+		Count()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching ci workflow", "err", err)
+	}
+	return cnt, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflows).
 		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").
