@@ -397,6 +397,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 		}
 		// update team id if appModel exist
 		appModel.TeamId = teamId
+		appModel.AppOfferingMode = globalUtil.SERVER_MODE_FULL
 		appModel.UpdateAuditLog(userId)
 		err = impl.appRepository.UpdateWithTxn(appModel, tx)
 		if err != nil {
