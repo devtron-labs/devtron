@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
@@ -87,7 +86,6 @@ type DevtronResourceServiceImpl struct {
 	dtResourceInternalProcessingService  in.InternalProcessingService
 	dtResourceReadService                read.ReadService
 	dtResourceObjectAuditService         audit.ObjectAuditService
-	pipeline.AppArtifactManager
 }
 
 func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
