@@ -18,6 +18,7 @@
 package EAMode
 
 import (
+	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
@@ -51,6 +52,7 @@ type InstalledAppDBService interface {
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 
 	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
+	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -317,4 +319,28 @@ func (impl *InstalledAppDBServiceImpl) UpdateInstalledAppVersion(installedAppVer
 
 func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps) {
 	installedApp.ChangeAppNameToDisplayName()
+}
+
+func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
+	//for external-apps appName would be uniqueIdentifier
+	appName := appIdentifier.GetUniqueAppNameIdentifier()
+	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and appUniqueIdentifierName", "appIdentifier", appIdentifier, "appUniqueIdentifierName", appName, "error", err)
+		return nil, err
+	}
+	if util.IsErrNoRows(err) {
+		// when app_name is not yet migrated to unique identifier
+		installedAppVersionDto, err = impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		if err != nil {
+			impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and releaseName", "appIdentifier", appIdentifier, "error", err)
+			return nil, err
+		}
+		//if dto found, check if release-info request is for the same namespace app as stored in installed_app because two ext-apps can have same
+		//release name but in different namespaces, if they differ then release info request is for another ext-app with same name but in diff namespace
+		if installedAppVersionDto != nil && installedAppVersionDto.Id > 0 && installedAppVersionDto.Namespace != appIdentifier.Namespace {
+			installedAppVersionDto = nil
+		}
+	}
+	return installedAppVersionDto, nil
 }

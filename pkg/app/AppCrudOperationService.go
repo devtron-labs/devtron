@@ -443,6 +443,56 @@ func (impl AppCrudOperationServiceImpl) IsExternalAppLinkedToChartStore(appId in
 	return false, "", nil
 }
 
+// getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *client.AppIdentifier) (*appRepository.App, error) {
+	app := &appRepository.App{}
+	var err error
+	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		return app, err
+	}
+	if util.IsErrNoRows(err) {
+		//find app by display name if not found by unique identifier
+		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
+			return app, err
+		}
+	}
+	return app, nil
+}
+
+// updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier, userId int32) error {
+	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
+	//update this app's app_name with unique identifier along with display_name.
+	isLinked, uniqueIdentifierForAlreadyLinkedApp, err := impl.IsExternalAppLinkedToChartStore(app.Id, appIdentifier.ReleaseName)
+	if err != nil {
+		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
+		return err
+	}
+	if isLinked {
+		// if installed_app is already present for that display_name then migrate the app_name to unique identifier with installed_app ns and cluster id data
+		app.AppName = uniqueIdentifierForAlreadyLinkedApp
+	} else {
+		//app not found with unique identifier but displayName, hence migrate the app_name to unique identifier and also update display_name
+		app.AppName = appNameUniqueIdentifier
+	}
+
+	app.DisplayName = appIdentifier.ReleaseName
+	app.UpdatedBy = userId
+	app.UpdatedOn = time.Now()
+	err = impl.appRepository.Update(app)
+	if err != nil {
+		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId int32) (*bean.AppMetaInfoDto, error) {
 
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
@@ -458,43 +508,18 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
 			return nil, err
 		}
-		appNameUniqueIdentifier := appIdDecoded.GetUniqueAppNameIdentifier()
-		app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("GetHelmAppMetaInfo, error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		app, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("GetHelmAppMetaInfo, error in getAppAndProjectForAppIdentifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 			return nil, err
 		}
-		if util.IsErrNoRows(err) {
-			//find app by display name if not found by unique identifier
-			app, err = impl.appRepository.FindAppAndProjectByAppName(appIdDecoded.ReleaseName)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("GetHelmAppMetaInfo, error in fetching app meta data by display name", "displayName", appIdDecoded.ReleaseName, "err", err)
-				return nil, err
-			}
-			if app.Id > 0 {
-				//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
-				//update this app's app_name with unique identifier along with display_name.
-				isLinked, uniqueIdentifierForAlreadyLinkedApp, err := impl.IsExternalAppLinkedToChartStore(app.Id, appIdDecoded.ReleaseName)
-				if err != nil {
-					impl.logger.Errorw("GetHelmAppMetaInfo, error in checking IsExternalAppLinkedToChartStore", "appId", appId, "err", err)
-					return nil, err
-				}
-				if isLinked {
-					// if installed_app is already present for that display_name then migrate the app_name to unique identifier with installed_app ns and cluster id data
-					app.AppName = uniqueIdentifierForAlreadyLinkedApp
-				} else {
-					//app not found with unique identifier but displayName, hence migrate the app_name to unique identifier and also update display_name
-					app.AppName = appNameUniqueIdentifier
-				}
 
-				app.DisplayName = appIdDecoded.ReleaseName
-				app.UpdatedBy = userId
-				app.UpdatedOn = time.Now()
-				err = impl.appRepository.Update(app)
-				if err != nil {
-					impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-					return nil, err
-				}
+		if app.Id > 0 {
+			// migrate app_name with unique identifier and also update display_name
+			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded, userId)
+			if err != nil {
+				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
+				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
 			}
 		}
 		if app.Id == 0 {
