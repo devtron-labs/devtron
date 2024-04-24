@@ -9,11 +9,7 @@ ALTER TABLE deployment_approval_user_data
 
 DROP INDEX unique_user_request_action;
 
-ALTER TABLE "resource_filter_evaluation_audit" DROP COLUMN "filter_type";
-
 DROP INDEX IF EXISTS unique_user_request_action;
-
-ALTER TABLE "resource_filter_evaluation_audit" DROP COLUMN "filter_type";
 
 DROP SEQUENCE IF EXISTS id_artifact_promotion_approval_request;
 
