@@ -202,6 +202,9 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			return nil, err
 		}
 	}
+
+	return valuesOverrideResponse, fmt.Errorf("this is a custom error")
+
 	// Conditional Block based on PipelineOverrideCreated --> end
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 

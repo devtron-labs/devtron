@@ -482,7 +482,7 @@ func (_m *AppListingService) GraphAPI(appId int, envId int) error {
 }
 
 // ISLastReleaseStopType provides a mock function with given fields: appId, envId
-func (_m *AppListingService) ISLastReleaseStopType(appId int, envId int) (bool, error) {
+func (_m *AppListingService) IsApplicationHibernating(appId int, envId int) (bool, error) {
 	ret := _m.Called(appId, envId)
 
 	var r0 bool

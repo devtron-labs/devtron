@@ -8,6 +8,8 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -22,7 +24,7 @@ import (
 
 type CdWorkflowCommonService interface {
 	UpdatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
-	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
+	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32, pipelineId int) error
 	UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status, message string) error
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
@@ -37,13 +39,15 @@ type CdWorkflowCommonServiceImpl struct {
 	config                           *types.CdConfig
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
 }
 
 func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository) (*CdWorkflowCommonServiceImpl, error) {
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository) (*CdWorkflowCommonServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -55,6 +59,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 		config:                           config,
 		pipelineRepository:               pipelineRepository,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
+		pipelineOverrideRepository:       pipelineOverrideRepository,
 	}, nil
 }
 
@@ -131,7 +136,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousDeploymentStatus(currentR
 
 }
 
-func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
+func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32, pipelineId int) error {
 	err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
 	if err != nil {
 		impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
@@ -149,6 +154,14 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
 	}
+
+	// update status in pco, for latest release mark status as `error`
+	_, err1 = impl.pipelineOverrideRepository.UpdateStatusInLastestRelease(pipelineId, models.CHARTSTATUS_ERROR)
+	if err1 != nil {
+		impl.logger.Errorw("error updating pco status", "err", err1, "pipelineId", pipelineId)
+		return err1
+	}
+
 	util4.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -22,12 +23,13 @@ type DeployedAppService interface {
 }
 
 type DeployedAppServiceImpl struct {
-	logger               *zap.SugaredLogger
-	k8sCommonService     k8s.K8sCommonService
-	cdTriggerService     devtronApps.TriggerService
-	envRepository        repository.EnvironmentRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	logger                     *zap.SugaredLogger
+	k8sCommonService           k8s.K8sCommonService
+	cdTriggerService           devtronApps.TriggerService
+	envRepository              repository.EnvironmentRepository
+	pipelineRepository         pipelineConfig.PipelineRepository
+	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 }
 
 func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
@@ -35,14 +37,16 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	cdTriggerService devtronApps.TriggerService,
 	envRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedAppServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository) *DeployedAppServiceImpl {
 	return &DeployedAppServiceImpl{
-		logger:               logger,
-		k8sCommonService:     k8sCommonService,
-		cdTriggerService:     cdTriggerService,
-		envRepository:        envRepository,
-		pipelineRepository:   pipelineRepository,
-		cdWorkflowRepository: cdWorkflowRepository,
+		logger:                     logger,
+		k8sCommonService:           k8sCommonService,
+		cdTriggerService:           cdTriggerService,
+		envRepository:              envRepository,
+		pipelineRepository:         pipelineRepository,
+		cdWorkflowRepository:       cdWorkflowRepository,
+		pipelineOverrideRepository: pipelineOverrideRepository,
 	}
 }
 

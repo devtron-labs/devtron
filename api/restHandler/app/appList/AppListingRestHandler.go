@@ -1024,7 +1024,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 
 		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			status, err := handler.appListingService.IsApplicationHibernating(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 			} else if status {
@@ -1075,7 +1075,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == argoApplication.Healthy {
-				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+				status, err := handler.appListingService.IsApplicationHibernating(appId, envId)
 				if err != nil {
 					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 				} else if status {

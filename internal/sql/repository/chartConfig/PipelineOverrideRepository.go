@@ -70,6 +70,7 @@ type PipelineOverrideRepository interface {
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 	FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error)
 	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
+	UpdateStatusInLastestRelease(pipelineId int, status models.ChartStatus) (pipelineOverrides *PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -261,4 +262,22 @@ func (impl PipelineOverrideRepositoryImpl) FindLatestByCdWorkflowId(cdWorkflowId
 		Order("id DESC").Limit(1).
 		Select()
 	return &override, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) UpdateStatusInLastestRelease(pipelineId int, status models.ChartStatus) (pipelineOverrides *PipelineOverride, err error) {
+	override := &PipelineOverride{}
+	// subquery to get the latest release made through a pipeline
+	subQuery := impl.dbConnection.Model(override).
+		Column("id").
+		Where("pipeline_id = ?", pipelineId).
+		Order("id DESC").
+		Limit(1)
+
+	// updating status in pco table in latest release record
+	_, err = impl.dbConnection.Model(override).
+		Where("id = (?)", subQuery).
+		Set("status = ?", status).
+		Update()
+
+	return override, err
 }

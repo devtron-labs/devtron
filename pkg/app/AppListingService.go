@@ -66,7 +66,7 @@ type AppListingService interface {
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
-	ISLastReleaseStopType(appId, envId int) (bool, error)
+	IsApplicationHibernating(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 
@@ -411,7 +411,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	return envContainers, appSize, nil
 }
 
-func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool, error) {
+func (impl AppListingServiceImpl) IsApplicationHibernating(appId, envId int) (bool, error) {
 	override, err := impl.pipelineOverrideRepository.GetLatestRelease(appId, envId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("error in getting last release")
@@ -427,8 +427,13 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
 			return false, nil
 		}
-		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
+		return checkIfApplicationIsHibernating(override), nil
 	}
+}
+
+// checkIfApplicationIsHibernating: we are checking if latest release was of `STOP` type and also, if it was successful or not
+func checkIfApplicationIsHibernating(override *chartConfig.PipelineOverride) bool {
+	return models.DEPLOYMENTTYPE_STOP == override.DeploymentType && models.CHARTSTATUS_ERROR != override.Status
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error) {
