@@ -214,6 +214,7 @@ func (impl *CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(lis
 	}
 	result := make([]AppEnvPolicyContainer, 0)
 	policies, err := impl.getPolicies(policyNames, listFilter.PolicyType)
+	// if all policy Names are wrong then we will move forward and we will return empty list
 	if len(policies) == 0 && len(policyNames) > 0 {
 		return result, 0, nil
 	}
