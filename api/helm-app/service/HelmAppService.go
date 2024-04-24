@@ -474,9 +474,11 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 }
 
 func (impl *HelmAppServiceImpl) getInstalledAppForAppIdentifier(appIdentifier *AppIdentifier) (*repository.InstalledApps, error) {
+	model := &repository.InstalledApps{}
+	var err error
 	//for ext apps search app from unique identifier
 	appUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
-	model, err := impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
+	model, err = impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
 	if err != nil {
 		if util.IsErrNoRows(err) {
 			//if error is pg no rows, then find installed app via app.DisplayName because this can also happen that
@@ -486,11 +488,11 @@ func (impl *HelmAppServiceImpl) getInstalledAppForAppIdentifier(appIdentifier *A
 			model, err = impl.installedAppRepository.GetInstalledAppByAppName(displayName)
 			if err != nil {
 				impl.logger.Errorw("error in fetching installed app from display name", "appDisplayName", displayName, "err", err)
-				return nil, err
+				return model, err
 			}
 		} else {
 			impl.logger.Errorw("error in fetching installed app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
-			return nil, err
+			return model, err
 		}
 	}
 	return model, nil
@@ -528,7 +530,6 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	//model := &repository.InstalledApps{}
 	appModel := &app.App{}
 	var isAppLinkedToChartStore bool // if true, entry present in both app and installed_app table
 
@@ -537,7 +538,7 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 		impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching installed app for app identifier", "appIdentifier", appIdentifier, "err", err)
 		return nil, err
 	}
-	if installedAppModel != nil && installedAppModel.Id > 0 {
+	if installedAppModel.Id > 0 {
 		isAppLinkedToChartStore = true
 	}
 	if !isAppLinkedToChartStore {
