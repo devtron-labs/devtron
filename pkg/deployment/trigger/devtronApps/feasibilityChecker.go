@@ -18,6 +18,7 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 	cdPipeline := triggerRequirementRequest.TriggerRequest.Pipeline
 	triggeredBy := triggerRequirementRequest.TriggerRequest.TriggeredBy
 	IsDeployStage := triggerRequirementRequest.Stage == resourceFilter.Deploy
+	artifact := triggerRequirementRequest.TriggerRequest.Artifact
 
 	if IsDeployStage {
 		// checking approval node only for deployment
@@ -40,7 +41,13 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 		return nil, false, err
 	}
 
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, triggerRequirementRequest.TriggerRequest.Artifact.Image, imageTagNames)
+	materialInfos, err := artifact.GetMaterialInfo()
+	if err != nil {
+		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifactId, "materialInfo", artifact.MaterialInfo, "err", err)
+		return nil, false, err
+	}
+
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, triggerRequirementRequest.TriggerRequest.Artifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		impl.logger.Errorw("error encountered in CheckFeasibility", "imageTagNames", imageTagNames, "filters", filters, "err", err)
 		return nil, false, err

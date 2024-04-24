@@ -23,6 +23,7 @@ import (
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -92,7 +93,7 @@ func executeWorkflowCreate(impl WorkflowActionImpl, workflow *v1.Workflow, ctx c
 		return fmt.Errorf("error '%s' workflow `%s` exists for app with name `%s` in workflow creation", err.Error(), *workflow.Destination.Workflow, *workflow.Destination.App)
 	}
 	//TODO: update userId
-	workflowReq := appWorkflow.AppWorkflowDto{
+	workflowReq := bean.AppWorkflowDto{
 		Name:   *workflow.Destination.Workflow,
 		AppId:  app.Id,
 		UserId: 1,

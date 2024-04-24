@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/util/event"
@@ -81,9 +82,9 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 	notificationSettingsView := &repository.NotificationSettingsView{
 		Config:   string(config),
 		Internal: notificationSettingsRequest.IsInternal,
-		//ConfigName:    notificationSettingsRequest.ConfigName,
-		//AppId:         notificationSettingsRequest.AppId,
-		//EnvironmentId: notificationSettingsRequest.EnvId,
+		// ConfigName:    notificationSettingsRequest.ConfigName,
+		// AppId:         notificationSettingsRequest.AppId,
+		// EnvironmentId: notificationSettingsRequest.EnvId,
 	}
 	if notificationSettingsRequest.Id != 0 {
 		notificationSettingsView.Id = notificationSettingsRequest.Id
@@ -261,10 +262,10 @@ func (impl NotificationConfigBuilderImpl) GenerateFilterExpression(filterConditi
 		}
 		var severityExpression, policyExpression, expression string
 		if filters.Severity != nil {
-			severityExpression = fmt.Sprintf("%s in ['%s']", notifierBean.Severity, strings.Join(filters.Severity, "', '"))
+			severityExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.Severity, strings.Join(filters.Severity, "', '"))
 		}
 		if filters.PolicyPermission != nil {
-			policyExpression = fmt.Sprintf("%s in ['%s']", notifierBean.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
+			policyExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
 		}
 
 		if len(severityExpression) != 0 && len(policyExpression) != 0 {

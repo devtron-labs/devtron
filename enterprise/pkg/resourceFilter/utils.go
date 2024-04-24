@@ -3,6 +3,7 @@ package resourceFilter
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/util"
 )
 
 const (
@@ -13,20 +14,20 @@ const (
 )
 
 // util methods
-func getJsonStringFromResourceCondition(resourceConditions []ResourceCondition) (string, error) {
+func getJsonStringFromResourceCondition(resourceConditions []util.ResourceCondition) (string, error) {
 
 	jsonBytes, err := json.Marshal(resourceConditions)
 	return string(jsonBytes), err
 }
 
-func getResourceConditionFromJsonString(conditionExpression string) ([]ResourceCondition, error) {
-	res := make([]ResourceCondition, 0)
+func getResourceConditionFromJsonString(conditionExpression string) ([]util.ResourceCondition, error) {
+	res := make([]util.ResourceCondition, 0)
 	err := json.Unmarshal([]byte(conditionExpression), &res)
 	return res, err
 }
 
-func extractResourceConditions(resourceConditionJson string) ([]ResourceCondition, error) {
-	var resourceConditions []ResourceCondition
+func extractResourceConditions(resourceConditionJson string) ([]util.ResourceCondition, error) {
+	var resourceConditions []util.ResourceCondition
 	err := json.Unmarshal([]byte(resourceConditionJson), &resourceConditions)
 	return resourceConditions, err
 }
@@ -72,7 +73,7 @@ func GetIdentifierKey(identifierType IdentifierType, searchableKeyNameIdMap map[
 	case ProjectIdentifier:
 		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PROJECT_ID]
 	default:
-		//TODO: revisit
+		// TODO: revisit
 		return -1
 	}
 }

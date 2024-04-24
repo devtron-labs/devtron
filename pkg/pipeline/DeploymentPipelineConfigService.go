@@ -56,7 +56,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	pipelineConstants "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -79,33 +79,33 @@ import (
 )
 
 type CdPipelineConfigService interface {
-	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
-	//getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
-	//converting above data in proper bean object and then assigning to CDPipelineConfigObject
-	//if any error occur , will get empty object or nil
+	// GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
+	// getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
+	// converting above data in proper bean object and then assigning to CDPipelineConfigObject
+	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
-	//PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
-	//Performs Create ,Update and Delete operation.
+	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
+	// Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (*bean.AppDeleteResponseDTO, error)
 	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
-	//GetTriggerViewCdPipelinesForApp :
+	// GetTriggerViewCdPipelinesForApp :
 	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	//GetCdPipelinesForApp : Retrieve cdPipeline for given appId
+	// GetCdPipelinesForApp : Retrieve cdPipeline for given appId
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	//GetAllCdPipelinesAndEnvDataLite : get data of all cd pipelines in an app and the environment associated with it. Light api created for listing pipelines but to show env on UI
+	// GetAllCdPipelinesAndEnvDataLite : get data of all cd pipelines in an app and the environment associated with it. Light api created for listing pipelines but to show env on UI
 	GetAllCdPipelinesAndEnvDataLite(appId int) ([]*bean.CdPipelineEnvDataResponseDto, error)
-	//GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
-	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
+	// GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
+	GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	//GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
+	// GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
 	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines *bean.CdPipelines, err error)
-	//GetCdPipelinesByEnvironmentMin : lists minimum detail of cdPipelines for given environmentId and appIds
+	// GetCdPipelinesByEnvironmentMin : lists minimum detail of cdPipelines for given environmentId and appIds
 	GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines []*bean.CDPipelineConfigObject, err error)
-	//PerformBulkActionOnCdPipelines :
+	// PerformBulkActionOnCdPipelines :
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
-	//FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
+	// FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 
 	FindPipelineByIds(cdPipelineIds []int) ([]*pipelineConfig.Pipeline, error)
@@ -114,26 +114,28 @@ type CdPipelineConfigService interface {
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error)
 	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
-	//Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
+	// Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
 	// It first fetches the workflow details from the appWorkflow repository.
-	//If the workflow is a CD pipeline, it further checks for stage configurations.
-	//If the workflow is a webhook, it returns the webhook workflow type.
-	//In case of error , it returns 0 for parentId and empty string for parentType
+	// If the workflow is a CD pipeline, it further checks for stage configurations.
+	// If the workflow is a webhook, it returns the webhook workflow type.
+	// In case of error , it returns 0 for parentId and empty string for parentType
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
+	// GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
-	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
-	//IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
+	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) // no usage
+	// IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
-	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
+	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
-	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineConfigObject, err error)
+	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineMinConfig, err error)
+	FindCdPipelinesByAppAndEnv(appId, envId int, envName string) (cdPipelines *bean.CDPipelineMinConfig, err error)
 	FindByIdsIn(ids []int) ([]*pipelineConfig.Pipeline, error)
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*pipelineConfig.Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error)
-	//DeleteHelmTypePipelineDeploymentApp : Deletes helm release for a pipeline with force flag
+	ExtractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (parentId int, parentType bean2.WorkflowType, parentCdId int, err error)
+	// DeleteHelmTypePipelineDeploymentApp : Deletes helm release for a pipeline with force flag
 	DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error
 	GetPipelineEnvironmentsForApplication(appId int) ([]int, error)
 }
@@ -175,7 +177,7 @@ type CdPipelineConfigServiceImpl struct {
 	chartService                      chart.ChartService
 	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
 	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
-	deploymentWindowService          deploymentWindow.DeploymentWindowService
+	deploymentWindowService           deploymentWindow.DeploymentWindowService
 	deploymentTypeOverrideService     config2.DeploymentTypeOverrideService
 }
 
@@ -254,7 +256,7 @@ func NewCdPipelineConfigServiceImpl(
 		gitOperationService:               gitOperationService,
 		imageDigestPolicyService:          imageDigestPolicyService,
 		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
-		deploymentWindowService:          deploymentWindowService,
+		deploymentWindowService:           deploymentWindowService,
 		deploymentTypeOverrideService:     deploymentTypeOverrideService,
 	}
 }
@@ -402,6 +404,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		Name:                          dbPipeline.Name,
 		EnvironmentId:                 dbPipeline.EnvironmentId,
 		EnvironmentName:               environment.Name,
+		AppName:                       dbPipeline.App.AppName,
 		CiPipelineId:                  dbPipeline.CiPipelineId,
 		DeploymentTemplate:            deploymentTemplate,
 		TriggerType:                   dbPipeline.TriggerType,
@@ -428,6 +431,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		AppId:                         dbPipeline.AppId,
 		IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
 		IsDigestEnforcedForEnv:        digestPolicyConfigurations.DigestConfiguredForEnvOrCluster,
+		TeamId:                        dbPipeline.App.TeamId,
+		EnvironmentIdentifier:         environment.EnvironmentIdentifier,
 	}
 	var preDeployStage *pipelineConfigBean.PipelineStageDto
 	var postDeployStage *pipelineConfigBean.PipelineStageDto
@@ -444,7 +449,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
-	//Validation for checking deployment App type
+	// Validation for checking deployment App type
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
@@ -514,9 +519,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			return nil, err
 		}
 		pipeline.Id = id
-		//go for stage creation if pipeline is created above
+		// go for stage creation if pipeline is created above
 		if pipeline.Id > 0 {
-			//creating pipeline_stage entry here after tx commit due to FK issue
+			// creating pipeline_stage entry here after tx commit due to FK issue
 			if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
 				err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
 				if err != nil {
@@ -726,7 +731,7 @@ func (impl *CdPipelineConfigServiceImpl) getPipelineAndCheckAction(cdPipelines *
 }
 
 func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(CiPipeline.LINKED_CD))
+	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(pipelineConstants.LINKED_CD))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
 		return true, err
@@ -769,12 +774,12 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		deleteResponse.ClusterReachable = false
 	}
 
-	//getting linked CD pipelines
+	// getting linked CD pipelines
 	hasLinkedCDPipelines, err := impl.hasLinkedCDWorkflowMappings(pipeline.Id)
 	if err != nil {
 		return deleteResponse, err
 	}
-	//getting children CD pipeline details
+	// getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
@@ -784,7 +789,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, models3.ValidationError{Err: fmt.Errorf("This deployment pipeline cannot be deleted as it is being used as image source in another workflow.")}
 	}
 
-	//getting deployment group for this pipeline
+	// getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
@@ -814,7 +819,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("err in deleting app_status from db", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return deleteResponse, err
 	}
-	//delete app workflow mapping
+	// delete app workflow mapping
 	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
@@ -895,7 +900,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 	if cdPipelinePluginDeleteReq.PreDeployStage != nil && cdPipelinePluginDeleteReq.PreDeployStage.Id > 0 {
-		//deleting pre-stage
+		// deleting pre-stage
 		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PreDeployStage, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting pre-CD stage", "err", err, "preDeployStage", cdPipelinePluginDeleteReq.PreDeployStage)
@@ -903,7 +908,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		}
 	}
 	if cdPipelinePluginDeleteReq.PostDeployStage != nil && cdPipelinePluginDeleteReq.PostDeployStage.Id > 0 {
-		//deleting post-stage
+		// deleting post-stage
 		err = impl.pipelineStageService.DeletePipelineStage(cdPipelinePluginDeleteReq.PostDeployStage, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting post-CD stage", "err", err, "postDeployStage", cdPipelinePluginDeleteReq.PostDeployStage)
@@ -951,7 +956,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
 	}
-	//delete app from argo cd, if created
+	// delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
@@ -973,7 +978,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 					if forceDelete {
 						impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 					} else {
-						//statusError, _ := err.(*errors2.StatusError)
+						// statusError, _ := err.(*errors2.StatusError)
 						if cascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
 							err = &util.ApiError{
 								UserMessage:     "Could not delete as application not found in argocd",
@@ -1043,7 +1048,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 		_, err := impl.DeleteCdPipeline(pipeline, ctx, bean.FORCE_DELETE, false, userId)
 		return err
 	}
-	//delete app from argo cd with non-cascade, if created
+	// delete app from argo cd with non-cascade, if created
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(pipeline.DeploymentAppType) {
 		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
 		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
@@ -1055,7 +1060,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 		}
 		if _, err = impl.application.Delete(ctx, req); err != nil {
 			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-			//statusError, _ := err.(*errors2.StatusError)
+			// statusError, _ := err.(*errors2.StatusError)
 			if !strings.Contains(err.Error(), "code = NotFound") {
 				err = &util.ApiError{
 					UserMessage:     "Could not delete application",
@@ -1080,7 +1085,7 @@ func (impl *CdPipelineConfigServiceImpl) GetTriggerViewCdPipelinesForApp(appId i
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
 	}
 
-	//construct strategiesMapping to get all strategies against pipelineId
+	// construct strategiesMapping to get all strategies against pipelineId
 	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
 	if err != nil {
 		return triggerViewCdPipelinesResp, err
@@ -1125,7 +1130,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		impl.logger.Errorw("error in fetching environments", "err", err)
 		return cdPipelines, err
 	}
-	//creating map for envId and respective env
+	// creating map for envId and respective env
 	for _, env := range envs {
 		envMapping[env.Id] = env
 	}
@@ -1269,8 +1274,8 @@ func (impl *CdPipelineConfigServiceImpl) GetAllCdPipelinesAndEnvDataLite(appId i
 	return resp, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
-	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId)
+func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error) {
+	return impl.ciCdPipelineOrchestrator.GetCdPipelinesForAppAndEnv(appId, envId, envName)
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines *bean.CdPipelines, err error) {
@@ -1280,7 +1285,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		if err != nil {
 			return nil, err
 		}
-		//override appIds if already provided app group id in request.
+		// override appIds if already provided app group id in request.
 		request.ResourceIds = appIds
 	}
 	cdPipelines, err = impl.ciCdPipelineOrchestrator.GetCdPipelinesForEnv(request.ParentResourceId, request.ResourceIds)
@@ -1296,7 +1301,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
 		return cdPipelines, err
 	}
-	//authorization block starts here
+	// authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
 	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipeline(cdPipelines.Pipelines)
@@ -1306,7 +1311,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		envObjectArr = append(envObjectArr, object[1])
 	}
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
-	//authorization block ends here
+	// authorization block ends here
 	span.End()
 	var pipelines []*bean.CDPipelineConfigObject
 	authorizedPipelines := make(map[int]*bean.CDPipelineConfigObject)
@@ -1314,7 +1319,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		appObject := objects[dbPipeline.Id][0]
 		envObject := objects[dbPipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
-			//if user unauthorized, skip items
+			// if user unauthorized, skip items
 			continue
 		}
 		pipelineIds = append(pipelineIds, dbPipeline.Id)
@@ -1419,7 +1424,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 		if err != nil {
 			return cdPipelines, err
 		}
-		//override appIds if already provided app group id in request.
+		// override appIds if already provided app group id in request.
 		request.ResourceIds = appIds
 	}
 	var pipelines []*pipelineConfig.Pipeline
@@ -1432,7 +1437,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 		impl.logger.Errorw("error in fetching pipelines", "request", request, "err", err)
 		return cdPipelines, err
 	}
-	//authorization block starts here
+	// authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
 	objects := impl.enforcerUtil.GetAppAndEnvObjectByDbPipeline(pipelines)
@@ -1441,13 +1446,13 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 		envObjectArr = append(envObjectArr, object[1])
 	}
 	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
-	//authorization block ends here
+	// authorization block ends here
 	span.End()
 	for _, dbPipeline := range pipelines {
 		appObject := objects[dbPipeline.Id][0]
 		envObject := objects[dbPipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
-			//if user unauthorized, skip items
+			// if user unauthorized, skip items
 			continue
 		}
 		pcObject := &bean.CDPipelineConfigObject{
@@ -1484,6 +1489,10 @@ func (impl *CdPipelineConfigServiceImpl) FindPipelineById(cdPipelineId int) (*pi
 }
 
 func (impl *CdPipelineConfigServiceImpl) FindPipelineByIds(cdPipelineId []int) ([]*pipelineConfig.Pipeline, error) {
+	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindPipelineMinById(cdPipelineId []int) ([]*pipelineConfig.Pipeline, error) {
 	return impl.pipelineRepository.FindByIdsIn(cdPipelineId)
 }
 
@@ -1545,14 +1554,14 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentByCdPipelineId(pipelineId
 
 func (impl *CdPipelineConfigServiceImpl) GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) {
 	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
-		//invalid payload, envIds are must and either of appIds or projectIds are must
+		// invalid payload, envIds are must and either of appIds or projectIds are must
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
 	}
 	var pipelineIdsByAppLevel []int
 	var pipelineIdsByProjectLevel []int
 	var err error
 	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
-		//getting pipeline IDs for app level deletion request
+		// getting pipeline IDs for app level deletion request
 		pipelineIdsByAppLevel, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
@@ -1560,7 +1569,7 @@ func (impl *CdPipelineConfigServiceImpl) GetBulkActionImpactedPipelines(dto *bea
 		}
 	}
 	if len(dto.ProjectIds) > 0 && len(dto.EnvIds) > 0 {
-		//getting pipeline IDs for project level deletion request
+		// getting pipeline IDs for project level deletion request
 		pipelineIdsByProjectLevel, err = impl.pipelineRepository.FindIdsByProjectIdsAndEnvironmentIds(dto.ProjectIds, dto.EnvIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting cd pipelines by projectIds and envIds", "err", err)
@@ -1568,9 +1577,9 @@ func (impl *CdPipelineConfigServiceImpl) GetBulkActionImpactedPipelines(dto *bea
 		}
 	}
 	var pipelineIdsMerged []int
-	//it might be possible that pipelineIdsByAppLevel & pipelineIdsByProjectLevel have some same values
-	//we are still appending them to save operation cost of checking same ids as we will get pipelines from
-	//in clause which gives correct results even if some values are repeating
+	// it might be possible that pipelineIdsByAppLevel & pipelineIdsByProjectLevel have some same values
+	// we are still appending them to save operation cost of checking same ids as we will get pipelines from
+	// in clause which gives correct results even if some values are repeating
 	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByAppLevel...)
 	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByProjectLevel...)
 	var pipelines []*pipelineConfig.Pipeline
@@ -1610,7 +1619,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 		return acdAppFound, err
 	}
 	impl.logger.Warnw("app not found in argo, deleting from db ", "err", err)
-	//make call to delete it from pipeline DB because it's ACD counterpart is deleted
+	// make call to delete it from pipeline DB because it's ACD counterpart is deleted
 	_, err = impl.DeleteCdPipeline(pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cd pipeline", "err", err)
@@ -1659,7 +1668,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
 		return nil, err
 	}
-	//authorization block starts here
+	// authorization block starts here
 	var appObjectArr []string
 	var envObjectArr []string
 	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.GetAppAndEnvObjectByPipelineIds")
@@ -1673,14 +1682,14 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.checkAuthBatch")
 	appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
 	span.End()
-	//authorization block ends here
+	// authorization block ends here
 
 	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
 	for _, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
 		if !(appResults[appObject] && envResults[envObject]) {
-			//if user unauthorized, skip items
+			// if user unauthorized, skip items
 			continue
 		}
 		pipelinesMap[pipeline.EnvironmentId] = append(pipelinesMap[pipeline.EnvironmentId], pipeline)
@@ -1696,7 +1705,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		}
 
-		//authorization block starts here
+		// authorization block starts here
 		appCount := 0
 		envPipelines := pipelinesMap[model.Id]
 		if _, ok := pipelinesMap[model.Id]; ok {
@@ -1823,7 +1832,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		if err != nil {
 			return 0, err
 		}
-		//getting global app metrics for cd pipeline create because env level metrics is not created yet
+		// getting global app metrics for cd pipeline create because env level metrics is not created yet
 		appLevelAppMetricsEnabled := false
 		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(app.Id)
 		if err != nil {
@@ -1838,7 +1847,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		}
 		appLevelAppMetricsEnabled = updatedAppMetrics
 		// Get pipeline override based on Deployment strategy
-		//TODO: mark as created in our db
+		// TODO: mark as created in our db
 		pipelineId, err = impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
@@ -1848,7 +1857,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
 		}
 
-		//adding pipeline to workflow
+		// adding pipeline to workflow
 		_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
 		if err != nil && err != pg.ErrNoRows {
 			return 0, err
@@ -1899,7 +1908,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return 0, err
 		}
-		//VARIABLE_MAPPING_UPDATE
+		// VARIABLE_MAPPING_UPDATE
 		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
 		if err != nil {
 			return 0, err
@@ -1927,7 +1936,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 			}
-			//creating history entry for strategy
+			// creating history entry for strategy
 			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
@@ -1941,7 +1950,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			return 0, errors2.New("container registry name and repo name cannot be empty for manifest push deployment")
 		}
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
-			//implement
+			// implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
 
 			helmRepositoryConfig := appBean.HelmRepositoryConfig{
@@ -2073,7 +2082,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 		}
 
 		if notFound {
-			//delete from db
+			// delete from db
 			err := impl.pipelineConfigRepository.Delete(oldItem, tx)
 			if err != nil {
 				impl.logger.Errorw("error in delete pipeline strategies", "err", err)
@@ -2106,7 +2115,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
-			//creating history entry for strategy
+			// creating history entry for strategy
 			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
@@ -2126,7 +2135,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline created but failed to add strategy")
 			}
-			//creating history entry for strategy
+			// creating history entry for strategy
 			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
@@ -2166,7 +2175,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 			return err
 		}
 		if pipeline.ManifestStorageType == bean.ManifestStorageGit {
-			//implement
+			// implement
 		} else if pipeline.ManifestStorageType == bean.ManifestStorageOCIHelmRepo {
 			existingHelmRepositoryConfig := appBean.HelmRepositoryConfig{
 				RepositoryName:        strings.TrimSpace(pipeline.RepoName),
@@ -2314,7 +2323,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 	} else if deleteAction == bean.NON_CASCADE_DELETE {
 		cascadeDelete = false
 	}
-	//Updating clusterReachable flag
+	// Updating clusterReachable flag
 	clusterBean, err := impl.clusterRepository.FindById(pipeline.Environment.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster details", "err", err, "clusterId", pipeline.Environment.ClusterId)
@@ -2323,13 +2332,13 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 	if len(clusterBean.ErrorInConnecting) > 0 {
 		deleteResponse.ClusterReachable = false
 	}
-	//getting children CD pipeline details
+	// getting children CD pipeline details
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
 	}
 
-	//getting deployment group for this pipeline
+	// getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
@@ -2350,7 +2359,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	//delete app from argo cd, if created
+	// delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated && !pipeline.DeploymentAppDeleteRequest {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if util.IsAcdApp(pipeline.DeploymentAppType) {
@@ -2371,7 +2380,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 				if forceDelete {
 					impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 				} else {
-					//statusError, _ := err.(*errors2.StatusError)
+					// statusError, _ := err.(*errors2.StatusError)
 					if cascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
 						err = &util.ApiError{
 							UserMessage:     "Could not delete as application not found in argocd",
@@ -2444,31 +2453,59 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
+func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineMinConfig, err error) {
 
-	Pipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	pipelines, err := impl.pipelineRepository.FindMetadataByIdsIn(cdPipelineIds, true)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipelineIds", cdPipelineIds, "err", err)
 		return nil, err
 	}
 
-	for _, pipeline := range Pipelines {
-		cdPipeline := &bean.CDPipelineConfigObject{
-			Id:                         pipeline.Id,
-			EnvironmentId:              pipeline.EnvironmentId,
-			EnvironmentName:            pipeline.Environment.Name,
-			CiPipelineId:               pipeline.CiPipelineId,
-			Name:                       pipeline.Name,
-			Namespace:                  pipeline.Environment.Namespace,
-			DeploymentAppType:          pipeline.DeploymentAppType,
-			DeploymentAppDeleteRequest: pipeline.DeploymentAppDeleteRequest,
-			DeploymentAppCreated:       pipeline.DeploymentAppCreated,
-			AppId:                      pipeline.AppId,
+	for _, pipeline := range pipelines {
+		cdPipeline := &bean.CDPipelineMinConfig{
+			Id:                    pipeline.Id,
+			CiPipelineId:          pipeline.CiPipelineId,
+			EnvironmentId:         pipeline.EnvironmentId,
+			EnvironmentName:       pipeline.EnvironmentName,
+			EnvironmentIdentifier: pipeline.EnvironmentIdentifier,
+			IsProdEnv:             pipeline.Default,
+			AppId:                 pipeline.AppId,
+			AppName:               pipeline.AppName,
+			TeamId:                pipeline.TeamId,
+			DeploymentAppType:     pipeline.DeploymentAppType,
 		}
 		cdPipelines = append(cdPipelines, cdPipeline)
 
 	}
 	return cdPipelines, nil
+
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByAppAndEnv(appId, envId int, envName string) (cdPipelines *bean.CDPipelineMinConfig, err error) {
+
+	pipeline, err := impl.pipelineRepository.FindMetadataByAppAndEnv(appId, envId, envName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cdPipeline by id", "appId", appId, "envId", envId, "envName", envName, "err", err)
+		return nil, err
+	}
+
+	cdPipeline := &bean.CDPipelineMinConfig{
+		Id:                         pipeline.Id,
+		Name:                       pipeline.Name,
+		CiPipelineId:               pipeline.CiPipelineId,
+		EnvironmentId:              pipeline.EnvironmentId,
+		EnvironmentName:            pipeline.EnvironmentName,
+		EnvironmentIdentifier:      pipeline.EnvironmentIdentifier,
+		Namespace:                  pipeline.Namespace,
+		IsProdEnv:                  pipeline.Default,
+		AppId:                      pipeline.AppId,
+		AppName:                    pipeline.AppName,
+		TeamId:                     pipeline.TeamId,
+		DeploymentAppType:          pipeline.DeploymentAppType,
+		DeploymentAppDeleteRequest: pipeline.DeploymentAppDeleteRequest,
+		DeploymentAppCreated:       pipeline.DeploymentAppCreated,
+	}
+	return cdPipeline, nil
 
 }
 
@@ -2482,6 +2519,42 @@ func (impl *CdPipelineConfigServiceImpl) FindActiveByAppIdAndEnvNames(appId int,
 
 func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*pipelineConfig.Pipeline, err error) {
 	return impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds)
+}
+
+func (impl *CdPipelineConfigServiceImpl) ExtractParentMetaDataByPipeline(pipeline *pipelineConfig.Pipeline, stage bean2.WorkflowType) (parentId int, parentType bean2.WorkflowType, parentCdId int, err error) {
+	// retrieve parent details
+	parentId, parentType, err = impl.RetrieveParentDetails(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("failed to retrieve parent details",
+			"cdPipelineId", pipeline.Id,
+			"err", err)
+		return parentId, parentType, parentCdId, err
+	}
+
+	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
+		// parentCdId is being set to store the artifact currently deployed on parent cd (if applicable).
+		// Parent component is CD only if parent type is POST/DEPLOY
+		parentCdId = parentId
+	}
+
+	if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository5.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
+			return parentId, parentType, parentCdId, err
+		}
+		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+			// Parent type will be PRE for DEPLOY stage
+			parentId = pipeline.Id
+			parentType = bean2.CD_WORKFLOW_TYPE_PRE
+		}
+	}
+	if stage == bean2.CD_WORKFLOW_TYPE_POST {
+		// Parent type will be DEPLOY for POST stage
+		parentId = pipeline.Id
+		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
+	}
+	return parentId, parentType, parentCdId, err
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetPipelineEnvironmentsForApplication(appId int) ([]int, error) {

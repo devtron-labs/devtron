@@ -79,6 +79,8 @@ const (
 	ManifestPush            DeploymentType = "manifest_push"
 )
 
+const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
+
 type TriggerRequirementRequestDto struct {
 	Scope          resourceQualifiers.Scope
 	TriggerRequest TriggerRequest
