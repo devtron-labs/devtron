@@ -5,7 +5,11 @@ CREATE TABLE "public"."watcher" (
                                     "desc" text ,
                                     "filter_expression" text NOT NULL,
                                     "gvks" text[],
-                                    "active" bool,
+                                    "active" bool NOT NULL,
+                                    "created_on"                timestamptz NOT NULL,
+                                    "created_by"                int4        NOT NULL,
+                                    "updated_on"                timestamptz,
+                                    "updated_by"                int4,
 
                                     PRIMARY KEY ("id"),
                                         UNIQUE ("name")
@@ -20,7 +24,11 @@ CREATE TABLE "public"."trigger"(
                                    "id" integer NOT NULL default nextval('id_seq_trigger'::regclass),
                                    "type" varchar(255) , -- DEVTRON_JOB
                                    "watcher_id" integer ,
-                                   "data" JSON,
+                                   "data" text,
+                                   "created_on"                timestamptz NOT NULL,
+                                   "created_by"                int4        NOT NULL,
+                                   "updated_on"                timestamptz,
+                                   "updated_by"                int4,
 
                                    CONSTRAINT trigger_watcher_id_fkey FOREIGN KEY ("watcher_id") REFERENCES "public"."watcher" ("id"),
                                    PRIMARY KEY ("id")
