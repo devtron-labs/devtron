@@ -123,7 +123,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	token := r.Header.Get("token")
 
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
+	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -179,7 +179,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		return
 	}
 	token := r.Header.Get("token")
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(podRotateRequest.AppId)
+	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(podRotateRequest.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -222,7 +222,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 	}
 	token := r.Header.Get("token")
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
+	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -283,7 +283,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 	}
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
+	object, _ := handler.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -356,7 +356,7 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 	}
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

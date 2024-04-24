@@ -83,7 +83,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
 			return userId, "", fmt.Errorf("invalid request query param appId = %s", appId)
 		}
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(id)
+		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")

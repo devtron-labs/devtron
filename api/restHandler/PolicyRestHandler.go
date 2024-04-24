@@ -85,7 +85,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	token := r.Header.Get("token")
 	//AUTH - check from casbin db
 	if req.AppId > 0 && req.EnvId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
+		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -155,7 +155,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	token := r.Header.Get("token")
 	//AUTH - check from casbin db
 	if policy.AppId > 0 && policy.EnvironmentId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
+		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -250,7 +250,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		pass := true
 		if policy.AppId > 0 && policy.EnvId > 0 {
 			passCount := 0
-			object := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
+			object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				passCount = 1
 			}

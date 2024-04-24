@@ -650,7 +650,7 @@ func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArti
 
 func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	//TODO: verify this logicc
-	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
+	object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
 		impl.logger.Error("invalid req, app and env not found from rbac")
