@@ -56,7 +56,7 @@ The **Build & Deploy** tab of your application group enables you to trigger the 
 3. Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build.
 
 {% hint style="info" %}
-Passing build parameters feature is only available in <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg">.
+Passing build parameters feature is only available in <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg">
 {% endhint %}
 
 * Go to the **Parameters** tab.
