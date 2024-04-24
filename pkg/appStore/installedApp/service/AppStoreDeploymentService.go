@@ -904,7 +904,7 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 			ChartVersion: appStoreAppVersion.Version,
 			ReleaseIdentifier: &bean4.ReleaseIdentifier{
 				ReleaseNamespace: installAppVersionRequest.Namespace,
-				ReleaseName:      installAppVersionRequest.AppName,
+				ReleaseName:      installAppVersionRequest.DisplayName,
 			},
 		},
 		SourceAppType: bean3.SOURCE_HELM_APP,
