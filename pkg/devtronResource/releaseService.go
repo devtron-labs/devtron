@@ -70,7 +70,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusInResourceObj(r
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
-		resourceObject.OldObjectId, _ = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusPath).Exists() {
 			resourceObject.ConfigStatus = &bean.ConfigStatus{
@@ -88,7 +88,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteInResourceObj(resourceS
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
-		resourceObject.OldObjectId, _ = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectReleaseNotePath).Exists() {
 			resourceObject.Overview.Note = &bean.NoteBean{
@@ -117,7 +117,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataInResourceObj(r
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
-		resourceObject.OldObjectId, resourceObject.IdType = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, resourceObject.IdType = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
 			resourceObject.Overview = &bean.ResourceOverview{
@@ -151,7 +151,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseVersionAndParentConfigInRes
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
-		resourceObject.OldObjectId, resourceObject.IdType = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, resourceObject.IdType = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
 			resourceObject.Overview = &bean.ResourceOverview{

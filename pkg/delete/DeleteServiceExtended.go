@@ -12,9 +12,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -23,10 +23,10 @@ import (
 )
 
 type DeleteServiceExtendedImpl struct {
-	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
-	pipelineRepository     pipelineConfig.PipelineRepository
-	devtronResourceService devtronResource.DevtronResourceService
+	appRepository                       app.AppRepository
+	environmentRepository               repository.EnvironmentRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	dtResourceInternalProcessingService in.InternalProcessingService
 	*DeleteServiceImpl
 }
 
@@ -41,12 +41,12 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	devtronResourceService devtronResource.DevtronResourceService) *DeleteServiceExtendedImpl {
+	dtResourceInternalProcessingService in.InternalProcessingService) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
-		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
-		pipelineRepository:     pipelineRepository,
-		devtronResourceService: devtronResourceService,
+		appRepository:                       appRepository,
+		environmentRepository:               environmentRepository,
+		pipelineRepository:                  pipelineRepository,
+		dtResourceInternalProcessingService: dtResourceInternalProcessingService,
 		DeleteServiceImpl: &DeleteServiceImpl{
 			logger:                   logger,
 			teamService:              teamService,
@@ -79,7 +79,7 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 	go func() {
 		deleteReq := adapter.BuildDevtronResourceObjectDescriptorBean(deleteRequest.Id, devtronResourceBean.DevtronResourceCluster,
 			"", devtronResourceBean.DevtronResourceVersion1, userId)
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteReq)
+		errInResourceDelete := impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting cluster resource and dependency data", "err", err, "clusterId", deleteRequest.Id)
 		}

@@ -28,6 +28,7 @@ import (
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	devtronResourceAdapter "github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"golang.org/x/exp/slices"
 	"path"
 	"regexp"
@@ -53,7 +54,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -111,34 +111,34 @@ type CiCdPipelineOrchestrator interface {
 }
 
 type CiCdPipelineOrchestratorImpl struct {
-	appRepository                 app2.AppRepository
-	logger                        *zap.SugaredLogger
-	materialRepository            pipelineConfig.MaterialRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	GitSensorClient               gitSensor.Client
-	ciConfig                      *types.CiCdConfig
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	envRepository                 repository2.EnvironmentRepository
-	attributesService             attributes.AttributesService
-	appLabelsService              app.AppCrudOperationService
-	userAuthService               user.UserAuthService
-	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
-	pipelineStageService          PipelineStageService
-	ciTemplateService             CiTemplateService
-	gitMaterialHistoryService     history3.GitMaterialHistoryService
-	ciPipelineHistoryService      history3.CiPipelineHistoryService
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
-	PipelineOverrideRepository    chartConfig.PipelineOverrideRepository
-	CiArtifactRepository          repository.CiArtifactRepository
-	manifestPushConfigRepository  repository5.ManifestPushConfigRepository
-	configMapService              ConfigMapService
-	genericNoteService            genericNotes.GenericNoteService
-	customTagService              CustomTagService
-	devtronResourceService        devtronResource.DevtronResourceService
-	chartService                  chart.ChartService
+	appRepository                       app2.AppRepository
+	logger                              *zap.SugaredLogger
+	materialRepository                  pipelineConfig.MaterialRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	GitSensorClient                     gitSensor.Client
+	ciConfig                            *types.CiCdConfig
+	appWorkflowRepository               appWorkflow.AppWorkflowRepository
+	envRepository                       repository2.EnvironmentRepository
+	attributesService                   attributes.AttributesService
+	appLabelsService                    app.AppCrudOperationService
+	userAuthService                     user.UserAuthService
+	prePostCdScriptHistoryService       history3.PrePostCdScriptHistoryService
+	pipelineStageService                PipelineStageService
+	ciTemplateService                   CiTemplateService
+	gitMaterialHistoryService           history3.GitMaterialHistoryService
+	ciPipelineHistoryService            history3.CiPipelineHistoryService
+	dockerArtifactStoreRepository       dockerRegistryRepository.DockerArtifactStoreRepository
+	PipelineOverrideRepository          chartConfig.PipelineOverrideRepository
+	CiArtifactRepository                repository.CiArtifactRepository
+	manifestPushConfigRepository        repository5.ManifestPushConfigRepository
+	configMapService                    ConfigMapService
+	genericNoteService                  genericNotes.GenericNoteService
+	customTagService                    CustomTagService
+	dtResourceInternalProcessingService in.InternalProcessingService
+	chartService                        chart.ChartService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -167,37 +167,37 @@ func NewCiCdPipelineOrchestrator(
 	configMapService ConfigMapService,
 	customTagService CustomTagService,
 	genericNoteService genericNotes.GenericNoteService,
-	devtronResourceService devtronResource.DevtronResourceService,
+	dtResourceInternalProcessingService in.InternalProcessingService,
 	chartService chart.ChartService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
-		appRepository:                 pipelineGroupRepository,
-		logger:                        logger,
-		materialRepository:            materialRepository,
-		pipelineRepository:            pipelineRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		GitSensorClient:               GitSensorClient,
-		ciConfig:                      ciConfig,
-		appWorkflowRepository:         appWorkflowRepository,
-		envRepository:                 envRepository,
-		attributesService:             attributesService,
-		appLabelsService:              appLabelsService,
-		userAuthService:               userAuthService,
-		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
-		pipelineStageService:          pipelineStageService,
-		gitMaterialHistoryService:     gitMaterialHistoryService,
-		ciPipelineHistoryService:      ciPipelineHistoryService,
-		ciTemplateService:             ciTemplateService,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		PipelineOverrideRepository:    PipelineOverrideRepository,
-		CiArtifactRepository:          CiArtifactRepository,
-		manifestPushConfigRepository:  manifestPushConfigRepository,
-		configMapService:              configMapService,
-		genericNoteService:            genericNoteService,
-		customTagService:              customTagService,
-		devtronResourceService:        devtronResourceService,
-		chartService:                  chartService,
+		appRepository:                       pipelineGroupRepository,
+		logger:                              logger,
+		materialRepository:                  materialRepository,
+		pipelineRepository:                  pipelineRepository,
+		ciPipelineRepository:                ciPipelineRepository,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		cdWorkflowRepository:                cdWorkflowRepository,
+		GitSensorClient:                     GitSensorClient,
+		ciConfig:                            ciConfig,
+		appWorkflowRepository:               appWorkflowRepository,
+		envRepository:                       envRepository,
+		attributesService:                   attributesService,
+		appLabelsService:                    appLabelsService,
+		userAuthService:                     userAuthService,
+		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
+		pipelineStageService:                pipelineStageService,
+		gitMaterialHistoryService:           gitMaterialHistoryService,
+		ciPipelineHistoryService:            ciPipelineHistoryService,
+		ciTemplateService:                   ciTemplateService,
+		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		PipelineOverrideRepository:          PipelineOverrideRepository,
+		CiArtifactRepository:                CiArtifactRepository,
+		manifestPushConfigRepository:        manifestPushConfigRepository,
+		configMapService:                    configMapService,
+		genericNoteService:                  genericNoteService,
+		customTagService:                    customTagService,
+		dtResourceInternalProcessingService: dtResourceInternalProcessingService,
+		chartService:                        chartService,
 	}
 }
 
@@ -1292,7 +1292,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		}
 		deleteReq := devtronResourceAdapter.BuildDevtronResourceObjectDescriptorBean(app.Id, kind,
 			subKind, devtronResourceBean.DevtronResourceVersion1, userId)
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteReq)
+		errInResourceDelete := impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting app resource and dependency data", "err", err, "appId", app.Id)
 		}

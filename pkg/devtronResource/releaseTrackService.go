@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/tidwall/gjson"
@@ -19,7 +20,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataInResource
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
-		resourceObject.OldObjectId, resourceObject.IdType = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, resourceObject.IdType = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
 			resourceObject.Overview = &bean.ResourceOverview{

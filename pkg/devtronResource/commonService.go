@@ -18,16 +18,6 @@ import (
 	"time"
 )
 
-func getResourceObjectIdAndType(existingResourceObject *repository.DevtronResourceObject) (objectId int, idType bean.IdType) {
-	idType = bean.IdType(gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectIdTypePath).String())
-	if idType == bean.ResourceObjectIdType {
-		objectId = existingResourceObject.Id
-	} else if idType == bean.OldObjectId {
-		objectId = existingResourceObject.OldObjectId
-	}
-	return objectId, idType
-}
-
 func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies(objectData string) (parentConfig *bean.ResourceIdentifier, parentResourceObject *repository.DevtronResourceObject, err error) {
 	if gjson.Get(objectData, bean.ResourceObjectDependenciesPath).Exists() {
 		var parentResourceObjectId, parentResourceSchemaId int
@@ -87,7 +77,7 @@ func (impl *DevtronResourceServiceImpl) updateParentConfigInResourceObj(resource
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
 		var parentResourceObject *repository.DevtronResourceObject
-		resourceObject.OldObjectId, _ = getResourceObjectIdAndType(existingResourceObject)
+		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		resourceObject.ParentConfig, parentResourceObject, err = impl.getParentConfigVariablesFromDependencies(existingResourceObject.ObjectData)
 		if err != nil {
