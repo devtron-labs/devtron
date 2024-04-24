@@ -47,6 +47,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -397,7 +398,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 	var appName string
 	var displayName string
 	var namespace string
-	appName = updateAppRequest.AppName
 	if isExternalHelmApp(updateAppRequest.AppId) {
 		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
 		if err != nil {
@@ -407,6 +407,15 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 		appName = appIdentifier.GetUniqueAppNameIdentifier()
 		displayName = updateAppRequest.AppName
 		namespace = appIdentifier.Namespace
+	} else {
+		//in case the external app is linked, then it's unique identifier is set in app_name col. hence retrieving appName
+		//for this case, although this will also handle the case for non-external apps
+		appId, err := strconv.Atoi(updateAppRequest.AppId)
+		if err != nil {
+			impl.logger.Errorw("UpdateProjectHelmApp, error in converting appId into int", "appId", updateAppRequest.AppId, "err", err)
+			return err
+		}
+		appName = impl.getAppNameForInstalledApp(appId)
 	}
 	impl.logger.Infow("update helm project request", updateAppRequest)
 	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, namespace, updateAppRequest.TeamId, updateAppRequest.UserId)
@@ -996,4 +1005,14 @@ func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.T
 		}
 	}
 	return err
+}
+
+// getAppNameForInstalledApp will fetch and returns AppName from app table
+func (impl *AppStoreDeploymentServiceImpl) getAppNameForInstalledApp(appId int) string {
+	app, err := impl.appRepository.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("UpdateProjectHelmApp, error in finding app by appId", "appId", appId, "err", err)
+		return ""
+	}
+	return app.AppName
 }

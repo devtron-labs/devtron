@@ -389,10 +389,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 			return err
 		}
 	} else {
-		//this will handle the case when ext-helm app is already assigned to a project and an entry already exist in app table
-		//then this will override app_name with unique identifier app name and update display_name also
-		appModel.AppName = appName
-		appModel.DisplayName = displayName
+		if len(displayName) > 0 {
+			//handling the case when ext-helm app is already assigned to a project and an entry already exist in app table
+			//then this will override app_name with unique identifier app name and update display_name also
+			appModel.AppName = appName
+			appModel.DisplayName = displayName
+		}
 		// update team id if appModel exist
 		appModel.TeamId = teamId
 		appModel.UpdateAuditLog(userId)
