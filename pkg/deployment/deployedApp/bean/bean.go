@@ -1,6 +1,9 @@
 package bean
 
-import util5 "github.com/devtron-labs/common-lib/utils/k8s"
+import (
+	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+)
 
 type PodRotateRequest struct {
 	AppId               int                        `json:"appId" validate:"required"`
@@ -8,12 +11,13 @@ type PodRotateRequest struct {
 	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
 	UserId              int32                      `json:"-"`
 }
-type PodRotateRequestBulk struct {
-	EnvironmentId       int                        `json:"environmentId" validate:"required"`
-	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
-	UserId              int32                      `json:"-"`
+type ResourceIdentifierResponse struct {
+	ResourceIdentifiers []ResourceMetadata `json:"resources" validate:"required"`
 }
-
+type ResourceMetadata struct {
+	Name             string                  `json:"name"` //pod name for logs request
+	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
+}
 type RequestType string
 
 const (

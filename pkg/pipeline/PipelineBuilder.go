@@ -294,8 +294,14 @@ type PipelineStrategy struct {
 	Config             json.RawMessage                        `json:"config"`
 	Default            bool                                   `json:"default"`
 }
+type AppDefinition struct {
+	AppName string `json:"AppName"`
+	AppId   int    `json:"AppId"`
+}
 type RestartPodResponse struct {
-	RestartPodMap map[int]bean3.PodRotateRequestBulk `json:"RestartPodMap"`
+	EnvironmentId int                                                `json:"environmentId" `
+	Namespace     string                                             `json:"namespace"`
+	RestartPodMap map[AppDefinition]bean3.ResourceIdentifierResponse `json:"RestartPodMap"`
 }
 
 func checkAppReleaseNotExist(err error) bool {

@@ -397,6 +397,9 @@ type ChartRefResponse struct {
 func (impl DeploymentTemplateServiceImpl) GenerateManifestFor(ctx context.Context, rotatePodRequest RotatePodRequest) (*openapi2.TemplateChartResponse, error) {
 	charts, err := impl.chartRepository.FindLatestChartByAppIds(rotatePodRequest.AppIds)
 	appIdToChartRefId := make(map[int]int)
+	//to fetch chart name from chartref table
+	//appoverride case , deployment object alag banta hai
+	//
 	for _, ch := range charts {
 		appIdToChartRefId[ch.AppId] = ch.ChartRefId
 	}
@@ -408,7 +411,9 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifestFor(ctx context.Contex
 	for _, appId := range rotatePodRequest.AppIds {
 
 		chartRefId := chart.ChartRefId
-		refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+		//refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+
+		refChart, template, version, _, err := impl.chartRefService.GetRefChartBulk(chartRefId)
 		if err != nil {
 			impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 			return nil, err
