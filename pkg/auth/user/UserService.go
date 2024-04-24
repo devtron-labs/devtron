@@ -105,6 +105,7 @@ type UserService interface {
 	GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error)
 	GetSuperAdminIds() ([]int32, error)
 	FetchUserIdsByEmails(emails []string) ([]int32, error)
+	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -3225,4 +3226,16 @@ func (impl UserServiceImpl) FetchUserIdsByEmails(emails []string) ([]int32, erro
 		ids = append(ids, user.Id)
 	}
 	return ids, nil
+}
+
+func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
+	if err != nil {
+		return emailIds, err
+	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
 }

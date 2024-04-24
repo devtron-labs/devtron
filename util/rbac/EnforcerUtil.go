@@ -73,12 +73,16 @@ type EnforcerUtil interface {
 	GetRbacObjectNameByAppIdAndWorkflow(appId int, workflowName string) string
 	GetWorkflowRBACByCiPipelineId(pipelineId int, workflowName string) string
 	GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId int, envId int, envName string) string
-	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
+	GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
+	GetEnvRBACByAppNameAndEnvNames(appName string, envNames []string) map[string]string
+	GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string
+	CheckImagePromoterBulkAuth(ctx *util.RequestCtx, object []string) map[string]bool
+	GetTeamRbacObjectsByPipelineIds(cdPipelineIds []int) ([]string, map[int]string)
 }
 
 type EnforcerUtilImpl struct {
@@ -451,16 +455,16 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
 	envIdentifierByClusterAndNamespace := clusterName + "__" + namespace
-	if !env.IsVirtualEnvironment { //because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
+	if !env.IsVirtualEnvironment { // because for virtual_environment environment identifier is equal to environment name (As namespace is optional)
 		if environmentIdentifier != envIdentifierByClusterAndNamespace { // for futuristic permission cluster name is not present in environment identifier
 			environmentIdentifier2 = envIdentifierByClusterAndNamespace
 		}
 	}
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -490,7 +494,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
 		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
@@ -501,7 +505,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName), ""
 	}
 
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -525,7 +529,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
-	//otherwise it will return an empty string object
+	// otherwise it will return an empty string object
 
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
@@ -540,7 +544,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", team.Name, environmentIdentifier, "*"), ""
 	}
 
-	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	// TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
@@ -572,7 +576,7 @@ func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, res
 	if groupName == "" {
 		groupName = casbin.ClusterEmptyGroupPlaceholder
 	}
-	if namespace == "" { //empty value means all namespace access would occur for non-namespace resources
+	if namespace == "" { // empty value means all namespace access would occur for non-namespace resources
 		namespace = "*"
 	}
 	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
@@ -725,10 +729,10 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPi
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return impl.GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(ciPipeline.AppId, envId, envName)
+	return impl.GetTeamEnvAppRbacObjectByAppIdEnv(ciPipeline.AppId, envId, envName)
 
 }
-func (impl EnforcerUtilImpl) GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string {
+func (impl EnforcerUtilImpl) GetTeamEnvAppRbacObjectByAppIdEnv(appId, envId int, envName string) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
@@ -800,4 +804,60 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string,
 	}
 
 	return enforcedMap
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACByAppNameAndEnvNames(appName string, envNames []string) map[string]string {
+	envRbacObjects := make(map[string]string)
+	envs, err := impl.environmentRepository.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments by name", "envName", envNames, "err", err)
+		return envRbacObjects
+	}
+	for _, env := range envs {
+		envRbacObjects[env.Name] = fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+	}
+	return envRbacObjects
+}
+
+func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string {
+	teamEnvRbacObjects := make(map[string]string)
+	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app by app name", "appName", appName, "err", err)
+		return teamEnvRbacObjects
+	}
+	envs, err := impl.environmentRepository.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments by name", "envName", envNames, "err", err)
+		return teamEnvRbacObjects
+	}
+	for _, env := range envs {
+		teamEnvRbacObjects[env.Name] = fmt.Sprintf("%s/%s/%s", app.Team.Name, env.EnvironmentIdentifier, appName)
+	}
+	return teamEnvRbacObjects
+}
+
+func (impl EnforcerUtilImpl) CheckImagePromoterBulkAuth(ctx *util.RequestCtx, object []string) map[string]bool {
+	return impl.enforcer.EnforceInBatch(ctx.GetToken(), casbin.ResourceArtifact, casbin.ActionArtifactPromote, object)
+}
+
+func (impl EnforcerUtilImpl) GetTeamRbacObjectsByPipelineIds(cdPipelineIds []int) ([]string, map[int]string) {
+	pipeline, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineIds, "err", err)
+		return []string{}, map[int]string{}
+	}
+	teamDao, err := impl.teamRepository.FindOne(pipeline[0].App.TeamId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching teams by ids", "teamId", teamDao.Id, "err", err)
+		return []string{}, map[int]string{}
+	}
+	rbacObjects := make([]string, 0, len(pipeline))
+	pipelineIdToRbacObjMapping := make(map[int]string)
+	for _, pipelineDao := range pipeline {
+		object := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
+		rbacObjects = append(rbacObjects, object)
+		pipelineIdToRbacObjMapping[pipelineDao.Id] = object
+	}
+	return rbacObjects, pipelineIdToRbacObjMapping
 }

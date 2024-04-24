@@ -19,7 +19,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -98,7 +98,12 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+	materialInfos, err := artifact.GetMaterialInfo()
+	if err != nil {
+		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
+		return err
+	}
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		return err
 	}
@@ -521,7 +526,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == string(CiPipeline.CI_JOB) {
+			} else if ciPipeline.PipelineType == string(constants.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -549,8 +554,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var preDeploySteps []*pipelineConfigBean.StepObject
 	var postDeploySteps []*pipelineConfigBean.StepObject
 	var refPluginsData []*pipelineConfigBean.RefPluginObject
-	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
-	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
+	// if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
+	// case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
 	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", cdPipeline.Id, "stage ", runner.WorkflowType.WorkflowTypeToStageType(), "err", err)
@@ -562,8 +567,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		return nil, err
 	}
 
-	//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
-	//since user sees the environment of the CD pipeline
+	// Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
+	// since user sees the environment of the CD pipeline
 	scope := resourceQualifiers.Scope{
 		AppId:     cdPipeline.AppId,
 		EnvId:     env.Id,
@@ -579,7 +584,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	if pipelineStage != nil {
 		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
-			//TODO: use const from pipeline.WorkflowService:95
+			// TODO: use const from pipeline.WorkflowService:95
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, "preCD", scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
@@ -589,7 +594,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
 			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 		} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
-			//TODO: use const from pipeline.WorkflowService:96
+			// TODO: use const from pipeline.WorkflowService:96
 			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, "postCD", scope)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
@@ -607,7 +612,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 
-		//Save Scoped VariableSnapshot
+		// Save Scoped VariableSnapshot
 		var variableSnapshotHistories = util4.GetBeansPtr(
 			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
 		if len(variableSnapshotHistories) > 0 {
@@ -617,7 +622,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			}
 		}
 	} else {
-		//in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
+		// in this case no plugin script is not present for this cdPipeline hence going with attaching preStage or postStage config
 		if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
 			stageYaml = cdPipeline.PreStageConfig
 		} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
@@ -831,7 +836,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 
 	if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
-		//populate input variables of steps with extra env variables
+		// populate input variables of steps with extra env variables
 		setExtraEnvVariableInDeployStep(preDeploySteps, extraEnvVariables, webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
 	} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
@@ -841,7 +846,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
 	switch cdStageWorkflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
-		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		// No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.CiArtifactBucket, cdStageWorkflowRequest.CiArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
@@ -1067,7 +1072,7 @@ func setExtraEnvVariableInDeployStep(deploySteps []*pipelineConfigBean.StepObjec
 
 func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineConfig.CdWorkflowRunner, string, int, error) {
 	deployStageWfr := pipelineConfig.CdWorkflowRunner{}
-	//getting deployment pipeline latest wfr by pipelineId
+	// getting deployment pipeline latest wfr by pipelineId
 	deployStageWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)

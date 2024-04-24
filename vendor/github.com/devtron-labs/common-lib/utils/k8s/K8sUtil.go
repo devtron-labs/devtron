@@ -23,6 +23,7 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	http2 "github.com/devtron-labs/common-lib/utils/http"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -70,6 +71,19 @@ type K8sServiceImpl struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
 	kubeconfig    *string
+	k8sConfig     *K8sConfig
+}
+
+type K8sConfig struct {
+	K8sClientTimeout int `env:"K8s_CLIENT_TIMEOUT_SEC" envDefault:"0"`
+}
+
+func (config *K8sConfig) getK8sClientTimeout() (bool, time.Duration) {
+	k8sClientTimeout := config.K8sClientTimeout
+	if k8sClientTimeout > 0 {
+		return true, time.Duration(k8sClientTimeout) * time.Second
+	}
+	return false, time.Duration(0)
 }
 
 type K8sService interface {
@@ -146,9 +160,14 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	if runTimeConfig.LocalDevMode {
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
+	k8sConfig := &K8sConfig{}
+	err = env.Parse(k8sConfig)
+	if err != nil {
+		logger.Errorw("error occurred while parsing k8s config", "err", err)
+	}
 
 	flag.Parse()
-	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
+	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, k8sConfig: k8sConfig}
 }
 
 func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error) {
@@ -169,6 +188,9 @@ func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) 
 			restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
 			restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
 		}
+	}
+	if ok, duration := impl.k8sConfig.getK8sClientTimeout(); ok {
+		restConfig.Timeout = duration
 	}
 	return restConfig, nil
 }
@@ -692,21 +714,25 @@ func (impl K8sServiceImpl) GetResourceInfoByLabelSelector(ctx context.Context, n
 
 func (impl K8sServiceImpl) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
+	var restConfig *rest.Config
+	var err error
 	if impl.runTimeConfig.LocalDevMode {
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+		restConfig, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building config from flags", "error", err)
 			return nil, err
 		}
-		return restConfig, nil
 	} else {
-		clusterConfig, err := rest.InClusterConfig()
+		restConfig, err = rest.InClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in fetch default cluster config", "err", err)
 			return nil, err
 		}
-		return clusterConfig, nil
 	}
+	if ok, duration := impl.k8sConfig.getK8sClientTimeout(); ok {
+		restConfig.Timeout = duration
+	}
+	return restConfig, nil
 }
 
 func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error) {

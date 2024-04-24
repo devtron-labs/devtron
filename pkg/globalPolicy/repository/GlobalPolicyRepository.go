@@ -26,7 +26,7 @@ type GlobalPolicyRepository interface {
 	GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error)
 	DeletedById(tx *pg.Tx, id int, userId int32) error
 	DeletedByName(tx *pg.Tx, name string, policyType bean.GlobalPolicyType, userId int32) error
-	GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error)
+	GetByNameSearchKey(policyType bean.GlobalPolicyType, nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error)
 	GetIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error)
 }
@@ -128,7 +128,6 @@ func (repo *GlobalPolicyRepositoryImpl) GetByName(name string, policyType bean.G
 		Where("policy_of = ?", policyType).
 		Select()
 	if err != nil {
-		repo.logger.Errorw("error in getting policy by name", "err", err, "name", name)
 		return nil, err
 	}
 	return &model, err
@@ -248,10 +247,10 @@ func (repo *GlobalPolicyRepositoryImpl) DeletedByName(tx *pg.Tx, name string, po
 	return nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error) {
+func (repo *GlobalPolicyRepositoryImpl) GetByNameSearchKey(policyType bean.GlobalPolicyType, nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error) {
 	var model []*GlobalPolicy
 	query := repo.dbConnection.Model(&model).Where("name like ? ", nameSearchKey).
-		Where("deleted = ?", false)
+		Where("deleted = ?", false).Where("policy_of = ? ", policyType)
 
 	if orderByName {
 		orderExp := "name"

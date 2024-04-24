@@ -26,7 +26,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -173,9 +173,9 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		}
 
 		if ciPipeline.IsDockerConfigOverridden {
-			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
+			// set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
-			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(CiPipeline.LINKED_CD) {
+			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
 			}
 			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)

@@ -27,6 +27,7 @@ type ResourceFilterRestHandler interface {
 	CreateFilter(w http.ResponseWriter, r *http.Request)
 	DeleteFilter(w http.ResponseWriter, r *http.Request)
 	ValidateExpression(w http.ResponseWriter, r *http.Request)
+	GetResourceFilterMetaData(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceFilterRestHandlerImpl struct {
@@ -62,7 +63,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 
 func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -79,7 +80,7 @@ func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter,
 
 func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -110,7 +111,7 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 		return
 	}
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -153,7 +154,7 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		return
 	}
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -206,7 +207,7 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 		return
 	}
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -232,7 +233,7 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
+	authorised := handler.applySuperAdminAuth(token)
 	if !authorised {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -249,8 +250,13 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler *ResourceFilterRestHandlerImpl) applyAuth(token string) bool {
+func (handler *ResourceFilterRestHandlerImpl) applySuperAdminAuth(token string) bool {
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 
 	return isSuperAdmin
+}
+
+func (handler *ResourceFilterRestHandlerImpl) GetResourceFilterMetaData(w http.ResponseWriter, r *http.Request) {
+	res := resourceFilter.FILTER_CRITERIA
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

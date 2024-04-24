@@ -671,6 +671,9 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	gitOpsResponse := &bean2.AppStoreGitOpsResponse{}
 
 	if installedAppDeploymentAction.PerformGitOps {
+		// manifest contains ChartRepoName where the valuesConfig and requirementConfig files will get committed
+		// and that gitOpsRepoUrl is extracted from db inside GenerateManifest func and not from the current
+		// orchestrator cm prefix and appName.
 		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest)
 		if err != nil {
 			impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
@@ -721,6 +724,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
 	installedApp.UpdateAuditLog(upgradeAppRequest.UserId)
+	if monoRepoMigrationRequired {
+		//if monorepo case is true then repoUrl is changed then also update repo url in database
+		installedApp.UpdateGitOpsRepository(gitOpsResponse.ChartGitAttribute.RepoUrl, installedApp.IsCustomRepository)
+	}
 	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app", "err", err)

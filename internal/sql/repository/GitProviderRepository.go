@@ -52,6 +52,7 @@ type GitProviderRepository interface {
 	ProviderExists(url string) (bool, error)
 	FindAllActiveForAutocomplete() ([]GitProvider, error)
 	FindAll() ([]GitProvider, error)
+	FindAllGitProviderCount() (int, error)
 	FindOne(providerId string) (GitProvider, error)
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
@@ -94,6 +95,11 @@ func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {
 	err := impl.dbConnection.Model(&providers).
 		Where("deleted = ?", false).Select()
 	return providers, err
+}
+func (impl GitProviderRepositoryImpl) FindAllGitProviderCount() (int, error) {
+	gitProviderCount, err := impl.dbConnection.Model(&GitProvider{}).
+		Where("deleted = ?", false).Count()
+	return gitProviderCount, err
 }
 
 func (impl GitProviderRepositoryImpl) FindOne(providerId string) (GitProvider, error) {
