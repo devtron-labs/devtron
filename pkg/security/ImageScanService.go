@@ -167,13 +167,7 @@ func (impl *ImageScanServiceImpl) FetchScanExecutionListing(request *bean.ImageS
 
 			for _, item := range scanResultList {
 				lastChecked = item.ImageScanExecutionHistory.ExecutionTime
-				if item.CveStore.Severity == securityBean.Critical {
-					highCount = highCount + 1
-				} else if item.CveStore.Severity == securityBean.Medium {
-					moderateCount = moderateCount + 1
-				} else if item.CveStore.Severity == securityBean.Low {
-					lowCount = lowCount + 1
-				}
+				highCount, moderateCount, lowCount = impl.updateCount(item.CveStore.Severity, highCount, moderateCount, lowCount)
 			}
 		}
 		severityCount := &bean.SeverityCount{
@@ -322,13 +316,7 @@ func (impl *ImageScanServiceImpl) FetchExecutionDetailResult(ctx context.Context
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
 			}
-			if item.CveStore.Severity == securityBean.Critical {
-				highCount = highCount + 1
-			} else if item.CveStore.Severity == securityBean.Medium {
-				moderateCount = moderateCount + 1
-			} else if item.CveStore.Severity == securityBean.Low {
-				lowCount = lowCount + 1
-			}
+			highCount, moderateCount, lowCount = impl.updateCount(item.CveStore.Severity, highCount, moderateCount, lowCount)
 			vulnerabilities = append(vulnerabilities, vulnerability)
 			cveStores = append(cveStores, &item.CveStore)
 			if _, ok := imageDigests[item.ImageScanExecutionHistory.ImageHash]; !ok {
@@ -448,13 +436,7 @@ func (impl *ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *bea
 		}
 		for _, item := range imageScanResult {
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
-			if item.CveStore.Severity == securityBean.Critical {
-				highCount = highCount + 1
-			} else if item.CveStore.Severity == securityBean.Medium {
-				moderateCount = moderateCount + 1
-			} else if item.CveStore.Severity == securityBean.Low {
-				lowCount = lowCount + 1
-			}
+			highCount, moderateCount, lowCount = impl.updateCount(item.CveStore.Severity, highCount, moderateCount, lowCount)
 		}
 		if len(imageScanResult) > 0 {
 			scantoolId = imageScanResult[0].ScanToolId
@@ -700,13 +682,7 @@ func (impl ImageScanServiceImpl) getVulnerabilitiesAndSeverityCount(executionRes
 			Package:  item.CveStore.Package,
 			Severity: item.CveStore.Severity.String(),
 		}
-		if item.CveStore.Severity == securityBean.Critical {
-			highCount = highCount + 1
-		} else if item.CveStore.Severity == securityBean.Medium {
-			moderateCount = moderateCount + 1
-		} else if item.CveStore.Severity == securityBean.Low {
-			lowCount = lowCount + 1
-		}
+		highCount, moderateCount, lowCount = impl.updateCount(item.CveStore.Severity, highCount, moderateCount, lowCount)
 		vulnerabilities = append(vulnerabilities, vulnerability)
 		cveStores = append(cveStores, &item.CveStore)
 	}
@@ -716,6 +692,17 @@ func (impl ImageScanServiceImpl) getVulnerabilitiesAndSeverityCount(executionRes
 		Low:      lowCount,
 	}
 	return vulnerabilities, severityCount
+}
+
+func (impl ImageScanServiceImpl) updateCount(severity securityBean.Severity, highCount int, moderateCount int, lowCount int) (int, int, int) {
+	if severity == securityBean.Critical || severity == securityBean.High {
+		highCount = highCount + 1
+	} else if severity == securityBean.Medium {
+		moderateCount = moderateCount + 1
+	} else if severity == securityBean.Low {
+		lowCount = lowCount + 1
+	}
+	return highCount, moderateCount, lowCount
 }
 
 func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults []*security.ImageScanExecutionResult) (map[int]string, map[string][]*security.ImageScanExecutionResult) {
