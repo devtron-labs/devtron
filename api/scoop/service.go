@@ -40,24 +40,9 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedEvent *InterceptedEvent) error {
-
-	eventBytes, err := json.Marshal(&interceptedEvent.Event)
+	event, involvedObj, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
-		return err
-	}
-	event := string(eventBytes)
-	involvedObjBytes, err := json.Marshal(&interceptedEvent.InvolvedObject)
-	if err != nil {
-		return err
-	}
-	involvedObj := string(involvedObjBytes)
-	watchersMap := make(map[int]*Watcher)
-	for _, watcher := range interceptedEvent.Watchers {
-		watchersMap[watcher.Id] = watcher
-	}
-
-	triggers, err := impl.watcherService.GetTriggerByWatcherIds(maps.Keys(watchersMap))
-	if err != nil {
+		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)
 		return err
 	}
 
@@ -132,9 +117,41 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 
 		interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 	}
+
+	err = impl.saveInterceptedEvents(interceptEventExecs)
+	if err != nil {
+		impl.logger.Errorw("error in saving intercepted event executions", "interceptedEvent", interceptedEvent, "err", err)
+	}
+	return err
+}
+
+func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *InterceptedEvent) (event string, involvedObj string, triggers []*autoRemediation.Trigger, err error) {
+	eventBytes, err := json.Marshal(&interceptedEvent.Event)
+	if err != nil {
+		return event, involvedObj, triggers, err
+	}
+	event = string(eventBytes)
+	involvedObjBytes, err := json.Marshal(&interceptedEvent.InvolvedObject)
+	if err != nil {
+		return event, involvedObj, triggers, err
+	}
+	involvedObj = string(involvedObjBytes)
+	watchersMap := make(map[int]*Watcher)
+	for _, watcher := range interceptedEvent.Watchers {
+		watchersMap[watcher.Id] = watcher
+	}
+
+	watcherIds := maps.Keys(watchersMap)
+	triggers, err = impl.watcherService.GetTriggerByWatcherIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting triggers with watcher ids", "watcherIds", watcherIds, "err", err)
+	}
+	return
+}
+
+func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.InterceptedEventExecution) error {
 	tx, err := impl.interceptedEventsRepository.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in creating transaction while saving ", "interceptedEvent", interceptedEvent, "err", err)
 		return err
 	}
 
@@ -147,7 +164,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 
 	err = impl.interceptedEventsRepository.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction while saving ", "interceptedEvent", interceptedEvent, "err", err)
+		impl.logger.Errorw("error in committing transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
 		return err
 	}
 	return nil

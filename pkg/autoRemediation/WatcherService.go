@@ -18,10 +18,11 @@ type WatcherService interface {
 	DeleteWatcherById(watcherId int) error
 	// RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error)
 	UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error
-	//RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
+	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
 	FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
+
 type WatcherServiceImpl struct {
 	watcherRepository            repository.WatcherRepository
 	triggerRepository            repository.TriggerRepository
@@ -34,7 +35,14 @@ type WatcherServiceImpl struct {
 	logger                       *zap.SugaredLogger
 }
 
-func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository, triggerRepository repository.TriggerRepository, interceptedEventsRepository repository.InterceptedEventsRepository, appRepository appRepository.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, environmentRepository repository2.EnvironmentRepository, appWorkflowMappingRepository appWorkflow.AppWorkflowRepository, clusterRepository repository2.ClusterRepository,
+func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
+	triggerRepository repository.TriggerRepository,
+	interceptedEventsRepository repository.InterceptedEventsRepository,
+	appRepository appRepository.AppRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	environmentRepository repository2.EnvironmentRepository,
+	appWorkflowMappingRepository appWorkflow.AppWorkflowRepository,
+	clusterRepository repository2.ClusterRepository,
 	logger *zap.SugaredLogger) *WatcherServiceImpl {
 	return &WatcherServiceImpl{
 		watcherRepository:            watcherRepository,
@@ -155,6 +163,7 @@ func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest WatcherDt
 	}
 	return nil
 }
+
 func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, error) {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
@@ -195,6 +204,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 	return &watcherResponse, nil
 
 }
+
 func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int) error {
 	err := impl.triggerRepository.DeleteTriggerByWatcherId(watcherId)
 	if err != nil {
@@ -289,56 +299,6 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	return nil
 }
 
-//	func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]InterceptedEventsDto, error) {
-//		events, err := impl.interceptedEventsRepository.FindAll(offset, size, sortOrder, searchString, from, to, watchers, clusters, namespaces)
-//		if err != nil {
-//			impl.logger.Errorw("error while fetching events", "err", err)
-//			return []InterceptedEventsDto{}, err
-//		}
-//		var interceptedEventsResponse []InterceptedEventsDto
-//		var clusterIds []int
-//		for _, event := range events {
-//			interceptedEventResponse := InterceptedEventsDto{
-//				Message:        event.Message,
-//				MessageType:    event.MessageType,
-//				Event:          event.Event,
-//				InvolvedObject: event.InvolvedObject,
-//				ClusterId:      event.ClusterId,
-//			}
-//			clusterIds = append(clusterIds, event.ClusterId)
-//			watcher, err := impl.triggerRepository.GetWatcherByTriggerId(event.TriggerId)
-//			if err != nil {
-//				impl.logger.Errorw("error while fetching events", "err", err)
-//				return []InterceptedEventsDto{}, err
-//			}
-//			trigger, err := impl.triggerRepository.GetTriggerById(event.TriggerId)
-//			if err != nil {
-//				impl.logger.Errorw("error while fetching trigger", "err", err)
-//				return []InterceptedEventsDto{}, err
-//			}
-//			triggerRespData := TriggerData{}
-//			if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
-//				impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-//				return []InterceptedEventsDto{}, err
-//			}
-//			pipeline, err := impl.ciPipelineRepository.FindByName(triggerRespData.PipelineName)
-//			if err != nil {
-//				impl.logger.Errorw("error in fetching pipeline by pipeline name ", "error", err)
-//				return []InterceptedEventsDto{}, err
-//			}
-//			ciWorkflow, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineId(pipeline.Id)
-//			eventsItem := EventsItem{
-//				Id:              event.Id,
-//				Name:            watcher.Name,
-//				Description:     watcher.Desc,
-//				JobPipelineName: pipeline.Name,
-//				JobPipelineId:   pipeline.Id,
-//				WorkflowId:      ciWorkflow[0].AppWorkflowId,
-//			}
-//			eventResponse.List = append(eventResponse.List, eventsItem)
-//		}
-//		return eventResponse, nil
-//	}
 func (impl *WatcherServiceImpl) FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error) {
 	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
