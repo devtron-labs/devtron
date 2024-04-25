@@ -19,6 +19,7 @@ package EAMode
 
 import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
@@ -126,7 +127,7 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 			LastDeployedAt:    &appLocal.UpdatedOn,
 			AppStatus:         &appLocal.AppStatus,
 		}
-		if len(appLocal.DisplayName) > 0 {
+		if util4.IsExternalChartStoreApp(appLocal.DisplayName) {
 			//case of external app where display name is stored in app table
 			helmAppResp.AppName = &appLocal.DisplayName
 		}
@@ -202,7 +203,7 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
 	}
-	if len(installedAppVerison.InstalledApp.App.DisplayName) > 0 {
+	if util4.IsExternalChartStoreApp(installedAppVerison.InstalledApp.App.DisplayName) {
 		deploymentContainer.AppName = installedAppVerison.InstalledApp.App.DisplayName
 	}
 	deploymentContainer.HelmPackageName = adapter.GetGeneratedHelmPackageName(deploymentContainer.AppName, deploymentContainer.EnvironmentName, installedAppVerison.InstalledApp.UpdatedOn)

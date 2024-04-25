@@ -8,6 +8,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"net/http"
@@ -253,7 +254,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		return err
 	}
 	appName := installedApp.App.AppName
-	if len(installedApp.App.DisplayName) > 0 {
+	if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
 		appName = installedApp.App.DisplayName
 	}
 	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)

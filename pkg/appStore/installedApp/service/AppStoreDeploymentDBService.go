@@ -9,11 +9,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	discoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
@@ -53,6 +55,8 @@ type AppStoreDeploymentDBService interface {
 	MarkHelmInstalledAppDeploymentSucceeded(versionHistoryId int) error
 	// UpdateInstalledAppVersionHistoryStatus will update the Status in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryStatus(versionHistoryId int, status string) error
+	// GetActiveAppForAppIdentifierOrReleaseName returns app db model for an app unique identifier or from display_name if either exists else it throws pg.ErrNoRows
+	GetActiveAppForAppIdentifierOrReleaseName(appNameUniqueIdentifier, releaseName string) (*app.App, error)
 }
 
 type AppStoreDeploymentDBServiceImpl struct {
@@ -68,6 +72,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	appStoreValidator                    AppStoreValidator
+	appCrudOperationService              app2.AppCrudOperationService
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -80,7 +85,8 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	envVariables *globalUtil.EnvironmentVariables,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
-	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator) *AppStoreDeploymentDBServiceImpl {
+	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator,
+	appCrudOperationService app2.AppCrudOperationService) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -94,6 +100,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		deploymentTypeOverrideService:        deploymentTypeOverrideService,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		appStoreValidator:                    appStoreValidator,
+		appCrudOperationService:              appCrudOperationService,
 	}
 }
 
@@ -115,7 +122,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			TeamId:  installRequest.TeamId,
 			UserId:  installRequest.UserId,
 		}
-		if len(installRequest.DisplayName) > 0 {
+		if util4.IsExternalChartStoreApp(installRequest.DisplayName) {
 			//this is the case of linking external helm app to devtron chart store
 			appCreateRequest.AppType = helper.ExternalChartStoreApp
 			appCreateRequest.DisplayName = installRequest.DisplayName
@@ -322,41 +329,52 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateInstalledAppVersionHistoryWit
 	return nil
 }
 
+func (impl *AppStoreDeploymentDBServiceImpl) GetActiveAppForAppIdentifierOrReleaseName(appNameUniqueIdentifier, releaseName string) (*app.App, error) {
+	app, err := impl.appRepository.FindActiveByName(appNameUniqueIdentifier)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		return nil, err
+	}
+	if util.IsErrNoRows(err) {
+		//find app by displayName/releaseName if not found by unique identifier
+		app, err = impl.appRepository.FindActiveByName(releaseName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", releaseName, "err", err)
+			return nil, err
+		}
+	}
+	return app, nil
+}
+
 func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName, namespace string, teamId int, userId int32) error {
-	appModel, err := impl.appRepository.FindActiveByName(appName)
-	if err != nil && util.IsErrNoRows(err) {
-		// if we can't find by appName then find by display name, if app is found via display name then app was previously assigned with project or linked with devtron with app_name as display_name
-		appModel, err = impl.appRepository.FindActiveByName(displayName)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching appModel by displayName", "displayName", displayName, "err", err)
-			return err
-		}
-		// external app will have a display name, so checking the following case only for external apps
-		if appModel != nil && appModel.Id > 0 && len(displayName) > 0 {
-			/*
-						1. now we will check if for that appModel, installed_app entry present or not,
-					    2. if not, then let the normal flow continue as we can change the app_name with app unique identifier.
-						3. if exists then we will check if request's namespace is same as what present in installed_apps.
-							- if ns doesn't match then update proj. req. is for some other app found in app table via display_name,
-				              in this case create a new entry in app table for the request.
-							- if ns matches, then update proj. req. is for same app present in installed_apps, in that case we will update
-					          the app_name with unique identifier and display_name along with team_id.
-			*/
-			installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(appModel.Id)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("error in fetching installed app by appId", "appId", appModel.Id, "appName", appName, "err", err)
-				return err
-			}
-			if installedApp.Id > 0 {
-				if namespace != installedApp.Environment.Namespace {
-					//assigning appModel as nil, so that it will create a new entry in app for the request
-					appModel = nil
-				}
-			}
-		}
-	} else if err != nil {
+	appModel, err := impl.GetActiveAppForAppIdentifierOrReleaseName(appName, displayName)
+	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel by appName", "appName", appName, "err", err)
 		return err
+	}
+
+	// only external app will have a display name, so checking the following case only for external apps
+	if appModel != nil && appModel.Id > 0 && len(displayName) > 0 {
+		/*
+					1. now we will check if for that appModel, installed_app entry present or not i.e. linked to devtron or not,
+				    2. if not, then let the normal flow continue as we can change the app_name with app unique identifier.
+					3. if exists then we will check if request's namespace is same as what present in installed_apps.
+						- if ns doesn't match then update proj. req. is for some other app found in app table via display_name,
+			              in this case create a new entry in app table for the request.
+						- if ns matches, then update proj. req. is for same app present in installed_apps, in that case we will update
+				          the app_name with unique identifier and display_name along with team_id.
+		*/
+		isLinkedToDevtron, _, linkedInstalledAppNamespace, err := impl.appCrudOperationService.IsExternalAppLinkedToChartStore(appModel.Id)
+		if err != nil {
+			impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", appModel.Id, "err", err)
+			return err
+		}
+		if isLinkedToDevtron {
+			if namespace != linkedInstalledAppNamespace {
+				//assigning appModel as nil, so that it will create a new entry in app for the request
+				appModel = nil
+			}
+		}
 	}
 
 	var appInstallationMode string
@@ -379,7 +397,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 			UserId:  userId,
 			TeamId:  teamId,
 		}
-		if len(displayName) > 0 {
+		if util4.IsExternalChartStoreApp(displayName) {
 			createAppRequest.AppType = helper.ExternalChartStoreApp
 			createAppRequest.DisplayName = displayName
 		}
@@ -389,9 +407,9 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 			return err
 		}
 	} else {
-		if len(displayName) > 0 {
-			//handling the case when ext-helm app is already assigned to a project and an entry already exist in app table
-			//then this will override app_name with unique identifier app name and update display_name also
+		if util4.IsExternalChartStoreApp(displayName) {
+			//handling the case when ext-helm app is already assigned to a project and an entry already exist in app table but
+			//not yet migrated, then this will override app_name with unique identifier app name and update display_name also
 			appModel.AppName = appName
 			appModel.DisplayName = displayName
 		}
