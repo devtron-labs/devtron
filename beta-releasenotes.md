@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Kubelink Requests getting Failed for gRPC method GetAppDetails (#5012)
 - fix: terminate sync if in progress  (#4946)
 - fix: grpc error handling for TemplateChart req (#4980)
 - fix: removed redundant import (#5004)
