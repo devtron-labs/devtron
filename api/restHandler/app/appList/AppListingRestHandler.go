@@ -981,7 +981,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
-		handler.logger.Infow("deployment for this pipeline does not exist")
+		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
 		return resourceTree, nil
 	}
 	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
