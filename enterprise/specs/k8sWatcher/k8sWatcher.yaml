@@ -16,69 +16,45 @@ paths:
         '200':
           description: Successful response
     get:
-      summary: Retrieve watchers
       parameters:
-        - name: watchers
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: Watcher names
-        - name: clusters
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: cluster names
-        - name: namespaces
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: cluster names
-        - name: executionStatuses
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-              enum:
-                - 'Succeeded'
-                - 'Failed'
-                - 'Progressing'
-          description: cluster names
-        - name: from
-          in: query
+        - in: query
+          name: search
           schema:
             type: string
-            format: date-time
-          description: Start time
-        - name: to
-          in: query
+          required: false
+          description: search string for watcher name
+        - in: query
+          name: orderBy
           schema:
             type: string
-            format: date-time
-          description: End time
-        - name: offset
-          in: query
+            enum:
+              - 'name'
+              - 'triggerTime'
+          required: false
+          description: order by field
+        - in: query
+          name: order
           schema:
-            type: integer
+                type: string
+                enum:
+                - 'asc'
+                - 'desc'
+          required: false
+          description: order of the result
+        - in: query
+          name: offset
+          schema:
+              type: integer
+          required: false
           description: offset
-        - name: size
-          in: query
+        - in: query
+          name: size
           schema:
-            type: integer
+              type: integer
+          required: false
           description: size of the result list
-        - name: searchString
-          in: query
-          schema:
-            type: string
-          description: search string
 
-
+      summary: Retrieve watchers
       responses:
         '200':
           description: Successful response
@@ -143,6 +119,66 @@ paths:
           description: Successful response
   /orchestrator/k8s/watcher/events:
     get:
+      parameters:
+        - name: watchers
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Watcher names
+        - name: clusters
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: cluster names
+        - name: namespaces
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: cluster names
+        - name: executionStatuses
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - 'Succeeded'
+                - 'Failed'
+                - 'Progressing'
+          description: cluster names
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End time
+        - name: offset
+          in: query
+          schema:
+            type: integer
+          description: offset
+        - name: size
+          in: query
+          schema:
+            type: integer
+          description: size of the result list
+        - name: searchString
+          in: query
+          schema:
+            type: string
+          description: search string
       summary: Retrieve intercepted events
       responses:
         '200':
