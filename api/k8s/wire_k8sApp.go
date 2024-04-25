@@ -3,9 +3,6 @@ package k8s
 import (
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
-	"github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
-	autoRemediation2 "github.com/devtron-labs/devtron/pkg/autoRemediation"
-	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -25,15 +22,6 @@ var K8sApplicationWireSet = wire.NewSet(
 	wire.Bind(new(application.K8sApplicationRouter), new(*application.K8sApplicationRouterImpl)),
 	application.NewK8sApplicationRestHandlerImpl,
 	wire.Bind(new(application.K8sApplicationRestHandler), new(*application.K8sApplicationRestHandlerImpl)),
-
-	autoRemediation.NewWatcherRestHandlerImpl,
-	wire.Bind(new(autoRemediation.WatcherRestHandler), new(*autoRemediation.WatcherRestHandlerImpl)),
-	autoRemediation2.NewWatcherServiceImpl,
-	wire.Bind(new(autoRemediation2.WatcherService), new(*autoRemediation2.WatcherServiceImpl)),
-	repository.NewWatcherRepositoryImpl,
-	wire.Bind(new(repository.WatcherRepository), new(*repository.WatcherRepositoryImpl)),
-	repository.NewTriggerRepositoryImpl,
-	wire.Bind(new(repository.TriggerRepository), new(*repository.TriggerRepositoryImpl)),
 	clusterRepository.NewEphemeralContainersRepositoryImpl,
 	wire.Bind(new(clusterRepository.EphemeralContainersRepository), new(*clusterRepository.EphemeralContainersRepositoryImpl)),
 	cluster.NewEphemeralContainerServiceImpl,
