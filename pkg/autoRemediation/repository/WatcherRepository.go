@@ -1,6 +1,7 @@
 package repository
 
 import (
+	autoRemediation2 "github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -22,6 +23,7 @@ type WatcherRepository interface {
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(id int) error
+	FindAllWatchersByQueryName(params autoRemediation2.WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -86,4 +88,20 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 		return err
 	}
 	return nil
+}
+func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params autoRemediation2.WatcherQueryParams) ([]*Watcher, error) {
+	var watcher []*Watcher
+	query := impl.dbConnection.Model(&watcher)
+	if params.Search != "" {
+		query = query.Where("name LIKE ?", "%"+params.Search+"%")
+	}
+	if params.SortOrderBy == "name" {
+		query = query.Order("name ?", params.SortOrder)
+	}
+	err := query.Offset(params.Offset).Limit(params.Size).Select()
+	if err != nil {
+		return []*Watcher{}, err
+	}
+
+	return watcher, nil
 }

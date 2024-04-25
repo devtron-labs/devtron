@@ -1,6 +1,7 @@
 package autoRemediation
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -9,16 +10,16 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/square/go-jose.v2/json"
 	"strings"
-	"time"
 )
 
 type WatcherService interface {
 	CreateWatcher(watcherRequest WatcherDto) (int, error)
 	GetWatcherById(watcherId int) (*WatcherDto, error)
 	DeleteWatcherById(watcherId int) error
-	RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error)
+	// RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error)
 	UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error
-	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]EventsResponse, int, error)
+	//RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
+	FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
 type WatcherServiceImpl struct {
@@ -81,30 +82,52 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest WatcherDto) (int, e
 }
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest WatcherDto, watcherId int) error {
 	var jsonData []byte
+	var jobNames, envNames, pipelineNames []string
 	for _, res := range watcherRequest.Triggers {
-		job, err := impl.appRepository.FindJobByDisplayName(res.Data.JobName)
-		if err != nil {
-			impl.logger.Errorw("error in fetching job by job name ", "error", err)
-			return err
-		}
-		pipeline, err := impl.ciPipelineRepository.FindByName(res.Data.PipelineName)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline by pipeline name ", "error", err)
-			return err
-		}
-		environment, err := impl.environmentRepository.FindOne(res.Data.ExecutionEnvironment)
-		if err != nil {
-			impl.logger.Errorw("error in fetching environmenr by environment name ", "error", err)
-			return err
-		}
+		jobNames = append(jobNames, res.Data.JobName)
+		envNames = append(envNames, res.Data.ExecutionEnvironment)
+		pipelineNames = append(pipelineNames, res.Data.PipelineName)
+	}
+	apps, err := impl.appRepository.FetchAppByDisplayNamesForJobs(jobNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching apps", "error", err)
+		return err
+	}
+	var jobIds []int
+	for _, app := range apps {
+		jobIds = append(jobIds, app.Id)
+	}
+	pipelines, err := impl.ciPipelineRepository.FindByNames(pipelineNames, jobIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines", "error", err)
+		return err
+	}
+	envs, err := impl.environmentRepository.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "error", err)
+		return err
+	}
+	displayNameToId := make(map[string]int)
+	for _, app := range apps {
+		displayNameToId[app.DisplayName] = app.Id
+	}
+	pipelineNameToId := make(map[string]int)
+	for _, pipeline := range pipelines {
+		pipelineNameToId[pipeline.Name] = pipeline.Id
+	}
+	envNameToId := make(map[string]int)
+	for _, env := range envs {
+		envNameToId[env.Name] = env.Id
+	}
+	for _, res := range watcherRequest.Triggers {
 		triggerData := TriggerData{
 			RuntimeParameters:      res.Data.RuntimeParameters,
-			JobId:                  job.Id,
+			JobId:                  displayNameToId[res.Data.JobName],
 			JobName:                res.Data.JobName,
-			PipelineId:             pipeline.Id,
+			PipelineId:             pipelineNameToId[res.Data.PipelineName],
 			PipelineName:           res.Data.PipelineName,
 			ExecutionEnvironment:   res.Data.ExecutionEnvironment,
-			ExecutionEnvironmentId: environment.Id,
+			ExecutionEnvironmentId: envNameToId[res.Data.ExecutionEnvironment],
 		}
 		jsonData, err = json.Marshal(triggerData)
 		if err != nil {
@@ -185,56 +208,58 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int) error {
 	}
 	return nil
 }
-func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error) {
-	// message type?
-	var interceptedEventsResponse []*InterceptedEventsDto
-	interceptedEvents, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
-	if err != nil {
-		impl.logger.Errorw("error in retrieving intercepted events", "error", err)
-		return nil, err
-	}
-	for _, interceptedEvent := range interceptedEvents {
-		cluster, err := impl.clusterRepository.FindById(interceptedEvent.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in retrieving cluster name ", "error", err)
-			return nil, err
-		}
-		interceptedEventResponse := &InterceptedEventsDto{
-			Message:         interceptedEvent.Message,
-			MessageType:     interceptedEvent.MessageType,
-			Event:           interceptedEvent.Event,
-			InvolvedObject:  interceptedEvent.InvolvedObject,
-			ClusterName:     cluster.ClusterName,
-			Namespace:       interceptedEvent.Namespace,
-			InterceptedTime: (interceptedEvent.InterceptedAt).String(),
-			ExecutionStatus: interceptedEvent.Status,
-			TriggerId:       interceptedEvent.TriggerId,
-		}
-		triggerResp := Trigger{}
-		trigger, err := impl.triggerRepository.GetTriggerById(interceptedEventResponse.TriggerId)
-		if err != nil {
-			impl.logger.Errorw("error in retrieving intercepted events", "error", err)
-			return nil, err
-		}
-		triggerResp.Id = trigger.Id
-		triggerResp.IdentifierType = trigger.Type
-		triggerRespData := TriggerData{}
-		if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
-			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return nil, err
-		}
-		triggerResp.Data.JobName = triggerRespData.JobName
-		triggerResp.Data.PipelineName = triggerRespData.PipelineName
-		triggerResp.Data.RuntimeParameters = triggerRespData.RuntimeParameters
-		triggerResp.Data.ExecutionEnvironment = triggerRespData.ExecutionEnvironment
-		triggerResp.Data.PipelineId = triggerRespData.PipelineId
-		triggerResp.Data.JobId = triggerRespData.JobId
-		triggerResp.Data.ExecutionEnvironmentId = triggerRespData.ExecutionEnvironmentId
-		interceptedEventResponse.Trigger = triggerResp
-		interceptedEventsResponse = append(interceptedEventsResponse, interceptedEventResponse)
-	}
-	return interceptedEventsResponse, nil
-}
+
+// func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error) {
+// 	// message type?
+// 	var interceptedEventsResponse []*InterceptedEventsDto
+// 	interceptedEvents, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
+// 	if err != nil {
+// 		impl.logger.Errorw("error in retrieving intercepted events", "error", err)
+// 		return nil, err
+// 	}
+// 	for _, interceptedEvent := range interceptedEvents {
+// 		cluster, err := impl.clusterRepository.FindById(interceptedEvent.ClusterId)
+// 		if err != nil {
+// 			impl.logger.Errorw("error in retrieving cluster name ", "error", err)
+// 			return nil, err
+// 		}
+// 		interceptedEventResponse := &InterceptedEventsDto{
+// 			Message:         interceptedEvent.Message,
+// 			MessageType:     interceptedEvent.MessageType,
+// 			Event:           interceptedEvent.Event,
+// 			InvolvedObject:  interceptedEvent.InvolvedObject,
+// 			ClusterName:     cluster.ClusterName,
+// 			Namespace:       interceptedEvent.Namespace,
+// 			InterceptedTime: (interceptedEvent.InterceptedAt).String(),
+// 			ExecutionStatus: interceptedEvent.Status,
+// 			TriggerId:       interceptedEvent.TriggerId,
+// 		}
+// 		triggerResp := Trigger{}
+// 		trigger, err := impl.triggerRepository.GetTriggerById(interceptedEventResponse.TriggerId)
+// 		if err != nil {
+// 			impl.logger.Errorw("error in retrieving intercepted events", "error", err)
+// 			return nil, err
+// 		}
+// 		triggerResp.Id = trigger.Id
+// 		triggerResp.IdentifierType = trigger.Type
+// 		triggerRespData := TriggerData{}
+// 		if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
+// 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+// 			return nil, err
+// 		}
+// 		triggerResp.Data.JobName = triggerRespData.JobName
+// 		triggerResp.Data.PipelineName = triggerRespData.PipelineName
+// 		triggerResp.Data.RuntimeParameters = triggerRespData.RuntimeParameters
+// 		triggerResp.Data.ExecutionEnvironment = triggerRespData.ExecutionEnvironment
+// 		triggerResp.Data.PipelineId = triggerRespData.PipelineId
+// 		triggerResp.Data.JobId = triggerRespData.JobId
+// 		triggerResp.Data.ExecutionEnvironmentId = triggerRespData.ExecutionEnvironmentId
+// 		interceptedEventResponse.Trigger = triggerResp
+// 		interceptedEventsResponse = append(interceptedEventsResponse, interceptedEventResponse)
+// 	}
+// 	return interceptedEventsResponse, nil
+// }
+
 func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
@@ -263,50 +288,104 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	}
 	return nil
 }
-func (impl *WatcherServiceImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error) {
-	events, err := impl.interceptedEventsRepository.FindAll(offset, size, sortOrder, searchString, from, to, watchers, clusters, namespaces)
+
+//	func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]InterceptedEventsDto, error) {
+//		events, err := impl.interceptedEventsRepository.FindAll(offset, size, sortOrder, searchString, from, to, watchers, clusters, namespaces)
+//		if err != nil {
+//			impl.logger.Errorw("error while fetching events", "err", err)
+//			return []InterceptedEventsDto{}, err
+//		}
+//		var interceptedEventsResponse []InterceptedEventsDto
+//		var clusterIds []int
+//		for _, event := range events {
+//			interceptedEventResponse := InterceptedEventsDto{
+//				Message:        event.Message,
+//				MessageType:    event.MessageType,
+//				Event:          event.Event,
+//				InvolvedObject: event.InvolvedObject,
+//				ClusterId:      event.ClusterId,
+//			}
+//			clusterIds = append(clusterIds, event.ClusterId)
+//			watcher, err := impl.triggerRepository.GetWatcherByTriggerId(event.TriggerId)
+//			if err != nil {
+//				impl.logger.Errorw("error while fetching events", "err", err)
+//				return []InterceptedEventsDto{}, err
+//			}
+//			trigger, err := impl.triggerRepository.GetTriggerById(event.TriggerId)
+//			if err != nil {
+//				impl.logger.Errorw("error while fetching trigger", "err", err)
+//				return []InterceptedEventsDto{}, err
+//			}
+//			triggerRespData := TriggerData{}
+//			if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
+//				impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+//				return []InterceptedEventsDto{}, err
+//			}
+//			pipeline, err := impl.ciPipelineRepository.FindByName(triggerRespData.PipelineName)
+//			if err != nil {
+//				impl.logger.Errorw("error in fetching pipeline by pipeline name ", "error", err)
+//				return []InterceptedEventsDto{}, err
+//			}
+//			ciWorkflow, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineId(pipeline.Id)
+//			eventsItem := EventsItem{
+//				Id:              event.Id,
+//				Name:            watcher.Name,
+//				Description:     watcher.Desc,
+//				JobPipelineName: pipeline.Name,
+//				JobPipelineId:   pipeline.Id,
+//				WorkflowId:      ciWorkflow[0].AppWorkflowId,
+//			}
+//			eventResponse.List = append(eventResponse.List, eventsItem)
+//		}
+//		return eventResponse, nil
+//	}
+func (impl *WatcherServiceImpl) FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error) {
+	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
-		impl.logger.Errorw("error while fetching events", "err", err)
-		return EventsResponse{}, err
+		impl.logger.Errorw("error in retrieving watchers ", "error", err)
+		return WatchersResponse{}, err
 	}
-	eventResponse := EventsResponse{
-		Size:   size,
-		Offset: offset,
-		Total:  len(events),
+	var watcherIds []int
+	for _, watcher := range watchers {
+		watcherIds = append(watcherIds, watcher.Id)
 	}
-	for _, event := range events {
-		watcher, err := impl.triggerRepository.GetWatcherByTriggerId(event.TriggerId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching events", "err", err)
-			return EventsResponse{}, err
-		}
-		trigger, err := impl.triggerRepository.GetTriggerById(event.TriggerId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching trigger", "err", err)
-			return EventsResponse{}, err
-		}
-		triggerRespData := TriggerData{}
-		if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving triggers ", "error", err)
+		return WatchersResponse{}, err
+	}
+	var triggerIds []int
+	watcherIdToTrigger := make(map[int]repository.Trigger)
+	for _, trigger := range triggers {
+		triggerIds = append(triggerIds, trigger.Id)
+		watcherIdToTrigger[trigger.WatcherId] = *trigger
+	}
+
+	watcherResponses := WatchersResponse{
+		Size:   params.Size,
+		Offset: params.Offset,
+		Total:  len(watchers),
+	}
+	for _, watcher := range watchers {
+		var triggerResp TriggerData
+		if err := json.Unmarshal(watcherIdToTrigger[watcher.Id].Data, &triggerResp); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return EventsResponse{}, err
+			return WatchersResponse{}, err
 		}
-		pipeline, err := impl.ciPipelineRepository.FindByName(triggerRespData.PipelineName)
+		workflow, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineId(triggerResp.PipelineId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline by pipeline name ", "error", err)
-			return EventsResponse{}, err
+			impl.logger.Errorw("error in retrieving triggers ", "error", err)
+			return WatchersResponse{}, err
 		}
-		ciWorkflow, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineId(pipeline.Id)
-		eventsItem := EventsItem{
-			Id:              event.Id,
+		watcherResponses.List = append(watcherResponses.List, WatcherItem{
 			Name:            watcher.Name,
 			Description:     watcher.Desc,
-			JobPipelineName: pipeline.Name,
-			JobPipelineId:   pipeline.Id,
-			WorkflowId:      ciWorkflow[0].AppWorkflowId,
-		}
-		eventResponse.List = append(eventResponse.List, eventsItem)
+			JobPipelineName: triggerResp.PipelineName,
+			JobPipelineId:   triggerResp.PipelineId,
+			WorkflowId:      workflow[0].AppWorkflowId,
+		})
 	}
-	return eventResponse, nil
+	return watcherResponses, nil
 }
 
 func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {

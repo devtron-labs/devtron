@@ -36,6 +36,8 @@ type InterceptedEventsRepository interface {
 	GetAllInterceptedEvents() ([]*InterceptedEventExecution, error)
 	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error)
 	// UpdateStatus(status string, interceptedEventId int) error
+	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error)
+	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
 
@@ -97,6 +99,14 @@ func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOr
 		Offset(offset).
 		Limit(size).
 		Select()
+	if err != nil {
+		return nil, err
+	}
+	return interceptedEvents, nil
+}
+func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
+	var interceptedEvents []*InterceptedEventExecution
+	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()
 	if err != nil {
 		return nil, err
 	}

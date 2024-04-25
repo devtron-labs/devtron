@@ -49,7 +49,7 @@ type WatcherDto struct {
 	Triggers           []Trigger          `json:"triggers"`
 }
 
-type EventsItem struct {
+type WatcherItem struct {
 	Id              int    `json:"id"`
 	Name            string `json:"name"`
 	Description     string `json:"description"`
@@ -57,12 +57,11 @@ type EventsItem struct {
 	JobPipelineId   int    `json:"jobPipelineId"`
 	WorkflowId      int    `json:"workflowId"`
 }
-
-type EventsResponse struct {
-	Size   int          `json:"size"`
-	Offset int          `json:"offset"`
-	Total  int          `json:"total"`
-	List   []EventsItem `json:"list"`
+type WatchersResponse struct {
+	Size   int           `json:"size"`
+	Offset int           `json:"offset"`
+	Total  int           `json:"total"`
+	List   []WatcherItem `json:"list"`
 }
 type InterceptedEventsDto struct {
 	Message        string `json:"message"`
@@ -79,5 +78,6 @@ type InterceptedEventsDto struct {
 	InterceptedTime string            `json:"interceptedTime"`
 	ExecutionStatus repository.Status `json:"executionStatus"`
 	TriggerId       int               `json:"triggerId"`
+	TriggerExecutionId int     `json:"triggerExecutionId"`
 	Trigger         Trigger           `json:"trigger"`
 }
