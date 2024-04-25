@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-type InterceptedEvents struct {
-	tableName          struct{}  `sql:"intercepted_events" pg:",discard_unknown_columns"`
+type InterceptedEventExecution struct {
+	tableName          struct{}  `sql:"intercepted_event_execution" pg:",discard_unknown_columns"`
 	Id                 int       `sql:"id,pk"`
 	ClusterName        string    `sql:"cluster_name"`
 	Namespace          string    `sql:"namespace"`
@@ -29,11 +29,12 @@ const (
 )
 
 type InterceptedEventsRepository interface {
-	Save(interceptedEvents *InterceptedEvents, tx *pg.Tx) (*InterceptedEvents, error)
-	GetAllInterceptedEvents() ([]*InterceptedEvents, error)
-	//UpdateStatus(status string, interceptedEventId int) error
+	Save(interceptedEvents *InterceptedEventExecution, tx *pg.Tx) (*InterceptedEventExecution, error)
+	GetAllInterceptedEvents() ([]*InterceptedEventExecution, error)
+	// UpdateStatus(status string, interceptedEventId int) error
 	sql.TransactionWrapper
 }
+
 type InterceptedEventsRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
@@ -49,7 +50,7 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 	}
 }
 
-func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents *InterceptedEvents, tx *pg.Tx) (*InterceptedEvents, error) {
+func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents *InterceptedEventExecution, tx *pg.Tx) (*InterceptedEventExecution, error) {
 	_, err := tx.Model(interceptedEvents).Insert()
 	if err != nil {
 		impl.logger.Error(err)
@@ -57,8 +58,8 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents *InterceptedE
 	}
 	return interceptedEvents, nil
 }
-func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*InterceptedEvents, error) {
-	var interceptedEvents []*InterceptedEvents
+func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*InterceptedEventExecution, error) {
+	var interceptedEvents []*InterceptedEventExecution
 	err := impl.dbConnection.Model(&interceptedEvents).
 		Select()
 	if err != nil {
@@ -67,11 +68,11 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 	return interceptedEvents, nil
 }
 
-//func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
-//	_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
+// func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
+//	_, err := impl.dbConnection.Model(&InterceptedEventExecution{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
 //	if err != nil {
 //		return err
 //	}
 //	return  nil
 //
-//}
+// }

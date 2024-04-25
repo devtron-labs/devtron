@@ -178,7 +178,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int) error {
 	return nil
 }
 func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() (*[]InterceptedEventsDto, error) {
-	//message type?
+	// message type?
 	var interceptedEventsResponse []InterceptedEventsDto
 	interceptedEvents, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
 	if err != nil {
