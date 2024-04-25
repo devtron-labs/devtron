@@ -26,12 +26,14 @@ type TriggerRepository interface {
 	Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error)
 	Update(trigger *Trigger) (*Trigger, error)
 	Delete(trigger *Trigger) error
-	GetTriggerByWatcherId(watcherId int) (*[]Trigger, error)
+	GetTriggerByWatcherId(watcherId int) ([]*Trigger, error)
+	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 	GetTriggerById(id int) (*Trigger, error)
 	DeleteTriggerByWatcherId(watcherId int) error
 	GetWatcherByTriggerId(triggerId int) (*Watcher, error)
 	sql.TransactionWrapper
 }
+
 type TriggerRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
@@ -55,6 +57,7 @@ func (impl TriggerRepositoryImpl) Save(trigger *Trigger, tx *pg.Tx) (*Trigger, e
 	}
 	return trigger, nil
 }
+
 func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
 	_, err := impl.dbConnection.Model(trigger).Update()
 	if err != nil {
@@ -63,6 +66,7 @@ func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
 	}
 	return trigger, nil
 }
+
 func (impl TriggerRepositoryImpl) Delete(trigger *Trigger) error {
 	err := impl.dbConnection.Delete(trigger)
 	if err != nil {
@@ -71,15 +75,30 @@ func (impl TriggerRepositoryImpl) Delete(trigger *Trigger) error {
 	}
 	return nil
 }
-func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) (*[]Trigger, error) {
-	var trigger []Trigger
-	err := impl.dbConnection.Model(&trigger).Where("watcher_id = ? and active =?", watcherId, true).Select()
+
+func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) ([]*Trigger, error) {
+	var trigger []*Trigger
+	err := impl.dbConnection.Model(&trigger).
+		Where("watcher_id = ? and active =?", watcherId, true).
+		Select()
 	if err != nil {
-		impl.logger.Error(err)
-		return &[]Trigger{}, err
+		return nil, err
 	}
-	return &trigger, nil
+	return trigger, nil
 }
+
+func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
+	var trigger []*Trigger
+	err := impl.dbConnection.Model(&trigger).
+		Where(" watcher_id IN (?) ", pg.In(watcherIds)).
+		Where(" active = ? ", true).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return trigger, nil
+}
+
 func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(watcherId int) error {
 	var trigger []Trigger
 	err := impl.dbConnection.Model(&trigger).Where("watcher_id = ?", watcherId).Select()
@@ -98,6 +117,7 @@ func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(watcherId int) error 
 
 	return nil
 }
+
 func (impl TriggerRepositoryImpl) GetTriggerById(id int) (*Trigger, error) {
 	var trigger Trigger
 	err := impl.dbConnection.Model(&trigger).Where("id = ? and active =?", id, true).Select()

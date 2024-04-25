@@ -1,5 +1,7 @@
 package autoRemediation
 
+import "github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+
 type EventConfiguration struct {
 	Selectors       []Selector    `json:"selectors"`
 	K8sResources    []K8sResource `json:"k8sResources"`
@@ -24,8 +26,9 @@ type RuntimeParameter struct {
 }
 
 type Trigger struct {
-	IdentifierType string      `json:"identifierType"`
-	Data           TriggerData `json:"data"`
+	Id             int                    `json:"-"`
+	IdentifierType repository.TriggerType `json:"identifierType"`
+	Data           TriggerData            `json:"data"`
 }
 
 type TriggerData struct {
@@ -36,6 +39,7 @@ type TriggerData struct {
 	PipelineName           string             `json:"pipelineName"`
 	ExecutionEnvironment   string             `json:"executionEnvironment"`
 	ExecutionEnvironmentId int                `json:"executionEnvironmentId"`
+	WorkflowId             int                `json:"workflowId"`
 }
 
 type WatcherDto struct {
@@ -61,15 +65,19 @@ type EventsResponse struct {
 	List   []EventsItem `json:"list"`
 }
 type InterceptedEventsDto struct {
-	Message         string  `json:"message"`
-	MessageType     string  `json:"messageType"`
-	Event           string  `json:"event"`
-	InvolvedObject  string  `json:"involvedObject"`
-	ClusterName     string  `json:"clusterName"`
-	Namespace       string  `json:"namespace"`
-	WatcherName     string  `json:"watcherName"`
-	InterceptedTime string  `json:"interceptedTime"`
-	ExecutionStatus string  `json:"executionStatus"`
-	TriggerId       int     `json:"triggerId"`
-	Trigger         Trigger `json:"trigger"`
+	Message        string `json:"message"`
+	MessageType    string `json:"messageType"`
+	Event          string `json:"event"`
+	InvolvedObject string `json:"involvedObject"`
+
+	ClusterName     string `json:"clusterName"`
+	ClusterId       int    `json:"clusterId"`
+	Namespace       string `json:"namespace"`
+	EnvironmentName string `json:"environmentName"`
+
+	WatcherName     string            `json:"watcherName"`
+	InterceptedTime string            `json:"interceptedTime"`
+	ExecutionStatus repository.Status `json:"executionStatus"`
+	TriggerId       int               `json:"triggerId"`
+	Trigger         Trigger           `json:"trigger"`
 }

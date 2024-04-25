@@ -20,6 +20,7 @@ type InterceptedEventExecution struct {
 	TriggerId          int       `sql:"trigger_id"`
 	TriggerExecutionId int       `sql:"trigger_execution_id"`
 	Status             Status    `sql:"status"`
+	ExecutionMessage   string    `sql:"execution_message"`
 }
 type Status string
 
@@ -27,11 +28,13 @@ const (
 	Failure     Status = "Failure"
 	Success     Status = "Success"
 	Progressing Status = "Progressing"
+	Errored     Status = "Error"
 )
 
 type InterceptedEventsRepository interface {
-	Save(interceptedEvents *InterceptedEventExecution, tx *pg.Tx) (*InterceptedEventExecution, error)
+	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	GetAllInterceptedEvents() ([]*InterceptedEventExecution, error)
+	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error)
 	// UpdateStatus(status string, interceptedEventId int) error
 	sql.TransactionWrapper
 }
@@ -51,14 +54,14 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 	}
 }
 
-func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents *InterceptedEventExecution, tx *pg.Tx) (*InterceptedEventExecution, error) {
-	_, err := tx.Model(interceptedEvents).Insert()
+func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
+	err := tx.Insert(interceptedEvents)
 	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
+		return interceptedEvents, err
 	}
 	return interceptedEvents, nil
 }
+
 func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*InterceptedEventExecution, error) {
 	var interceptedEvents []*InterceptedEventExecution
 	err := impl.dbConnection.Model(&interceptedEvents).
@@ -69,16 +72,16 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 	return interceptedEvents, nil
 }
 
-//func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
-//	_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
-//	if err != nil {
-//		return err
-//	}
-//	return  nil
+//	func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
+//		_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
+//		if err != nil {
+//			return err
+//		}
+//		return  nil
 //
 // }
-func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEvents, error) {
-	var interceptedEvents []*InterceptedEvents
+func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error) {
+	var interceptedEvents []*InterceptedEventExecution
 	query := impl.dbConnection.Model(&interceptedEvents)
 	if searchString != "" {
 		query = query.Where("message LIKE ? or involved_object LIKE ?", "%"+searchString+"%", "%"+searchString+"%")

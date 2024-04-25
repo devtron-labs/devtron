@@ -16,9 +16,10 @@ type WatcherService interface {
 	CreateWatcher(watcherRequest WatcherDto) (int, error)
 	GetWatcherById(watcherId int) (*WatcherDto, error)
 	DeleteWatcherById(watcherId int) error
-	RetrieveInterceptedEvents() (*[]InterceptedEventsDto, error)
+	RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error)
 	UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error
 	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]EventsResponse, int, error)
+	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
 type WatcherServiceImpl struct {
 	watcherRepository            repository.WatcherRepository
@@ -114,7 +115,7 @@ func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest WatcherDt
 			WatcherId: watcherId,
 			Data:      jsonData,
 		}
-		if res.IdentifierType == string(repository.DEVTRON_JOB) {
+		if res.IdentifierType == repository.DEVTRON_JOB {
 			trigger.Type = repository.DEVTRON_JOB
 		}
 		tx, err := impl.triggerRepository.StartTx()
@@ -135,14 +136,14 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in getting watcher", "error", err)
-		return &WatcherDto{}, err
+		return nil, err
 	}
 	var k8sResources []K8sResource
 	for _, gvksString := range watcher.Gvks {
 		var res K8sResource
 		if err := json.Unmarshal([]byte(gvksString), &res); err != nil {
 			impl.logger.Errorw("error in unmarshalling gvks", "error", err)
-			return &WatcherDto{}, err
+			return nil, err
 		}
 		k8sResources = append(k8sResources, res)
 	}
@@ -159,13 +160,13 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 		impl.logger.Errorw("error in getting trigger for watcher id", "watcherId", watcherId, "error", err)
 		return &WatcherDto{}, err
 	}
-	for _, trigger := range *triggers {
+	for _, trigger := range triggers {
 		var triggerResp Trigger
 		if err := json.Unmarshal(trigger.Data, &triggerResp); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return &WatcherDto{}, err
+			return nil, err
 		}
-		triggerResp.IdentifierType = string(trigger.Type)
+		triggerResp.IdentifierType = trigger.Type
 		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResp)
 	}
 	return &watcherResponse, nil
@@ -184,21 +185,21 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int) error {
 	}
 	return nil
 }
-func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() (*[]InterceptedEventsDto, error) {
+func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error) {
 	// message type?
-	var interceptedEventsResponse []InterceptedEventsDto
+	var interceptedEventsResponse []*InterceptedEventsDto
 	interceptedEvents, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events", "error", err)
-		return &[]InterceptedEventsDto{}, err
+		return nil, err
 	}
 	for _, interceptedEvent := range interceptedEvents {
 		cluster, err := impl.clusterRepository.FindById(interceptedEvent.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in retrieving cluster name ", "error", err)
-			return &[]InterceptedEventsDto{}, err
+			return nil, err
 		}
-		interceptedEventResponse := InterceptedEventsDto{
+		interceptedEventResponse := &InterceptedEventsDto{
 			Message:         interceptedEvent.Message,
 			MessageType:     interceptedEvent.MessageType,
 			Event:           interceptedEvent.Event,
@@ -206,20 +207,21 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() (*[]InterceptedEvent
 			ClusterName:     cluster.ClusterName,
 			Namespace:       interceptedEvent.Namespace,
 			InterceptedTime: (interceptedEvent.InterceptedAt).String(),
-			ExecutionStatus: string(interceptedEvent.Status),
+			ExecutionStatus: interceptedEvent.Status,
 			TriggerId:       interceptedEvent.TriggerId,
 		}
 		triggerResp := Trigger{}
 		trigger, err := impl.triggerRepository.GetTriggerById(interceptedEventResponse.TriggerId)
 		if err != nil {
 			impl.logger.Errorw("error in retrieving intercepted events", "error", err)
-			return &[]InterceptedEventsDto{}, err
+			return nil, err
 		}
-		triggerResp.IdentifierType = string(trigger.Type)
+		triggerResp.Id = trigger.Id
+		triggerResp.IdentifierType = trigger.Type
 		triggerRespData := TriggerData{}
 		if err := json.Unmarshal(trigger.Data, &triggerRespData); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return &[]InterceptedEventsDto{}, err
+			return nil, err
 		}
 		triggerResp.Data.JobName = triggerRespData.JobName
 		triggerResp.Data.PipelineName = triggerRespData.PipelineName
@@ -231,7 +233,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents() (*[]InterceptedEvent
 		interceptedEventResponse.Trigger = triggerResp
 		interceptedEventsResponse = append(interceptedEventsResponse, interceptedEventResponse)
 	}
-	return &interceptedEventsResponse, nil
+	return interceptedEventsResponse, nil
 }
 func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
@@ -305,4 +307,35 @@ func (impl *WatcherServiceImpl) FindAll(offset int, size int, sortOrder string, 
 		eventResponse.List = append(eventResponse.List, eventsItem)
 	}
 	return eventResponse, nil
+}
+
+func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting triggers by watcher ids", "watcherIds", watcherIds, "err", err)
+		return nil, err
+	}
+
+	triggersResult := make([]*Trigger, 0, len(triggers))
+	for _, trigger := range triggers {
+		triggerResp := Trigger{}
+		triggerResp.Id = trigger.Id
+		triggerResp.IdentifierType = trigger.Type
+		triggerData := TriggerData{}
+		if err := json.Unmarshal(trigger.Data, &triggerData); err != nil {
+			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			return nil, err
+		}
+		triggerResp.Data.JobName = triggerData.JobName
+		triggerResp.Data.PipelineName = triggerData.PipelineName
+		triggerResp.Data.RuntimeParameters = triggerData.RuntimeParameters
+		triggerResp.Data.ExecutionEnvironment = triggerData.ExecutionEnvironment
+		triggerResp.Data.PipelineId = triggerData.PipelineId
+		triggerResp.Data.JobId = triggerData.JobId
+		triggerResp.Data.ExecutionEnvironmentId = triggerData.ExecutionEnvironmentId
+
+		triggersResult = append(triggersResult, &triggerResp)
+	}
+
+	return triggersResult, nil
 }
