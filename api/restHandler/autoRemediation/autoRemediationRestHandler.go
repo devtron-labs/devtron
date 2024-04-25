@@ -6,7 +6,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -178,35 +180,55 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	vars := mux.Vars(r)
-	watchers := vars["watchers"]
-	clusters := vars["clusters"]
-	namespaces := vars["namespaces"]
-	executionStatuses := vars["executionStatuses"]
-	from, err := time.Parse(time.RFC1123, vars["from"])
+	queryParams := r.URL.Query()
+	sortOrder := queryParams.Get("order")
+	if sortOrder == "" {
+		sortOrder = "DESC"
+	}
+	if !(sortOrder == "ASC" || sortOrder == "DESC") {
+		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
+		return
+	}
+	sizeStr := queryParams.Get("size")
+	size := 20
+	if sizeStr != "" {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil || size < 0 {
+			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	offsetStr := queryParams.Get("offset")
+	offset := 0
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	watchers := queryParams.Get("watchers")
+	clusters := queryParams.Get("clusters")
+	namespaces := queryParams.Get("namespaces")
+	executionStatuses := queryParams.Get("executionStatuses")
+	from, err := time.Parse(time.RFC1123, queryParams.Get("from"))
 	if err != nil {
 		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", from)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	to, err := time.Parse(time.RFC1123, vars["to"])
+	to, err := time.Parse(time.RFC1123, queryParams.Get("to"))
 	if err != nil {
 		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", to)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	size, err := strconv.Atoi(vars["size"])
-	if err != nil {
-		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", size)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	searchString := queryParams.Get("searchString")
+	token := r.Header.Get("token")
+	interceptedEvents, totalCount, err := impl.watcherService.FindAll(offset, size, sortOrder, searchString, from, to, watchers, clusters, namespaces)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, find all ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	offset, err := strconv.Atoi(vars["offset"])
-	if err != nil {
-		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", offset)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	searchString := vars["searchString"]
-
 }

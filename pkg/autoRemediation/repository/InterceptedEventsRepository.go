@@ -10,9 +10,10 @@ import (
 type InterceptedEvents struct {
 	tableName          struct{}  `sql:"intercepted_events" pg:",discard_unknown_columns"`
 	Id                 int       `sql:"id,pk"`
-	ClusterName        string    `sql:"cluster_name"`
+	ClusterId          int       `sql:"cluster_id"`
 	Namespace          string    `sql:"namespace"`
 	Message            string    `sql:"message"`
+	MessageType        string    `sql:"message_type"`
 	Event              string    `sql:"event"`
 	InvolvedObject     string    `sql:"involved_object"`
 	InterceptedAt      time.Time `sql:"intercepted_at"`
@@ -31,6 +32,7 @@ const (
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents *InterceptedEvents, tx *pg.Tx) (*InterceptedEvents, error)
 	GetAllInterceptedEvents() ([]*InterceptedEvents, error)
+	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEvents, error)
 	//UpdateStatus(status string, interceptedEventId int) error
 	sql.TransactionWrapper
 }
@@ -67,11 +69,33 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 	return interceptedEvents, nil
 }
 
-//func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
-//	_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
-//	if err != nil {
-//		return err
-//	}
-//	return  nil
+//	func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
+//		_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
+//		if err != nil {
+//			return err
+//		}
+//		return  nil
 //
-//}
+// }
+func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEvents, error) {
+	var interceptedEvents []*InterceptedEvents
+	query := impl.dbConnection.Model(&interceptedEvents)
+	if searchString != "" {
+		query = query.Where("message LIKE ? or involved_object LIKE ?", "%"+searchString+"%", "%"+searchString+"%")
+	}
+	query = query.Where("intercepted_at BETWEEN ? AND ?", from, to)
+	if len(clusters) > 0 {
+		query = query.Where("cluster_name IN (?)", pg.In(clusters))
+	}
+	if len(namespaces) > 0 {
+		query = query.Where("namespace IN (?)", pg.In(namespaces))
+	}
+	err := query.Order("intercepted_at ?", sortOrder).
+		Offset(offset).
+		Limit(size).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return interceptedEvents, nil
+}

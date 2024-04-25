@@ -39,17 +39,19 @@ CREATE TABLE "public"."trigger"(
 CREATE SEQUENCE IF NOT EXISTS id_seq_intercepted_events;
 CREATE TABLE "public"."intercepted_events"(
                                               "id" integer NOT NULL default nextval('id_seq_intercepted_events'::regclass),
-                                              "cluster_name" varchar(100) ,
-                                              "namespace" varchar(100),
+                                              "cluster_id" int ,
+                                              "namespace" character varying(250) NOT NULL,
                                               "message" text,
+                                              "message_type" varchar(100),
                                               "event" text,
                                               "involved_object" text,
                                               "intercepted_at" timestamptz,
-                                              "status" varchar(255) , -- failure,success,inprogress
+                                              "status" varchar(32) , -- failure,success,inprogress
                                               "trigger_id" integer,
                                               "trigger_execution_id" integer,
 
                                               CONSTRAINT intercepted_events_trigger_id_fkey FOREIGN KEY ("trigger_id") REFERENCES "public"."trigger" ("id"),
+                                              CONSTRAINT intercepted_events_cluster_id_fkey FOREIGN KEY ("cluster_id") REFERENCES "public"."cluster" ("id"),
                                               PRIMARY KEY ("id")
 );
 
