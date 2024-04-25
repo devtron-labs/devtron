@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -29,47 +32,11 @@ import (
 	"time"
 )
 
-type DeploymentTemplateRequest struct {
-	AppId                       int                               `json:"appId"`
-	EnvId                       int                               `json:"envId,omitempty"`
-	ChartRefId                  int                               `json:"chartRefId"`
-	RequestDataMode             RequestDataMode                   `json:"valuesAndManifestFlag"`
-	Values                      string                            `json:"values"`
-	Type                        repository.DeploymentTemplateType `json:"type"`
-	DeploymentTemplateHistoryId int                               `json:"deploymentTemplateHistoryId,omitempty"`
-	ResourceName                string                            `json:"resourceName"`
-	PipelineId                  int                               `json:"pipelineId"`
-}
-
-type RequestDataMode int
-
-const (
-	Values   RequestDataMode = 1
-	Manifest RequestDataMode = 2
-)
-
-var ChartRepository = &gRPC.ChartRepository{
-	Name:     "repo",
-	Url:      "http://localhost:8080/",
-	Username: "admin",
-	Password: "password",
-}
-
-var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
-	ReleaseNamespace: "devtron-demo",
-	ReleaseName:      "release-name",
-}
-
-type DeploymentTemplateResponse struct {
-	Data             string            `json:"data"`
-	ResolvedData     string            `json:"resolvedData"`
-	VariableSnapshot map[string]string `json:"variableSnapshot"`
-}
-
 type DeploymentTemplateService interface {
 	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error)
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
+	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
 }
 type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
@@ -86,6 +53,8 @@ type DeploymentTemplateServiceImpl struct {
 	appRepository                    appRepository.AppRepository
 	scopedVariableManager            variables.ScopedVariableManager
 	chartRefService                  chartRef.ChartRefService
+	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
+	chartRepository                  chartRepoRepository.ChartRepository
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -100,8 +69,11 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-	chartRefService chartRef.ChartRefService) *DeploymentTemplateServiceImpl {
-	return &DeploymentTemplateServiceImpl{
+	chartRefService chartRef.ChartRefService,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
+	chartRepository chartRepoRepository.ChartRepository,
+) (*DeploymentTemplateServiceImpl, error) {
+	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
 		chartService:                     chartService,
 		appListingService:                appListingService,
@@ -116,7 +88,10 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		appRepository:                    appRepository,
 		scopedVariableManager:            scopedVariableManager,
 		chartRefService:                  chartRefService,
+		pipelineOverrideRepository:       pipelineOverrideRepository,
+		chartRepository:                  chartRepository,
 	}
+	return deploymentTemplateServiceImpl, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error) {
@@ -340,7 +315,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		ChartName:         template,
 		ChartVersion:      version,
 		ValuesYaml:        valuesYaml,
-		K8SVersion:        k8sServerVersion.String(),
+		K8SVersion:        k8sServerVersion.String(), //done
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
 		ChartContent: &gRPC.ChartContent{
@@ -353,7 +328,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		return nil, err
 	}
 
-	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config //done
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
@@ -369,4 +344,128 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	}
 
 	return response, nil
+}
+func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error) {
+	podResp := &RestartPodResponse{}
+	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
+	err := impl.setChartContent(appIds, appIdToInstallReleaseRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in setting chart content", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	err = impl.setValuesYaml(appIds, envId, appIdToInstallReleaseRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in setting values yaml", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app", "err", err)
+		return nil, err
+	}
+	appNameToId := make(map[string]int)
+
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching environment", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+	if err != nil {
+		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		appNameToId[app.AppName] = app.Id
+		appIdToInstallReleaseRequest[app.Id] = &gRPC.InstallReleaseRequest{ReleaseIdentifier: impl.getReleaseIdentifier(config, app, env),
+			K8SVersion: k8sServerVersion.String(),
+		}
+	}
+	installReleaseRequest := make([]*gRPC.InstallReleaseRequest, 0)
+	for _, req := range appIdToInstallReleaseRequest {
+		installReleaseRequest = append(installReleaseRequest, req)
+	}
+	templateChartResponse, err := impl.helmAppClient.TemplateChartBulk(ctx, installReleaseRequest)
+	pdmp := make(map[int]ResourceIdentifierResponse)
+	for _, tcResp := range templateChartResponse {
+		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
+		if err != nil {
+			return nil, err
+		}
+		appName := tcResp.AppName
+
+		rsmtd := make([]ResourceMetadata, 0)
+		for _, manifest := range manifests {
+			gvk := manifest.GroupVersionKind()
+			name := manifest.GetName()
+			switch gvk.Kind {
+			case "Deployment", "StatefulSet", "DemonSet", "Rollout":
+				rsmtd = append(rsmtd, ResourceMetadata{
+					Name:             name,
+					GroupVersionKind: gvk,
+				})
+			}
+		}
+		pdmp[appNameToId[tcResp.AppName]] = ResourceIdentifierResponse{
+			ResourceMetaData: rsmtd,
+			AppName:          appName,
+		}
+
+	}
+	podResp = &RestartPodResponse{
+		EnvironmentId: envId,
+		Namespace:     env.Namespace,
+		RestartPodMap: pdmp,
+	}
+
+	return podResp, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
+	pipelineOverrides, err := impl.pipelineOverrideRepository.GetLatestReleaseForAppIds(appIds, envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pipelineOverrides for appIds", "appIds", appIds, "err", err)
+	}
+	for _, pco := range pipelineOverrides {
+		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineOverrideValues}
+	}
+	return err
+}
+
+func (impl DeploymentTemplateServiceImpl) setChartContent(appIds []int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
+	charts, err := impl.chartRepository.FindLatestChartByAppIds(appIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching chart", "err", err, "appIds", appIds)
+		return err
+	}
+	appIdToChartRefId := make(map[int]int)
+	var chartRefIds []int
+	for _, chart := range charts {
+		appIdToChartRefId[chart.AppId] = chart.ChartRefId
+		chartRefIds = append(chartRefIds, chart.ChartRefId)
+	}
+	chartRefIdToBytes, err := impl.chartRefService.GetChartBytesInBulk(chartRefIds, true)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching chartRefBean", "err", err, "chartRefIds", chartRefIds)
+		return err
+	}
+	for appId, chartRefId := range appIdToChartRefId {
+		if bytes, ok := chartRefIdToBytes[chartRefId]; ok {
+			appIdToInstallReleaseRequest[appId] = &gRPC.InstallReleaseRequest{ChartContent: &gRPC.ChartContent{Content: bytes}}
+		}
+	}
+	return err
+}
+
+func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.ClusterConfig, app *appRepository.App, env *repository3.Environment) *gRPC.ReleaseIdentifier {
+	return &gRPC.ReleaseIdentifier{
+		ClusterConfig:    config,
+		ReleaseName:      fmt.Sprintf("%s-%s", app.AppName, env.Name),
+		ReleaseNamespace: env.Namespace,
+	}
 }

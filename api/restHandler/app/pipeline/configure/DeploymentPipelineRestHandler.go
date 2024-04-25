@@ -70,6 +70,7 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
+	GetRestartWorkloadData(w http.ResponseWriter, r *http.Request)
 	SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 	GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 
@@ -953,6 +954,42 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	if err != nil {
+		return
+	}
+	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
+	// RBAC enforcer applying
+	token := r.Header.Get(common.TokenHeaderKey)
+	rbacObjects := make([]string, 0)
+	appIdToObjectMap := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	for _, appId := range appIds {
+		object := appIdToObjectMap[appId]
+		rbacObjects = append(rbacObjects, object)
+	}
+	EnforcerObject := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	for _, rbacResultOk := range EnforcerObject {
+		if !rbacResultOk {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, appIds, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload")
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

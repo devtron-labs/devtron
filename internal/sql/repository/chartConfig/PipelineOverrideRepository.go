@@ -63,6 +63,7 @@ type PipelineOverrideRepository interface {
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
@@ -183,7 +184,18 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 		Select()
 	return overrides, err
 }
-
+func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineOverride, err error) {
+	var overrides []*PipelineOverride
+	err = impl.dbConnection.Model(&overrides).
+		Column("pipeline_override.*", "Pipeline").
+		ColumnExpr("MAX(pipeline_override.id)").
+		Where("pipeline.app_id IN (?)", pg.In(appIds)).
+		Where("pipeline.environment_id =?", envId).
+		Where("pipeline.deleted=?", false).
+		Group("pipeline_override.id", "Pipeline.app_id").
+		Select()
+	return overrides, err
+}
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error) {
 	var overrides []*PipelineOverride
 	err = impl.dbConnection.Model(&overrides).
