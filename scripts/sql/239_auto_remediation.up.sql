@@ -25,6 +25,7 @@ CREATE TABLE "public"."trigger"(
                                    "type" varchar(255) , -- DEVTRON_JOB
                                    "watcher_id" integer ,
                                    "data" text,
+                                   "active" bool NOT NULL,
                                    "created_on"                timestamptz NOT NULL,
                                    "created_by"                int4        NOT NULL,
                                    "updated_on"                timestamptz,
@@ -38,8 +39,9 @@ CREATE TABLE "public"."trigger"(
 CREATE SEQUENCE IF NOT EXISTS id_seq_intercepted_events;
 CREATE TABLE "public"."intercepted_events"(
                                               "id" integer NOT NULL default nextval('id_seq_intercepted_events'::regclass),
-                                              "cluster_id" integer ,
+                                              "cluster_name" varchar(100) ,
                                               "namespace" varchar(100),
+                                              "message" text,
                                               "event" text,
                                               "involved_object" text,
                                               "intercepted_at" timestamptz,

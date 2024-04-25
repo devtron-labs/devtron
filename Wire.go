@@ -1058,6 +1058,12 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 
+		//autoRemediation.NewWatcherRestHandlerImpl,
+		//wire.Bind(new(autoRemediation.WatcherRestHandler), new(*autoRemediation.WatcherRestHandlerImpl)),
+		//autoRemediation2.NewWatcherServiceImpl,
+		//wire.Bind(new(autoRemediation2.WatcherService), new(*autoRemediation2.WatcherServiceImpl)),
+		//repository11.NewWatcherRepositoryImpl,
+		//wire.Bind(new(repository11.WatcherRepository), new(*repository11.WatcherRepositoryImpl)),
 		appStoreRestHandler.AppStoreWireSet,
 	)
 	return &App{}, nil

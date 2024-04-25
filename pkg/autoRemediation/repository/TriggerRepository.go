@@ -11,8 +11,9 @@ type Trigger struct {
 	tableName struct{}        `sql:"trigger" pg:",discard_unknown_columns"`
 	Id        int             `sql:"id,pk"`
 	Type      TriggerType     `sql:"type"`
-	WatcherId string          `sql:"watcher_id"`
+	WatcherId int             `sql:"watcher_id"`
 	Data      json.RawMessage `sql:"data"`
+	Active    bool            `sql:"active,notnull"`
 	sql.AuditLog
 }
 type TriggerType string
@@ -25,6 +26,9 @@ type TriggerRepository interface {
 	Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error)
 	Update(trigger *Trigger) (*Trigger, error)
 	Delete(trigger *Trigger) error
+	GetTriggerByWatcherId(watcherId int) (*[]Trigger, error)
+	GetTriggerById(id int) (*Trigger, error)
+	DeleteTriggerByWatcherId(watcherId int) error
 	sql.TransactionWrapper
 }
 type TriggerRepositoryImpl struct {
@@ -65,4 +69,40 @@ func (impl TriggerRepositoryImpl) Delete(trigger *Trigger) error {
 		return err
 	}
 	return nil
+}
+func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) (*[]Trigger, error) {
+	var trigger []Trigger
+	err := impl.dbConnection.Model(&trigger).Where("watcher_id = ? and active =?", watcherId, true).Select()
+	if err != nil {
+		impl.logger.Error(err)
+		return &[]Trigger{}, err
+	}
+	return &trigger, nil
+}
+func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(watcherId int) error {
+	var trigger []Trigger
+	err := impl.dbConnection.Model(&trigger).Where("watcher_id = ?", watcherId).Select()
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+	for _, triggerItem := range trigger {
+		triggerItem.Active = false
+		_, err = impl.Update(&triggerItem)
+		if err != nil {
+			impl.logger.Error(err)
+			return err
+		}
+	}
+
+	return nil
+}
+func (impl TriggerRepositoryImpl) GetTriggerById(id int) (*Trigger, error) {
+	var trigger Trigger
+	err := impl.dbConnection.Model(&trigger).Where("id = ? and active =?", id, true).Select()
+	if err != nil {
+		impl.logger.Error(err)
+		return &Trigger{}, err
+	}
+	return &trigger, nil
 }

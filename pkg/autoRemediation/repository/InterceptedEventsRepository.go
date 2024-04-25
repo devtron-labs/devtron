@@ -10,8 +10,9 @@ import (
 type InterceptedEvents struct {
 	tableName          struct{}  `sql:"intercepted_events" pg:",discard_unknown_columns"`
 	Id                 int       `sql:"id,pk"`
-	ClusterId          int       `sql:"cluster_id"`
+	ClusterName        string    `sql:"cluster_name"`
 	Namespace          string    `sql:"namespace"`
+	Message            string    `sql:"message"`
 	Event              string    `sql:"event"`
 	InvolvedObject     string    `sql:"involved_object"`
 	InterceptedAt      time.Time `sql:"intercepted_at"`

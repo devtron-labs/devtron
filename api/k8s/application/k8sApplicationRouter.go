@@ -1,6 +1,7 @@
 package application
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 )
@@ -10,11 +11,13 @@ type K8sApplicationRouter interface {
 }
 type K8sApplicationRouterImpl struct {
 	k8sApplicationRestHandler K8sApplicationRestHandler
+	watcherRestHandler        autoRemediation.WatcherRestHandler
 }
 
-func NewK8sApplicationRouterImpl(k8sApplicationRestHandler K8sApplicationRestHandler) *K8sApplicationRouterImpl {
+func NewK8sApplicationRouterImpl(k8sApplicationRestHandler K8sApplicationRestHandler, watcherRestHandler autoRemediation.WatcherRestHandler) *K8sApplicationRouterImpl {
 	return &K8sApplicationRouterImpl{
 		k8sApplicationRestHandler: k8sApplicationRestHandler,
+		watcherRestHandler:        watcherRestHandler,
 	}
 }
 
@@ -79,4 +82,22 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
 
+	k8sAppRouter.Path("/watcher").HandlerFunc(impl.watcherRestHandler.SaveWatcher).Methods("POST")
+	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.GetWatcherById).Methods("GET")
+	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.DeleteWatcherById).Methods("DELETE")
+	k8sAppRouter.Path("/watcher/events").HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).Methods("GET")
+	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.UpdateWatcherById).Methods("PUT")
+
+	k8sAppRouter.Path("").
+		Queries("watchers", "{watchers}").
+		Queries("clusters", "{clusters}").
+		Queries("namespaces", "{namespaces}").
+		Queries("executionStatuses", "{executionStatuses}").
+		Queries("from", "{from}").
+		Queries("to", "{to}").
+		Queries("offset", "{offset}").
+		Queries("size", "{size}").
+		Queries("searchString", "{searchString}").
+		HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).
+		Methods("GET")
 }
