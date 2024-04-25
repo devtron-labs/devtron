@@ -155,7 +155,16 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 		return err
 	}
 
-	defer impl.interceptedEventsRepository.RollbackTx(tx)
+	defer func() {
+		if err != nil {
+			impl.logger.Debugw("rolling back db tx")
+			err = impl.interceptedEventsRepository.RollbackTx(tx)
+			if err != nil {
+				impl.logger.Errorw("error in rolling back db transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
+			}
+		}
+	}()
+
 	_, err = impl.interceptedEventsRepository.Save(interceptEventExecs, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving intercepted event executions ", "interceptEventExecs", interceptEventExecs, "err", err)

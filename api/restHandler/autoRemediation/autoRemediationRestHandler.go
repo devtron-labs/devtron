@@ -69,7 +69,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	for _, item := range watcherRequest.Triggers {
 		resourceName := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(item.Data.JobId, item.Data.PipelineId)
@@ -83,7 +83,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-	//RBAC
+	// RBAC
 	res, err := impl.watcherService.CreateWatcher(watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveWatcher", "err", err, "payload", watcherRequest)
@@ -93,6 +93,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -101,10 +102,10 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
-	//RBAC
-	//token := r.Header.Get("token")
+	// RBAC
+	// token := r.Header.Get("token")
 
-	//RBAC
+	// RBAC
 	res, err := impl.watcherService.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetWatcherById", "err", err, "watcher id", watcherId)
@@ -114,6 +115,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -122,10 +124,10 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
-	//RBAC
-	//token := r.Header.Get("token")
+	// RBAC
+	// token := r.Header.Get("token")
 
-	//RBAC
+	// RBAC
 	err = impl.watcherService.DeleteWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteWatcherById", "err", err, "watcher id", watcherId)
@@ -158,10 +160,10 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//RBAC
-	//token := r.Header.Get("token")
+	// RBAC
+	// token := r.Header.Get("token")
 
-	//RBAC
+	// RBAC
 	err = impl.watcherService.UpdateWatcherById(watcherId, watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, updateWatcherById", "err", err, "watcher id", watcherId)
@@ -171,6 +173,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -220,10 +223,10 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		SortOrder:   sortOrder,
 		SortOrderBy: sortOrderBy,
 	}
-	//RBAC
-	//token := r.Header.Get("token")
+	// RBAC
+	// token := r.Header.Get("token")
 
-	//RBAC
+	// RBAC
 	watchersResponse, err := impl.watcherService.FindAllWatchers(WatcherQuery)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, find all ", "err", err)
