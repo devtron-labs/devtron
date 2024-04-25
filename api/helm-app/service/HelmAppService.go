@@ -473,6 +473,7 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	return response, nil
 }
 
+// getInstalledAppForAppIdentifier return installed_apps for app unique identifier or releaseName/displayName whichever exists else return pg.ErrNoRows
 func (impl *HelmAppServiceImpl) getInstalledAppForAppIdentifier(appIdentifier *AppIdentifier) (*repository.InstalledApps, error) {
 	model := &repository.InstalledApps{}
 	var err error
@@ -1108,10 +1109,10 @@ type AppIdentifier struct {
 	ReleaseName string `json:"releaseName"`
 }
 
+// GetUniqueAppNameIdentifier returns unique app name identifier, we store all helm releases in kubelink cache with key
+// as what is returned from this func, this is the case where an app across diff namespace or cluster can have same name,
+// so to identify then uniquely below implementation would serve as good unique identifier for an external app.
 func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
-	//we store all helm releases in kubelink cache with key as what is returned from this func, this is
-	//the case where an app across diff namespace or cluster can have same name, so to identify then uniquely
-	//below implementation would serve as good unique identifier for a external app.
 	return r.ReleaseName + "-" + r.Namespace + "-" + strconv.Itoa(r.ClusterId)
 }
 

@@ -41,6 +41,10 @@ type App struct {
 	sql.AuditLog
 }
 
+func (r *App) IsAppJobOrExternalType() bool {
+	return len(r.DisplayName) > 0
+}
+
 type AppWithExtraQueryFields struct {
 	App
 	TotalCount int

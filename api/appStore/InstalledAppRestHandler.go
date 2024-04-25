@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
 	"strconv"
@@ -603,7 +604,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
 	}
-	if len(installedApp.App.DisplayName) > 0 {
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
 		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
 		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 	}
@@ -728,7 +729,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
 	}
-	if len(installedApp.App.DisplayName) > 0 {
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
 		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
 		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 	}

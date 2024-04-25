@@ -22,6 +22,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +30,6 @@ import (
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -57,7 +57,8 @@ type AppCrudOperationService interface {
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
-	IsExternalAppLinkedToChartStore(appId int, releaseName string) (bool, string, error)
+
+	IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error)
 }
 
 type AppCrudOperationServiceImpl struct {
@@ -351,7 +352,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	}
 	appName := app.AppName
-	if app.AppType == helper.Job || len(app.DisplayName) > 0 {
+	if app.IsAppJobOrExternalType() {
 		appName = app.DisplayName
 	}
 	noteResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
@@ -433,17 +434,18 @@ func convertUrlToHttpsIfSshType(url string) string {
 	return httpsURL
 }
 
-func (impl AppCrudOperationServiceImpl) IsExternalAppLinkedToChartStore(appId int, releaseName string) (bool, string, error) {
+// IsExternalAppLinkedToChartStore checks for an appId, if that app is linked to any chart-store app or not,
+// if it's linked then it returns true along with clusterId and namespace for that linked installed_app
+func (impl AppCrudOperationServiceImpl) IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed app by app id for external apps", "appId", appId, "err", err)
-		return false, "", err
+		return false, 0, "", err
 	}
 	if installedApp.Id > 0 {
-		uniqueIdentifierForAlreadyLinkedApp := releaseName + "-" + installedApp.Environment.Namespace + "-" + strconv.Itoa(installedApp.Environment.ClusterId)
-		return true, uniqueIdentifierForAlreadyLinkedApp, nil
+		return true, installedApp.Environment.ClusterId, installedApp.Environment.Namespace, nil
 	}
-	return false, "", nil
+	return false, 0, "", nil
 }
 
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
@@ -468,18 +470,26 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 }
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier, userId int32) error {
+// returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier, userId int32) (bool, error) {
+	var isOtherExtAppMigrated bool
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+
 	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
 	//update this app's app_name with unique identifier along with display_name.
-	isLinked, uniqueIdentifierForAlreadyLinkedApp, err := impl.IsExternalAppLinkedToChartStore(app.Id, appIdentifier.ReleaseName)
+	isLinked, clusterId, namespace, err := impl.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {
 		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
-		return err
+		return false, err
 	}
 	if isLinked {
 		// if installed_app is already present for that display_name then migrate the app_name to unique identifier with installed_app ns and cluster id data
-		app.AppName = uniqueIdentifierForAlreadyLinkedApp
+		// this namespace and clusterId belongs to the app linked to devtron whose entry in installed_apps is present.
+		app.AppName = appIdentifier.ReleaseName + "-" + namespace + "-" + strconv.Itoa(clusterId)
+		if namespace != appIdentifier.Namespace {
+			//this means that migration request is for the same app whose appIdentifier is sent in request and what's present in linked installed_app
+			isOtherExtAppMigrated = true
+		}
 	} else {
 		//app not found with unique identifier but displayName, hence migrate the app_name to unique identifier and also update display_name
 		app.AppName = appNameUniqueIdentifier
@@ -491,9 +501,9 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 	err = impl.appRepository.Update(app)
 	if err != nil {
 		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return err
+		return false, err
 	}
-	return nil
+	return isOtherExtAppMigrated, nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId int32) (*bean.AppMetaInfoDto, error) {
@@ -506,6 +516,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 	var displayName string
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
+		var isOtherExtAppMigrated bool
 		appIdDecoded, err := impl.helmAppService.DecodeAppId(appId)
 		if err != nil {
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
@@ -516,10 +527,9 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 			impl.logger.Errorw("GetHelmAppMetaInfo, error in getAppAndProjectForAppIdentifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 			return nil, err
 		}
-
-		if app.Id > 0 {
-			// migrate app_name with unique identifier and also update display_name
-			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded, userId)
+		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
+		if app.Id > 0 && len(app.DisplayName) == 0 {
+			isOtherExtAppMigrated, err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded, userId)
 			if err != nil {
 				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
@@ -528,8 +538,13 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
 		}
-		if len(app.DisplayName) > 0 {
+		if util2.IsExternalChartStoreApp(app.DisplayName) {
 			displayName = app.DisplayName
+		}
+		// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
+		// requested app in not assigned to any project.
+		if isOtherExtAppMigrated {
+			app.TeamId = 0
 		}
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
@@ -548,7 +563,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 		app.Team.Name = InstalledApp.App.Team.Name
 		app.CreatedBy = InstalledApp.App.CreatedBy
 		app.Active = InstalledApp.App.Active
-		if len(InstalledApp.App.DisplayName) > 0 {
+		if util2.IsExternalChartStoreApp(InstalledApp.App.DisplayName) {
 			// in case of external apps, we will send display name as appName will be a unique identifier
 			displayName = InstalledApp.App.DisplayName
 		}
@@ -576,7 +591,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 		CreatedOn:   app.CreatedOn,
 		Active:      app.Active,
 	}
-	if len(displayName) > 0 {
+	if util2.IsExternalChartStoreApp(displayName) {
 		//special handling for ext-helm apps where name visible on UI is display name
 		info.AppName = displayName
 	}
@@ -676,12 +691,16 @@ func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appTy
 		return nil, err
 	}
 	for _, app := range apps {
+		appName := app.AppName
+		if util2.IsExternalChartStoreApp(app.DisplayName) {
+			appName = app.DisplayName
+		}
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: appName})
 		} else {
 
 			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: appName})
 		}
 	}
 
