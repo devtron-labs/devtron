@@ -677,15 +677,6 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
-	if request.SourceAppType == bean.SOURCE_EXTERNAL_HELM_APP {
-		_, err := impl.installedAppRepository.GetInstalledAppByAppName(app.GetUniqueAppNameIdentifier())
-		if err != nil && util.IsErrNoRows(err) {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: AppNotLinkedToChartStoreErr, UserMessage: AppNotLinkedToChartStoreErr}
-		} else if err != nil {
-			impl.logger.Errorw("error in fetching installed app from appName unique identifier", "appNameUniqueIdentifier", app.GetUniqueAppNameIdentifier())
-			return nil, err
-		}
-	}
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
