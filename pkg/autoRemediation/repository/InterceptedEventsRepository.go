@@ -33,6 +33,7 @@ type InterceptedEventsRepository interface {
 	Save(interceptedEvents *InterceptedEventExecution, tx *pg.Tx) (*InterceptedEventExecution, error)
 	GetAllInterceptedEvents() ([]*InterceptedEventExecution, error)
 	// UpdateStatus(status string, interceptedEventId int) error
+	FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
 
@@ -69,16 +70,16 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 	return interceptedEvents, nil
 }
 
-//func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
-//	_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
-//	if err != nil {
-//		return err
-//	}
-//	return  nil
+//	func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
+//		_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
+//		if err != nil {
+//			return err
+//		}
+//		return  nil
 //
 // }
-func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEvents, error) {
-	var interceptedEvents []*InterceptedEvents
+func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error) {
+	var interceptedEvents []*InterceptedEventExecution
 	query := impl.dbConnection.Model(&interceptedEvents)
 	if searchString != "" {
 		query = query.Where("message LIKE ? or involved_object LIKE ?", "%"+searchString+"%", "%"+searchString+"%")

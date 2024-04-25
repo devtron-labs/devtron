@@ -61,15 +61,16 @@ type EventsResponse struct {
 	List   []EventsItem `json:"list"`
 }
 type InterceptedEventsDto struct {
-	Message         string  `json:"message"`
-	MessageType     string  `json:"messageType"`
-	Event           string  `json:"event"`
-	InvolvedObject  string  `json:"involvedObject"`
-	ClusterName     string  `json:"clusterName"`
-	Namespace       string  `json:"namespace"`
-	WatcherName     string  `json:"watcherName"`
-	InterceptedTime string  `json:"interceptedTime"`
-	ExecutionStatus string  `json:"executionStatus"`
-	TriggerId       int     `json:"triggerId"`
-	Trigger         Trigger `json:"trigger"`
+	Message            string  `json:"message"`
+	MessageType        string  `json:"messageType"`
+	Event              string  `json:"event"`
+	InvolvedObject     string  `json:"involvedObject"`
+	ClusterId          int     `json:"clusterId"`
+	ClusterName        string  `json:"clusterName"`
+	Namespace          string  `json:"namespace"`
+	WatcherName        string  `json:"watcherName"`
+	InterceptedTime    string  `json:"interceptedTime"`
+	ExecutionStatus    string  `json:"executionStatus"`
+	TriggerExecutionId int     `json:"triggerExecutionId"`
+	Trigger            Trigger `json:"trigger"`
 }
