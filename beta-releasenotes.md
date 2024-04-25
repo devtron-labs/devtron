@@ -1,4 +1,5 @@
 ## Bugs
+- fix: grpc error handling for TemplateChart req (#4980)
 - fix: removed redundant import (#5004)
 - fix: image promotion sql script (#4996)
 - fix: image-approval-migartion fix (#4994)
