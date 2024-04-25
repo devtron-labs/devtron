@@ -1,6 +1,6 @@
 #!make
 
-all: build
+all: fetch-all-env build
 
 TAG?=$(shell bash -c 'git log --pretty=format:'%h' -n 1')
 FLAGS=
@@ -63,3 +63,7 @@ build-all: build
 
 build-ea:
 	make --directory ./cmd/external-app build
+
+
+fetch-all-env:
+	go run fetchAllEnv/fetchAllEnv.go
