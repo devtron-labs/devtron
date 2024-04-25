@@ -1564,7 +1564,7 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, err.Error())
 	}
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			StatusTime:         syncTime,

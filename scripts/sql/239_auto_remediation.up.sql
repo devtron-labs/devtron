@@ -1,7 +1,7 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_watcher;
 CREATE TABLE "public"."watcher" (
                                     "id" integer NOT NULL default nextval('id_seq_watcher'::regclass),
-                                    "name" varchar(100) NOT NULL,
+                                    "name" varchar(50) NOT NULL,
                                     "desc" text ,
                                     "filter_expression" text NOT NULL,
                                     "gvks" text[],
@@ -22,7 +22,7 @@ CREATE UNIQUE INDEX "idx_unique_watcher_name"
 CREATE SEQUENCE IF NOT EXISTS id_seq_trigger;
 CREATE TABLE "public"."trigger"(
                                    "id" integer NOT NULL default nextval('id_seq_trigger'::regclass),
-                                   "type" varchar(255) , -- DEVTRON_JOB
+                                   "type" varchar(50) , -- DEVTRON_JOB
                                    "watcher_id" integer ,
                                    "data" text,
                                    "active" bool NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE "public"."trigger"(
 );
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_intercepted_events;
-CREATE TABLE "public"."intercepted_events"(
+CREATE TABLE "public"."intercepted_event_execution"(
                                               "id" integer NOT NULL default nextval('id_seq_intercepted_events'::regclass),
                                               "cluster_id" int ,
                                               "namespace" character varying(250) NOT NULL,
