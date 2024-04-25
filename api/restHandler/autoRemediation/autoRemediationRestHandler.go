@@ -3,9 +3,11 @@ package autoRemediation
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -13,14 +15,12 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 type WatcherRestHandler interface {
 	SaveWatcher(w http.ResponseWriter, r *http.Request)
 	GetWatcherById(w http.ResponseWriter, r *http.Request)
 	DeleteWatcherById(w http.ResponseWriter, r *http.Request)
-	RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request)
 	UpdateWatcherById(w http.ResponseWriter, r *http.Request)
 	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 }
@@ -28,6 +28,8 @@ type WatcherRestHandlerImpl struct {
 	watcherService  autoRemediation.WatcherService
 	userAuthService user.UserService
 	validator       *validator.Validate
+	enforcerUtil    rbac.EnforcerUtil
+	enforcer        casbin.Enforcer
 	logger          *zap.SugaredLogger
 }
 
@@ -36,11 +38,13 @@ type ChannelDto struct {
 }
 
 func NewWatcherRestHandlerImpl(watcherService autoRemediation.WatcherService, userAuthService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
 	return &WatcherRestHandlerImpl{
 		watcherService:  watcherService,
 		userAuthService: userAuthService,
 		validator:       validator,
+		enforcerUtil:    enforcerUtil,
+		enforcer:        enforcer,
 		logger:          logger,
 	}
 }
@@ -66,10 +70,21 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		return
 	}
 	//RBAC
-	//token := r.Header.Get("token")
-
+	token := r.Header.Get("token")
+	for _, item := range watcherRequest.Triggers {
+		resourceName := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(item.Data.JobId, item.Data.PipelineId)
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		resourceName = impl.enforcerUtil.GetEnvRBACNameByAppId(item.Data.JobId, item.Data.ExecutionEnvironmentId)
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	//RBAC
-	res, err := impl.watcherService.Create(watcherRequest)
+	res, err := impl.watcherService.CreateWatcher(watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveWatcher", "err", err, "payload", watcherRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -120,25 +135,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, watcherId, http.StatusOK)
 }
-func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	//RBAC
-	//token := r.Header.Get("token")
 
-	//RBAC
-	res, err := impl.watcherService.RetrieveInterceptedEvents()
-	if err != nil {
-		impl.logger.Errorw("service err, retrieveInterceptedevents", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	common.WriteJsonResp(w, nil, res, http.StatusOK)
-}
 func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -189,6 +186,14 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return
 	}
+	sortOrderBy := queryParams.Get("orderBy")
+	if sortOrderBy == "" {
+		sortOrder = "name"
+	}
+	if !(sortOrderBy == "name" || sortOrderBy == "triggerTime") {
+		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggerType"), nil, http.StatusBadRequest)
+		return
+	}
 	sizeStr := queryParams.Get("size")
 	size := 20
 	if sizeStr != "" {
@@ -207,28 +212,24 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 			return
 		}
 	}
-	watchers := queryParams.Get("watchers")
-	clusters := queryParams.Get("clusters")
-	namespaces := queryParams.Get("namespaces")
-	executionStatuses := queryParams.Get("executionStatuses")
-	from, err := time.Parse(time.RFC1123, queryParams.Get("from"))
-	if err != nil {
-		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", from)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	search := queryParams.Get("search")
+	WatcherQuery := WatcherQueryParams{
+		Offset:      offset,
+		Search:      search,
+		Size:        size,
+		SortOrder:   sortOrder,
+		SortOrderBy: sortOrderBy,
 	}
-	to, err := time.Parse(time.RFC1123, queryParams.Get("to"))
-	if err != nil {
-		impl.logger.Errorw("request err, RetrieveWatchers", "err", err, "payload", to)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	searchString := queryParams.Get("searchString")
-	token := r.Header.Get("token")
-	interceptedEvents, totalCount, err := impl.watcherService.FindAll(offset, size, sortOrder, searchString, from, to, watchers, clusters, namespaces)
+	//RBAC
+	//token := r.Header.Get("token")
+
+	//RBAC
+	watchersResponse, err := impl.watcherService.FindAllWatchers(WatcherQuery)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, find all ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, watchersResponse, http.StatusOK)
 }

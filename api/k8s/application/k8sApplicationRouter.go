@@ -83,21 +83,26 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
 
 	k8sAppRouter.Path("/watcher").HandlerFunc(impl.watcherRestHandler.SaveWatcher).Methods("POST")
+	k8sAppRouter.Path("/watcher").Queries("search", "{search}").
+		Queries("orderBy", "{orderBy}").
+		Queries("order", "{order}").
+		Queries("offset", "{offset}").
+		Queries("size", "{size}").HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).Methods("GET")
 	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.GetWatcherById).Methods("GET")
 	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.DeleteWatcherById).Methods("DELETE")
-	k8sAppRouter.Path("/watcher/events").HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).Methods("GET")
+	//k8sAppRouter.Path("/watcher/events").HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).Methods("GET")
 	k8sAppRouter.Path("/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.UpdateWatcherById).Methods("PUT")
 
-	k8sAppRouter.Path("").
-		Queries("watchers", "{watchers}").
-		Queries("clusters", "{clusters}").
-		Queries("namespaces", "{namespaces}").
-		Queries("executionStatuses", "{executionStatuses}").
-		Queries("from", "{from}").
-		Queries("to", "{to}").
-		Queries("offset", "{offset}").
-		Queries("size", "{size}").
-		Queries("searchString", "{searchString}").
-		HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).
-		Methods("GET")
+	//k8sAppRouter.Path("").
+	//	Queries("watchers", "{watchers}").
+	//	Queries("clusters", "{clusters}").
+	//	Queries("namespaces", "{namespaces}").
+	//	Queries("executionStatuses", "{executionStatuses}").
+	//	Queries("from", "{from}").
+	//	Queries("to", "{to}").
+	//	Queries("offset", "{offset}").
+	//	Queries("size", "{size}").
+	//	Queries("searchString", "{searchString}").
+	//	HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).
+	//	Methods("GET")
 }
