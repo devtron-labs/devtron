@@ -1,4 +1,5 @@
 ## Bugs
+- fix: terminate sync if in progress  (#4946)
 - fix: grpc error handling for TemplateChart req (#4980)
 - fix: removed redundant import (#5004)
 - fix: image promotion sql script (#4996)
