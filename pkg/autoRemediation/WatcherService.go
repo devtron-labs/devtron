@@ -551,6 +551,7 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 			list = make([]string, 0)
 		}
 		list = append(list, env.Name)
+		clusterWiseEnvs[env.Cluster.ClusterName] = list
 	}
 
 	selectors := make([]Selector, 0, len(clusterWiseEnvs))
