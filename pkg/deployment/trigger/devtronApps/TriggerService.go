@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
@@ -74,8 +75,8 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
 	"path"
-	"sigs.k8s.io/yaml"
 	"regexp"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -162,7 +163,7 @@ type TriggerServiceImpl struct {
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository
 	deploymentWindowService       deploymentWindow.DeploymentWindowService
-	K8sUtil                       *util5.K8sServiceImpl
+	K8sUtil                       *k8s.K8sUtilExtended
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -225,7 +226,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
-	K8sUtil *util5.K8sServiceImpl) (*TriggerServiceImpl, error) {
+	K8sUtil *k8s.K8sUtilExtended) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -728,7 +729,7 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 	}
 	if len(latestWf) > 0 {
 		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-		if currentRunningArtifact.Id == ciArtifact.Id{
+		if currentRunningArtifact.Id == ciArtifact.Id {
 			return true, nil
 		}
 	}
