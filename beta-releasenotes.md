@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deleted api token can be reused if created again with same name (#4978)
 - fix: Kubelink Requests getting Failed for gRPC method GetAppDetails (#5012)
 - fix: terminate sync if in progress  (#4946)
 - fix: grpc error handling for TemplateChart req (#4980)
