@@ -259,7 +259,7 @@ func (e *EnforcerImpl) getEnforcerCacheLock(emailId string) *CacheData {
 
 func (e *EnforcerImpl) getCacheData(emailId string, resource string, action string) map[string]bool {
 	result := make(map[string]bool)
-	if e.Cache == nil {
+	if true {
 		return result
 	}
 	emailResult, found := e.Cache.Get(emailId)
