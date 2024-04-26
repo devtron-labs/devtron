@@ -72,6 +72,7 @@ type HelmAppService interface {
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
+	CheckIfNsExists(app *AppIdentifier) (bool, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -562,7 +563,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
 	//that case DeleteApplication returned with grpc error and the user was not able to delete the
 	//cd-pipeline after helm app is created in that namespace.
-	exists, err := impl.checkIfNsExists(app)
+	exists, err := impl.CheckIfNsExists(app)
 	if err != nil {
 		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
 		return nil, err
@@ -597,7 +598,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
+func (impl *HelmAppServiceImpl) CheckIfNsExists(app *AppIdentifier) (bool, error) {
 	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
