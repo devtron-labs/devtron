@@ -78,3 +78,7 @@ const (
 )
 
 const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
+
+const (
+	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"
+)
