@@ -23,7 +23,7 @@ type WatcherRestHandler interface {
 	GetWatcherById(w http.ResponseWriter, r *http.Request)
 	DeleteWatcherById(w http.ResponseWriter, r *http.Request)
 	UpdateWatcherById(w http.ResponseWriter, r *http.Request)
-	//RetrieveWatchers(w http.ResponseWriter, r *http.Request)
+	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 }
 type WatcherRestHandlerImpl struct {
 	watcherService  autoRemediation.WatcherService
@@ -185,16 +185,17 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	}
 	queryParams := r.URL.Query()
 	sortOrder := queryParams.Get("order")
+	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
-		sortOrder = "DESC"
+		sortOrder = "desc"
 	}
-	if !(sortOrder == "ASC" || sortOrder == "DESC") {
+	if !(sortOrder == "asc" || sortOrder == "desc") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return
 	}
 	sortOrderBy := queryParams.Get("orderBy")
 	if sortOrderBy == "" {
-		sortOrder = "name"
+		sortOrderBy = "name"
 	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggerTime") {
 		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggerType"), nil, http.StatusBadRequest)
