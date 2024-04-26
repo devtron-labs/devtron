@@ -361,8 +361,8 @@ func (repo EnvironmentRepositoryImpl) GetWithClusterByNames(envNames []string) (
 	err := repo.dbConnection.
 		Model(&environment).
 		Column("environment.*", "Cluster").
-		Where("active = ?", true).
-		Where("environment_name in (?)", pg.In(envNames)).
+		Where("environment.active = ?", true).
+		Where("environment.environment_name in (?)", pg.In(envNames)).
 		Select()
 	return environment, err
 }

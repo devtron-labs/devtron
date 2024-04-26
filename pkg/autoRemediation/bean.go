@@ -5,6 +5,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"golang.org/x/exp/maps"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type EventConfiguration struct {
@@ -51,6 +52,14 @@ type K8sResource struct {
 	Kind    string `json:"kind"`
 }
 
+func (gvk *K8sResource) GetGVK() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+		Kind:    gvk.Kind,
+	}
+}
+
 type RuntimeParameter struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -71,6 +80,12 @@ type TriggerData struct {
 	ExecutionEnvironment   string             `json:"executionEnvironment"`
 	ExecutionEnvironmentId int                `json:"executionEnvironmentId"`
 	WorkflowId             int                `json:"workflowId"`
+}
+
+func (dto *WatcherDto) GetDbTriggerModels() []*repository.Trigger {
+	triggers := make([]*repository.Trigger, 0, len(dto.Triggers))
+
+	return triggers
 }
 
 type WatcherDto struct {

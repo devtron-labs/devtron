@@ -73,7 +73,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 	}
 	watcher := &repository.Watcher{
 		Name:             watcherRequest.Name,
-		Desc:             watcherRequest.Description,
+		Description:      watcherRequest.Description,
 		FilterExpression: watcherRequest.EventConfiguration.EventExpression,
 		Gvks:             gvks,
 		Active:           true,
@@ -256,7 +256,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 	}
 	watcherResponse := WatcherDto{
 		Name:        watcher.Name,
-		Description: watcher.Desc,
+		Description: watcher.Description,
 		EventConfiguration: EventConfiguration{
 			K8sResources:    k8sResources,
 			EventExpression: watcher.FilterExpression,
@@ -346,7 +346,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	}
 	gvks, err := fetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
 	watcher.Name = watcherRequest.Name
-	watcher.Desc = watcherRequest.Description
+	watcher.Description = watcherRequest.Description
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
 	watcher.Gvks = gvks
 	watcher.AuditLog = sql.NewDefaultAuditLog(userId)
@@ -356,11 +356,12 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		return err
 	}
 
-	_, err = impl.watcherRepository.Update(watcher)
+	err = impl.watcherRepository.Update(tx, watcher, userId)
 	if err != nil {
 		impl.logger.Errorw("error in updating watcher", "error", err)
 		return err
 	}
+
 	err = impl.triggerRepository.DeleteTriggerByWatcherId(tx, watcher.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting trigger by watcher id", watcherId, "error", err)
@@ -378,6 +379,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in envs mappings for the watcher", "watcherId", watcherId, "err", err)
 		return err
 	}
+
 	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.getEnvsFromSelectors())
 	if err != nil {
 		impl.logger.Errorw("error in getting envs using env names", "envNames", envs, "err", err)
@@ -438,7 +440,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
 		watcherResponses.List = append(watcherResponses.List, WatcherItem{
 			Name:            watcher.Name,
-			Description:     watcher.Desc,
+			Description:     watcher.Description,
 			JobPipelineName: triggerResp.PipelineName,
 			JobPipelineId:   triggerResp.PipelineId,
 		})

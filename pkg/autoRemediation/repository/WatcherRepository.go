@@ -4,13 +4,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Watcher struct {
 	tableName        struct{} `sql:"watcher" pg:",discard_unknown_columns"`
 	Id               int      `sql:"id,pk"`
 	Name             string   `sql:"name,notnull"`
-	Desc             string   `sql:"desc"`
+	Description      string   `sql:"description"`
 	FilterExpression string   `sql:"filter_expression,notnull"`
 	Gvks             string   `sql:"gvks"`
 	Active           bool     `sql:"active,notnull"`
@@ -23,9 +24,10 @@ type WatcherQueryParams struct {
 	SortOrderBy string `json:"sortOrderBy"`
 	Search      string `json:"Search"`
 }
+
 type WatcherRepository interface {
 	Save(watcher *Watcher, tx *pg.Tx) (*Watcher, error)
-	Update(watcher *Watcher) (*Watcher, error)
+	Update(tx *pg.Tx, watcher *Watcher, userId int32) error
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(id int) error
@@ -55,14 +57,21 @@ func (impl WatcherRepositoryImpl) Save(watcher *Watcher, tx *pg.Tx) (*Watcher, e
 	}
 	return watcher, nil
 }
-func (impl WatcherRepositoryImpl) Update(watcher *Watcher) (*Watcher, error) {
-	_, err := impl.dbConnection.Model(watcher).Where("active = ?", true).Update()
-	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	return watcher, nil
+func (impl WatcherRepositoryImpl) Update(tx *pg.Tx, watcher *Watcher, userId int32) error {
+	_, err := tx.
+		Model((*Watcher)(nil)).
+		Set("name = ?", watcher.Name).
+		Set("description = ?", watcher.Description).
+		Set("filter_expression = ?", watcher.FilterExpression).
+		Set("gvks = ?", watcher.Gvks).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
+		Where("active = ?", true).
+		Where("id = ?", watcher.Id).
+		Update()
+	return err
 }
+
 func (impl WatcherRepositoryImpl) Delete(watcher *Watcher) error {
 	err := impl.dbConnection.Delete(&watcher)
 	if err != nil {
