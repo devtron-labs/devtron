@@ -3,7 +3,7 @@ info:
   title: Orchestrator/K8s/Watcher/Events API
   version: 1.0.0
 paths:
-  /orchestrator/k8s/watcher:
+  /orchestrator/scoop/k8s/watcher:
     post:
       summary: Create a new watcher
       requestBody:
@@ -80,7 +80,7 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/WatcherMetaData'
-  /orchestrator/k8s/watcher/{identifier}:
+  /orchestrator/scoop/k8s/watcher/{identifier}:
     parameters:
       - name: identifier
         in: path
@@ -117,7 +117,7 @@ paths:
       responses:
         '204':
           description: Successful response
-  /orchestrator/k8s/watcher/events:
+  /orchestrator/scoop/k8s/watcher/events:
     get:
       parameters:
         - name: watchers
