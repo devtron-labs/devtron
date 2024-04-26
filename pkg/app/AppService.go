@@ -461,7 +461,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 		if !isArgoAppSynced {
 			return isValid, installedAppVersionHistory, appId, envId, nil
@@ -510,7 +510,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 		if !isArgoAppSynced {

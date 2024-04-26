@@ -1003,7 +1003,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
 
 		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
-		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		if impl.acdConfig.IsManualSyncEnabled() {
 			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
 				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
 
