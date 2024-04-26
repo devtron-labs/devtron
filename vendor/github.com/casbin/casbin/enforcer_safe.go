@@ -53,8 +53,13 @@ func (e *Enforcer) EnforceSafe(rvals ...interface{}) (result bool, err error) {
 			result = false
 		}
 	}()
-
+	fmt.Println("******* before EnforceSafe *********")
+	model := e.GetModel()
+	fmt.Println(model["g"]["g"].Policy)
 	result = e.Enforce(rvals...)
+	fmt.Println("******* after EnforceSafe *********")
+	model = e.GetModel()
+	fmt.Println(model["g"]["g"].Policy)
 	err = nil
 	return
 }
