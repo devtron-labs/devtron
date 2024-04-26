@@ -82,6 +82,7 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 //		return  nil
 //
 // }
+
 func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) ([]*InterceptedEventExecution, error) {
 	var interceptedEvents []*InterceptedEventExecution
 	query := impl.dbConnection.Model(&interceptedEvents)
@@ -104,6 +105,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAll(offset int, size int, sortOr
 	}
 	return interceptedEvents, nil
 }
+
 func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
 	var interceptedEvents []*InterceptedEventExecution
 	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()

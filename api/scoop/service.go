@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
@@ -51,71 +52,20 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 		jobPipelineIds = append(jobPipelineIds, trigger.Data.PipelineId)
 	}
 
-	ciPipelineMaterialMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
-
-	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(jobPipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching ci pipeline material ")
-	}
-
-	for _, ciPipelineMaterial := range ciPipelineMaterials {
-		ciPipelineId := ciPipelineMaterial.CiPipelineId
-		if _, ok := ciPipelineMaterialMap[ciPipelineId]; !ok {
-			ciPipelineMaterialMap[ciPipelineId] = make([]*pipelineConfig.CiPipelineMaterial, 0)
-		}
-		ciPipelineMaterialMap[ciPipelineId] = append(ciPipelineMaterialMap[ciPipelineId], ciPipelineMaterial)
-	}
-
 	interceptEventExecs := make([]*repository.InterceptedEventExecution, 0, len(triggers))
 	for _, trigger := range triggers {
-		ciMaterials := ciPipelineMaterialMap[trigger.Data.PipelineId]
-		if len(ciMaterials) == 0 {
-			continue
+		switch trigger.IdentifierType {
+		case repository.DEVTRON_JOB:
+			interceptEventExec := impl.triggerJob(trigger)
+			interceptEventExec.ClusterId = interceptedEvent.ClusterId
+			interceptEventExec.Event = event
+			interceptEventExec.InvolvedObject = involvedObj
+			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
+			interceptEventExec.Namespace = interceptedEvent.Namespace
+			interceptEventExec.Message = interceptedEvent.Message
+			interceptEventExec.MessageType = interceptedEvent.MessageType
+			interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 		}
-		runtimeparams := bean.RuntimeParameters{
-			EnvVariables: make(map[string]string),
-		}
-		for _, param := range trigger.Data.RuntimeParameters {
-			runtimeparams.EnvVariables[param.Key] = param.Value
-		}
-
-		request := bean.CiTriggerRequest{
-			PipelineId: trigger.Data.PipelineId,
-			// system user
-			TriggeredBy:   1,
-			EnvironmentId: trigger.Data.ExecutionEnvironmentId,
-			PipelineType:  "CI_BUILD",
-			CiPipelineMaterial: []bean.CiPipelineMaterial{{
-				Id: ciMaterials[0].Id,
-				// todo: check how to fetch the git material info
-			}},
-			RuntimeParams: &runtimeparams,
-		}
-
-		ciWorkflowId, err := impl.ciHandler.HandleCIManual(request)
-		status := repository.Progressing
-		executionMessage := ""
-		if err != nil {
-			impl.logger.Errorw("error in trigger job ci pipeline", "triggerRequest", request, "err", err)
-			executionMessage = err.Error()
-			status = repository.Errored
-		}
-
-		interceptEventExec := &repository.InterceptedEventExecution{
-			ClusterId:          interceptedEvent.ClusterId,
-			Event:              event,
-			InvolvedObject:     involvedObj,
-			InterceptedAt:      interceptedEvent.InterceptedAt,
-			Namespace:          interceptedEvent.Namespace,
-			Message:            interceptedEvent.Message,
-			MessageType:        interceptedEvent.MessageType,
-			TriggerId:          trigger.Id,
-			TriggerExecutionId: ciWorkflowId,
-			Status:             status,
-			ExecutionMessage:   executionMessage,
-		}
-
-		interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 	}
 
 	err = impl.saveInterceptedEvents(interceptEventExecs)
@@ -155,7 +105,16 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 		return err
 	}
 
-	defer impl.interceptedEventsRepository.RollbackTx(tx)
+	defer func() {
+		if err != nil {
+			impl.logger.Debugw("rolling back db tx")
+			rollbackErr := impl.interceptedEventsRepository.RollbackTx(tx)
+			if err != nil {
+				impl.logger.Errorw("error in rolling back db transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", rollbackErr)
+			}
+		}
+	}()
+
 	_, err = impl.interceptedEventsRepository.Save(interceptEventExecs, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving intercepted event executions ", "interceptEventExecs", interceptEventExecs, "err", err)
@@ -168,4 +127,69 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 		return err
 	}
 	return nil
+}
+
+func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger) *repository.InterceptedEventExecution {
+	runtimeParams := bean.RuntimeParameters{
+		EnvVariables: make(map[string]string),
+	}
+	for _, param := range trigger.Data.RuntimeParameters {
+		runtimeParams.EnvVariables[param.Key] = param.Value
+	}
+
+	request := bean.CiTriggerRequest{
+		PipelineId: trigger.Data.PipelineId,
+		// system user
+		TriggeredBy:   1,
+		EnvironmentId: trigger.Data.ExecutionEnvironmentId,
+		PipelineType:  "CI_BUILD",
+		RuntimeParams: &runtimeParams,
+	}
+
+	ciWorkflowId := 0
+	status := repository.Progressing
+	executionMessage := ""
+
+	// get the commit for this pipeline as we need it during trigger
+	// this call internally fetches the commits from git-sensor.
+	gitCommits, err := impl.ciHandler.FetchMaterialsByPipelineId(trigger.Data.PipelineId, true)
+
+	// if errored or no git commits are find, we should not trigger the job as, it will eventually fail.
+	if err != nil || len(gitCommits) == 0 || len(gitCommits[0].History) == 0 {
+		if err == nil {
+			err = errors.New("no git commits found")
+		}
+		impl.logger.Errorw("error in getting git commits for ci pipeline", "ciPipelineId", trigger.Data.PipelineId, "err", err)
+		executionMessage = err.Error()
+		status = repository.Errored
+	} else {
+
+		request.CiPipelineMaterial = []bean.CiPipelineMaterial{
+			{
+				Id: gitCommits[0].Id,
+				GitCommit: pipelineConfig.GitCommit{
+					Commit: gitCommits[0].History[0].Commit,
+				},
+			},
+		}
+
+		// trigger job pipeline
+		ciWorkflowId, err = impl.ciHandler.HandleCIManual(request)
+		if err != nil {
+			impl.logger.Errorw("error in trigger job ci pipeline", "triggerRequest", request, "err", err)
+			executionMessage = err.Error()
+			status = repository.Errored
+		}
+
+	}
+
+	interceptEventExec := &repository.InterceptedEventExecution{
+		TriggerId:          trigger.Id,
+		TriggerExecutionId: ciWorkflowId,
+		Status:             status,
+		// store the error here if something goes wrong before actually triggering the job even
+		ExecutionMessage: executionMessage,
+	}
+
+	return interceptEventExec
 }
