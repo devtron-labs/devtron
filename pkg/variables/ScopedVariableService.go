@@ -32,12 +32,11 @@ type ScopedVariableService interface {
 }
 
 type ScopedVariableServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	scopedVariableRepository            repository2.ScopedVariableRepository
-	qualifierMappingService             resourceQualifiers.QualifierMappingService
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
-	VariableNameConfig                  *VariableConfig
-	VariableCache                       *cache.VariableCacheObj
+	logger                   *zap.SugaredLogger
+	scopedVariableRepository repository2.ScopedVariableRepository
+	qualifierMappingService  resourceQualifiers.QualifierMappingService
+	VariableNameConfig       *VariableConfig
+	VariableCache            *cache.VariableCacheObj
 }
 
 func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
