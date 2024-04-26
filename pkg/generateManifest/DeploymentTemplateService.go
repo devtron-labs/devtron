@@ -3,6 +3,8 @@ package generateManifest
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -24,10 +26,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -55,6 +59,16 @@ type DeploymentTemplateServiceImpl struct {
 	chartRefService                  chartRef.ChartRefService
 	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
 	chartRepository                  chartRepoRepository.ChartRepository
+	restartWorkloadConfig            *RestartWorkloadConfig
+}
+type RestartWorkloadConfig struct {
+	RestartWorkloadWorker int `env:"FEATURE_RESTART_WORKLOAD_BULK_WORKER" envDefault:"5"`
+}
+
+func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
+	cfg := &RestartWorkloadConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -91,6 +105,11 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		pipelineOverrideRepository:       pipelineOverrideRepository,
 		chartRepository:                  chartRepository,
 	}
+	cfg, err := GetRestartWorkloadConfig()
+	if err != nil {
+		return nil, err
+	}
+	deploymentTemplateServiceImpl.restartWorkloadConfig = cfg
 	return deploymentTemplateServiceImpl, nil
 }
 
@@ -390,6 +409,14 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	for _, req := range appIdToInstallReleaseRequest {
 		installReleaseRequest = append(installReleaseRequest, req)
 	}
+	wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
+	handlePanic := func() {
+		if err := recover(); err != nil {
+			impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
+
+		}
+	}
+	for
 	templateChartResponse, err := impl.helmAppClient.TemplateChartBulk(ctx, installReleaseRequest)
 	appIdToResourceIdentifier := make(map[int]ResourceIdentifierResponse)
 	for _, tcResp := range templateChartResponse {
