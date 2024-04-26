@@ -31,8 +31,7 @@ type ImageScanExecutionHistory struct {
 	ImageHash                       string        `sql:"image_hash,notnull"` // TODO Migrate to request metadata
 	ExecutionTime                   time.Time     `sql:"execution_time"`
 	ExecutedBy                      int           `sql:"executed_by,notnull"`
-	SourceMetadataJson              string        `sql:"source_metadata_json"`             // to have relevant info to process a scan for a given source type and subtype
-	ExecutionHistoryDirectoryPath   string        `sql:"execution_history_directory_path"` // Deprecated
+	SourceMetadataJson              string        `sql:"source_metadata_json"` // to have relevant info to process a scan for a given source type and subtype
 	SourceType                      SourceType    `sql:"source_type"`
 	SourceSubType                   SourceSubType `sql:"source_sub_type"`
 	ScanToolExecutionHistoryMapping *ScanToolExecutionHistoryMapping
