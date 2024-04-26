@@ -42,6 +42,7 @@ import (
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean8 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -63,6 +64,7 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -138,6 +140,7 @@ type TriggerServiceImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
+	K8sUtil                       *util5.K8sServiceImpl
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -188,7 +191,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
+	K8sUtil *util5.K8sServiceImpl) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -240,6 +244,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		K8sUtil:                             K8sUtil,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -899,9 +904,27 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplate := envOverride.Chart.ReferenceTemplate
+	referenceTemplatePath := path.Join(bean5.RefChartDirPath, referenceTemplate)
 
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
+		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+		if err != nil {
+			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+			return false, err
+		}
+		sanitizedK8sVersion := k8sServerVersion.String()
+		//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
+		//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
+		//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
+		cronJobChartRegex := regexp.MustCompile(bean.CronJobChartRegexExpression)
+		if cronJobChartRegex.MatchString(referenceTemplate) {
+			sanitizedK8sVersion, err = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
+			if err != nil {
+				impl.logger.Errorw("error in stripping pre-release from k8sServerVersion due to invalid k8sServerVersion", "k8sServerVersion", k8sServerVersion.String(), "err", err)
+				return false, err
+			}
+		}
 		referenceChartByte := envOverride.Chart.ReferenceChart
 		// here updating reference chart into database.
 		if len(envOverride.Chart.ReferenceChart) == 0 {
@@ -948,6 +971,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				ValuesYaml:        mergeAndSave,
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
+				K8SVersion:        sanitizedK8sVersion,
 			}
 			if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
@@ -970,7 +994,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 		} else {
 
-			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave, sanitizedK8sVersion)
 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
@@ -1007,7 +1031,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
+		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err
@@ -1176,12 +1200,13 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string, k8sServerVersion string) (*gRPC.HelmInstallCustomResponse, error) {
 
 	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
 		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
+		K8SVersion:        k8sServerVersion,
 	}
 	if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 		helmInstallRequest.RunInCtx = true

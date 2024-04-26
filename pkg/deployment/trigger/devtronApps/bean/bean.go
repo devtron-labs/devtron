@@ -51,3 +51,7 @@ const (
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+
+const (
+	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"
+)
