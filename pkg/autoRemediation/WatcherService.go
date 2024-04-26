@@ -125,9 +125,9 @@ func fetchGvksFromK8sResources(resources []K8sResource) (string, error) {
 
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
 	var triggersJobsForWatcher []*Trigger
-	for _, trigger := range watcherRequest.Triggers {
-		if trigger.IdentifierType == repository.DEVTRON_JOB {
-			triggersJobsForWatcher = append(triggersJobsForWatcher, &trigger)
+	for i, _ := range watcherRequest.Triggers {
+		if watcherRequest.Triggers[i].IdentifierType == repository.DEVTRON_JOB {
+			triggersJobsForWatcher = append(triggersJobsForWatcher, &watcherRequest.Triggers[i])
 		}
 	}
 	err := impl.createTriggerJobsForWatcher(triggersJobsForWatcher, watcherId, userId, tx)
@@ -186,7 +186,9 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 }
 
 func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*Trigger) (*jobDetails, error) {
+	var jobsDetails *jobDetails
 	var jobNames, envNames, pipelineNames []string
+
 	for _, trig := range triggers {
 		jobNames = append(jobNames, trig.Data.JobName)
 		envNames = append(envNames, trig.Data.ExecutionEnvironment)
@@ -195,7 +197,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	apps, err := impl.appRepository.FetchAppByDisplayNamesForJobs(jobNames)
 	if err != nil {
 		impl.logger.Errorw("error in fetching apps", "error", err)
-		return &jobDetails{}, err
+		return jobsDetails, err
 	}
 	var jobIds []int
 	for _, app := range apps {
@@ -204,7 +206,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	pipelines, err := impl.ciPipelineRepository.FindByNames(pipelineNames, jobIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "error", err)
-		return &jobDetails{}, err
+		return jobsDetails, err
 	}
 	var pipelinesId []int
 	for _, pipeline := range pipelines {
@@ -213,7 +215,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	envs, err := impl.environmentRepository.FindByNames(envNames)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "error", err)
-		return &jobDetails{}, err
+		return jobsDetails, err
 	}
 	displayNameToId := make(map[string]int)
 	for _, app := range apps {
@@ -226,7 +228,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelinesId)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving workflows ", "error", err)
-		return &jobDetails{}, err
+		return jobsDetails, err
 	}
 	pipelineIdtoAppworkflow := make(map[int]int)
 	for _, workflow := range workflows {
@@ -242,6 +244,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 		envNameToId:             envNameToId,
 		pipelineIdtoAppworkflow: pipelineIdtoAppworkflow,
 	}, nil
+
 }
 func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, error) {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
@@ -274,8 +277,12 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
 		}
-		triggerResp.IdentifierType = trigger.Type
-		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResp)
+		triggerResponse := Trigger{
+			Id:             trigger.Id,
+			IdentifierType: trigger.Type,
+			Data:           triggerResp,
+		}
+		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResponse)
 	}
 
 	selectors, err := impl.getEnvSelectors(watcherId)
@@ -289,11 +296,11 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 
 }
 
-func (impl *WatcherServiceImpl) getTriggerDataFromJson(data json2.RawMessage) (Trigger, error) {
-	var triggerResp Trigger
+func (impl *WatcherServiceImpl) getTriggerDataFromJson(data json2.RawMessage) (TriggerData, error) {
+	var triggerResp TriggerData
 	if err := json.Unmarshal(data, &triggerResp); err != nil {
 		impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-		return Trigger{}, err
+		return TriggerData{}, err
 	}
 	return triggerResp, nil
 }
@@ -401,7 +408,12 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
 		return err
 	}
-
+	err = impl.triggerRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to create trigger", "error", err)
+		return err
+	}
+	defer impl.triggerRepository.RollbackTx(tx)
 	return nil
 }
 

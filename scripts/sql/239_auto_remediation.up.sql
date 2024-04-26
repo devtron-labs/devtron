@@ -17,7 +17,7 @@ CREATE TABLE "public"."watcher" (
 );
 CREATE UNIQUE INDEX "idx_unique_watcher_name"
     ON watcher(name)
-    WHERE (active=true);
+    WHERE  watcher.active =true;
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_trigger;
 CREATE TABLE "public"."trigger"(
