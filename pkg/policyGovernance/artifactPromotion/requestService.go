@@ -263,6 +263,17 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util3.
 
 	if artifactId != 0 {
 		responses, err := impl.evaluatePoliciesOnArtifact(metadata, policiesMap)
+		for index, resp := range responses {
+			if env, ok := envMap[resp.Name]; ok {
+				resp.IsVirtualEnvironment = env.IsVirtualEnvironment
+				if resp.PromotionValidationMessage == constants.NO_PERMISSION {
+					resp.PromotionValidationMessage = constants.UNAUTHORIZED
+				} else if !resp.PromotionPossible {
+					resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+				}
+				responses[index] = resp
+			}
+		}
 		if err != nil {
 			impl.logger.Errorw("error in evaluating policies on an ciArtifact", "ciArtifactId", artifactId, "policiesMap", policiesMap, "authorizedEnvironments", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 			return nil, err
@@ -427,7 +438,7 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	envMap := metadata.GetActiveEnvironmentsMap()
+
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 
 	if len(policiesMap) > 0 {
@@ -459,17 +470,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			responseMap[envName] = envResp
 		}
 	}
-	for envName, resp := range responseMap {
-		if env, ok := envMap[envName]; ok {
-			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
-			if resp.PromotionValidationMessage == constants.NO_PERMISSION {
-				resp.PromotionValidationMessage = constants.UNAUTHORIZED
-			} else if !resp.PromotionPossible {
-				resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-			}
-			responseMap[envName] = resp
-		}
-	}
+
 	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		result = append(result, envResponse)
