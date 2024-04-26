@@ -2154,13 +2154,13 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 						return fmt.Errorf("invalid material id - request material id should match parent material id for linked ci,  request material id - '%v' ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
 					}
 					if requestPipelineMaterial.Value != parentMaterial.Value {
-						return fmt.Errorf(" parentMaterialValue and request material value should match for linked ci - parent material value - %v child value %v ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
+						return fmt.Errorf(" parentMaterialValue and request material value should match for linked ci - parent material value - %v child value %v ", requestPipelineMaterial.Value), http.StatusBadRequest
 					}
 					if requestPipelineMaterial.Type != parentMaterial.Type {
-
+						return fmt.Errorf(" parentMaterialType and request material value should match for linked ci - parent material type - %v child type %v ", requestPipelineMaterial.Type), http.StatusBadRequest
 					}
 					if requestPipelineMaterial.CheckoutPath != parentMaterial.CheckoutPath {
-
+						return fmt.Errorf(" parentMaterialType and request material CheckoutPath should match for linked ci - parent material CheckoutPath - %v child CheckoutPath %v ", requestPipelineMaterial.CheckoutPath), http.StatusBadRequest
 					}
 				}
 			}
