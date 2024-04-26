@@ -295,7 +295,7 @@ func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string
 	} else {
 		scanEvent.CdWorkflowId = historyId
 	}
-	err = impl.policyService.SendEventToClairUtilityAsync(scanEvent)
+	err = impl.policyService.SendScanEventAsync(scanEvent)
 	if err != nil {
 		impl.logger.Errorw("error in sending image scan event", "err", err, "image", image)
 	}

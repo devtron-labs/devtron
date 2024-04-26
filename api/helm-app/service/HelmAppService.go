@@ -970,7 +970,6 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		},
 		IsOCIRepo:          IsOCIRepo,
 		RegistryCredential: registryCredential,
-		ReturnChartBytes:   templateChartRequest.ReturnChartBytes,
 	}
 
 	config, err := impl.GetClusterConf(clusterId)
@@ -981,7 +980,17 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
-	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	var templateChartResponse *gRPC.TemplateChartResponse
+	var templateChartResponseWithChart *gRPC.TemplateChartResponseWithChart
+	var chart *gRPC.ChartContent
+	if templateChartRequest.ReturnChartBytes {
+		templateChartResponseWithChart, err = impl.helmAppClient.TemplateChartAndRetrieveChart(ctx, installReleaseRequest)
+		templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
+		chart = templateChartResponseWithChart.ChartBytes
+	} else {
+		templateChartResponse, err = impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
@@ -993,7 +1002,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	response := &openapi2.TemplateChartResponse{
 		Manifest:   &templateChartResponse.GeneratedManifest,
-		ChartBytes: templateChartResponse.ChartBytes.Content,
+		ChartBytes: chart.Content,
 	}
 
 	return response, nil

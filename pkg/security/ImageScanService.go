@@ -742,7 +742,7 @@ func (impl ImageScanServiceImpl) getImageHistoryAndExecResults(imageScanResults 
 }
 
 func (impl ImageScanServiceImpl) sendForScan(image string) {
-	err := impl.policyService.SendEventToClairUtilityAsync(&ScanEvent{
+	err := impl.policyService.SendScanEventAsync(&ScanEvent{
 		Image:  image,
 		UserId: bean3.SYSTEM_USER_ID,
 	})

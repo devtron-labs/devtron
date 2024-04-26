@@ -42,6 +42,7 @@ service ApplicationService {
   rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
+  rpc TemplateChartAndRetrieveChart(InstallReleaseRequest) returns (TemplateChartResponseWithChart){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
@@ -300,7 +301,6 @@ message InstallReleaseRequest {
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
   ChartContent chartContent = 11;
-  bool  returnChartBytes = 12;
 }
 
 message InstallReleaseResponse {
@@ -318,8 +318,13 @@ message RollbackReleaseRequest {
 
 message TemplateChartResponse {
   string generatedManifest = 1;
+}
+
+message TemplateChartResponseWithChart {
+  TemplateChartResponse templateChartResponse = 1;
   ChartContent chartBytes = 2;
 }
+
 
 message HelmInstallCustomRequest {
   string valuesYaml = 1;

@@ -35,7 +35,6 @@ type ImageScanExecutionHistory struct {
 	ExecutionHistoryDirectoryPath   string        `sql:"execution_history_directory_path"` // Deprecated
 	SourceType                      SourceType    `sql:"source_type"`
 	SourceSubType                   SourceSubType `sql:"source_sub_type"`
-	ResourceScanExecutionResult     *ResourceScanExecutionResult
 	ScanToolExecutionHistoryMapping *ScanToolExecutionHistoryMapping
 }
 
@@ -162,6 +161,7 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImage(image string) (*ImageScan
 	return &model, err
 }
 
+// TODO need to change the behavior to use image hash instead of image
 func (impl ImageScanHistoryRepositoryImpl) FindByImages(images []string) ([]*ImageScanExecutionHistory, error) {
 	var model []*ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&model).

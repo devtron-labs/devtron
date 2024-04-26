@@ -727,7 +727,7 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 	}
 	if len(latestWf) > 0 {
 		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-		if currentRunningArtifact.Id == ciArtifact.Id{
+		if currentRunningArtifact.Id == ciArtifact.Id {
 			return true, nil
 		}
 	}
@@ -1409,6 +1409,11 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 		}
 	}
 
+	impl.sendResourceScanEvent(overrideRequest, valuesOverrideResponse, referenceChartByte, err)
+	return nil
+}
+
+func (impl *TriggerServiceImpl) sendResourceScanEvent(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, referenceChartByte []byte, err error) {
 	pipeline := valuesOverrideResponse.Pipeline
 	envOverride := valuesOverrideResponse.EnvOverride
 	if envOverride.Chart != nil && len(pipeline.App.AppName) > 0 {
@@ -1420,8 +1425,8 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 			referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
 			if err != nil {
-				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-				return nil
+				impl.logger.Errorw("sendResourceScanEvent ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+				return
 			}
 			referenceChartByte = refChartByte
 		}
@@ -1439,7 +1444,7 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 			impl.logger.Errorw("error occurred while publishing scan event", "err", err)
 		}
 	}
-	return nil
+	return
 }
 
 func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) (bool, []byte, error) {

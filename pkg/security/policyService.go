@@ -52,7 +52,7 @@ type PolicyService interface {
 	GetCvePolicy(id int, userId int32) (*security.CvePolicy, error)
 	GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[securityBean.Severity]*security.CvePolicy, error)
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[securityBean.Severity]*security.CvePolicy) bool
-	SendEventToClairUtilityAsync(event *ScanEvent) error
+	SendScanEventAsync(event *ScanEvent) error
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
@@ -165,7 +165,7 @@ type ManifestData struct {
 	ValuesYaml []byte `json:"valuesYaml"`
 }
 
-func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) error {
+func (impl *PolicyServiceImpl) SendScanEventAsync(event *ScanEvent) error {
 	body, err := json.Marshal(event)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling scan event", "err", err, "event", event)
@@ -179,7 +179,7 @@ func (impl *PolicyServiceImpl) SendEventToClairUtilityAsync(event *ScanEvent) er
 	return nil
 }
 
-func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
+func (impl *PolicyServiceImpl) SendScanEvent(event *ScanEvent) error {
 	reqBody, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				return nil, err
 			}
 			scanEvent.DockerRegistryId = dockerReg.DockerRegistry.Id
-			err = impl.SendEventToClairUtility(scanEvent)
+			err = impl.SendScanEvent(scanEvent)
 			if err != nil {
 				impl.logger.Errorw("error in send event to image scanner ", "err", err)
 				return nil, err

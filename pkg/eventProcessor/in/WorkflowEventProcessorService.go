@@ -846,8 +846,8 @@ func (impl *WorkflowEventProcessorImpl) sendForScanV2(ciCompleteEvent bean.CiCom
 		SourceSubType: security2.SourceSubTypeCi,
 		CiWorkflowId:  *ciCompleteEvent.WorkflowId,
 	}
-	impl.policyService.SendEventToClairUtilityAsync(scanRequestCode)
-	impl.policyService.SendEventToClairUtilityAsync(scanRequestImage)
+	impl.policyService.SendScanEventAsync(scanRequestCode)
+	impl.policyService.SendScanEventAsync(scanRequestImage)
 }
 
 func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext bean5.TriggerContext, ciPipelineId int, request *bean8.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
