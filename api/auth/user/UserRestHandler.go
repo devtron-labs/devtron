@@ -779,6 +779,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
+	casbin.LoadPolicy()
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
