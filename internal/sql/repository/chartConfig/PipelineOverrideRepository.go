@@ -192,7 +192,7 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []in
 		Where("pipeline.app_id IN (?)", pg.In(appIds)).
 		Where("pipeline.environment_id =?", envId).
 		Where("pipeline.deleted=?", false).
-		Group("pipeline_override.id", "Pipeline.app_id").
+		Group("pipeline_override.id", "pipeline.app_id", "pipeline.id").
 		Select()
 	return overrides, err
 }
