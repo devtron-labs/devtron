@@ -1,19 +1,18 @@
 package repository
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type Trigger struct {
-	tableName struct{}        `sql:"trigger" pg:",discard_unknown_columns"`
-	Id        int             `sql:"id,pk"`
-	Type      TriggerType     `sql:"type"`
-	WatcherId int             `sql:"watcher_id"`
-	Data      json.RawMessage `sql:"data"`
-	Active    bool            `sql:"active,notnull"`
+	tableName struct{}    `sql:"trigger" pg:",discard_unknown_columns"`
+	Id        int         `sql:"id,pk"`
+	Type      TriggerType `sql:"type"`
+	WatcherId int         `sql:"watcher_id"`
+	Data      string      `sql:"data"`
+	Active    bool        `sql:"active,notnull"`
 	sql.AuditLog
 }
 type TriggerType string

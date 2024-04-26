@@ -1,7 +1,6 @@
 package autoRemediation
 
 import (
-	json2 "encoding/json"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -171,7 +170,7 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 		triggerRes := &repository.Trigger{
 			WatcherId: watcherId,
 			Type:      repository.DEVTRON_JOB,
-			Data:      jsonData,
+			Data:      string(jsonData),
 			Active:    true,
 			AuditLog:  sql.NewDefaultAuditLog(userId),
 		}
@@ -296,9 +295,9 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 
 }
 
-func (impl *WatcherServiceImpl) getTriggerDataFromJson(data json2.RawMessage) (TriggerData, error) {
+func (impl *WatcherServiceImpl) getTriggerDataFromJson(data string) (TriggerData, error) {
 	var triggerResp TriggerData
-	if err := json.Unmarshal(data, &triggerResp); err != nil {
+	if err := json.Unmarshal([]byte(data), &triggerResp); err != nil {
 		impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 		return TriggerData{}, err
 	}
@@ -454,30 +453,20 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	var pipelineIds []int
 	for _, watcher := range watchers {
 		var triggerResp TriggerData
-		if err := json.Unmarshal(watcherIdToTrigger[watcher.Id].Data, &triggerResp); err != nil {
+		if err := json.Unmarshal([]byte(watcherIdToTrigger[watcher.Id].Data), &triggerResp); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return WatchersResponse{}, err
 		}
 		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
 		watcherResponses.List = append(watcherResponses.List, WatcherItem{
+			Id:              watcher.Id,
 			Name:            watcher.Name,
 			Description:     watcher.Description,
 			JobPipelineName: triggerResp.PipelineName,
 			JobPipelineId:   triggerResp.PipelineId,
+			WorkflowId:      triggerResp.WorkflowId,
 			JobId:           triggerResp.JobId,
 		})
-	}
-	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelineIds)
-	if err != nil {
-		impl.logger.Errorw("error in retrieving workflows ", "error", err)
-		return WatchersResponse{}, err
-	}
-	var pipelineIdtoAppworkflow map[int]int
-	for _, workflow := range workflows {
-		pipelineIdtoAppworkflow[workflow.ComponentId] = workflow.AppWorkflowId
-	}
-	for _, watcherList := range watcherResponses.List {
-		watcherList.WorkflowId = pipelineIdtoAppworkflow[watcherList.JobPipelineId]
 	}
 
 	return watcherResponses, nil
@@ -496,7 +485,7 @@ func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Tri
 		triggerResp.Id = trigger.Id
 		triggerResp.IdentifierType = trigger.Type
 		triggerData := TriggerData{}
-		if err := json.Unmarshal(trigger.Data, &triggerData); err != nil {
+		if err := json.Unmarshal([]byte(trigger.Data), &triggerData); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
 		}
