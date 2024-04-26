@@ -2147,7 +2147,6 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 				for _, material := range ciPipeline.CiPipelineMaterials {
 					parentMaterialMap[material.GitMaterialId] = material
 				}
-				matchedMaterials := 0
 				for _, requestPipelineMaterial := range workflow.CiPipeline.CiPipelineMaterialsConfig {
 					parentMaterial, ok := parentMaterialMap[requestPipelineMaterial.GitMaterialId]
 					if !ok {
