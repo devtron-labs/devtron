@@ -30,7 +30,7 @@ type WatcherRepository interface {
 	Update(tx *pg.Tx, watcher *Watcher, userId int32) error
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
-	DeleteWatcherById(tx *pg.Tx, id int) error
+	DeleteWatcherById(id int) error
 	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
 }

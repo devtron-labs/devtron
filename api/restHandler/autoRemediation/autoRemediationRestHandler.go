@@ -127,7 +127,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.watcherService.DeleteWatcherById(watcherId)
+	err = impl.watcherService.DeleteWatcherById(watcherId, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteWatcherById", "err", err, "watcher id", watcherId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
