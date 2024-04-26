@@ -266,6 +266,7 @@ func (e *EnforcerImpl) getCacheData(emailId string, resource string, action stri
 	if found {
 		emailResultMap := emailResult.(map[string]map[string]bool)
 		result = emailResultMap[getCacheKey(resource, action)]
+		fmt.Println("email result map = ", result)
 		if result == nil {
 			result = make(map[string]bool)
 		}
