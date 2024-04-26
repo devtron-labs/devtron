@@ -4,7 +4,7 @@ CREATE TABLE "public"."watcher" (
                                     "name" varchar(50) NOT NULL,
                                     "desc" text ,
                                     "filter_expression" text NOT NULL,
-                                    "gvks" text[],
+                                    "gvks" text,
                                     "active" bool NOT NULL,
                                     "created_on"                timestamptz NOT NULL,
                                     "created_by"                int4        NOT NULL,
@@ -42,6 +42,7 @@ CREATE TABLE "public"."intercepted_event_execution"(
                                               "cluster_id" int ,
                                               "namespace" character varying(250) NOT NULL,
                                               "message" text,
+                                              "execution_message" text,
                                               "message_type" varchar(100),
                                               "event" text,
                                               "involved_object" text,
@@ -49,6 +50,7 @@ CREATE TABLE "public"."intercepted_event_execution"(
                                               "status" varchar(32) , -- failure,success,inprogress
                                               "trigger_id" integer,
                                               "trigger_execution_id" integer,
+                                              "created_on"                timestamptz NOT NULL,
 
                                               CONSTRAINT intercepted_events_trigger_id_fkey FOREIGN KEY ("trigger_id") REFERENCES "public"."trigger" ("id"),
                                               CONSTRAINT intercepted_events_cluster_id_fkey FOREIGN KEY ("cluster_id") REFERENCES "public"."cluster" ("id"),

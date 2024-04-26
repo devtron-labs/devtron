@@ -441,8 +441,7 @@ func (impl *CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline 
 }
 func (impl *CiPipelineRepositoryImpl) FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error) {
 	var pipelines []*CiPipeline
-	err := impl.dbConnection.Model(pipelines).
-		Join("JOIN app a ON ci_pipeline.app_id = a.id").
+	err := impl.dbConnection.Model(&pipelines).
 		Where("ci_pipeline.name IN (?)", pg.Array(pipelineName)).
 		Where("ci_pipeline.app_id IN (?)", pg.Array(appIds)).
 		Where("ci_pipeline.deleted = ?", false).
