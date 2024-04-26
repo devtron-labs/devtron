@@ -502,6 +502,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	//(not calling this method in above if condition because we are also removing policies in this update service)
+	fmt.Println("updating policies at end of role group...")
 	casbin2.LoadPolicy()
 	err = tx.Commit()
 	if err != nil {

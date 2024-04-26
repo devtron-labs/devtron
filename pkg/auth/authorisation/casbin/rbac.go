@@ -127,6 +127,8 @@ func (e *EnforcerImpl) EnforceInBatch(token string, resource string, action stri
 func (e *EnforcerImpl) ReloadPolicy() error {
 	//e.enforcerRWLock.Lock()
 	//defer e.enforcerRWLock.Unlock()
+	model := e.GetModel()
+	fmt.Println(model["g"]["g"].Policy)
 	return e.SyncedEnforcer.LoadPolicy()
 }
 
@@ -298,6 +300,7 @@ func (e *EnforcerImpl) enforceFromCache(emailId string, resource string, action 
 	defer freeCacheReadLock(cacheLock)
 	enforceData := e.getCacheData(emailId, resource, action)
 	data, found := enforceData[resourceItem]
+	fmt.Println("enforce from cache ....")
 	model := e.GetModel()
 	fmt.Println(model["g"]["g"].Policy)
 	return data, found

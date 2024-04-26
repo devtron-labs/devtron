@@ -116,11 +116,16 @@ func AddPolicy(policies []Policy) []Policy {
 
 func LoadPolicy() {
 	defer handlePanic()
+	model := enforcerImplRef.GetModel()
+	fmt.Println("model before reloading policies", model["g"]["g"].Policy)
+
 	err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
 	} else {
 		fmt.Println("policy reloaded successfully")
+		model := enforcerImplRef.GetModel()
+		fmt.Println("model after reloading policies", model["g"]["g"].Policy)
 	}
 }
 
