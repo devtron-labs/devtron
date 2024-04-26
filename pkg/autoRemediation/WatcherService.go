@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -16,27 +17,28 @@ import (
 type WatcherService interface {
 	CreateWatcher(watcherRequest *WatcherDto, userId int32) (int, error)
 	GetWatcherById(watcherId int) (*WatcherDto, error)
-	DeleteWatcherById(watcherId int) error
+	DeleteWatcherById(watcherId int, userId int32) error
 	UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error
 	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
-	//FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
+	// FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
 
 type ScoopConfig struct {
-	WatcherUrl string ``
+	WatcherUrl string `env:"SCOOP_WATCHER_URL" envDefault:"http://scoop.utils:8081"`
 }
 
 type WatcherServiceImpl struct {
-	watcherRepository            repository.WatcherRepository
-	triggerRepository            repository.TriggerRepository
-	interceptedEventsRepository  repository.InterceptedEventsRepository
-	appRepository                appRepository.AppRepository
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	environmentRepository        repository2.EnvironmentRepository
-	appWorkflowMappingRepository appWorkflow.AppWorkflowRepository
-	clusterRepository            repository2.ClusterRepository
-	logger                       *zap.SugaredLogger
+	watcherRepository               repository.WatcherRepository
+	triggerRepository               repository.TriggerRepository
+	interceptedEventsRepository     repository.InterceptedEventsRepository
+	appRepository                   appRepository.AppRepository
+	ciPipelineRepository            pipelineConfig.CiPipelineRepository
+	environmentRepository           repository2.EnvironmentRepository
+	appWorkflowMappingRepository    appWorkflow.AppWorkflowRepository
+	clusterRepository               repository2.ClusterRepository
+	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
+	logger                          *zap.SugaredLogger
 }
 
 func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
@@ -47,17 +49,19 @@ func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	appWorkflowMappingRepository appWorkflow.AppWorkflowRepository,
 	clusterRepository repository2.ClusterRepository,
+	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	logger *zap.SugaredLogger) *WatcherServiceImpl {
 	return &WatcherServiceImpl{
-		watcherRepository:            watcherRepository,
-		triggerRepository:            triggerRepository,
-		interceptedEventsRepository:  interceptedEventsRepository,
-		appRepository:                appRepository,
-		ciPipelineRepository:         ciPipelineRepository,
-		environmentRepository:        environmentRepository,
-		appWorkflowMappingRepository: appWorkflowMappingRepository,
-		clusterRepository:            clusterRepository,
-		logger:                       logger,
+		watcherRepository:               watcherRepository,
+		triggerRepository:               triggerRepository,
+		interceptedEventsRepository:     interceptedEventsRepository,
+		appRepository:                   appRepository,
+		ciPipelineRepository:            ciPipelineRepository,
+		environmentRepository:           environmentRepository,
+		appWorkflowMappingRepository:    appWorkflowMappingRepository,
+		clusterRepository:               clusterRepository,
+		resourceQualifierMappingService: resourceQualifierMappingService,
+		logger:                          logger,
 	}
 }
 func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId int32) (int, error) {
@@ -92,6 +96,17 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 		return 0, err
 	}
 
+	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.getEnvsFromSelectors())
+	if err != nil {
+		impl.logger.Errorw("error in getting envs using env names", "envNames", envs, "err", err)
+		return 0, err
+	}
+	envSelectionIdentifiers := getEnvSelectionIdentifiers(envs)
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, resourceQualifiers.K8sEventWatcher, []int{watcher.Id}, resourceQualifiers.EnvironmentSelector, envSelectionIdentifiers)
+	if err != nil {
+		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
+		return 0, err
+	}
 	return watcher.Id, nil
 }
 
@@ -268,15 +283,42 @@ func getK8sResourcesFromGvks(gvks string) ([]K8sResource, error) {
 	return k8sResources, nil
 }
 
-func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int) error {
-	err := impl.triggerRepository.DeleteTriggerByWatcherId(watcherId)
+func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) error {
+
+	tx, err := impl.watcherRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in creating watcher", "error", err)
+		return err
+	}
+	defer func() {
+		if err != nil {
+			rollbackErr := impl.watcherRepository.RollbackTx(tx)
+			if rollbackErr != nil {
+				impl.logger.Errorw("error in rolling back in watcher delete request", "watcherId", watcherId, "err", rollbackErr)
+			}
+		}
+	}()
+
+	err = impl.triggerRepository.DeleteTriggerByWatcherId(tx, watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting trigger by watcher id", "watcherId", watcherId, "error", err)
 		return err
 	}
-	err = impl.watcherRepository.DeleteWatcherById(watcherId)
+	err = impl.watcherRepository.DeleteWatcherById(tx, watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting watcher by its id", watcherId, "error", err)
+		return err
+	}
+
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.K8sEventWatcher, watcherId, sql.NewDefaultAuditLog(userId), tx)
+	if err != nil {
+		impl.logger.Errorw("error in envs mappings for the watcher", "watcherId", watcherId, "err", err)
+		return err
+	}
+
+	err = impl.triggerRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing db request in watcher delete request", "watcherId", watcherId, "err", err)
 		return err
 	}
 	return nil
@@ -293,30 +335,52 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.Desc = watcherRequest.Description
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
 	watcher.Gvks = gvks
-	_, err = impl.watcherRepository.Update(watcher)
-	if err != nil {
-		impl.logger.Errorw("error in updating watcher", "error", err)
-		return err
-	}
-	err = impl.triggerRepository.DeleteTriggerByWatcherId(watcher.Id)
-	if err != nil {
-		impl.logger.Errorw("error in deleting trigger by watcher id", watcherId, "error", err)
-		return err
-	}
+
 	tx, err := impl.triggerRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction for creating trigger", watcherId, "error", err)
 		return err
 	}
+
+	_, err = impl.watcherRepository.Update(watcher)
+	if err != nil {
+		impl.logger.Errorw("error in updating watcher", "error", err)
+		return err
+	}
+	err = impl.triggerRepository.DeleteTriggerByWatcherId(tx, watcher.Id)
+	if err != nil {
+		impl.logger.Errorw("error in deleting trigger by watcher id", watcherId, "error", err)
+		return err
+	}
+
 	err = impl.createTriggerForWatcher(watcherRequest, watcherId, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating trigger by watcher id", watcherId, "error", err)
 		return err
 	}
+
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.K8sEventWatcher, watcherId, sql.NewDefaultAuditLog(userId), tx)
+	if err != nil {
+		impl.logger.Errorw("error in envs mappings for the watcher", "watcherId", watcherId, "err", err)
+		return err
+	}
+	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.getEnvsFromSelectors())
+	if err != nil {
+		impl.logger.Errorw("error in getting envs using env names", "envNames", envs, "err", err)
+		return err
+	}
+
+	envSelectionIdentifiers := getEnvSelectionIdentifiers(envs)
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, resourceQualifiers.K8sEventWatcher, []int{watcher.Id}, resourceQualifiers.EnvironmentSelector, envSelectionIdentifiers)
+	if err != nil {
+		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
+		return err
+	}
+
 	return nil
 }
 
-//func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
+// func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
 //	search = strings.ToLower(search)
 //	params := WatcherQueryParams{
 //		Offset:      offset,
@@ -380,7 +444,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 //	}
 //
 //	return watcherResponses, nil
-//}
+// }
 
 func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
@@ -411,4 +475,18 @@ func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Tri
 	}
 
 	return triggersResult, nil
+}
+
+func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repository2.Environment, error) {
+	envObjs, err := impl.environmentRepository.GetWithClusterByNames(envs)
+	if err != nil {
+		impl.logger.Errorw("error in finding envs with envNames", "envNames", envs, "err", err)
+		return nil, err
+	}
+
+	envsMap := make(map[string]*repository2.Environment)
+	for _, envObj := range envObjs {
+		envsMap[envObj.Name] = envObj
+	}
+	return envsMap, nil
 }

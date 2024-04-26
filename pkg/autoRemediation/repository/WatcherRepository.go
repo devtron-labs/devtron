@@ -21,8 +21,8 @@ type WatcherRepository interface {
 	Update(watcher *Watcher) (*Watcher, error)
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
-	DeleteWatcherById(id int) error
-	//FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error)
+	DeleteWatcherById(tx *pg.Tx, id int) error
+	// FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -73,7 +73,7 @@ func (impl WatcherRepositoryImpl) GetWatcherById(id int) (*Watcher, error) {
 	}
 	return &watcher, nil
 }
-func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
+func (impl WatcherRepositoryImpl) DeleteWatcherById(tx *pg.Tx, id int) error {
 	_, err := impl.dbConnection.Model(&Watcher{}).Set("active = ?", false).Where("id = ?", id).Update()
 	if err != nil {
 		impl.logger.Error(err)
@@ -82,7 +82,7 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	return nil
 }
 
-//func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error) {
+// func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error) {
 //	var watcher []*Watcher
 //	query := impl.dbConnection.Model(&watcher)
 //	if params.Search != "" {
@@ -97,4 +97,4 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 //	}
 //
 //	return watcher, nil
-//}
+// }

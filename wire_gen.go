@@ -1029,7 +1029,7 @@ func InitializeApp() (*App, error) {
 	watcherRepositoryImpl := repository22.NewWatcherRepositoryImpl(db, sugaredLogger)
 	triggerRepositoryImpl := repository22.NewTriggerRepositoryImpl(db, sugaredLogger)
 	interceptedEventsRepositoryImpl := repository22.NewInterceptedEventsRepositoryImpl(db, sugaredLogger)
-	watcherServiceImpl := autoRemediation.NewWatcherServiceImpl(watcherRepositoryImpl, triggerRepositoryImpl, interceptedEventsRepositoryImpl, appRepositoryImpl, ciPipelineRepositoryImpl, environmentRepositoryImpl, appWorkflowRepositoryImpl, clusterRepositoryImpl, sugaredLogger)
+	watcherServiceImpl := autoRemediation.NewWatcherServiceImpl(watcherRepositoryImpl, triggerRepositoryImpl, interceptedEventsRepositoryImpl, appRepositoryImpl, ciPipelineRepositoryImpl, environmentRepositoryImpl, appWorkflowRepositoryImpl, clusterRepositoryImpl, qualifierMappingServiceImpl, sugaredLogger)
 	serviceImpl := scoop.NewServiceImpl(sugaredLogger, watcherServiceImpl, ciHandlerImpl, ciPipelineMaterialRepositoryImpl, interceptedEventsRepositoryImpl)
 	scoopRestHandlerImpl := scoop.NewRestHandler(serviceImpl)
 	watcherRestHandlerImpl := autoRemediation2.NewWatcherRestHandlerImpl(watcherServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enterpriseEnforcerImpl, sugaredLogger)

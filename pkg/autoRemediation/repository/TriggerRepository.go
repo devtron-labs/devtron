@@ -26,11 +26,11 @@ type TriggerRepository interface {
 	Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error)
 	SaveInBulk(trigger []*Trigger, tx *pg.Tx) ([]*Trigger, error)
 	Update(trigger *Trigger) (*Trigger, error)
-	Delete(trigger *Trigger) error
+	Delete(tx *pg.Tx, trigger *Trigger) error
 	GetTriggerByWatcherId(watcherId int) ([]*Trigger, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 	GetTriggerById(id int) (*Trigger, error)
-	DeleteTriggerByWatcherId(watcherId int) error
+	DeleteTriggerByWatcherId(tx *pg.Tx, watcherId int) error
 	GetWatcherByTriggerId(triggerId int) (*Watcher, error)
 	sql.TransactionWrapper
 }
@@ -76,7 +76,7 @@ func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
 	return trigger, nil
 }
 
-func (impl TriggerRepositoryImpl) Delete(trigger *Trigger) error {
+func (impl TriggerRepositoryImpl) Delete(tx *pg.Tx, trigger *Trigger) error {
 	err := impl.dbConnection.Delete(&trigger)
 	if err != nil {
 		impl.logger.Error(err)
@@ -108,7 +108,7 @@ func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*T
 	return trigger, nil
 }
 
-func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(watcherId int) error {
+func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(tx *pg.Tx, watcherId int) error {
 	var trigger []*Trigger
 	_, err := impl.dbConnection.Model(&trigger).Set("active = ?", false).Where("watcher_id = ?", watcherId).Update()
 	if err != nil {

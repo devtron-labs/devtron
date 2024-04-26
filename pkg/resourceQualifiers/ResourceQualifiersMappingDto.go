@@ -12,8 +12,9 @@ const (
 	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 	InfraProfile          ResourceType = 3
-	ImagePromotionPolicy  ResourceType = 5
 	DeploymentWindow      ResourceType = 4
+	ImagePromotionPolicy  ResourceType = 5
+	K8sEventWatcher       ResourceType = 6
 )
 
 const (

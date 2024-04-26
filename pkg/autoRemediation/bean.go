@@ -1,6 +1,11 @@
 package autoRemediation
 
-import "github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+import (
+	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"golang.org/x/exp/maps"
+)
 
 type EventConfiguration struct {
 	Selectors       []Selector    `json:"selectors"`
@@ -8,10 +13,36 @@ type EventConfiguration struct {
 	EventExpression string        `json:"eventExpression"`
 }
 
+func (ec *EventConfiguration) getEnvsFromSelectors() []string {
+	envNames := make([]string, 0)
+	for _, selector := range ec.Selectors {
+		envNames = append(envNames, selector.Names...)
+	}
+	return envNames
+}
+
+func getEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment) []*resourceQualifiers.SelectionIdentifier {
+	selectionIdentifiers := make([]*resourceQualifiers.SelectionIdentifier, 0)
+	envs := maps.Keys(envNameIdMap)
+	for _, envName := range envs {
+		selectionIdentifiers = append(selectionIdentifiers, &resourceQualifiers.SelectionIdentifier{
+			EnvId: envNameIdMap[envName].Id,
+			SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
+				EnvironmentName: envName,
+			},
+		})
+	}
+	return selectionIdentifiers
+}
+
+type SelectorType string
+
+const EnvironmentSelector SelectorType = "environment"
+
 type Selector struct {
-	Type      string   `json:"type"`
-	Names     []string `json:"names"`
-	GroupName string   `json:"groupName"`
+	Type      SelectorType `json:"type"`
+	Names     []string     `json:"names"`
+	GroupName string       `json:"groupName"`
 }
 
 type K8sResource struct {
