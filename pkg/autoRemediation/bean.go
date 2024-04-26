@@ -96,11 +96,14 @@ type WatcherDto struct {
 }
 
 type WatcherItem struct {
-	Id              int    `json:"id"`
-	Name            string `json:"name"`
-	Description     string `json:"description"`
+	Id          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+
+	// below data should be in an array
 	JobPipelineName string `json:"jobPipelineName"`
 	JobPipelineId   int    `json:"jobPipelineId"`
+	JobId           int    `json:"jobId"`
 	WorkflowId      int    `json:"workflowId"`
 }
 type WatchersResponse struct {

@@ -464,6 +464,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			Description:     watcher.Description,
 			JobPipelineName: triggerResp.PipelineName,
 			JobPipelineId:   triggerResp.PipelineId,
+			JobId:           triggerResp.JobId,
 		})
 	}
 	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelineIds)
