@@ -391,7 +391,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		installReleaseRequest = append(installReleaseRequest, req)
 	}
 	templateChartResponse, err := impl.helmAppClient.TemplateChartBulk(ctx, installReleaseRequest)
-	pdmp := make(map[int]ResourceIdentifierResponse)
+	appIdToResourceIdentifier := make(map[int]ResourceIdentifierResponse)
 	for _, tcResp := range templateChartResponse {
 		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
 		if err != nil {
@@ -399,20 +399,20 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		}
 		appName := tcResp.AppName
 
-		rsmtd := make([]ResourceMetadata, 0)
+		resourceMeta := make([]ResourceMetadata, 0)
 		for _, manifest := range manifests {
 			gvk := manifest.GroupVersionKind()
 			name := manifest.GetName()
 			switch gvk.Kind {
 			case "Deployment", "StatefulSet", "DemonSet", "Rollout":
-				rsmtd = append(rsmtd, ResourceMetadata{
+				resourceMeta = append(resourceMeta, ResourceMetadata{
 					Name:             name,
 					GroupVersionKind: gvk,
 				})
 			}
 		}
-		pdmp[appNameToId[tcResp.AppName]] = ResourceIdentifierResponse{
-			ResourceMetaData: rsmtd,
+		appIdToResourceIdentifier[appNameToId[tcResp.AppName]] = ResourceIdentifierResponse{
+			ResourceMetaData: resourceMeta,
 			AppName:          appName,
 		}
 
@@ -420,7 +420,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	podResp = &RestartPodResponse{
 		EnvironmentId: envId,
 		Namespace:     env.Namespace,
-		RestartPodMap: pdmp,
+		RestartPodMap: appIdToResourceIdentifier,
 	}
 
 	return podResp, nil
