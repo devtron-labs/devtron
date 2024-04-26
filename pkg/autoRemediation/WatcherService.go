@@ -516,14 +516,15 @@ func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repositor
 }
 
 func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, error) {
-	mappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(resourceQualifiers.K8sEventWatcher, []int{watcherId}, resourceQualifiers.EnvironmentSelector)
+	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceId(watcherId, resourceQualifiers.K8sEventWatcher)
 	if err != nil {
 		return nil, err
 	}
 
 	envNames := make([]string, 0, len(mappings))
 	for _, mapping := range mappings {
-		envNames = append(envNames, mapping.SelectionIdentifier.SelectionIdentifierName.EnvironmentName)
+		// currently assuming all the mappings are of identifier type environment
+		envNames = append(envNames, mapping.IdentifierValueString)
 	}
 
 	envs, err := impl.environmentRepository.GetWithClusterByNames(envNames)
