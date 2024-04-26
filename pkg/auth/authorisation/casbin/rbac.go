@@ -300,6 +300,7 @@ func (e *EnforcerImpl) enforceFromCache(emailId string, resource string, action 
 	defer freeCacheReadLock(cacheLock)
 	enforceData := e.getCacheData(emailId, resource, action)
 	data, found := enforceData[resourceItem]
+	fmt.Println("data = ", data, ", found = ", found)
 	fmt.Println("enforce from cache ....")
 	model := e.GetModel()
 	fmt.Println(model["g"]["g"].Policy)
