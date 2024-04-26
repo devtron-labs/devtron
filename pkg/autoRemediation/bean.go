@@ -48,13 +48,6 @@ type WatcherDto struct {
 	EventConfiguration EventConfiguration `json:"eventConfiguration"`
 	Triggers           []Trigger          `json:"triggers"`
 }
-type WatcherQueryParams struct {
-	Offset      int    `json:"offset"`
-	Size        int    `json:"size"`
-	SortOrder   string `json:"sortOrder"`
-	SortOrderBy string `json:"sortOrderBy"`
-	Search      string `json:"Search"`
-}
 
 type WatcherItem struct {
 	Id              int    `json:"id"`

@@ -19,7 +19,7 @@ type WatcherService interface {
 	DeleteWatcherById(watcherId int) error
 	UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error
 	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
-	//FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
+	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
 
@@ -87,6 +87,11 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 		impl.logger.Errorw("error in saving triggers", "error", err)
 		return 0, err
 	}
+	err = impl.triggerRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to create trigger", "error", err)
+		return 0, err
+	}
 	return watcher.Id, nil
 }
 
@@ -99,64 +104,68 @@ func fetchGvksFromK8sResources(resources []K8sResource) (string, error) {
 }
 
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
+	var triggersJobsForWatcher []*Trigger
 	for _, trigger := range watcherRequest.Triggers {
 		if trigger.IdentifierType == repository.DEVTRON_JOB {
-			err := impl.createTriggerJobsForWatcher(watcherRequest, watcherId, userId, tx)
-			if err != nil {
-				impl.logger.Errorw("error in creating triggers for watcher", "error", err)
-				return err
-			}
+			triggersJobsForWatcher = append(triggersJobsForWatcher, &trigger)
 		}
+	}
+	err := impl.createTriggerJobsForWatcher(triggersJobsForWatcher, watcherId, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating triggers for watcher", "error", err)
+		return err
 	}
 	return nil
 }
 
-func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(watcherRequest *WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
-	displayNameToId, pipelineNameToId, envNameToId, pipelineIdtoAppworkflow, err := impl.getJobEnvPipelineDetailsForWatcher(watcherRequest.Triggers)
+type jobDetails struct {
+	displayNameToId         map[string]int
+	pipelineNameToId        map[string]int
+	envNameToId             map[string]int
+	pipelineIdtoAppworkflow map[int]int
+}
+
+func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger, watcherId int, userId int32, tx *pg.Tx) error {
+	jobInfo, err := impl.getJobEnvPipelineDetailsForWatcher(triggers)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving details of job pipeline environment", "error", err)
 		return err
 	}
-	var triggers []*repository.Trigger
-	for _, res := range watcherRequest.Triggers {
+	var triggersResult []*repository.Trigger
+	for _, res := range triggers {
 		triggerData := TriggerData{
 			RuntimeParameters:      res.Data.RuntimeParameters,
-			JobId:                  displayNameToId[res.Data.JobName],
+			JobId:                  jobInfo.displayNameToId[res.Data.JobName],
 			JobName:                res.Data.JobName,
-			PipelineId:             pipelineNameToId[res.Data.PipelineName],
+			PipelineId:             jobInfo.pipelineNameToId[res.Data.PipelineName],
 			PipelineName:           res.Data.PipelineName,
 			ExecutionEnvironment:   res.Data.ExecutionEnvironment,
-			ExecutionEnvironmentId: envNameToId[res.Data.ExecutionEnvironment],
-			WorkflowId:             pipelineIdtoAppworkflow[pipelineNameToId[res.Data.PipelineName]],
+			ExecutionEnvironmentId: jobInfo.envNameToId[res.Data.ExecutionEnvironment],
+			WorkflowId:             jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]],
 		}
 		jsonData, err := json.Marshal(triggerData)
 		if err != nil {
 			impl.logger.Errorw("error in trigger data ", "error", err)
 			return err
 		}
-		trigger := &repository.Trigger{
+		triggerRes := &repository.Trigger{
 			WatcherId: watcherId,
 			Type:      repository.DEVTRON_JOB,
 			Data:      jsonData,
 			Active:    true,
 			AuditLog:  sql.NewDefaultAuditLog(userId),
 		}
-		triggers = append(triggers, trigger)
+		triggersResult = append(triggersResult, triggerRes)
 	}
-	_, err = impl.triggerRepository.SaveInBulk(triggers, tx)
+	_, err = impl.triggerRepository.SaveInBulk(triggersResult, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving trigger", "error", err)
 		return err
 	}
-	defer impl.triggerRepository.RollbackTx(tx)
-	err = impl.triggerRepository.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to create trigger", "error", err)
-		return err
-	}
 	return nil
 }
-func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Trigger) (map[string]int, map[string]int, map[string]int, map[int]int, error) {
+
+func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*Trigger) (*jobDetails, error) {
 	var jobNames, envNames, pipelineNames []string
 	for _, trig := range triggers {
 		jobNames = append(jobNames, trig.Data.JobName)
@@ -166,7 +175,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Tr
 	apps, err := impl.appRepository.FetchAppByDisplayNamesForJobs(jobNames)
 	if err != nil {
 		impl.logger.Errorw("error in fetching apps", "error", err)
-		return nil, nil, nil, nil, err
+		return &jobDetails{}, err
 	}
 	var jobIds []int
 	for _, app := range apps {
@@ -175,7 +184,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Tr
 	pipelines, err := impl.ciPipelineRepository.FindByNames(pipelineNames, jobIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "error", err)
-		return nil, nil, nil, nil, err
+		return &jobDetails{}, err
 	}
 	var pipelinesId []int
 	for _, pipeline := range pipelines {
@@ -184,7 +193,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Tr
 	envs, err := impl.environmentRepository.FindByNames(envNames)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "error", err)
-		return nil, nil, nil, nil, err
+		return &jobDetails{}, err
 	}
 	displayNameToId := make(map[string]int)
 	for _, app := range apps {
@@ -197,7 +206,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Tr
 	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelinesId)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving workflows ", "error", err)
-		return nil, nil, nil, nil, err
+		return &jobDetails{}, err
 	}
 	var pipelineIdtoAppworkflow map[int]int
 	for _, workflow := range workflows {
@@ -207,7 +216,12 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []Tr
 	for _, env := range envs {
 		envNameToId[env.Name] = env.Id
 	}
-	return displayNameToId, pipelineNameToId, envNameToId, pipelineIdtoAppworkflow, nil
+	return &jobDetails{
+		pipelineNameToId:        pipelineNameToId,
+		displayNameToId:         displayNameToId,
+		envNameToId:             envNameToId,
+		pipelineIdtoAppworkflow: pipelineIdtoAppworkflow,
+	}, nil
 }
 func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, error) {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
@@ -288,6 +302,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.Desc = watcherRequest.Description
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
 	watcher.Gvks = gvks
+	watcher.AuditLog = sql.NewDefaultAuditLog(userId)
 	_, err = impl.watcherRepository.Update(watcher)
 	if err != nil {
 		impl.logger.Errorw("error in updating watcher", "error", err)
@@ -311,71 +326,70 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	return nil
 }
 
-//func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
-//	search = strings.ToLower(search)
-//	params := WatcherQueryParams{
-//		Offset:      offset,
-//		Size:        size,
-//		Search:      search,
-//		SortOrderBy: sortOrderBy,
-//		SortOrder:   sortOrder,
-//	}
-//	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
-//	if err != nil {
-//		impl.logger.Errorw("error in retrieving watchers ", "error", err)
-//		return WatchersResponse{}, err
-//	}
-//	var watcherIds []int
-//	for _, watcher := range watchers {
-//		watcherIds = append(watcherIds, watcher.Id)
-//	}
-//	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
-//	if err != nil {
-//		impl.logger.Errorw("error in retrieving triggers ", "error", err)
-//		return WatchersResponse{}, err
-//	}
-//	var triggerIds []int
-//	watcherIdToTrigger := make(map[int]repository.Trigger)
-//	for _, trigger := range triggers {
-//		triggerIds = append(triggerIds, trigger.Id)
-//		watcherIdToTrigger[trigger.WatcherId] = *trigger
-//	}
-//
-//	watcherResponses := WatchersResponse{
-//		Size:   params.Size,
-//		Offset: params.Offset,
-//		Total:  len(watchers),
-//	}
-//	var pipelineIds []int
-//	for _, watcher := range watchers {
-//		var triggerResp TriggerData
-//		if err := json.Unmarshal(watcherIdToTrigger[watcher.Id].Data, &triggerResp); err != nil {
-//			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-//			return WatchersResponse{}, err
-//		}
-//		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
-//		watcherResponses.List = append(watcherResponses.List, WatcherItem{
-//			Name:            watcher.Name,
-//			Description:     watcher.Desc,
-//			JobPipelineName: triggerResp.PipelineName,
-//			JobPipelineId:   triggerResp.PipelineId,
-//		})
-//	}
-//	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelineIds)
-//	if err != nil {
-//		impl.logger.Errorw("error in retrieving workflows ", "error", err)
-//		return WatchersResponse{}, err
-//	}
-//	var pipelineIdtoAppworkflow map[int]int
-//	for _, workflow := range workflows {
-//		pipelineIdtoAppworkflow[workflow.ComponentId] = workflow.AppWorkflowId
-//	}
-//	for _, watcherList := range watcherResponses.List {
-//		watcherList.WorkflowId = pipelineIdtoAppworkflow[watcherList.JobPipelineId]
-//	}
-//
-//	return watcherResponses, nil
-//}
+func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
+	params := repository.WatcherQueryParams{
+		Offset:      offset,
+		Size:        size,
+		Search:      search,
+		SortOrderBy: sortOrderBy,
+		SortOrder:   sortOrder,
+	}
+	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving watchers ", "error", err)
+		return WatchersResponse{}, err
+	}
+	var watcherIds []int
+	for _, watcher := range watchers {
+		watcherIds = append(watcherIds, watcher.Id)
+	}
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving triggers ", "error", err)
+		return WatchersResponse{}, err
+	}
+	var triggerIds []int
+	watcherIdToTrigger := make(map[int]repository.Trigger)
+	for _, trigger := range triggers {
+		triggerIds = append(triggerIds, trigger.Id)
+		watcherIdToTrigger[trigger.WatcherId] = *trigger
+	}
+
+	watcherResponses := WatchersResponse{
+		Size:   params.Size,
+		Offset: params.Offset,
+		Total:  len(watchers),
+	}
+	var pipelineIds []int
+	for _, watcher := range watchers {
+		var triggerResp TriggerData
+		if err := json.Unmarshal(watcherIdToTrigger[watcher.Id].Data, &triggerResp); err != nil {
+			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			return WatchersResponse{}, err
+		}
+		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
+		watcherResponses.List = append(watcherResponses.List, WatcherItem{
+			Name:            watcher.Name,
+			Description:     watcher.Desc,
+			JobPipelineName: triggerResp.PipelineName,
+			JobPipelineId:   triggerResp.PipelineId,
+		})
+	}
+	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving workflows ", "error", err)
+		return WatchersResponse{}, err
+	}
+	var pipelineIdtoAppworkflow map[int]int
+	for _, workflow := range workflows {
+		pipelineIdtoAppworkflow[workflow.ComponentId] = workflow.AppWorkflowId
+	}
+	for _, watcherList := range watcherResponses.List {
+		watcherList.WorkflowId = pipelineIdtoAppworkflow[watcherList.JobPipelineId]
+	}
+
+	return watcherResponses, nil
+}
 
 func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
