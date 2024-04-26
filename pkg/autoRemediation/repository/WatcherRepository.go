@@ -17,6 +17,13 @@ type Watcher struct {
 	Active           bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
+type WatcherQueryParams struct {
+	Offset      int    `json:"offset"`
+	Size        int    `json:"size"`
+	SortOrder   string `json:"sortOrder"`
+	SortOrderBy string `json:"sortOrderBy"`
+	Search      string `json:"Search"`
+}
 
 type WatcherRepository interface {
 	Save(watcher *Watcher, tx *pg.Tx) (*Watcher, error)
@@ -24,7 +31,7 @@ type WatcherRepository interface {
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(tx *pg.Tx, id int) error
-	// FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error)
+	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -82,7 +89,7 @@ func (impl WatcherRepositoryImpl) GetWatcherById(id int) (*Watcher, error) {
 	}
 	return &watcher, nil
 }
-func (impl WatcherRepositoryImpl) DeleteWatcherById(tx *pg.Tx, id int) error {
+func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	_, err := impl.dbConnection.Model(&Watcher{}).Set("active = ?", false).Where("id = ?", id).Update()
 	if err != nil {
 		impl.logger.Error(err)
@@ -91,19 +98,19 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(tx *pg.Tx, id int) error {
 	return nil
 }
 
-// func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params autoRemediation.WatcherQueryParams) ([]*Watcher, error) {
-//	var watcher []*Watcher
-//	query := impl.dbConnection.Model(&watcher)
-//	if params.Search != "" {
-//		query = query.Where("name LIKE ?", "%"+params.Search+"%")
-//	}
-//	if params.SortOrderBy == "name" {
-//		query = query.Order("name ?", params.SortOrder)
-//	}
-//	err := query.Offset(params.Offset).Limit(params.Size).Select()
-//	if err != nil {
-//		return []*Watcher{}, err
-//	}
-//
-//	return watcher, nil
-// }
+func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error) {
+	var watcher []*Watcher
+	query := impl.dbConnection.Model(&watcher)
+	if params.Search != "" {
+		query = query.Where("name ILIKE ?", "%"+params.Search+"%")
+	}
+	if params.SortOrderBy == "name" {
+		query = query.Order("name ?", params.SortOrder)
+	}
+	err := query.Offset(params.Offset).Limit(params.Size).Select()
+	if err != nil {
+		return []*Watcher{}, err
+	}
+
+	return watcher, nil
+}

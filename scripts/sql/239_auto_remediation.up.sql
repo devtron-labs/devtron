@@ -2,7 +2,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_watcher;
 CREATE TABLE "public"."watcher" (
                                     "id" integer NOT NULL default nextval('id_seq_watcher'::regclass),
                                     "name" varchar(50) NOT NULL,
-                                    "desc" text ,
+                                    "description" text ,
                                     "filter_expression" text NOT NULL,
                                     "gvks" text,
                                     "active" bool NOT NULL,
