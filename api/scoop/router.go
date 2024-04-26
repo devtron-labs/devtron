@@ -27,11 +27,11 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 
 	router.Path("/k8s/watcher").HandlerFunc(impl.watcherRestHandler.SaveWatcher).Methods("POST")
 
-	router.Path("/k8s/watcher").Queries("search", "{search}").
-		Queries("orderBy", "{orderBy}").
-		Queries("order", "{order}").
-		Queries("offset", "{offset}").
-		Queries("size", "{size}").HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).Methods("GET")
+	//router.Path("/k8s/watcher").Queries("search", "{search}").
+	//	Queries("orderBy", "{orderBy}").
+	//	Queries("order", "{order}").
+	//	Queries("offset", "{offset}").
+	//	Queries("size", "{size}").HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).Methods("GET")
 
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.GetWatcherById).Methods("GET")
 

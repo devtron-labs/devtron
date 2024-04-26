@@ -21,6 +21,7 @@ type InterceptedEventExecution struct {
 	TriggerExecutionId int       `sql:"trigger_execution_id"`
 	Status             Status    `sql:"status"`
 	ExecutionMessage   string    `sql:"execution_message"`
+	sql.AuditLog
 }
 type Status string
 

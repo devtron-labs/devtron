@@ -24,6 +24,7 @@ const (
 
 type TriggerRepository interface {
 	Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error)
+	SaveInBulk(trigger []*Trigger, tx *pg.Tx) ([]*Trigger, error)
 	Update(trigger *Trigger) (*Trigger, error)
 	Delete(trigger *Trigger) error
 	GetTriggerByWatcherId(watcherId int) ([]*Trigger, error)
@@ -57,9 +58,17 @@ func (impl TriggerRepositoryImpl) Save(trigger *Trigger, tx *pg.Tx) (*Trigger, e
 	}
 	return trigger, nil
 }
+func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*Trigger, tx *pg.Tx) ([]*Trigger, error) {
+	_, err := tx.Model(&triggers).Insert()
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	return triggers, nil
+}
 
 func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
-	_, err := impl.dbConnection.Model(trigger).Update()
+	_, err := impl.dbConnection.Model(&trigger).Update()
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
@@ -68,7 +77,7 @@ func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
 }
 
 func (impl TriggerRepositoryImpl) Delete(trigger *Trigger) error {
-	err := impl.dbConnection.Delete(trigger)
+	err := impl.dbConnection.Delete(&trigger)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -100,19 +109,11 @@ func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*T
 }
 
 func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(watcherId int) error {
-	var trigger []Trigger
-	err := impl.dbConnection.Model(&trigger).Where("watcher_id = ?", watcherId).Select()
+	var trigger []*Trigger
+	_, err := impl.dbConnection.Model(&trigger).Set("active = ?", false).Where("watcher_id = ?", watcherId).Update()
 	if err != nil {
 		impl.logger.Error(err)
 		return err
-	}
-	for _, triggerItem := range trigger {
-		triggerItem.Active = false
-		_, err = impl.Update(&triggerItem)
-		if err != nil {
-			impl.logger.Error(err)
-			return err
-		}
 	}
 
 	return nil
