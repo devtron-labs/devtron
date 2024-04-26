@@ -290,7 +290,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
-		Where("component_id IN ?", pg.In(ciPipelineId)).
+		Where("component_id IN (?)", pg.In(ciPipelineId)).
 		Where("type = ?", CIPIPELINE).
 		Where("active = ?", true).
 		Select()

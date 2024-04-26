@@ -228,7 +228,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 		impl.logger.Errorw("error in retrieving workflows ", "error", err)
 		return &jobDetails{}, err
 	}
-	var pipelineIdtoAppworkflow map[int]int
+	pipelineIdtoAppworkflow := make(map[int]int)
 	for _, workflow := range workflows {
 		pipelineIdtoAppworkflow[workflow.ComponentId] = workflow.AppWorkflowId
 	}
@@ -318,7 +318,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		impl.logger.Errorw("error in deleting trigger by watcher id", "watcherId", watcherId, "error", err)
 		return err
 	}
-	err = impl.watcherRepository.DeleteWatcherById(tx, watcherId)
+	err = impl.watcherRepository.DeleteWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting watcher by its id", watcherId, "error", err)
 		return err
@@ -355,7 +355,6 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in creating transaction for creating trigger", watcherId, "error", err)
 		return err
 	}
-
 
 	_, err = impl.watcherRepository.Update(watcher)
 	if err != nil {
