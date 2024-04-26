@@ -262,6 +262,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 			EventExpression: watcher.FilterExpression,
 		},
 	}
+
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in getting trigger for watcher id", "watcherId", watcherId, "error", err)
@@ -276,6 +277,14 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 		triggerResp.IdentifierType = trigger.Type
 		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResp)
 	}
+
+	selectors, err := impl.getEnvSelectors(watcherId)
+	if err != nil {
+		impl.logger.Errorw("error in getting selectors for the watcher", "watcherId", watcherId, "error", err)
+		return nil, err
+	}
+
+	watcherResponse.EventConfiguration.Selectors = selectors
 	return &watcherResponse, nil
 
 }
@@ -440,7 +449,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
 		watcherResponses.List = append(watcherResponses.List, WatcherItem{
 			Name:            watcher.Name,
-			Description:     watcher.Desc,
+			Description:     watcher.Description,
 			JobPipelineName: triggerResp.PipelineName,
 			JobPipelineId:   triggerResp.PipelineId,
 		})
@@ -504,4 +513,40 @@ func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repositor
 		envsMap[envObj.Name] = envObj
 	}
 	return envsMap, nil
+}
+
+func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, error) {
+	mappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(resourceQualifiers.K8sEventWatcher, []int{watcherId}, resourceQualifiers.EnvironmentSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	envNames := make([]string, 0, len(mappings))
+	for _, mapping := range mappings {
+		envNames = append(envNames, mapping.SelectionIdentifier.SelectionIdentifierName.EnvironmentName)
+	}
+
+	envs, err := impl.environmentRepository.GetWithClusterByNames(envNames)
+	if err != nil {
+		return nil, err
+	}
+
+	clusterWiseEnvs := make(map[string][]string)
+	for _, env := range envs {
+		list, ok := clusterWiseEnvs[env.Cluster.ClusterName]
+		if !ok {
+			list = make([]string, 0)
+		}
+		list = append(list, env.Name)
+	}
+
+	selectors := make([]Selector, 0, len(clusterWiseEnvs))
+	for clusterName, _ := range clusterWiseEnvs {
+		selectors = append(selectors, Selector{
+			Type:      EnvironmentSelector,
+			GroupName: clusterName,
+			Names:     clusterWiseEnvs[clusterName],
+		})
+	}
+	return selectors, nil
 }
