@@ -6,8 +6,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
-	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -31,10 +31,6 @@ type WatcherRestHandlerImpl struct {
 	enforcerUtil    rbac.EnforcerUtil
 	enforcer        casbin.Enforcer
 	logger          *zap.SugaredLogger
-}
-
-type ChannelDto struct {
-	Channel util.Channel `json:"channel" validate:"required"`
 }
 
 func NewWatcherRestHandlerImpl(watcherService autoRemediation.WatcherService, userAuthService user.UserService, validator *validator.Validate,
@@ -102,10 +98,13 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
-	// RBAC
-	// token := r.Header.Get("token")
-
-	// RBAC
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, "*"); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	//RBAC enforcer Ends
 	res, err := impl.watcherService.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetWatcherById", "err", err, "watcher id", watcherId)
@@ -124,10 +123,13 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
-	// RBAC
-	// token := r.Header.Get("token")
-
-	// RBAC
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, "*"); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	//RBAC enforcer Ends
 	err = impl.watcherService.DeleteWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteWatcherById", "err", err, "watcher id", watcherId)
@@ -160,10 +162,13 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	// RBAC
-	// token := r.Header.Get("token")
-
-	// RBAC
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionUpdate, "*"); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	//RBAC enforcer Ends
 	err = impl.watcherService.UpdateWatcherById(watcherId, watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, updateWatcherById", "err", err, "watcher id", watcherId)
@@ -216,18 +221,14 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		}
 	}
 	search := queryParams.Get("search")
-	WatcherQuery := WatcherQueryParams{
-		Offset:      offset,
-		Search:      search,
-		Size:        size,
-		SortOrder:   sortOrder,
-		SortOrderBy: sortOrderBy,
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, "*"); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
 	}
-	// RBAC
-	// token := r.Header.Get("token")
-
-	// RBAC
-	watchersResponse, err := impl.watcherService.FindAllWatchers(WatcherQuery)
+	//RBAC enforcer Ends
+	watchersResponse, err := impl.watcherService.FindAllWatchers(offset, search, size, sortOrder, sortOrderBy)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, find all ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -44,6 +44,7 @@ type AppWorkflowRepository interface {
 	FindWFCIMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error)
@@ -281,6 +282,15 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 	var appWorkflowsMapping []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", ciPipelineId).
+		Where("type = ?", CIPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("component_id IN ?", pg.In(ciPipelineId)).
 		Where("type = ?", CIPIPELINE).
 		Where("active = ?", true).
 		Select()

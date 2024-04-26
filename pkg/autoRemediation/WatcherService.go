@@ -1,7 +1,6 @@
 package autoRemediation
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -19,8 +18,12 @@ type WatcherService interface {
 	// RetrieveInterceptedEvents() ([]*InterceptedEventsDto, error)
 	UpdateWatcherById(watcherId int, watcherRequest WatcherDto) error
 	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
-	FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error)
+	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
+}
+
+type ScoopConfig struct {
+	WatcherUrl string ``
 }
 
 type WatcherServiceImpl struct {
@@ -86,6 +89,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest WatcherDto) (int, e
 		impl.logger.Errorw("error in saving triggers", "error", err)
 		return 0, err
 	}
+
 	return watcher.Id, nil
 }
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest WatcherDto, watcherId int) error {
@@ -299,7 +303,15 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	return nil
 }
 
-func (impl *WatcherServiceImpl) FindAllWatchers(params autoRemediation.WatcherQueryParams) (WatchersResponse, error) {
+func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
+	search = strings.ToLower(search)
+	params := WatcherQueryParams{
+		Offset:      offset,
+		Size:        size,
+		Search:      search,
+		SortOrderBy: sortOrderBy,
+		SortOrder:   sortOrder,
+	}
 	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watchers ", "error", err)
@@ -326,25 +338,34 @@ func (impl *WatcherServiceImpl) FindAllWatchers(params autoRemediation.WatcherQu
 		Offset: params.Offset,
 		Total:  len(watchers),
 	}
+	var pipelineIds []int
 	for _, watcher := range watchers {
 		var triggerResp TriggerData
 		if err := json.Unmarshal(watcherIdToTrigger[watcher.Id].Data, &triggerResp); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return WatchersResponse{}, err
 		}
-		workflow, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineId(triggerResp.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in retrieving triggers ", "error", err)
-			return WatchersResponse{}, err
-		}
+		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
 		watcherResponses.List = append(watcherResponses.List, WatcherItem{
 			Name:            watcher.Name,
 			Description:     watcher.Desc,
 			JobPipelineName: triggerResp.PipelineName,
 			JobPipelineId:   triggerResp.PipelineId,
-			WorkflowId:      workflow[0].AppWorkflowId,
 		})
 	}
+	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving workflows ", "error", err)
+		return WatchersResponse{}, err
+	}
+	var pipelineIdtoAppworkflow map[int]int
+	for _, workflow := range workflows {
+		pipelineIdtoAppworkflow[workflow.ComponentId] = workflow.AppWorkflowId
+	}
+	for _, watcherList := range watcherResponses.List {
+		watcherList.WorkflowId = pipelineIdtoAppworkflow[watcherList.JobPipelineId]
+	}
+
 	return watcherResponses, nil
 }
 
