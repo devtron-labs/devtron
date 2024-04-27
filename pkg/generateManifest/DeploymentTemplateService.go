@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -26,12 +25,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -409,15 +406,18 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	for _, req := range appIdToInstallReleaseRequest {
 		installReleaseRequest = append(installReleaseRequest, req)
 	}
-	wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
-	handlePanic := func() {
-		if err := recover(); err != nil {
-			impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
-
-		}
-	}
-	for
+	//wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
+	//handlePanic := func() {
+	//	if err := recover(); err != nil {
+	//		impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
+	//
+	//	}
+	//}
+	//var templateChartResponse []*gRPC.TemplateChartResponse
+	//for _,irr:=range installReleaseRequest{
 	templateChartResponse, err := impl.helmAppClient.TemplateChartBulk(ctx, installReleaseRequest)
+	//}
+
 	appIdToResourceIdentifier := make(map[int]ResourceIdentifierResponse)
 	for _, tcResp := range templateChartResponse {
 		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
@@ -425,13 +425,12 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 			return nil, err
 		}
 		appName := tcResp.AppName
-
 		resourceMeta := make([]ResourceMetadata, 0)
 		for _, manifest := range manifests {
 			gvk := manifest.GroupVersionKind()
 			name := manifest.GetName()
 			switch gvk.Kind {
-			case "Deployment", "StatefulSet", "DemonSet", "Rollout":
+			case string(Deployment), string(StatefulSet), string(DemonSet), string(Rollout):
 				resourceMeta = append(resourceMeta, ResourceMetadata{
 					Name:             name,
 					GroupVersionKind: gvk,
@@ -449,7 +448,13 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		Namespace:     env.Namespace,
 		RestartPodMap: appIdToResourceIdentifier,
 	}
-
+	for _, identifierResp := range podResp.RestartPodMap {
+		for _, resp := range identifierResp.ResourceMetaData {
+			if resp.Name == "" {
+				resp.Name = fmt.Sprintf("%s-%s", identifierResp.AppName, env.Name)
+			}
+		}
+	}
 	return podResp, nil
 }
 
@@ -459,7 +464,7 @@ func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int,
 		impl.Logger.Errorw("error in fetching pipelineOverrides for appIds", "appIds", appIds, "err", err)
 	}
 	for _, pco := range pipelineOverrides {
-		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineOverrideValues}
+		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineMergedValues}
 	}
 	return err
 }

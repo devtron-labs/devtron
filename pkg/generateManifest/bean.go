@@ -11,6 +11,15 @@ const (
 	Manifest RequestDataMode = 2
 )
 
+type Kind string
+
+const (
+	Deployment  Kind = "Deployment"
+	StatefulSet Kind = "StatefulSet"
+	DemonSet    Kind = "DemonSet"
+	Rollout     Kind = "Rollout"
+)
+
 type DeploymentTemplateRequest struct {
 	AppId                       int                               `json:"appId"`
 	EnvId                       int                               `json:"envId,omitempty"`
