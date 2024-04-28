@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -453,7 +454,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	}
 	for _, identifierResp := range podResp.RestartPodMap {
 		for _, resp := range identifierResp.ResourceMetaData {
-			if resp.Name == "" {
+			if strings.Contains(resp.Name, fmt.Sprintf("%s-%s", identifierResp.AppName, env.Name)) {
 				resp.Name = fmt.Sprintf("%s-%s", identifierResp.AppName, env.Name)
 			}
 		}
