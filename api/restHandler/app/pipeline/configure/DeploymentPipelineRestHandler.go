@@ -985,7 +985,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 			return
 		}
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, appIds, envId)
 	if err != nil {

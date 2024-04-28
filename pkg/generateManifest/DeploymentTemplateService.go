@@ -398,9 +398,10 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	}
 	for _, app := range apps {
 		appNameToId[app.AppName] = app.Id
-		appIdToInstallReleaseRequest[app.Id] = &gRPC.InstallReleaseRequest{ReleaseIdentifier: impl.getReleaseIdentifier(config, app, env),
-			K8SVersion: k8sServerVersion.String(),
-		}
+		appIdToInstallReleaseRequest[app.Id].ReleaseIdentifier = impl.getReleaseIdentifier(config, app, env)
+		appIdToInstallReleaseRequest[app.Id].K8SVersion = k8sServerVersion.String()
+		appIdToInstallReleaseRequest[app.Id].AppName = app.AppName
+		appIdToInstallReleaseRequest[app.Id].ChartRepository = ChartRepository
 	}
 	installReleaseRequest := make([]*gRPC.InstallReleaseRequest, 0)
 	for _, req := range appIdToInstallReleaseRequest {
@@ -464,7 +465,7 @@ func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int,
 		impl.Logger.Errorw("error in fetching pipelineOverrides for appIds", "appIds", appIds, "err", err)
 	}
 	for _, pco := range pipelineOverrides {
-		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineMergedValues}
+		appIdToInstallReleaseRequest[pco.Pipeline.AppId].ValuesYaml = pco.PipelineMergedValues
 	}
 	return err
 }
