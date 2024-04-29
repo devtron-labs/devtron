@@ -21,9 +21,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
-	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,6 +59,7 @@ type UserService interface {
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
+	GetEmailAndVersionFromToken(token string) (string, string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
@@ -72,6 +74,7 @@ type UserService interface {
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
+	CheckIfTokenIsValid(email string, version string) error
 }
 
 type UserServiceImpl struct {
@@ -1222,7 +1225,7 @@ func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 
 func (impl *UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
 	_, span := otel.Tracer("userService").Start(context, "GetUserByToken")
-	email, err := impl.GetEmailFromToken(token)
+	email, version, err := impl.GetEmailAndVersionFromToken(token)
 	span.End()
 	if err != nil {
 		return http.StatusUnauthorized, "", err
@@ -1237,7 +1240,33 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 		}
 		return http.StatusUnauthorized, "", err
 	}
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
+	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
+		err := impl.CheckIfTokenIsValid(email, version)
+		if err != nil {
+			impl.logger.Errorw("token is not valid", "error", err, "token", token)
+			return http.StatusUnauthorized, "", err
+		}
+	}
 	return userInfo.Id, userInfo.UserType, nil
+}
+
+func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) error {
+	tokenName := userHelper.ExtractTokenNameFromEmail(email)
+	embeddedTokenVersion, _ := strconv.Atoi(version)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenExistsByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+	if err != nil || !isProvidedTokenValid {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user not found for token",
+			UserMessage:     fmt.Sprintf("no user found against provided token"),
+		}
+		return err
+	}
+	return nil
 }
 
 func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
@@ -1281,6 +1310,50 @@ func (impl *UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	}
 
 	return email, nil
+}
+
+func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, string, error) {
+	if token == "" {
+		impl.logger.Infow("no token provided")
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "no token provided",
+		}
+		return "", "", err
+	}
+
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
+	if err != nil {
+		impl.logger.Errorw("failed to verify token", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "failed to verify token",
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return "", "", err
+	}
+
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		impl.logger.Errorw("failed to MapClaims", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "token invalid",
+			UserMessage:     "token verification failed while parsing token",
+		}
+		return "", "", err
+	}
+
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
+	tokenVersion := jwt.GetField(mapClaims, "version")
+
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
+	}
+
+	return email, tokenVersion, nil
 }
 
 func (impl *UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
@@ -1384,7 +1457,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequ
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, 0, len(models))
 	for _, model := range models {
-		if !helper2.IsSystemOrAdminUserByEmail(model.EmailId) {
+		if !userHelper.IsSystemOrAdminUserByEmail(model.EmailId) {
 			filteredUserIds = append(filteredUserIds, model.Id)
 		}
 	}
