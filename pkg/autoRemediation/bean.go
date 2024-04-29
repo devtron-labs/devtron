@@ -148,6 +148,8 @@ type Watcher struct {
 	EventFilterExpression string                    `json:"eventFilterExpression"`
 }
 
+const WATCHER_CUD_URL = "/k8s/watcher"
+
 type Action string
 
 const (

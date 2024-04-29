@@ -102,6 +102,7 @@ type K8sApplicationService interface {
 	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
+	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -181,6 +182,8 @@ type ScoopServiceClusterConfig struct {
 	PassKey     string `json:"passKey"`
 	Port        string `json:"port"`
 }
+
+var ScoopNotConfiguredErr = errors.New("scoop not configured")
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
@@ -535,21 +538,21 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 		for _, pod := range app.ResourceTreeResponse.PodMetadata {
 			if pod.Name == podName {
 
-				//finding the container name in main Containers
+				// finding the container name in main Containers
 				for _, container := range pod.Containers {
 					if container == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in init containers
+				// finding the container name in init containers
 				for _, initContainer := range pod.InitContainers {
 					if initContainer == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in ephemeral containers
+				// finding the container name in ephemeral containers
 				for _, ephemeralContainer := range pod.EphemeralContainers {
 					if ephemeralContainer.Name == requestContainerName {
 						return true
@@ -706,7 +709,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
-	//store the copy of requested resource identifier
+	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	listOptions := &metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
@@ -749,7 +752,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	if len(request.Filter) > 0 {
 		filteredResources := unstructured.UnstructuredList{}
 		filteredItems := make([]interface{}, 0)
-		//resource := unstructured.Unstructured{}
+		// resource := unstructured.Unstructured{}
 		for _, v := range resp.Resources.Items {
 			celRequest := resourceFilter.CELRequest{
 				Expression: request.Filter,
@@ -769,7 +772,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 			}
 
 			filteredItems = append(filteredItems, interface{}(v.Object))
-			//resource = v
+			// resource = v
 		}
 		items := map[string]interface{}{
 			"items": filteredItems,
@@ -822,7 +825,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-		//return nil, err
+		// return nil, err
 	} else {
 		resourceList.ServerVersion = k8sServerVersion.String()
 	}
@@ -1030,7 +1033,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		return nil, err
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
@@ -1194,7 +1197,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
 				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
 			}
-			//try with legacy API
+			// try with legacy API
 			result := v1Client.RESTClient().Patch(types.JSONPatchType).
 				Namespace(pod.Namespace).
 				Resource("pods").
@@ -1327,7 +1330,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}
 	ephemeralContainerStatusMap := make(map[string]bool)
 	for _, c := range pod.Status.EphemeralContainerStatuses {
-		//c.state contains three states running,waiting and terminated
+		// c.state contains three states running,waiting and terminated
 		// at any point of time only one state will be there
 		if c.State.Running != nil {
 			ephemeralContainerStatusMap[c.Name] = true
@@ -1391,7 +1394,7 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 		return nil, fmt.Errorf("no manifest found for this request")
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
@@ -1424,7 +1427,7 @@ func (impl *K8sApplicationServiceImpl) GetScoopServiceProxyHandler(ctx context.C
 	// read scoop service metadata from config
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
-		return nil, scoopConfig, errors.New("scoop not configured")
+		return nil, scoopConfig, ScoopNotConfiguredErr
 	}
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, scoopConfig.ServiceName, scoopConfig.Namespace, scoopConfig.Port))
 	if err != nil {
@@ -1548,8 +1551,8 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 		return false, err
 	}
 
-	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
-	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	// ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	// https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
 	ephemeralRegex := impl.k8sAppConfig.EphemeralServerVersionRegex
 	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
 	if err != nil {
@@ -1563,4 +1566,17 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 	impl.logger.Infow("received request for port forwarding", "clusterId", clusterId, "serviceName", serviceName, "namespace", namespace, "port", port)
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
 	return proxyHandler, err
+}
+
+func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
+	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
+	if !ok {
+		return 0, scoopConfig, ScoopNotConfiguredErr
+	}
+	scoopPort, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyPort(ctx, NewClusterServiceKey(clusterId, scoopConfig.ServiceName, scoopConfig.Namespace, scoopConfig.Port))
+	if err != nil {
+		impl.logger.Errorw("error in getting a service proxy port for scoop", "clusterId", clusterId, "err", err)
+		return 0, scoopConfig, err
+	}
+	return scoopPort, scoopConfig, nil
 }
