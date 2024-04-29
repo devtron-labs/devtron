@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	serviceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	devtronResourceHelper "github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -638,7 +639,7 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id i
 }
 
 func resolveKindSubKindValues(kindVar string) (kind, subKind string, statusCode int, err error) {
-	kind, subKind, err = devtronResource.GetKindAndSubKindFrom(kindVar)
+	kind, subKind, err = devtronResourceHelper.GetKindAndSubKindFrom(kindVar)
 	if err != nil {
 		err = fmt.Errorf("invalid parameter: kind")
 		statusCode = http.StatusBadRequest

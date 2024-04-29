@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataInResourceObj(resourceSchema *repository.DevtronResourceSchema,
+func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
@@ -31,12 +31,12 @@ func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataInResource
 					Icon: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIconPath).Bool(),
 				},
 			}
-			resourceObject.Overview.CreatedOn, err = getCreatedOnTime(existingResourceObject.ObjectData)
+			resourceObject.Overview.CreatedOn, err = helper.GetCreatedOnTime(existingResourceObject.ObjectData)
 			if err != nil {
 				impl.logger.Errorw("error in time conversion", "err", err)
 				return err
 			}
-			resourceObject.Overview.Tags = getOverviewTags(existingResourceObject.ObjectData)
+			resourceObject.Overview.Tags = helper.GetOverviewTags(existingResourceObject.ObjectData)
 		}
 	}
 	return nil
@@ -149,13 +149,13 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
 			}
 			if !isLite {
-				err := impl.updateCompleteReleaseDataInResourceObj(nil, childObject, childData)
+				err := impl.updateCompleteReleaseDataForGetApiResourceObj(nil, childObject, childData)
 				if err != nil {
 					impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
 					return nil, err
 				}
 			} else {
-				err := impl.updateReleaseOverviewDataInResourceObj(nil, childObject, childData)
+				err := impl.updateReleaseOverviewDataForGetApiResourceObj(nil, childObject, childData)
 				if err != nil {
 					impl.logger.Errorw("error in getting overview data", "err", err)
 					return nil, err
@@ -163,7 +163,7 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 			}
 			resourceData.ChildObjects = append(resourceData.ChildObjects, childData)
 		}
-		err := impl.updateReleaseTrackOverviewDataInResourceObj(nil, resourceObjects[i], resourceData)
+		err := impl.updateReleaseTrackOverviewDataForGetApiResourceObj(nil, resourceObjects[i], resourceData)
 		if err != nil {
 			impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
 			return nil, err

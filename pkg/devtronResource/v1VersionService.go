@@ -20,7 +20,7 @@ func appendDependencyArgDetails(argValues *[]interface{}, argTypes *[]string, sc
 	*schemaIds = append(*schemaIds, schemaId)
 }
 
-func (impl *DevtronResourceServiceImpl) updateV1ResourceDependenciesDataInResponseObj(req *bean.DevtronResourceObjectDescriptorBean, query *bean2.GetDependencyQueryParams,
+func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesApi(req *bean.DevtronResourceObjectDescriptorBean, query *bean2.GetDependencyQueryParams,
 	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error) {
 	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, true)
 	if err != nil {

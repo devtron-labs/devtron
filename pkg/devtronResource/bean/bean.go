@@ -105,6 +105,16 @@ type NoteBean struct {
 	UpdatedBy *UserSchema `json:"updatedBy"`
 }
 
+type DevtronResourceDependencyPatchAPIBean struct {
+	*DevtronResourceObjectDescriptorBean
+	DependencyPatch []*DependencyPatchBean `json:"dependencyPatch,omitempty"`
+}
+
+type DependencyPatchBean struct {
+	PatchQuery     []PatchQuery    `json:"query,omitempty"`
+	DependencyInfo *DependencyInfo `json:"dependencyInfo,omitempty"`
+}
+
 type ResourceIdentifier struct {
 	Id         int    `json:"id"`
 	Identifier string `json:"identifier,omitempty"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
@@ -131,8 +141,9 @@ type DependencyInfo struct {
 }
 
 const (
-	IdentifierQueryString = "identifier"
-	IdQueryString         = "id"
+	AllIdentifierQueryString = "*"
+	IdentifierQueryString    = "identifier"
+	IdQueryString            = "id"
 )
 
 type ResourceParentData struct {
@@ -237,6 +248,12 @@ type FilterCriteriaDecoder struct {
 }
 
 type FilterCriteriaIdentifier string
+
+type IdIdentifierIndex struct {
+	Ids              []int    //all ids
+	Identifiers      []string //all identifiers
+	IdentifiersIndex []int    //index of dependency in all dependencies array at which this identifier is stored at, will be used to replace identifier with id
+}
 
 const (
 	Identifier FilterCriteriaIdentifier = "identifier"
