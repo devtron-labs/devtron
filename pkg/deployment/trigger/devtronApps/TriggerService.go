@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -716,7 +715,7 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 		return nil, 0, "", err
 	}
 	//checking if namespace exist or not
-	err = impl.checkIfNsExists(cdPipeline.Environment.Namespace, cdPipeline.Environment.ClusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterId(cdPipeline.Environment.Namespace, cdPipeline.Environment.ClusterId)
 	if err != nil {
 		return nil, 0, "", err
 	}
@@ -2006,22 +2005,6 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 			}
 			return apiErr
 		}
-	}
-	return nil
-}
-func (impl *TriggerServiceImpl) checkIfNsExists(namespace string, clusterId int) error {
-	//making appIdentifier payload
-	appIdentifier := &client2.AppIdentifier{
-		Namespace: namespace,
-		ClusterId: clusterId,
-	}
-	exists, err := impl.helmAppService.CheckIfNsExists(appIdentifier)
-	if err != nil {
-		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", clusterId)
-		return err
-	}
-	if !exists {
-		return &util.ApiError{InternalMessage: models2.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", namespace)}.Error(), Code: strconv.Itoa(http.StatusNotFound), HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("Namespace %s does not exist.", namespace)}
 	}
 	return nil
 }

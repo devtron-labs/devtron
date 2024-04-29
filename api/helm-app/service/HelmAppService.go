@@ -72,7 +72,7 @@ type HelmAppService interface {
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
-	CheckIfNsExists(app *AppIdentifier) (bool, error)
+	CheckIfNsExistsForClusterId(namespace string, clusterId int) error
 }
 
 type HelmAppServiceImpl struct {
@@ -563,13 +563,9 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
 	//that case DeleteApplication returned with grpc error and the user was not able to delete the
 	//cd-pipeline after helm app is created in that namespace.
-	exists, err := impl.CheckIfNsExists(app)
+	err = impl.CheckIfNsExistsForClusterId(app.Namespace, app.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
 		return nil, err
-	}
-	if !exists {
-		return nil, models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", app.Namespace)}
 	}
 
 	req := &gRPC.ReleaseIdentifier{
@@ -598,7 +594,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) CheckIfNsExists(app *AppIdentifier) (bool, error) {
+func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
 	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
@@ -1134,4 +1130,20 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 	default:
 		return 0
 	}
+}
+func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterId(namespace string, clusterId int) error {
+	//making appIdentifier payload
+	appIdentifier := &AppIdentifier{
+		Namespace: namespace,
+		ClusterId: clusterId,
+	}
+	exists, err := impl.checkIfNsExists(appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", clusterId)
+		return err
+	}
+	if !exists {
+		return &util.ApiError{InternalMessage: models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", namespace)}.Error(), Code: strconv.Itoa(http.StatusNotFound), HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("Namespace %s does not exist.", namespace)}
+	}
+	return nil
 }
