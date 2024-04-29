@@ -346,11 +346,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
 	cronJobChartRegex := regexp.MustCompile(bean2.CronJobChartRegexExpression)
 	if cronJobChartRegex.MatchString(template) {
-		sanitizedK8sVersion, err = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
-		if err != nil {
-			impl.Logger.Errorw("error in stripping pre-release from k8sServerVersion due to invalid k8sServerVersion", "k8sServerVersion", k8sServerVersion.String(), "err", err)
-			return nil, err
-		}
+		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
 	}
 
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
