@@ -143,8 +143,8 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 func (impl AppListingRepositoryImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	query := "SELECT cip.id AS ci_pipeline_id, cip.name AS ci_pipeline_name, a.id as job_id, a.app_name as job_name" +
-		" FROM ci_pipeline cip " +
-		" LEFT JOIN app a on a.id = cip.app_id AND cip.active=true" +
+		" FROM app a " +
+		" LEFT JOIN ci_pipeline cip ON a.id = cip.app_id AND cip.active=true" +
 		" WHERE a.active = true AND a.app_type = ?"
 	_, err := impl.dbConnection.Query(&jobContainers, query, helper.Job)
 	return jobContainers, err
