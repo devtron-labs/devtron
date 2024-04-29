@@ -55,6 +55,7 @@ import (
 type AppListingService interface {
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -356,6 +357,15 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job container", "error", err, jobId)
 		return []*bean.JobListingContainer{}, err
+	}
+	return jobCiContainers, nil
+}
+
+func (impl AppListingServiceImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	jobCiContainers, err := impl.appListingRepository.FetchJobCiPipelines()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching job ci pipelines", "error", err)
+		return jobCiContainers, err
 	}
 	return jobCiContainers, nil
 }
@@ -918,7 +928,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.Commits = make([]string, 0)
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }
