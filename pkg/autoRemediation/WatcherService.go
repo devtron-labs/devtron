@@ -481,9 +481,11 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	var pipelineIds []int
 	for _, watcher := range watchers {
 		var triggerResp TriggerData
-		if err := json.Unmarshal([]byte(watcherIdToTrigger[watcher.Id].Data), &triggerResp); err != nil {
-			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return WatchersResponse{}, err
+		if trigger, ok := watcherIdToTrigger[watcher.Id]; ok {
+			if err = json.Unmarshal([]byte(trigger.Data), &triggerResp); err != nil {
+				impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+				return WatchersResponse{}, err
+			}
 		}
 		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
 		watcherResponses.List = append(watcherResponses.List, WatcherItem{

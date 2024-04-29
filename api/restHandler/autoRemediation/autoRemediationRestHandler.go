@@ -238,9 +238,9 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, watchersResponse, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -275,7 +275,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 			return
 		}
 	}
-	search := queryParams.Get("searchString")
+	search := queryParams.Get("search")
 	search = strings.ToLower(search)
 	from := queryParams.Get("from")
 	var fromTime time.Time
@@ -323,7 +323,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	interceptedEventQuery := repository.InterceptedEventQueryParams{
 		Offset:          offset,
 		Size:            size,
@@ -342,6 +342,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
 }
+
+/**/
