@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -116,13 +117,11 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
-
-	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	imageScanService                    security2.ImageScanService
+	enforcerUtil                        rbac.EnforcerUtil
+	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
-	scanResultRepository          security.ImageScanResultRepository
-	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
@@ -173,8 +172,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventClient client.EventClient,
 	envVariables *util3.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
-	scanResultRepository security.ImageScanResultRepository,
-	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -192,6 +189,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
+	imageScanService security2.ImageScanService,
 	K8sUtil *util5.K8sServiceImpl) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -225,8 +223,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
-		scanResultRepository:                scanResultRepository,
-		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageScanHistoryRepository:          imageScanHistoryRepository,
 		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
@@ -244,6 +240,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
 	}
 	config, err := types.GetCdConfig()
@@ -405,7 +402,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 		if err != nil {
 			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 			return 0, err
@@ -584,32 +582,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 	// custom GitOps repo url validation --> Ends
-
+	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(pipeline, artifact.ImageDigest)
 	//checking vulnerability for deploying image
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return err
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, env.ClusterId, pipeline.EnvironmentId, pipeline.AppId, false)
-		if err != nil {
-			impl.logger.Errorw("error while fetching blocked cve list", "err", err)
-			return err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(request.TriggerContext.Context, vulnerabilityCheckRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+		return err
 	}
 	if isVulnerable == true {
 		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {

@@ -52,6 +52,15 @@ const (
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
 
+type TriggerRequirementRequestDto struct {
+	TriggerRequest TriggerRequest
+}
+
+type VulnerabilityCheckRequest struct {
+	ImageDigest string
+	CdPipeline  *pipelineConfig.Pipeline
+}
+
 const (
 	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"
 )
