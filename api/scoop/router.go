@@ -34,25 +34,23 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 		//Queries("offset", "{offset}").
 		//Queries("size", "{size}").
 		HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).Methods("GET")
-
+	router.Path("/k8s/watcher/events").
+		//Queries("watchers", "{watchers}").
+		//Queries("clusters", "{clusters}").
+		//Queries("namespaces", "{namespaces}").
+		//Queries("executionStatuses", "{executionStatuses}").
+		//Queries("from", "{from}").
+		//Queries("to", "{to}").
+		//Queries("offset", "{offset}").
+		//Queries("size", "{size}").
+		//Queries("searchString", "{searchString}")
+		HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).
+		Methods("GET")
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.GetWatcherById).Methods("GET")
 
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.DeleteWatcherById).Methods("DELETE")
 
 	// k8sAppRouter.Path("/watcher/events").HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).Methods("GET")
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.UpdateWatcherById).Methods("PUT")
-
-	// k8sAppRouter.Path("").
-	//	Queries("watchers", "{watchers}").
-	//	Queries("clusters", "{clusters}").
-	//	Queries("namespaces", "{namespaces}").
-	//	Queries("executionStatuses", "{executionStatuses}").
-	//	Queries("from", "{from}").
-	//	Queries("to", "{to}").
-	//	Queries("offset", "{offset}").
-	//	Queries("size", "{size}").
-	//	Queries("searchString", "{searchString}").
-	//	HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).
-	//	Methods("GET")
 
 }
