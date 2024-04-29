@@ -1681,6 +1681,9 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 	}
 	hasAccessToGroup := true
 	for _, role := range roles {
+		if role.Role == bean.SUPERADMIN && !isActionUserSuperAdmin {
+			hasAccessToGroup = false
+		}
 		if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 			hasAccessToGroup = false
 		}
