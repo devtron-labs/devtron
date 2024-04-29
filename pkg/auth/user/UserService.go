@@ -764,13 +764,6 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 			if err != nil {
 				return nil, false, false, nil, err
 			}
-			if userGroup.Name == bean2.SUPER_ADMIN && !isActionPerformingUserSuperAdmin {
-				return nil, false, false, nil, &util.ApiError{
-					HttpStatusCode: http.StatusUnauthorized,
-					Code:           strconv.Itoa(http.StatusUnauthorized),
-					UserMessage:    "Invalid request, not allowed to update user with super-admin permission",
-				}
-			}
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
 				//check permission for new group which is going to add
@@ -1688,6 +1681,9 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 	}
 	hasAccessToGroup := true
 	for _, role := range roles {
+		if role.Role == bean.SUPERADMIN && !isActionUserSuperAdmin {
+			hasAccessToGroup = false
+		}
 		if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 			hasAccessToGroup = false
 		}
