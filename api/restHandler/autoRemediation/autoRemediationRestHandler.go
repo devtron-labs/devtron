@@ -73,7 +73,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC
+	// RBAC
 	watcherRequest.Name = strings.ToLower(watcherRequest.Name)
 	res, err := impl.watcherService.CreateWatcher(&watcherRequest, userId)
 	if err != nil {
@@ -100,7 +100,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	res, err := impl.watcherService.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetWatcherById", "err", err, "watcher id", watcherId)
@@ -126,7 +126,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	err = impl.watcherService.DeleteWatcherById(watcherId, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteWatcherById", "err", err, "watcher id", watcherId)
@@ -166,7 +166,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	err = impl.watcherService.UpdateWatcherById(watcherId, &watcherRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, updateWatcherById", "err", err, "watcher id", watcherId)
@@ -228,7 +228,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	watchersResponse, err := impl.watcherService.FindAllWatchers(offset, search, size, sortOrder, sortOrderBy)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, find all ", "err", err)

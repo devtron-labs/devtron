@@ -3,7 +3,6 @@ package autoRemediation
 import (
 	"context"
 	"fmt"
-	"github.com/caarlos0/env"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -27,10 +26,8 @@ type WatcherService interface {
 	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
-}
 
-type ScoopConfig struct {
-	WatcherUrl string `env:"SCOOP_WATCHER_URL" envDefault:"http://scoop.utils:8081"`
+	GetWatchersByClusterId(clusterId int) ([]Watcher, error)
 }
 
 type WatcherServiceImpl struct {
@@ -45,8 +42,6 @@ type WatcherServiceImpl struct {
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	k8sApplicationService           application.K8sApplicationService
 	logger                          *zap.SugaredLogger
-
-	scoopConfig *ScoopConfig
 }
 
 func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
@@ -61,8 +56,6 @@ func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
 	k8sApplicationService application.K8sApplicationService,
 	logger *zap.SugaredLogger) *WatcherServiceImpl {
 
-	scoopConfig := ScoopConfig{}
-	env.Parse(&scoopConfig)
 	return &WatcherServiceImpl{
 		watcherRepository:               watcherRepository,
 		triggerRepository:               triggerRepository,
@@ -75,7 +68,6 @@ func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		k8sApplicationService:           k8sApplicationService,
 		logger:                          logger,
-		scoopConfig:                     &scoopConfig,
 	}
 }
 
@@ -587,6 +579,10 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 		})
 	}
 	return selectors, nil
+}
+
+func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]Watcher, error) {
+	return nil, nil
 }
 
 func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action Action, watcherRequest *WatcherDto) error {
