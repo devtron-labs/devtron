@@ -132,15 +132,16 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	//checking if namesace exists or not
-	err = impl.helmAppService.CheckIfNsExistsForClusterId(installAppVersionRequest.Namespace, installAppVersionRequest.ClusterId)
-	if err != nil {
-		return nil, err
-	}
 	//step 1 db operation initiated
 	installAppVersionRequest, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationDB(installAppVersionRequest, tx, appStoreBean.INSTALL_APP_REQUEST)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
+		return nil, err
+	}
+
+	//checking if namesace exists or not
+	err = impl.helmAppService.CheckIfNsExistsForClusterId(installAppVersionRequest.Namespace, installAppVersionRequest.ClusterId)
+	if err != nil {
 		return nil, err
 	}
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installAppVersionRequest.DeploymentAppType)
@@ -569,11 +570,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	err = impl.helmAppService.CheckIfNsExistsForClusterId(upgradeAppRequest.Namespace, upgradeAppRequest.ClusterId)
+	installedApp, err := impl.installedAppService.GetInstalledAppById(upgradeAppRequest.InstalledAppId)
 	if err != nil {
 		return nil, err
 	}
-	installedApp, err := impl.installedAppService.GetInstalledAppById(upgradeAppRequest.InstalledAppId)
+	//checking if ns exists or not
+	err = impl.helmAppService.CheckIfNsExistsForClusterId(installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
 	if err != nil {
 		return nil, err
 	}
