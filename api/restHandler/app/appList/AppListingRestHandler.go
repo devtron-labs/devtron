@@ -84,6 +84,8 @@ type AppListingRestHandler interface {
 
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -299,7 +301,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
-	//Allow CORS here By * or specific origin
+	// Allow CORS here By * or specific origin
 	util3.SetupCorsOriginHeader(&w)
 	token := r.Header.Get("token")
 	t0 := time.Now()
@@ -1119,4 +1121,22 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	}
 	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
+}
+
+func (handler AppListingRestHandlerImpl) FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	authorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	res, err := handler.appListingService.FetchJobCiPipelines()
+	if err != nil {
+		handler.logger.Errorw("error in fetching job ci pipelines", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
