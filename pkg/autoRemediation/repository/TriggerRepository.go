@@ -30,6 +30,7 @@ type TriggerRepository interface {
 	GetTriggerById(id int) (*Trigger, error)
 	DeleteTriggerByWatcherId(tx *pg.Tx, watcherId int) error
 	GetWatcherByTriggerId(triggerId int) (*Watcher, error)
+	GetAllTriggers() ([]*Trigger, error)
 	sql.TransactionWrapper
 }
 
@@ -131,4 +132,12 @@ func (impl TriggerRepositoryImpl) GetWatcherByTriggerId(triggerId int) (*Watcher
 		return &Watcher{}, err
 	}
 	return &watcher, nil
+}
+func (impl TriggerRepositoryImpl) GetAllTriggers() ([]*Trigger, error) {
+	var trigger []*Trigger
+	err := impl.dbConnection.Model(&trigger).Where("active =?", true).Select()
+	if err != nil {
+		return trigger, err
+	}
+	return trigger, nil
 }

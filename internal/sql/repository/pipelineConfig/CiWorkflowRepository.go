@@ -52,6 +52,7 @@ type CiWorkflowRepository interface {
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
+	FindLastOneTriggeredWorkflowByCiIds(pipelineId []int, order string) (ciWorkflow []*CiWorkflow, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -287,7 +288,34 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 		Select()
 	return ciWorkflow, err
 }
+func (impl *CiWorkflowRepositoryImpl) FindLastOneTriggeredWorkflowByCiIds(pipelineId []int, order string) ([]*CiWorkflow, error) {
+	//err = impl.dbConnection.Model(&ciWorkflow).
+	//	Column("ci_workflow.*", "CiPipeline").
+	//	ColumnExpr("DISTINCT ci_workflow.ci_pipeline_id").
+	//	Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
+	//	Order("ci_workflow.started_on Desc").
+	//	Select()
+	var ciWorkflow []*CiWorkflow
+	query := "SELECT MAX(id) as id " +
+		" FROM ci_workflow ciw" +
+		" WHERE ciw.ci_pipeline_id in(?)" +
+		" GROUP by ciw.ci_pipeline_id"
 
+	query = fmt.Sprintf(" SELECT * "+
+		" FROM ci_workflow WHERE id IN (%s)", query)
+
+	if order == "asc" {
+		query += " ORDER by id asc "
+	} else {
+		query += " ORDER by id desc "
+	}
+
+	_, err := impl.dbConnection.Query(&ciWorkflow, query, pg.In(pipelineId))
+	if err != nil {
+		return ciWorkflow, err
+	}
+	return ciWorkflow, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).

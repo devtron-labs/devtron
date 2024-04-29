@@ -20,6 +20,8 @@ import (
 	"golang.org/x/exp/maps"
 	"gopkg.in/square/go-jose.v2/json"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sort"
+	"time"
 )
 
 type WatcherService interface {
@@ -43,6 +45,7 @@ type WatcherServiceImpl struct {
 	environmentRepository           repository2.EnvironmentRepository
 	appWorkflowMappingRepository    appWorkflow.AppWorkflowRepository
 	clusterRepository               repository2.ClusterRepository
+	ciWorkflowRepository            pipelineConfig.CiWorkflowRepository
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	k8sApplicationService           application.K8sApplicationService
 	logger                          *zap.SugaredLogger
@@ -56,6 +59,7 @@ func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	appWorkflowMappingRepository appWorkflow.AppWorkflowRepository,
 	clusterRepository repository2.ClusterRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	k8sApplicationService application.K8sApplicationService,
 	logger *zap.SugaredLogger) *WatcherServiceImpl {
@@ -69,6 +73,7 @@ func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
 		environmentRepository:           environmentRepository,
 		appWorkflowMappingRepository:    appWorkflowMappingRepository,
 		clusterRepository:               clusterRepository,
+		ciWorkflowRepository:            ciWorkflowRepository,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		k8sApplicationService:           k8sApplicationService,
 		logger:                          logger,
@@ -143,6 +148,9 @@ func fetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
 
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
 	var triggersJobsForWatcher []*Trigger
+	if watcherRequest.Triggers == nil {
+		return nil
+	}
 	for i, _ := range watcherRequest.Triggers {
 		if watcherRequest.Triggers[i].IdentifierType == repository.DEVTRON_JOB {
 			triggersJobsForWatcher = append(triggersJobsForWatcher, &watcherRequest.Triggers[i])
@@ -446,6 +454,40 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	return nil
 }
 
+func indexOfWatcher(watcherID int, watchersList []*repository.Watcher) int {
+	for i, watcher := range watchersList {
+		if watcher.Id == watcherID {
+			return i
+		}
+	}
+	return -1
+}
+
+type CombinedData struct {
+	time    time.Time
+	Trigger *Trigger
+	Watcher *repository.Watcher
+}
+
+func sortByWatcher(combinedData []CombinedData, watchersList []*repository.Watcher) []CombinedData {
+	sort.Slice(combinedData, func(i, j int) bool {
+		indexI := indexOfWatcher(combinedData[i].Watcher.Id, watchersList)
+		indexJ := indexOfWatcher(combinedData[j].Watcher.Id, watchersList)
+		return indexI < indexJ
+	})
+	return combinedData
+}
+
+// Define a function to check if a watcher is already present in combinedData
+func watcherExists(watcher *repository.Watcher, combinedData []CombinedData) bool {
+	for _, data := range combinedData {
+		if data.Watcher.Id == watcher.Id {
+			return true
+		}
+	}
+	return false
+}
+
 func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
 	params := repository.WatcherQueryParams{
 		Offset:      offset,
@@ -460,47 +502,102 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		return WatchersResponse{}, err
 	}
 	var watcherIds []int
+	watcherData := make(map[int]*repository.Watcher)
 	for _, watcher := range watchers {
 		watcherIds = append(watcherIds, watcher.Id)
+		watcherData[watcher.Id] = watcher
 	}
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
+
 	if err != nil {
 		impl.logger.Errorw("error in retrieving triggers ", "error", err)
 		return WatchersResponse{}, err
 	}
-	var triggerIds []int
-	watcherIdToTrigger := make(map[int]repository.Trigger)
+	triggerIdWatcherId := make(map[int]int)
 	for _, trigger := range triggers {
-		triggerIds = append(triggerIds, trigger.Id)
-		watcherIdToTrigger[trigger.WatcherId] = *trigger
+		triggerIdWatcherId[trigger.Id] = trigger.WatcherId
+	}
+	var jobPipelineIds []int
+	//watcherData := make(map[int]repository.Watcher)
+	triggerDto := make(map[int]Trigger)
+	for _, trigger := range triggers {
+		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			return WatchersResponse{}, err
+		}
+		jobPipelineIds = append(jobPipelineIds, triggerResp.PipelineId)
+		triggerDto[triggerResp.PipelineId] = Trigger{
+			Id:             trigger.Id,
+			IdentifierType: trigger.Type,
+			Data: TriggerData{
+				RuntimeParameters:      triggerResp.RuntimeParameters,
+				JobId:                  triggerResp.JobId,
+				JobName:                triggerResp.JobName,
+				PipelineId:             triggerResp.PipelineId,
+				PipelineName:           triggerResp.PipelineName,
+				ExecutionEnvironment:   triggerResp.ExecutionEnvironment,
+				ExecutionEnvironmentId: triggerResp.ExecutionEnvironmentId,
+				WorkflowId:             triggerResp.WorkflowId,
+			},
+		}
+	}
+	ciWorkflows, err := impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds, sortOrder)
+	if err != nil {
+		impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
+		return WatchersResponse{}, err
 	}
 
+	//var sortedPipe []int
+	var combinedData []CombinedData
+	for _, workflow := range ciWorkflows {
+		trigger := triggerDto[workflow.CiPipelineId]
+		watcher := watcherData[triggerIdWatcherId[trigger.Id]]
+		combinedData = append(combinedData, CombinedData{
+			time:    workflow.StartedOn,
+			Trigger: &trigger,
+			Watcher: watcher,
+		})
+	}
+	for _, watcher := range watchers {
+		if !watcherExists(watcher, combinedData) {
+			combinedData = append(combinedData, CombinedData{
+				Trigger: nil,
+				Watcher: watcher,
+			})
+		}
+	}
+	if sortOrderBy == "name" {
+		combinedData = sortByWatcher(combinedData, watchers)
+	}
 	watcherResponses := WatchersResponse{
 		Size:   params.Size,
 		Offset: params.Offset,
-		Total:  len(watchers),
-	}
-	var pipelineIds []int
-	for _, watcher := range watchers {
-		var triggerResp TriggerData
-		if trigger, ok := watcherIdToTrigger[watcher.Id]; ok {
-			if err = json.Unmarshal([]byte(trigger.Data), &triggerResp); err != nil {
-				impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-				return WatchersResponse{}, err
-			}
-		}
-		pipelineIds = append(pipelineIds, triggerResp.PipelineId)
-		watcherResponses.List = append(watcherResponses.List, WatcherItem{
-			Id:              watcher.Id,
-			Name:            watcher.Name,
-			Description:     watcher.Description,
-			JobPipelineName: triggerResp.PipelineName,
-			JobPipelineId:   triggerResp.PipelineId,
-			WorkflowId:      triggerResp.WorkflowId,
-			JobId:           triggerResp.JobId,
-		})
+		Total:  len(combinedData),
 	}
 
+	for _, cd := range combinedData {
+		if cd.Trigger != nil {
+			watcherResponses.List = append(watcherResponses.List, WatcherItem{
+				Id:              cd.Watcher.Id,
+				Name:            cd.Watcher.Name,
+				Description:     cd.Watcher.Description,
+				TriggeredAt:     cd.time,
+				JobPipelineName: cd.Trigger.Data.PipelineName,
+				JobPipelineId:   cd.Trigger.Data.PipelineId,
+				WorkflowId:      cd.Trigger.Data.WorkflowId,
+				JobId:           cd.Trigger.Data.JobId,
+			})
+		} else {
+			watcherResponses.List = append(watcherResponses.List, WatcherItem{
+				Id:          cd.Watcher.Id,
+				Name:        cd.Watcher.Name,
+				Description: cd.Watcher.Description,
+				TriggeredAt: cd.time,
+			})
+		}
+
+	}
 	return watcherResponses, nil
 }
 

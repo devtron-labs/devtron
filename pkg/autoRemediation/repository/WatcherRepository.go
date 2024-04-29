@@ -116,7 +116,7 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 	var watcher []*Watcher
 	query := impl.dbConnection.Model(&watcher)
 	if params.Search != "" {
-		query = query.Where("name ILIKE ?", "%"+params.Search+"%")
+		query = query.Where("name ILIKE ? ", "%"+params.Search+"%")
 	}
 	if params.SortOrderBy == "name" {
 		if params.SortOrder == "desc" {
@@ -125,10 +125,9 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 			query = query.Order("name asc")
 		}
 	}
-	err := query.Offset(params.Offset).Limit(params.Size).Select()
+	err := query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
 	if err != nil {
 		return []*Watcher{}, err
 	}
-
 	return watcher, nil
 }

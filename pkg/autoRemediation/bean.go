@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"time"
 )
 
 type EventConfiguration struct {
@@ -110,10 +111,11 @@ type WatcherItem struct {
 	Description string `json:"description"`
 
 	// below data should be in an array
-	JobPipelineName string `json:"jobPipelineName"`
-	JobPipelineId   int    `json:"jobPipelineId"`
-	JobId           int    `json:"jobId"`
-	WorkflowId      int    `json:"workflowId"`
+	JobPipelineName string    `json:"jobPipelineName"`
+	JobPipelineId   int       `json:"jobPipelineId"`
+	JobId           int       `json:"jobId"`
+	WorkflowId      int       `json:"workflowId"`
+	TriggeredAt     time.Time `json:"triggeredAt"`
 }
 type WatchersResponse struct {
 	Size   int           `json:"size"`
