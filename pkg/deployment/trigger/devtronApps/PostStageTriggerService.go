@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -59,14 +60,6 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		pipelineStageType = resourceFilter.PipelineStage
 		stageId = postStage.Id
 	}
-
-	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
-	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
-		return err
-	}
 	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
 		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 		if err != nil {
@@ -82,39 +75,20 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", cdWf.CiArtifact.Id)
 		}
 	}
-	// get releaseTags from imageTaggingService
-	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(cdWf.CiArtifactId)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", cdWf.CiArtifactId, "err", err)
-		return err
-	}
-
-	// evaluate filters
-	materialInfos, err := cdWf.CiArtifact.GetMaterialInfo()
-	if err != nil {
-		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
-		return err
-	}
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, cdWf.CiArtifact.Image, imageTagNames, materialInfos)
-	if err != nil {
-		return err
-	}
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, cdWf.CiArtifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd post stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", cdWf.CiArtifact.Id)
-		return err
-	}
-
-	// allow or block w.r.t filterState
-	if filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
-	}
+	//setting artifact in trigger request
 	request.Artifact = cdWf.CiArtifact
-	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PostDeploy)
+
+	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
+	impl.logger.Infow("scope for auto trigger ", "scope", scope)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, cdWf.CiArtifact.Id, pipelineStageType, stageId)
 	if err != nil {
+		impl.logger.Errorw("error encountered in TriggerPostStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
+	// overriding request from feasibility request
+	request = feasibilityResponse.TriggerRequest
+
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
@@ -220,7 +194,6 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		// TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 			DeployStageType:            bean2.CD_WORKFLOW_TYPE_POST,
 			CdWorkflowId:               runner.CdWorkflowId,

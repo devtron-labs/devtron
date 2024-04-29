@@ -191,7 +191,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 		if isTerminalStatus {
 			runner.FinishedOn = time.Now()
 		}
-		_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
 			impl.logger.Errorw("err on updating cd workflow runner for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err

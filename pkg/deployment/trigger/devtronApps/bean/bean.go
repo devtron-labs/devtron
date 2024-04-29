@@ -4,8 +4,10 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"time"
 )
 
@@ -78,6 +80,33 @@ const (
 )
 
 const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
+
+type TriggerRequirementRequestDto struct {
+	Scope          resourceQualifiers.Scope
+	TriggerRequest TriggerRequest
+	Stage          resourceFilter.ReferenceType
+}
+
+type TriggerFeasibilityResponse struct {
+	ApprovalRequestId int
+	TriggerRequest    TriggerRequest
+	FilterIdVsState   map[int]resourceFilter.FilterState
+	Filters           []*resourceFilter.FilterMetaDataBean
+}
+
+type VulnerabilityCheckRequest struct {
+	ImageDigest string
+	CdPipeline  *pipelineConfig.Pipeline
+}
+
+type TriggerOperationDto struct {
+	TriggerRequest  TriggerRequest
+	ExecutorType    pipelineConfig.WorkflowExecutorType
+	PipelineId      int
+	Scope           resourceQualifiers.Scope
+	TriggeredAt     time.Time
+	OverrideCdWrfId int
+}
 
 const (
 	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"

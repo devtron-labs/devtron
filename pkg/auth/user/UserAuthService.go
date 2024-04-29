@@ -31,7 +31,7 @@ import (
 
 	"github.com/devtron-labs/authenticator/middleware"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/go-pg/pg"
 
@@ -479,15 +479,15 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	if err != nil {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			InternalMessage: bean2.InvalidUserError,
-			UserMessage:     bean2.InvalidUserError,
+			InternalMessage: userBean.InvalidUserError,
+			UserMessage:     userBean.InvalidUserError,
 		}
 		return false, err
 	} else if isInactive {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			InternalMessage: bean2.InactiveUserError,
-			UserMessage:     bean2.InactiveUserError,
+			InternalMessage: userBean.InactiveUserError,
+			UserMessage:     userBean.InactiveUserError,
 		}
 		return false, err
 	}
@@ -495,18 +495,19 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	//TODO - extends for other purpose
 	return true, nil
 }
+
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
 	var roleModels []*repository.RoleModel
 	switch entityType {
-	case bean2.PROJECT_TYPE:
+	case userBean.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
-	case bean2.ENV_TYPE:
+	case userBean.ENV_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName, envIdentifier)
-	case bean2.APP_TYPE:
+	case userBean.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
-	case bean2.CHART_GROUP_TYPE:
+	case userBean.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
-	case bean2.WorkflowType:
+	case userBean.WorkflowType:
 		roleModels, err = impl.userAuthRepository.GetRolesForWorkflow(workflowName, entityName)
 	}
 	if err != nil {

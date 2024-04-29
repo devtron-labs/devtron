@@ -10,10 +10,10 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -86,44 +86,15 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, artifact.Id, pipelineStageType, stageId)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
-		return err
-	}
-	// get releaseTags from imageTaggingService
-	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
+		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
 
-	materialInfos, err := artifact.GetMaterialInfo()
-	if err != nil {
-		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
-		return err
-	}
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
-	if err != nil {
-		return err
-	}
-
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
-		return err
-	}
-
-	// allow or block w.r.t filterState
-	if filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
-	}
-
-	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PreDeploy)
-	if err != nil {
-		return err
-	}
+	// overriding request frm feasibility response
+	request = feasibilityResponse.TriggerRequest
 
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
@@ -288,7 +259,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		TriggerMetadata:       request.TriggerMessage,
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	span.End()
 	if err != nil {
 		return nil, nil, err
@@ -324,7 +295,8 @@ func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
 	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
 	//checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+	vulnerabilityCheckRequest := adapter2.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
 		return err
@@ -998,42 +970,6 @@ func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipeli
 		}
 	}
 	return sourceCiPipeline, nil
-}
-
-func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		span.End()
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return false, err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
-		if cdPipeline.Environment.ClusterId == 0 {
-			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
-				return false, err
-			}
-			cdPipeline.Environment = *envDetails
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return false, err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	return isVulnerable, nil
 }
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {

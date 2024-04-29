@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -1060,7 +1061,7 @@ func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean
 		return fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+		return deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
 	}
 	return nil
 }

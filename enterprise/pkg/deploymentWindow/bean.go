@@ -41,10 +41,10 @@ func GetNotFoundError(err error) error {
 	}
 }
 
-func GetActionBlockedError(triggerMessage string) error {
+func GetActionBlockedError(triggerMessage string, internalCode string) error {
 	return &util.ApiError{
 		HttpStatusCode:    422,
-		Code:              "422",
+		Code:              internalCode,
 		InternalMessage:   triggerMessage,
 		UserMessage:       triggerMessage,
 		UserDetailMessage: "action blocked",
