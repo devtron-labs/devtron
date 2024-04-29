@@ -8,6 +8,7 @@ const (
 	K8sVersionWithPreReleaseAndMetadata    = "v1.25.16-eks-b9c9ed7+acj23-as"
 	K8sVersionWithMetadata                 = "v1.25.16+acj23-as"
 	K8sVersionWithoutPreReleaseAndMetadata = "v1.25.16"
+	InvalidK8sVersion                      = ""
 )
 
 func TestStripPrereleaseFromK8sVersion(t *testing.T) {
@@ -46,8 +47,8 @@ func TestStripPrereleaseFromK8sVersion(t *testing.T) {
 		},
 		{
 			name:    "Test5_EmptyK8sVersion",
-			args:    args{k8sVersion: ""},
-			want:    "",
+			args:    args{k8sVersion: InvalidK8sVersion},
+			want:    InvalidK8sVersion,
 			wantErr: true,
 		},
 	}
