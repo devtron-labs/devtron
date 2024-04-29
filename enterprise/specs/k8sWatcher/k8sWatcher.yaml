@@ -117,7 +117,7 @@ paths:
       responses:
         '204':
           description: Successful response
-  /orchestrator/scoop/k8s/watcher/events:
+  /orchestrator/scoop/k8s/intercept-events:
     get:
       parameters:
         - name: watchers
@@ -174,7 +174,7 @@ paths:
           schema:
             type: integer
           description: size of the result list
-        - name: searchString
+        - name: search
           in: query
           schema:
             type: string
@@ -188,9 +188,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  status:
+                  size:
+                    description: size of the list
                     type: integer
-                  result:
+                  offset:
+                    type: integer
+                  total:
+                    description: total count of list items that are filtered
+                    type: integer
+                  list:
                     type: array
                     items:
                       $ref: '#/components/schemas/InterceptEvent'
