@@ -8,6 +8,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"golang.org/x/exp/slices"
 	"time"
+	"strings"
 )
 
 func IsSystemOrAdminUser(userId int32) bool {
@@ -78,4 +79,8 @@ func HasTimeWindowChanged(status bean2.Status, expression time.Time, timeWindowC
 // HasTimeWindowChangedForUserRoleGroup returns true if timeout has changed or false
 func HasTimeWindowChangedForUserRoleGroup(item bean2.UserRoleGroup, val bean2.UserRoleGroup) bool {
 	return !(item.TimeoutWindowExpression == val.TimeoutWindowExpression && item.Status == val.Status)
+}
+
+func ExtractTokenNameFromEmail(email string) string {
+	return strings.Split(email, ":")[1]
 }
