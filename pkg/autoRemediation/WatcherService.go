@@ -15,7 +15,9 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"gopkg.in/square/go-jose.v2/json"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type WatcherService interface {
@@ -27,7 +29,7 @@ type WatcherService interface {
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 
-	GetWatchersByClusterId(clusterId int) ([]Watcher, error)
+	GetWatchersByClusterId(clusterId int) ([]*Watcher, error)
 }
 
 type WatcherServiceImpl struct {
@@ -581,8 +583,66 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 	return selectors, nil
 }
 
-func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]Watcher, error) {
-	return nil, nil
+func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*Watcher, error) {
+	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.K8sEventWatcher)
+	if err != nil {
+		impl.logger.Errorw("error in getting watchers by clusterId", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+
+	watcherEnvMap := make(map[int][]string)
+	envNames := util.Map(mappings, func(mapping *resourceQualifiers.QualifierMapping) string {
+		envIds := watcherEnvMap[mapping.ResourceId]
+		if envIds == nil {
+			envIds = make([]string, 0)
+		}
+		envIds = append(envIds, mapping.IdentifierValueString)
+		watcherEnvMap[mapping.ResourceId] = envIds
+
+		return mapping.IdentifierValueString
+	})
+
+	watcherIds := maps.Keys(watcherEnvMap)
+	watchers, err := impl.watcherRepository.GetWatcherByIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting watchers by watcherIds", "watcherIds", watcherIds, "err", err)
+		return nil, err
+	}
+
+	envMap, err := impl.getEnvsMap(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment details by env names", "envNames", envNames, "err", err)
+		return nil, err
+	}
+
+	watchersResponse := make([]*Watcher, 0, len(watchers))
+	for _, watcher := range watchers {
+		nsMap := make(map[string]bool)
+		for _, envId := range watcherEnvMap[watcher.Id] {
+			if env, ok := envMap[envId]; ok {
+				nsMap[env.Namespace] = true
+			}
+		}
+
+		k8sResources, err := getK8sResourcesFromGvks(watcher.Gvks)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling gvk string ", "gvk", watcher.Gvks, "err", err)
+			continue
+		}
+		watcherResp := &Watcher{
+			Id:                    watcher.Id,
+			Name:                  watcher.Name,
+			EventFilterExpression: watcher.FilterExpression,
+			Namespaces:            nsMap,
+			GVKs: util.Map(k8sResources, func(k8Resource *K8sResource) schema.GroupVersionKind {
+				return k8Resource.GetGVK()
+			}),
+		}
+
+		watchersResponse = append(watchersResponse, watcherResp)
+	}
+
+	return watchersResponse, nil
 }
 
 func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action Action, watcherRequest *WatcherDto) error {

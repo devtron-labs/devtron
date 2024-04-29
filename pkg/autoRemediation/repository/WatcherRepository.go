@@ -30,6 +30,7 @@ type WatcherRepository interface {
 	Update(tx *pg.Tx, watcher *Watcher, userId int32) error
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
+	GetWatcherByIds(ids []int) ([]*Watcher, error)
 	DeleteWatcherById(id int) error
 	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
@@ -89,6 +90,19 @@ func (impl WatcherRepositoryImpl) GetWatcherById(id int) (*Watcher, error) {
 	}
 	return &watcher, nil
 }
+
+func (impl WatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*Watcher, error) {
+	var watchers []*Watcher
+	err := impl.dbConnection.Model(&watchers).
+		Where("id IN (?) and active = ?", pg.In(ids), true).
+		Select()
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	return watchers, nil
+}
+
 func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	_, err := impl.dbConnection.Model(&Watcher{}).Set("active = ?", false).Where("id = ?", id).Update()
 	if err != nil {

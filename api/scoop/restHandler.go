@@ -12,6 +12,7 @@ import (
 
 type RestHandler interface {
 	HandleInterceptedEvent(w http.ResponseWriter, r *http.Request)
+	GetWatchersByClusterId(w http.ResponseWriter, r *http.Request)
 }
 
 type RestHandlerImpl struct {
@@ -49,6 +50,7 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
+// GetWatchersByClusterId is an unsafe api, currently there is no RBAC applied here, todo:
 func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterId, err := strconv.Atoi(vars["clusterId"])
@@ -58,6 +60,10 @@ func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r 
 		return
 	}
 
-	// this is an safe api, currently there is no RBAC applied here
-	handler.watcherService.GetWatchersByClusterId(clusterId)
+	watchers, err := handler.watcherService.GetWatchersByClusterId(clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, watchers, http.StatusOK)
 }

@@ -84,6 +84,7 @@ type EnvironmentRepository interface {
 	FindByIdsOrderByCluster(ids []int) ([]*Environment, error)
 
 	GetWithClusterByNames(envNames []string) ([]*Environment, error)
+	FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -432,3 +433,13 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ext
 // " INNER JOIN " +
 // " (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
 // " ON apf.app_workflow_id = sqt.app_workflow_id;"
+
+func (repo EnvironmentRepositoryImpl) FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repo.dbConnection.Model(&mappings).
+		Where("environment.active = true").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.id IN (?)", pg.In(envIds)).
+		Select()
+	return mappings, err
+}
