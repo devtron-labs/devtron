@@ -750,6 +750,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		}
 
 		triggerContext := bean5.TriggerContext{
+			Context:     context.Background(),
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
