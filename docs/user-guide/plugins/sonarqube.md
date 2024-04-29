@@ -1,4 +1,4 @@
-# SonarQube
+# Sonarqube v1.1.0
 
 Configuring `Sonarqube` in pre-build or post build task enhances your workflow with Continuous Code Quality & Code Security.
 
@@ -8,7 +8,7 @@ Configuring `Sonarqube` in pre-build or post build task enhances your workflow w
 2. Click **+ Add task**.
 3. Select **Sonarqube** from **PRESET PLUGINS**.
 
-    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/sonarqube.jpg)
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/sonarqube-v1.1.0.jpeg)
 
 * Enter a relevant name in the `Task name` field. It is a mandatory field.
 * Enter a descriptive message for the task in the `Description` field. It is an optional field.
@@ -16,13 +16,16 @@ Configuring `Sonarqube` in pre-build or post build task enhances your workflow w
 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
+| SonarqubeProjectPrefixName | String | This is the SonarQube project prefix name. If not provided, the prefix name is automatically generated. |
+| SonarqubeBranchName | String | Branch name to be used to send the scanned result on sonarqube project. |
 | SonarqubeProjectKey | String | Project key of SonarQube account |
+| CheckForSonarAnalysisReport | Bool | Boolean value - true or false. Set true to poll for generated report from sonarqube. |
+| AbortPipelineOnPolicyCheckFailed | Bool | Boolean value - true or false. Set true to abort on report check failed. |
+| UsePropertiesFileFromProject | Bool | Boolean value - true or false. Set true to use source code sonar-properties file. |
+| SonarqubeEndpoint | String | API endpoint of SonarQube account. |
+| CheckoutPath | String | Checkout path of Git material. |
 | SonarqubeApiKey | String | API key of SonarQube account |
-| SonarqubeEndpoint | String | API endpoint of SonarQube account |
-| CheckoutPath | String | Checkout path of Git material |
-| UsePropertiesFileFromProject | Boolean | Enter either `true` or `false` accordingly whether the configuration file should be fetched from the project's source code |
-| CheckForSonarAnalysisReport | Boolean | Enter either `true` or `false` accordingly whether you want poll or actively check for the generation of the SonarQube analysis report |
-| AbortPipelineOnPolicyCheckFailed | Boolean | Enter either `true` or `false` accordingly whether you want to check if the policy fails or not |
+| SonarContainerImage | String | Container Image that will be used for sonar scanning purpose. |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
 
