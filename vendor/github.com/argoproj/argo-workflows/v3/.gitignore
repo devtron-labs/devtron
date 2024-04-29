@@ -40,7 +40,3 @@ git-ask-pass.sh
 sdks/python/client/dist/*
 /v3/
 /cmd/argoexec/commands/test.txt
-
-# Do not commit rendered installation manifests since they are misleading to users.
-manifests/install.yaml
-manifests/namespace-install.yaml

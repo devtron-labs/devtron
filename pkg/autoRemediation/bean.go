@@ -139,26 +139,3 @@ type InterceptedEventsDto struct {
 	TriggerExecutionId int               `json:"triggerExecutionId"`
 	Trigger            Trigger           `json:"trigger"`
 }
-
-type Watcher struct {
-	Id                    int                       `json:"id"`
-	Name                  string                    `json:"name"`
-	Namespaces            map[string]bool           `json:"namespaces"`
-	GVKs                  []schema.GroupVersionKind `json:"groupVersionKinds"`
-	EventFilterExpression string                    `json:"eventFilterExpression"`
-}
-
-const WATCHER_CUD_URL = "/k8s/watcher"
-
-type Action string
-
-const (
-	DELETE Action = "DELETE"
-	ADD    Action = "ADD"
-	UPDATE Action = "UPDATE"
-)
-
-type Payload struct {
-	Action  Action
-	Watcher *Watcher
-}
