@@ -20,7 +20,7 @@ type WatcherService interface {
 	GetWatcherById(watcherId int) (*WatcherDto, error)
 	DeleteWatcherById(watcherId int, userId int32) error
 	UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error
-	// RetrieveInterceptedEvents(offset int, size int, sortOrder string, searchString string, from time.Time, to time.Time, watchers []string, clusters []string, namespaces []string) (EventsResponse, error)
+	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) ([]InterceptedEventsDto, error)
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 }
@@ -579,6 +579,57 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 		})
 	}
 	return selectors, nil
+}
+func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) ([]InterceptedEventsDto, error) {
+	interceptedEventData, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&params)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving intercepted events", "err", err)
+		return []InterceptedEventsDto{}, err
+	}
+	var clusterIds []int
+	for _, event := range interceptedEventData {
+		clusterIds = append(clusterIds, event.ClusterId)
+	}
+	clusters, err := impl.clusterRepository.FindByIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving cluster names ", "err", err)
+		return []InterceptedEventsDto{}, err
+	}
+	clusterIdtoName := make(map[int]string)
+	for _, cluster := range clusters {
+		clusterIdtoName[cluster.Id] = cluster.ClusterName
+	}
+	var interceptedEvents []InterceptedEventsDto
+	for _, event := range interceptedEventData {
+		interceptedEvent := InterceptedEventsDto{
+			MessageType:        event.MessageType,
+			Message:            event.Message,
+			Event:              event.Event,
+			InvolvedObject:     event.InvolvedObject,
+			ClusterName:        clusterIdtoName[event.ClusterId],
+			ClusterId:          event.ClusterId,
+			Namespace:          event.Namespace,
+			WatcherName:        event.WatcherName,
+			InterceptedTime:    (event.InterceptedAt).String(),
+			ExecutionStatus:    event.Status,
+			TriggerId:          event.TriggerId,
+			TriggerExecutionId: event.TriggerExecutionId,
+		}
+		var triggerData TriggerData
+		if err := json.Unmarshal([]byte(event.TriggerData), &triggerData); err != nil {
+			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			return nil, err
+		}
+		interceptedEvent.EnvironmentName = triggerData.ExecutionEnvironment
+		interceptedEvent.Trigger = Trigger{
+			Id:             event.TriggerId,
+			IdentifierType: event.TriggerType,
+			Data:           triggerData,
+		}
+		interceptedEvents = append(interceptedEvents, interceptedEvent)
+	}
+
+	return interceptedEvents, nil
 }
 
 func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action Action, watcherRequest *WatcherDto) error {
