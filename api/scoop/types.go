@@ -25,6 +25,7 @@ type Watcher struct {
 	Namespaces            map[string]bool           `json:"namespaces"`
 	GVKs                  []schema.GroupVersionKind `json:"groupVersionKinds"`
 	EventFilterExpression string                    `json:"eventFilterExpression"`
+	ClusterId             int                       `json:"clusterId"`
 }
 
 type Action string

@@ -9,9 +9,9 @@ import (
 )
 
 type EventConfiguration struct {
-	Selectors       []Selector    `json:"selectors"`
-	K8sResources    []K8sResource `json:"k8sResources"`
-	EventExpression string        `json:"eventExpression"`
+	Selectors       []Selector     `json:"selectors"`
+	K8sResources    []*K8sResource `json:"k8sResources"`
+	EventExpression string         `json:"eventExpression"`
 }
 
 func (ec *EventConfiguration) getEnvsFromSelectors() []string {
@@ -20,6 +20,14 @@ func (ec *EventConfiguration) getEnvsFromSelectors() []string {
 		envNames = append(envNames, selector.Names...)
 	}
 	return envNames
+}
+
+func (ec *EventConfiguration) getK8sResources() []schema.GroupVersionKind {
+	gvks := make([]schema.GroupVersionKind, 0, len(ec.K8sResources))
+	for _, gvk := range ec.K8sResources {
+		gvks = append(gvks, gvk.GetGVK())
+	}
+	return gvks
 }
 
 func getEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment) []*resourceQualifiers.SelectionIdentifier {
@@ -89,6 +97,7 @@ func (dto *WatcherDto) GetDbTriggerModels() []*repository.Trigger {
 }
 
 type WatcherDto struct {
+	Id                 int                `json:"-"`
 	Name               string             `json:"name"`
 	Description        string             `json:"description"`
 	EventConfiguration EventConfiguration `json:"eventConfiguration"`
@@ -129,4 +138,25 @@ type InterceptedEventsDto struct {
 	TriggerId          int               `json:"triggerId"`
 	TriggerExecutionId int               `json:"triggerExecutionId"`
 	Trigger            Trigger           `json:"trigger"`
+}
+
+type Watcher struct {
+	Id                    int                       `json:"id"`
+	Name                  string                    `json:"name"`
+	Namespaces            map[string]bool           `json:"namespaces"`
+	GVKs                  []schema.GroupVersionKind `json:"groupVersionKinds"`
+	EventFilterExpression string                    `json:"eventFilterExpression"`
+}
+
+type Action string
+
+const (
+	DELETE Action = "DELETE"
+	ADD    Action = "ADD"
+	UPDATE Action = "UPDATE"
+)
+
+type Payload struct {
+	Action  Action
+	Watcher *Watcher
 }
