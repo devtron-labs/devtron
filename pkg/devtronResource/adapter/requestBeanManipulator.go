@@ -10,39 +10,14 @@ func SetIdTypeAndResourceIdBasedOnKind(reqBeanDescriptor *bean.DevtronResourceOb
 		// for bean.DevtronResourceReleaseTrack and bean.DevtronResourceRelease
 		// there is no OldObjectId, here the Id -> repository.DevtronResourceObject.Id (own id)
 		reqBeanDescriptor.IdType = bean.ResourceObjectIdType
+		reqBeanDescriptor.Id = id
+		reqBeanDescriptor.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
+
 	} else {
 		reqBeanDescriptor.IdType = bean.OldObjectId
-	}
-	reqBeanDescriptor.SetResourceIdBasedOnIdType(id)
-}
+		reqBeanDescriptor.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables
+		reqBeanDescriptor.Id = 0           // reqBean.Id and reqBean.OldObjectId both can not be used at a time
 
-// TODO: use this in PUT request
-func SetIdTypeForDependencies(reqBean *bean.DevtronResourceObjectBean) {
-	//TODO : add common logic for resolving subKind
-	for i := range reqBean.Dependencies {
-		resourceKind := reqBean.Dependencies[i].DevtronResourceTypeReq.ResourceKind
-		if resourceKind == bean.DevtronResourceRelease || resourceKind == bean.DevtronResourceReleaseTrack {
-			reqBean.Dependencies[i].IdType = bean.ResourceObjectIdType
-		} else {
-			reqBean.Dependencies[i].IdType = bean.OldObjectId
-		}
-	}
-	for i := range reqBean.ChildDependencies {
-		resourceKind := reqBean.ChildDependencies[i].DevtronResourceTypeReq.ResourceKind
-		if resourceKind == bean.DevtronResourceRelease || resourceKind == bean.DevtronResourceReleaseTrack {
-			reqBean.ChildDependencies[i].IdType = bean.ResourceObjectIdType
-		} else {
-			reqBean.ChildDependencies[i].IdType = bean.OldObjectId
-		}
-		//TODO: dirty logic, improve
-		for j := range reqBean.ChildDependencies[i].Dependencies {
-			resourceKindNested := reqBean.ChildDependencies[i].Dependencies[j].DevtronResourceTypeReq.ResourceKind
-			if resourceKindNested == bean.DevtronResourceRelease || resourceKindNested == bean.DevtronResourceReleaseTrack {
-				reqBean.ChildDependencies[i].Dependencies[j].IdType = bean.ResourceObjectIdType
-			} else {
-				reqBean.ChildDependencies[i].Dependencies[j].IdType = bean.OldObjectId
-			}
-		}
 	}
 }
 

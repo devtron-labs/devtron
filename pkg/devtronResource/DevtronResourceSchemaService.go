@@ -30,6 +30,22 @@ type DevtronResourceSchemaServiceImpl struct {
 	devtronResourceService               DevtronResourceService
 }
 
+func NewDevtronResourceSchemaServiceImpl(logger *zap.SugaredLogger,
+	devtronResourceRepository repository.DevtronResourceRepository,
+	devtronResourceSchemaRepository repository.DevtronResourceSchemaRepository,
+	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository,
+	devtronResourceObjectRepository repository.DevtronResourceObjectRepository,
+	devtronResourceService DevtronResourceService) *DevtronResourceSchemaServiceImpl {
+	return &DevtronResourceSchemaServiceImpl{
+		logger:                               logger,
+		devtronResourceRepository:            devtronResourceRepository,
+		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
+		devtronResourceSchemaAuditRepository: devtronResourceSchemaAuditRepository,
+		devtronResourceObjectRepository:      devtronResourceObjectRepository,
+		devtronResourceService:               devtronResourceService,
+	}
+}
+
 func (impl *DevtronResourceSchemaServiceImpl) GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error) {
 	resourceSchema, err := impl.devtronResourceSchemaRepository.FindAllByResourceId(req.DevtronResourceId)
 	if err != nil && resourceSchema != nil {

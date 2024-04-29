@@ -42,14 +42,14 @@ func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataForGetApiR
 	return nil
 }
 
-func validateCreateReleaseTrackRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func validateCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if len(reqBean.Name) == 0 {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceNameNotFound, bean.ResourceNameNotFound)
 	}
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTrackRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
 		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
 		// considering the user details are already verified; this error indicates to an internal db error.
@@ -63,7 +63,7 @@ func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTra
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseTrackObj(objectData string, reqBean *bean.DevtronResourceObjectBean) (string, error) {
+func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseTrackObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
 	if reqBean.Overview != nil {
 		objectData, err = impl.setReleaseTrackOverviewFieldsInObjectData(objectData, reqBean.Overview)

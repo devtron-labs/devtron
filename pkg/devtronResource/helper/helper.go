@@ -30,7 +30,7 @@ func BuildExtendedResourceKindUsingKindAndSubKind(kind, subKind string) bean.Dev
 	return bean.DevtronResourceKind(kind)
 }
 
-func GetDefaultReleaseNameIfNotProvided(reqBean *bean.DevtronResourceObjectBean) string {
+func GetDefaultReleaseNameIfNotProvided(reqBean *bean.DtResourceObjectCreateReqBean) string {
 	// The default value of name for release resource -> {releaseVersion}
 	return reqBean.Overview.ReleaseVersion
 }

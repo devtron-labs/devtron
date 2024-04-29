@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req *bean.DevtronResourceObjectBean,
+func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req *bean.DtResourceObjectInternalBean,
 	existingObj *repository.DevtronResourceObject) {
 	//getting dependencies of existingObj
 	existingDependencies, err := impl.getDependenciesInObjectDataFromJsonString(existingObj.DevtronResourceSchemaId, existingObj.ObjectData, false)
@@ -187,7 +187,7 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 	return nil
 }
 
-func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotFound, bean.ReleaseVersionNotFound)
 	} else if reqBean.ParentConfig == nil {
@@ -200,7 +200,7 @@ func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
 		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
 		// considering the user details are already verified; this error indicates to an internal db error.
@@ -218,7 +218,7 @@ func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseReq
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DevtronResourceObjectBean) (string, error) {
+func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
 	if reqBean.ConfigStatus == nil {
 		reqBean.ConfigStatus = &bean.ConfigStatus{

@@ -52,17 +52,6 @@ func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int 
 	return 0
 }
 
-// SetResourceIdBasedOnIdType will update the resource id/ oldObjectId based on id type
-func (reqBean *DevtronResourceObjectDescriptorBean) SetResourceIdBasedOnIdType(id int) {
-	if reqBean.IdType == OldObjectId {
-		reqBean.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables
-		reqBean.Id = 0           // reqBean.Id and reqBean.OldObjectId both can not be used at a time
-	} else if reqBean.IdType == ResourceObjectIdType {
-		reqBean.Id = id
-		reqBean.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
-	}
-}
-
 type DevtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Schema            string                           `json:"schema,omitempty"`
@@ -217,12 +206,6 @@ type UpdateSchemaResponseBean struct {
 	PathsToRemove []string `json:"pathsToRemove"`
 }
 
-type ResourceObjectRequirementRequest struct {
-	ReqBean                  *DevtronResourceObjectBean
-	ObjectDataPath           string
-	SkipJsonSchemaValidation bool
-}
-
 type ConfigStatus struct {
 	Status   Status `json:"status"`
 	Comment  string `json:"comment,omitempty"`
@@ -248,12 +231,6 @@ type FilterCriteriaDecoder struct {
 }
 
 type FilterCriteriaIdentifier string
-
-type IdIdentifierIndex struct {
-	Ids              []int    //all ids
-	Identifiers      []string //all identifiers
-	IdentifiersIndex []int    //index of dependency in all dependencies array at which this identifier is stored at, will be used to replace identifier with id
-}
 
 const (
 	Identifier FilterCriteriaIdentifier = "identifier"
@@ -355,33 +332,6 @@ const (
 
 func (n DevtronResourceVersion) ToString() string {
 	return string(n)
-}
-
-var DevtronResourceSupportedVersionMap = map[DevtronResourceKind]map[DevtronResourceVersion]bool{
-	DevtronResourceApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceDevtronApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceHelmApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceCluster: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceJob: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceCdPipeline: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceReleaseTrack: {
-		DevtronResourceVersionAlpha1: true,
-	},
-	DevtronResourceRelease: {
-		DevtronResourceVersionAlpha1: true,
-	},
 }
 
 type DevtronResourceAttributeName string

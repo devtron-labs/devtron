@@ -37,7 +37,7 @@ var getApiResourceKindUIComponentFuncMap = map[string]func(*DevtronResourceServi
 	getKeyForKindAndUIComponent(bean.DevtronResourceReleaseTrack, bean.UIComponentAll):      (*DevtronResourceServiceImpl).updateReleaseTrackOverviewDataForGetApiResourceObj,
 }
 
-func getFuncToSetUserProvidedDataInResourceObject(kind, subKind, version string) func(*DevtronResourceServiceImpl, string, *bean.DevtronResourceObjectBean) (string, error) {
+func getFuncToSetUserProvidedDataInResourceObject(kind, subKind, version string) func(*DevtronResourceServiceImpl, string, *bean.DtResourceObjectInternalBean) (string, error) {
 	if f, ok := setUserProvidedDataByKindVersionFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -45,12 +45,12 @@ func getFuncToSetUserProvidedDataInResourceObject(kind, subKind, version string)
 	}
 }
 
-var setUserProvidedDataByKindVersionFuncMap = map[string]func(*DevtronResourceServiceImpl, string, *bean.DevtronResourceObjectBean) (string, error){
+var setUserProvidedDataByKindVersionFuncMap = map[string]func(*DevtronResourceServiceImpl, string, *bean.DtResourceObjectInternalBean) (string, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1):      (*DevtronResourceServiceImpl).updateUserProvidedDataInReleaseObj,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateUserProvidedDataInReleaseTrackObj,
 }
 
-func getFuncToValidateCreateResourceRequest(kind, subKind, version string) func(*bean.DevtronResourceObjectBean) error {
+func getFuncToValidateCreateResourceRequest(kind, subKind, version string) func(*bean.DtResourceObjectCreateReqBean) error {
 	if f, ok := validateCreateResourceRequestFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -58,12 +58,12 @@ func getFuncToValidateCreateResourceRequest(kind, subKind, version string) func(
 	}
 }
 
-var validateCreateResourceRequestFuncMap = map[string]func(*bean.DevtronResourceObjectBean) error{
+var validateCreateResourceRequestFuncMap = map[string]func(*bean.DtResourceObjectCreateReqBean) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1):      validateCreateReleaseRequest,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): validateCreateReleaseTrackRequest,
 }
 
-func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean) error {
+func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCreateReqBean) error {
 	if f, ok := populateDefaultValuesForCreateResourceRequestFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -71,7 +71,7 @@ func getFuncToPopulateDefaultValuesForCreateResourceRequest(kind, subKind, versi
 	}
 }
 
-var populateDefaultValuesForCreateResourceRequestFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean) error{
+var populateDefaultValuesForCreateResourceRequestFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCreateReqBean) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1):      (*DevtronResourceServiceImpl).populateDefaultValuesForCreateReleaseRequest,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).populateDefaultValuesForCreateReleaseTrackRequest,
 }
@@ -166,18 +166,18 @@ var applyFilterResourceKindFuncMap = map[string]func(impl *DevtronResourceServic
 	getKeyForKindAndVersion(bean.DevtronResourceRelease.ToString(), "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).applyFilterCriteriaOnReleaseResourceObjects,
 }
 
-func getFuncToHandleResourceObjectUpdateRequest(kind, subKind, version, objectUpdatePath string) func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean,
+func getFuncToHandleExistingObjInDependenciesUpdateReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectInternalBean,
 	*repository.DevtronResourceObject) {
-	if f, ok := handleResourceObjectUpdateReqFuncMap[getKeyForKindVersionAndObjectUpdatePath(kind, subKind, version, objectUpdatePath)]; ok {
+	if f, ok := handleExistingObjInDependenciesUpdateReqFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
 		return nil
 	}
 }
 
-var handleResourceObjectUpdateReqFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectBean, *repository.DevtronResourceObject){
-	getKeyForKindVersionAndObjectUpdatePath(bean.DevtronResourceRelease, "",
-		bean.DevtronResourceVersionAlpha1, bean.ResourceObjectDependenciesPath): (*DevtronResourceServiceImpl).handleReleaseDependencyUpdateRequest,
+var handleExistingObjInDependenciesUpdateReqFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectInternalBean, *repository.DevtronResourceObject){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).handleReleaseDependencyUpdateRequest,
 }
 
 func getFuncToListApiResourceKind(kind string) func(*DevtronResourceServiceImpl, []*repository.DevtronResourceObject,
