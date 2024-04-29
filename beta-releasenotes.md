@@ -11,5 +11,6 @@
 - feat: Introduction to feasibility in Deployment (#4862)
 - feat: image promotion migration (#4992)
 ## Documentation
+- doc: Changes made in the doc according to the newer version (#5024)
 - doc: Added Linked CI with Child Info + Runtime Build Parameters (#4991)
 ## Others
