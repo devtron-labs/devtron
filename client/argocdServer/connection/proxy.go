@@ -45,7 +45,7 @@ const (
 func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userVerifier func(token string) (int32, error)) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
@@ -108,7 +108,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport

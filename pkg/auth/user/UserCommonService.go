@@ -53,7 +53,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository.UserAuthRepository,
 	userConfig := &UserRbacConfig{}
 	err := env.Parse(userConfig)
 	if err != nil {
-		logger.Fatal("error occurred while parsing user config", err)
+		logger.Errorw("error occurred while parsing user config", err)
 	}
 	serviceImpl := &UserCommonServiceImpl{
 		userAuthRepository:          userAuthRepository,

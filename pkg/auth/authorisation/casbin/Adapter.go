@@ -52,7 +52,7 @@ func Create() *casbin.SyncedEnforcer {
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	dbSpecified := true
 	if config.CasbinDatabase == CasbinDefaultDatabase {
@@ -61,17 +61,17 @@ func Create() *casbin.SyncedEnforcer {
 	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
 	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
-		log.Fatal(err1)
+		log.Println(err1)
 	}
 	e = auth
 	err = e.LoadPolicy()
 	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)

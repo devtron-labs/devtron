@@ -63,7 +63,7 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 	// check if the release is installed or not
 	isDevtronHelmReleaseInstalled, err := impl.helmAppService.IsReleaseInstalled(context.Background(), &appIdentifier)
 	if err != nil {
-		log.Fatalln("not able to check if the devtron helm release exists or not.", "error", err)
+		log.Println("not able to check if the devtron helm release exists or not.", "error", err)
 	}
 
 	// if not installed, treat it as OSS kubectl user
@@ -74,11 +74,11 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 		// fetch current version from helm release
 		releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), &appIdentifier)
 		if err != nil {
-			log.Fatalln("got error in fetching devtron helm release values.", "error", err)
+			log.Println("got error in fetching devtron helm release values.", "error", err)
 		}
 		currentVersion := gjson.Get(releaseInfo.GetMergedValues(), impl.serverEnvConfig.DevtronVersionIdentifierInHelmValues).String()
 		if len(currentVersion) == 0 {
-			log.Fatalln("current devtron version found empty")
+			log.Println("current devtron version found empty")
 		}
 
 		// store current version in-memory

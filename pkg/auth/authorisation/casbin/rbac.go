@@ -78,7 +78,7 @@ func getConfig() *EnforcerConfig {
 	cacheConfig := &EnforcerConfig{}
 	err := env.Parse(cacheConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return cacheConfig
 }
