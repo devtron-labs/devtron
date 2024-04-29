@@ -28,6 +28,6 @@ Configuring `Sonarqube-v1.1.0` in pre-build or post build task enhances your wor
 | SonarContainerImage | String | Container Image that will be used for sonar scanning purpose. |
 
 * `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
-* `Pass/Fail Condition` refers to a conditional statement to pass or fail the **Pre-Build Stage** (or Post-Build Stage). You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+* `Pass/Fail Condition` refers to a conditional statement to pass or fail the **Pre-Build Stage** (or Post-Build Stage). You can select either:<ul><li>`Set pass conditions` or</li><li>`Set failure conditions`</li></ul> 
 
 * Click **Update Pipeline**.
