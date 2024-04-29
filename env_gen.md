@@ -198,7 +198,7 @@
  | PG_LOG_ALL_QUERY | false |  | 
  | PG_LOG_QUERY | true |  | 
  | PG_PASSWORD |  |  | 
- | PG_PORT | 5432 |  | 
+ | PG_PORT | 5434 |  | 
  | PG_QUERY_DUR_THRESHOLD | 5000 |  | 
  | PG_READ_TIMEOUT | 30 |  | 
  | PG_USER |  |  | 
@@ -206,7 +206,7 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
- | PROXY_SERVICE_CONFIG |  |  | 
+ | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -216,6 +216,9 @@
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
  | RUNTIME_CONFIG_LOCAL_DEV | false |  | 
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
+ | SCAN_V2_ENABLED | false |  | 
+ | SCOOP_CLUSTER_CONFIG | {} |  | 
+ | SCOOP_WATCHER_URL | http://scoop.utils:8081 |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 

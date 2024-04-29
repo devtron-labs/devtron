@@ -317,21 +317,21 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 			return nil, err
 		}
 	}
-	//load chart from given refChart
+	// load chart from given refChart
 	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
 	if err != nil {
 		impl.Logger.Errorw("error in LoadChartFromDir", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	//create the .tgz file in temp location
+	// create the .tgz file in temp location
 	chartBytes, err := impl.chartTemplateServiceImpl.CreateZipFileForChart(chart, outputChartPathDir)
 	if err != nil {
 		impl.Logger.Errorw("error in CreateZipFileForChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	//deleted the .tgz temp file after reading chart bytes
+	// deleted the .tgz temp file after reading chart bytes
 	defer impl.chartTemplateServiceImpl.CleanDir(outputChartPathDir)
 
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()

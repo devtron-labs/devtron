@@ -2,6 +2,7 @@ package bean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"time"
 )
 
@@ -34,25 +35,6 @@ type ImageScanHistoryResponse struct {
 	LastChecked           *time.Time     `json:"lastChecked"`
 	Image                 string         `json:"image,omitempty"`
 	SeverityCount         *SeverityCount `json:"severityCount,omitempty"`
-}
-
-type ImageScanExecutionDetail struct {
-	ImageScanDeployInfoId int                `json:"imageScanDeployInfoId"`
-	AppId                 int                `json:"appId,omitempty"`
-	EnvId                 int                `json:"envId,omitempty"`
-	AppName               string             `json:"appName,omitempty"`
-	EnvName               string             `json:"envName,omitempty"`
-	ArtifactId            int                `json:"artifactId,omitempty"`
-	Image                 string             `json:"image,omitempty"`
-	PodName               string             `json:"podName,omitempty"`
-	ReplicaSet            string             `json:"replicaSet,omitempty"`
-	Vulnerabilities       []*Vulnerabilities `json:"vulnerabilities,omitempty"`
-	SeverityCount         *SeverityCount     `json:"severityCount,omitempty"`
-	ExecutionTime         time.Time          `json:"executionTime,omitempty"`
-	ScanEnabled           bool               `json:"scanEnabled,notnull"`
-	Scanned               bool               `json:"scanned,notnull"`
-	ObjectType            string             `json:"objectType,notnull"`
-	ScanToolId            int                `json:"scanToolId,omitempty"`
 }
 
 type ImageScanExecutionInfo struct {
@@ -109,4 +91,34 @@ type ImageScanRequest struct {
 	ArtifactId            int    `json:"artifactId"`
 	Image                 string `json:"image"`
 	ImageScanFilter
+}
+
+type ImageScanExecutionDetail struct {
+	ImageScanDeployInfoId int    `json:"imageScanDeployInfoId"`
+	AppId                 int    `json:"appId,omitempty"`
+	EnvId                 int    `json:"envId,omitempty"`
+	AppName               string `json:"appName,omitempty"`
+	EnvName               string `json:"envName,omitempty"`
+	ArtifactId            int    `json:"artifactId,omitempty"`
+	Image                 string `json:"image,omitempty"`
+	PodName               string `json:"podName,omitempty"`
+	ReplicaSet            string `json:"replicaSet,omitempty"`
+	ScanEnabled           bool   `json:"scanEnabled,notnull"`
+	Scanned               bool   `json:"scanned,notnull"`
+	ObjectType            string `json:"objectType,notnull"`
+	ScanResult
+}
+
+type ImageScanResult struct {
+	ScanResult ScanResult                           `json:"scanResult"`
+	Image      string                               `json:"image"`
+	State      serverBean.ScanExecutionProcessState `json:"state"`
+	Error      string                               `json:"error"`
+}
+
+type ScanResult struct {
+	Vulnerabilities []*Vulnerabilities `json:"vulnerabilities,omitempty"`
+	SeverityCount   *SeverityCount     `json:"severityCount,omitempty"`
+	ExecutionTime   time.Time          `json:"executionTime,omitempty"`
+	ScanToolId      int                `json:"scanToolId,omitempty""`
 }

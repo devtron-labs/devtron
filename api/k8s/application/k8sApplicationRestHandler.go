@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,6 +60,9 @@ type K8sApplicationRestHandler interface {
 	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
+	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
+	DebugPodInfo(w http.ResponseWriter, r *http.Request)
+	PortForwarding(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -133,14 +137,16 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
+// validate and enrich
+// todo seprate concerns of both
+func (handler *K8sApplicationRestHandlerImpl) validateGetResourceRequest(w http.ResponseWriter, r *http.Request) (*k8s.ResourceRequestBean, error) {
 	decoder := json.NewDecoder(r.Body)
 	var request k8s.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+		return &request, err
 	}
 	vars := r.URL.Query()
 	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
@@ -153,7 +159,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		if err != nil {
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+			return &request, err
 		}
 		//setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
@@ -163,7 +169,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			if err != nil || !valid {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
+				return &request, err
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
@@ -173,7 +179,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
+			return &request, err
 		}
 		// RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
@@ -181,7 +187,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		if err != nil {
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+			return &request, err
 		}
 		//setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
@@ -196,17 +202,42 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		hasReadAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 		if !hasReadAccessForEnv {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
+			return &request, err
 		}
 		// RBAC enforcer Ends
 	}
 	// Invalid cluster id
 	if request.ClusterId <= 0 {
-		common.WriteJsonResp(w, errors.New("can not resource manifest as target cluster is not provided"), nil, http.StatusBadRequest)
+		err = errors.New("can not resource manifest as target cluster is not provided")
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return &request, err
+	}
+	return &request, nil
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request) {
+	request, err := handler.validateGetResourceRequest(w, r)
+	if err != nil {
 		return
 	}
+	info, err := handler.k8sCommonService.GetResourceSecurityInfo(r.Context(), request)
+	if err != nil {
+		handler.logger.Errorw("error in getting security details for resource", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, info, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request, err := handler.validateGetResourceRequest(w, r)
+	if err != nil {
+		return
+	}
+
 	// Fetching requested resource
-	resource, err := handler.k8sCommonService.GetResource(r.Context(), &request)
+	resource, err := handler.k8sCommonService.GetResource(r.Context(), request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -1134,4 +1165,93 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		return resourceRequestBean
 	}
 	return resourceRequestBean
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterid not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	queryValues := r.URL.Query()
+	podName := queryValues.Get("name")
+	namespace := queryValues.Get("namespace")
+	if len(podName) == 0 {
+		podName = "*"
+	}
+	if len(namespace) == 0 {
+		namespace = "*"
+	}
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, casbin.ActionGet, podName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	scoopServiceProxyHandler, scoopConfig, err := handler.k8sApplicationService.GetScoopServiceProxyHandler(r.Context(), clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
+		return
+	}
+	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
+	scoopServiceProxyHandler.ServeHTTP(w, r)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	queryValues := r.URL.Query()
+	clusterIdString := queryValues.Get("clusterId")
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterId not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	serviceName := queryValues.Get("serviceName")
+	if len(serviceName) == 0 {
+		common.WriteJsonResp(w, errors.New("serviceName not present"), nil, http.StatusBadRequest)
+		return
+	}
+	servicePort := queryValues.Get("servicePort")
+	if len(servicePort) == 0 {
+		servicePort = "80"
+	}
+
+	namespace := queryValues.Get("namespace")
+	if len(namespace) == 0 {
+		common.WriteJsonResp(w, errors.New("namespace not present"), nil, http.StatusBadRequest)
+		return
+	}
+
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Service"}, casbin.ActionUpdate, serviceName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, serviceName, namespace, servicePort)
+	if err != nil {
+		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
+		return
+	}
+	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
+	proxy.ServeHTTP(w, r)
 }

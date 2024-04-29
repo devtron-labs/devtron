@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
@@ -341,7 +342,7 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	namespace := metadataMap["Namespace"]
 	err = impl.DeleteTerminalPod(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	if err != nil {
-		if k8s.IsResourceNotFoundErr(err) {
+		if application.IsResourceNotFoundErr(err) {
 			accessSessionData.terminateTriggered = true
 			err = nil
 		}
@@ -513,7 +514,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			impl.deleteClusterTerminalTemplates(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			err = impl.DeleteTerminalPod(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			if err != nil {
-				if k8s.IsResourceNotFoundErr(err) {
+				if application.IsResourceNotFoundErr(err) {
 					errorDetailedMessage := getErrorDetailedMessage(err)
 					terminalPodStatusString = fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 				} else {
@@ -825,7 +826,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 	}
 	response, err := impl.K8sCommonService.GetResource(ctx, request)
 	if err != nil {
-		if k8s.IsResourceNotFoundErr(err) {
+		if application.IsResourceNotFoundErr(err) {
 			errorDetailedMessage := getErrorDetailedMessage(err)
 			terminalPodStatusString := fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 			return nil, errors.New(terminalPodStatusString)
@@ -1141,7 +1142,7 @@ func (impl *UserTerminalAccessServiceImpl) forceDeletePod(ctx context.Context, p
 	}
 	podRequestBean.K8sRequest.ForceDelete = true
 	_, err = impl.K8sCommonService.DeleteResource(ctx, podRequestBean)
-	if err != nil && !k8s.IsResourceNotFoundErr(err) {
+	if err != nil && !application.IsResourceNotFoundErr(err) {
 		return false
 	}
 	return true

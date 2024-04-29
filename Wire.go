@@ -101,6 +101,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -223,6 +224,7 @@ func InitializeApp() (*App, error) {
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		scanningResultsParser.ScanningResultWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
 
 		eventProcessor.EventProcessorWireSet,
