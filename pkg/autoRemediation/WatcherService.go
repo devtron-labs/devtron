@@ -29,7 +29,7 @@ type WatcherService interface {
 	GetWatcherById(watcherId int) (*WatcherDto, error)
 	DeleteWatcherById(watcherId int, userId int32) error
 	UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error
-	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) ([]InterceptedEventsDto, error)
+	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error)
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
 
@@ -683,11 +683,11 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 	}
 	return selectors, nil
 }
-func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) ([]InterceptedEventsDto, error) {
+func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error) {
 	interceptedEventData, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&params)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events", "err", err)
-		return []InterceptedEventsDto{}, err
+		return &InterceptedResponse{}, err
 	}
 	var clusterIds []int
 	for _, event := range interceptedEventData {
@@ -696,7 +696,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	clusters, err := impl.clusterRepository.FindByIds(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving cluster names ", "err", err)
-		return []InterceptedEventsDto{}, err
+		return &InterceptedResponse{}, err
 	}
 	clusterIdtoName := make(map[int]string)
 	for _, cluster := range clusters {
@@ -731,8 +731,18 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
 	}
-
-	return interceptedEvents, nil
+	total, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
+	if err != nil {
+		impl.logger.Errorw("error in retrieving intercepted events ", "err", err)
+		return &InterceptedResponse{}, err
+	}
+	interceptedResponse := InterceptedResponse{
+		Offset: params.Offset,
+		Size:   params.Size,
+		Total:  len(total),
+		List:   interceptedEvents,
+	}
+	return &interceptedResponse, nil
 }
 
 func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*watcherEvents.Watcher, error) {

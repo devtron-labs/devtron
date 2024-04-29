@@ -82,6 +82,12 @@ func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents() ([]*Interc
 //		return  nil
 //
 // }
+type InterceptedEventResponse struct {
+	Offset int
+	Size   int
+	Total  int
+	List   []InterceptedEventData
+}
 type InterceptedEventData struct {
 	ClusterId          int         `sql:"cluster_id"`
 	Namespace          string      `sql:"namespace"`
@@ -163,10 +169,12 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	} else {
 		query = query.Order("intercepted_event_execution.intercepted_at asc")
 	}
+
 	err := query.
 		Offset(interceptedEventsQueryParams.Offset).
 		Limit(interceptedEventsQueryParams.Size).
 		Select(&interceptedEvents)
+	//ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
 	return interceptedEvents, err
 }
 
