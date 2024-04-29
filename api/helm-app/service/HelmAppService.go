@@ -72,7 +72,7 @@ type HelmAppService interface {
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
-	CheckIfNsExistsForClusterId(namespace string, clusterId int) error
+	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string, clusterIds []int) error
 }
 
 type HelmAppServiceImpl struct {
@@ -563,7 +563,12 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
 	//that case DeleteApplication returned with grpc error and the user was not able to delete the
 	//cd-pipeline after helm app is created in that namespace.
-	err = impl.CheckIfNsExistsForClusterId(app.Namespace, app.ClusterId)
+	clusterIdToNsMap := map[int]string{
+		app.ClusterId: app.Namespace,
+	}
+	clusterId := make([]int, 0)
+	clusterId = append(clusterId, app.ClusterId)
+	err = impl.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -594,19 +599,14 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
-	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
-		return false, err
-	}
+func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
 	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
 		return false, err
 	}
-	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
+	exists, err := impl.K8sUtil.CheckIfNsExists(namespace, v12Client)
 	if err != nil {
 		if IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
@@ -1131,19 +1131,24 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 		return 0
 	}
 }
-func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterId(namespace string, clusterId int) error {
-	//making appIdentifier payload
-	appIdentifier := &AppIdentifier{
-		Namespace: namespace,
-		ClusterId: clusterId,
-	}
-	exists, err := impl.checkIfNsExists(appIdentifier)
+func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string, clusterIds []int) error {
+
+	clusterBeans, err := impl.clusterService.FindByIds(clusterIds)
 	if err != nil {
-		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterIds", clusterIds)
 		return err
 	}
-	if !exists {
-		return &util.ApiError{InternalMessage: models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", namespace)}.Error(), Code: strconv.Itoa(http.StatusNotFound), HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("Namespace %s does not exist.", namespace)}
+	for _, clusterBean := range clusterBeans {
+		if namespace, ok := clusterIdToNsMap[clusterBean.Id]; ok {
+			exists, err := impl.checkIfNsExists(namespace, &clusterBean)
+			if err != nil {
+				impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", clusterBean.Id)
+				return err
+			}
+			if !exists {
+				return &util.ApiError{InternalMessage: models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", namespace)}.Error(), Code: strconv.Itoa(http.StatusNotFound), HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("Namespace %s does not exist.", namespace)}
+			}
+		}
 	}
 	return nil
 }
