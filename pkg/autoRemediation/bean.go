@@ -123,6 +123,12 @@ type WatchersResponse struct {
 	Total  int           `json:"total"`
 	List   []WatcherItem `json:"list"`
 }
+type InterceptedResponse struct {
+	Offset int                    `json:"offset"`
+	Size   int                    `json:"size"`
+	Total  int                    `json:"total"`
+	List   []InterceptedEventsDto `json:"list"`
+}
 type InterceptedEventsDto struct {
 	Message        string `json:"message"`
 	MessageType    string `json:"messageType"`

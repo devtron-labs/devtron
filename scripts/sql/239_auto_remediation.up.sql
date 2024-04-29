@@ -51,6 +51,9 @@ CREATE TABLE "public"."intercepted_event_execution"(
                                               "trigger_id" integer,
                                               "trigger_execution_id" integer,
                                               "created_on"                timestamptz NOT NULL,
+                                              "created_by"                int4        NOT NULL,
+                                              "updated_on"                timestamptz,
+                                              "updated_by"                int4,
 
                                               CONSTRAINT intercepted_events_trigger_id_fkey FOREIGN KEY ("trigger_id") REFERENCES "public"."trigger" ("id"),
                                               CONSTRAINT intercepted_events_cluster_id_fkey FOREIGN KEY ("cluster_id") REFERENCES "public"."cluster" ("id"),
