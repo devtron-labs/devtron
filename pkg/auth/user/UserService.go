@@ -764,7 +764,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 			if err != nil {
 				return nil, false, false, nil, err
 			}
-			if userGroup.Name == bean2.SUPER_ADMIN {
+			if userGroup.Name == bean2.SUPER_ADMIN && !isActionPerformingUserSuperAdmin {
 				return nil, false, false, nil, &util.ApiError{
 					HttpStatusCode: http.StatusUnauthorized,
 					Code:           strconv.Itoa(http.StatusUnauthorized),
