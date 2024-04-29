@@ -9,8 +9,8 @@ import (
 )
 
 type EventConfiguration struct {
-	Selectors       []Selector     `json:"selectors"`
-	K8sResources    []*K8sResource `json:"k8sResources"`
+	Selectors       []Selector     `json:"selectors" validate:"required"`
+	K8sResources    []*K8sResource `json:"k8sResources" validate:"required"`
 	EventExpression string         `json:"eventExpression"`
 }
 
@@ -98,9 +98,9 @@ func (dto *WatcherDto) GetDbTriggerModels() []*repository.Trigger {
 
 type WatcherDto struct {
 	Id                 int                `json:"-"`
-	Name               string             `json:"name"`
+	Name               string             `json:"name" validate:"global-entity-name"`
 	Description        string             `json:"description"`
-	EventConfiguration EventConfiguration `json:"eventConfiguration"`
+	EventConfiguration EventConfiguration `json:"eventConfiguration" validate:"dive"`
 	Triggers           []Trigger          `json:"triggers"`
 }
 

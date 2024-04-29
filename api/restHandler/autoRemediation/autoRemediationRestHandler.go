@@ -3,6 +3,7 @@ package autoRemediation
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
@@ -28,25 +29,46 @@ type WatcherRestHandler interface {
 	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 	RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request)
 }
+
 type WatcherRestHandlerImpl struct {
 	watcherService  autoRemediation.WatcherService
 	userAuthService user.UserService
 	validator       *validator.Validate
 	enforcerUtil    rbac.EnforcerUtil
 	enforcer        casbin.Enforcer
+	celEvaluator    resourceFilter.CELEvaluatorService
 	logger          *zap.SugaredLogger
 }
 
 func NewWatcherRestHandlerImpl(watcherService autoRemediation.WatcherService, userAuthService user.UserService, validator *validator.Validate,
-	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, celEvaluator resourceFilter.CELEvaluatorService, logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
 	return &WatcherRestHandlerImpl{
 		watcherService:  watcherService,
 		userAuthService: userAuthService,
 		validator:       validator,
 		enforcerUtil:    enforcerUtil,
 		enforcer:        enforcer,
+		celEvaluator:    celEvaluator,
 		logger:          logger,
 	}
+}
+
+func (impl WatcherRestHandlerImpl) evaluateEventExpression(expression string) error {
+
+	params := []resourceFilter.ExpressionParam{
+		{
+			ParamName: "event",
+			Type:      resourceFilter.ParamTypeObject,
+		},
+	}
+
+	request := resourceFilter.CELRequest{
+		Expression:         expression,
+		ExpressionMetadata: resourceFilter.ExpressionMetadata{Params: params},
+	}
+
+	_, _, err := impl.celEvaluator.Validate(request)
+	return err
 }
 
 func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +91,14 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
+	if err != nil {
+		impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	// RBAC
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
@@ -162,6 +192,14 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
+	if err != nil {
+		impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
