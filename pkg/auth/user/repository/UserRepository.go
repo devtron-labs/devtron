@@ -22,6 +22,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -46,6 +47,7 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
+	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
 type UserRepositoryImpl struct {
@@ -241,4 +243,16 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 		return totalCount, err
 	}
 	return totalCount, err
+}
+
+// below method does operation on api_token table,
+// we are writing this method here instead of ApiTokenRepository to avoid cyclic import
+func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
+	query := impl.dbConnection.Model().
+		Table(userBean.ApiTokenTableName).
+		Where("name = ?", tokenName).
+		Where("version = ?", tokenVersion)
+
+	exists, err := query.Exists()
+	return exists, err
 }
