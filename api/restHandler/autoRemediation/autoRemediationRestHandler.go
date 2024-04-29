@@ -190,7 +190,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
-		sortOrder = "desc"
+		sortOrder = "asc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
@@ -201,7 +201,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		sortOrderBy = "name"
 	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggerTime") {
-		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggerType"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggerTime"), nil, http.StatusBadRequest)
 		return
 	}
 	sizeStr := queryParams.Get("size")
