@@ -52,17 +52,6 @@ func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int 
 	return 0
 }
 
-// SetResourceIdBasedOnIdType will update the resource id/ oldObjectId based on id type
-func (reqBean *DevtronResourceObjectDescriptorBean) SetResourceIdBasedOnIdType(id int) {
-	if reqBean.IdType == OldObjectId {
-		reqBean.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables
-		reqBean.Id = 0           // reqBean.Id and reqBean.OldObjectId both can not be used at a time
-	} else if reqBean.IdType == ResourceObjectIdType {
-		reqBean.Id = id
-		reqBean.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
-	}
-}
-
 type DevtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Schema            string                           `json:"schema,omitempty"`
@@ -105,6 +94,16 @@ type NoteBean struct {
 	UpdatedBy *UserSchema `json:"updatedBy"`
 }
 
+type DevtronResourceDependencyPatchAPIBean struct {
+	*DevtronResourceObjectDescriptorBean
+	DependencyPatch []*DependencyPatchBean `json:"dependencyPatch,omitempty"`
+}
+
+type DependencyPatchBean struct {
+	PatchQuery     []PatchQuery    `json:"query,omitempty"`
+	DependencyInfo *DependencyInfo `json:"dependencyInfo,omitempty"`
+}
+
 type ResourceIdentifier struct {
 	Id         int    `json:"id"`
 	Identifier string `json:"identifier,omitempty"` // Identifier should not be used in code anywhere only just a user-friendly way to get repository.DevtronResourceObject
@@ -131,8 +130,9 @@ type DependencyInfo struct {
 }
 
 const (
-	IdentifierQueryString = "identifier"
-	IdQueryString         = "id"
+	AllIdentifierQueryString = "*"
+	IdentifierQueryString    = "identifier"
+	IdQueryString            = "id"
 )
 
 type ResourceParentData struct {
@@ -204,12 +204,6 @@ type DependencyMetaDataBean struct {
 type UpdateSchemaResponseBean struct {
 	Message       string   `json:"message"`
 	PathsToRemove []string `json:"pathsToRemove"`
-}
-
-type ResourceObjectRequirementRequest struct {
-	ReqBean                  *DevtronResourceObjectBean
-	ObjectDataPath           string
-	SkipJsonSchemaValidation bool
 }
 
 type ConfigStatus struct {
@@ -338,33 +332,6 @@ const (
 
 func (n DevtronResourceVersion) ToString() string {
 	return string(n)
-}
-
-var DevtronResourceSupportedVersionMap = map[DevtronResourceKind]map[DevtronResourceVersion]bool{
-	DevtronResourceApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceDevtronApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceHelmApplication: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceCluster: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceJob: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceCdPipeline: {
-		DevtronResourceVersion1: true,
-	},
-	DevtronResourceReleaseTrack: {
-		DevtronResourceVersionAlpha1: true,
-	},
-	DevtronResourceRelease: {
-		DevtronResourceVersionAlpha1: true,
-	},
 }
 
 type DevtronResourceAttributeName string

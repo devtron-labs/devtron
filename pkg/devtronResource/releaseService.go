@@ -14,12 +14,11 @@ import (
 	slices "golang.org/x/exp/slices"
 	"math"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
 
-func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req *bean.DevtronResourceObjectBean,
+func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req *bean.DtResourceObjectInternalBean,
 	existingObj *repository.DevtronResourceObject) {
 	//getting dependencies of existingObj
 	existingDependencies, err := impl.getDependenciesInObjectDataFromJsonString(existingObj.DevtronResourceSchemaId, existingObj.ObjectData, false)
@@ -65,7 +64,7 @@ func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req
 	req.ObjectData = string(marshaledDependencies)
 }
 
-func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusInResourceObj(resourceSchema *repository.DevtronResourceSchema,
+func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
@@ -83,7 +82,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusInResourceObj(r
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateReleaseNoteInResourceObj(resourceSchema *repository.DevtronResourceSchema,
+func (impl *DevtronResourceServiceImpl) updateReleaseNoteForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
@@ -112,7 +111,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteInResourceObj(resourceS
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataInResourceObj(resourceSchema *repository.DevtronResourceSchema,
+func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
 	//checking if resource object exists
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
@@ -129,12 +128,12 @@ func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataInResourceObj(r
 					Icon: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIconPath).Bool(),
 				},
 			}
-			resourceObject.Overview.CreatedOn, err = getCreatedOnTime(existingResourceObject.ObjectData)
+			resourceObject.Overview.CreatedOn, err = helper.GetCreatedOnTime(existingResourceObject.ObjectData)
 			if err != nil {
 				impl.logger.Errorw("error in time conversion", "err", err)
 				return err
 			}
-			resourceObject.Overview.Tags = getOverviewTags(existingResourceObject.ObjectData)
+			resourceObject.Overview.Tags = helper.GetOverviewTags(existingResourceObject.ObjectData)
 		}
 	}
 	// get parent config data for overview component
@@ -168,19 +167,19 @@ func (impl *DevtronResourceServiceImpl) updateReleaseVersionAndParentConfigInRes
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataInResourceObj(resourceSchema *repository.DevtronResourceSchema,
+func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
 	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
-	err = impl.updateReleaseOverviewDataInResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	err = impl.updateReleaseOverviewDataForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
 	if err != nil {
 		impl.logger.Errorw("error in getting overview data", "err", err)
 		return err
 	}
-	err = impl.updateReleaseConfigStatusInResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	err = impl.updateReleaseConfigStatusForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
 	if err != nil {
 		impl.logger.Errorw("error in getting config status data", "err", err)
 		return err
 	}
-	err = impl.updateReleaseNoteInResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	err = impl.updateReleaseNoteForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
 	if err != nil {
 		impl.logger.Errorw("error in getting note", "err", err)
 		return err
@@ -188,7 +187,7 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataInResourceObj(r
 	return nil
 }
 
-func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotFound, bean.ReleaseVersionNotFound)
 	} else if reqBean.ParentConfig == nil {
@@ -201,7 +200,7 @@ func validateCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseRequest(reqBean *bean.DevtronResourceObjectBean) error {
+func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
 		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
 		// considering the user details are already verified; this error indicates to an internal db error.
@@ -219,7 +218,7 @@ func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseReq
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DevtronResourceObjectBean) (string, error) {
+func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
 	if reqBean.ConfigStatus == nil {
 		reqBean.ConfigStatus = &bean.ConfigStatus{
@@ -305,7 +304,7 @@ func (impl *DevtronResourceServiceImpl) listRelease(resourceObjects, childObject
 	for i := range resourceObjects {
 		resourceData := adapter.BuildDevtronResourceObjectGetAPIBean()
 		if !isLite {
-			err := impl.updateCompleteReleaseDataInResourceObj(nil, resourceObjects[i], resourceData)
+			err := impl.updateCompleteReleaseDataForGetApiResourceObj(nil, resourceObjects[i], resourceData)
 			if err != nil {
 				impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
 				return nil, err
@@ -347,7 +346,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
 		}
 		criteriaDecoder := adapter.BuildFilterCriteriaDecoder(objs[0], objs[1], objs[2])
-		f1 := extractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Resource)
+		f1 := getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Resource)
 		if f1 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -356,7 +355,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 			impl.logger.Errorw("error in applyFilterCriteriaOnResourceObjects", "criteriaDecoder", criteriaDecoder, "err", err)
 			return nil, err
 		}
-		f2 := getProcessingFiltersOnResourceObjectsFuncMap(kind, subKind, version, criteriaDecoder.Resource)
+		f2 := getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version, criteriaDecoder.Resource)
 		if f2 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -369,7 +368,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 	return resourceObjects, nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateReleaseDependenciesDataInResponseObj(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams,
+func (impl *DevtronResourceServiceImpl) updateReleaseDataForGetDependenciesApi(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams,
 	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error) {
 	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, query.IsLite)
 	if err != nil {
@@ -380,7 +379,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependenciesDataInResponseO
 		bean.DevtronResourceDependencyTypeLevel,
 		bean.DevtronResourceDependencyTypeUpstream,
 	}
-	appIdsToGetMetadata := getDependencyOldObjectIdsForSpecificType(dependenciesOfParent, bean.DevtronResourceDependencyTypeUpstream)
+	appIdsToGetMetadata := helper.GetDependencyOldObjectIdsForSpecificType(dependenciesOfParent, bean.DevtronResourceDependencyTypeUpstream)
 	dependencyFilterKeys, err := impl.getFilterKeysFromDependenciesInfo(query.DependenciesInfo)
 	if err != nil {
 		return nil, err
@@ -422,34 +421,10 @@ func updateReleaseDependencyConfigDataInObj(configDataJsonObj string, configData
 	return nil
 }
 
-func decodeDependencyInfoString(dependencyInfo string) (resourceIdentifier *bean.ResourceIdentifier, err error) {
-	resourceIdentifier = &bean.ResourceIdentifier{}
-	dependencyInfoSplits := strings.Split(dependencyInfo, "|")
-	if len(dependencyInfoSplits) != 4 {
-		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, bean.InvalidQueryDependencyInfo)
-	}
-	kind, subKind, err := GetKindAndSubKindFrom(dependencyInfoSplits[0])
-	if err != nil {
-		return nil, err
-	}
-	resourceIdentifier.ResourceKind = bean.DevtronResourceKind(kind)
-	resourceIdentifier.ResourceSubKind = bean.DevtronResourceKind(subKind)
-	resourceIdentifier.ResourceVersion = bean.DevtronResourceVersion(dependencyInfoSplits[1])
-	if dependencyInfoSplits[2] == bean.IdentifierQueryString {
-		resourceIdentifier.Identifier = dependencyInfoSplits[3]
-	} else if dependencyInfoSplits[2] == bean.IdQueryString {
-		resourceIdentifier.Id, err = strconv.Atoi(dependencyInfoSplits[3])
-		if err != nil {
-			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, err.Error())
-		}
-	}
-	return resourceIdentifier, nil
-}
-
 func (impl *DevtronResourceServiceImpl) getFilterKeysFromDependenciesInfo(dependenciesInfo []string) ([]string, error) {
 	dependencyFilterKeys := make([]string, len(dependenciesInfo))
 	for _, dependencyInfo := range dependenciesInfo {
-		resourceIdentifier, err := decodeDependencyInfoString(dependencyInfo)
+		resourceIdentifier, err := helper.DecodeDependencyInfoString(dependencyInfo)
 		if err != nil {
 			return nil, err
 		}

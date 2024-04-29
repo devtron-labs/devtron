@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	serviceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	devtronResourceHelper "github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -35,26 +36,29 @@ type DevtronResourceRestHandler interface {
 }
 
 type DevtronResourceRestHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	enforcer               casbin.Enforcer
-	enforcerUtil           rbac.EnforcerUtil
-	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	userService            user.UserService
-	validator              *validator.Validate
-	devtronResourceService devtronResource.DevtronResourceService
+	logger                       *zap.SugaredLogger
+	enforcer                     casbin.Enforcer
+	enforcerUtil                 rbac.EnforcerUtil
+	enforcerUtilHelm             rbac.EnforcerUtilHelm
+	userService                  user.UserService
+	validator                    *validator.Validate
+	devtronResourceService       devtronResource.DevtronResourceService
+	devtronResourceSchemaService devtronResource.DevtronResourceSchemaService
 }
 
 func NewDevtronResourceRestHandlerImpl(logger *zap.SugaredLogger, userService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, validator *validator.Validate,
-	devtronResourceService devtronResource.DevtronResourceService) *DevtronResourceRestHandlerImpl {
+	devtronResourceService devtronResource.DevtronResourceService,
+	devtronResourceSchemaService devtronResource.DevtronResourceSchemaService) *DevtronResourceRestHandlerImpl {
 	return &DevtronResourceRestHandlerImpl{
-		logger:                 logger,
-		enforcer:               enforcer,
-		userService:            userService,
-		enforcerUtil:           enforcerUtil,
-		enforcerUtilHelm:       enforcerUtilHelm,
-		validator:              validator,
-		devtronResourceService: devtronResourceService,
+		logger:                       logger,
+		enforcer:                     enforcer,
+		userService:                  userService,
+		enforcerUtil:                 enforcerUtil,
+		enforcerUtilHelm:             enforcerUtilHelm,
+		validator:                    validator,
+		devtronResourceService:       devtronResourceService,
+		devtronResourceSchemaService: devtronResourceSchemaService,
 	}
 }
 
@@ -196,7 +200,7 @@ func (handler *DevtronResourceRestHandlerImpl) CreateResourceObject(w http.Respo
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean serviceBean.DevtronResourceObjectBean
+	var reqBean serviceBean.DtResourceObjectCreateReqBean
 	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -236,7 +240,7 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w ht
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean serviceBean.DevtronResourceObjectBean
+	var reqBean serviceBean.DtResourceObjectCatalogReqBean
 	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -272,7 +276,7 @@ func (handler *DevtronResourceRestHandlerImpl) PatchResourceObject(w http.Respon
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean serviceBean.DevtronResourceObjectBean
+	var reqBean serviceBean.DtResourceObjectPatchReqBean
 	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -366,7 +370,7 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencie
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean serviceBean.DevtronResourceObjectBean
+	var reqBean serviceBean.DtResourceObjectDependenciesReqBean
 	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -403,7 +407,7 @@ func (handler *DevtronResourceRestHandlerImpl) PatchResourceDependencies(w http.
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var reqBean serviceBean.DevtronResourceObjectBean
+	var reqBean serviceBean.DevtronResourceDependencyPatchAPIBean
 	err := decoder.Decode(&reqBean)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
@@ -472,7 +476,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetSchema(w http.ResponseWriter, 
 
 	reqBean := &serviceBean.DevtronResourceBean{DevtronResourceId: resourceId}
 
-	resp, err := handler.devtronResourceService.GetSchema(reqBean)
+	resp, err := handler.devtronResourceSchemaService.GetSchema(reqBean)
 	if err != nil {
 		handler.logger.Errorw("service error, GetSchema", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -520,7 +524,7 @@ func (handler *DevtronResourceRestHandlerImpl) UpdateSchema(w http.ResponseWrite
 	}
 
 	//resp := &serviceBean.UpdateSchemaResponseBean{}
-	resp, err := handler.devtronResourceService.UpdateSchema(&reqBean, dryRun)
+	resp, err := handler.devtronResourceSchemaService.UpdateSchema(&reqBean, dryRun)
 	if err != nil {
 		handler.logger.Errorw("service error, GetSchema", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -638,7 +642,7 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id i
 }
 
 func resolveKindSubKindValues(kindVar string) (kind, subKind string, statusCode int, err error) {
-	kind, subKind, err = devtronResource.GetKindAndSubKindFrom(kindVar)
+	kind, subKind, err = devtronResourceHelper.GetKindAndSubKindFrom(kindVar)
 	if err != nil {
 		err = fmt.Errorf("invalid parameter: kind")
 		statusCode = http.StatusBadRequest

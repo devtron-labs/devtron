@@ -1,15 +1,47 @@
 package adapter
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 )
 
-func GetResourceObjectRequirementRequest(reqBean *bean.DevtronResourceObjectBean, objectDataPath string, skipJsonSchemaValidation bool) *bean.ResourceObjectRequirementRequest {
+func GetRequirementReqForCreateRequest(reqBean *bean.DtResourceObjectCreateReqBean, objectDataPath string, skipJsonSchemaValidation bool) *bean.ResourceObjectRequirementRequest {
 	return &bean.ResourceObjectRequirementRequest{
-		ReqBean:                  reqBean,
+		ReqBean: &bean.DtResourceObjectInternalBean{
+			DevtronResourceObjectDescriptorBean: reqBean.DevtronResourceObjectDescriptorBean,
+			Overview:                            reqBean.Overview,
+			ParentConfig:                        reqBean.ParentConfig,
+		},
 		ObjectDataPath:           objectDataPath,
 		SkipJsonSchemaValidation: skipJsonSchemaValidation,
 	}
+}
+
+func GetRequirementRequestForCatalogRequest(reqBean *bean.DtResourceObjectCatalogReqBean, skipJsonSchemaValidation bool) *bean.ResourceObjectRequirementRequest {
+	return &bean.ResourceObjectRequirementRequest{
+		ReqBean: &bean.DtResourceObjectInternalBean{
+			DevtronResourceObjectDescriptorBean: reqBean.DevtronResourceObjectDescriptorBean,
+			ObjectData:                          reqBean.ObjectData,
+		},
+		ObjectDataPath:           bean.ResourceObjectMetadataPath,
+		SkipJsonSchemaValidation: skipJsonSchemaValidation,
+	}
+}
+
+func GetRequirementRequestForDependenciesRequest(reqBean *bean.DtResourceObjectDependenciesReqBean, skipJsonSchemaValidation bool) (*bean.ResourceObjectRequirementRequest, error) {
+	marshaledDependencies, err := json.Marshal(reqBean.Dependencies)
+	if err != nil {
+		return nil, err
+	}
+	return &bean.ResourceObjectRequirementRequest{
+		ReqBean: &bean.DtResourceObjectInternalBean{
+			DevtronResourceObjectDescriptorBean: reqBean.DevtronResourceObjectDescriptorBean,
+			Dependencies:                        reqBean.Dependencies,
+			ObjectData:                          string(marshaledDependencies),
+		},
+		ObjectDataPath:           bean.ResourceObjectDependenciesPath,
+		SkipJsonSchemaValidation: skipJsonSchemaValidation,
+	}, nil
 }
 
 func BuildConfigStatusSchemaData(status *bean.ConfigStatus) *bean.ReleaseConfigSchema {

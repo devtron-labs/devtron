@@ -5,18 +5,48 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/xeipuuv/gojsonschema"
+	"go.uber.org/zap"
 	"net/http"
-	"reflect"
-	"strings"
 )
 
-func (impl *DevtronResourceServiceImpl) GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error) {
+type DevtronResourceSchemaService interface {
+	GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error)
+	UpdateSchema(req *bean.DevtronResourceSchemaRequestBean, dryRun bool) (*bean.UpdateSchemaResponseBean, error)
+}
+
+type DevtronResourceSchemaServiceImpl struct {
+	logger                               *zap.SugaredLogger
+	devtronResourceRepository            repository.DevtronResourceRepository
+	devtronResourceSchemaRepository      repository.DevtronResourceSchemaRepository
+	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
+	devtronResourceObjectRepository      repository.DevtronResourceObjectRepository
+	devtronResourceService               DevtronResourceService
+}
+
+func NewDevtronResourceSchemaServiceImpl(logger *zap.SugaredLogger,
+	devtronResourceRepository repository.DevtronResourceRepository,
+	devtronResourceSchemaRepository repository.DevtronResourceSchemaRepository,
+	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository,
+	devtronResourceObjectRepository repository.DevtronResourceObjectRepository,
+	devtronResourceService DevtronResourceService) *DevtronResourceSchemaServiceImpl {
+	return &DevtronResourceSchemaServiceImpl{
+		logger:                               logger,
+		devtronResourceRepository:            devtronResourceRepository,
+		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
+		devtronResourceSchemaAuditRepository: devtronResourceSchemaAuditRepository,
+		devtronResourceObjectRepository:      devtronResourceObjectRepository,
+		devtronResourceService:               devtronResourceService,
+	}
+}
+
+func (impl *DevtronResourceSchemaServiceImpl) GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error) {
 	resourceSchema, err := impl.devtronResourceSchemaRepository.FindAllByResourceId(req.DevtronResourceId)
 	if err != nil && resourceSchema != nil {
 		impl.logger.Errorw("error in getting devtronResourceSchema", "err", err, "request", req)
@@ -57,25 +87,7 @@ func (impl *DevtronResourceServiceImpl) GetSchema(req *bean.DevtronResourceBean)
 	return resourceSchemaDetails, nil
 }
 
-func findInvalidPaths(schemaJsonMap map[string]interface{}, currentPath string, invalidRefPaths *[]string) {
-	for key, value := range schemaJsonMap {
-		newPath := fmt.Sprintf("%s.%s", currentPath, key)
-		if key == bean.RefTypeKey {
-			valStr, ok := value.(string)
-			if (ok && valStr != bean.RefTypePath) || !ok {
-				*invalidRefPaths = append(*invalidRefPaths, newPath)
-			}
-		} else if key == bean.ResourceObjectDependenciesPath {
-			*invalidRefPaths = append(*invalidRefPaths, newPath)
-		} else {
-			if valNew, ok := value.(map[string]interface{}); ok {
-				findInvalidPaths(valNew, newPath, invalidRefPaths)
-			}
-		}
-	}
-}
-
-func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSchemaRequestBean, dryRun bool) (*bean.UpdateSchemaResponseBean, error) {
+func (impl *DevtronResourceSchemaServiceImpl) UpdateSchema(req *bean.DevtronResourceSchemaRequestBean, dryRun bool) (*bean.UpdateSchemaResponseBean, error) {
 	pathsToRemove := make([]string, 0)
 	resourceSchema, err := impl.devtronResourceSchemaRepository.FindById(req.DevtronResourceSchemaId)
 	if err != nil && err != pg.ErrNoRows {
@@ -123,7 +135,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	}
 
 	// fetch diff b/w json schemas
-	pathsToRemove, err = impl.extractDiffPaths([]byte(oldSchema), []byte(fullNewSchema))
+	pathsToRemove, err = helper.ExtractDiffPaths([]byte(oldSchema), []byte(fullNewSchema))
 	if err != nil {
 		impl.logger.Errorw("error in extracting pathList", "err", err, "oldSchema", oldSchema, "fullNewSchema", fullNewSchema)
 		return nil, err
@@ -202,7 +214,7 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	}
 
 	//reloading cache
-	err = impl.SetDevtronResourcesAndSchemaMap()
+	err = impl.devtronResourceService.SetDevtronResourcesAndSchemaMap()
 	if err != nil {
 		impl.logger.Errorw("error, SetDevtronResourcesAndSchemaMap", "err", err)
 		return nil, err
@@ -213,92 +225,20 @@ func (impl *DevtronResourceServiceImpl) UpdateSchema(req *bean.DevtronResourceSc
 	}, nil
 }
 
-func (impl *DevtronResourceServiceImpl) CompareJSON(json1, json2 []byte) ([]string, error) {
-	var m1 interface{}
-	var m2 interface{}
-
-	err := json.Unmarshal(json1, &m1)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshaling json", "err", err, "json1", json1)
-		return nil, err
-	}
-	err = json.Unmarshal(json2, &m2)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshaling json", "err", err, "json2", json2)
-		return nil, err
-	}
-
-	pathList := make([]string, 0)
-	impl.compareMaps(m1.(map[string]interface{}), m2.(map[string]interface{}), "", &pathList)
-	return pathList, nil
-}
-
-func (impl *DevtronResourceServiceImpl) compareMaps(m1, m2 map[string]interface{}, currentPath string, pathList *[]string) {
-	for k, v1 := range m1 {
-		newPath := fmt.Sprintf("%s,%s", currentPath, k)
-		if v2, ok := m2[k]; ok {
-			switch v1.(type) {
-			case []interface{}:
-				if k == bean.Enum && !reflect.DeepEqual(v1, v2) {
-					*pathList = append(*pathList, currentPath)
-				}
-			case map[string]interface{}:
-				switch v2.(type) {
-				case map[string]interface{}:
-					impl.compareMaps(v1.(map[string]interface{}), v2.(map[string]interface{}), newPath, pathList)
-				default:
-				}
-			default:
-				if !reflect.DeepEqual(v1, v2) {
-					*pathList = append(*pathList, currentPath)
-				}
+func findInvalidPaths(schemaJsonMap map[string]interface{}, currentPath string, invalidRefPaths *[]string) {
+	for key, value := range schemaJsonMap {
+		newPath := fmt.Sprintf("%s.%s", currentPath, key)
+		if key == bean.RefTypeKey {
+			valStr, ok := value.(string)
+			if (ok && valStr != bean.RefTypePath) || !ok {
+				*invalidRefPaths = append(*invalidRefPaths, newPath)
 			}
+		} else if key == bean.ResourceObjectDependenciesPath {
+			*invalidRefPaths = append(*invalidRefPaths, newPath)
 		} else {
-			if k != bean.Required {
-				*pathList = append(*pathList, newPath)
+			if valNew, ok := value.(map[string]interface{}); ok {
+				findInvalidPaths(valNew, newPath, invalidRefPaths)
 			}
 		}
 	}
-}
-
-func (impl *DevtronResourceServiceImpl) extractDiffPaths(json1, json2 []byte) ([]string, error) {
-	pathList, err := impl.CompareJSON(json1, json2)
-	if err != nil {
-		impl.logger.Errorw("error in comparing json", "err", err, "json1", json1, "json2", json2)
-		return nil, err
-	}
-	pathsToRemove := make([]string, 0)
-	for _, path := range pathList {
-		if len(path) > 0 {
-			path = path[1:]
-		}
-		pathSplit := strings.Split(path, ",")
-		if len(pathSplit) > 0 && (pathSplit[len(pathSplit)-1] == bean.Items || pathSplit[len(pathSplit)-1] == bean.AdditionalProperties) {
-			pathSplit = pathSplit[:len(pathSplit)-1]
-		}
-
-		// remove properties attribute from path array
-		idx := 0
-		propertiesCount := 0
-		for _, e := range pathSplit {
-			if e != bean.Properties {
-				times := propertiesCount / 2
-				for time := 0; time < times; time++ {
-					pathSplit[idx] = bean.Properties
-					idx++
-				}
-				pathSplit[idx] = e
-				propertiesCount = 0
-				idx++
-			} else {
-				propertiesCount++
-			}
-		}
-
-		pathSplit = pathSplit[:idx]
-
-		path = strings.Join(pathSplit, ",")
-		pathsToRemove = append(pathsToRemove, path)
-	}
-	return pathsToRemove, nil
 }
