@@ -1,0 +1,85 @@
+name: hotfix-fix-pr-to-main
+# Controls when the workflow will run
+on:
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - 'hotfix-**'
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  if_merged:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        echo "PR title is ${{ github.event.pull_request.title }}"
+        commit_sha=${{ github.event.pull_request.head.sha }}
+        target_branch=$GITHUB_REF
+        requested_branch=$GITHUB_HEAD_REF
+        author=${{ github.event.pull_request.user.login }}
+        target_branch=$(basename "$target_branch")
+        hotfix_tag=$(echo "$target_branch" | cut -d '-' -f 2)
+        trim_sha="${commit_sha:0:7}"
+        final_branch="$hotfix_tag-$trim_sha"
+        git clone https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}
+        repo_name=$(echo $GITHUB_REPOSITORY | awk -F ["/"] '{print $2}')
+        cd $repo_name
+        base_branch="main"
+        echo "*************************"
+        echo "target branch: $target_branch ,requested branch: $requested_branch , final branch: $final_branch , Commit SHA : $commit_sha"
+        echo "*************************"
+        git config --global user.email ${GIT_CONFIG_EMAIL} && git config --global user.name ${GIT_CONFIG_NAME}
+        git checkout -b $final_branch $base_branch
+
+        # Func to send the notification on Discord
+        send_discord_message() {
+          # Prepare message data
+          discord_data+="Hotfix patch cherry-pick failed for $repo_name repo\n"
+          discord_data+="---------------------------------------------------\n"
+          discord_data+="Author name: $author\n"
+          discord_data+="Git hash to cherry-pick: $commit_sha\n"
+          discord_data+="Branch from which cherry-pick was taken: $requested_branch\n"
+          discord_data+="Target branch where cherry-pick was intended: $final_branch\n"
+          json_payload="{\"content\": \"\`\`\`\n$discord_data\n\`\`\`\"}"
+          # Send message using curl
+          curl -X POST -H "Content-Type: application/json" -d "$json_payload" "${DISCORD_WEBHOOK_URL}"
+        }
+        echo "*********************************"
+        echo "PR title: $PR_TITLE"
+        echo "*********************************"
+        if git cherry-pick $commit_sha > /dev/null 2>&1
+        then
+            echo "************* Cherry-pick succeeded ***********"
+            echo "\n******** Pushing the $final_branch to origin ****\n"
+            git push https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} $final_branch
+            echo "\n\n********* Creating the PR ***********\n\n"
+            curl --request POST \
+            --url https://api.github.com/repos/$GITHUB_REPOSITORY/pulls \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{
+                \"title\": \"$PR_TITLE\",
+                \"body\": \"This pull request was generated as a result of cherry-picking commit hash $commit_sha from the $requested_branch branch into $base_branch branch\",
+                \"head\": \"$final_branch\",
+                \"base\": \"$base_branch\"
+            }" | \
+            jq '.number' | \
+            xargs -I {} curl -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                "labels": ["PR:Auto-Cherrypick-from-hotfix"]
+                }' \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/{}/labels"
+        else
+            echo "************** Cherry-pick failed with conflicts *************"
+            send_discord_message
+            exit 0
+        fi
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_AUTOMATIC_CHERRYPICK_WEBHOOK }}
+        GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+        GIT_CONFIG_NAME: ${{ secrets.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
