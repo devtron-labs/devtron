@@ -970,6 +970,9 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 		return
 	}
 	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
+	if err != nil {
+		return
+	}
 	// RBAC enforcer applying
 	token := r.Header.Get(common.TokenHeaderKey)
 	request := handler.filterAuthorizedResourcesForGroup(appIds, envId, token)
