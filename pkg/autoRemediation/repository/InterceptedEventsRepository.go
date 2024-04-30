@@ -34,8 +34,6 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
-	GetAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error)
-	// UpdateStatus(status string, interceptedEventId int) error
 	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
@@ -64,77 +62,6 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 	return interceptedEvents, nil
 }
 
-func (impl InterceptedEventsRepositoryImpl) GetAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error) {
-	var interceptedEvents []*InterceptedEventData
-
-	query := impl.dbConnection.Model().
-		Table("intercepted_event_execution").
-		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
-		ColumnExpr("intercepted_event_execution.namespace as namespace").
-		ColumnExpr("intercepted_event_execution.message as message").
-		ColumnExpr("intercepted_event_execution.message_type as message_type").
-		ColumnExpr("intercepted_event_execution.event as event").
-		ColumnExpr("intercepted_event_execution.involved_object as involved_object").
-		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
-		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
-		ColumnExpr("intercepted_event_execution.status as status").
-		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
-		ColumnExpr("watcher.name as watcher_name").
-		ColumnExpr("trigger.id as trigger_id").
-		ColumnExpr("trigger.type as trigger_type").
-		ColumnExpr("trigger.data as trigger_data").
-		Join("JOIN trigger ON intercepted_event_execution.trigger_id = trigger.id").
-		Join("JOIN watcher ON trigger.watcher_id = watcher.id")
-
-	if !interceptedEventsQueryParams.From.IsZero() && !interceptedEventsQueryParams.To.IsZero() {
-		query = query.Where("intercepted_event_execution.intercepted_at BETWEEN ? AND ?", interceptedEventsQueryParams.From, interceptedEventsQueryParams.To)
-	}
-
-	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.message ILIKE ? OR intercepted_event_execution.involved_object ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
-	}
-
-	if len(interceptedEventsQueryParams.ClusterIds) > 0 {
-		query = query.Where("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
-	}
-
-	if len(interceptedEventsQueryParams.Namespaces) > 0 {
-		query = query.Where("intercepted_event_execution.namespace IN (?)", pg.In(interceptedEventsQueryParams.Namespaces))
-	}
-
-	if len(interceptedEventsQueryParams.Watchers) > 0 {
-		query = query.Where("watcher.name IN (?)", pg.In(interceptedEventsQueryParams.Watchers))
-	}
-
-	if len(interceptedEventsQueryParams.ExecutionStatus) > 0 {
-		query = query.Where("intercepted_event_execution.status IN (?)", pg.In(interceptedEventsQueryParams.ExecutionStatus))
-	}
-	if interceptedEventsQueryParams.SortOrder == "desc" {
-		query = query.Order("intercepted_event_execution.intercepted_at desc")
-	} else {
-		query = query.Order("intercepted_event_execution.intercepted_at asc")
-	}
-
-	err := query.
-		Select(&interceptedEvents)
-	//ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
-	return interceptedEvents, err
-}
-
-//	func (impl InterceptedEventsRepositoryImpl) UpdateStatus(status string, interceptedEventId int)  error {
-//		_, err := impl.dbConnection.Model(&InterceptedEvents{}).Where("id=?", interceptedEventId).Set("status=?", status).Update()
-//		if err != nil {
-//			return err
-//		}
-//		return  nil
-//
-// }
-type InterceptedEventResponse struct {
-	Offset int
-	Size   int
-	Total  int
-	List   []InterceptedEventData
-}
 type InterceptedEventData struct {
 	ClusterId          int         `sql:"cluster_id"`
 	Namespace          string      `sql:"namespace"`
@@ -238,7 +165,6 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		Offset(interceptedEventsQueryParams.Offset).
 		Limit(interceptedEventsQueryParams.Size).
 		Select(&interceptedEvents)
-	//ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
 	return interceptedEvents, total, err
 }
 

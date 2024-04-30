@@ -31,8 +31,7 @@ type WatcherRepository interface {
 	Delete(watcher *Watcher) error
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(id int) error
-	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
-	GetAllWatchers(params WatcherQueryParams) ([]*Watcher, error)
+	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -99,7 +98,7 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	return nil
 }
 
-func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error) {
+func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error) {
 	var watcher []*Watcher
 	query := impl.dbConnection.Model(&watcher)
 	if params.Search != "" {
@@ -112,28 +111,14 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 			query = query.Order("name asc")
 		}
 	}
-	err := query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
+	// Count total number of watchers
+	total, err := query.Count()
 	if err != nil {
-		return []*Watcher{}, err
+		return []*Watcher{}, 0, err
 	}
-	return watcher, nil
-}
-func (impl WatcherRepositoryImpl) GetAllWatchers(params WatcherQueryParams) ([]*Watcher, error) {
-	var watcher []*Watcher
-	query := impl.dbConnection.Model(&watcher)
-	if params.Search != "" {
-		query = query.Where("name ILIKE ? ", "%"+params.Search+"%")
-	}
-	if params.SortOrderBy == "name" {
-		if params.SortOrder == "desc" {
-			query = query.Order("name desc")
-		} else {
-			query = query.Order("name asc")
-		}
-	}
-	err := query.Where("active = ?", true).Select()
+	err = query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
 	if err != nil {
-		return []*Watcher{}, err
+		return []*Watcher{}, 0, err
 	}
-	return watcher, nil
+	return watcher, total, nil
 }

@@ -496,7 +496,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		SortOrderBy: sortOrderBy,
 		SortOrder:   sortOrder,
 	}
-	watchers, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
+	watchers, total, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watchers ", "error", err)
 		return WatchersResponse{}, err
@@ -581,15 +581,10 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	if sortOrderBy == "name" {
 		combinedData = sortByWatcher(combinedData, watchers)
 	}
-	total, err := impl.watcherRepository.GetAllWatchers(params)
-	if err != nil {
-		impl.logger.Errorw("error in fetching all watchers", "error", err)
-		return WatchersResponse{}, err
-	}
 	watcherResponses := WatchersResponse{
 		Size:   params.Size,
 		Offset: params.Offset,
-		Total:  len(total),
+		Total:  total,
 	}
 
 	for _, cd := range combinedData {
@@ -784,10 +779,6 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 			Data:           triggerData,
 		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
-	}
-	if err != nil {
-		impl.logger.Errorw("error in retrieving intercepted events ", "err", err)
-		return &InterceptedResponse{}, err
 	}
 	interceptedResponse := InterceptedResponse{
 		Offset: params.Offset,
