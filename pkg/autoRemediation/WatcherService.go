@@ -727,7 +727,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 		Namespaces:      params.Namespaces,
 		ExecutionStatus: params.ExecutionStatus,
 	}
-	interceptedEventData, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&parameters)
+	interceptedEventData, total, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&parameters)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events", "err", err)
 		return &InterceptedResponse{}, err
@@ -785,7 +785,6 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
 	}
-	total, err := impl.interceptedEventsRepository.GetAllInterceptedEvents(&parameters)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events ", "err", err)
 		return &InterceptedResponse{}, err
@@ -793,7 +792,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	interceptedResponse := InterceptedResponse{
 		Offset: params.Offset,
 		Size:   params.Size,
-		Total:  len(total),
+		Total:  total,
 		List:   interceptedEvents,
 	}
 	return &interceptedResponse, nil

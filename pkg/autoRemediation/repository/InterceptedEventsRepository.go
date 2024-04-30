@@ -36,7 +36,7 @@ type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	GetAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error)
 	// UpdateStatus(status string, interceptedEventId int) error
-	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error)
+	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
@@ -177,10 +177,10 @@ type InterceptedEventQuery struct {
 	ExecutionStatus []string  `json:"execution_status"`
 }
 
-func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error) {
+func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
 
 	var interceptedEvents []*InterceptedEventData
-
+	//var totalCount int
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
@@ -228,13 +228,18 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	} else {
 		query = query.Order("intercepted_event_execution.intercepted_at asc")
 	}
+	// Count total number of intercepted events
+	total, err := query.Count()
+	if err != nil {
+		return interceptedEvents, 0, err
+	}
 
-	err := query.
+	err = query.
 		Offset(interceptedEventsQueryParams.Offset).
 		Limit(interceptedEventsQueryParams.Size).
 		Select(&interceptedEvents)
 	//ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
-	return interceptedEvents, err
+	return interceptedEvents, total, err
 }
 
 func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
