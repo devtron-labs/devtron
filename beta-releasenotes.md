@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Dockerfile ubuntu version (#5022)
 - fix: application status changes to HIBERNATING, when hibernation fails due to some reason (#5005)
 - fix: deleted api token can be reused if created again with same name (#4978)
 - fix: Kubelink Requests getting Failed for gRPC method GetAppDetails (#5012)
