@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -25,10 +26,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -60,7 +63,8 @@ type DeploymentTemplateServiceImpl struct {
 	restartWorkloadConfig            *RestartWorkloadConfig
 }
 type RestartWorkloadConfig struct {
-	RestartWorkloadWorker int `env:"FEATURE_RESTART_WORKLOAD_BULK_WORKER" envDefault:"5"`
+	RestartWorkloadWorker    int `env:"FEATURE_RESTART_WORKLOAD_BULK_WORKER" envDefault:"5"`
+	RestartWorkloadBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BULK_BATCH" envDefault:"5"`
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -410,38 +414,51 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	for _, req := range appIdToInstallReleaseRequest {
 		installReleaseRequest = append(installReleaseRequest, req)
 	}
-	//wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
-	//handlePanic := func() {
-	//	if err := recover(); err != nil {
-	//		impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
-	//
-	//	}
-	//}
-	//var templateChartResponse []*gRPC.TemplateChartResponse
-	//for _,irr:=range installReleaseRequest{
-	templateChartResponse, err := impl.helmAppClient.TemplateChartBulk(ctx, installReleaseRequest)
-	//}
+	wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
+	handlePanic := func() {
+		if err := recover(); err != nil {
+			impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
 
-	appIdToResourceIdentifier := make(map[int]ResourceIdentifierResponse)
+		}
+	}
+	var templateChartResponse []*gRPC.TemplateChartResponse
+	partitionedRequests := partitionSlice(installReleaseRequest, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
+
+	for _, iRR := range partitionedRequests {
+
+		wp.Submit(func() {
+			defer handlePanic()
+			templateChartResponse, err = impl.helmAppClient.TemplateChartBulk(ctx, iRR)
+			if err != nil {
+				impl.Logger.Errorw("error in getting data from template chart", "err", err)
+				return
+			}
+			impl.Logger.Infow("templateChartResponse", templateChartResponse, "err", err)
+		})
+		templateChartResponse = append(templateChartResponse, templateChartResponse...)
+	}
+	wp.StopWait()
+
+	appIdToResourceIdentifier := make(map[int]*ResourceIdentifierResponse)
 	for _, tcResp := range templateChartResponse {
 		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
 		if err != nil {
 			return nil, err
 		}
 		appName := tcResp.AppName
-		resourceMeta := make([]ResourceMetadata, 0)
+		resourceMeta := make([]*ResourceMetadata, 0)
 		for _, manifest := range manifests {
 			gvk := manifest.GroupVersionKind()
 			name := manifest.GetName()
 			switch gvk.Kind {
 			case string(Deployment), string(StatefulSet), string(DemonSet), string(Rollout):
-				resourceMeta = append(resourceMeta, ResourceMetadata{
+				resourceMeta = append(resourceMeta, &ResourceMetadata{
 					Name:             name,
 					GroupVersionKind: gvk,
 				})
 			}
 		}
-		appIdToResourceIdentifier[appNameToId[tcResp.AppName]] = ResourceIdentifierResponse{
+		appIdToResourceIdentifier[appNameToId[tcResp.AppName]] = &ResourceIdentifierResponse{
 			ResourceMetaData: resourceMeta,
 			AppName:          appName,
 		}
@@ -504,4 +521,20 @@ func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.Clus
 		ReleaseName:      fmt.Sprintf("%s-%s", app.AppName, env.Name),
 		ReleaseNamespace: env.Namespace,
 	}
+}
+
+func partitionSlice[T any](array []T, chunkSize int) [][]T {
+	partitionedArray := make([][]T, 0)
+	for index := 0; index < len(array); {
+		chunk := make([]T, 0)
+		for i := 0; i < chunkSize; i++ {
+			if index+i == len(array) {
+				break
+			}
+			chunk = append(chunk, array[index+i])
+		}
+		partitionedArray = append(partitionedArray, chunk)
+		index = index + chunkSize
+	}
+	return partitionedArray
 }

@@ -53,21 +53,16 @@ type DeploymentTemplateResponse struct {
 }
 
 type RestartPodResponse struct {
-	EnvironmentId int                                `json:"environmentId" `
-	Namespace     string                             `json:"namespace"`
-	RestartPodMap map[int]ResourceIdentifierResponse `json:"restartPodMap"`
+	EnvironmentId int                                 `json:"environmentId" `
+	Namespace     string                              `json:"namespace"`
+	RestartPodMap map[int]*ResourceIdentifierResponse `json:"restartPodMap"`
 }
 
 type ResourceIdentifierResponse struct {
-	ResourceMetaData []ResourceMetadata `json:"resourceMetaData"`
-	AppName          string             `json:"appName"`
+	ResourceMetaData []*ResourceMetadata `json:"resourceMetaData"`
+	AppName          string              `json:"appName"`
 }
 type ResourceMetadata struct {
 	Name             string                  `json:"name"`
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
 }
-
-//type AppDefinition struct {
-//	AppName string `json:"AppName"`
-//	AppId   int    `json:"AppId"`
-//}

@@ -972,28 +972,49 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
 	// RBAC enforcer applying
 	token := r.Header.Get(common.TokenHeaderKey)
-	rbacObjects := make([]string, 0)
-	appIdToObjectMap := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
-	for _, appId := range appIds {
-		object := appIdToObjectMap[appId]
-		rbacObjects = append(rbacObjects, object)
-	}
-	EnforcerObject := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
-	for _, rbacResultOk := range EnforcerObject {
-		if !rbacResultOk {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
+	request := handler.filterAuthorizedResourcesForGroup(appIds, envId, token)
+	if len(request) == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
-	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, appIds, envId)
+	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, request, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload")
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+func (handler *PipelineConfigRestHandlerImpl) filterAuthorizedResourcesForGroup(appIds []int, envId int, token string) []int {
+
+	appToEnv := make(map[int][]int)
+	for _, appId := range appIds {
+		appToEnv[appId] = []int{envId}
+	}
+	rbacObjectToApp := make(map[string]int)
+	rbacObjects := make([]string, 0)
+
+	objectMap := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppIdBatch(appToEnv)
+
+	for _, appId := range appIds {
+
+		object := objectMap[appId][envId]
+		rbacObjectToApp[object] = appId
+		rbacObjects = append(rbacObjects, object)
+
+	}
+
+	authorizedApps := make([]int, 0)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, rbacObjects)
+	for object, isAllowed := range results {
+		if isAllowed {
+			authorizedApps = append(authorizedApps, rbacObjectToApp[object])
+		}
+	}
+
+	return authorizedApps
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
