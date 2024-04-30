@@ -433,7 +433,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 				impl.Logger.Errorw("error in getting data from template chart", "err", err)
 				return
 			}
-			impl.Logger.Infow("templateChartResponse", templateChartResponse, "err", err)
+			impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
 		})
 		templateChartResponse = append(templateChartResponse, templateChartResponse...)
 	}
