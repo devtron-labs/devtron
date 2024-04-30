@@ -669,12 +669,13 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 		// currently assuming all the mappings are of identifier type environment
 		envNames = append(envNames, mapping.IdentifierValueString)
 	}
-
-	envs, err := impl.environmentRepository.GetWithClusterByNames(envNames)
-	if err != nil {
-		return nil, err
+	var envs []*repository2.Environment
+	if len(envNames) != 0 {
+		envs, err = impl.environmentRepository.GetWithClusterByNames(envNames)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	clusterWiseEnvs := make(map[string][]string)
 	for _, env := range envs {
 		list, ok := clusterWiseEnvs[env.Cluster.ClusterName]
