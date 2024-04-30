@@ -485,7 +485,7 @@ func (impl DeploymentTemplateServiceImpl) setChartContent(appIds []int, appIdToI
 		appIdToChartRefId[chart.AppId] = chart.ChartRefId
 		chartRefIds = append(chartRefIds, chart.ChartRefId)
 	}
-	chartRefIdToBytes, err := impl.chartRefService.GetChartBytesInBulk(chartRefIds, true)
+	chartRefIdToBytes, err := impl.chartRefService.GetChartBytesInBulk(chartRefIds, false)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching chartRefBean", "err", err, "chartRefIds", chartRefIds)
 		return err
