@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
+	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
@@ -381,6 +382,16 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		impl.Logger.Errorw("error in setting values yaml", "appIds", appIds, "err", err)
 		return nil, err
 	}
+	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+	if err != nil {
+		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+		return nil, err
+	}
 	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "err", err)
@@ -391,16 +402,6 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching environment", "err", err)
-		return nil, err
-	}
-	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
-	if err != nil {
-		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-		return nil, err
-	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
@@ -422,7 +423,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		}
 	}
 	var templateChartResponse []*gRPC.TemplateChartResponse
-	partitionedRequests := partitionSlice(installReleaseRequest, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
+	partitionedRequests := utils.PartitionSlice(installReleaseRequest, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
 
 	for _, iRR := range partitionedRequests {
 
@@ -521,20 +522,4 @@ func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.Clus
 		ReleaseName:      fmt.Sprintf("%s-%s", app.AppName, env.Name),
 		ReleaseNamespace: env.Namespace,
 	}
-}
-
-func partitionSlice[T any](array []T, chunkSize int) [][]T {
-	partitionedArray := make([][]T, 0)
-	for index := 0; index < len(array); {
-		chunk := make([]T, 0)
-		for i := 0; i < chunkSize; i++ {
-			if index+i == len(array) {
-				break
-			}
-			chunk = append(chunk, array[index+i])
-		}
-		partitionedArray = append(partitionedArray, chunk)
-		index = index + chunkSize
-	}
-	return partitionedArray
 }
