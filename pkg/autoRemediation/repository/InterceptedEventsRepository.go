@@ -36,7 +36,7 @@ type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	GetAllInterceptedEvents() ([]*InterceptedEventExecution, error)
 	// UpdateStatus(status string, interceptedEventId int) error
-	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQueryParams) ([]*InterceptedEventData, error)
+	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
@@ -117,8 +117,20 @@ type InterceptedEventQueryParams struct {
 	Namespaces      []string  `json:"namespaces"`
 	ExecutionStatus []string  `json:"execution_status"`
 }
+type InterceptedEventQuery struct {
+	Offset          int       `json:"offset"`
+	Size            int       `json:"size"`
+	SortOrder       string    `json:"sortOrder"`
+	SearchString    string    `json:"searchString"`
+	From            time.Time `json:"from"`
+	To              time.Time `json:"to"`
+	Watchers        []string  `json:"watchers"`
+	ClusterIds      []int     `json:"clusters"`
+	Namespaces      []string  `json:"namespaces"`
+	ExecutionStatus []string  `json:"execution_status"`
+}
 
-func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQueryParams) ([]*InterceptedEventData, error) {
+func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, error) {
 
 	var interceptedEvents []*InterceptedEventData
 
@@ -149,8 +161,8 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		query = query.Where("intercepted_event_execution.message ILIKE ? OR intercepted_event_execution.involved_object ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
-	if len(interceptedEventsQueryParams.Clusters) > 0 {
-		query = query.Where("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.Clusters))
+	if len(interceptedEventsQueryParams.ClusterIds) > 0 {
+		query = query.Where("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
 	}
 
 	if len(interceptedEventsQueryParams.Namespaces) > 0 {

@@ -497,6 +497,14 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		impl.logger.Errorw("error in retrieving watchers ", "error", err)
 		return WatchersResponse{}, err
 	}
+	if len(watchers) == 0 {
+		return WatchersResponse{
+			Size:   size,
+			Offset: offset,
+			Total:  0,
+			List:   []WatcherItem{},
+		}, nil
+	}
 	var watcherIds []int
 	watcherData := make(map[int]*repository.Watcher)
 	for _, watcher := range watchers {
@@ -538,10 +546,13 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			},
 		}
 	}
-	ciWorkflows, err := impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds, sortOrder)
-	if err != nil {
-		impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
-		return WatchersResponse{}, err
+	var ciWorkflows []*pipelineConfig.CiWorkflow
+	if len(jobPipelineIds) != 0 {
+		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds, sortOrder)
+		if err != nil {
+			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
+			return WatchersResponse{}, err
+		}
 	}
 
 	//var sortedPipe []int
@@ -566,10 +577,15 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	if sortOrderBy == "name" {
 		combinedData = sortByWatcher(combinedData, watchers)
 	}
+	total, err := impl.watcherRepository.GetAllWatchers()
+	if err != nil {
+		impl.logger.Errorw("error in fetching all watchers", "error", err)
+		return WatchersResponse{}, err
+	}
 	watcherResponses := WatchersResponse{
 		Size:   params.Size,
 		Offset: params.Offset,
-		Total:  len(combinedData),
+		Total:  len(total),
 	}
 
 	for _, cd := range combinedData {
@@ -680,10 +696,39 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 	return selectors, nil
 }
 func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error) {
-	interceptedEventData, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&params)
+	clustersFetched, err := impl.clusterRepository.FindByNames(params.Clusters)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving clusters ", "err", err)
+		return &InterceptedResponse{}, err
+	}
+	var clusterId []int
+	for _, cluster := range clustersFetched {
+		clusterId = append(clusterId, cluster.Id)
+	}
+	parameters := repository.InterceptedEventQuery{
+		ClusterIds:      clusterId,
+		Offset:          params.Offset,
+		Size:            params.Size,
+		SortOrder:       params.SortOrder,
+		SearchString:    params.SearchString,
+		From:            params.From,
+		To:              params.To,
+		Watchers:        params.Watchers,
+		Namespaces:      params.Namespaces,
+		ExecutionStatus: params.ExecutionStatus,
+	}
+	interceptedEventData, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&parameters)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events", "err", err)
 		return &InterceptedResponse{}, err
+	}
+	if len(interceptedEventData) == 0 {
+		return &InterceptedResponse{
+			Size:   params.Size,
+			Offset: params.Offset,
+			Total:  0,
+			List:   []InterceptedEventsDto{},
+		}, nil
 	}
 	var clusterIds []int
 	for _, event := range interceptedEventData {

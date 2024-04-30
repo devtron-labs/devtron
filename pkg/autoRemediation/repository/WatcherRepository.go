@@ -32,6 +32,7 @@ type WatcherRepository interface {
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(id int) error
 	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
+	GetAllWatchers() ([]*Watcher, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -116,4 +117,9 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 		return []*Watcher{}, err
 	}
 	return watcher, nil
+}
+func (impl WatcherRepositoryImpl) GetAllWatchers() ([]*Watcher, error) {
+	var watcher []*Watcher
+	err := impl.dbConnection.Model(&watcher).Where("active = ?", true).Select()
+	return watcher, err
 }
