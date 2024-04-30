@@ -440,6 +440,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
 		return err
 	}
+	watcherRequest.Id = watcher.Id
 	err = impl.informScoops(envs, watcherEvents.UPDATE, watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherRequest", watcherRequest)
@@ -518,7 +519,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		triggerIdWatcherId[trigger.Id] = trigger.WatcherId
 	}
 	var jobPipelineIds []int
-	//watcherData := make(map[int]repository.Watcher)
+	// watcherData := make(map[int]repository.Watcher)
 	triggerDto := make(map[int]Trigger)
 	for _, trigger := range triggers {
 		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
@@ -548,7 +549,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		return WatchersResponse{}, err
 	}
 
-	//var sortedPipe []int
+	// var sortedPipe []int
 	var combinedData []CombinedData
 	for _, workflow := range ciWorkflows {
 		trigger := triggerDto[workflow.CiPipelineId]
