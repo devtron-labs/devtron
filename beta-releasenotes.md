@@ -1,4 +1,5 @@
 ## Bugs
+- fix: handle for wrong format of k8s version in semvercompare func in cronjob template charts (#5016)
 - fix: Dockerfile ubuntu version (#5022)
 - fix: application status changes to HIBERNATING, when hibernation fails due to some reason (#5005)
 - fix: deleted api token can be reused if created again with same name (#4978)
