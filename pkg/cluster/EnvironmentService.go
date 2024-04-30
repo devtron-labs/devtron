@@ -69,6 +69,7 @@ type EnvironmentService interface {
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 	FindByNames(names []string) ([]*bean2.EnvironmentBean, error)
 	IsVirtualEnvironmentById(id int) (bool, error)
+	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -854,4 +855,13 @@ func (impl EnvironmentServiceImpl) IsVirtualEnvironmentById(id int) (bool, error
 		return false, err
 	}
 	return model.IsVirtualEnvironment, nil
+}
+
+func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Environment, error) {
+	envDetails, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in GetDetailsById", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envDetails, nil
 }

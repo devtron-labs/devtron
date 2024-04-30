@@ -32,7 +32,10 @@
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
  | CACHE_LIMIT | 5000000000 |  | 
+ | CAN_APPROVER_DEPLOY | false |  | 
+ | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
  | CASBIN_DATABASE | casbin |  | 
+ | CASBIN_GRPC_DATA_TRANSFER_MAX_SIZE | 30 |  | 
  | CD_ARTIFACT_LOCATION_FORMAT | %d/%d.zip |  | 
  | CD_DEFAULT_ADDRESS_POOL_BASE_CIDR |  |  | 
  | CD_DEFAULT_ADDRESS_POOL_SIZE |  |  | 
@@ -66,9 +69,13 @@
  | CI_VOLUME_MOUNTS_JSON |  |  | 
  | CI_WORKFLOW_EXECUTOR_TYPE | AWF |  | 
  | CI_WORKFLOW_STATUS_UPDATE_CRON | */5 * * * * |  | 
+ | CLEAN_UP_RBAC_POLICIES | false |  | 
+ | CLEAN_UP_RBAC_POLICIES_CRON_TIME | 0 0 * * * |  | 
  | CLI_CMD_TIMEOUT_GLOBAL_SECONDS | 0 |  | 
+ | CLONING_MODE | SHALLOW |  | 
  | CLUSTER_STATUS_CRON_TIME | 15 |  | 
  | CONSUMER_CONFIG_JSON |  |  | 
+ | CUSTOM_ROLE_CACHE_ALLOWED | false |  | 
  | DASHBOARD_HOST | localhost |  | 
  | DASHBOARD_NAMESPACE | devtroncd |  | 
  | DASHBOARD_PORT | 3000 |  | 
@@ -86,6 +93,8 @@
  | DEFAULT_NAMESPACE | devtron-ci |  | 
  | DEFAULT_TARGET_PLATFORM |  |  | 
  | DEFAULT_TIMEOUT | 3600 |  | 
+ | DEPLOYMENT_WINDOW_FETCH_DAYS_BLACKOUT | 90 |  | 
+ | DEPLOYMENT_WINDOW_FETCH_DAYS_MAINTENANCE | 90 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
@@ -116,6 +125,7 @@
  | ENFORCER_CACHE | false |  | 
  | ENFORCER_CACHE_EXPIRATION_IN_SEC | 86400 |  | 
  | ENFORCER_MAX_BATCH_SIZE | 1 |  | 
+ | ENTERPRISE_ENFORCER_ENABLED | true |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
  | EXPOSE_CD_METRICS | false |  | 
@@ -131,6 +141,8 @@
  | FORCE_SECURITY_SCANNING | false |  | 
  | GITOPS_REPO_PREFIX |  |  | 
  | GITOPS_SECRET_NAME | devtron-gitops-secret |  | 
+ | GIT_PROVIDERS | github,gitlab |  | 
+ | GIT_SENSOR_GRPC_DATA_TRANSFER_MAX_SIZE | 4 |  | 
  | GIT_SENSOR_PROTOCOL | REST |  | 
  | GIT_SENSOR_TIMEOUT | 0 |  | 
  | GIT_SENSOR_URL | 127.0.0.1:7070 |  | 
@@ -155,8 +167,10 @@
  | INSTALLER_CRD_OBJECT_RESOURCE | installers |  | 
  | INSTALLER_CRD_OBJECT_VERSION | v1alpha1 |  | 
  | IN_APP_LOGGING_ENABLED | false |  | 
+ | IS_AIR_GAP_ENVIRONMENT | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
+ | K8s_CLIENT_TIMEOUT_SEC | 0 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -174,6 +188,7 @@
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
+ | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -196,9 +211,9 @@
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
  | RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE | 5 |  | 
- | REVISION_HISTORY_LIMIT_DEVTRON_APP | 0 |  | 
+ | REVISION_HISTORY_LIMIT_DEVTRON_APP | 1 |  | 
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | 0 |  | 
- | REVISION_HISTORY_LIMIT_HELM_APP | 0 |  | 
+ | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
  | RUNTIME_CONFIG_LOCAL_DEV | false |  | 
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
@@ -229,6 +244,8 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CASBIN_V2 | false |  | 
+ | USE_CUSTOM_ENFORCER | true |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
