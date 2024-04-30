@@ -130,6 +130,7 @@
   * [Semgrep](user-guide/plugins/semgrep.md)
   * [Codacy](user-guide/plugins/codacy.md)
   * [Copy Container Image](user-guide/plugins/copy-container-image.md)
+  * [SonarQube v1.1.0](user-guide/plugins/sonarqube-v1.1.0.md)
 
 
 ## Resources
