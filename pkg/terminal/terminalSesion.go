@@ -193,6 +193,7 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 	defer sm.Lock.Unlock()
 	terminalSession := sm.Sessions[sessionId]
 	if terminalSession.sockJSSession != nil {
+		terminalSession.doneChan <- struct{}{}
 		err := terminalSession.sockJSSession.Close(status, reason)
 		if err != nil {
 			log.Println(err)
@@ -474,7 +475,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		id:                sessionID,
 		bound:             make(chan error, 1),
 		sizeChan:          make(chan remotecommand.TerminalSize),
-		doneChan:          make(chan struct{}),
+		doneChan:          make(chan struct{}, 1),
 		context:           sessionCtx,
 		contextCancelFunc: cancelFunc,
 		podName:           req.PodName,
