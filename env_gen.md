@@ -170,7 +170,6 @@
  | IS_AIR_GAP_ENVIRONMENT | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
- | K8s_CLIENT_TIMEOUT_SEC | 0 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -218,7 +217,6 @@
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
  | SCAN_V2_ENABLED | false |  | 
  | SCOOP_CLUSTER_CONFIG | {} |  | 
- | SCOOP_WATCHER_URL | http://scoop.utils:8081 |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 

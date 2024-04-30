@@ -25,7 +25,7 @@ require (
 	github.com/devtron-labs/common-lib v0.0.16-0.20240412102112-228b110c15a9
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
-	github.com/devtron-labs/scoop v0.0.0-20240429150606-441b343ff92a
+	github.com/devtron-labs/scoop v0.0.0-20240430113124-3c2d18f98aa8
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-errors/errors v1.4.2
@@ -88,17 +88,19 @@ require (
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.29.1
-	k8s.io/apimachinery v0.29.1
-	k8s.io/client-go v0.29.1
+	k8s.io/api v0.26.11
+	k8s.io/apimachinery v0.26.11
+	k8s.io/client-go v0.26.11
 	k8s.io/helm v2.12.3+incompatible
 	k8s.io/klog/v2 v2.120.1
-	k8s.io/kubectl v0.29.1
+	k8s.io/kubectl v0.26.4
 	k8s.io/kubernetes v1.26.11
 	k8s.io/metrics v0.26.4
-	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
+	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
 	sigs.k8s.io/yaml v1.3.0
 )
+
+require k8s.io/kube-openapi v0.0.0-20230531092745-9b4dcd38a4bf // indirect
 
 require (
 	cloud.google.com/go v0.110.7 // indirect
@@ -166,7 +168,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-github/v53 v53.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -285,17 +286,16 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.26.4 // indirect
 	k8s.io/apiserver v0.26.11 // indirect
-	k8s.io/cli-runtime v0.29.1 // indirect
+	k8s.io/cli-runtime v0.26.4 // indirect
 	k8s.io/component-base v0.26.11 // indirect
 	k8s.io/component-helpers v0.26.4 // indirect
 	k8s.io/kube-aggregator v0.26.4 // indirect
-	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 	oras.land/oras-go/v2 v2.2.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
+	sigs.k8s.io/kustomize/api v0.12.1 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	upper.io/db.v3 v3.8.0+incompatible // indirect
 	xorm.io/builder v0.3.7 // indirect
 	xorm.io/core v0.7.2 // indirect
@@ -320,6 +320,7 @@ replace (
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.2
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.26.4
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.2
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.2
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.2
 	k8s.io/kubectl => k8s.io/kubectl v0.26.4
@@ -329,4 +330,8 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.24.2
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
+	sigs.k8s.io/json => sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd
+	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.12.1
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 => sigs.k8s.io/structured-merge-diff/v4 v4.2.3
 )
