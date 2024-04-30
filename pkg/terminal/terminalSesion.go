@@ -218,12 +218,7 @@ func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 			log.Println(err)
 		}
 
-		select {
-		case terminalSession.doneChan <- struct{}{}:
-			close(terminalSession.doneChan)
-		default:
-			log.Printf("no message sent on done channel, sessionId: %v", sessionId)
-		}
+		close(terminalSession.doneChan)
 
 		isErroredConnectionTermination := isConnectionClosedByError(status)
 		middleware.IncTerminalSessionRequestCounter(SessionTerminated, strconv.FormatBool(isErroredConnectionTermination))
