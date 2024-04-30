@@ -55,7 +55,7 @@ type DeploymentTemplateResponse struct {
 type RestartPodResponse struct {
 	EnvironmentId int                                `json:"environmentId" `
 	Namespace     string                             `json:"namespace"`
-	RestartPodMap map[int]ResourceIdentifierResponse `json:"RestartPodMap"`
+	RestartPodMap map[int]ResourceIdentifierResponse `json:"restartPodMap"`
 }
 
 type ResourceIdentifierResponse struct {
