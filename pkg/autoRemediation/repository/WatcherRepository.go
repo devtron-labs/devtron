@@ -32,7 +32,7 @@ type WatcherRepository interface {
 	GetWatcherById(id int) (*Watcher, error)
 	GetWatcherByIds(ids []int) ([]*Watcher, error)
 	DeleteWatcherById(id int) error
-	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
+	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -112,7 +112,7 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	return nil
 }
 
-func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error) {
+func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error) {
 	var watcher []*Watcher
 	query := impl.dbConnection.Model(&watcher)
 	if params.Search != "" {
@@ -125,9 +125,14 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 			query = query.Order("name asc")
 		}
 	}
-	err := query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
+	// Count total number of watchers
+	total, err := query.Count()
 	if err != nil {
-		return []*Watcher{}, err
+		return []*Watcher{}, 0, err
 	}
-	return watcher, nil
+	err = query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
+	if err != nil {
+		return []*Watcher{}, 0, err
+	}
+	return watcher, total, nil
 }
