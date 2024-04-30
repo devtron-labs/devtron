@@ -581,7 +581,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	if sortOrderBy == "name" {
 		combinedData = sortByWatcher(combinedData, watchers)
 	}
-	total, err := impl.watcherRepository.GetAllWatchers()
+	total, err := impl.watcherRepository.GetAllWatchers(params)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all watchers", "error", err)
 		return WatchersResponse{}, err
@@ -785,7 +785,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
 	}
-	total, err := impl.interceptedEventsRepository.GetAllInterceptedEvents()
+	total, err := impl.interceptedEventsRepository.GetAllInterceptedEvents(&parameters)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events ", "err", err)
 		return &InterceptedResponse{}, err

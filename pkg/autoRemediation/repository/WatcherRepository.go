@@ -32,7 +32,7 @@ type WatcherRepository interface {
 	GetWatcherById(id int) (*Watcher, error)
 	DeleteWatcherById(id int) error
 	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, error)
-	GetAllWatchers() ([]*Watcher, error)
+	GetAllWatchers(params WatcherQueryParams) ([]*Watcher, error)
 	sql.TransactionWrapper
 }
 type WatcherRepositoryImpl struct {
@@ -118,8 +118,22 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 	}
 	return watcher, nil
 }
-func (impl WatcherRepositoryImpl) GetAllWatchers() ([]*Watcher, error) {
+func (impl WatcherRepositoryImpl) GetAllWatchers(params WatcherQueryParams) ([]*Watcher, error) {
 	var watcher []*Watcher
-	err := impl.dbConnection.Model(&watcher).Where("active = ?", true).Select()
-	return watcher, err
+	query := impl.dbConnection.Model(&watcher)
+	if params.Search != "" {
+		query = query.Where("name ILIKE ? ", "%"+params.Search+"%")
+	}
+	if params.SortOrderBy == "name" {
+		if params.SortOrder == "desc" {
+			query = query.Order("name desc")
+		} else {
+			query = query.Order("name asc")
+		}
+	}
+	err := query.Where("active = ?", true).Select()
+	if err != nil {
+		return []*Watcher{}, err
+	}
+	return watcher, nil
 }
