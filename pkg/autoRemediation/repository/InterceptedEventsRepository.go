@@ -57,7 +57,7 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 }
 
 func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
-	err := tx.Insert(interceptedEvents)
+	err := tx.Insert(&interceptedEvents)
 	if err != nil {
 		return interceptedEvents, err
 	}
@@ -174,7 +174,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		Offset(interceptedEventsQueryParams.Offset).
 		Limit(interceptedEventsQueryParams.Size).
 		Select(&interceptedEvents)
-	//ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
+	// ColumnExpr("COUNT(intercepted_event_execution.id) OVER() AS total").
 	return interceptedEvents, err
 }
 

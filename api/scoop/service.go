@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -64,6 +65,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 			interceptEventExec.Namespace = interceptedEvent.Namespace
 			interceptEventExec.Message = interceptedEvent.Message
 			interceptEventExec.MessageType = interceptedEvent.MessageType
+			interceptEventExec.AuditLog = sql.NewDefaultAuditLog(1)
 			interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 		}
 	}
