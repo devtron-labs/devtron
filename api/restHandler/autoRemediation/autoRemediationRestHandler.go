@@ -310,7 +310,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	if namespaces != "" {
 		namespacesArray = strings.Split(namespaces, ",")
 	}
-	executionStatus := queryParams.Get("executionStatus")
+	executionStatus := queryParams.Get("executionStatuses")
 	var executionStatusArray []string
 	if executionStatus != "" {
 		executionStatusArray = strings.Split(executionStatus, ",")
