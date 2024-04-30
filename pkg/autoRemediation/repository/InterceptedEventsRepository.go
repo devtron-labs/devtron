@@ -79,6 +79,7 @@ type InterceptedEventData struct {
 	WatcherId          int         `sql:"watcher_id"`
 	TriggerData        string      `sql:"trigger_data"`
 }
+
 type InterceptedEventQueryParams struct {
 	Offset          int       `json:"offset"`
 	Size            int       `json:"size"`
@@ -91,6 +92,7 @@ type InterceptedEventQueryParams struct {
 	Namespaces      []string  `json:"namespaces"`
 	ExecutionStatus []string  `json:"execution_status"`
 }
+
 type InterceptedEventQuery struct {
 	Offset          int       `json:"offset"`
 	Size            int       `json:"size"`
@@ -107,7 +109,6 @@ type InterceptedEventQuery struct {
 func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
 
 	var interceptedEvents []*InterceptedEventData
-	//var totalCount int
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
@@ -150,10 +151,10 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	if len(interceptedEventsQueryParams.ExecutionStatus) > 0 {
 		query = query.Where("intercepted_event_execution.status IN (?)", pg.In(interceptedEventsQueryParams.ExecutionStatus))
 	}
-	if interceptedEventsQueryParams.SortOrder == "desc" {
-		query = query.Order("intercepted_event_execution.intercepted_at desc")
-	} else {
+	if interceptedEventsQueryParams.SortOrder == "asc" {
 		query = query.Order("intercepted_event_execution.intercepted_at asc")
+	} else {
+		query = query.Order("intercepted_event_execution.intercepted_at desc")
 	}
 	// Count total number of intercepted events
 	total, err := query.Count()
