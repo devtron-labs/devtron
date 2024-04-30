@@ -701,11 +701,16 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 	return selectors, nil
 }
 func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error) {
-	clustersFetched, err := impl.clusterRepository.FindByNames(params.Clusters)
-	if err != nil {
-		impl.logger.Errorw("error in retrieving clusters ", "err", err)
-		return &InterceptedResponse{}, err
+	var clustersFetched []*repository2.Cluster
+	if len(params.Clusters) != 0 {
+		var err error
+		clustersFetched, err = impl.clusterRepository.FindByNames(params.Clusters)
+		if err != nil {
+			impl.logger.Errorw("error in retrieving clusters ", "err", err)
+			return &InterceptedResponse{}, err
+		}
 	}
+
 	var clusterId []int
 	for _, cluster := range clustersFetched {
 		clusterId = append(clusterId, cluster.Id)
@@ -739,10 +744,13 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	for _, event := range interceptedEventData {
 		clusterIds = append(clusterIds, event.ClusterId)
 	}
-	clusters, err := impl.clusterRepository.FindByIds(clusterIds)
-	if err != nil {
-		impl.logger.Errorw("error in retrieving cluster names ", "err", err)
-		return &InterceptedResponse{}, err
+	var clusters []repository2.Cluster
+	if len(clusterIds) != 0 {
+		clusters, err = impl.clusterRepository.FindByIds(clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error in retrieving cluster names ", "err", err)
+			return &InterceptedResponse{}, err
+		}
 	}
 	clusterIdtoName := make(map[int]string)
 	for _, cluster := range clusters {

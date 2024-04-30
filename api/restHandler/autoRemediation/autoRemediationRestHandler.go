@@ -251,7 +251,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
-		sortOrder = "desc"
+		sortOrder = "asc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
@@ -275,7 +275,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 			return
 		}
 	}
-	search := queryParams.Get("searchString")
+	search := queryParams.Get("search")
 	search = strings.ToLower(search)
 	from := queryParams.Get("from")
 	var fromTime time.Time
