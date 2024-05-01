@@ -161,6 +161,7 @@ type TriggerServiceImpl struct {
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository
 	deploymentWindowService       deploymentWindow.DeploymentWindowService
+	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -221,7 +222,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
-	imageScanService security2.ImageScanService) (*TriggerServiceImpl, error) {
+	imageScanService security2.ImageScanService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -282,6 +284,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		deploymentWindowService:             deploymentWindowService,
 		imageScanService:                    imageScanService,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -619,7 +622,7 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 	}
 	if len(latestWf) > 0 {
 		currentRunningArtifact := latestWf[0].CdWorkflow.CiArtifact
-		if currentRunningArtifact.Id == ciArtifact.Id{
+		if currentRunningArtifact.Id == ciArtifact.Id {
 			return true, nil
 		}
 	}

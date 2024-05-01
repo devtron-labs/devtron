@@ -85,6 +85,10 @@ type CdPipelineConfigService interface {
 	// converting above data in proper bean object and then assigning to CDPipelineConfigObject
 	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
+	// GetCdComponentDetails : Retrieve cdPipeline basic details in bean.CdComponentDetails for given appId.
+	// if any error occur, will get nil
+	// if no cd pipelines found, will get empty object
+	GetCdComponentDetails(appId int) (map[int]*bean.CdComponentDetails, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
@@ -446,6 +450,20 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	cdPipeline.PostDeployStage = postDeployStage
 
 	return cdPipeline, err
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetCdComponentDetails(appId int) (map[int]*bean.CdComponentDetails, error) {
+	cbPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching cd pipelines", "err", err)
+		return nil, err
+	}
+	cdPipelineMap := make(map[int]*bean.CdComponentDetails, len(cbPipelines))
+	for _, pipeline := range cbPipelines {
+		cdPipelineComponent := bean.NewCdPipelineBeanFromModel(pipeline)
+		cdPipelineMap[pipeline.Id] = cdPipelineComponent
+	}
+	return cdPipelineMap, err
 }
 
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {

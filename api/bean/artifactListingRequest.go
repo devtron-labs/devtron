@@ -278,3 +278,15 @@ func (p *PromotionMaterialRequest) IsPromotionApprovalPendingNode() bool {
 func (p *PromotionMaterialRequest) IsPendingForUserRequest() bool {
 	return p.resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && p.pendingForCurrentUser
 }
+
+type WorkflowComponentsBean struct {
+	AppId                 int
+	CiPipelineIds         []int
+	ExternalCiPipelineIds []int
+	CdPipelineIds         []int
+	Offset                int
+	Limit                 int
+	SearchArtifactTag     string
+	SearchImageTag        string
+	UserId                int32
+}

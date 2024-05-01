@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -149,6 +150,8 @@ type AppService interface {
 	// PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 
 	FindAppByNames(names []string) ([]*app.App, error)
+	FindDevtronAppIdsByNames(names []string) ([]int, error)
+	FindDevtronAppIdByName(name string) (int, error)
 	FindAppById(appId int) (*app.App, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error)
@@ -1159,6 +1162,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 
 func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
 	return impl.appRepository.FindByNames(names)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdsByNames(names []string) ([]int, error) {
+	return impl.appRepository.FindIdsByNamesAndAppType(names, helper2.CustomApp)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdByName(name string) (int, error) {
+	return impl.appRepository.FindIdByNameAndAppType(name, helper2.CustomApp)
 }
 
 func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {

@@ -3,6 +3,7 @@ package devtronResource
 import (
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
+	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 )
@@ -163,7 +164,7 @@ func getFuncToApplyFilterResourceKind(kind, subKind, version string) func(impl *
 }
 
 var applyFilterResourceKindFuncMap = map[string]func(impl *DevtronResourceServiceImpl, kind, subKind, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error){
-	getKeyForKindAndVersion(bean.DevtronResourceRelease.ToString(), "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).applyFilterCriteriaOnReleaseResourceObjects,
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).applyFilterCriteriaOnReleaseResourceObjects,
 }
 
 func getFuncToHandleExistingObjInDependenciesUpdateReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectInternalBean,
@@ -235,7 +236,7 @@ var updateMetadataInDependencyFuncMap = map[string]func(int, *bean.DependencyMet
 		bean.DevtronResourceVersion1): updateCdPipelineMetaDataInDependencyObj,
 }
 
-func getFuncToUpdateDependencyConfigData(kind string, subKind string, version string) func(string, *bean.DependencyConfigBean, bool) error {
+func getFuncToUpdateDependencyConfigData(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, string, *bean.DependencyConfigBean, bool) error {
 	if f, ok := updateDependencyConfigDataFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -243,9 +244,37 @@ func getFuncToUpdateDependencyConfigData(kind string, subKind string, version st
 	}
 }
 
-var updateDependencyConfigDataFuncMap = map[string]func(string, *bean.DependencyConfigBean, bool) error{
+var updateDependencyConfigDataFuncMap = map[string]func(*DevtronResourceServiceImpl, string, *bean.DependencyConfigBean, bool) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
-		bean.DevtronResourceVersionAlpha1): updateReleaseDependencyConfigDataInObj,
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDependencyConfigDataInObj,
+}
+
+func getFuncToGetArtifactConfigOptions(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean,
+	*repository.DevtronResourceObject, *apiBean.GetConfigOptionsQueryParams) ([]bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
+	if f, ok := getArtifactConfigOptionsFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var getArtifactConfigOptionsFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean,
+	*repository.DevtronResourceObject, *apiBean.GetConfigOptionsQueryParams) ([]bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseArtifactListInResponseObject,
+}
+
+func getFuncToUpdateChildObjectsData(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, string, bool, int) ([]*bean.ChildObject, error) {
+	if f, ok := updateChildObjectsFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var updateChildObjectsFuncMap = map[string]func(*DevtronResourceServiceImpl, string, bool, int) ([]*bean.ChildObject, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDependencyChildObjectsInObj,
 }
 
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {

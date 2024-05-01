@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"io"
@@ -36,14 +37,6 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
-
-type BuildHistoryResponse struct {
-	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool                     `json:"tagsEditable"`
-	AppReleaseTagNames         []string                 `json:"appReleaseTagNames"` // unique list of tags exists in the app
-	CiWorkflows                []types.WorkflowResponse `json:"ciWorkflows"`
-}
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -98,6 +91,7 @@ type DevtronAppBuildHistoryRestHandler interface {
 type ImageTaggingRestHandler interface {
 	CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request)
 	GetImageTaggingData(w http.ResponseWriter, r *http.Request)
+	GetImageTagList(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWriter, r *http.Request) {
@@ -1196,7 +1190,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 	// RBAC for edit tag access , user should have build permission in current ci-pipeline
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object) || handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, object)
 	// RBAC
-	resp := BuildHistoryResponse{}
+	resp := apiBean.BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
 	resp.CiWorkflows = workflowsResp
 	if err != nil {
@@ -1591,7 +1585,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
+	common.WriteJsonResp(w, err, apiBean.GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
@@ -2240,6 +2234,55 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
+func (handler *PipelineConfigRestHandlerImpl) GetImageTagList(w http.ResponseWriter, r *http.Request) {
+	ctx := util2.NewRequestCtx(r.Context())
+	queryParams := apiBean.ImageTagsQuery{}
+	v := r.URL.Query()
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIds, err := handler.appService.FindDevtronAppIdsByNames(queryParams.AppNames)
+	if err != nil {
+		handler.Logger.Errorw("error in fetching apps using appNames", "appNames", queryParams.AppNames, "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resp := make([]string, 0)
+	imageTags, err := handler.imageTaggingService.GetUniqueTagsByAppIds(ctx, appIds)
+	if err != nil {
+		handler.Logger.Errorw("error occurred in fetching GetTagsData for App Ids ", "err", err, "appIds", appIds)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if len(imageTags) == 0 {
+		common.WriteJsonResp(w, err, resp, http.StatusOK)
+		return
+	}
+	// get rbac objects for the appIds
+	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	rbacObjects := make([]string, len(rbacObjectsWithAppId))
+	itr := 0
+	for _, object := range rbacObjectsWithAppId {
+		rbacObjects[itr] = object
+		itr++
+	}
+	// enforce rbac in batch
+	token := r.Header.Get("token")
+	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	// filter out rbac passed apps
+	for _, imageTag := range imageTags {
+		rbacObject := rbacObjectsWithAppId[imageTag.AppId]
+		if rbacResult[rbacObject] {
+			resp = append(resp, imageTag.TagName)
+		}
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
 func (handler *PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(artifactId int) (externalCi bool, ciPipelineId int, appId int, err error) {
 	externalCi = false
 	ciPipelineId = 0
@@ -2319,7 +2362,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamFilters(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
 	if util.IsErrNoRows(err) {
 		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
 		return
@@ -2374,7 +2417,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		req.SortOrder = pagination.Asc
 	}
 	token := r.Header.Get("token")
-	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
 	if util.IsErrNoRows(err) {
 		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
 		return

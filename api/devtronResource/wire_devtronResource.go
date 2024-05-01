@@ -45,16 +45,18 @@ var DevtronResourceWireSet = wire.NewSet(
 )
 
 var DevtronResourceWireSetEA = wire.NewSet(
+	devtronResource.NewDevtronResourceSchemaServiceImpl,
+	wire.Bind(new(devtronResource.DevtronResourceSchemaService), new(*devtronResource.DevtronResourceSchemaServiceImpl)),
+	devtronResource.NewDevtronResourceServiceImpl,
+	wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceServiceImpl)),
+
 	in.NewInternalProcessingServiceImpl,
 	wire.Bind(new(in.InternalProcessingService), new(*in.InternalProcessingServiceImpl)),
 	read.NewReadServiceImpl,
 	wire.Bind(new(read.ReadService), new(*read.ReadServiceImpl)),
 	audit.NewObjectAuditServiceImpl,
 	wire.Bind(new(audit.ObjectAuditService), new(*audit.ObjectAuditServiceImpl)),
-	devtronResource.NewDevtronResourceSchemaServiceImpl,
-	wire.Bind(new(devtronResource.DevtronResourceSchemaService), new(*devtronResource.DevtronResourceSchemaServiceImpl)),
-	devtronResource.NewDevtronResourceServiceImpl,
-	wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceServiceImpl)),
+
 	repository.NewDevtronResourceRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceRepository), new(*repository.DevtronResourceRepositoryImpl)),
 	repository.NewDevtronResourceSchemaRepositoryImpl,

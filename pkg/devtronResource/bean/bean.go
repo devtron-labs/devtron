@@ -52,6 +52,8 @@ func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int 
 	return 0
 }
 
+type FilterKeyObject = string
+
 type DevtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Schema            string                           `json:"schema,omitempty"`
@@ -65,10 +67,28 @@ type DevtronResourceObjectBean struct {
 	DependencyInfo    *DependencyInfo                  `json:"DependencyInfo,omitempty"`
 }
 
+type DependencyConfigOptions[T any] struct {
+	Id              int                    `json:"id"`
+	Identifier      string                 `json:"identifier"`
+	ResourceKind    DevtronResourceKind    `json:"resourceKind"`
+	ResourceVersion DevtronResourceVersion `json:"resourceVersion"`
+	Data            T                      `json:"data,omitempty"`
+}
+
 type DevtronResourceObjectGetAPIBean struct {
 	*DevtronResourceObjectDescriptorBean
 	*DevtronResourceObjectBasicDataBean
 	ChildObjects []*DevtronResourceObjectGetAPIBean `json:"childObjects,omitempty"`
+}
+
+type DevtronResourceDependencyPatchAPIBean struct {
+	*DevtronResourceObjectDescriptorBean
+	DependencyPatch []*DependencyPatchBean `json:"dependencyPatch,omitempty"`
+}
+
+type DependencyPatchBean struct {
+	PatchQuery     []PatchQuery    `json:"query,omitempty"`
+	DependencyInfo *DependencyInfo `json:"dependencyInfo,omitempty"`
 }
 
 type DevtronResourceObjectBasicDataBean struct {
@@ -92,16 +112,6 @@ type NoteBean struct {
 	Value     string      `json:"value"`
 	UpdatedOn time.Time   `json:"updatedOn"`
 	UpdatedBy *UserSchema `json:"updatedBy"`
-}
-
-type DevtronResourceDependencyPatchAPIBean struct {
-	*DevtronResourceObjectDescriptorBean
-	DependencyPatch []*DependencyPatchBean `json:"dependencyPatch,omitempty"`
-}
-
-type DependencyPatchBean struct {
-	PatchQuery     []PatchQuery    `json:"query,omitempty"`
-	DependencyInfo *DependencyInfo `json:"dependencyInfo,omitempty"`
 }
 
 type ResourceIdentifier struct {
@@ -155,10 +165,27 @@ type DevtronResourceDependencyBean struct {
 	IdType                  IdType                           `json:"idType,omitempty"`
 	Identifier              string                           `json:"identifier,omitempty"`
 	Config                  *DependencyConfigBean            `json:"config,omitempty"`
+	ChildObjects            []*ChildObject                   `json:"childObjects,omitempty"`
+	ChildInheritance        []*ChildInheritance              `json:"childInheritance,omitempty"` // right now being used internally for release, cd pipeline is being inherited.
 }
 
 type DependencyConfigBean struct {
 	*DevtronAppDependencyConfig
+}
+
+type ChildObject struct {
+	Data interface{}     `json:"data,omitempty"`
+	Type ChildObjectType `json:"type,omitempty"`
+}
+
+type ChildInheritance struct {
+	ResourceId int      `json:"resourceId"` // signifies devtron resource kind id , currently for application dependency - resourceid of Cdpipline resourceKind
+	Selector   []string `json:"selector"`   // ["*"] means all
+}
+
+type Environment struct {
+	Id   int    `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
 }
 
 type ArtifactConfig struct {
@@ -173,7 +200,7 @@ type GitCommitData struct {
 	Author       string               `json:"author"`
 	Branch       string               `json:"branch"`
 	Message      string               `json:"message"`
-	ModifiedTime time.Time            `json:"modifiedTime"`
+	ModifiedTime string               `json:"modifiedTime"`
 	Revision     string               `json:"revision"`
 	Tag          string               `json:"tag"`
 	Url          string               `json:"url"`
@@ -227,6 +254,11 @@ type UserSchema struct {
 type FilterCriteriaDecoder struct {
 	Resource DevtronResourceKind
 	Type     FilterCriteriaIdentifier
+	Value    string
+}
+
+type SearchCriteriaDecoder struct {
+	SearchBy SearchPropertyBy
 	Value    string
 }
 
@@ -322,6 +354,13 @@ func (n DevtronResourceSearchableKeyName) ToString() string {
 	return string(n)
 }
 
+type SearchPropertyBy string
+
+const (
+	ArtifactTag SearchPropertyBy = "artifactTag"
+	ImageTag    SearchPropertyBy = "imageTag"
+)
+
 type DevtronResourceKind string
 
 const (
@@ -334,6 +373,8 @@ const (
 	DevtronResourceCdPipeline         DevtronResourceKind = "cd-pipeline"
 	DevtronResourceReleaseTrack       DevtronResourceKind = "release-track"
 	DevtronResourceRelease            DevtronResourceKind = "release"
+
+	DevtronResourceAppWorkflow DevtronResourceKind = "appWorkflow" // DevtronResourceAppWorkflow is an internal only resource kind used for filtering
 )
 
 func (n DevtronResourceKind) ToString() string {
@@ -440,20 +481,20 @@ const (
 	DependencyConfigCiWorkflowKey         = "ciWorkflowId"
 	DependencyConfigCommitSourceKey       = "commitSource"
 	DependencyConfigReleaseInstructionKey = "releaseInstruction"
+	DependencyChildInheritanceKey         = "childInheritance"
 
-	ResourceSchemaMetadataPath           = "properties.overview.properties.metadata"
-	ResourceObjectMetadataPath           = "overview.metadata"
-	ResourceObjectOverviewPath           = "overview"
-	ResourceObjectIdPath                 = "overview.id"
-	ResourceObjectNamePath               = "overview.name"
-	ResourceObjectDescriptionPath        = "overview.description"
-	ResourceObjectCreatedOnPath          = "overview.createdOn"
-	ResourceObjectCreatedByPath          = "overview.createdBy"
-	ResourceObjectReleaseNotePath        = "overview.releaseNote"
-	ResourceObjectReleaseVersionPath     = "overview.releaseVersion"
-	ResourceObjectReleaseInstructionPath = "overview.releaseInstruction"
-	ResourceObjectTagsPath               = "overview.tags"
-	ResourceObjectIdTypePath             = "overview.idType"
+	ResourceSchemaMetadataPath       = "properties.overview.properties.metadata"
+	ResourceObjectMetadataPath       = "overview.metadata"
+	ResourceObjectOverviewPath       = "overview"
+	ResourceObjectIdPath             = "overview.id"
+	ResourceObjectNamePath           = "overview.name"
+	ResourceObjectDescriptionPath    = "overview.description"
+	ResourceObjectCreatedOnPath      = "overview.createdOn"
+	ResourceObjectCreatedByPath      = "overview.createdBy"
+	ResourceObjectReleaseNotePath    = "overview.releaseNote"
+	ResourceObjectReleaseVersionPath = "overview.releaseVersion"
+	ResourceObjectTagsPath           = "overview.tags"
+	ResourceObjectIdTypePath         = "overview.idType"
 
 	ResourceObjectCreatedByIdPath   = "overview.createdBy.id"
 	ResourceObjectCreatedByNamePath = "overview.createdBy.name"
@@ -508,12 +549,21 @@ const (
 	InvalidResourceKindOrComponent       = "Invalid resource kind or component! Implementation not available."
 	InvalidResourceKind                  = "Invalid resource kind! Implementation not supported."
 	InvalidQueryDependencyInfo           = "Invalid query param: dependencyInfo!"
+	InvalidQueryConfigOption             = "Invalid query param: configOption!"
 	InvalidResourceVersion               = "Invalid resource version! Implementation not supported."
 	PatchPathNotSupportedError           = "patch path not supported"
 	IdTypeNotSupportedError              = "resource object id type not supported"
 	InvalidNoDependencyRequest           = "Invalid dependency request. No dependencies present. "
-	InvalidFilterCriteria                = "invalid format filter criteria "
+	InvalidFilterCriteria                = "invalid format filter criteria!"
+	InvalidSearchKey                     = "invalid format search key!"
 	InvalidPatchOperation                = "invalid patch operation or not supported or dependency info not found"
 	ApplicationDependencyFoundError      = "application cannot be patched as other dependencies are dependent on this application"
 	ApplicationDependencyNotFoundError   = "no application found "
+)
+
+type ChildObjectType string
+
+const DefaultCdPipelineSelector string = "*"
+const (
+	EnvironmentChildObjectType ChildObjectType = "environments"
 )
