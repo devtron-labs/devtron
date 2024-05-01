@@ -1,4 +1,5 @@
 ## Bugs
+- fix: terminal stuck in connecting state (#4989)
 - fix: handle for wrong format of k8s version in semvercompare func in cronjob template charts (#5016)
 - fix: Dockerfile ubuntu version (#5022)
 - fix: application status changes to HIBERNATING, when hibernation fails due to some reason (#5005)
