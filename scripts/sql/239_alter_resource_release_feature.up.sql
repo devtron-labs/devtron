@@ -10,7 +10,7 @@ ALTER TABLE devtron_resource_schema ALTER COLUMN version TYPE varchar(10);
 INSERT INTO devtron_resource(kind, display_name, icon,is_exposed, parent_kind_id, deleted, created_on, created_by, updated_on,
                              updated_by)
 VALUES ('release-track', 'Release track', '',false, 0, false, now(), 1, now(), 1),
-       ('release', 'Release', '',false, 0, false, now(), 1, now(), 1);
+       ('release', 'Release', '',true, 0, false, now(), 1, now(), 1);
 
 INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, sample_schema, latest, created_on, created_by, updated_on,
                                     updated_by)
