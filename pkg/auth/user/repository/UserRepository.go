@@ -23,6 +23,7 @@ package repository
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/go-pg/pg"
@@ -62,6 +63,7 @@ type UserRepository interface {
 	GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error)
 	GetSuperAdmins() ([]int32, error)
 	FetchUserDetailByEmails(emails []string) ([]UserModel, error)
+	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
 type UserRepositoryImpl struct {
@@ -443,4 +445,16 @@ func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserIdAnd
 		return models, err
 	}
 	return models, nil
+}
+
+// below method does operation on api_token table,
+// we are writing this method here instead of ApiTokenRepository to avoid cyclic import
+func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
+	query := impl.dbConnection.Model().
+		Table(userBean.ApiTokenTableName).
+		Where("name = ?", tokenName).
+		Where("version = ?", tokenVersion)
+
+	exists, err := query.Exists()
+	return exists, err
 }

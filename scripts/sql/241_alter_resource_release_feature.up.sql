@@ -10,7 +10,7 @@ ALTER TABLE devtron_resource_schema ALTER COLUMN version TYPE varchar(10);
 INSERT INTO devtron_resource(kind, display_name, icon,is_exposed, parent_kind_id, deleted, created_on, created_by, updated_on,
                              updated_by)
 VALUES ('release-track', 'Release track', '',false, 0, false, now(), 1, now(), 1),
-       ('release', 'Release', '',false, 0, false, now(), 1, now(), 1);
+       ('release', 'Release', '',true, 0, false, now(), 1, now(), 1);
 
 INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, sample_schema, latest, created_on, created_by, updated_on,
                                     updated_by)
@@ -171,131 +171,6 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
         true, now(), 1, now(), 1),
        ((select id from devtron_resource where kind = 'release'), 'alpha1',
         '{
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Release Schema",
-            "type": "object",
-            "properties":
-            {
-                "kind":
-                {
-                    "const": "release"
-                },
-                "version":
-                {
-                    "type": "string",
-                    "enum": ["alpha1"]
-                },
-                "overview":
-                {
-                    "type": "object",
-                    "properties":
-                    {
-                        "id":
-                        {
-                            "type": "number"
-                        },
-                        "idType":{
-                            "type": "string",
-                            "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                            "enum": ["resourceObjectId", "oldObjectId"]
-                        },
-                        "releaseVersion":
-                        {
-                            "type": "string"
-                        },
-                        "name":
-                        {
-                            "type": "string"
-                        },
-                        "icon":
-                        {
-                            "type": "string",
-                            "contentEncoding": "base64"
-                        },
-                        "note":
-                        {
-                            "type":"string"
-                        },
-                        "description":
-                        {
-                            "type": "string"
-                        },
-                        "createdOn":
-                        {
-                            "type": "string"
-                        },
-                        "createdBy":
-                        {
-                            "type": "object",
-                            "refType": "#/references/users"
-                        },
-                        "tags":
-                        {
-                            "additionalProperties":
-                            {
-                                "type": "string"
-                            }
-                        },
-                        "metadata":
-                        {}
-                    },
-                    "required":
-                    [
-                        "id",
-                        "releaseVersion"
-                    ]
-                },
-                "status":
-                {
-                    "type": "object",
-                    "properties":
-                    {
-                        "config":
-                        {
-                            "type": "object",
-                            "properties": {
-                                "status":
-                                {
-                                    "type":"string",
-                                    "enum": [
-                                        "draft",
-                                        "readyForRelease",
-                                        "hold"
-                                    ]
-                                },
-                                "lock":
-                                {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required":
-                            [
-                                "status"
-                            ]
-                        }
-                    },
-                    "required":
-                    [
-                        "config"
-                    ]
-                },
-                "taskMapping":
-                {
-                    "type": "array"
-                },
-                "dependencies":
-                {
-                    "type": "array"
-                }
-            },
-            "required":
-            [
-                "version",
-                "kind",
-                "overview",
-                "status"
-            ]
-        }', '{
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Release Schema",
     "type": "object",
@@ -308,7 +183,10 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
         "version":
         {
             "type": "string",
-            "enum": ["alpha1"]
+            "enum":
+            [
+                "alpha1"
+            ]
         },
         "overview":
         {
@@ -319,10 +197,15 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 {
                     "type": "number"
                 },
-                "idType":{
+                "idType":
+                {
                     "type": "string",
                     "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release we keep data as devtron resource only. To differ between nature of these two types of id values.",
-                    "enum": ["resourceObjectId", "oldObjectId"]
+                    "enum":
+                    [
+                        "resourceObjectId",
+                        "oldObjectId"
+                    ]
                 },
                 "releaseVersion":
                 {
@@ -339,7 +222,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 },
                 "note":
                 {
-                    "type":"string"
+                    "type": "string"
                 },
                 "description":
                 {
@@ -362,7 +245,93 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                     }
                 },
                 "metadata":
-                {}
+                {
+                    "type": "object",
+                    "properties":
+                    {
+                        "Type of release":
+                        {
+                            "type": "string",
+                            "enum":
+                            [
+                                "Major",
+                                "Minor",
+                                "Patch"
+                            ]
+                        },
+                        "Milestones":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Release planned start date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "30% milestone date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "70% milestone date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "Release end date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                }
+                            }
+                        },
+                        "Release Managers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "On-Duty":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "Target customers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "string"
+                            }
+                        },
+                        "Released customers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required":
+                    [
+                        "Type of release",
+                        "Release Managers",
+                        "On-Duty"
+                    ]
+                }
             },
             "required":
             [
@@ -378,11 +347,234 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 "config":
                 {
                     "type": "object",
-                    "properties": {
+                    "properties":
+                    {
                         "status":
                         {
-                            "type":"string",
-                            "enum": [
+                            "type": "string",
+                            "enum":
+                            [
+                                "draft",
+                                "readyForRelease",
+                                "hold"
+                            ]
+                        },
+                        "lock":
+                        {
+                            "type": "boolean"
+                        }
+                    },
+                    "required":
+                    [
+                        "status"
+                    ]
+                }
+            },
+            "required":
+            [
+                "config"
+            ]
+        },
+        "taskMapping":
+        {
+            "type": "array"
+        },
+        "dependencies":
+        {
+            "type": "array"
+        }
+    },
+    "required":
+    [
+        "version",
+        "kind",
+        "overview",
+        "status"
+    ]
+}', '{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Release Schema",
+    "type": "object",
+    "properties":
+    {
+        "kind":
+        {
+            "const": "release"
+        },
+        "version":
+        {
+            "type": "string",
+            "enum":
+            [
+                "alpha1"
+            ]
+        },
+        "overview":
+        {
+            "type": "object",
+            "properties":
+            {
+                "id":
+                {
+                    "type": "number"
+                },
+                "idType":
+                {
+                    "type": "string",
+                    "description": "for existing resources in the system we keep original ids of their tables in id field. Like id of apps table is kept for devtron applications. But in release we keep data as devtron resource only. To differ between nature of these two types of id values.",
+                    "enum":
+                    [
+                        "resourceObjectId",
+                        "oldObjectId"
+                    ]
+                },
+                "releaseVersion":
+                {
+                    "type": "string"
+                },
+                "name":
+                {
+                    "type": "string"
+                },
+                "icon":
+                {
+                    "type": "string",
+                    "contentEncoding": "base64"
+                },
+                "note":
+                {
+                    "type": "string"
+                },
+                "description":
+                {
+                    "type": "string"
+                },
+                "createdOn":
+                {
+                    "type": "string"
+                },
+                "createdBy":
+                {
+                    "type": "object",
+                    "refType": "#/references/users"
+                },
+                "tags":
+                {
+                    "additionalProperties":
+                    {
+                        "type": "string"
+                    }
+                },
+                "metadata":
+                {
+                    "type": "object",
+                    "properties":
+                    {
+                        "Type of release":
+                        {
+                            "type": "string",
+                            "enum":
+                            [
+                                "Major",
+                                "Minor",
+                                "Patch"
+                            ]
+                        },
+                        "Milestones":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Release planned start date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "30% milestone date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "70% milestone date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "Release end date":
+                                {
+                                    "type": "string",
+                                    "format": "date"
+                                }
+                            }
+                        },
+                        "Release Managers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "On-Duty":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "Target customers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "string"
+                            }
+                        },
+                        "Released customers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required":
+                    [
+                        "Type of release",
+                        "Release Managers",
+                        "On-Duty"
+                    ]
+                }
+            },
+            "required":
+            [
+                "id",
+                "releaseVersion"
+            ]
+        },
+        "status":
+        {
+            "type": "object",
+            "properties":
+            {
+                "config":
+                {
+                    "type": "object",
+                    "properties":
+                    {
+                        "status":
+                        {
+                            "type": "string",
+                            "enum":
+                            [
                                 "draft",
                                 "readyForRelease",
                                 "hold"
@@ -1230,3 +1422,434 @@ set schema='{
 }'
 where devtron_resource_id = (select id from devtron_resource where kind = 'helm-application')
   and version = 'v1';
+
+
+INSERT INTO global_policy(name, policy_of, version, description, policy_json, enabled, deleted, created_by, created_on, updated_by, updated_on)
+VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validation release status changes.',
+'{
+    "definitions":
+    [
+        {
+            "to":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactCount": "noImageSelected",
+                "releaseStatus": "notDeployed",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "noImageSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactCount": "noImageSelected",
+                "releaseStatus": "notDeployed",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "noImageSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": false
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactCount": "partialImagesSelected",
+                "releaseStatus": "notDeployed",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "partialImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactCount": "partialImagesSelected",
+                "releaseStatus": "notDeployed",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "partialImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": false
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactCount": "allImagesSelected",
+                "releaseStatus": "notDeployed",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": true
+                },
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "noImageSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": false
+                },
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "partialImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": false
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "notDeployed",
+                "dependencyArtifactCount": "allImagesSelected"
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": false
+                },
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "releaseStatus": "notDeployed",
+                    "lockStatus": true
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "readyForRelease",
+                "lockStatus": true
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "notDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "notDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "draft",
+                "lockStatus": false
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "notDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "hold",
+                "lockStatus": false
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected"
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "readyForRelease",
+                "lockStatus": true
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "hold",
+                "lockStatus": false
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "readyForRelease",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected"
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                }
+            ],
+            "autoAction":
+            {
+                "configStatus": "readyForRelease",
+                "lockStatus": true
+            }
+        },
+        {
+            "to":
+            {
+                "configStatus": "hold",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "hold",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "hold",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": true
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": false
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "hold",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected",
+                "lockStatus": false
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "rescind",
+                "releaseStatus": "completelyDeployed",
+                "dependencyArtifactCount": "allImagesSelected"
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "completelyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        },
+        {
+            "to":
+            {
+                "configStatus": "rescind",
+                "releaseStatus": "partiallyDeployed",
+                "dependencyArtifactCount": "allImagesSelected"
+            },
+            "possibleFrom":
+            [
+                {
+                    "configStatus": "readyForRelease",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                },
+                {
+                    "configStatus": "hold",
+                    "releaseStatus": "partiallyDeployed",
+                    "dependencyArtifactCount": "allImagesSelected",
+                    "lockStatus": true
+                }
+            ]
+        }
+    ],
+    "consequence": "BLOCK"
+}', true, false, 1, now(),1,now());
