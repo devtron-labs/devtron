@@ -198,7 +198,15 @@ func (sm *SessionMap) setAndSendSignal(sessionId string, session sockjs.Session)
 	} else if ok {
 		terminalSession.sockJSSession = session
 		sm.Sessions[sessionId] = terminalSession
-		terminalSession.bound <- nil
+
+		select {
+		case terminalSession.bound <- nil:
+			log.Printf("message sent on bound channel for sessionId : %s", sessionId)
+		default:
+			// if a request from the front end is not received within a particular time frame, and no one is reading from the bound channel, we will ignore sending on the bound channel.
+			log.Printf("skipping send on bound, channel receiver possibly timed out. sessionId: %s", sessionId)
+		}
+
 	}
 }
 
@@ -487,7 +495,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	sessionCtx, cancelFunc := context.WithCancel(context.Background())
 	terminalSessions.Set(sessionID, TerminalSession{
 		id:                sessionID,
-		bound:             make(chan error, 1),
+		bound:             make(chan error),
 		sizeChan:          make(chan remotecommand.TerminalSize),
 		doneChan:          make(chan struct{}),
 		context:           sessionCtx,
