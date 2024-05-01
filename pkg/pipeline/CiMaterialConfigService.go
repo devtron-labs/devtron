@@ -129,14 +129,8 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			err := tx.Rollback()
-			if err != nil {
-				impl.logger.Errorw("error in rollback ", "err", err)
-			}
-		}
-	}()
+
+	defer tx.Rollback()
 
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial, tx)
 	if err != nil {

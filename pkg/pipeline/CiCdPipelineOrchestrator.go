@@ -1277,14 +1277,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			err := tx.Rollback()
-			if err != nil {
-				impl.logger.Errorw("error in rollback Create material", "err", err)
-			}
-		}
-	}()
+	defer tx.Rollback()
 	existingMaterials, err := impl.materialRepository.FindByAppId(createMaterialRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -1335,14 +1328,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			err := tx.Rollback()
-			if err != nil {
-				impl.logger.Errorw("error in rollback Update material", "err", err)
-			}
-		}
-	}()
+	defer tx.Rollback()
 	updatedMaterial, err := impl.updateMaterial(updateMaterialDTO, tx)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
