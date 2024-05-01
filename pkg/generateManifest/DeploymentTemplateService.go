@@ -35,6 +35,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -65,7 +66,7 @@ type DeploymentTemplateServiceImpl struct {
 }
 type RestartWorkloadConfig struct {
 	RestartWorkloadWorker    int `env:"FEATURE_RESTART_WORKLOAD_BULK_WORKER" envDefault:"5"`
-	RestartWorkloadBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BULK_BATCH" envDefault:"5"`
+	RestartWorkloadBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BULK_BATCH" envDefault:"2"`
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -396,19 +397,24 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		}
 	}
 	var templateChartResponse []*gRPC.TemplateChartResponse
+	var templateChartResponseLock sync.Mutex
 	partitionedRequests := utils.PartitionSlice(installReleaseRequests, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
 
-	for _, iRR := range partitionedRequests {
+	for i, _ := range partitionedRequests {
+		req := partitionedRequests[i]
 		wp.Submit(func() {
 			defer handlePanic()
-			templateChartResponse, err = impl.helmAppClient.TemplateChartBulk(ctx, iRR)
+			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, req)
 			if err != nil {
 				impl.Logger.Errorw("error in getting data from template chart", "err", err)
 				return
 			}
+			templateChartResponseLock.Lock()
+			templateChartResponse = append(templateChartResponse, resp...)
+			templateChartResponseLock.Unlock()
 			impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
 		})
-		templateChartResponse = append(templateChartResponse, templateChartResponse...)
+
 	}
 	wp.StopWait()
 
