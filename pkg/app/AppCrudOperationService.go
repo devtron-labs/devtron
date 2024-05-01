@@ -545,6 +545,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 		// requested app in not assigned to any project.
 		if isOtherExtAppMigrated {
 			app.TeamId = 0
+			app.Team.Name = ""
 		}
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
