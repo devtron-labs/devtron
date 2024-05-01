@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
@@ -75,7 +76,6 @@ type DevtronResourceServiceImpl struct {
 	devtronResourceRepository            repository.DevtronResourceRepository
 	devtronResourceSchemaRepository      repository.DevtronResourceSchemaRepository
 	devtronResourceObjectRepository      repository.DevtronResourceObjectRepository
-	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository
 	appRepository                        appRepository.AppRepository //TODO: remove repo dependency
 	pipelineRepository                   pipelineConfig.PipelineRepository
@@ -88,13 +88,13 @@ type DevtronResourceServiceImpl struct {
 	dtResourceInternalProcessingService  in.InternalProcessingService
 	dtResourceReadService                read.ReadService
 	dtResourceObjectAuditService         audit.ObjectAuditService
+	releasePolicyEvaluationService       release.PolicyEvaluationService
 }
 
 func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	devtronResourceRepository repository.DevtronResourceRepository,
 	devtronResourceSchemaRepository repository.DevtronResourceSchemaRepository,
 	devtronResourceObjectRepository repository.DevtronResourceObjectRepository,
-	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository,
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository,
 	appRepository appRepository.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -103,13 +103,13 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	dtResourceInternalProcessingService in.InternalProcessingService,
 	dtResourceReadService read.ReadService,
-	dtResourceObjectAuditService audit.ObjectAuditService) (*DevtronResourceServiceImpl, error) {
+	dtResourceObjectAuditService audit.ObjectAuditService,
+	releasePolicyEvaluationService release.PolicyEvaluationService) (*DevtronResourceServiceImpl, error) {
 	impl := &DevtronResourceServiceImpl{
 		logger:                               logger,
 		devtronResourceRepository:            devtronResourceRepository,
 		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
 		devtronResourceObjectRepository:      devtronResourceObjectRepository,
-		devtronResourceSchemaAuditRepository: devtronResourceSchemaAuditRepository,
 		devtronResourceObjectAuditRepository: devtronResourceObjectAuditRepository,
 		appRepository:                        appRepository,
 		pipelineRepository:                   pipelineRepository,
@@ -119,6 +119,7 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 		dtResourceInternalProcessingService:  dtResourceInternalProcessingService,
 		dtResourceReadService:                dtResourceReadService,
 		dtResourceObjectAuditService:         dtResourceObjectAuditService,
+		releasePolicyEvaluationService:       releasePolicyEvaluationService,
 	}
 	err := impl.SetDevtronResourcesAndSchemaMap()
 	if err != nil {

@@ -250,6 +250,23 @@ const (
 	ReadyForReleaseStatus Status = "readyForRelease"
 	HoldStatus            Status = "hold"
 )
+
+type ReleaseStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
+
+const (
+	NotDeployedReleaseStatus        ReleaseStatus = "notDeployed"
+	PartiallyDeployedReleaseStatus  ReleaseStatus = "partiallyDeployed"
+	CompletelyDeployedReleaseStatus ReleaseStatus = "completelyDeployed"
+)
+
+type DependencyArtifactStatus string
+
+const (
+	NotSelectedDependencyArtifactStatus     DependencyArtifactStatus = "noImageSelected"
+	PartialSelectedDependencyArtifactStatus DependencyArtifactStatus = "partialImagesSelected"
+	AllSelectedDependencyArtifactStatus     DependencyArtifactStatus = "allImagesSelected"
+)
+
 const (
 	ResourceObjectIdType IdType = "resourceObjectId"
 	OldObjectId          IdType = "oldObjectId"
