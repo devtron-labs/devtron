@@ -225,19 +225,26 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	for _, app := range apps {
 		jobIds = append(jobIds, app.Id)
 	}
-	pipelines, err := impl.ciPipelineRepository.FindByNames(pipelineNames, jobIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipelines", "pipelineNames", pipelineNames, "error", err)
-		return jobsDetails, err
+	var pipelines []*pipelineConfig.CiPipeline
+	if len(jobIds) != 0 {
+		pipelines, err = impl.ciPipelineRepository.FindByNames(pipelineNames, jobIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipelines", "pipelineNames", pipelineNames, "error", err)
+			return jobsDetails, err
+		}
 	}
+
 	var pipelinesId []int
 	for _, pipeline := range pipelines {
 		pipelinesId = append(pipelinesId, pipeline.Id)
 	}
-	envs, err := impl.environmentRepository.FindByNames(envNames)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "envNames", envNames, "error", err)
-		return jobsDetails, err
+	var envs []*repository2.Environment
+	if len(envNames) != 0 {
+		envs, err = impl.environmentRepository.FindByNames(envNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment", "envNames", envNames, "error", err)
+			return jobsDetails, err
+		}
 	}
 	displayNameToId := make(map[string]int)
 	for _, app := range apps {
@@ -247,10 +254,13 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	for _, pipeline := range pipelines {
 		pipelineNameToId[pipeline.Name] = pipeline.Id
 	}
-	workflows, err := impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelinesId)
-	if err != nil {
-		impl.logger.Errorw("error in retrieving workflows for pipelineIds", pipelinesId, "error", err)
-		return jobsDetails, err
+	var workflows []*appWorkflow.AppWorkflowMapping
+	if len(pipelinesId) != 0 {
+		workflows, err = impl.appWorkflowMappingRepository.FindWFCIMappingByCIPipelineIds(pipelinesId)
+		if err != nil {
+			impl.logger.Errorw("error in retrieving workflows for pipelineIds", pipelinesId, "error", err)
+			return jobsDetails, err
+		}
 	}
 	pipelineIdtoAppworkflow := make(map[int]int)
 	for _, workflow := range workflows {
