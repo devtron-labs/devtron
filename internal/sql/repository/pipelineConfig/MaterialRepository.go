@@ -52,8 +52,8 @@ type GitMaterial struct {
 
 type MaterialRepository interface {
 	MaterialExists(url string) (bool, error)
-	SaveMaterial(material *GitMaterial, tx *pg.Tx) error
-	UpdateMaterial(material *GitMaterial, tx *pg.Tx) error
+	SaveMaterial(tx *pg.Tx, material *GitMaterial) error
+	UpdateMaterial(tx *pg.Tx, material *GitMaterial) error
 	Update(materials []*GitMaterial) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
 	FindById(Id int) (*GitMaterial, error)
@@ -61,7 +61,7 @@ type MaterialRepository interface {
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error)
-	MarkMaterialDeleted(material *GitMaterial, tx *pg.Tx) error
+	MarkMaterialDeleted(tx *pg.Tx, material *GitMaterial) error
 	FindNumberOfAppsWithGitRepo(appIds []int) (int, error)
 	FindByAppIds(appIds []int) ([]*GitMaterial, error)
 }
@@ -113,11 +113,11 @@ func (repo MaterialRepositoryImpl) MaterialExists(url string) (bool, error) {
 	return exists, err
 }
 
-func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial, tx *pg.Tx) error {
+func (repo MaterialRepositoryImpl) SaveMaterial(tx *pg.Tx, material *GitMaterial) error {
 	return tx.Insert(material)
 }
 
-func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial, tx *pg.Tx) error {
+func (repo MaterialRepositoryImpl) UpdateMaterial(tx *pg.Tx, material *GitMaterial) error {
 	return tx.Update(material)
 }
 
@@ -164,7 +164,7 @@ func (repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (mater
 	return materials, err
 }
 
-func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial, tx *pg.Tx) error {
+func (repo MaterialRepositoryImpl) MarkMaterialDeleted(tx *pg.Tx, material *GitMaterial) error {
 	material.Active = false
 	return tx.Update(material)
 }

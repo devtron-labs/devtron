@@ -21,7 +21,7 @@ type GitMaterialHistory struct {
 }
 
 type GitMaterialHistoryRepository interface {
-	SaveGitMaterialHistory(material *GitMaterialHistory, tx *pg.Tx) error
+	SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error
 	SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error
 }
 
@@ -35,7 +35,7 @@ func NewGitMaterialHistoryRepositoyImpl(dbConnection *pg.DB) *GitMaterialHistory
 	}
 }
 
-func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(material *GitMaterialHistory, tx *pg.Tx) error {
+func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error {
 	return tx.Insert(material)
 }
 

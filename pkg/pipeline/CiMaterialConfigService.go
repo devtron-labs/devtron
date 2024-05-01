@@ -132,13 +132,13 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 
 	defer tx.Rollback()
 
-	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial, tx)
+	err = impl.materialRepo.MarkMaterialDeleted(tx, existingMaterial)
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
 
-	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial, tx)
+	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(tx, existingMaterial)
 
 	var materials []*pipelineConfig.CiPipelineMaterial
 	for _, pipeline := range pipelines {
