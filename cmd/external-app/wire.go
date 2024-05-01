@@ -103,6 +103,8 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 
+		sql.NewTransactionUtilImpl,
+
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
