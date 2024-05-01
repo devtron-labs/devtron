@@ -2,6 +2,10 @@ INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,cr
 VALUES (nextval('id_seq_plugin_metadata'),'BitBucket Runner Trigger v1.0.0' , 'The plugin enables users to trigger the pipeline in the BitBucket.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png',false,'now()',1,'now()',1);
 
 
+INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by) 
+VALUES (nextval('id_seq_plugin_metadata'),'BitBucket Runner Trigger v1.0.0' , 'The plugin enables users to trigger the runner in the BitBucket .','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/bitbucket-logo-plugin.jpeg',false,'now()',1,'now()',1);
+
+
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)VALUES (nextval('id_seq_plugin_stage_mapping'),
 (SELECT id from plugin_metadata where name='BitBucket Runner Trigger v1.0.0'), 0,'now()',1,'now()',1);
 
@@ -10,7 +14,7 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
 E'#!/bin/bash
 
-# Extract git username, password, and git repository URL
+# Extract bitbucket username, token from CI_CD_EVENT variable
 if [[ -z "$BitBucketUsername" || -z "$BitBucketToken" ]]; then
     BitBucketUsername=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProjectDetails[0].gitOptions.userName\')
     BitBucketToken=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProjectDetails[0].gitOptions.password\')
@@ -20,19 +24,20 @@ git_repository_url=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProj
 
 # Extract the workspace name and repository name from the gitRepository URL
 if [[ -z "$WorkspaceName" ]]; then
-    WorkspaceName=$(echo "$git_repository_url" | awk -F\'/\' \'{print $(NF-1)}\' | cut -d\'@\' -f2)
+    WorkspaceName=$(echo "$git_repository_url" | awk -F \'/\' \'{print $(NF-1)}\' | cut -d \'@\' -f2)
     if [[ "$WorkspaceName" == *"bitbucket.org:"* ]]; then
-        # Extract everything after \'bitbucket.org:\'
+        # Extract everything after bitbucket.org:
         WorkspaceName="${WorkspaceName#*bitbucket.org:}"
     fi
 fi
 
+# If RepoName not provided my the user then we will extract the name from the git_repository_url
 if [[ -z "$RepoName" ]]; then
-    RepoName=$(echo "$git_repository_url" | awk -F\'/\' \'{print $NF}\' | sed \'s/.git//\')
+    RepoName=$(echo "$git_repository_url" | awk -F \'/\' \'{print $NF}\' | sed \'s/.git//\' )
 fi
 
-if [[ -z "$BranchName" ]]; then
 
+if [[ -z "$BranchName" ]]; then
     # Set a default value for sourceValue
     default_source_value="main"
 
@@ -48,8 +53,9 @@ if [[ -z "$BranchName" ]]; then
     fi
 fi
 
+# if the username and token is empty because it doesnot able to extract from the CI_CD_EVENT variable because the pipeline is configured with SSH.
 if [[ -z "$BitBucketUsername" ||  -z "$BitBucketToken"  ]]; then
-    echo "Enter the BitBucket username or api token. Exiting..."
+    echo "BitBucket username or api/token mandatory for the BitBucket pipelines configured with SSH. Exiting..."
     exit 1
 fi
 
@@ -62,7 +68,7 @@ fi
 if [ "$StatusTimeOutSeconds" -lt "60" ]; then
     sleepInterval=$(($StatusTimeOutSeconds / 2))
 else
-    sleepInterval=2  
+    sleepInterval=30  
 fi
 
 # Function for verify the workspaceName, RepoName and bitbucket Access API token
@@ -70,26 +76,22 @@ verify(){
     curl -s -u $BitBucketUsername:$BitBucketToken --request GET "https://api.bitbucket.org/2.0/repositories/$WorkspaceName/$RepoName/pipelines/?page=1&pagelen=1&sort=-created_on" --compressed
 }
 
-# call the verify function to get the response and act accordingly
-verify_response=$(verify)
+verify_status_code()
+{
+        curl -s -i -u $BitBucketUsername:$BitBucketToken --request GET "https://api.bitbucket.org/2.0/repositories/$WorkspaceName/$RepoName/pipelines/?page=1&pagelen=1&sort=-created_on" --compressed
 
+}
 
-if [[  -z "$verify_response" ]]; then
-    echo "Error: Unauthorized! Please check the API token or Username provided. Exiting..."
+verify_response=$(verify_status_code)
+status_code=$(echo "$verify_response" | sed -n \'s/HTTP\\/[0-9.]* \\([0-9]\\+\\) .*/\\1/p\')
+
+if [[  "$status_code" -eq "401" ]]; then
+    echo "Error: Unauthorized! Please check Username or api/token provided. Exiting..."
     exit 1
-elif true ; then
-
-    verify_response=$(verify | jq -r \'.error.message\') 
-    if [[ "$verify_response" == "Token is invalid or not supported for this endpoint." ]]; then
-        echo "Error: Unauthorized! Please check the API token or Username provided. Exiting..."
-        exit 1
-    elif [[ "$verify_response" == "Your credentials lack one or more required privilege scopes." ]]; then
-        echo "Error, Your credentials lack one or more required privilege scopes. Exiting..."
-        exit 1
-    elif [[ "$verify_response" == "Resource not found" ]]; then
-        echo "Error: Workspace Name $WorkspaceName or Repository Name $RepoName not found. Please check the details entered! Exiting..."
-        exit 1
-    fi
+elif [[ "$status_code" -ge 300 && "$status_code" -lt 400 ]]; then 
+    verify_response=$(verify)
+    echo $verify_response, Exiting...
+    exit 1
 fi
 
 # For v1.0, we fixed the type name as branch
@@ -101,16 +103,23 @@ trigger_pipeline() {
     -u "$BitBucketUsername:$BitBucketToken" \\
     -H \'Content-Type: application/json\' \\
     "https://api.bitbucket.org/2.0/repositories/$WorkspaceName/$RepoName/pipelines/" \\
-    -d \'{"target": {"ref_type": "\'$type\'", "type": "pipeline_ref_target", "ref_name": "\'$BranchName\'"}}\'
+    -d \'{"target": {"ref_type": "\'$type\'", "type": "pipeline_ref_target", "ref_name": "\'$BranchName\'"}}\' \\
+    -w " Status_Code %{http_code}" 
 
 }
 
 # call the trigger_pipeline function to get the error if we get error otherwise it will triggered successfully.
-error=$(trigger_pipeline | jq -r \'.error.message\')
-if [[ "$error" == "Not found" ]]; then
-    echo "Error, Enter the correct branch name $BranchName. Exiting..." 
+response=$(trigger_pipeline)
+
+
+# Extracting status code
+status_code=$(echo "$response" | awk \'{print $NF}\')
+
+
+if [[  "$status_code" -eq "404" ]]; then
+    echo $response, Exiting...
     exit 1
-elif [[ "$error" == "null" ]]; then
+elif [[ "$status_code" -ge 200 && "$status_code" -lt 300  ]]; then
     echo "Pipeline triggered successfully..."
 fi
 
@@ -149,7 +158,6 @@ check_healthy_status() {
             status="PENDING"
         fi
 
-
         if [[ "$status" == "pipeline_state_in_progress_running" ]]; then
                 echo "Triggered Pipeline status is progressing..."
         elif [[ "$status" == "PENDING" ]]; then
@@ -181,19 +189,16 @@ check_healthy_status',
 );
 
 
-
-
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='BitBucket Runner Trigger v1.0.0'),'Step 1','Step 1 - BitBucket Runner Trigger v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES 
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BitBucketUsername','STRING','Enter BitBucket Username','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BitBucketToken','STRING','Enter BitBucket Api Token','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BitBucketUsername','STRING','Enter BitBucket Username (mandatory when pipeline configured with SSH)','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BitBucketToken','STRING','Enter BitBucket api/token (mandatory when pipeline configured with SSH)','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'WorkspaceName','STRING','Enter Workspace Name','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'RepoName','STRING','Enter the repository name in the bitbucket','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BranchName','STRING','Enter the branch name','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'RepoName','STRING','Enter repository name in the bitbucket','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'BranchName','STRING','Enter branch name.','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='BitBucket Runner Trigger v1.0.0' and ps."index"=1 and ps.deleted=false),'StatusTimeOutSeconds','STRING','Enter the maximum time (in seconds) a user can wait for the application to deploy.Enter a postive integer value','t','t',0,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
-
 
 
 
