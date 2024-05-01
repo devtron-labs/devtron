@@ -46,6 +46,7 @@ type EnvironmentService interface {
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	GetAll() ([]bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
+	GetAllActiveEnvironmentCount() (int, error)
 	Delete(deleteReq *bean2.EnvironmentBean, userId int32) error
 	FindClusterByEnvId(id int) (*ClusterBean, error)
 	// FindById provides an exposed struct of bean.EnvironmentBean;
@@ -64,6 +65,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*bean2.ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -231,7 +233,10 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]bean2.EnvironmentBean, erro
 	}
 	return beans, nil
 }
-
+func (impl EnvironmentServiceImpl) GetAllActiveEnvironmentCount() (int, error) {
+	cnt, err := impl.environmentRepository.FindAllActiveEnvironmentCount()
+	return cnt, err
+}
 func (impl EnvironmentServiceImpl) FindById(id int) (*bean2.EnvironmentBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
@@ -738,4 +743,13 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 
 func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Environment, error) {
+	envDetails, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in GetDetailsById", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envDetails, nil
 }

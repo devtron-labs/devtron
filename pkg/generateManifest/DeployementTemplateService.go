@@ -15,6 +15,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -25,6 +27,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -336,11 +339,21 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
+
+	sanitizedK8sVersion := k8sServerVersion.String()
+	//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
+	//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
+	//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
+	cronJobChartRegex := regexp.MustCompile(bean2.CronJobChartRegexExpression)
+	if cronJobChartRegex.MatchString(template) {
+		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
+	}
+
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		ChartName:         template,
 		ChartVersion:      version,
 		ValuesYaml:        valuesYaml,
-		K8SVersion:        k8sServerVersion.String(),
+		K8SVersion:        sanitizedK8sVersion,
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
 		ChartContent: &gRPC.ChartContent{
@@ -359,7 +372,9 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	if err != nil {
 		impl.Logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
-		if clientErrCode.IsInvalidArgumentCode() {
+		if clientErrCode.IsFailedPreconditionCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err

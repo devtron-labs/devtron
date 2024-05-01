@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"net/http"
@@ -69,7 +68,6 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService
 	validator                   *validator.Validate
 	helmAppService              service2.HelmAppService
-	helmAppRestHandler          client.HelmAppRestHandler
 	argoUserService             argo.ArgoUserService
 	attributesService           attributes.AttributesService
 	installAppService           EAMode.InstalledAppDBService
