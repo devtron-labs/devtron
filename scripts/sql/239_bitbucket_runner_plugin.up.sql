@@ -6,13 +6,19 @@ INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,
 (SELECT id from plugin_metadata where name='BitBucket Runner Trigger v1.0.0'), 0,'now()',1,'now()',1);
 
 
+
+
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
 E'#!/bin/bash
 
-# Extract bitbucket username, token from CI_CD_EVENT variable
-if [[ -z "$BitBucketUsername" || -z "$BitBucketToken" ]]; then
+# Extract bitbucket username from CI_CD_EVENT variable
+if [[ -z "$BitBucketUsername" ]]; then
     BitBucketUsername=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProjectDetails[0].gitOptions.userName\')
+fi
+
+# Extract token from CI_CD_EVENT variable
+if [[ -z "$BitBucketToken" ]]; then
     BitBucketToken=$(echo "$CI_CD_EVENT" | jq -r \'.commonWorkflowRequest.ciProjectDetails[0].gitOptions.password\')
 fi
 
