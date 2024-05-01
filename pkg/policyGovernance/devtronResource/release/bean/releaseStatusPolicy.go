@@ -14,7 +14,7 @@ type ReleaseStatusPolicy struct {
 type ReleaseStatusPolicyDefinition struct {
 	StateTo            *ReleaseStatusDefinitionState   `json:"stateTo"`
 	PossibleFromStates []*ReleaseStatusDefinitionState `json:"possibleFromStates"`
-	AutoAction         []*ReleaseStatusDefinitionState `json:"autoAction"` //if to and from matches, then automatically change state to this configurations
+	AutoAction         *ReleaseStatusDefinitionState   `json:"autoAction"` //if to and from matches, then automatically change state to this configuration
 }
 
 type ReleaseStatusDefinitionState struct {

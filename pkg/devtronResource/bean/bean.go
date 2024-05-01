@@ -505,6 +505,8 @@ const (
 	ResourceConfigStatusCommentPath  = "status.config.comment"
 	ResourceConfigStatusIsLockedPath = "status.config.lock"
 
+	ResourceReleaseRolloutStatusPath = "status.rollout.status"
+
 	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
 	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
 
@@ -513,6 +515,10 @@ const (
 
 type PatchQueryPath string
 type PatchQueryOperation string
+
+func (n PatchQueryPath) ToString() string {
+	return string(n)
+}
 
 const (
 	Replace PatchQueryOperation = "replace"

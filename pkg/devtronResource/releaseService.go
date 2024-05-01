@@ -643,3 +643,116 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyChildObjectsInObj
 	}
 	return childObjects, nil
 }
+
+func (impl *DevtronResourceServiceImpl) performReleaseResourcePatchOperation(objectData string, queries []bean.PatchQuery) (string, []string, error) {
+	var err error
+	auditPaths := make([]string, 0, len(queries))
+	toPerformPolicyCheck := false
+	newObjectData := objectData //will be using this for patches and mutation since we need old object for policy check
+	for _, query := range queries {
+		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+		if err != nil {
+			impl.logger.Errorw("error in patch operation, release track", "err", err, "objectData", "query", query)
+			return "", nil, err
+		}
+		auditPaths = append(auditPaths, bean.PatchQueryPathAuditPathMap[query.Path])
+		if query.Path == bean.StatusQueryPath || query.Path == bean.LockQueryPath {
+			toPerformPolicyCheck = true
+		}
+	}
+	if toPerformPolicyCheck {
+		newObjectData, err = impl.checkReleasePatchPolicyAndAutoAction(objectData, newObjectData)
+		if err != nil {
+			impl.logger.Errorw("error, checkReleasePatchPolicyAndAutoAction", "err", err, "objectData", objectData, "newObjectData", newObjectData)
+			return "", nil, err
+		}
+	}
+	return newObjectData, auditPaths, nil
+}
+
+func (impl *DevtronResourceServiceImpl) checkReleasePatchPolicyAndAutoAction(oldObjectData, newObjectData string) (string, error) {
+	stateFrom := adapter.GetPolicyDefinitionStateFromReleaseObject(oldObjectData)
+	stateTo := adapter.GetPolicyDefinitionStateFromReleaseObject(newObjectData)
+
+	isValid, autoAction, err := impl.releasePolicyEvaluationService.EvaluateReleaseStatusChangeAndGetAutoAction(stateTo, stateFrom)
+	if err != nil {
+		impl.logger.Errorw("error, EvaluateReleaseStatusChangeAndGetAutoAction", "err", err, "oldObjectData", oldObjectData, "newObjectData", newObjectData)
+		return newObjectData, err
+	}
+	if !isValid {
+		impl.logger.Errorw("error in EvaluateReleaseStatusChangeAndGetAutoAction : invalid action", "oldObjectData", oldObjectData, "newObjectData", newObjectData)
+		return newObjectData, &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: bean.InvalidPatchOperation,
+			UserMessage:     bean.InvalidPatchOperation,
+		}
+	}
+	if autoAction.LockStatus == nil {
+		autoAction.LockStatus = stateTo.LockStatus //not handling stateTo lock status nil because it is coming from adapter and always assuming it to be present
+	}
+	//policy valid, apply auto action if needed
+	if autoAction.ConfigStatus != stateTo.ConfigStatus {
+		query := bean.PatchQuery{
+			Path:  bean.StatusQueryPath,
+			Value: autoAction.ConfigStatus,
+		}
+		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+		if err != nil {
+			impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
+			return newObjectData, err
+		}
+	}
+	if *autoAction.LockStatus != *stateTo.LockStatus {
+		query := bean.PatchQuery{
+			Path:  bean.LockQueryPath,
+			Value: *autoAction.LockStatus,
+		}
+		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+		if err != nil {
+			impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
+			return newObjectData, err
+		}
+	}
+	return newObjectData, nil
+}
+
+func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData string, query bean.PatchQuery) (string, error) {
+	var err error
+	switch query.Path {
+	case bean.DescriptionQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectDescriptionPath, query.Value)
+	case bean.StatusQueryPath:
+		objectData, err = impl.patchConfigStatus(objectData, query.Value)
+	case bean.NoteQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectReleaseNotePath, query.Value)
+	case bean.TagsQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectTagsPath, query.Value)
+	case bean.LockQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusIsLockedPath, query.Value)
+	case bean.NameQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
+	default:
+		err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+	}
+	return objectData, err
+}
+
+func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, value interface{}) (string, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		impl.logger.Errorw("error encountered in patchConfigStatus", "value", value, "err", err)
+		return objectData, err
+	}
+	var configStatus bean.ConfigStatus
+	err = json.Unmarshal(data, &configStatus)
+	if err != nil {
+		impl.logger.Errorw("error encountered in patchConfigStatus", "value ", value, "err", err)
+		return objectData, err
+	}
+	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusCommentPath, configStatus.Comment)
+	if err != nil {
+		return objectData, err
+	}
+	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusStatusPath, configStatus.Status)
+	return objectData, err
+}

@@ -13,7 +13,7 @@ import (
 
 type PolicyEvaluationService interface {
 	EvaluateReleaseStatusChangeAndGetAutoAction(stateToReq,
-		stateFromReq *bean.ReleaseStatusDefinitionState) (isAllowed bool, autoAction []*bean.ReleaseStatusDefinitionState, err error)
+		stateFromReq *bean.ReleaseStatusDefinitionState) (isValid bool, autoAction *bean.ReleaseStatusDefinitionState, err error)
 }
 
 type PolicyEvaluationServiceImpl struct {
@@ -30,7 +30,7 @@ func NewPolicyEvaluationServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *PolicyEvaluationServiceImpl) EvaluateReleaseStatusChangeAndGetAutoAction(stateToReq,
-	stateFromReq *bean.ReleaseStatusDefinitionState) (isAllowed bool, autoAction []*bean.ReleaseStatusDefinitionState, err error) {
+	stateFromReq *bean.ReleaseStatusDefinitionState) (isValid bool, autoAction *bean.ReleaseStatusDefinitionState, err error) {
 	policyDetail, err := impl.getReleaseStatusPolicy()
 	if err != nil {
 		impl.logger.Errorw("error getting release status policy", "err", err)
@@ -44,9 +44,9 @@ func (impl *PolicyEvaluationServiceImpl) EvaluateReleaseStatusChangeAndGetAutoAc
 			//matched, moving to match from states
 			for _, possibleFromState := range definition.PossibleFromStates {
 				if matchDefinitionState(possibleFromState, stateFromReq) {
-					isAllowed = true
+					isValid = true
 					autoAction = definition.AutoAction
-					return isAllowed, autoAction, nil
+					return isValid, autoAction, nil
 				}
 			}
 		}

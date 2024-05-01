@@ -51,3 +51,12 @@ type DtResourceObjectInternalBean struct {
 	//PatchQuery        []PatchQuery                     `json:"query,omitempty"`
 	//DependencyInfo    *DependencyInfo                  `json:"DependencyInfo,omitempty"`
 }
+
+var PatchQueryPathAuditPathMap = map[PatchQueryPath]string{
+	DescriptionQueryPath: ResourceObjectDescriptionPath,
+	StatusQueryPath:      ResourceConfigStatusPath,
+	NoteQueryPath:        ResourceObjectReleaseNotePath,
+	TagsQueryPath:        ResourceObjectTagsPath,
+	LockQueryPath:        ResourceConfigStatusIsLockedPath,
+	NameQueryPath:        ResourceObjectNamePath,
+}

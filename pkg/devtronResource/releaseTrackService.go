@@ -172,3 +172,22 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 	}
 	return resp, nil
 }
+
+func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperation(objectData string, queries []bean.PatchQuery) (string, []string, error) {
+	var err error
+	auditPaths := make([]string, 0, len(queries))
+	for _, query := range queries {
+		switch query.Path {
+		case bean.DescriptionQueryPath:
+			objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectDescriptionPath, query.Value)
+		default:
+			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+		}
+		auditPaths = append(auditPaths, bean.PatchQueryPathAuditPathMap[query.Path])
+		if err != nil {
+			impl.logger.Errorw("error in patch operation, release track", "err", err, "objectData", "query", query)
+			return "", nil, err
+		}
+	}
+	return objectData, auditPaths, nil
+}
