@@ -187,6 +187,11 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 		impl.logger.Errorw("error in getting note", "err", err)
 		return err
 	}
+	err = impl.updateCatalogDataForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	if err != nil {
+		impl.logger.Errorw("error in getting catalogue data", "err", err)
+		return err
+	}
 	return nil
 }
 
