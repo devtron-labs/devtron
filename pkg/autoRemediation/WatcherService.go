@@ -437,7 +437,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	}
 
 	err = impl.triggerRepository.DeleteTriggerByWatcherId(tx, watcher.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting trigger by watcher id", watcherId, "error", err)
 		return err
 	}
