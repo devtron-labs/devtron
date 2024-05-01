@@ -238,8 +238,8 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	if sortOrderBy == "" {
 		sortOrderBy = "name"
 	}
-	if !(sortOrderBy == "name" || sortOrderBy == "triggerTime") {
-		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggerTime"), nil, http.StatusBadRequest)
+	if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
+		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggeredAt"), nil, http.StatusBadRequest)
 		return
 	}
 	sizeStr := queryParams.Get("size")
