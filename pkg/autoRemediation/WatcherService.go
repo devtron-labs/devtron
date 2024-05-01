@@ -220,10 +220,14 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 		envNames = append(envNames, trig.Data.ExecutionEnvironment)
 		pipelineNames = append(pipelineNames, trig.Data.PipelineName)
 	}
-	apps, err := impl.appRepository.FetchAppByDisplayNamesForJobs(jobNames)
-	if err != nil {
-		impl.logger.Errorw("error in fetching apps", "jobNames", jobNames, "error", err)
-		return jobsDetails, err
+	var apps []*appRepository.AppDto
+	var err error
+	if len(jobNames) != 0 {
+		apps, err = impl.appRepository.FetchAppByDisplayNamesForJobs(jobNames)
+		if err != nil {
+			impl.logger.Errorw("error in fetching apps", "jobNames", jobNames, "error", err)
+			return jobsDetails, err
+		}
 	}
 	var jobIds []int
 	for _, app := range apps {
