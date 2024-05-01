@@ -1283,11 +1283,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 			if err != nil {
 				impl.logger.Errorw("error in rollback Create material", "err", err)
 			}
-		} else {
-			err = impl.transactionManager.CommitTx(tx)
-			if err != nil {
-				impl.logger.Errorw("error in committing tx Create material", "err", err)
-			}
 		}
 	}()
 	existingMaterials, err := impl.materialRepository.FindByAppId(createMaterialRequest.AppId)
@@ -1326,6 +1321,11 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
 	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Create material", "err", err)
+		return nil, err
+	}
 	impl.logger.Debugw("all materials are ", "materials", materials)
 	return createMaterialRequest, nil
 }
@@ -1341,11 +1341,6 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 			if err != nil {
 				impl.logger.Errorw("error in rollback Update material", "err", err)
 			}
-		} else {
-			err = impl.transactionManager.CommitTx(tx)
-			if err != nil {
-				impl.logger.Errorw("error in committing tx Update material", "err", err)
-			}
 		}
 	}()
 	updatedMaterial, err := impl.updateMaterial(updateMaterialDTO, tx)
@@ -1357,6 +1352,11 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	err = impl.updateRepositoryToGitSensor(updatedMaterial)
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
+		return nil, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Update material", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil
