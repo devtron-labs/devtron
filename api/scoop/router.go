@@ -22,6 +22,10 @@ func NewRouterImpl(restHandler RestHandler, watcherRestHandler autoRemediation.W
 }
 
 func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
+
+	router.Path("/intercept-event/notify").
+		HandlerFunc(impl.restHandler.HandleNotificationEvent).Methods("POST")
+
 	router.Path("/intercept-event").
 		HandlerFunc(impl.restHandler.HandleInterceptedEvent).Methods("POST")
 	router.Path("/watchers/sync").

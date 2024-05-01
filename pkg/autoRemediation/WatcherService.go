@@ -295,6 +295,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 	}, nil
 
 }
+
 func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, error) {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
@@ -516,7 +517,7 @@ func watcherExists(watcher *repository.Watcher, combinedData []CombinedData) boo
 }
 
 func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
-	//TODO : implemented under assumption of having one trigger for one watcher of type JOB only
+	// TODO : implemented under assumption of having one trigger for one watcher of type JOB only
 	params := repository.WatcherQueryParams{
 		Offset:      offset,
 		Size:        size,
