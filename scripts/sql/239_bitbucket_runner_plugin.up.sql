@@ -1,12 +1,8 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES (nextval('id_seq_plugin_metadata'),'BitBucket Runner Trigger v1.0.0' , 'The plugin enables users to trigger the runner in the BitBucket .','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/bitbucket-logo-plugin.jpeg',false,'now()',1,'now()',1);
 
-
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)VALUES (nextval('id_seq_plugin_stage_mapping'),
 (SELECT id from plugin_metadata where name='BitBucket Runner Trigger v1.0.0'), 0,'now()',1,'now()',1);
-
-
-
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
