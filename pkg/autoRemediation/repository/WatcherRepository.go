@@ -118,14 +118,11 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 	if params.Search != "" {
 		query = query.Where("name ILIKE ? ", "%"+params.Search+"%")
 	}
-	if params.SortOrderBy == "name" {
-		if params.SortOrder == "desc" {
-			query = query.Order("name desc")
-		} else {
-			query = query.Order("name asc")
-		}
+	if params.SortOrder == "desc" {
+		query = query.Order("name desc")
+	} else {
+		query = query.Order("name asc")
 	}
-	// Count total number of watchers
 	total, err := query.Where("active = ?", true).Count()
 	if err != nil {
 		return []*Watcher{}, 0, err

@@ -497,7 +497,7 @@ type CombinedData struct {
 	Watcher *repository.Watcher
 }
 
-func sortByWatcher(combinedData []CombinedData, watchersList []*repository.Watcher) []CombinedData {
+func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*repository.Watcher) []CombinedData {
 	sort.Slice(combinedData, func(i, j int) bool {
 		indexI := indexOfWatcher(combinedData[i].Watcher.Id, watchersList)
 		indexJ := indexOfWatcher(combinedData[j].Watcher.Id, watchersList)
@@ -506,16 +506,15 @@ func sortByWatcher(combinedData []CombinedData, watchersList []*repository.Watch
 	return combinedData
 }
 
-// Define a function to check if a watcher is already present in combinedData
-func watcherExists(watcher *repository.Watcher, combinedData []CombinedData) bool {
-	for _, data := range combinedData {
-		if data.Watcher.Id == watcher.Id {
-			return true
+func SortByTime(combinedData []CombinedData, sortOrder string) {
+	less := func(i, j int) bool {
+		if sortOrder == "asc" {
+			return combinedData[i].time.Before(combinedData[j].time)
 		}
+		return combinedData[i].time.After(combinedData[j].time)
 	}
-	return false
+	sort.Slice(combinedData, less)
 }
-
 func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
 	// TODO : implemented under assumption of having one trigger for one watcher of type JOB only
 	params := repository.WatcherQueryParams{
@@ -555,7 +554,6 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		triggerIdWatcherId[trigger.Id] = trigger.WatcherId
 	}
 	var jobPipelineIds []int
-	// watcherData := make(map[int]repository.Watcher)
 	triggerDto := make(map[int]Trigger)
 	for _, trigger := range triggers {
 		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
@@ -564,7 +562,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			return WatchersResponse{}, err
 		}
 		jobPipelineIds = append(jobPipelineIds, triggerResp.PipelineId)
-		triggerDto[triggerResp.PipelineId] = Trigger{
+		triggerDto[trigger.WatcherId] = Trigger{
 			Id:             trigger.Id,
 			IdentifierType: trigger.Type,
 			Data: TriggerData{
@@ -581,34 +579,39 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 	}
 	var ciWorkflows []*pipelineConfig.CiWorkflow
 	if len(jobPipelineIds) != 0 {
-		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds, sortOrder)
+		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
 			return WatchersResponse{}, err
 		}
 	}
-
-	// var sortedPipe []int
 	var combinedData []CombinedData
+	pipelineIdTime := make(map[int]time.Time)
 	for _, workflow := range ciWorkflows {
-		trigger := triggerDto[workflow.CiPipelineId]
-		watcher := watcherData[triggerIdWatcherId[trigger.Id]]
-		combinedData = append(combinedData, CombinedData{
-			time:    workflow.StartedOn,
-			Trigger: &trigger,
-			Watcher: watcher,
-		})
+		pipelineIdTime[workflow.CiPipelineId] = workflow.StartedOn
 	}
-	for _, watcher := range watchers {
-		if !watcherExists(watcher, combinedData) {
-			combinedData = append(combinedData, CombinedData{
-				Trigger: nil,
-				Watcher: watcher,
-			})
+	for _, id := range watcherIds {
+		if _, exists := triggerDto[id]; exists {
+			trigger := triggerDto[id]
+			watcher := watcherData[triggerIdWatcherId[trigger.Id]]
+			if trigger.Id != 0 {
+				combinedData = append(combinedData, CombinedData{
+					time:    pipelineIdTime[trigger.Data.PipelineId],
+					Trigger: &trigger,
+					Watcher: watcher,
+				})
+			} else {
+				combinedData = append(combinedData, CombinedData{
+					Trigger: nil,
+					Watcher: watcher,
+				})
+			}
 		}
 	}
-	if sortOrderBy != "triggeredAt" {
-		combinedData = sortByWatcher(combinedData, watchers)
+	if sortOrderBy == "triggeredAt" {
+		SortByTime(combinedData, sortOrder)
+	} else {
+		sortByWatcherNameOrder(combinedData, watchers)
 	}
 	watcherResponses := WatchersResponse{
 		Size:   params.Size,
