@@ -531,6 +531,12 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
 			}
+			// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
+			// requested app in not assigned to any project.
+			if isOtherExtAppMigrated {
+				app.TeamId = 0
+				app.Team.Name = ""
+			}
 		}
 		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
@@ -538,12 +544,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string, userId 
 		if util2.IsExternalChartStoreApp(app.DisplayName) {
 			displayName = app.DisplayName
 		}
-		// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
-		// requested app in not assigned to any project.
-		if isOtherExtAppMigrated {
-			app.TeamId = 0
-			app.Team.Name = ""
-		}
+
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
 		if err != nil {
