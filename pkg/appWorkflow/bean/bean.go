@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	WEBHOOK_TYPE     = "WEBHOOK"
 	CD_PIPELINE_TYPE = "CD_PIPELINE"
 	CI_PIPELINE_TYPE = "CI_PIPELINE"
 )
@@ -60,8 +61,16 @@ func (dto AppWorkflowMappingDto) GetParentPipelineIdentifier() PipelineIdentifie
 	}
 }
 
-type AllAppWorkflowComponentDetails struct {
+type AllAppWorkflowComponentNames struct {
 	Workflows []*WorkflowComponentNamesDto `json:"workflows"`
+}
+
+type AppWorkflowComponentDetails struct {
+	Id           int                        `json:"id"`
+	WorkflowName string                     `json:"workflowName"`
+	AppId        int                        `json:"-"`
+	CiPipeline   *bean.CiComponentDetails   `json:"ciPipeline"`
+	CdPipelines  []*bean.CdComponentDetails `json:"cdPipelines"`
 }
 
 type WorkflowComponentNamesDto struct {
@@ -99,4 +108,10 @@ type WorkflowMappingsNotFoundError struct {
 
 func (w WorkflowMappingsNotFoundError) Error() string {
 	return fmt.Sprintf("workflow not found %v not found", w.WorkflowIds)
+}
+
+type WorkflowComponents struct {
+	CiPipelineId         int
+	ExternalCiPipelineId int
+	CdPipelineIds        []int
 }

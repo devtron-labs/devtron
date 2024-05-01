@@ -108,6 +108,7 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
 	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error)
 	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error)
+	GetSourceCiPipelineForArtifact(ciPipeline *pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2328,4 +2329,53 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.C
 	data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails, latestWfrs...)
 	response.PushData(data...)
 	return response, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiPipelineForArtifact(ciPipeline *pipelineConfig.CiPipeline) (sourceCiPipeline *pipelineConfig.CiPipeline, err error) {
+	sourceCiPipeline = ciPipeline
+	if adapter.IsLinkedCD(sourceCiPipeline) {
+		var sourceCdPipeline *pipelineConfig.Pipeline
+		if !sourceCiPipeline.Active {
+			sourceCdPipeline, err = impl.pipelineRepository.FindByIdEvenIfInactive(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+		} else {
+			sourceCdPipeline, err = impl.pipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+		}
+		if sourceCdPipeline.Deleted {
+			sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithMinDataIncludingInactive(sourceCdPipeline.CiPipelineId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
+				return nil, err
+			}
+		} else {
+			sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithMinData(sourceCdPipeline.CiPipelineId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
+				return nil, err
+			}
+		}
+	}
+	if adapter.IsLinkedCI(sourceCiPipeline) {
+		if !sourceCiPipeline.Active {
+			sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithMinDataIncludingInactive(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+		} else {
+			sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithMinData(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+		}
+	}
+	return sourceCiPipeline, nil
 }

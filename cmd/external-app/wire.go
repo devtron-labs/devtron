@@ -44,9 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -113,10 +111,7 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 		devtronResource.DevtronResourceWireSetEA,
-		helper.NewAppListingRepositoryQueryBuilder,
-		repository.NewAppListingRepositoryImpl,
 
-		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
@@ -244,9 +239,6 @@ func InitializeApp() (*App, error) {
 
 		deploymentWindow.NewDeploymentWindowServiceImplEA,
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
-
-		appWorkflow.NewAppWorkflowRepositoryImpl,
-		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
 
 		appStore.AppStoreWireSet,
 	)

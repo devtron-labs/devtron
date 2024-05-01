@@ -21,6 +21,9 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 	devtronResourceRouter.Path("/list/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.GetResourceObjectListByKindAndVersion).Methods("GET")
 
+	devtronResourceRouter.Path("/dependencies/config-options/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
+		HandlerFunc(router.devtronResourceRestHandler.GetDependencyConfigOptions).Methods("GET")
+
 	devtronResourceRouter.Path("/dependencies/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.GetResourceDependencies).Methods("GET")
 

@@ -749,7 +749,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 
 	if ciPipeline != nil && ciPipeline.Id > 0 {
-		sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
+		sourceCiPipeline, err := impl.ciCdPipelineOrchestrator.GetSourceCiPipelineForArtifact(ciPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
@@ -921,7 +921,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for CI Job
-	if adapter.IsCIJob(sourceCiPipeline) {
+	if adapter.IsCIJob(&sourceCiPipeline) {
 		// for bean.CI_JOB the source artifact is always driven from overridden ci template
 		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
 		if err != nil {
@@ -932,7 +932,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for Linked CI
-	if adapter.IsLinkedCI(sourceCiPipeline) {
+	if adapter.IsLinkedCI(&sourceCiPipeline) {
 		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
@@ -955,22 +955,6 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	return buildRegistryConfig, nil
 }
 
-func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error) {
-	sourceCiPipeline := &ciPipeline
-	if adapter.IsLinkedCD(ciPipeline) {
-		sourceCdPipeline, err := impl.pipelineRepository.FindById(ciPipeline.ParentCiPipeline)
-		if err != nil {
-			impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
-			return nil, err
-		}
-		sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithAppData(sourceCdPipeline.CiPipelineId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
-			return nil, err
-		}
-	}
-	return sourceCiPipeline, nil
-}
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
 	var imagePathReservationIds []int

@@ -1287,7 +1287,7 @@ func (impl *NotificationConfigServiceImpl) GetNotificationConfigForImageScanSucc
 	req := repository.GetRulesRequest{}
 	if imageScanningEvent.PipelineType == util.CI {
 		impl.logger.Debugw("fetching notification settings for", "ciPipelineId", imageScanningEvent.CiPipelineId)
-		ciPipeline, err := impl.ciPipelineRepository.FindOneWithAppData(imageScanningEvent.CiPipelineId)
+		ciPipeline, err := impl.ciPipelineRepository.FindOneWithMinData(imageScanningEvent.CiPipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in getting ciPipeline by id", "ciPipelineId", imageScanningEvent.CiPipelineId, "err", err)
 			return nil, err

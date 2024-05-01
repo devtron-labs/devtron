@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -121,6 +122,7 @@ type PipelineConfigRestHandlerImpl struct {
 	dockerRegistryConfig                pipeline.DockerRegistryConfig
 	cdHandler                           pipeline.CdHandler
 	appCloneService                     appClone.AppCloneService
+	appService                          app2.AppService
 	materialRepository                  pipelineConfig.MaterialRepository
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
@@ -155,6 +157,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
+	appService app2.AppService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
@@ -191,6 +194,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		dockerRegistryConfig:                dockerRegistryConfig,
 		cdHandler:                           cdHandler,
 		appCloneService:                     appCloneService,
+		appService:                          appService,
 		appWorkflowService:                  appWorkflowService,
 		materialRepository:                  materialRepository,
 		policyService:                       policyService,

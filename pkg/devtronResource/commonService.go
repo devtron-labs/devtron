@@ -12,6 +12,7 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/exp/slices"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -200,7 +201,7 @@ func (impl *DevtronResourceServiceImpl) getDependenciesInObjectDataFromJsonStrin
 		ResourceVersion: bean.DevtronResourceVersion(version),
 	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), isLite)
+		dependencyBean, err := impl.getDependencyBeanForGetDependenciesApi(parentResourceType, dependencyResult.String(), isLite)
 		if err != nil {
 			return nil, err
 		}
@@ -237,21 +238,33 @@ func (impl *DevtronResourceServiceImpl) getMetadataForAnyDependency(resourceSche
 }
 
 func (impl *DevtronResourceServiceImpl) getFilteredDependenciesWithMetaData(dependenciesOfParent []*bean.DevtronResourceDependencyBean,
-	filterTypes []bean.DevtronResourceDependencyType, dependencyFilterKeys []string, metadataObj *bean.DependencyMetaDataBean, appIdNameMap map[int]string) []*bean.DevtronResourceDependencyBean {
+	filterTypes []bean.DevtronResourceDependencyType, dependencyFilterKeys []bean.FilterKeyObject, metadataObj *bean.DependencyMetaDataBean, oldObjectIdToIdentifierMap map[int]string) []*bean.DevtronResourceDependencyBean {
 	filteredDependenciesOfParent := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesOfParent))
 	for _, dependencyOfParent := range dependenciesOfParent {
 		if slices.Contains(filterTypes, dependencyOfParent.TypeOfDependency) {
-			dependencyFilterKey := helper.GetKeyForADependencyMap(dependencyOfParent.OldObjectId, dependencyOfParent.DevtronResourceSchemaId)
-			if dependencyFilterKeys != nil && len(dependencyFilterKeys) != 0 && !slices.Contains(dependencyFilterKeys, dependencyFilterKey) {
+			if pass := validateDependencyFilterCondition(dependencyOfParent, dependencyFilterKeys); !pass {
 				continue
 			}
 			filteredDependenciesOfParent = append(filteredDependenciesOfParent, dependencyOfParent)
 			dependencyOfParent.Metadata = impl.getMetadataForAnyDependency(dependencyOfParent.DevtronResourceSchemaId,
 				dependencyOfParent.OldObjectId, metadataObj)
-			dependencyOfParent.Identifier = appIdNameMap[dependencyOfParent.OldObjectId]
+			dependencyOfParent.Identifier = oldObjectIdToIdentifierMap[dependencyOfParent.OldObjectId]
 		}
 	}
 	return filteredDependenciesOfParent
+}
+
+func validateDependencyFilterCondition(dependencyOfParent *bean.DevtronResourceDependencyBean, dependencyFilterKeys []bean.FilterKeyObject) bool {
+	dependencyFilterKey := helper.GetDependencyIdentifierMap(dependencyOfParent.DevtronResourceSchemaId, strconv.Itoa(dependencyOfParent.OldObjectId))
+	allDependencyFilterKey := helper.GetDependencyIdentifierMap(dependencyOfParent.DevtronResourceSchemaId, bean.AllIdentifierQueryString)
+	if dependencyFilterKeys == nil || len(dependencyFilterKeys) == 0 {
+		return true
+	} else if slices.Contains(dependencyFilterKeys, dependencyFilterKey) {
+		return true
+	} else if slices.Contains(dependencyFilterKeys, allDependencyFilterKey) {
+		return true
+	}
+	return false
 }
 
 func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJsonString(devtronResourceSchemaId int, objectData string, typeOfDependency bean.DevtronResourceDependencyType) ([]*bean.DevtronResourceDependencyBean, error) {
@@ -279,4 +292,22 @@ func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJ
 		dependencies = append(dependencies, dependencyBean)
 	}
 	return dependencies, nil
+}
+
+func DecodeFilterCriteriaString(criteria string) (*bean.FilterCriteriaDecoder, error) {
+	objs := strings.Split(criteria, "|")
+	if len(objs) != 3 {
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+	}
+	criteriaDecoder := adapter.BuildFilterCriteriaDecoder(objs[0], objs[1], objs[2])
+	return criteriaDecoder, nil
+}
+
+func DecodeSearchKeyString(searchKey string) (*bean.SearchCriteriaDecoder, error) {
+	objs := strings.Split(searchKey, "|")
+	if len(objs) != 2 {
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidSearchKey, bean.InvalidSearchKey)
+	}
+	searchDecoder := adapter.BuildSearchCriteriaDecoder(objs[0], objs[1])
+	return searchDecoder, nil
 }

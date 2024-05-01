@@ -52,8 +52,8 @@ type AppRepository interface {
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
-	FindActiveByNameAndAppType(appName string, appType helper.AppType) (*App, error)
-	FindIdByName(appName string) (int, error)
+	FindIdByNameAndAppType(appName string, appType helper.AppType) (int, error)
+	FindIdsByNamesAndAppType(appNames []string, appType helper.AppType) ([]int, error)
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
@@ -148,13 +148,14 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 	return pipelineGroup, err
 }
 
-func (repo AppRepositoryImpl) FindIdByName(appName string) (int, error) {
+func (repo AppRepositoryImpl) FindIdByNameAndAppType(appName string, appType helper.AppType) (int, error) {
 	var id int
 	err := repo.dbConnection.
 		Model().
 		Table("app").
 		Column("app.id").
 		Where("app_name = ?", appName).
+		Where("app.app_type = ?", appType).
 		Where("active = ?", true).
 		Order("id DESC").Limit(1).
 		Select(&id)
@@ -162,17 +163,21 @@ func (repo AppRepositoryImpl) FindIdByName(appName string) (int, error) {
 	return id, err
 }
 
-func (repo AppRepositoryImpl) FindActiveByNameAndAppType(appName string, appType helper.AppType) (*App, error) {
-	pipelineGroup := &App{}
+func (repo AppRepositoryImpl) FindIdsByNamesAndAppType(appNames []string, appType helper.AppType) ([]int, error) {
+	if appNames == nil || len(appNames) == 0 {
+		return nil, pg.ErrNoRows
+	}
+	var ids []int
 	err := repo.dbConnection.
-		Model(pipelineGroup).
-		Where("app_name = ?", appName).
+		Model().
+		Table("app").
+		Column("app.id").
+		Where("app_name IN (?)", pg.In(appNames)).
 		Where("app.app_type = ?", appType).
 		Where("active = ?", true).
-		Order("id DESC").Limit(1).
-		Select()
+		Select(&ids)
 	// there is only single active app will be present in db with a same name.
-	return pipelineGroup, err
+	return ids, err
 }
 
 func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error) {

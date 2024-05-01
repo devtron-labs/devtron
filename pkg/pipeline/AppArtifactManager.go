@@ -25,7 +25,6 @@ import (
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
@@ -56,6 +55,8 @@ import (
 type AppArtifactManager interface {
 	// RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
+
+	RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error)
 
 	RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
@@ -98,6 +99,7 @@ type AppArtifactManagerImpl struct {
 	appWorkflowDataReadService       read3.AppWorkflowDataReadService
 	ciPipelineConfigService          CiPipelineConfigService
 	enforcerUtil                     rbac.EnforcerUtil
+	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
 }
 
 func NewAppArtifactManagerImpl(
@@ -124,6 +126,7 @@ func NewAppArtifactManagerImpl(
 	appWorkflowDataReadService read3.AppWorkflowDataReadService,
 	ciPipelineConfigService CiPipelineConfigService,
 	enforcerUtil rbac.EnforcerUtil,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
@@ -154,6 +157,7 @@ func NewAppArtifactManagerImpl(
 		appWorkflowDataReadService:       appWorkflowDataReadService,
 		ciPipelineConfigService:          ciPipelineConfigService,
 		enforcerUtil:                     enforcerUtil,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
 	}
 }
 
@@ -355,9 +359,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 			deployedCiArtifacts[i].ImageComment = imageCommentResp
 			releaseTags := make([]string, 0, len(imageTaggingResp))
 			for _, imageTag := range imageTaggingResp {
-				if !imageTag.Deleted {
-					releaseTags = append(releaseTags, imageTag.TagName)
-				}
+				releaseTags = append(releaseTags, imageTag.TagName)
 			}
 			materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
 			if err != nil {
@@ -449,9 +451,7 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(ctx *util2.Reques
 		}
 		releaseTags := make([]string, 0, len(imageTaggingResp))
 		for _, imageTag := range imageTaggingResp {
-			if !imageTag.Deleted {
-				releaseTags = append(releaseTags, imageTag.TagName)
-			}
+			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 		materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
 		if err != nil {
@@ -670,9 +670,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 
 		releaseTags := make([]string, 0, len(imageTaggingResp))
 		for _, imageTag := range imageTaggingResp {
-			if !imageTag.Deleted {
-				releaseTags = append(releaseTags, imageTag.TagName)
-			}
+			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 		materialInfos, err := ciArtifacts[i].GetMaterialInfo()
 		if err != nil {
@@ -749,6 +747,75 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error) {
+	var artifactEntities []repository.CiArtifact
+	var totalCount int
+	var err error
+	if workflowComponents.Limit == 0 {
+		workflowComponents.Limit = 20
+	}
+	if len(workflowComponents.SearchImageTag) == 0 {
+		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
+			workflowComponents.CiPipelineIds,
+			workflowComponents.ExternalCiPipelineIds,
+			workflowComponents.CdPipelineIds,
+			workflowComponents.SearchArtifactTag,
+			workflowComponents.Offset,
+			workflowComponents.Limit,
+		)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
+			return bean2.CiArtifactResponse{}, err
+		}
+	} else {
+		artifactEntity, err := impl.ciArtifactRepository.GetArtifactByImageTagAndAppId(workflowComponents.SearchImageTag, workflowComponents.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
+			return bean2.CiArtifactResponse{}, err
+		}
+		if artifactEntity.Id != 0 {
+			artifactEntities = []repository.CiArtifact{artifactEntity}
+			totalCount = 1
+		}
+	}
+	artifactResponse := bean2.CiArtifactResponse{
+		CiArtifacts: bean2.ConvertArtifactEntityToModel(artifactEntities),
+		TotalCount:  totalCount,
+	}
+	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(workflowComponents.CdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineId to envName mapping", "cdPipelineIds", workflowComponents.CdPipelineIds, "err", err)
+		return artifactResponse, err
+	}
+	if len(artifactResponse.CiArtifacts) > 0 {
+		artifactResponse.CiArtifacts, err = impl.setAdditionalDataInArtifacts(artifactResponse.CiArtifacts, workflowComponents.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in artifacts", "appId", workflowComponents.AppId, "err", err)
+			return artifactResponse, err
+		}
+		deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(artifactResponse.CiArtifacts, workflowComponents.CdPipelineIds, pipelineIdToEnvName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineIds", workflowComponents.CdPipelineIds, "err", err)
+			return artifactResponse, err
+		}
+		artifactResponse.CiArtifacts = bean2.GetArtifactResponseWithDeployedOnEnvironments(artifactResponse.CiArtifacts, deployedEnvironmentsForArtifacts)
+		artifactResponse.CiArtifacts, err = impl.setGitTriggerData(artifactResponse.CiArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "appId", workflowComponents.AppId, "err", err)
+			return artifactResponse, err
+		}
+	}
+	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(workflowComponents.AppId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetTagsByAppId", "appId", workflowComponents.AppId, "err", err)
+		return artifactResponse, err
+	}
+	artifactResponse.TagsEditable = hasProdEnv
+	artifactResponse.AppReleaseTagNames = appTags
+	artifactResponse.RequestedUserId = workflowComponents.UserId
+	return artifactResponse, err
+}
+
 func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipelineConfig.Pipeline, artifactListingFilterOpts *bean.ArtifactsListFilterOptions) (*bean2.CiArtifactResponse, error) {
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
@@ -792,7 +859,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 				}
 			}
 			// set userApprovalMetaData ends
-			ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline.AppId)
+			ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline.AppId, filters...)
 			if err != nil {
 				impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 				return ciArtifactsResponse, err
@@ -993,7 +1060,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(ctx *util2.R
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
-		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline.AppId)
+		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, pipeline.AppId, filters...)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 			return ciArtifactsResponse, err
@@ -1055,32 +1122,22 @@ func (impl *AppArtifactManagerImpl) setDeploymentWindowMetadata(ciArtifacts []be
 	return ciArtifacts, nil
 }
 
-func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtifacts []bean2.CiArtifactBean, wfMetadata *bean4.PromotionRequestWfMetadata) ([]bean2.CiArtifactBean, error) {
-	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(ciArtifacts, wfMetadata)
+func (impl *AppArtifactManagerImpl) setDeployedOnEnvironmentsForArtifact(ciArtifacts []bean2.CiArtifactBean, wfMetadata *pipelineBean.PromotionRequestWfMetadata) ([]bean2.CiArtifactBean, error) {
+	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(ciArtifacts, wfMetadata.GetCdPipelineIds(), wfMetadata.GetPipelineIdToEnvNameMap())
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineIds", wfMetadata.GetCdPipelineIds(), "err", err)
 		return ciArtifacts, err
 	}
-	for i, artifact := range ciArtifacts {
-		// envs on which this artifact is deployed
-		if _, ok := deployedEnvironmentsForArtifacts[artifact.Id]; ok {
-			ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
-		}
-	}
-	return ciArtifacts, nil
+	return bean2.GetArtifactResponseWithDeployedOnEnvironments(ciArtifacts, deployedEnvironmentsForArtifacts), nil
 }
 
-func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(ciArtifacts []bean2.CiArtifactBean, wfMetadata *bean4.PromotionRequestWfMetadata) (artifactIdToDeployedEnvMap map[int][]string, err error) {
-
-	wfCdPipelineIds := wfMetadata.GetCdPipelineIds()
-
+func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(ciArtifacts []bean2.CiArtifactBean, wfCdPipelineIds []int, pipelineIdToEnvName map[int]string) (artifactIdToDeployedEnvMap map[int][]string, err error) {
 	deployedArtifactToPipelineIDMapping, err := impl.getlatestArtifactDeployedOnPipelines(wfCdPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest artifact deployed on pipeline", "wfCdPipelineIds", wfCdPipelineIds, "err", err)
 		return artifactIdToDeployedEnvMap, err
 	}
 
-	pipelineIdToEnvName := wfMetadata.GetPipelineIdToEnvNameMap()
 	artifactToDeployedOnEnvsMapping := make(map[int][]string)
 	for _, artifact := range ciArtifacts {
 		if pipelineId, ok := deployedArtifactToPipelineIDMapping[artifact.Id]; ok {
@@ -1121,8 +1178,7 @@ func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPip
 	return artifactToDeployedPipelineIDMapping, nil
 }
 
-func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, appId int) ([]bean2.CiArtifactBean, error) {
-	// TODO Extract out this logic to adapter
+func (impl *AppArtifactManagerImpl) getImageTagDataForArtifacts(ciArtifacts []bean2.CiArtifactBean, appId int) (map[int][]*repository3.ImageTag, map[int]*repository3.ImageComment, error) {
 	artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
 		artifactIds = append(artifactIds, artifact.Id)
@@ -1131,15 +1187,23 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tagging data with appId", "err", err, "appId", appId)
-		return ciArtifacts, err
+		return nil, nil, err
 	}
 
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", appId, "artifactIds", artifactIds)
-		return ciArtifacts, err
+		return nil, nil, err
 	}
+	return imageTagsDataMap, imageCommentsDataMap, nil
+}
 
+func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, appId int, filters ...*resourceFilter.FilterMetaDataBean) ([]bean2.CiArtifactBean, error) {
+	// TODO Extract out this logic to adapter
+	imageTagsDataMap, imageCommentsDataMap, err := impl.getImageTagDataForArtifacts(ciArtifacts, appId)
+	if err != nil {
+		return nil, err
+	}
 	for i, _ := range ciArtifacts {
 		imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
 		if imageTaggingResp != nil {
@@ -1157,41 +1221,66 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			}
 			ciArtifacts[i].FilterState = impl.getFilterState(imageTaggingResp, filters, ciArtifacts[i].Image, materialInfos)
 		}
-
-		var dockerRegistryId string
-		if ciArtifacts[i].DataSource == repository.POST_CI || ciArtifacts[i].DataSource == repository.PRE_CD || ciArtifacts[i].DataSource == repository.POST_CD {
-			if ciArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
-				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
-			}
-		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
-			// need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
-			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
-				return nil, err
-			}
-			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
-				ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
-				if err != nil {
-					impl.logger.Errorw("error in fetching template override", "pipelineId", ciPipeline.Id, "err", err)
-					return nil, err
-				}
-				dockerRegistryId = ciTemplateBean.CiTemplateOverride.DockerRegistryId
-			} else {
-				dockerRegistryId = *ciPipeline.CiTemplate.DockerRegistryId
-			}
+		registryType, registryName, err := impl.getDockerRegistryDataForArtifact(ciArtifacts[i])
+		if err != nil {
+			return nil, err
 		}
-		if len(dockerRegistryId) > 0 {
-			dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
-			if err != nil {
-				impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
-			}
-			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
-			ciArtifacts[i].RegistryName = dockerRegistryId
-		}
+		ciArtifacts[i].RegistryType = registryType
+		ciArtifacts[i].RegistryName = registryName
 	}
 	return ciArtifacts, nil
 
+}
+
+func (impl *AppArtifactManagerImpl) getDockerRegistryDataForArtifact(ciArtifact bean2.CiArtifactBean) (registryType, registryName string, err error) {
+	dockerRegistryId, err := impl.getDockerRegistryId(ciArtifact)
+	if err != nil {
+		impl.logger.Errorw("error in getting dockerRegistryId", "ciPipelineId", ciArtifact.CiPipelineId, "error", err)
+		return registryType, registryName, err
+	}
+	if len(dockerRegistryId) > 0 {
+		dockerArtifact, err := impl.dockerArtifactRegistry.FindOne(dockerRegistryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting docker registry details", "err", err, "dockerArtifactStoreId", dockerRegistryId)
+		}
+		if dockerArtifact != nil {
+			registryType = string(dockerArtifact.RegistryType)
+		}
+		registryName = dockerRegistryId
+	}
+	return registryType, registryName, nil
+}
+
+func (impl *AppArtifactManagerImpl) getDockerRegistryId(ciArtifact bean2.CiArtifactBean) (dockerRegistryId string, err error) {
+	if ciArtifact.DataSource == repository.POST_CI || ciArtifact.DataSource == repository.PRE_CD || ciArtifact.DataSource == repository.POST_CD {
+		if ciArtifact.CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
+			dockerRegistryId = ciArtifact.CredentialsSourceValue
+		}
+	} else if ciArtifact.DataSource == repository.CI_RUNNER {
+		// need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+		ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifact.CiPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifact.CiPipelineId, "error", err)
+			return dockerRegistryId, err
+		}
+		// need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+		sourceCiPipeline, err := impl.ciCdPipelineOrchestrator.GetSourceCiPipelineForArtifact(ciPipeline)
+		if err != nil {
+			impl.logger.Errorw("error in fetching sourceCiPipeline", "ciPipelineId", ciArtifact.CiPipelineId, "error", err)
+			return dockerRegistryId, err
+		}
+		if !sourceCiPipeline.IsExternal && sourceCiPipeline.IsDockerConfigOverridden {
+			ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(sourceCiPipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching template override", "sourceCiPipelineId", sourceCiPipeline.Id, "err", err)
+				return dockerRegistryId, err
+			}
+			dockerRegistryId = ciTemplateBean.CiTemplateOverride.DockerRegistryId
+		} else if sourceCiPipeline != nil {
+			dockerRegistryId = *sourceCiPipeline.CiTemplate.DockerRegistryId
+		}
+	}
+	return dockerRegistryId, nil
 }
 
 func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArtifactBean) ([]bean2.CiArtifactBean, error) {
@@ -1594,7 +1683,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 	}
 
 	if len(ciArtifactResponse.CiArtifacts) > 0 {
-		ciArtifactResponse.CiArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifactResponse.CiArtifacts, nil, request.GetAppId())
+		ciArtifactResponse.CiArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifactResponse.CiArtifacts, request.GetAppId())
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data in artifacts", "appId", request.GetAppId(), "err", err)
 			return ciArtifactResponse, err
@@ -1626,18 +1715,18 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(ctx *util2
 	return ciArtifactResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCtx, workflowId int) (*bean4.PromotionRequestWfMetadata, error) {
+func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCtx, workflowId int) (*pipelineBean.PromotionRequestWfMetadata, error) {
 
 	cdPipelineIds, _, err := impl.appWorkflowDataReadService.FindCDPipelineIdsAndCdPipelineIdToWfIdMapping([]int{workflowId})
 	if err != nil {
 		impl.logger.Errorw("error in getting workflow cdPipelineIds and cdPipelineIdToWorkflowIdMapping", "workflowId", workflowId, "err", err)
-		return &bean4.PromotionRequestWfMetadata{}, err
+		return &pipelineBean.PromotionRequestWfMetadata{}, err
 	}
 
 	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(cdPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting pipelineId to envName mapping", "cdPipelineIds", cdPipelineIds, "err", err)
-		return &bean4.PromotionRequestWfMetadata{}, err
+		return &pipelineBean.PromotionRequestWfMetadata{}, err
 	}
 
 	imagePromoterRbacObjects, pipelineIdToRbacObjMapping := impl.enforcerUtil.GetTeamRbacObjectsByPipelineIds(cdPipelineIds)
@@ -1652,7 +1741,7 @@ func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCt
 		}
 	}
 
-	promotionRequestWfMetadata := &bean4.PromotionRequestWfMetadata{}
+	promotionRequestWfMetadata := &pipelineBean.PromotionRequestWfMetadata{}
 	promotionRequestWfMetadata = promotionRequestWfMetadata.
 		WithCdPipelineIds(cdPipelineIds).
 		WithAuthCdPipelineIds(authorizedPipelineIds).
@@ -1663,7 +1752,7 @@ func (impl *AppArtifactManagerImpl) getWfMetadataForRequest(ctx *util2.RequestCt
 
 }
 
-func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) getPromotionArtifactsForResource(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *pipelineBean.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
 
 	ciArtifactResponse := bean2.CiArtifactResponse{}
 	var err error
@@ -1803,7 +1892,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 	}, nil
 }
 
-func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *bean4.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.RequestCtx, request *bean.PromotionMaterialRequest, wfMetadata *pipelineBean.PromotionRequestWfMetadata) (bean2.CiArtifactResponse, error) {
 
 	imagePromoterAuthCDPipelineIds := wfMetadata.GetAuthCdPipelineIds()
 

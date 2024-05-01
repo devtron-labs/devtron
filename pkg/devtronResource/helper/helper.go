@@ -72,6 +72,11 @@ func GetKindSubKindOfResource(devtronResource *repository.DevtronResource, devtr
 	return kind, subKind
 }
 
+func GetDependencyIdentifierMap(devtronResourceSchemaId int, oldObjectId string) bean.FilterKeyObject {
+	// key can be "oldObjectId-schemaId" or "name-schemaId"
+	return fmt.Sprintf("%d/%s", devtronResourceSchemaId, oldObjectId)
+}
+
 func GetResourceObjectIdAndType(existingResourceObject *repository.DevtronResourceObject) (objectId int, idType bean.IdType) {
 	idType = bean.IdType(gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectIdTypePath).String())
 	if idType == bean.ResourceObjectIdType {

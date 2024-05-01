@@ -29,6 +29,7 @@ type DevtronResourceRestHandler interface {
 	PatchResourceObject(w http.ResponseWriter, r *http.Request)
 	DeleteResourceObject(w http.ResponseWriter, r *http.Request)
 	GetResourceDependencies(w http.ResponseWriter, r *http.Request)
+	GetDependencyConfigOptions(w http.ResponseWriter, r *http.Request)
 	CreateOrUpdateResourceDependencies(w http.ResponseWriter, r *http.Request)
 	PatchResourceDependencies(w http.ResponseWriter, r *http.Request)
 	GetSchema(w http.ResponseWriter, r *http.Request)
@@ -159,6 +160,21 @@ func getReqBeanObjForGetResourceObject(w http.ResponseWriter, r *http.Request) (
 
 func getReqBeanObjAndQueryParamsForGetDependencies(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetDependencyQueryParams, bool) {
 	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetDependencyQueryParams](w, r)
+	if caughtError {
+		return nil, nil, caughtError
+	}
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, nil, caughtError
+	}
+	reqBeanDescriptor.OldObjectId = queryParams.Id
+	reqBeanDescriptor.Identifier = queryParams.Identifier
+	return reqBeanDescriptor, &queryParams, caughtError
+}
+
+func getReqBeanObjAndQueryParamsForGetConfigOptions(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetConfigOptionsQueryParams, bool) {
+	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetConfigOptionsQueryParams](w, r)
 	if caughtError {
 		return nil, nil, caughtError
 	}
@@ -354,6 +370,29 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 		return
 	}
 	resp, err := handler.devtronResourceService.GetResourceDependencies(reqBeanDescriptor, queryParams)
+	if err != nil {
+		handler.logger.Errorw("service error, GetResourceDependencies", "err", err, "request", reqBeanDescriptor)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) GetDependencyConfigOptions(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	reqBeanDescriptor, queryParams, caughtError := getReqBeanObjAndQueryParamsForGetConfigOptions(w, r)
+	if caughtError {
+		return
+	}
+	token := r.Header.Get("token")
+	isValidated := handler.checkAuthForDependencyGet(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	reqBeanDescriptor.UserId = ctx.GetUserId()
+	resp, err := handler.devtronResourceService.GetDependencyConfigOptions(reqBeanDescriptor, queryParams)
 	if err != nil {
 		handler.logger.Errorw("service error, GetResourceDependencies", "err", err, "request", reqBeanDescriptor)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

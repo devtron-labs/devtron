@@ -8,7 +8,7 @@ type GetQueryParams struct {
 }
 
 type QueryParams interface {
-	GetQueryParams | GetResourceQueryParams | GetDependencyQueryParams
+	GetQueryParams | GetResourceQueryParams | GetDependencyQueryParams | GetConfigOptionsQueryParams
 }
 
 type GetResourceQueryParams struct {
@@ -21,6 +21,23 @@ type GetDependencyQueryParams struct {
 	IsLite           bool     `schema:"lite"`
 	DependenciesInfo []string `schema:"dependencyInfo"`
 }
+
+type ConfigOptionType = string
+
+type GetConfigOptionsQueryParams struct {
+	GetQueryParams
+	DependenciesInfo []string         `schema:"dependencyInfo,required"`
+	ConfigOption     ConfigOptionType `schema:"configOption"`
+	FilterCriteria   string           `schema:"filterCriteria"`
+	SearchKey        string           `schema:"searchKey"`
+	Limit            int              `schema:"limit"`
+	Offset           int              `schema:"offset"`
+}
+
+const (
+	ArtifactConfig ConfigOptionType = "artifact"
+	CommitConfig   ConfigOptionType = "commit"
+)
 
 type GetResourceListQueryParams struct {
 	IsLite         bool     `schema:"lite"`

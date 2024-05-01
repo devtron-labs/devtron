@@ -24,12 +24,12 @@ func (impl *DevtronResourceServiceImpl) getIdAndIdTypeFromIdentifierForDevtronAp
 	if resourceIdentifier.Id > 0 {
 		return resourceIdentifier.Id, bean.OldObjectId, nil
 	} else {
-		appModel, err := impl.appRepository.FindActiveByNameAndAppType(resourceIdentifier.Identifier, helper.CustomApp)
+		appId, err := impl.appRepository.FindIdByNameAndAppType(resourceIdentifier.Identifier, helper.CustomApp)
 		if err != nil {
 			impl.logger.Errorw("error in finding app by app name", "err", err, "appName", resourceIdentifier.Identifier)
 			return 0, "", err
 		}
-		return appModel.Id, bean.OldObjectId, nil
+		return appId, bean.OldObjectId, nil
 	}
 }
 

@@ -78,10 +78,18 @@ func BuildUserSchemaData(id int32, emailId string) *bean.UserSchema {
 		Icon: true,
 	}
 }
+
 func BuildFilterCriteriaDecoder(resource, identifierType, value string) *bean.FilterCriteriaDecoder {
 	return &bean.FilterCriteriaDecoder{
 		Resource: bean.DevtronResourceKind(resource),
 		Type:     bean.FilterCriteriaIdentifier(identifierType),
+		Value:    value,
+	}
+}
+
+func BuildSearchCriteriaDecoder(resource, value string) *bean.SearchCriteriaDecoder {
+	return &bean.SearchCriteriaDecoder{
+		SearchBy: bean.SearchPropertyBy(resource),
 		Value:    value,
 	}
 }
@@ -105,4 +113,32 @@ func BuildDevtronResourceObjectDescriptorBean(id int, kind, subKind bean.Devtron
 	}
 	SetIdTypeAndResourceIdBasedOnKind(reqBean, id)
 	return reqBean
+}
+
+func BuildEnvironmentBasicData(envName string, envId int) *bean.Environment {
+	return &bean.Environment{
+		Name: envName,
+		Id:   envId,
+	}
+}
+
+func BuildChildObject(data interface{}, dataType bean.ChildObjectType) *bean.ChildObject {
+	return &bean.ChildObject{
+		Data: data,
+		Type: dataType,
+	}
+}
+
+func BuildGitCommit(author string, branch string, message string, modifiedTime string, revision string, tag string, webhookData *bean.WebHookMaterialInfo, url string) bean.GitCommitData {
+	return bean.GitCommitData{
+		Author: author, Branch: branch, ModifiedTime: modifiedTime, Message: message, Revision: revision, Tag: tag, Url: url, WebhookData: webhookData,
+	}
+
+}
+func BuildWebHookMaterialInfo(id int, eventActionType string, data interface{}) *bean.WebHookMaterialInfo {
+	return &bean.WebHookMaterialInfo{Id: id, EventActionType: eventActionType, Data: data}
+}
+
+func GetDefaultCdPipelineSelector() []string {
+	return []string{bean.DefaultCdPipelineSelector}
 }

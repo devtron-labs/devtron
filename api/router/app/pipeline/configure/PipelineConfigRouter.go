@@ -154,4 +154,5 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.CreateUpdateImageTagging).Methods("POST")
 	configRouter.Path("/image-tagging/{ciPipelineId}/{artifactId}").HandlerFunc(router.restHandler.GetImageTaggingData).Methods("GET")
+	configRouter.Path("/image-tagging/list").HandlerFunc(router.restHandler.GetImageTagList).Methods("GET")
 }
