@@ -53,6 +53,7 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
 	WriteNatsEvent(channel string, payload interface{}) error
+	SendAnyEvent(event map[string]interface{}) (bool, error)
 }
 
 type Event struct {
@@ -287,4 +288,29 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 	}
 	err = impl.pubsubClient.Publish(topic, string(body))
 	return err
+}
+
+// do not call this method if notification module is not installed
+func (impl *EventRESTClientImpl) SendAnyEvent(event map[string]interface{}) (bool, error) {
+	impl.logger.Debugw("event before send", "event", event)
+	body, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("error while marshaling event request ", "err", err)
+		return false, err
+	}
+	var reqBody = []byte(body)
+	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		impl.logger.Errorw("error while writing event", "err", err)
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := impl.client.Do(req)
+	if err != nil {
+		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
+		return false, err
+	}
+	defer resp.Body.Close()
+	impl.logger.Debugw("event completed", "event resp", resp)
+	return true, err
 }

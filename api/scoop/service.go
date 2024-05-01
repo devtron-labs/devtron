@@ -3,19 +3,27 @@ package scoop
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
+	util5 "github.com/devtron-labs/devtron/util/event"
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+	"time"
 )
 
 type Service interface {
 	HandleInterceptedEvent(ctx context.Context, event *InterceptedEvent) error
+	HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error
 }
 
 type ServiceImpl struct {
@@ -24,6 +32,9 @@ type ServiceImpl struct {
 	ciHandler                    pipeline.CiHandler
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	interceptedEventsRepository  repository.InterceptedEventsRepository
+	clusterService               cluster.ClusterService
+	eventClient                  client2.EventClient
+	eventFactory                 client2.EventFactory
 }
 
 func NewServiceImpl(logger *zap.SugaredLogger,
@@ -31,6 +42,9 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	ciHandler pipeline.CiHandler,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	interceptedEventsRepository repository.InterceptedEventsRepository,
+	clusterService cluster.ClusterService,
+	eventClient client2.EventClient,
+	eventFactory client2.EventFactory,
 ) *ServiceImpl {
 	return &ServiceImpl{
 		logger:                       logger,
@@ -38,6 +52,9 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		ciHandler:                    ciHandler,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		interceptedEventsRepository:  interceptedEventsRepository,
+		clusterService:               clusterService,
+		eventClient:                  eventClient,
+		eventFactory:                 eventFactory,
 	}
 }
 
@@ -194,4 +211,29 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger) *repository
 	}
 
 	return interceptEventExec
+}
+
+func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error {
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster information by id", "clusterId", clusterId, "err", err)
+		return err
+	}
+	notification["cluster"] = cluster.ClusterName
+	notification["eventTypeId"] = util5.ScoopNotification
+	emailIfs, _ := notification["emailIds"].([]interface{})
+	emails := util2.Map(emailIfs, func(emailIf interface{}) string {
+		return emailIf.(string)
+	})
+	notification["correlationId"] = fmt.Sprintf("%s", uuid.NewV4())
+	notification["payload"] = &client2.Payload{
+		Providers: impl.eventFactory.BuildScoopNotificationEventProviders(emails),
+	}
+
+	notification["eventTime"] = time.Now()
+	_, err = impl.eventClient.SendAnyEvent(notification)
+	if err != nil {
+		impl.logger.Errorw("error in sending scoop event notification", "clusterId", clusterId, "notification", notification, "err", err)
+	}
+	return err
 }

@@ -47,10 +47,11 @@ type EventFactory interface {
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
-	//BuildFinalData(event Event) *Payload
+	// BuildFinalData(event Event) *Payload
 	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
 	SetAdditionalImageScanData(event *Event, ciPipelineId int, artifactId int)
 	BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event
+	BuildScoopNotificationEventProviders(emailIds []string) []*Provider
 }
 
 type EventSimpleFactoryImpl struct {
@@ -733,4 +734,26 @@ func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId i
 	}
 	auditData := deploymentWindow.GetAuditDataFromSerializedValue(filter.FilterHistoryObjects)
 	return auditData.TriggerMessage, nil
+}
+
+func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(emailIds []string) []*Provider {
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+	}
+
+	providers := make([]*Provider, 0, len(emailIds))
+	for _, emailId := range emailIds {
+		provider := &Provider{
+			ConfigId:  0,
+			Recipient: emailId,
+		}
+		if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
+			provider.Destination = SES_CONFIG_TYPE
+		} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
+			provider.Destination = SMTP_CONFIG_TYPE
+		}
+		providers = append(providers, provider)
+	}
+	return providers
 }
