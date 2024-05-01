@@ -11,8 +11,7 @@ CREATE TABLE "public"."watcher" (
                                     "updated_on"                timestamptz,
                                     "updated_by"                int4,
 
-                                    PRIMARY KEY ("id"),
-                                        UNIQUE ("name")
+                                    PRIMARY KEY ("id")
 
 );
 CREATE UNIQUE INDEX "idx_unique_watcher_name"
