@@ -76,7 +76,7 @@ type RuntimeParameter struct {
 
 type Trigger struct {
 	Id             int                    `json:"-"`
-	IdentifierType repository.TriggerType `json:"identifierType"`
+	IdentifierType repository.TriggerType `json:"identifierType" validate:"oneof=DEVTRON_JOB"`
 	Data           TriggerData            `json:"data"`
 }
 
@@ -102,7 +102,7 @@ type WatcherDto struct {
 	Name               string             `json:"name" validate:"global-entity-name"`
 	Description        string             `json:"description"`
 	EventConfiguration EventConfiguration `json:"eventConfiguration" validate:"dive"`
-	Triggers           []Trigger          `json:"triggers"`
+	Triggers           []Trigger          `json:"triggers" validate:"dive"`
 }
 
 type WatcherItem struct {
