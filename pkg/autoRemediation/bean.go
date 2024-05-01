@@ -10,9 +10,9 @@ import (
 )
 
 type EventConfiguration struct {
-	Selectors       []Selector     `json:"selectors" validate:"required"`
+	Selectors       []Selector     `json:"selectors" validate:"dive,required"`
 	K8sResources    []*K8sResource `json:"k8sResources" validate:"required"`
-	EventExpression string         `json:"eventExpression"`
+	EventExpression string         `json:"eventExpression" validate:"required"`
 }
 
 func (ec *EventConfiguration) getEnvsFromSelectors() []string {
@@ -50,7 +50,7 @@ type SelectorType string
 const EnvironmentSelector SelectorType = "environment"
 
 type Selector struct {
-	Type      SelectorType `json:"type"`
+	Type      SelectorType `json:"type" validate:"oneof= environment"`
 	Names     []string     `json:"names"`
 	GroupName string       `json:"groupName"`
 }
@@ -76,8 +76,8 @@ type RuntimeParameter struct {
 
 type Trigger struct {
 	Id             int                    `json:"-"`
-	IdentifierType repository.TriggerType `json:"identifierType" validate:"oneof=DEVTRON_JOB"`
-	Data           TriggerData            `json:"data"`
+	IdentifierType repository.TriggerType `json:"identifierType" validate:"required,oneof=DEVTRON_JOB"`
+	Data           TriggerData            `json:"data" validate:"dive"`
 }
 
 type TriggerData struct {

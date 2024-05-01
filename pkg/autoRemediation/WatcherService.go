@@ -179,15 +179,24 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 	}
 	var triggersResult []*repository.Trigger
 	for _, res := range triggers {
+
 		triggerData := TriggerData{
-			RuntimeParameters:      res.Data.RuntimeParameters,
-			JobId:                  jobInfo.displayNameToId[res.Data.JobName],
-			JobName:                res.Data.JobName,
-			PipelineId:             jobInfo.pipelineNameToId[res.Data.PipelineName],
-			PipelineName:           res.Data.PipelineName,
-			ExecutionEnvironment:   res.Data.ExecutionEnvironment,
-			ExecutionEnvironmentId: jobInfo.envNameToId[res.Data.ExecutionEnvironment],
-			WorkflowId:             jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]],
+			RuntimeParameters: res.Data.RuntimeParameters,
+		}
+		if jobInfo.displayNameToId[res.Data.JobName] != 0 && res.Data.PipelineName == "" {
+			triggerData.JobId = jobInfo.displayNameToId[res.Data.JobName]
+			triggerData.JobName = res.Data.JobName
+		}
+		if jobInfo.displayNameToId[res.Data.JobName] != 0 && jobInfo.pipelineNameToId[res.Data.PipelineName] != 0 && jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]] != 0 {
+			triggerData.JobId = jobInfo.displayNameToId[res.Data.JobName]
+			triggerData.JobName = res.Data.JobName
+			triggerData.PipelineId = jobInfo.pipelineNameToId[res.Data.PipelineName]
+			triggerData.PipelineName = res.Data.PipelineName
+			triggerData.WorkflowId = jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]]
+		}
+		if jobInfo.envNameToId[res.Data.ExecutionEnvironment] != 0 {
+			triggerData.ExecutionEnvironment = res.Data.ExecutionEnvironment
+			triggerData.ExecutionEnvironmentId = jobInfo.envNameToId[res.Data.ExecutionEnvironment]
 		}
 		jsonData, err := json.Marshal(triggerData)
 		if err != nil {
@@ -597,7 +606,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			})
 		}
 	}
-	if sortOrderBy == "name" {
+	if sortOrderBy != "triggeredAt" {
 		combinedData = sortByWatcher(combinedData, watchers)
 	}
 	watcherResponses := WatchersResponse{

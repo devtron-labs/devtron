@@ -126,11 +126,11 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 		}
 	}
 	// Count total number of watchers
-	total, err := query.Count()
+	total, err := query.Where("active = ?", true).Count()
 	if err != nil {
 		return []*Watcher{}, 0, err
 	}
-	err = query.Where("active = ?", true).Offset(params.Offset).Limit(params.Size).Select()
+	err = query.Offset(params.Offset).Limit(params.Size).Select()
 	if err != nil {
 		return []*Watcher{}, 0, err
 	}

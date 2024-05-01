@@ -237,6 +237,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	sortOrderBy := queryParams.Get("orderBy")
 	if sortOrderBy == "" {
 		sortOrderBy = "name"
+		sortOrder = "asc"
 	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
 		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggeredAt"), nil, http.StatusBadRequest)
@@ -289,7 +290,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
-		sortOrder = "asc"
+		sortOrder = "desc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)

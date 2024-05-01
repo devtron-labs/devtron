@@ -152,6 +152,15 @@ paths:
                 - 'Failed'
                 - 'Progressing'
           description: cluster names
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum:
+              - 'asc'
+              - 'desc'
+          required: false
+          description: order result by intercepted_at
         - name: from
           in: query
           schema:
