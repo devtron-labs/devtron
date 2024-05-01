@@ -52,8 +52,8 @@ type GitMaterial struct {
 
 type MaterialRepository interface {
 	MaterialExists(url string) (bool, error)
-	SaveMaterial(material *GitMaterial) error
-	UpdateMaterial(material *GitMaterial) error
+	SaveMaterial(material *GitMaterial, tx *pg.Tx) error
+	UpdateMaterial(material *GitMaterial, tx *pg.Tx) error
 	Update(materials []*GitMaterial) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
 	FindById(Id int) (*GitMaterial, error)
@@ -61,7 +61,7 @@ type MaterialRepository interface {
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error)
-	MarkMaterialDeleted(material *GitMaterial) error
+	MarkMaterialDeleted(material *GitMaterial, tx *pg.Tx) error
 	FindNumberOfAppsWithGitRepo(appIds []int) (int, error)
 	FindByAppIds(appIds []int) ([]*GitMaterial, error)
 }
@@ -113,12 +113,12 @@ func (repo MaterialRepositoryImpl) MaterialExists(url string) (bool, error) {
 	return exists, err
 }
 
-func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial) error {
-	return repo.dbConnection.Insert(material)
+func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial, tx *pg.Tx) error {
+	return tx.Insert(material)
 }
 
-func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial) error {
-	return repo.dbConnection.Update(material)
+func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial, tx *pg.Tx) error {
+	return tx.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterialScmId(material *GitMaterial) error {
@@ -164,9 +164,9 @@ func (repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (mater
 	return materials, err
 }
 
-func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) error {
+func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial, tx *pg.Tx) error {
 	material.Active = false
-	return repo.dbConnection.Update(material)
+	return tx.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) FindNumberOfAppsWithGitRepo(appIds []int) (int, error) {
