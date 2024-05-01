@@ -451,15 +451,24 @@ func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateCha
 }
 
 func (impl DeploymentTemplateServiceImpl) getInstallReleaseReqBulkWithAppsAndEnv(appIds []int, envId int) ([]*gRPC.InstallReleaseRequest, *repository3.Environment, []*appRepository.App, error) {
-	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
-	err := impl.setChartContent(appIds, appIdToInstallReleaseRequest)
+	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
 	if err != nil {
-		impl.Logger.Errorw("error in setting chart content", "appIds", appIds, "err", err)
+		impl.Logger.Errorw("error in fetching app", "err", err)
 		return nil, nil, nil, err
 	}
-	err = impl.setValuesYaml(appIds, envId, appIdToInstallReleaseRequest)
+	var applicationIds []int
+	for _, application := range apps {
+		applicationIds = append(applicationIds, application.Id)
+	}
+	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
+	err = impl.setChartContent(applicationIds, appIdToInstallReleaseRequest)
 	if err != nil {
-		impl.Logger.Errorw("error in setting values yaml", "appIds", appIds, "err", err)
+		impl.Logger.Errorw("error in setting chart content", "appIds", applicationIds, "err", err)
+		return nil, nil, nil, err
+	}
+	err = impl.setValuesYaml(applicationIds, envId, appIdToInstallReleaseRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in setting values yaml", "appIds", applicationIds, "err", err)
 		return nil, nil, nil, err
 	}
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
@@ -472,12 +481,6 @@ func (impl DeploymentTemplateServiceImpl) getInstallReleaseReqBulkWithAppsAndEnv
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, nil, nil, err
 	}
-	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
-	if err != nil {
-		impl.Logger.Errorw("error in fetching app", "err", err)
-		return nil, nil, nil, err
-	}
-
 	environment, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching environment", "err", err)
