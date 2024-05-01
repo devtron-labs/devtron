@@ -63,7 +63,6 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-// GetWatchersByClusterId is an unsafe api, currently there is no RBAC applied here, todo:
 func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
 
 	token := r.Header.Get("token")

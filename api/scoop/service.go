@@ -74,7 +74,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case repository.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger)
+			interceptEventExec := impl.triggerJob(trigger, event)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Event = event
 			interceptEventExec.InvolvedObject = involvedObj
@@ -148,7 +148,7 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event string) *repository.InterceptedEventExecution {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
@@ -156,6 +156,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger) *repository
 		runtimeParams.EnvVariables[param.Key] = param.Value
 	}
 
+	runtimeParams.EnvVariables["event"] = event
 	request := bean.CiTriggerRequest{
 		PipelineId: trigger.Data.PipelineId,
 		// system user
