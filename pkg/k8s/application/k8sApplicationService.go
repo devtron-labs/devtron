@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/go-pg/pg"
 	client2 "github.com/devtron-labs/scoop/client"
 	types2 "github.com/devtron-labs/scoop/types"
 	"io"
@@ -107,7 +108,7 @@ type K8sApplicationService interface {
 	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
-	StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error)
+	StartProxyServer(ctx context.Context, clusterId int, envName string, clusterName string) (*httputil.ReverseProxy, error)
 	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
@@ -124,6 +125,7 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	environmentRepository        repository.EnvironmentRepository
+	clusterRepository            repository.ClusterRepository
 	k8sAppConfig                 *K8sAppConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 
@@ -140,6 +142,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	environmentRepository repository.EnvironmentRepository,
+	clusterRepository repository.ClusterRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
 	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
@@ -170,6 +173,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerService:               ephemeralContainerService,
 		ephemeralContainerRepository:            ephemeralContainerRepository,
 		environmentRepository:                   environmentRepository,
+		clusterRepository:                       clusterRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
 		deploymentWindowService:                 deploymentWindowService,
@@ -1681,7 +1685,7 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 	return proxyHandler, err
 }
 
-func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error) {
+func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string, clusterName string) (*httputil.ReverseProxy, error) {
 	if clusterId == -1 {
 		environment, err := impl.environmentRepository.FindByName(envName)
 		if err != nil {
@@ -1689,6 +1693,12 @@ func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clu
 			return nil, err
 		}
 		clusterId = environment.ClusterId
+	} else if clusterId == -2 {
+		clusters, _ := impl.clusterRepository.FindByNames([]string{clusterName})
+		if len(clusters) == 0 {
+			return nil, pg.ErrNoRows
+		}
+		clusterId = clusters[0].Id
 	}
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
 	return proxyHandler, err

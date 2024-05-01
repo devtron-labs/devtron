@@ -1288,11 +1288,12 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 	if urlPathArray[4] == "cluster" {
 		cId, err := strconv.Atoi(urlPathArray[5])
 		if err != nil {
-			common.WriteJsonResp(w, errors.New(`cannot parse cluster to number`), nil, http.StatusBadRequest)
-			return
+			clusterId = -2
+			r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", urlPathArray[5]))
+		} else {
+			clusterId = cId
+			r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%d", clusterId))
 		}
-		clusterId = cId
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%d", clusterId))
 	} else if urlPathArray[4] == "env" {
 		envName = urlPathArray[5]
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", envName))
@@ -1301,7 +1302,7 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 		return
 	}
 
-	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterId, envName)
+	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterId, envName, urlPathArray[5])
 
 	if err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
