@@ -9,8 +9,8 @@ import (
 
 func GetPolicyDefinitionStateFromReleaseObject(objectData string) *bean.ReleaseStatusDefinitionState {
 	state := &bean.ReleaseStatusDefinitionState{
-		ConfigStatus:  bean2.Status(gjson.Get(objectData, bean2.ResourceConfigStatusStatusPath).String()),
-		ReleaseStatus: bean2.ReleaseStatus(gjson.Get(objectData, bean2.ResourceReleaseRolloutStatusPath).String()),
+		ConfigStatus:  bean2.ReleaseConfigStatus(gjson.Get(objectData, bean2.ResourceConfigStatusStatusPath).String()),
+		ReleaseStatus: bean2.ReleaseRolloutStatus(gjson.Get(objectData, bean2.ResourceReleaseRolloutStatusPath).String()),
 		LockStatus:    pointer.Bool(gjson.Get(objectData, bean2.ResourceConfigStatusIsLockedPath).Bool()),
 	}
 	//TODO: with dependency object get, after db dep get object creation

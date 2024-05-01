@@ -11,6 +11,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -128,7 +129,7 @@ func (impl *DevtronResourceServiceImpl) getReleaseTrackIdsFromFilterValueBasedOn
 	return ids, nil
 }
 
-func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, childObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
+func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, allChildObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
 	isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error) {
 	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
 	for i := range resourceObjects {
@@ -142,8 +143,15 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 		resourceData.Overview.Description = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectDescriptionPath).String()
 		resourceData.Name = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectNamePath).String()
 		childIndexes := resourceObjectIndexChildMap[i]
+		childObjects := make([]*repository.DevtronResourceObject, 0, len(childIndexes))
 		for _, childIndex := range childIndexes {
-			childObject := childObjects[childIndex]
+			childObjects = append(childObjects, allChildObjects[childIndex])
+		}
+		//sorting child objects on basis of created time, need to be maintained from query after sort options introduction
+		sort.Slice(childObjects, func(i, j int) bool {
+			return childObjects[i].CreatedOn.After(childObjects[j].CreatedOn)
+		})
+		for _, childObject := range childObjects {
 			childData := &bean.DevtronResourceObjectGetAPIBean{
 				DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
 				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
@@ -163,6 +171,7 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 			}
 			resourceData.ChildObjects = append(resourceData.ChildObjects, childData)
 		}
+
 		err := impl.updateReleaseTrackOverviewDataForGetApiResourceObj(nil, resourceObjects[i], resourceData)
 		if err != nil {
 			impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
@@ -170,6 +179,11 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, child
 		}
 		resp = append(resp, resourceData)
 	}
+	//sorting  objects on basis of name, need to be maintained from query after sort options introduction
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Name < resp[j].Name
+	})
+
 	return resp, nil
 }
 
@@ -190,4 +204,17 @@ func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperatio
 		}
 	}
 	return objectData, auditPaths, nil
+}
+
+func (impl *DevtronResourceServiceImpl) validateReleaseTrackDelete(object *repository.DevtronResourceObject) (bool, error) {
+	if object == nil || object.Id == 0 {
+		return false, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	//getting child dependencies
+	childDeps, err := impl.getSpecificDependenciesInObjectDataFromJsonString(object.DevtronResourceSchemaId, object.ObjectData, bean.DevtronResourceDependencyTypeChild)
+	if err != nil {
+		impl.logger.Errorw("error, getSpecificDependenciesInObjectDataFromJsonString", "err", err, "object", object)
+		return false, err
+	}
+	return len(childDeps) == 0, nil
 }

@@ -513,7 +513,25 @@ func (impl *DevtronResourceServiceImpl) performResourcePatchOperation(descriptor
 
 func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
-	err := impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(req)
+	//getting object
+	_, existingObj, err := impl.getResourceSchemaAndExistingObject(req)
+	if err != nil {
+		impl.logger.Errorw("error in getting existing resource object", "err", err, "req", req)
+		return nil, err
+	}
+	f := getFuncToValidateResourceObjectDelete(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		isValid, err := f(impl, existingObj)
+		if err != nil {
+			impl.logger.Errorw("error in validation delete object request", "err", err, "req", req)
+			return nil, err
+		}
+		if !isValid {
+			impl.logger.Errorw("invalid delete request", "err", err, "req", req)
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidDeleteRequest, bean.InvalidDeleteRequest)
+		}
+	}
+	err = impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(req)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteResourceObject", "request", req)
 		return nil, err

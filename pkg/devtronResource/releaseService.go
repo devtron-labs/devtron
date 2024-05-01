@@ -76,7 +76,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusForGetApiResour
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusPath).Exists() {
 			resourceObject.ConfigStatus = &bean.ConfigStatus{
-				Status:   bean.Status(gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusStatusPath).String()),
+				Status:   bean.ReleaseConfigStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusStatusPath).String()),
 				Comment:  gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusCommentPath).String(),
 				IsLocked: gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusIsLockedPath).Bool(),
 			}
@@ -225,7 +225,7 @@ func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objec
 	var err error
 	if reqBean.ConfigStatus == nil {
 		reqBean.ConfigStatus = &bean.ConfigStatus{
-			Status: bean.DraftStatus,
+			Status: bean.DraftReleaseStatus,
 		}
 	}
 	if reqBean.ConfigStatus != nil {
@@ -755,4 +755,14 @@ func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, val
 	}
 	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusStatusPath, configStatus.Status)
 	return objectData, err
+}
+
+func (impl *DevtronResourceServiceImpl) validateReleaseDelete(object *repository.DevtronResourceObject) (bool, error) {
+	if object == nil || object.Id == 0 {
+		return false, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	//getting release rollout status
+	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(object.ObjectData, bean.ResourceReleaseRolloutStatusPath).String())
+	return rolloutStatus != bean.PartiallyDeployedReleaseRolloutStatus &&
+		rolloutStatus != bean.CompletelyDeployedReleaseRolloutStatus, nil
 }

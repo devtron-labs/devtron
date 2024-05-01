@@ -19,7 +19,7 @@ type ReleaseStatusPolicyDefinition struct {
 
 type ReleaseStatusDefinitionState struct {
 	ConfigStatus             bean.Status                   `json:"configStatus"`
-	ReleaseStatus            bean.ReleaseStatus            `json:"releaseStatus"`
+	ReleaseStatus            bean.ReleaseRolloutStatus     `json:"releaseStatus"`
 	DependencyArtifactStatus bean.DependencyArtifactStatus `json:"dependencyArtifactStatus"`
 	LockStatus               *bool                         `json:"lockStatus"` //setting as pointer because at places in policy it might be possible that this field is not present, in that case to differ pointer will is used
 }

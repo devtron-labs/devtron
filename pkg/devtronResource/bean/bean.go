@@ -234,9 +234,9 @@ type UpdateSchemaResponseBean struct {
 }
 
 type ConfigStatus struct {
-	Status   Status `json:"status"`
-	Comment  string `json:"comment,omitempty"`
-	IsLocked bool   `json:"isLocked"`
+	Status   ReleaseConfigStatus `json:"status"`
+	Comment  string              `json:"comment,omitempty"`
+	IsLocked bool                `json:"isLocked"`
 }
 
 type ReleaseConfigSchema struct {
@@ -269,26 +269,27 @@ const (
 	Id         FilterCriteriaIdentifier = "id"
 )
 
-type Status string
+type ReleaseConfigStatus string
 
 type IdType string
 
-func (s Status) ToString() string {
+func (s ReleaseConfigStatus) ToString() string {
 	return string(s)
 }
 
 const (
-	DraftStatus           Status = "draft"
-	ReadyForReleaseStatus Status = "readyForRelease"
-	HoldStatus            Status = "hold"
+	DraftReleaseStatus    ReleaseConfigStatus = "draft"
+	ReadyForReleaseStatus ReleaseConfigStatus = "readyForRelease"
+	HoldReleaseStatus     ReleaseConfigStatus = "hold"
+	RescindReleaseStatus  ReleaseConfigStatus = "rescind"
 )
 
-type ReleaseStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
+type ReleaseRolloutStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
 
 const (
-	NotDeployedReleaseStatus        ReleaseStatus = "notDeployed"
-	PartiallyDeployedReleaseStatus  ReleaseStatus = "partiallyDeployed"
-	CompletelyDeployedReleaseStatus ReleaseStatus = "completelyDeployed"
+	NotDeployedReleaseRolloutStatus        ReleaseRolloutStatus = "notDeployed"
+	PartiallyDeployedReleaseRolloutStatus  ReleaseRolloutStatus = "partiallyDeployed"
+	CompletelyDeployedReleaseRolloutStatus ReleaseRolloutStatus = "completelyDeployed"
 )
 
 type DependencyArtifactStatus string
@@ -565,6 +566,7 @@ const (
 	InvalidPatchOperation                = "invalid patch operation or not supported or dependency info not found"
 	ApplicationDependencyFoundError      = "application cannot be patched as other dependencies are dependent on this application"
 	ApplicationDependencyNotFoundError   = "no application found "
+	InvalidDeleteRequest                 = "invalid delete request, action not allowed"
 )
 
 type ChildObjectType string
