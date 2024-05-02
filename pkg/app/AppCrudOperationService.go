@@ -68,7 +68,6 @@ type AppCrudOperationServiceImpl struct {
 	installedAppRepository repository2.InstalledAppRepository
 	genericNoteService     genericNotes.GenericNoteService
 	gitMaterialRepository  pipelineConfig.MaterialRepository
-	helmAppService         client.HelmAppService
 	installedAppDbService  EAMode.InstalledAppDBService
 }
 
@@ -77,7 +76,6 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository,
-	helmAppService client.HelmAppService,
 	installedAppDbService EAMode.InstalledAppDBService) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
@@ -87,7 +85,6 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
-		helmAppService:         helmAppService,
 		installedAppDbService:  installedAppDbService,
 	}
 }
