@@ -1425,7 +1425,7 @@ where devtron_resource_id = (select id from devtron_resource where kind = 'helm-
 
 
 INSERT INTO global_policy(name, policy_of, version, description, policy_json, enabled, deleted, created_by, created_on, updated_by, updated_on)
-VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validation release status changes.',
+VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validation release status changes.',
 '{
     "definitions":
     [
