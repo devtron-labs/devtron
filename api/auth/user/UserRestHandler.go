@@ -252,16 +252,37 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if len(restrictedGroups) == 0 {
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 	} else {
-		groups := strings.Join(restrictedGroups, ", ")
+		var restrictedGroupsWithSuperAdminPermission string
+		var restrictedGroupsWithoutSuperAdminPermission string
+		var errorMessageForGroupsWithoutSuperAdmin string
+		var errorMessageForGroupsWithSuperAdmin string
+		for _, group := range restrictedGroups {
+			if group.HasSuperAdminPermission {
+				restrictedGroupsWithSuperAdminPermission += fmt.Sprintf("%s,", group.Group)
+			} else {
+				restrictedGroupsWithoutSuperAdminPermission += fmt.Sprintf("%s,", group.Group)
+			}
+		}
+
+		if len(restrictedGroupsWithoutSuperAdminPermission) > 0 {
+			// if any group was appended, remove the comma from the end
+			restrictedGroupsWithoutSuperAdminPermission = restrictedGroupsWithoutSuperAdminPermission[:len(restrictedGroupsWithoutSuperAdminPermission)-1]
+			errorMessageForGroupsWithoutSuperAdmin = fmt.Sprintf("You do not have manager permission for some or all projects in group(s): %v.", restrictedGroupsWithoutSuperAdminPermission)
+		}
+		if len(restrictedGroupsWithSuperAdminPermission) > 0 {
+			// if any group was appended, remove the comma from the end
+			restrictedGroupsWithSuperAdminPermission = restrictedGroupsWithSuperAdminPermission[:len(restrictedGroupsWithSuperAdminPermission)-1]
+			errorMessageForGroupsWithSuperAdmin = fmt.Sprintf("Only super admins can assign groups with super admin permission: %v.", restrictedGroupsWithSuperAdminPermission)
+		}
 
 		if rolesChanged || groupsModified {
 			// warning
-			message := fmt.Errorf("User permissions updated partially. Group(s): " + groups + " could not be added/removed. You do not have manager/admin permission for some or all projects in these groups.")
+			message := fmt.Errorf("User permissions updated partially. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be added/removed: You do not have manager/admin permission for some or all projects in group(s): " + groups + ".")
+			message := fmt.Errorf("Permission could not be added/removed. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
