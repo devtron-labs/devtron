@@ -53,7 +53,7 @@ You can also include additional information about your cluster using the Markdow
 
 ### Search and Filter
 
-You can use the searchbox to browse the resources you are looking for.
+You can use the searchbox to browse the resources.
 
 ![Figure 4: Locate Resources using Searchbox](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/discover-resource.gif)
 
@@ -125,43 +125,56 @@ Further using the Devtron UI, you will be able to:
 * [Edit a Node Config](#edit-a-node-config)
 * [Delete a Node](#delete-a-node)
 
-Your applications run on pods, and pods run on nodes. But sometimes, Kubernetes scheduler cannot deploy a pod on a node for several reasons, e.g., node is not ready, node is not reachable, network is unavailable, etc.
+{% hint style="info" %}
+### Why are node operations required?
+Your applications run on pods, and pods run on nodes. But sometimes, Kubernetes scheduler cannot deploy a pod on a node for several reasons, e.g., node is not ready, node is not reachable, network is unavailable, etc. In such cases, node operations help you manage the nodes better.
+{% endhint %}
 
 ### Debug a Node
 
 You can debug a node via [Cluster Terminal](#cluster-terminal) by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
 
-![Figure 10: Debugging a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-terminal.png)
+* Click **Debug**.
 
-* Go to the **Clusters** section from the left navigation pane.
-* Select your cluster.
-* Search a node by name or label in the search bar.
-* On the node, click the ellipsis button and then click **Terminal**.
-* Debug a node by selecting the terminal shell `bash` or `sh`.
+  ![Figure 10a: Debugging a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/debug.jpg)
+
+* Debug a node by selecting the terminal shell, i.e., `bash` or `sh`.
+
+  ![Figure 10b: Debug Terminal](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/debug-terminal.jpg)
 
 ### Cordon a Node
 
-Cordoning a node means making the node unschedulable. After cordoning a node, new Pods cannot be scheduled on this node.
+Cordoning a node means making the node unschedulable. After cordoning a node, new pods cannot be scheduled on this node.
 
-![Figure 11: Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-cordon.jpg)
+![Figure 11a: Visual Representation - Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon-visual.jpg)
 
-* On the node, click the ellipsis button and then click **Cordon**.
+* Click **Cordon**.
+
+  ![Figure 11b: Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon.jpg)
+
 * A confirmation dialog box will appear, click **Cordon Node** to proceed.
-* The status of the node shows `SchedulingDisabled` with `Unschedulable` parameter set as `true`.
 
-Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncordoned, new Pods can be scheduled on the node.
+  ![Figure 11c: Cordon Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon-dialog.jpg)
+
+The status of the node shows `SchedulingDisabled` with `Unschedulable` parameter set as `true`.
+
+Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncordoned, new pods can be scheduled on the node.
 
 ### Drain a Node
 
 Before performing maintenance on a node, draining a node evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and honour the `PodDisruptionBudgets` you have specified (if relevant).
 
-After the node is drained, all Pods (including those managed by DaemonSets) in the node will be automatically drained to other nodes in the cluster, and the drained node will be set to cordoned status.
+![Figure 12a: Visual Representation - Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain-visual.jpg)
 
-![Figure 12: Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/drain-node.jpg)
+After the node is drained, all pods (including those managed by DaemonSets) in the node will be automatically drained to other nodes in the cluster, and the drained node will be set to cordoned status.
 
-* On the node, click the ellipsis button and then click **Drain**.
+* Click **Drain**.
+
+  ![Figure 12b: Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain.jpg)
+
 * A confirmation dialog box will appear, click **Drain Node** to proceed.
-* Click **Drain Node**.
+
+  ![Figure 12c: Drain Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain-dialog.jpg)
 
 You can also select from the following conditions before draining a node:
 
@@ -177,15 +190,21 @@ You can also select from the following conditions before draining a node:
 
 Taints are `key:value` pairs associated with effect. After you add taints to nodes, you can set tolerations on a pod to allow the pod to be scheduled to nodes with certain taints. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
 
+![Figure 13a: Visual Representation - Tainting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/taint-visual.jpg)
+
 **Note**: Make sure to check taint validations before you add a taint.
 
-![Figure 13: Tainting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/edit-taints.jpg)
+* Click **Edit taints**.
 
-* On the node, click the ellipsis button and then click **Edit taints**.
-* Click **Add taint**.
-* On the `Key` and `Value` fields, enter the `key:value` pairs and select the [taint effect](#taint-effects) from the drop-down list.
+  ![Figure 13b: Tainting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-taints.jpg)
+
+* Enter the `key:value` pairs and select the [taint effect](#taint-effects) from the drop-down list.
+
+  ![Figure 13c: Adding Taints](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/taint-dialog.jpg)
+
 * Click **Save**.
-* You can also delete the added taint by clicking the delete button.
+
+You can also add more taints using **+ Add taint button**, or delete the existing taint by using the delete icon.
 
 #### Taint Effects
 
@@ -201,7 +220,7 @@ A taint can produce three possible effects:
 
 `Edit node config` allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
 
-![Figure 14: Editing Node Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/edit-yaml-node.jpg)
+![Figure 14: Editing Node Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-config.gif)
 
 * You can edit or modify the parameters or values of a node by clicking **Edit node config**.
 * Click **Review Changes** to compare the changes in the YAML file.
@@ -212,6 +231,10 @@ A taint can produce three possible effects:
 
 * Search a node by name or label in the search bar.
 * On the node, click the ellipsis button and then click **Delete**.
+
+![Figure 15a: Deleting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete-node.jpg)
+
+![Figure 15b: Delete Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete-dialog.jpg)
 
 The node will be deleted from the cluster.
 
@@ -244,7 +267,7 @@ Moreover, you can download the pod logs for ease of sharing and troubleshooting 
 
 In case any of your pod restarts, you can determine the cause by viewing its container log, time, status, node events in the pod listing screen as shown below:
 
-![Figure 15: Checking Restart Pod Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/restart-pod-log.gif)
+![Figure 16: Checking Restart Pod Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/restart-pod-log.gif)
 
 ### Terminal
 
@@ -264,7 +287,7 @@ This is a part of [Pod Terminal](#pod-terminal). It is especially useful when `k
     You get 2 tabs:
     1. **Basic** - It provides the bare minimum configurations required to launch an ephemeral container.
 
-    ![Figure 16: Basic Tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/basic.jpg)
+    ![Figure 17: Basic Tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/basic.jpg)
 
     It contains 3 mandatory fields:
 
@@ -277,7 +300,7 @@ This is a part of [Pod Terminal](#pod-terminal). It is especially useful when `k
     2. **Advanced** - It is particularly useful for advanced users that wish to use labels or annotations since it provides additional key-value options. Refer [Ephemeral Container Spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#ephemeralcontainer-v1-core) to view the supported options.
     
     {% hint style="info" %}
-    Devtron ignores the `command` field while launching an ephemeral container
+    Devtron ignores the 'command' field while launching an ephemeral container
     {% endhint %}
 
 ---
@@ -295,7 +318,7 @@ Other resources in the cluster are grouped under the following categories:
 * Other Resources
 * Custom Resource
 
-![Figure 17: Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-list.jpg)
+![Figure 18: Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-list.jpg)
 
 ---
 
@@ -305,7 +328,7 @@ User with [super-admin](./global-configurations/authorization/user-access.md#ass
 
 To troubleshoot a cluster or a specific node in a cluster, click the terminal icon on the right side.
 
-![Figure 18: Terminal Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cluster-terminal.gif)
+![Figure 19: Terminal Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cluster-terminal.gif)
 
 * You will see the user-defined name for the cluster in Devtron. E.g. `default-cluster`.
 * Select the node you wish to troubleshoot from the `Node` drop-down. E.g. `demo-new`.
@@ -319,7 +342,7 @@ You can also create pod for debugging which will connect to pod terminal. To fin
 
 The **Debug Mode** is helpful in scenarios where you can't access your Node by using an SSH connection. When enabled, a pod is created on the node, which opens an interactive shell on the Node.
 
-* Check the current state of the Pod and recent events with the following command:
+* Check the current state of the pod and recent events with the following command:
 
 ```bash
 kubectl get pods
@@ -337,7 +360,7 @@ kubectl describe pod <podname>
 | Waiting          | Pod has been scheduled but cannot run   | Failed to pull container image             |
 | CrashLoopBackOff | Container keeps crashing and restarting | Incorrect access token for API interaction |
 
-Here, you can see configuration information about the container(s) and Pod (labels, resource requirements, etc.), as well as status information about the container(s) and Pod (state, readiness, restart count, events, etc.).
+Here, you can see configuration information about the container(s) and pod (labels, resource requirements, etc.), as well as status information about the container(s) and pod (state, readiness, restart count, events, etc.).
 
 {% hint style="info" %}
 A container can have no shells or multiple shells running in it. If you are unable to create a successful connection, try changing the shell, as the container may not have that shell running.
@@ -353,18 +376,18 @@ Once you select a cluster in Resource Browser, click **+ Create Resource**, and 
 
 In the below example, we have created a simple pod named `nginx`:
 
-![Figure 19: Creating Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-resource.gif)
+![Figure 20: Creating Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-resource.gif)
 
 Here's one more example that shows the required fields and object specifications for a Kubernetes Deployment:
 
 {% code title="Spec File" overflow="wrap" lineNumbers="true" %}
 
-```javascript
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
-  labels:
+  labels: 
      app: nginx
 spec:
   replicas: 2
