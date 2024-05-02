@@ -102,6 +102,7 @@ func InitializeApp() (*App, error) {
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
 		argoApplication.ArgoApplicationWireSet,
+
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,
@@ -110,6 +111,10 @@ func InitializeApp() (*App, error) {
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
+
+		//TODO: check why policy is giving error of unused provider
+		//globalPolicy.GlobalPolicyWireSetEA,
+		//devtronResource2.PolicyWireSet,
 		devtronResource.DevtronResourceWireSetEA,
 
 		pipelineConfig.NewMaterialRepositoryImpl,

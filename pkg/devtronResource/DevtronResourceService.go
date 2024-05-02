@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
@@ -79,7 +80,6 @@ type DevtronResourceServiceImpl struct {
 	devtronResourceRepository            repository.DevtronResourceRepository
 	devtronResourceSchemaRepository      repository.DevtronResourceSchemaRepository
 	devtronResourceObjectRepository      repository.DevtronResourceObjectRepository
-	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository
 	appRepository                        appRepository.AppRepository //TODO: remove repo dependency
 	pipelineRepository                   pipelineConfig.PipelineRepository
@@ -95,13 +95,13 @@ type DevtronResourceServiceImpl struct {
 	dtResourceObjectAuditService         audit.ObjectAuditService
 	appArtifactManager                   pipeline.AppArtifactManager
 	appWorkflowDataReadService           read2.AppWorkflowDataReadService
+	releasePolicyEvaluationService       release.PolicyEvaluationService
 }
 
 func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	devtronResourceRepository repository.DevtronResourceRepository,
 	devtronResourceSchemaRepository repository.DevtronResourceSchemaRepository,
 	devtronResourceObjectRepository repository.DevtronResourceObjectRepository,
-	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository,
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository,
 	appRepository appRepository.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -113,13 +113,13 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	dtResourceReadService read.ReadService,
 	dtResourceObjectAuditService audit.ObjectAuditService,
 	appArtifactManager pipeline.AppArtifactManager,
-	appWorkflowDataReadService read2.AppWorkflowDataReadService) (*DevtronResourceServiceImpl, error) {
+	appWorkflowDataReadService read2.AppWorkflowDataReadService,
+	releasePolicyEvaluationService release.PolicyEvaluationService) (*DevtronResourceServiceImpl, error) {
 	impl := &DevtronResourceServiceImpl{
 		logger:                               logger,
 		devtronResourceRepository:            devtronResourceRepository,
 		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
 		devtronResourceObjectRepository:      devtronResourceObjectRepository,
-		devtronResourceSchemaAuditRepository: devtronResourceSchemaAuditRepository,
 		devtronResourceObjectAuditRepository: devtronResourceObjectAuditRepository,
 		appRepository:                        appRepository,
 		pipelineRepository:                   pipelineRepository,
@@ -132,6 +132,7 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 		dtResourceObjectAuditService:         dtResourceObjectAuditService,
 		appArtifactManager:                   appArtifactManager,
 		appWorkflowDataReadService:           appWorkflowDataReadService,
+		releasePolicyEvaluationService:       releasePolicyEvaluationService,
 	}
 	err := impl.SetDevtronResourcesAndSchemaMap()
 	if err != nil {
@@ -470,18 +471,13 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 	}
 	// performing json patch operations
 	objectData := existingResourceObject.ObjectData
-	auditPaths := make([]string, 0, len(req.PatchQuery))
-	jsonPath := ""
-	for _, query := range req.PatchQuery {
-		objectData, jsonPath, err = impl.performResourcePatchOperation(objectData, query)
-		if err != nil {
-			impl.logger.Errorw("error encountered in PatchResourceObject", "query", query, "err", err)
-			return nil, err
-		}
-		auditPaths = append(auditPaths, jsonPath)
+	newObjectData, auditPaths, err := impl.performResourcePatchOperation(req.DevtronResourceObjectDescriptorBean, objectData, req.PatchQuery)
+	if err != nil {
+		impl.logger.Errorw("error encountered in PatchResourceObject", "query", req.PatchQuery, "err", err)
+		return nil, err
 	}
 	//updating final object data in resource object
-	existingResourceObject.ObjectData = objectData
+	existingResourceObject.ObjectData = newObjectData
 	existingResourceObject.UpdatedBy = req.UserId
 	existingResourceObject.UpdatedOn = time.Now()
 	err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
@@ -493,51 +489,20 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 	return adapter.GetSuccessPassResponse(), nil
 }
 
-func (impl *DevtronResourceServiceImpl) performResourcePatchOperation(objectData string, query bean.PatchQuery) (string, string, error) {
+func (impl *DevtronResourceServiceImpl) performResourcePatchOperation(descriptorBean *bean.DevtronResourceObjectDescriptorBean, objectData string, queries []bean.PatchQuery) (string, []string, error) {
+	newObjectData := ""
+	auditPaths := make([]string, 0, len(queries))
 	var err error
-	switch query.Path {
-	case bean.DescriptionQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectDescriptionPath, query.Value)
-		return objectData, bean.ResourceObjectDescriptionPath, err
-	case bean.StatusQueryPath:
-		objectData, err = impl.patchConfigStatus(objectData, query.Value)
-		return objectData, bean.ResourceConfigStatusPath, err
-	case bean.NoteQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectReleaseNotePath, query.Value)
-		return objectData, bean.ResourceObjectReleaseNotePath, err
-	case bean.TagsQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectTagsPath, query.Value)
-		return objectData, bean.ResourceObjectTagsPath, err
-	case bean.LockQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusIsLockedPath, query.Value)
-		return objectData, bean.ResourceConfigStatusIsLockedPath, err
-	case bean.NameQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
-		return objectData, bean.ResourceObjectNamePath, err
-	default:
-		return objectData, "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+	f := getFuncToPerformPatchOperation(descriptorBean.Kind, descriptorBean.SubKind, descriptorBean.Version)
+	if f == nil {
+		return newObjectData, auditPaths, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
 	}
-
-}
-
-func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, value interface{}) (string, error) {
-	data, err := json.Marshal(value)
+	newObjectData, auditPaths, err = f(impl, objectData, queries)
 	if err != nil {
-		impl.logger.Errorw("error encountered in patchConfigStatus", "value", value, "err", err)
-		return objectData, err
+		impl.logger.Errorw("error in performing patch operation", "err", err, "descriptorBean", descriptorBean, "patchQuery", queries)
+		return newObjectData, auditPaths, err
 	}
-	var configStatus bean.ConfigStatus
-	err = json.Unmarshal(data, &configStatus)
-	if err != nil {
-		impl.logger.Errorw("error encountered in patchConfigStatus", "value ", value, "err", err)
-		return objectData, err
-	}
-	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusCommentPath, configStatus.Comment)
-	if err != nil {
-		return objectData, err
-	}
-	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusStatusPath, configStatus.Status)
-	return objectData, err
+	return newObjectData, auditPaths, nil
 }
 
 //Patch resource object and related method ends
@@ -548,7 +513,25 @@ func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, val
 
 func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
-	err := impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(req)
+	//getting object
+	_, existingObj, err := impl.getResourceSchemaAndExistingObject(req)
+	if err != nil {
+		impl.logger.Errorw("error in getting existing resource object", "err", err, "req", req)
+		return nil, err
+	}
+	f := getFuncToValidateResourceObjectDelete(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		isValid, err := f(impl, existingObj)
+		if err != nil {
+			impl.logger.Errorw("error in validation delete object request", "err", err, "req", req)
+			return nil, err
+		}
+		if !isValid {
+			impl.logger.Errorw("invalid delete request", "err", err, "req", req)
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidDeleteRequest, bean.InvalidDeleteRequest)
+		}
+	}
+	err = impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(req)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteResourceObject", "request", req)
 		return nil, err

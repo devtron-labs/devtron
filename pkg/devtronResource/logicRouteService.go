@@ -277,6 +277,37 @@ var updateChildObjectsFuncMap = map[string]func(*DevtronResourceServiceImpl, str
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDependencyChildObjectsInObj,
 }
 
+func getFuncToPerformPatchOperation(kind, subKind, version string) func(*DevtronResourceServiceImpl,
+	string, []bean.PatchQuery) (string, []string, error) {
+	if f, ok := patchOperationFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var patchOperationFuncMap = map[string]func(*DevtronResourceServiceImpl, string, []bean.PatchQuery) (string, []string, error){
+	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).performReleaseTrackResourcePatchOperation,
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).performReleaseResourcePatchOperation,
+}
+
+func getFuncToValidateResourceObjectDelete(kind, subKind, version string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (bool, error) {
+	if f, ok := validateResourceObjectDeleteFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var validateResourceObjectDeleteFuncMap = map[string]func(*DevtronResourceServiceImpl, *repository.DevtronResourceObject) (bool, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseDelete,
+	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseTrackDelete,
+}
+
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {
 	return fmt.Sprintf("%s-%s", kind, component)
 }
