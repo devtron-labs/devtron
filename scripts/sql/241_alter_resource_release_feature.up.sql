@@ -1434,7 +1434,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             {
                 "configStatus": "draft",
                 "dependencyArtifactCount": "noImageSelected",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": false
             },
             "possibleFrom":
@@ -1442,7 +1442,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "noImageSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": true
                 }
             ]
@@ -1452,7 +1452,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             {
                 "configStatus": "draft",
                 "dependencyArtifactCount": "noImageSelected",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": true
             },
             "possibleFrom":
@@ -1460,7 +1460,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "noImageSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": false
                 }
             ]
@@ -1470,7 +1470,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             {
                 "configStatus": "draft",
                 "dependencyArtifactCount": "partialImagesSelected",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": false
             },
             "possibleFrom":
@@ -1478,7 +1478,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "partialImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": true
                 }
             ]
@@ -1488,7 +1488,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             {
                 "configStatus": "draft",
                 "dependencyArtifactCount": "partialImagesSelected",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": true
             },
             "possibleFrom":
@@ -1496,7 +1496,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "partialImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": false
                 }
             ]
@@ -1506,7 +1506,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             {
                 "configStatus": "draft",
                 "dependencyArtifactCount": "allImagesSelected",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": false
             },
             "possibleFrom":
@@ -1514,19 +1514,19 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "allImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": true
                 },
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "noImageSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": false
                 },
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "partialImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": false
                 }
             ]
@@ -1535,7 +1535,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "dependencyArtifactCount": "allImagesSelected"
             },
             "possibleFrom":
@@ -1543,13 +1543,13 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "allImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": false
                 },
                 {
                     "configStatus": "draft",
                     "dependencyArtifactCount": "allImagesSelected",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "lockStatus": true
                 }
             ],
@@ -1563,7 +1563,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "notDeployed",
+                "rolloutStatus": "notDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": false
             },
@@ -1571,7 +1571,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1586,7 +1586,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": true
             },
@@ -1594,7 +1594,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "notDeployed",
+                    "rolloutStatus": "notDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1604,7 +1604,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": false
             },
@@ -1612,7 +1612,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1627,20 +1627,20 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected"
             },
             "possibleFrom":
             [
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 }
@@ -1655,7 +1655,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": true
             },
@@ -1663,7 +1663,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1673,7 +1673,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": false
             },
@@ -1681,7 +1681,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1696,20 +1696,20 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "readyForRelease",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected"
             },
             "possibleFrom":
             [
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 }
@@ -1724,7 +1724,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "hold",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": true
             },
@@ -1732,13 +1732,13 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 }
@@ -1748,7 +1748,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "hold",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": false
             },
@@ -1756,7 +1756,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1766,7 +1766,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "hold",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": true
             },
@@ -1774,13 +1774,13 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": false
                 }
@@ -1790,7 +1790,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "hold",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected",
                 "lockStatus": false
             },
@@ -1798,7 +1798,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             [
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1808,20 +1808,20 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "rescind",
-                "releaseStatus": "completelyDeployed",
+                "rolloutStatus": "completelyDeployed",
                 "dependencyArtifactCount": "allImagesSelected"
             },
             "possibleFrom":
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "completelyDeployed",
+                    "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
@@ -1831,20 +1831,20 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'v1', 'Policy used for validatio
             "to":
             {
                 "configStatus": "rescind",
-                "releaseStatus": "partiallyDeployed",
+                "rolloutStatus": "partiallyDeployed",
                 "dependencyArtifactCount": "allImagesSelected"
             },
             "possibleFrom":
             [
                 {
                     "configStatus": "readyForRelease",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 },
                 {
                     "configStatus": "hold",
-                    "releaseStatus": "partiallyDeployed",
+                    "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactCount": "allImagesSelected",
                     "lockStatus": true
                 }
