@@ -259,6 +259,26 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                                 "Patch"
                             ]
                         },
+                        "Release Managers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "On-Duty":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
                         "Milestones":
                         {
                             "type": "object",
@@ -284,26 +304,6 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                                     "type": "string",
                                     "format": "date"
                                 }
-                            }
-                        },
-                        "Release Managers":
-                        {
-                            "type": "array",
-                            "uniqueItems": true,
-                            "items":
-                            {
-                                "type": "object",
-                                "refType": "#/references/users"
-                            }
-                        },
-                        "On-Duty":
-                        {
-                            "type": "array",
-                            "uniqueItems": true,
-                            "items":
-                            {
-                                "type": "object",
-                                "refType": "#/references/users"
                             }
                         },
                         "Target customers":
@@ -480,6 +480,26 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                                 "Patch"
                             ]
                         },
+                        "Release Managers":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
+                        "On-Duty":
+                        {
+                            "type": "array",
+                            "uniqueItems": true,
+                            "items":
+                            {
+                                "type": "object",
+                                "refType": "#/references/users"
+                            }
+                        },
                         "Milestones":
                         {
                             "type": "object",
@@ -505,26 +525,6 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                                     "type": "string",
                                     "format": "date"
                                 }
-                            }
-                        },
-                        "Release Managers":
-                        {
-                            "type": "array",
-                            "uniqueItems": true,
-                            "items":
-                            {
-                                "type": "object",
-                                "refType": "#/references/users"
-                            }
-                        },
-                        "On-Duty":
-                        {
-                            "type": "array",
-                            "uniqueItems": true,
-                            "items":
-                            {
-                                "type": "object",
-                                "refType": "#/references/users"
                             }
                         },
                         "Target customers":
