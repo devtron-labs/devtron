@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 
@@ -51,7 +52,7 @@ type EventFactory interface {
 	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
 	SetAdditionalImageScanData(event *Event, ciPipelineId int, artifactId int)
 	BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event
-	BuildScoopNotificationEventProviders(emailIds []string) []*Provider
+	BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string) (*Payload, error)
 }
 
 type EventSimpleFactoryImpl struct {
@@ -71,6 +72,8 @@ type EventSimpleFactoryImpl struct {
 	envRepository                repository4.EnvironmentRepository
 	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
 	resourceFilterAuditService   resourceFilter.FilterEvaluationAuditService
+	webhookConfigRepo            repository2.WebhookNotificationRepository
+	slackConfigRepo              repository2.SlackNotificationRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -81,6 +84,8 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
 	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
+	webhookConfigRepo repository2.WebhookNotificationRepository,
+	slackConfigRepo repository2.SlackNotificationRepository,
 ) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
@@ -99,6 +104,8 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		envRepository:                envRepository,
 		apiTokenServiceImpl:          apiTokenServiceImpl,
 		resourceFilterAuditService:   resourceFilterAuditService,
+		webhookConfigRepo:            webhookConfigRepo,
+		slackConfigRepo:              slackConfigRepo,
 	}
 
 }
@@ -736,24 +743,75 @@ func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId i
 	return auditData.TriggerMessage, nil
 }
 
-func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(emailIds []string) []*Provider {
-	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
-	if err != nil {
-		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string) (*Payload, error) {
+
+	if configType == util.SES || configType == util.SMTP {
+
+		defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+		if err != nil {
+			impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+		}
+
+		providers := make([]*Provider, 0, len(emailIds))
+		for _, emailId := range emailIds {
+			provider := &Provider{
+				ConfigId:  0,
+				Recipient: emailId,
+			}
+			if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
+				provider.Destination = SES_CONFIG_TYPE
+			} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
+				provider.Destination = SMTP_CONFIG_TYPE
+			}
+			providers = append(providers, provider)
+		}
+
+		return &Payload{
+			Providers: providers,
+		}, nil
+	}
+	return impl.buildWebhookOrSlackNotification(configType, configName)
+}
+
+func (impl *EventSimpleFactoryImpl) buildWebhookOrSlackNotification(configType util.Channel, configName string) (*Payload, error) {
+	var scoopNotifyConfig = make(map[string]interface{})
+	if configType == util.Webhook {
+		webhookConfig, err := impl.webhookConfigRepo.FindOneByName(configName)
+		if err != nil {
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, errors.New("config with given name not found")
+			}
+			return nil, err
+		}
+
+		scoopNotifyConfig["webhookConfig"] = map[string]interface{}{
+			"web_hook_url": webhookConfig.WebHookUrl,
+			"config_name":  webhookConfig.ConfigName,
+			"header":       webhookConfig.Header,
+			"payload":      webhookConfig.Payload,
+			"description":  webhookConfig.Description,
+		}
+
+	} else if configType == util.Slack {
+		// we also have a teamId option. future, we can search by teamId.
+		slackConfig, err := impl.slackConfigRepo.FindOneByName(configName)
+		if err != nil {
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, errors.New("config with given name not found")
+			}
+			return nil, err
+		}
+
+		scoopNotifyConfig["slackConfig"] = map[string]interface{}{
+			"web_hook_url": slackConfig.WebHookUrl,
+			"config_name":  slackConfig.ConfigName,
+			"description":  slackConfig.Description,
+		}
+
 	}
 
-	providers := make([]*Provider, 0, len(emailIds))
-	for _, emailId := range emailIds {
-		provider := &Provider{
-			ConfigId:  0,
-			Recipient: emailId,
-		}
-		if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
-			provider.Destination = SES_CONFIG_TYPE
-		} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
-			provider.Destination = SMTP_CONFIG_TYPE
-		}
-		providers = append(providers, provider)
-	}
-	return providers
+	return &Payload{
+		ScoopNotificationConfig: scoopNotifyConfig,
+	}, nil
+
 }

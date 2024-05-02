@@ -207,7 +207,7 @@ func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *re
 func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
 	var results []*NotificationRecipientListingResponse
 
-	slackConfigs, err := impl.slackRepository.FindByName(value)
+	slackConfigs, err := impl.slackRepository.FindLikeByName(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err
@@ -219,7 +219,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 			Dest:      util2.Slack}
 		results = append(results, result)
 	}
-	webhookConfigs, err := impl.webhookRepository.FindByName(value)
+	webhookConfigs, err := impl.webhookRepository.FindLikeByName(value)
 
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all webhook config", "err", err)
@@ -303,7 +303,7 @@ func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *Sl
 
 	existingConfig.UpdatedOn = time.Now()
 	existingConfig.UpdatedBy = userId
-	//deleting slack config
+	// deleting slack config
 	err = impl.slackRepository.MarkSlackConfigDeleted(existingConfig)
 	if err != nil {
 		impl.logger.Errorw("error in deleting slack config", "err", err, "id", existingConfig.Id)

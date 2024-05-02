@@ -107,7 +107,7 @@ func (handler *RestHandlerImpl) HandleNotificationEvent(w http.ResponseWriter, r
 
 	err = handler.service.HandleNotificationEvent(context.Background(), clusterId, notification)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

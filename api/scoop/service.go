@@ -220,18 +220,45 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId i
 		impl.logger.Errorw("error in finding cluster information by id", "clusterId", clusterId, "err", err)
 		return err
 	}
+
+	var configType string
+	var ok bool
+	var configName string
+
+	if configType, ok = notification["configType"].(string); !ok {
+		return errors.New("config type not set")
+	}
+
+	if !(string(util5.Slack) == configType || string(util5.Webhook) == configType || string(util5.SES) == configType || string(util5.SMTP) == configType) {
+		return errors.New("un-supported config type")
+	}
+
+	if configNameIf, ok := notification["configName"]; ok {
+		if configName, ok = configNameIf.(string); ok {
+			return errors.New("un-supported config name")
+		}
+
+		if (string(util5.Slack) == configType || string(util5.Webhook) == configType) && configName == "" {
+			return errors.New("config name is required for webhook/slack")
+		}
+	}
+
 	notification["cluster"] = cluster.ClusterName
 	notification["eventTypeId"] = util5.ScoopNotification
+	notification["eventTime"] = time.Now()
+	notification["correlationId"] = fmt.Sprintf("%s", uuid.NewV4())
+
 	emailIfs, _ := notification["emailIds"].([]interface{})
 	emails := util2.Map(emailIfs, func(emailIf interface{}) string {
 		return emailIf.(string)
 	})
-	notification["correlationId"] = fmt.Sprintf("%s", uuid.NewV4())
-	notification["payload"] = &client2.Payload{
-		Providers: impl.eventFactory.BuildScoopNotificationEventProviders(emails),
+	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emails)
+	if err != nil {
+		impl.logger.Errorw("error in constructing event payload ", "clusterId", clusterId, "notification", notification, "err", err)
+		return err
 	}
 
-	notification["eventTime"] = time.Now()
+	notification["payload"] = payload
 	_, err = impl.eventClient.SendAnyEvent(notification)
 	if err != nil {
 		impl.logger.Errorw("error in sending scoop event notification", "clusterId", clusterId, "notification", notification, "err", err)
