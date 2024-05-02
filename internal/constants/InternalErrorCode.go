@@ -94,5 +94,15 @@ const (
 	VulnerabilityFound    string = "10002"
 )
 
+const (
+	HttpClientSideTimeout = 499
+)
+
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}
 var AppDoesNotExist = &ErrorCode{"4004", "application %s does not exist"}
+
+const (
+	ErrorDeletingPipelineForDeletedArgoAppMsg = "error in deleting devtron pipeline for deleted argocd app"
+	ArgoAppDeletedErrMsg                      = "argocd app deleted"
+	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
+)
