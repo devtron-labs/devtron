@@ -259,6 +259,7 @@ message UpgradeReleaseRequest {
   int32 historyMax = 3;
   ChartContent chartContent = 4;
   bool RunInCtx = 5;
+  string K8sVersion = 6;
 }
 
 message UpgradeReleaseResponse {
@@ -326,6 +327,7 @@ message HelmInstallCustomRequest {
   ChartContent chartContent = 2;
   ReleaseIdentifier releaseIdentifier = 3;
   bool RunInCtx = 4;
+  string K8sVersion = 5;
 }
 
 message HelmInstallCustomResponse {
