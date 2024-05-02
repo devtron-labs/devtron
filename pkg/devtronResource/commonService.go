@@ -293,21 +293,3 @@ func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJ
 	}
 	return dependencies, nil
 }
-
-func DecodeFilterCriteriaString(criteria string) (*bean.FilterCriteriaDecoder, error) {
-	objs := strings.Split(criteria, "|")
-	if len(objs) != 3 {
-		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
-	}
-	criteriaDecoder := adapter.BuildFilterCriteriaDecoder(objs[0], objs[1], objs[2])
-	return criteriaDecoder, nil
-}
-
-func DecodeSearchKeyString(searchKey string) (*bean.SearchCriteriaDecoder, error) {
-	objs := strings.Split(searchKey, "|")
-	if len(objs) != 2 {
-		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidSearchKey, bean.InvalidSearchKey)
-	}
-	searchDecoder := adapter.BuildSearchCriteriaDecoder(objs[0], objs[1])
-	return searchDecoder, nil
-}

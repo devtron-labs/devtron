@@ -82,7 +82,7 @@ func (impl *PolicyEvaluationServiceImpl) getReleaseStatusPolicy() (*bean.Release
 
 func matchDefinitionState(stateInPolicy, stateInRequest *bean.ReleaseStatusDefinitionState) bool {
 	//setting default for draft and readyToRelease/Hold
-	if stateInRequest.ConfigStatus == bean3.DraftReleaseStatus && len(stateInRequest.ReleaseRolloutStatus) == 0 {
+	if len(stateInRequest.ReleaseRolloutStatus) == 0 {
 		stateInRequest.ReleaseRolloutStatus = bean3.NotDeployedReleaseRolloutStatus
 	}
 	if stateInRequest.ConfigStatus == bean3.ReadyForReleaseStatus || stateInRequest.ConfigStatus == bean3.HoldReleaseStatus &&
@@ -92,5 +92,5 @@ func matchDefinitionState(stateInPolicy, stateInRequest *bean.ReleaseStatusDefin
 	return stateInPolicy.ConfigStatus == stateInRequest.ConfigStatus &&
 		stateInPolicy.ReleaseRolloutStatus == stateInRequest.ReleaseRolloutStatus &&
 		stateInPolicy.DependencyArtifactStatus == stateInRequest.DependencyArtifactStatus &&
-		(stateInPolicy.LockStatus == nil || stateInPolicy.LockStatus == stateInRequest.LockStatus)
+		(stateInPolicy.LockStatus == nil || *stateInPolicy.LockStatus == *stateInRequest.LockStatus)
 }

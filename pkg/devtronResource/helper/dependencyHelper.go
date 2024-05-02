@@ -13,7 +13,7 @@ import (
 func DecodeDependencyInfoString(dependencyInfo string) (resourceIdentifier *bean.ResourceIdentifier, err error) {
 	resourceIdentifier = &bean.ResourceIdentifier{}
 	dependencyInfoSplits := strings.Split(dependencyInfo, "|")
-	if len(dependencyInfoSplits) != 4 {
+	if len(dependencyInfoSplits) != 3 && len(dependencyInfoSplits) != 4 {
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, bean.InvalidQueryDependencyInfo)
 	}
 	kind, subKind, err := GetKindAndSubKindFrom(dependencyInfoSplits[0])
@@ -23,13 +23,19 @@ func DecodeDependencyInfoString(dependencyInfo string) (resourceIdentifier *bean
 	resourceIdentifier.ResourceKind = bean.DevtronResourceKind(kind)
 	resourceIdentifier.ResourceSubKind = bean.DevtronResourceKind(subKind)
 	resourceIdentifier.ResourceVersion = bean.DevtronResourceVersion(dependencyInfoSplits[1])
-	if dependencyInfoSplits[2] == bean.IdentifierQueryString {
-		resourceIdentifier.Identifier = dependencyInfoSplits[3]
-	} else if dependencyInfoSplits[2] == bean.IdQueryString {
-		resourceIdentifier.Id, err = strconv.Atoi(dependencyInfoSplits[3])
-		if err != nil {
-			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, err.Error())
+	if len(dependencyInfoSplits) == 3 && dependencyInfoSplits[2] == bean.AllIdentifierQueryString {
+		resourceIdentifier.Identifier = bean.AllIdentifierQueryString
+	} else if len(dependencyInfoSplits) == 4 {
+		if dependencyInfoSplits[2] == bean.IdentifierQueryString {
+			resourceIdentifier.Identifier = dependencyInfoSplits[3]
+		} else if dependencyInfoSplits[2] == bean.IdQueryString {
+			resourceIdentifier.Id, err = strconv.Atoi(dependencyInfoSplits[3])
+			if err != nil {
+				return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, err.Error())
+			}
 		}
+	} else {
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryDependencyInfo, bean.InvalidQueryDependencyInfo)
 	}
 	return resourceIdentifier, nil
 }

@@ -1074,25 +1074,20 @@ func (impl *DevtronResourceServiceImpl) PatchResourceDependencies(ctx context.Co
 }
 
 func (impl *DevtronResourceServiceImpl) performDependencyPatchOperation(devtronResourceSchemaId int, objectData string, query bean.PatchQuery, dependencyInfo *bean.DependencyInfo) (string, string, error) {
-	var err error
-	var pathChanged string
 	switch query.Path {
 	case bean.ApplicationQueryPath:
 		//currently only remove is supported
 		if query.Operation != bean.Remove || dependencyInfo == nil {
-			return objectData, "", util.GetApiErrorAdapter(http.StatusNotFound, "400", bean.InvalidPatchOperation, bean.InvalidPatchOperation)
+			return "", "", util.GetApiErrorAdapter(http.StatusNotFound, "400", bean.InvalidPatchOperation, bean.InvalidPatchOperation)
 		}
-		objectData, pathChanged, err = impl.removeApplicationDependency(devtronResourceSchemaId, objectData, dependencyInfo)
-		return objectData, pathChanged, err
+		return impl.removeApplicationDependency(devtronResourceSchemaId, objectData, dependencyInfo)
 	case bean.ReleaseInstructionQueryPath:
-		objectData, pathChanged, err = impl.patchReleaseInstructionForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value.(string))
-		return objectData, pathChanged, err
+		return impl.patchReleaseInstructionForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value.(string))
 	case bean.ImageQueryPath:
-		objectData, pathChanged, err = impl.patchConfigImageForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value)
+		return impl.patchConfigImageForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value)
 	default:
-		return objectData, pathChanged, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+		return "", "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
 	}
-	return objectData, "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
 }
 
 func (impl *DevtronResourceServiceImpl) patchReleaseInstructionForApplication(devtronResourceSchemaId int, objectData string, dependencyInfo *bean.DependencyInfo, value string) (string, string, error) {

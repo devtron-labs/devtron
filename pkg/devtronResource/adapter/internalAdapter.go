@@ -16,7 +16,7 @@ func GetPolicyDefinitionStateFromReleaseObject(objectData string) *bean.ReleaseS
 	//TODO: with dependency object get, after db dep get object creation
 	upstreamDep := gjson.Get(objectData, `dependencies.#(typeOfDependency=="upstream")#`)
 	upstreamDepLen := len(upstreamDep.Array())
-	artifactLen := len(gjson.Get(upstreamDep.String(), `config.artifactConfig.#(artifactId>0)#`).Array())
+	artifactLen := len(gjson.Get(upstreamDep.String(), `#(config.artifactConfig.artifactId>0)#`).Array())
 	var depArtifactState bean2.DependencyArtifactStatus
 	if artifactLen == 0 {
 		depArtifactState = bean2.NotSelectedDependencyArtifactStatus
