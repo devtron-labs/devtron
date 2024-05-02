@@ -41,19 +41,29 @@ This shows errors in the cluster. If no error is present in the cluster, Resourc
 
 ### Catalog Framework
 
-Based on the schema provided in the catalog framework, you can add relevant details for each cluster. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details. Users need to have super-admin permission to edit the catalog framework.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to edit the catalog framework.
+{% endhint %}
+
+Based on the schema provided in the catalog framework, you can add relevant details for each cluster. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details. 
 
 ### Readme
 
-You can also include additional information about your cluster using the Markdown editor. You will need superadmin permission to edit it. Users need to have super-admin permission to edit the readme file.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to edit the readme file.
+{% endhint %}
+
+You can also include additional information about your cluster using the Markdown editor.
 
 ---
 
 ## Discovering Resources 
 
 {% hint style="warning" %}
-### Who Can Perform These Actions?
-Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to discover its resources.
+### Who Can Perform This Action?
+Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to discover resources.
 {% endhint %}
 
 ### Search and Filter
@@ -268,7 +278,7 @@ You can also access [Cluster Terminal](#cluster-terminal) from your node.
 ## Pods
 
 {% hint style="warning" %}
-### Who Can Perform These Actions?
+### Who Can Perform This Action?
 Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to view its pods and its data.
 {% endhint %}
 
@@ -297,7 +307,7 @@ In case any of your pod restarts, you can determine the cause by viewing its con
 ### Terminal
 
 {% hint style="warning" %}
-### Who Can Perform These Actions?
+### Who Can Perform This Action?
 Users need to have super-admin permission to access the pod terminal.
 {% endhint %}
 
@@ -401,7 +411,7 @@ A container can have no shells or multiple shells running in it. If you are unab
 ## Creating Resources
 
 {% hint style="warning" %}
-### Who Can Perform These Actions?
+### Who Can Perform This Action?
 Users need to have super-admin permission to create resources.
 {% endhint %}
 
