@@ -4,23 +4,23 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/watch"
 	"time"
 )
 
 type InterceptedEventExecution struct {
-	tableName          struct{}  `sql:"intercepted_event_execution" pg:",discard_unknown_columns"`
-	Id                 int       `sql:"id,pk"`
-	ClusterId          int       `sql:"cluster_id"`
-	Namespace          string    `sql:"namespace"`
-	Message            string    `sql:"message"`
-	MessageType        string    `sql:"message_type"`
-	Event              string    `sql:"event"`
-	InvolvedObject     string    `sql:"involved_object"`
-	InterceptedAt      time.Time `sql:"intercepted_at"`
-	TriggerId          int       `sql:"trigger_id"`
-	TriggerExecutionId int       `sql:"trigger_execution_id"`
-	Status             Status    `sql:"status"`
-	ExecutionMessage   string    `sql:"execution_message"`
+	tableName          struct{}        `sql:"intercepted_event_execution" pg:",discard_unknown_columns"`
+	Id                 int             `sql:"id,pk"`
+	ClusterId          int             `sql:"cluster_id"`
+	Namespace          string          `sql:"namespace"`
+	Action             watch.EventType `sql:"message_type"`
+	InvolvedObject     string          `sql:"involved_object"`
+	Gvk                string          `sql:"gvk"`
+	InterceptedAt      time.Time       `sql:"intercepted_at"`
+	TriggerId          int             `sql:"trigger_id"`
+	TriggerExecutionId int             `sql:"trigger_execution_id"`
+	Status             Status          `sql:"status"`
+	ExecutionMessage   string          `sql:"execution_message"`
 	sql.AuditLog
 }
 type Status string

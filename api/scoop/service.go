@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util5 "github.com/devtron-labs/devtron/util/event"
+	"github.com/devtron-labs/scoop/types"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
@@ -22,7 +23,7 @@ import (
 )
 
 type Service interface {
-	HandleInterceptedEvent(ctx context.Context, hostUrl, token string, event *InterceptedEvent) error
+	HandleInterceptedEvent(ctx context.Context, hostUrl, token string, event *types.InterceptedEvent) error
 	HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error
 }
 
@@ -58,8 +59,8 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, token string, interceptedEvent *InterceptedEvent) error {
-	event, involvedObj, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
+func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, token string, interceptedEvent *types.InterceptedEvent) error {
+	involvedObj, gvkStr, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)
 		return err
@@ -74,14 +75,13 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, tok
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case repository.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger, event, hostUrl, token)
+			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
-			interceptEventExec.Event = event
+			interceptEventExec.Gvk = gvkStr
 			interceptEventExec.InvolvedObject = involvedObj
 			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
 			interceptEventExec.Namespace = interceptedEvent.Namespace
-			interceptEventExec.Message = interceptedEvent.Message
-			interceptEventExec.MessageType = interceptedEvent.MessageType
+			interceptEventExec.Action = interceptedEvent.Action
 			interceptEventExec.AuditLog = sql.NewDefaultAuditLog(1)
 			interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 		}
@@ -94,18 +94,18 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, tok
 	return err
 }
 
-func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *InterceptedEvent) (event string, involvedObj string, triggers []*autoRemediation.Trigger, err error) {
-	eventBytes, err := json.Marshal(&interceptedEvent.Event)
+func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, gvkStr string, triggers []*autoRemediation.Trigger, err error) {
+	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObject)
 	if err != nil {
-		return event, involvedObj, triggers, err
+		return involvedObj, gvkStr, triggers, err
 	}
-	event = string(eventBytes)
-	involvedObjBytes, err := json.Marshal(&interceptedEvent.InvolvedObject)
+	involvedObj = string(involvedObjectBytes)
+	gvkBytes, err := json.Marshal(autoRemediation.GvkJson(interceptedEvent.GVK))
 	if err != nil {
-		return event, involvedObj, triggers, err
+		return involvedObj, gvkStr, triggers, err
 	}
-	involvedObj = string(involvedObjBytes)
-	watchersMap := make(map[int]*Watcher)
+	gvkStr = string(gvkBytes)
+	watchersMap := make(map[int]*types.Watcher)
 	for _, watcher := range interceptedEvent.Watchers {
 		watchersMap[watcher.Id] = watcher
 	}
@@ -148,7 +148,7 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event, hostUrl, token string) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObjJsonStr, hostUrl, token string) *repository.InterceptedEventExecution {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
@@ -157,7 +157,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event, host
 		runtimeParams.EnvVariables[param.Key] = param.Value
 	}
 
-	runtimeParams.EnvVariables["K8s_EVENT"] = event
+	runtimeParams.EnvVariables["K8S_OBJECT"] = involvedObjJsonStr
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
 	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "scoop/intercept-event/notify"
 

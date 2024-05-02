@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
+	"github.com/devtron-labs/scoop/types"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -50,7 +51,7 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 
 	hostUrl := r.Header.Get("hostUrl")
 	decoder := json.NewDecoder(r.Body)
-	var interceptedEvent = &InterceptedEvent{}
+	var interceptedEvent = &types.InterceptedEvent{}
 	err := decoder.Decode(interceptedEvent)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
