@@ -694,30 +694,32 @@ func (impl *DevtronResourceServiceImpl) checkReleasePatchPolicyAndAutoAction(old
 			UserMessage:     bean.InvalidPatchOperation,
 		}
 	}
-	if autoAction.LockStatus == nil {
-		autoAction.LockStatus = stateTo.LockStatus //not handling stateTo lock status nil because it is coming from adapter and always assuming it to be present
-	}
-	//policy valid, apply auto action if needed
-	if autoAction.ConfigStatus != stateTo.ConfigStatus {
-		query := bean.PatchQuery{
-			Path:  bean.StatusQueryPath,
-			Value: autoAction.ConfigStatus,
+	if autoAction != nil {
+		if autoAction.LockStatus == nil {
+			autoAction.LockStatus = stateTo.LockStatus //not handling stateTo lock status nil because it is coming from adapter and always assuming it to be present
 		}
-		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
-		if err != nil {
-			impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
-			return newObjectData, err
+		//policy valid, apply auto action if needed
+		if autoAction.ConfigStatus != stateTo.ConfigStatus {
+			query := bean.PatchQuery{
+				Path:  bean.StatusQueryPath,
+				Value: autoAction.ConfigStatus,
+			}
+			newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+			if err != nil {
+				impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
+				return newObjectData, err
+			}
 		}
-	}
-	if *autoAction.LockStatus != *stateTo.LockStatus {
-		query := bean.PatchQuery{
-			Path:  bean.LockQueryPath,
-			Value: *autoAction.LockStatus,
-		}
-		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
-		if err != nil {
-			impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
-			return newObjectData, err
+		if *autoAction.LockStatus != *stateTo.LockStatus {
+			query := bean.PatchQuery{
+				Path:  bean.LockQueryPath,
+				Value: *autoAction.LockStatus,
+			}
+			newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+			if err != nil {
+				impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
+				return newObjectData, err
+			}
 		}
 	}
 	return newObjectData, nil

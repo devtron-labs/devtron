@@ -85,7 +85,7 @@ func matchDefinitionState(stateInPolicy, stateInRequest *bean.ReleaseStatusDefin
 	if len(stateInRequest.ReleaseRolloutStatus) == 0 {
 		stateInRequest.ReleaseRolloutStatus = bean3.NotDeployedReleaseRolloutStatus
 	}
-	if stateInRequest.ConfigStatus == bean3.ReadyForReleaseStatus || stateInRequest.ConfigStatus == bean3.HoldReleaseStatus &&
+	if (stateInRequest.ConfigStatus == bean3.ReadyForReleaseStatus || stateInRequest.ConfigStatus == bean3.HoldReleaseStatus) &&
 		len(stateInRequest.DependencyArtifactStatus) == 0 {
 		stateInRequest.DependencyArtifactStatus = bean3.AllSelectedDependencyArtifactStatus
 	}
