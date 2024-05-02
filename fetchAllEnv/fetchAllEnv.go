@@ -88,7 +88,7 @@ func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[strin
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
-		log.Fatalln("error parsing file:", err)
+		log.Println("error parsing file:", err)
 		return
 	}
 

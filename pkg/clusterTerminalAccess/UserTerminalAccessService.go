@@ -871,7 +871,9 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	terminalAccessData, err := impl.TerminalAccessRepository.GetAllRunningUserTerminalData()
 	if err != nil {
-		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
+		// todo - should add retry
+		impl.Logger.Errorw("error occurred while fetching all running/starting data", "err", err)
+		return
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()

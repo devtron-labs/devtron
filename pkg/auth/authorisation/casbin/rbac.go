@@ -52,14 +52,17 @@ type Enforcer interface {
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) *EnforcerImpl {
+	logger *zap.SugaredLogger) (*EnforcerImpl, error) {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
-	enforcerConfig := getConfig()
+	enforcerConfig, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
 		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
-	return enf
+	return enf, nil
 }
 
 type CacheData struct {
@@ -74,13 +77,14 @@ type EnforcerConfig struct {
 	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
 }
 
-func getConfig() *EnforcerConfig {
+func getConfig() (*EnforcerConfig, error) {
 	cacheConfig := &EnforcerConfig{}
 	err := env.Parse(cacheConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
-	return cacheConfig
+	return cacheConfig, nil
 }
 
 func getEnforcerCache(logger *zap.SugaredLogger, enforcerConfig *EnforcerConfig) *cache.Cache {

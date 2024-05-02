@@ -53,7 +53,7 @@ type ModuleCacheServiceImpl struct {
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) (*ModuleCacheServiceImpl, error) {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -68,7 +68,8 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 	if !util2.IsBaseStack() {
 		exists, err := impl.moduleRepository.ModuleExists()
 		if err != nil {
-			log.Fatalln("Error while checking if any module exists in database.", "error", err)
+			log.Println("Error while checking if any module exists in database.", "error", err)
+			return nil, err
 		}
 		if !exists {
 			// insert cicd module entry
@@ -78,7 +79,8 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 			teamId := 1
 			team, err := teamService.FetchOne(teamId)
 			if err != nil {
-				log.Fatalln("Error while getting team.", "teamId", teamId, "err", err)
+				log.Println("Error while getting team.", "teamId", teamId, "err", err)
+				return nil, err
 			}
 
 			// insert first release components if this was old release and user installed full mode at that time
@@ -97,7 +99,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 		go impl.buildInformerToListenOnInstallerObject()
 	}
 
-	return impl
+	return impl, nil
 }
 
 func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
@@ -109,7 +111,8 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
-		log.Fatalln("Error while saving module.", "moduleName", moduleName, "error", err)
+		log.Println("Error while saving module.", "moduleName", moduleName, "error", err)
+		return
 	}
 }
 
@@ -117,7 +120,8 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	impl.logger.Debug("building informer cache to listen on installer object")
 	_, _, clusterDynamicClient, err := impl.K8sUtil.GetK8sInClusterConfigAndDynamicClients()
 	if err != nil {
-		log.Fatalln("not able to get k8s cluster rest config.", "error", err)
+		log.Println("not able to get k8s cluster rest config.", "error", err)
+		return
 	}
 
 	installerResource := schema.GroupVersionResource{
