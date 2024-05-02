@@ -43,7 +43,6 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	constants2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -379,22 +378,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("err", "err", err)
 		return 0, "", err
 	}
-	if overrideRequest.IsDeployDeploymentType() || overrideRequest.IsUnknownDeploymentType() {
-		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
-		if err != nil {
-			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-			return 0, "", err
-		}
-		if !isArtifactAvailable {
-			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE)
-		}
-
-		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
-			return 0, "", err
-		}
-	}
 
 	if artifact.IsMigrationRequired() {
 		// Migration of deprecated DataSource Type
@@ -450,10 +433,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			Artifact:       artifact,
 			TriggeredBy:    overrideRequest.UserId,
 			TriggerContext: triggerContext,
+			WorkflowType:   overrideRequest.CdWorkflowType,
 		}
 
 		triggerOperationRequest := adapter.GetTriggerOperationDto(triggerRequest, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF, overrideRequest.PipelineId, scope, triggeredAt, overrideRequest.CdWorkflowId)
-		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
+		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest, overrideRequest.DeploymentType)
 		if err != nil {
 			impl.logger.Errorw("error encountered in ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
 			return 0, "", err
@@ -665,28 +649,6 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 
 }
 
-func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
-	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
-		return false, err
-	}
-	if promotionPolicy != nil && promotionPolicy.Id > 0 {
-		if promotionPolicy.BlockApproverFromDeploy() {
-			isUserApprover, err := impl.artifactPromotionDataReadService.IsUserApprover(artifactId, cdPipeline.Id, userId)
-			if err != nil {
-				impl.logger.Errorw("error in checking if user is approver or not", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-				return false, err
-			}
-			if isUserApprover {
-				impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
-				return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
-			}
-		}
-	}
-	return false, nil
-}
-
 // checkFeasibilityAndCreateAudit first checks feasibility and creates audit if createAudit flag comes to true
 func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequirementRequest *bean.TriggerRequirementRequestDto, subjectId int, refType resourceFilter.ReferenceType, refId int) (*bean.TriggerFeasibilityResponse, *resourceFilter.ResourceFilterEvaluationAudit, error) {
 	var filters []*resourceFilter.FilterMetaDataBean
@@ -713,11 +675,11 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequiremen
 // step5: createAuditDataForDeploymentWindowBypass
 // step6: UpdateFilterEvaluationAuditRef if applicable
 // step7: ConsumeApprovalRequest if applicable
-func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOperationReq *bean.TriggerOperationDto) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
+func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOperationReq *bean.TriggerOperationDto, deploymentType models.DeploymentType) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
 	cdPipeline := triggerOperationReq.TriggerRequest.Pipeline
 	ciArtifactId := triggerOperationReq.TriggerRequest.Artifact.Id
 	triggeredBy := triggerOperationReq.TriggerRequest.TriggeredBy
-	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy)
+	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy, deploymentType)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error encountered in performOperationsForAutoOrManualTrigger", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
@@ -822,6 +784,7 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 
 	request.TriggerContext.TriggerType = bean.Automatic
+	request.WorkflowType = bean3.CD_WORKFLOW_TYPE_DEPLOY
 	// in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	triggeredBy := request.TriggeredBy
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -851,7 +814,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	impl.logger.Debug("scope for auto trigger ", "scope", scope, "pipelineId", pipeline.Id)
 
 	triggerOperationRequest := adapter.GetTriggerOperationDto(request, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM, pipeline.Id, scope, triggeredAt, 0)
-	runner, cdWfId, _, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
+	runner, cdWfId, _, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest, models.DEPLOYMENTTYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerAutomaticDeployment", "pipelineId", pipeline.Id, "err", err)
 		return err

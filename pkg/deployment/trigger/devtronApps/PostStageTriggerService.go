@@ -5,6 +5,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -80,7 +81,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy, models.DEPLOYMENTTYPE_POST)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, cdWf.CiArtifact.Id, pipelineStageType, stageId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerPostStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)

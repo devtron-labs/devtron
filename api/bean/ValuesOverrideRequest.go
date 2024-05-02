@@ -94,3 +94,10 @@ type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
 }
+
+func CheckIfDeploymentTypePrePostOrDeployOrUnknown(deploymentType models.DeploymentType) bool {
+	if deploymentType == models.DEPLOYMENTTYPE_DEPLOY || deploymentType == models.DEPLOYMENTTYPE_UNKNOWN || deploymentType == models.DEPLOYMENTTYPE_PRE || deploymentType == models.DEPLOYMENTTYPE_POST {
+		return true
+	}
+	return false
+}

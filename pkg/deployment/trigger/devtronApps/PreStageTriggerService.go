@@ -8,6 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -86,7 +87,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy, models.DEPLOYMENTTYPE_PRE)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, artifact.Id, pipelineStageType, stageId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)

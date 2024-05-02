@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -85,6 +86,7 @@ type TriggerRequirementRequestDto struct {
 	Scope          resourceQualifiers.Scope
 	TriggerRequest TriggerRequest
 	Stage          resourceFilter.ReferenceType
+	DeploymentType models.DeploymentType
 }
 
 type TriggerFeasibilityResponse struct {

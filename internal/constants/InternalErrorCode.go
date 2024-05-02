@@ -94,6 +94,9 @@ const (
 	ApprovalNodeFail       string = "10002"
 	FilteringConditionFail string = "10003"
 	DeploymentWindowFail   string = "10004"
+	PreCDDoesNotExists     string = "10005"
+	PostCDDoesNotExists    string = "10006"
+	ArtifactNotAvailable   string = "10007"
 )
 const (
 	HttpStatusUnprocessableEntity = "422"
