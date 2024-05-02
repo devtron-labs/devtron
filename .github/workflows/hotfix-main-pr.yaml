@@ -54,7 +54,7 @@ jobs:
             echo "\n******** Pushing the $final_branch to origin ****\n"
             git push https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} $final_branch
             echo "\n\n********* Creating the PR ***********\n\n"
-            curl --request POST \
+            response=$(curl --request POST \
             --url https://api.github.com/repos/$GITHUB_REPOSITORY/pulls \
             --header "Authorization: Bearer $GH_TOKEN" \
             --header "Content-Type: application/json" \
@@ -63,15 +63,23 @@ jobs:
                 \"body\": \"This pull request was generated as a result of cherry-picking commit hash $commit_sha from the $requested_branch branch into $base_branch branch\",
                 \"head\": \"$final_branch\",
                 \"base\": \"$base_branch\"
-            }" | \
-            jq '.number' | \
-            xargs -I {} curl -X POST \
+            }")
+            pr_number=$(echo "$response" | jq -r '.number')
+            echo "Created PR number is $pr_number"
+            echo "****** adding the label to PR ***********"
+            curl -X POST \
                 -H "Authorization: Bearer $GH_TOKEN" \
                 -H "Content-Type: application/json" \
                 -d '{
                 "labels": ["PR:Auto-Cherrypick-from-hotfix"]
                 }' \
-                "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/{}/labels"
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$pr_number/labels"
+            echo "****** adding the requried Reviewers to PR ***********"
+            curl -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{"reviewers":["vikramdevtron","kripanshdevtron"]}' \
+                https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$pr_number/requested_reviewers                     
         else
             echo "************** Cherry-pick failed with conflicts *************"
             send_discord_message
