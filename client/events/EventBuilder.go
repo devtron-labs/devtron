@@ -746,7 +746,9 @@ func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId i
 func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string) (*Payload, error) {
 
 	if configType == util.SES || configType == util.SMTP {
-
+		if len(emailIds) == 0 {
+			return nil, errors.New("emailIds cannot be empty for ses/smtp type")
+		}
 		defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 		if err != nil {
 			impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)

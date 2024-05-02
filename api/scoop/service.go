@@ -12,17 +12,17 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	util2 "github.com/devtron-labs/devtron/util"
 	util5 "github.com/devtron-labs/devtron/util/event"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+	"strings"
 	"time"
 )
 
 type Service interface {
-	HandleInterceptedEvent(ctx context.Context, event *InterceptedEvent) error
+	HandleInterceptedEvent(ctx context.Context, hostUrl, token string, event *InterceptedEvent) error
 	HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error
 }
 
@@ -58,7 +58,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedEvent *InterceptedEvent) error {
+func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, token string, interceptedEvent *InterceptedEvent) error {
 	event, involvedObj, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)
@@ -74,7 +74,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case repository.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger, event)
+			interceptEventExec := impl.triggerJob(trigger, event, hostUrl, token)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Event = event
 			interceptEventExec.InvolvedObject = involvedObj
@@ -148,15 +148,19 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event string) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event, hostUrl, token string) *repository.InterceptedEventExecution {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
+
 	for _, param := range trigger.Data.RuntimeParameters {
 		runtimeParams.EnvVariables[param.Key] = param.Value
 	}
 
-	runtimeParams.EnvVariables["event"] = event
+	runtimeParams.EnvVariables["K8s_EVENT"] = event
+	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
+	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "scoop/intercept-event/notify"
+
 	request := bean.CiTriggerRequest{
 		PipelineId: trigger.Data.PipelineId,
 		// system user
@@ -215,11 +219,6 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, event strin
 }
 
 func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error {
-	cluster, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in finding cluster information by id", "clusterId", clusterId, "err", err)
-		return err
-	}
 
 	var configType string
 	var ok bool
@@ -234,7 +233,7 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId i
 	}
 
 	if configNameIf, ok := notification["configName"]; ok {
-		if configName, ok = configNameIf.(string); ok {
+		if configName, ok = configNameIf.(string); !ok {
 			return errors.New("un-supported config name")
 		}
 
@@ -243,16 +242,15 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId i
 		}
 	}
 
-	notification["cluster"] = cluster.ClusterName
 	notification["eventTypeId"] = util5.ScoopNotification
 	notification["eventTime"] = time.Now()
 	notification["correlationId"] = fmt.Sprintf("%s", uuid.NewV4())
+	emailIds := make([]string, 0)
+	if emailsStr, ok := notification["emailIds"].(string); ok {
+		emailIds = strings.Split(emailsStr, ",")
+	}
 
-	emailIfs, _ := notification["emailIds"].([]interface{})
-	emails := util2.Map(emailIfs, func(emailIf interface{}) string {
-		return emailIf.(string)
-	})
-	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emails)
+	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emailIds)
 	if err != nil {
 		impl.logger.Errorw("error in constructing event payload ", "clusterId", clusterId, "notification", notification, "err", err)
 		return err

@@ -48,6 +48,7 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 		return
 	}
 
+	hostUrl := r.Header.Get("hostUrl")
 	decoder := json.NewDecoder(r.Body)
 	var interceptedEvent = &InterceptedEvent{}
 	err := decoder.Decode(interceptedEvent)
@@ -55,7 +56,7 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	err = handler.service.HandleInterceptedEvent(r.Context(), interceptedEvent)
+	err = handler.service.HandleInterceptedEvent(r.Context(), hostUrl, token, interceptedEvent)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
