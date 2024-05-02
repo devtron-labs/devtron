@@ -18,12 +18,12 @@
 package app
 
 import (
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -41,9 +41,9 @@ type AppCrudOperationServiceEnterpriseImpl struct {
 func NewAppCrudOperationServiceEnterpriseImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
 	globalTagService globalTag.GlobalTagService, teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService, gitMaterialRepository pipelineConfig.MaterialRepository,
-	helmAppService client.HelmAppService) *AppCrudOperationServiceEnterpriseImpl {
+	installedAppDbService EAMode.InstalledAppDBService) *AppCrudOperationServiceEnterpriseImpl {
 	return &AppCrudOperationServiceEnterpriseImpl{
-		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService, gitMaterialRepository, helmAppService),
+		AppCrudOperationServiceImpl: app2.NewAppCrudOperationServiceImpl(appLabelRepository, logger, appRepository, userRepository, installedAppRepository, teamRepository, genericNoteService, gitMaterialRepository, installedAppDbService),
 		logger:                      logger,
 		globalTagService:            globalTagService,
 		appRepository:               appRepository,
