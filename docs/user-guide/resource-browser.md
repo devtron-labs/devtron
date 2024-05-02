@@ -41,15 +41,20 @@ This shows errors in the cluster. If no error is present in the cluster, Resourc
 
 ### Catalog Framework
 
-Based on the schema provided in the catalog framework, you can add relevant details for each cluster. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details.
+Based on the schema provided in the catalog framework, you can add relevant details for each cluster. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details. Users need to have super-admin permission to edit the catalog framework.
 
 ### Readme
 
-You can also include additional information about your cluster using the Markdown editor.
+You can also include additional information about your cluster using the Markdown editor. You will need superadmin permission to edit it. Users need to have super-admin permission to edit the readme file.
 
 ---
 
 ## Discovering Resources 
+
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to discover its resources.
+{% endhint %}
 
 ### Search and Filter
 
@@ -63,6 +68,11 @@ Moreover, you can use filters that allow you to quickly filter your workload as 
 
 ### Edit Manifest 
 
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to edit a manifest.
+{% endhint %}
+
 You can edit the [manifest](../reference/glossary.md#manifest) of a Kubernetes object. This can be for fixing errors, scaling resources, or changing configuration.
 
 ![Figure 5: Editing a Live Manifest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-live-manifest.gif)
@@ -74,6 +84,11 @@ You can monitor activities like creation, deletion, updation, scaling, or errors
 ![Figure 6: Viewing All Events](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/events.gif)
 
 ### Delete
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to delete a resource.
+{% endhint %}
 
 You can delete an unwanted resource if it is orphaned and no longer required by your applications.
 
@@ -126,8 +141,13 @@ Further using the Devtron UI, you will be able to:
 * [Delete a Node](#delete-a-node)
 
 {% hint style="info" %}
-### Why are node operations required?
+### Why Are Node Operations Required?
 Your applications run on pods, and pods run on nodes. But sometimes, Kubernetes scheduler cannot deploy a pod on a node for several reasons, e.g., node is not ready, node is not reachable, network is unavailable, etc. In such cases, node operations help you manage the nodes better.
+{% endhint %}
+
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have super-admin permission to perform node operations.
 {% endhint %}
 
 ### Debug a Node
@@ -247,6 +267,11 @@ You can also access [Cluster Terminal](#cluster-terminal) from your node.
 
 ## Pods
 
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to view its pods and its data.
+{% endhint %}
+
 ### Manifest
 
 Shows you the [configuration](../reference/glossary.md#manifest) of the selected pod and allows you to edit it. Refer [Edit Manifest](#edit-manifest) to know more.
@@ -270,6 +295,11 @@ In case any of your pod restarts, you can determine the cause by viewing its con
 ![Figure 16: Checking Restart Pod Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/restart-pod-log.gif)
 
 ### Terminal
+
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have super-admin permission to access the pod terminal.
+{% endhint %}
 
 You can access the terminal within a running container of a pod to view its logs, troubleshoot issues, or execute commands directly. This is different from the [cluster terminal](#cluster-terminal) you get at node level. 
 
@@ -369,6 +399,11 @@ A container can have no shells or multiple shells running in it. If you are unab
 ---
 
 ## Creating Resources
+
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have super-admin permission to create resources.
+{% endhint %}
 
 You can create one or more [Kubernetes objects](../reference/glossary.md#objects) in your cluster using YAML. In case you wish to create multiple objects, separate each resource definition by three dashes (---).
 
