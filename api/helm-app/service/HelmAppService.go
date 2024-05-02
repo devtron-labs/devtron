@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -533,7 +532,6 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	appModel := &app.App{}
 	var isAppLinkedToChartStore bool // if true, entry present in both app and installed_app table
 
 	installedAppModel, err := impl.getInstalledAppForAppIdentifier(appIdentifier)
@@ -543,15 +541,6 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	if installedAppModel.Id > 0 {
 		isAppLinkedToChartStore = true
-	}
-	if !isAppLinkedToChartStore {
-		//this means app not found in installed_apps, but a scenario where an external app is only
-		//assigned project and not linked to devtron, in that case only entry in app will be found.
-		appModel, err = impl.getAppForAppIdentifier(appIdentifier)
-		if err != nil {
-			impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching app from appIdentifier", "appIdentifier", appIdentifier, "err", err)
-			return nil, err
-		}
 	}
 
 	if isAppLinkedToChartStore {
@@ -606,6 +595,13 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 		}
 		// InstalledAppVersions Delete --> End
 	} else {
+		//this means app not found in installed_apps, but a scenario where an external app is only
+		//assigned project and not linked to devtron, in that case only entry in app will be found.
+		appModel, err := impl.getAppForAppIdentifier(appIdentifier)
+		if err != nil {
+			impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching app from appIdentifier", "appIdentifier", appIdentifier, "err", err)
+			return nil, err
+		}
 		if appModel != nil && appModel.Id > 0 {
 			// App Delete --> Start
 			//soft delete app
@@ -1115,26 +1111,15 @@ type AppIdentifier struct {
 // as what is returned from this func, this is the case where an app across diff namespace or cluster can have same name,
 // so to identify then uniquely below implementation would serve as good unique identifier for an external app.
 func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
-	return r.ReleaseName + "-" + r.Namespace + "-" + strconv.Itoa(r.ClusterId)
+	return fmt.Sprintf("%s-%s-%s", r.ReleaseName, r.Namespace, strconv.Itoa(r.ClusterId))
+}
+
+func (r *AppIdentifier) GetUniqueAppIdentifierForGivenNamespaceAndCluster(namespace, clusterId string) string {
+	return fmt.Sprintf("%s-%s-%s", r.ReleaseName, namespace, clusterId)
 }
 
 func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error) {
-	component := strings.Split(appId, "|")
-	if len(component) != 3 {
-		return nil, fmt.Errorf("malformed app id %s", appId)
-	}
-	clusterId, err := strconv.Atoi(component[0])
-	if err != nil {
-		return nil, err
-	}
-	if clusterId <= 0 {
-		return nil, fmt.Errorf("target cluster is not provided")
-	}
-	return &AppIdentifier{
-		ClusterId:   clusterId,
-		Namespace:   component[1],
-		ReleaseName: component[2],
-	}, nil
+	return DecodeExternalAppAppId(appId)
 }
 
 func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string {

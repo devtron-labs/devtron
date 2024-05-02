@@ -179,7 +179,7 @@ func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, 
 			return
 		}
 	}
-	res, err := handler.appService.GetHelmAppMetaInfo(appIdReq, userId)
+	res, err := handler.appService.GetHelmAppMetaInfo(appIdReq)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
