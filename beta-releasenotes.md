@@ -1,4 +1,5 @@
 ## Bugs
+- fix: git material saved in transaction (#5040)
 - fix: panic while pulling images (#5036)
 - fix: terminal stuck in connecting state (#4989)
 - fix: handle for wrong format of k8s version in semvercompare func in cronjob template charts (#5016)
