@@ -371,7 +371,6 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	return response, nil
 }
 func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error) {
-	//ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "err", err)
@@ -400,35 +399,6 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	var templateChartResponse []*gRPC.TemplateChartResponse
 	templateChartResponseLock := &sync.Mutex{}
 	partitionedRequests := utils.PartitionSlice(installReleaseRequests, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
-
-	//workers := impl.restartWorkloadConfig.RestartWorkloadWorker
-	//for i := 0; i < len(partitionedRequests); {
-	//	remainingReqs := len(partitionedRequests) - i
-	//	if remainingReqs < impl.restartWorkloadConfig.RestartWorkloadWorker {
-	//		workers = remainingReqs
-	//	}
-	//	wg := &sync.WaitGroup{}
-	//	for j := 0; j < workers; j++ {
-	//		wg.Add(1)
-	//		go func(req []*gRPC.InstallReleaseRequest) {
-	//			defer wg.Done()
-	//			defer handlePanic()
-	//			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, req)
-	//			if err != nil {
-	//				impl.Logger.Errorw("error in getting data from template chart", "err", err)
-	//				cancel()
-	//				return
-	//			}
-	//			templateChartResponseLock.Lock()
-	//			templateChartResponse = append(templateChartResponse, resp...)
-	//			templateChartResponseLock.Unlock()
-	//			impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
-	//		}(partitionedRequests[i+j])
-	//	}
-	//	i += workers
-	//	wg.Wait()
-	//
-	//}
 	var finaError error
 	for i, _ := range partitionedRequests {
 		req := partitionedRequests[i]
