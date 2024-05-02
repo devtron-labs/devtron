@@ -381,11 +381,17 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	//loading policy for safety
 	casbin2.LoadPolicy()
 
+	var restrictedGroups []bean.RestrictedGroup
+
 	//Starts Role and Mapping
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	//var policies []casbin2.Policy
 	var policies = make([]casbin2.Policy, 0, capacity)
 	if userInfo.SuperAdmin == false {
+		isActionPerformingUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.UserId))
+		if err != nil {
+			return nil, err
+		}
 		for index, roleFilter := range userInfo.RoleFilters {
 			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
 			entity := roleFilter.Entity
@@ -404,8 +410,16 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			if err != nil {
 				return nil, err
 			}
-			//object := "group:" + strings.ReplaceAll(item, " ", "_")
-			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(emailId), Obj: casbin2.Object(userGroup.CasbinName)})
+			hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
+			if hasAccessToGroup {
+				policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+			} else {
+				trimmedGroup := strings.TrimPrefix(item.RoleGroup.Name, "group:")
+				restrictedGroups = append(restrictedGroups, bean.RestrictedGroup{
+					Group:                   trimmedGroup,
+					HasSuperAdminPermission: hasSuperAdminPermission,
+				})
+			}
 		}
 		// END GROUP POLICY
 	} else if userInfo.SuperAdmin == true {
@@ -454,6 +468,19 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
+
+	if len(restrictedGroups) > 0 {
+		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := userHelper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
+		if len(restrictedGroups) != len(userInfo.UserRoleGroup) {
+			// warning
+			message := fmt.Errorf("User permissions added partially. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			return userInfo, message
+		} else {
+			//error
+			message := fmt.Errorf("Permission could not be added/removed. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			return userInfo, message
+		}
+	}
 	return userInfo, nil
 }
 
