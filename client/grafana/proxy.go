@@ -11,6 +11,9 @@ func NewGrafanaHTTPReverseProxy(serverAddr string, transport http.RoundTripper) 
 	target, err := url.Parse(serverAddr)
 	if err != nil {
 		log.Println(err)
+		return func(writer http.ResponseWriter, request *http.Request) {
+			http.Error(writer, "error while parsing target url", http.StatusInternalServerError)
+		}
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport

@@ -48,11 +48,12 @@ type Policy struct {
 	Obj  Object     `json:"obj"`
 }
 
-func Create() *casbin.SyncedEnforcer {
+func Create() (*casbin.SyncedEnforcer, error) {
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 	dbSpecified := true
 	if config.CasbinDatabase == CasbinDefaultDatabase {
@@ -62,6 +63,7 @@ func Create() *casbin.SyncedEnforcer {
 	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
@@ -72,10 +74,11 @@ func Create() *casbin.SyncedEnforcer {
 	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
-	return e
+	return e, nil
 }
 
 func setEnforcerImpl(ref *EnforcerImpl) {

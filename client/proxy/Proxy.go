@@ -24,7 +24,7 @@ func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper
 func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string) *httputil.ReverseProxy {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
