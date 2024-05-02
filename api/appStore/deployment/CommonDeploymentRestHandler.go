@@ -20,6 +20,7 @@ package appStoreDeployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
@@ -63,13 +64,16 @@ type CommonDeploymentRestHandlerImpl struct {
 	helmAppService            service2.HelmAppService
 	helmAppRestHandler        client.HelmAppRestHandler
 	argoUserService           argo.ArgoUserService
+	globalEnvVariables        *util2.GlobalEnvVariables
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
+	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService,
+	envVariables *util2.EnvironmentVariables,
+) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -82,6 +86,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		helmAppService:            helmAppService,
 		helmAppRestHandler:        helmAppRestHandler,
 		argoUserService:           argoUserService,
+		globalEnvVariables:        envVariables.GlobalEnvVariables,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -292,19 +297,22 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	//rbac block ends here
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
+
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(r.Context(), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 				cancel()
 			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
+		}
+	}()
+
 	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
-		ctx = context.WithValue(r.Context(), "token", token)
+		installAppCtx = context.WithValue(installAppCtx, "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -312,11 +320,10 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
+		installAppCtx = context.WithValue(installAppCtx, "token", acdToken)
 	}
 
-	defer cancel()
-	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedAppDto, userId)
+	success, err := handler.appStoreDeploymentService.RollbackApplication(installAppCtx, request, installedAppDto, userId)
 	if err != nil {
 		handler.Logger.Errorw("Error in Rollback release", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

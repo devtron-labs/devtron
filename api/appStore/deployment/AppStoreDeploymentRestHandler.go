@@ -71,6 +71,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	argoUserService             argo.ArgoUserService
 	attributesService           attributes.AttributesService
 	installAppService           EAMode.InstalledAppDBService
+	globalEnvVariables          *util2.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -79,7 +80,8 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
 	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
-	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
+	installAppService EAMode.InstalledAppDBService,
+	envVariables *util2.EnvironmentVariables) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
 		userAuthService:             userAuthService,
@@ -93,6 +95,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		argoUserService:             argoUserService,
 		attributesService:           attributesService,
 		installAppService:           installAppService,
+		globalEnvVariables:          envVariables.GlobalEnvVariables,
 	}
 }
 
@@ -157,18 +160,21 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateInstalledApp", "payload", request)
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
+
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 				cancel()
 			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
+		}
+	}()
+
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
-		ctx = context.WithValue(r.Context(), "token", token)
+		installAppCtx = context.WithValue(installAppCtx, "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -176,11 +182,10 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
+		installAppCtx = context.WithValue(installAppCtx, "token", acdToken)
 	}
 
-	defer cancel()
-	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
+	res, err := handler.appStoreDeploymentService.InstallApp(&request, installAppCtx)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
@@ -466,20 +471,20 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	//rbac block ends here
-
-	request.UserId = userId
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
+	ctxTimeout := handler.globalEnvVariables.HelmAppInstallTimeout
+	installAppCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), time.Duration(ctxTimeout)*time.Minute)
+	defer cancel()
+	go func() {
+		select {
+		case <-r.Context().Done():
+			if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 				cancel()
 			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
+		}
+	}()
+
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
-		ctx = context.WithValue(r.Context(), "token", token)
+		installAppCtx = context.WithValue(installAppCtx, "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
@@ -487,10 +492,10 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
+		installAppCtx = context.WithValue(installAppCtx, "token", acdToken)
 	}
 	triggeredAt := time.Now()
-	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
+	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(installAppCtx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}

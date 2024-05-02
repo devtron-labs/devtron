@@ -19,6 +19,8 @@ type GlobalEnvVariables struct {
 	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+	DeploymentTriggerTimeout       int    `env:"DEPLOYMENT_TRIGGER_TIMEOUT" envDefault:"3"`
+	HelmAppInstallTimeout          int    `env:"HELM_APP_INSTALL_TIMEOUT" envDefault:"3"`
 }
 
 type DevtronSecretConfig struct {
