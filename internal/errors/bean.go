@@ -17,3 +17,11 @@ func (r *ClientStatusCode) IsNotFoundCode() bool {
 func (r *ClientStatusCode) IsFailedPreconditionCode() bool {
 	return r.Code == codes.FailedPrecondition
 }
+
+func (r *ClientStatusCode) IsDeadlineExceededCode() bool {
+	return r.Code == codes.DeadlineExceeded
+}
+
+func (r *ClientStatusCode) IsCanceledCode() bool {
+	return r.Code == codes.Canceled
+}

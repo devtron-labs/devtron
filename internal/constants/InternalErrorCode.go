@@ -105,4 +105,5 @@ const (
 	ErrorDeletingPipelineForDeletedArgoAppMsg = "error in deleting devtron pipeline for deleted argocd app"
 	ArgoAppDeletedErrMsg                      = "argocd app deleted"
 	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
+	UnableToFetchResourceTreeForAcdErrMsg     = "app detail fetched, failed to get resource tree from acd"
 )
