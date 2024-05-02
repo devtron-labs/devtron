@@ -9,11 +9,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	discoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -72,7 +72,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	appStoreValidator                    AppStoreValidator
-	appCrudOperationService              app2.AppCrudOperationService
+	installedAppDbService                EAMode.InstalledAppDBService
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -86,7 +86,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
 	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator,
-	appCrudOperationService app2.AppCrudOperationService) *AppStoreDeploymentDBServiceImpl {
+	installedAppDbService EAMode.InstalledAppDBService) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -100,7 +100,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		deploymentTypeOverrideService:        deploymentTypeOverrideService,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		appStoreValidator:                    appStoreValidator,
-		appCrudOperationService:              appCrudOperationService,
+		installedAppDbService:                installedAppDbService,
 	}
 }
 
@@ -334,8 +334,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetActiveAppForAppIdentifierOrRelea
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return nil, err
-	}
-	if util.IsErrNoRows(err) {
+	} else if util.IsErrNoRows(err) {
 		//find app by displayName/releaseName if not found by unique identifier
 		app, err = impl.appRepository.FindActiveByName(releaseName)
 		if err != nil {
@@ -364,7 +363,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 						- if ns matches, then update proj. req. is for same app present in installed_apps, in that case we will update
 				          the app_name with unique identifier and display_name along with team_id.
 		*/
-		isLinkedToDevtron, _, linkedInstalledAppNamespace, err := impl.appCrudOperationService.IsExternalAppLinkedToChartStore(appModel.Id)
+		isLinkedToDevtron, _, linkedInstalledAppNamespace, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(appModel.Id)
 		if err != nil {
 			impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", appModel.Id, "err", err)
 			return err

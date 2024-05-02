@@ -54,6 +54,7 @@ type InstalledAppDBService interface {
 
 	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
 	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
+	IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error)
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -329,8 +330,7 @@ func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.App
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and appUniqueIdentifierName", "appIdentifier", appIdentifier, "appUniqueIdentifierName", appName, "error", err)
 		return nil, err
-	}
-	if util.IsErrNoRows(err) {
+	} else if util.IsErrNoRows(err) {
 		// when app_name is not yet migrated to unique identifier
 		installedAppVersionDto, err = impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 		if err != nil {
@@ -344,4 +344,18 @@ func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.App
 		}
 	}
 	return installedAppVersionDto, nil
+}
+
+// IsExternalAppLinkedToChartStore checks for an appId, if that app is linked to any chart-store app or not,
+// if it's linked then it returns true along with clusterId and namespace for that linked installed_app
+func (impl *InstalledAppDBServiceImpl) IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error) {
+	installedApp, err := impl.InstalledAppRepository.GetInstalledAppsByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed app by app id for external apps", "appId", appId, "err", err)
+		return false, 0, "", err
+	}
+	if installedApp.Id > 0 {
+		return true, installedApp.Environment.ClusterId, installedApp.Environment.Namespace, nil
+	}
+	return false, 0, "", nil
 }
