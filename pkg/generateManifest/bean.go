@@ -61,10 +61,14 @@ type RestartPodResponse struct {
 }
 
 type ResourceIdentifierResponse struct {
-	ResourceMetaData []*ResourceMetadata `json:"resourceMetaData"`
+	ResourceMetaData []*ResourceMetadata `json:"resourceMetaData,omitempty"`
 	AppName          string              `json:"appName"`
 }
 type ResourceMetadata struct {
 	Name             string                  `json:"name"`
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
+}
+type RestartWorkloadConfig struct {
+	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5"`
+	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"1"`
 }

@@ -63,10 +63,6 @@ type DeploymentTemplateServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
 	restartWorkloadConfig            *RestartWorkloadConfig
 }
-type RestartWorkloadConfig struct {
-	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5"`
-	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"2"`
-}
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
 	cfg := &RestartWorkloadConfig{}
@@ -384,6 +380,10 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	var templateChartResponse []*gRPC.TemplateChartResponse
 	templateChartResponseLock := &sync.Mutex{}
 	podResp := &RestartPodResponse{}
+	appNameToId := make(map[string]int)
+	if len(appIds) == 0 {
+		return podResp, nil
+	}
 	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "appIds", appIds, "err", err)
@@ -402,7 +402,6 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	if installReleaseRequests == nil || len(installReleaseRequests) == 0 {
 		return podResp, nil
 	}
-	appNameToId := make(map[string]int)
 	for _, app := range apps {
 		appNameToId[app.AppName] = app.Id
 	}
@@ -411,7 +410,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	for i, _ := range partitionedRequests {
 		req := partitionedRequests[i]
 		wp.Submit(func() {
-			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, &gRPC.BulkInstallReleaseRequest{InstallReleaseRequest: req})
+			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, &gRPC.BulkInstallReleaseRequest{BulkInstallReleaseRequest: req})
 			if err != nil {
 				impl.Logger.Errorw("error in getting data from template chart", "err", err)
 				finaError = err
@@ -420,18 +419,19 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 			templateChartResponseLock.Lock()
 			templateChartResponse = append(templateChartResponse, resp...)
 			templateChartResponseLock.Unlock()
-			impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
+
 		})
 		if finaError != nil {
 			break
 		}
 	}
 	wp.StopWait()
-
 	if finaError != nil {
 		impl.Logger.Errorw("error in fetching response", "installReleaseRequests", installReleaseRequests, "templateChartResponse", templateChartResponse)
 		return nil, finaError
 	}
+	impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
+
 	podResp, err = impl.constructRotatePodResponse(templateChartResponse, appNameToId, environment)
 	if err != nil {
 		impl.Logger.Errorw("error in constructing pod resp", "templateChartResponse", templateChartResponse, "appNameToId", appNameToId, "environment", environment, "err", err)

@@ -136,6 +136,9 @@ func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int
 }
 func (repositoryImpl ChartRepositoryImpl) FindLatestChartByAppIds(appIds []int) ([]*Chart, error) {
 	var chart []*Chart
+	if len(appIds) == 0 {
+		return nil, nil
+	}
 	err := repositoryImpl.dbConnection.
 		Model(&chart).
 		Where("app_id in (?)", pg.In(appIds)).

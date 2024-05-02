@@ -303,7 +303,7 @@ func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkIn
 	if err != nil {
 		return nil, err
 	}
-	return response.TemplateChartResponse, nil
+	return response.BulkTemplateChartResponse, nil
 }
 
 func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error) {

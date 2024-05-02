@@ -186,6 +186,9 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 }
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineOverride, err error) {
 	var overrides []*PipelineOverride
+	if len(appIds) == 0 {
+		return nil, nil
+	}
 	query := impl.dbConnection.Model(&overrides).
 		Table("pipeline_config_override").
 		ColumnExpr("MAX(pipeline_config_override.id)").

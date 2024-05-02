@@ -270,30 +270,30 @@ func (impl *ChartRefServiceImpl) ChartRefAutocomplete() ([]*bean.ChartRefAutocom
 	return chartRefs, nil
 }
 
-func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int, deleteChart bool) ([]byte, error) {
+func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int, performCleanup bool) ([]byte, error) {
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
-	return impl.extractChartInBytes(chartRef, deleteChart)
+	return impl.extractChartInBytes(chartRef, performCleanup)
 }
 
-func (impl *ChartRefServiceImpl) extractChartInBytes(chartRef *chartRepoRepository.ChartRef, deleteChart bool) ([]byte, error) {
+func (impl *ChartRefServiceImpl) extractChartInBytes(chartRef *chartRepoRepository.ChartRef, performCleanup bool) ([]byte, error) {
 	// For user uploaded charts ChartData will be retrieved from DB
 	if chartRef.ChartData != nil {
 		return chartRef.ChartData, nil
 	}
 	// For Devtron reference charts the chart will be load from the directory location
 	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
-	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, deleteChart)
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, performCleanup)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return nil, err
 	}
 	return manifestByteArr, nil
 }
-func (impl *ChartRefServiceImpl) GetChartBytesInBulk(chartRefIds []int, deleteChart bool) (map[int][]byte, error) {
+func (impl *ChartRefServiceImpl) GetChartBytesInBulk(chartRefIds []int, performCleanup bool) (map[int][]byte, error) {
 	chartRefs, err := impl.chartRefRepository.FindByIds(chartRefIds)
 	if err != nil {
 		impl.logger.Errorw("error getting chart data", "chartRefIds", chartRefIds, "err", err)
@@ -301,7 +301,7 @@ func (impl *ChartRefServiceImpl) GetChartBytesInBulk(chartRefIds []int, deleteCh
 	}
 	chartRefIdToBytes := make(map[int][]byte)
 	for _, chartRef := range chartRefs {
-		chartInBytes, err := impl.extractChartInBytes(chartRef, deleteChart)
+		chartInBytes, err := impl.extractChartInBytes(chartRef, performCleanup)
 		if err != nil {
 			impl.logger.Errorw("error in converting chart to bytes", "chartRefId", chartRef.Id, "err", err)
 			return nil, err

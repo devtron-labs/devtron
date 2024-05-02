@@ -74,6 +74,9 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 }
 func (impl ChartRefRepositoryImpl) FindByIds(ids []int) ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
+	if len(ids) == 0 {
+		return nil, nil
+	}
 	err := impl.dbConnection.Model(&chartRefs).
 		Where("id in (?)", pg.In(ids)).
 		Where("active = ?", true).Select()

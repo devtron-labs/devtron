@@ -48,6 +48,11 @@ func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateCha
 		Namespace:     environment.Namespace,
 		RestartPodMap: appIdToResourceIdentifier,
 	}
+	for name, id := range appNameToId {
+		if _, ok := appIdToResourceIdentifier[id]; !ok {
+			appIdToResourceIdentifier[id] = &ResourceIdentifierResponse{AppName: name}
+		}
+	}
 	return podResp, nil
 }
 
@@ -143,10 +148,7 @@ func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int,
 		return err
 	}
 	for _, pco := range pipelineOverrides {
-		//if _, ok := appIdToInstallReleaseRequest[pco.Pipeline.AppId]; ok {
-		//appIdToInstallReleaseRequest[pco.Pipeline.AppId].ValuesYaml = pco.PipelineMergedValues
 		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineMergedValues}
-		//}
 	}
 	return err
 }
