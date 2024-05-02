@@ -51,7 +51,7 @@ const (
 )
 
 type UserService interface {
-	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error)
+	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, []bean.RestrictedGroup, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []bean.RestrictedGroup, error)
 	GetById(id int32) (*bean.UserInfo, error)
@@ -276,16 +276,17 @@ func (impl *UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (
 	return userInfo, nil
 }
 
-func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
+func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, []bean.RestrictedGroup, error) {
 
 	var pass []string
 	var userResponse []*bean.UserInfo
+	var restrictedGroups []bean.RestrictedGroup
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	for _, emailId := range emailIds {
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
-			return nil, err
+			return nil, nil, err
 		}
 
 		//if found, update it with new roles
@@ -293,16 +294,16 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if exists in db", "error", err)
-				return nil, err
+				return nil, nil, err
 			}
 		}
 
 		// if not found, create new user
 		if err == pg.ErrNoRows {
-			userInfo, err = impl.createUserIfNotExists(userInfo, emailId, token, managerAuth)
+			userInfo, restrictedGroups, err = impl.createUserIfNotExists(userInfo, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if not exists in db", "error", err)
-				return nil, err
+				return nil, nil, err
 			}
 		}
 
@@ -312,7 +313,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin, UserRoleGroup: userInfo.UserRoleGroup})
 	}
 
-	return userResponse, nil
+	return userResponse, restrictedGroups, nil
 }
 
 func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository.UserModel, emailId string,
@@ -340,12 +341,12 @@ func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser 
 	return userInfo, nil
 }
 
-func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, []bean.RestrictedGroup, error) {
 	// if not found, create new user
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
@@ -353,7 +354,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	_, err = impl.validateUserRequest(userInfo)
 	if err != nil {
 		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
-		return nil, err
+		return nil, nil, err
 	}
 
 	//create new user in our db on d basis of info got from google api or hex. assign a basic role
@@ -375,7 +376,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			InternalMessage: "failed to create new user in db",
 			UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	userInfo.Id = model.Id
 	//loading policy for safety
@@ -390,7 +391,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	if userInfo.SuperAdmin == false {
 		isActionPerformingUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.UserId))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for index, roleFilter := range userInfo.RoleFilters {
 			impl.logger.Infow("Creating Or updating User Roles for RoleFilter ")
@@ -398,7 +399,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForAllTypes(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx, entity, mapping[index])
 			if err != nil {
 				impl.logger.Errorw("error in creating user roles for Alltypes", "err", err)
-				return nil, err
+				return nil, nil, err
 			}
 			policies = append(policies, policiesToBeAdded...)
 
@@ -408,7 +409,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 		for _, item := range userInfo.UserRoleGroup {
 			userGroup, err := impl.roleGroupRepository.GetRoleGroupByName(item.RoleGroup.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			hasAccessToGroup, hasSuperAdminPermission := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
 			if hasAccessToGroup {
@@ -426,19 +427,19 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 
 		isSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.UserId))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if isSuperAdmin == false {
 			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
-			return nil, err
+			return nil, nil, err
 		}
 		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, userInfo.UserId)
 		if err != nil || flag == false {
-			return nil, err
+			return nil, nil, err
 		}
 		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if roleModel.Id > 0 {
 			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id, AuditLog: sql.AuditLog{
@@ -449,7 +450,7 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			}}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 		}
@@ -464,24 +465,11 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	//Ends
 	err = tx.Commit()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
-
-	if len(restrictedGroups) > 0 {
-		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := userHelper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
-		if len(restrictedGroups) != len(userInfo.UserRoleGroup) {
-			// warning
-			message := fmt.Errorf("User permissions added partially. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			return userInfo, message
-		} else {
-			//error
-			message := fmt.Errorf("Permission could not be added/removed. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			return userInfo, message
-		}
-	}
-	return userInfo, nil
+	return userInfo, restrictedGroups, nil
 }
 
 func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.RoleFilter, userId int32, model *repository.UserModel, existingRoles map[int]repository.UserRoleModel, token string, managerAuth func(resource string, token string, object string) bool, tx *pg.Tx, entity string, capacity int) ([]casbin2.Policy, bool, error) {
