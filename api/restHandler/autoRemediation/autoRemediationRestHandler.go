@@ -92,11 +92,14 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
-	if err != nil {
-		impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	// empty watcherRequest.EventConfiguration.EventExpression should be considered as pass condition. (@abhibaw)
+	if watcherRequest.EventConfiguration.EventExpression != "" {
+		err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
+		if err != nil {
+			impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	// RBAC
@@ -193,11 +196,14 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		return
 	}
 
-	err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
-	if err != nil {
-		impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	// empty watcherRequest.EventConfiguration.EventExpression should be considered as pass condition. (@abhibaw)
+	if watcherRequest.EventConfiguration.EventExpression != "" {
+		err = impl.evaluateEventExpression(watcherRequest.EventConfiguration.EventExpression)
+		if err != nil {
+			impl.logger.Errorw("validation err, event expression", "eventExpression", watcherRequest.EventConfiguration.EventExpression, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	// RBAC enforcer applying
