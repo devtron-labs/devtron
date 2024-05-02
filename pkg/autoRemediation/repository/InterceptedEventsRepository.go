@@ -67,6 +67,7 @@ type InterceptedEventData struct {
 	Namespace          string      `sql:"namespace"`
 	Message            string      `sql:"message"`
 	MessageType        string      `sql:"message_type"`
+	Environment        string      `sql:"environment"`
 	Event              string      `sql:"event"`
 	InvolvedObject     string      `sql:"involved_object"`
 	InterceptedAt      time.Time   `sql:"intercepted_at"`
@@ -121,12 +122,13 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
 		ColumnExpr("intercepted_event_execution.status as status").
 		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
+		ColumnExpr("environment.environment_name as environment").
 		ColumnExpr("watcher.name as watcher_name").
 		ColumnExpr("trigger.id as trigger_id").
 		ColumnExpr("trigger.type as trigger_type").
 		ColumnExpr("trigger.data as trigger_data").
 		Join("JOIN trigger ON intercepted_event_execution.trigger_id = trigger.id").
-		Join("JOIN watcher ON trigger.watcher_id = watcher.id")
+		Join("JOIN watcher ON trigger.watcher_id = watcher.id").Join("JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").Where("environment.cluster_id=intercepted_event_execution.cluster_id and environment.namespace = intercepted_event_execution.namespace")
 
 	if !interceptedEventsQueryParams.From.IsZero() && !interceptedEventsQueryParams.To.IsZero() {
 		query = query.Where("intercepted_event_execution.intercepted_at BETWEEN ? AND ?", interceptedEventsQueryParams.From, interceptedEventsQueryParams.To)

@@ -32,7 +32,6 @@ type WatcherService interface {
 	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error)
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
-
 	GetWatchersByClusterId(clusterId int) ([]*watcherEvents.Watcher, error)
 }
 
@@ -506,7 +505,7 @@ func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*reposit
 	return combinedData
 }
 
-func SortByTime(combinedData []CombinedData, sortOrder string) {
+func sortByTime(combinedData []CombinedData, sortOrder string) {
 	less := func(i, j int) bool {
 		if sortOrder == "asc" {
 			return combinedData[i].time.Before(combinedData[j].time)
@@ -516,7 +515,7 @@ func SortByTime(combinedData []CombinedData, sortOrder string) {
 	sort.Slice(combinedData, less)
 }
 func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
-	// TODO : implemented under assumption of having one trigger for one watcher of type JOB only
+	// implemented under assumption of having one trigger for one watcher of type JOB only
 	params := repository.WatcherQueryParams{
 		Offset:      offset,
 		Size:        size,
@@ -608,8 +607,9 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			}
 		}
 	}
+	//introducing column triggeredAt would avoid these sorts
 	if sortOrderBy == "triggeredAt" {
-		SortByTime(combinedData, sortOrder)
+		sortByTime(combinedData, sortOrder)
 	} else {
 		sortByWatcherNameOrder(combinedData, watchers)
 	}
@@ -793,6 +793,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 			ClusterName:        clusterIdtoName[event.ClusterId],
 			ClusterId:          event.ClusterId,
 			Namespace:          event.Namespace,
+			EnvironmentName:    event.Environment,
 			WatcherName:        event.WatcherName,
 			InterceptedTime:    (event.InterceptedAt).String(),
 			ExecutionStatus:    event.Status,
@@ -804,7 +805,6 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
 		}
-		interceptedEvent.EnvironmentName = triggerData.ExecutionEnvironment
 		interceptedEvent.Trigger = Trigger{
 			Id:             event.TriggerId,
 			IdentifierType: event.TriggerType,
