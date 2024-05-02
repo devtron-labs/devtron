@@ -61,3 +61,10 @@ type PortForwardRequest struct {
 	ServiceName string
 	TargetPort  string // []string{"5432:5432"}
 }
+
+type K8sProxyRequest struct {
+	ClusterId   int
+	ClusterName string
+	EnvId       int
+	EnvName     string
+}
