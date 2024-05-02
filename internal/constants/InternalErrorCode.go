@@ -106,4 +106,5 @@ const (
 	ArgoAppDeletedErrMsg                      = "argocd app deleted"
 	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
 	UnableToFetchResourceTreeForAcdErrMsg     = "app detail fetched, failed to get resource tree from acd"
+	CannotGetAppWithRefreshErrMsg             = "cannot get application with refresh"
 )

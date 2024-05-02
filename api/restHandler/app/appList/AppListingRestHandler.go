@@ -1009,14 +1009,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
-			httpStatusCode := http.StatusInternalServerError
 			internalMsg := fmt.Sprintf("%s, err:- %s", constants.UnableToFetchResourceTreeForAcdErrMsg, err.Error())
 			clientCode, _ := util.GetClientDetailedError(err)
-			if clientCode.IsDeadlineExceededCode() {
-				httpStatusCode = http.StatusRequestTimeout
-			} else if clientCode.IsCanceledCode() {
-				httpStatusCode = constants.HttpClientSideTimeout
-			}
+			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
 			err = &util.ApiError{
 				HttpStatusCode:  httpStatusCode,
 				Code:            constants.AppDetailResourceTreeNotFound,

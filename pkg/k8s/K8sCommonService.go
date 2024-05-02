@@ -50,7 +50,7 @@ type K8sCommonServiceImpl struct {
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
-	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
+	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"0.1"`
 }
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
