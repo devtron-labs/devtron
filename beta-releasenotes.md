@@ -1,4 +1,5 @@
 ## Bugs
+- fix: gitops update updated (#5055)
 - fix: App create api validations (#5019)
 - fix: git material saved in transaction (#5040)
 - fix: panic while pulling images (#5036)
