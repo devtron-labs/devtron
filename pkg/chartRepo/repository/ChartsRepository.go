@@ -58,10 +58,10 @@ type ChartRepository interface {
 	sql.TransactionWrapper
 }
 
-func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
+func NewChartRepository(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *ChartRepositoryImpl {
 	return &ChartRepositoryImpl{
 		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
