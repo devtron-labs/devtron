@@ -156,14 +156,16 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, allCh
 				DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
 				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
 			}
+			//get schema
+			resourceSchema := impl.devtronResourcesSchemaMapById[childObject.DevtronResourceSchemaId]
 			if !isLite {
-				err := impl.updateCompleteReleaseDataForGetApiResourceObj(nil, childObject, childData)
+				err := impl.updateCompleteReleaseDataForGetApiResourceObj(resourceSchema, childObject, childData)
 				if err != nil {
 					impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
 					return nil, err
 				}
 			} else {
-				err := impl.updateReleaseOverviewDataForGetApiResourceObj(nil, childObject, childData)
+				err := impl.updateReleaseOverviewDataForGetApiResourceObj(resourceSchema, childObject, childData)
 				if err != nil {
 					impl.logger.Errorw("error in getting overview data", "err", err)
 					return nil, err

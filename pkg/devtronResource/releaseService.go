@@ -311,14 +311,16 @@ func (impl *DevtronResourceServiceImpl) listRelease(resourceObjects, childObject
 	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
 	for i := range resourceObjects {
 		resourceData := adapter.BuildDevtronResourceObjectGetAPIBean()
+		resourceObject := resourceObjects[i]
+		resourceSchema := impl.devtronResourcesSchemaMapById[resourceObject.DevtronResourceSchemaId]
 		if !isLite {
-			err := impl.updateCompleteReleaseDataForGetApiResourceObj(nil, resourceObjects[i], resourceData)
+			err := impl.updateCompleteReleaseDataForGetApiResourceObj(resourceSchema, resourceObject, resourceData)
 			if err != nil {
 				impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
 				return nil, err
 			}
 		} else {
-			err := impl.updateReleaseVersionAndParentConfigInResourceObj(nil, resourceObjects[i], resourceData)
+			err := impl.updateReleaseVersionAndParentConfigInResourceObj(resourceSchema, resourceObject, resourceData)
 			if err != nil {
 				impl.logger.Errorw("error in getting overview data", "err", err)
 				return nil, err
