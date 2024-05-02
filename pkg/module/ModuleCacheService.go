@@ -109,7 +109,7 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
-		log.Println("Error while saving module.", "moduleName", moduleName, "error", err)
+		log.Fatalln("Error while saving module.", "moduleName", moduleName, "error", err)
 	}
 }
 
