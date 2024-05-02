@@ -20,6 +20,8 @@ const (
 	Rollout     Kind = "Rollout"
 )
 
+const LabelReleaseKey = "release"
+
 type DeploymentTemplateRequest struct {
 	AppId                       int                               `json:"appId"`
 	EnvId                       int                               `json:"envId,omitempty"`

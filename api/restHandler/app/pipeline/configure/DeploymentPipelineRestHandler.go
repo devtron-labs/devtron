@@ -984,7 +984,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 	defer cancel()
 	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, request, envId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetRestartWorkloadData", "err", err, "payload")
+		handler.Logger.Errorw("service err, GetRestartWorkloadData", "resp", resp, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -303,7 +303,7 @@ func (impl *ChartRefServiceImpl) GetChartBytesInBulk(chartRefIds []int, deleteCh
 	for _, chartRef := range chartRefs {
 		chartInBytes, err := impl.extractChartInBytes(chartRef, deleteChart)
 		if err != nil {
-			impl.logger.Errorw("error in converting chart to bytes", "err", err)
+			impl.logger.Errorw("error in converting chart to bytes", "chartRefId", chartRef.Id, "err", err)
 			return nil, err
 		}
 		chartRefIdToBytes[chartRef.Id] = chartInBytes

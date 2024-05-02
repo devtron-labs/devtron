@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -32,9 +30,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -65,8 +61,8 @@ type DeploymentTemplateServiceImpl struct {
 	restartWorkloadConfig            *RestartWorkloadConfig
 }
 type RestartWorkloadConfig struct {
-	RestartWorkloadWorker    int `env:"FEATURE_RESTART_WORKLOAD_BULK_WORKER" envDefault:"5"`
-	RestartWorkloadBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BULK_BATCH" envDefault:"2"`
+	WorkerPoolSize   int `env:"FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE" envDefault:"5"`
+	RequestBatchSize int `env:"FEATURE_RESTART_WORKLOAD_BATCH_SIZE" envDefault:"2"`
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -371,40 +367,38 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	return response, nil
 }
 func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error) {
+	wp := workerpool.New(impl.restartWorkloadConfig.WorkerPoolSize)
+	var templateChartResponse []*gRPC.TemplateChartResponse
+	templateChartResponseLock := &sync.Mutex{}
+	podResp := &RestartPodResponse{}
 	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
 	if err != nil {
-		impl.Logger.Errorw("error in fetching app", "err", err)
+		impl.Logger.Errorw("error in fetching app", "appIds", appIds, "err", err)
 		return nil, err
 	}
 	environment, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching environment", "err", err)
+		impl.Logger.Errorw("error in fetching environment", "envId", envId, "err", err)
 		return nil, err
 	}
-	installReleaseRequests, err := impl.constructInstallReleaseReqInBulk(apps, environment)
+	installReleaseRequests, err := impl.constructInstallReleaseBulkReq(apps, environment)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching installReleaseRequests", "appIds", appIds, "envId", envId)
+		impl.Logger.Errorw("error in fetching installReleaseRequests", "appIds", appIds, "envId", envId, "err", err)
 		return nil, err
+	}
+	if installReleaseRequests == nil || len(installReleaseRequests) == 0 {
+		return podResp, nil
 	}
 	appNameToId := make(map[string]int)
 	for _, app := range apps {
 		appNameToId[app.AppName] = app.Id
 	}
-	wp := workerpool.New(impl.restartWorkloadConfig.RestartWorkloadWorker)
-	handlePanic := func() {
-		if err := recover(); err != nil {
-			impl.Logger.Error(constants.PanicLogIdentifier, "recovered from panic", "panic", err, "stack", string(debug.Stack()))
-		}
-	}
-	var templateChartResponse []*gRPC.TemplateChartResponse
-	templateChartResponseLock := &sync.Mutex{}
-	partitionedRequests := utils.PartitionSlice(installReleaseRequests, impl.restartWorkloadConfig.RestartWorkloadBatchSize)
+	partitionedRequests := utils.PartitionSlice(installReleaseRequests, impl.restartWorkloadConfig.RequestBatchSize)
 	var finaError error
 	for i, _ := range partitionedRequests {
 		req := partitionedRequests[i]
 		wp.Submit(func() {
-			defer handlePanic()
-			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, req)
+			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, &gRPC.BulkInstallReleaseRequest{InstallReleaseRequest: req})
 			if err != nil {
 				impl.Logger.Errorw("error in getting data from template chart", "err", err)
 				finaError = err
@@ -425,138 +419,10 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		impl.Logger.Errorw("error in fetching response", "installReleaseRequests", installReleaseRequests, "templateChartResponse", templateChartResponse)
 		return nil, finaError
 	}
-	podResp, err := impl.constructRotatePodResponse(templateChartResponse, appNameToId, environment)
+	podResp, err = impl.constructRotatePodResponse(templateChartResponse, appNameToId, environment)
 	if err != nil {
 		impl.Logger.Errorw("error in constructing pod resp", "templateChartResponse", templateChartResponse, "appNameToId", appNameToId, "environment", environment, "err", err)
 		return nil, err
 	}
 	return podResp, nil
-}
-
-func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateChartResponse []*gRPC.TemplateChartResponse, appNameToId map[string]int, environment *repository3.Environment) (*RestartPodResponse, error) {
-	appIdToResourceIdentifier := make(map[int]*ResourceIdentifierResponse)
-	for _, tcResp := range templateChartResponse {
-		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
-		if err != nil {
-			return nil, err
-		}
-		appName := tcResp.AppName
-		resourceMeta := make([]*ResourceMetadata, 0)
-		for _, manifest := range manifests {
-			gvk := manifest.GroupVersionKind()
-			name := manifest.GetName()
-			switch gvk.Kind {
-			case string(Deployment), string(StatefulSet), string(DemonSet), string(Rollout):
-				resourceMeta = append(resourceMeta, &ResourceMetadata{
-					Name:             name,
-					GroupVersionKind: gvk,
-				})
-			}
-		}
-		appIdToResourceIdentifier[appNameToId[tcResp.AppName]] = &ResourceIdentifierResponse{
-			ResourceMetaData: resourceMeta,
-			AppName:          appName,
-		}
-	}
-	podResp := &RestartPodResponse{
-		EnvironmentId: environment.Id,
-		Namespace:     environment.Namespace,
-		RestartPodMap: appIdToResourceIdentifier,
-	}
-	for _, identifierResp := range podResp.RestartPodMap {
-		for _, resp := range identifierResp.ResourceMetaData {
-			if strings.Contains(resp.Name, fmt.Sprintf("%s-%s", identifierResp.AppName, environment.Name)) {
-				resp.Name = fmt.Sprintf("%s-%s", identifierResp.AppName, environment.Name)
-			}
-		}
-	}
-	return podResp, nil
-}
-
-func (impl DeploymentTemplateServiceImpl) constructInstallReleaseReqInBulk(apps []*appRepository.App, environment *repository3.Environment) ([]*gRPC.InstallReleaseRequest, error) {
-
-	var applicationIds []int
-	for _, application := range apps {
-		applicationIds = append(applicationIds, application.Id)
-	}
-	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
-	err := impl.setChartContent(applicationIds, appIdToInstallReleaseRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in setting chart content", "appIds", applicationIds, "err", err)
-		return nil, err
-	}
-	err = impl.setValuesYaml(applicationIds, environment.Id, appIdToInstallReleaseRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in setting values yaml", "appIds", applicationIds, "err", err)
-		return nil, err
-	}
-	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
-	if err != nil {
-		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-		return nil, err
-	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
-		return nil, err
-	}
-	for _, app := range apps {
-		if _, ok := appIdToInstallReleaseRequest[app.Id]; ok {
-			appIdToInstallReleaseRequest[app.Id].ReleaseIdentifier = impl.getReleaseIdentifier(config, app, environment)
-			appIdToInstallReleaseRequest[app.Id].K8SVersion = k8sServerVersion.String()
-			appIdToInstallReleaseRequest[app.Id].AppName = app.AppName
-			appIdToInstallReleaseRequest[app.Id].ChartRepository = ChartRepository
-		}
-	}
-	installReleaseRequest := make([]*gRPC.InstallReleaseRequest, 0)
-	for _, req := range appIdToInstallReleaseRequest {
-		installReleaseRequest = append(installReleaseRequest, req)
-	}
-	return installReleaseRequest, nil
-}
-
-func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
-	pipelineOverrides, err := impl.pipelineOverrideRepository.GetLatestReleaseForAppIds(appIds, envId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching pipelineOverrides for appIds", "appIds", appIds, "err", err)
-	}
-	for _, pco := range pipelineOverrides {
-		if _, ok := appIdToInstallReleaseRequest[pco.Pipeline.AppId]; ok {
-			appIdToInstallReleaseRequest[pco.Pipeline.AppId].ValuesYaml = pco.PipelineMergedValues
-		}
-	}
-	return err
-}
-
-func (impl DeploymentTemplateServiceImpl) setChartContent(appIds []int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
-	charts, err := impl.chartRepository.FindLatestChartByAppIds(appIds)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching chart", "err", err, "appIds", appIds)
-		return err
-	}
-	appIdToChartRefId := make(map[int]int)
-	var chartRefIds []int
-	for _, chart := range charts {
-		appIdToChartRefId[chart.AppId] = chart.ChartRefId
-		chartRefIds = append(chartRefIds, chart.ChartRefId)
-	}
-	chartRefIdToBytes, err := impl.chartRefService.GetChartBytesInBulk(chartRefIds, false)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching chartRefBean", "err", err, "chartRefIds", chartRefIds)
-		return err
-	}
-	for appId, chartRefId := range appIdToChartRefId {
-		if bytes, ok := chartRefIdToBytes[chartRefId]; ok {
-			appIdToInstallReleaseRequest[appId] = &gRPC.InstallReleaseRequest{ChartContent: &gRPC.ChartContent{Content: bytes}}
-		}
-	}
-	return err
-}
-
-func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.ClusterConfig, app *appRepository.App, env *repository3.Environment) *gRPC.ReleaseIdentifier {
-	return &gRPC.ReleaseIdentifier{
-		ClusterConfig:    config,
-		ReleaseName:      fmt.Sprintf("%s-%s", app.AppName, env.Name),
-		ReleaseNamespace: env.Namespace,
-	}
 }

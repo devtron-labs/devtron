@@ -194,6 +194,8 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []in
 		Where("p.app_id IN (?)", pg.In(appIds)).
 		Where("p.environment_id = ?", envId).
 		Where("p.deleted = ?", false).
+		Where("p.deployment_app_created=?", true).
+		Where("p.deployment_app_delete_request=?", false).
 		Group("p.id")
 	err = impl.dbConnection.Model(&overrides).
 		Column("pipeline_override.merged_values_yaml", "Pipeline.app_id").
