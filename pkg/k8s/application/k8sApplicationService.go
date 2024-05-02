@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/go-pg/pg"
@@ -108,7 +107,7 @@ type K8sApplicationService interface {
 	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
-	StartProxyServer(ctx context.Context, clusterId int, envName string, clusterName string) (*httputil.ReverseProxy, error)
+	StartProxyServer(ctx context.Context, request *bean3.K8sProxyRequest) (*httputil.ReverseProxy, error)
 	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
@@ -1685,22 +1684,33 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 	return proxyHandler, err
 }
 
-func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string, clusterName string) (*httputil.ReverseProxy, error) {
-	if clusterId == -1 {
-		environment, err := impl.environmentRepository.FindByName(envName)
-		if err != nil {
-			impl.logger.Errorw("Error finding clusterId from envName.", "envName", envName)
-			return nil, err
+func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, request *bean3.K8sProxyRequest) (*httputil.ReverseProxy, error) {
+	if request.ClusterId == 0 {
+		if request.ClusterName != "" {
+			clusterFound, err := impl.clusterRepository.FindOne(request.ClusterName)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from clusterName.", "clusterName", request.ClusterName)
+				return nil, err
+			}
+			request.ClusterId = clusterFound.Id
+		} else if request.EnvName != "" {
+			environment, err := impl.environmentRepository.FindByName(request.EnvName)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from envName.", "envName", request.EnvName)
+				return nil, err
+			}
+			request.ClusterId = environment.ClusterId
+		} else if request.EnvId != 0 {
+			environment, err := impl.environmentRepository.FindById(request.EnvId)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from envId.", "envId", request.EnvId)
+				return nil, err
+			}
+			request.ClusterId = environment.ClusterId
 		}
-		clusterId = environment.ClusterId
-	} else if clusterId == -2 {
-		clusters, _ := impl.clusterRepository.FindByNames([]string{clusterName})
-		if len(clusters) == 0 {
-			return nil, pg.ErrNoRows
-		}
-		clusterId = clusters[0].Id
+
 	}
-	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, request.ClusterId)
 	return proxyHandler, err
 }
 

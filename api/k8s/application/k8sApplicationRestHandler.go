@@ -1277,32 +1277,33 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 	}
 
 	r.Header.Del("Authorization")
-	urlPathArray := strings.Split(r.URL.Path, "/")
-	if len(urlPathArray) < 6 {
+	vars := mux.Vars(r)
+	k8sProxyRequest := bean2.K8sProxyRequest{}
+
+	if vars["envIdentifier"] == "" && vars["clusterIdentifier"] == "" {
 		common.WriteJsonResp(w, errors.New(`please provide cluster or env`), nil, http.StatusBadRequest)
 		return
 	}
 
-	var clusterId = -1
-	envName := ""
-	if urlPathArray[4] == "cluster" {
-		cId, err := strconv.Atoi(urlPathArray[5])
+	if vars["clusterIdentifier"] != "" {
+		clusterId, err := strconv.Atoi(vars["clusterIdentifier"])
 		if err != nil {
-			clusterId = -2
-			r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", urlPathArray[5]))
+			k8sProxyRequest.ClusterName = vars["clusterIdentifier"]
 		} else {
-			clusterId = cId
-			r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%d", clusterId))
+			k8sProxyRequest.ClusterId = clusterId
 		}
-	} else if urlPathArray[4] == "env" {
-		envName = urlPathArray[5]
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", envName))
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", vars["clusterIdentifier"]))
 	} else {
-		common.WriteJsonResp(w, errors.New(`please provide cluster or env`), nil, http.StatusBadRequest)
-		return
+		envId, err := strconv.Atoi(vars["envIdentifier"])
+		if err != nil {
+			k8sProxyRequest.EnvName = vars["envIdentifier"]
+		} else {
+			k8sProxyRequest.EnvId = envId
+		}
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", vars["envIdentifier"]))
 	}
 
-	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterId, envName, urlPathArray[5])
+	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), &k8sProxyRequest)
 
 	if err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
