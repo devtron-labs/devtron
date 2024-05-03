@@ -72,9 +72,6 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 	for appId, _ := range appIdToInstallReleaseRequest {
 		applicationIds = append(applicationIds, appId)
 	}
-	if len(appIdToInstallReleaseRequest) == 0 || appIdToInstallReleaseRequest == nil {
-		return installReleaseRequests, nil
-	}
 	err = impl.setChartContent(applicationIds, appIdToInstallReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in setting chart content", "appIds", applicationIds, "err", err)
