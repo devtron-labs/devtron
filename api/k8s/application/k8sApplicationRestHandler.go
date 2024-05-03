@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/go-pg/pg"
+	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
@@ -35,7 +36,6 @@ import (
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1277,30 +1277,29 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 	}
 
 	r.Header.Del("Authorization")
+
 	vars := mux.Vars(r)
+	clusterIdentifier := vars["clusterIdentifier"]
+	envIdentifier := vars["envIdentifier"]
+
 	k8sProxyRequest := bean2.K8sProxyRequest{}
 
-	if vars["envIdentifier"] == "" && vars["clusterIdentifier"] == "" {
-		common.WriteJsonResp(w, errors.New(`please provide cluster or env`), nil, http.StatusBadRequest)
-		return
-	}
-
-	if vars["clusterIdentifier"] != "" {
-		clusterId, err := strconv.Atoi(vars["clusterIdentifier"])
+	if clusterIdentifier != "" {
+		clusterId, err := strconv.Atoi(clusterIdentifier)
 		if err != nil {
-			k8sProxyRequest.ClusterName = vars["clusterIdentifier"]
+			k8sProxyRequest.ClusterName = clusterIdentifier
 		} else {
 			k8sProxyRequest.ClusterId = clusterId
 		}
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", vars["clusterIdentifier"]))
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", clusterIdentifier))
 	} else {
-		envId, err := strconv.Atoi(vars["envIdentifier"])
+		envId, err := strconv.Atoi(envIdentifier)
 		if err != nil {
-			k8sProxyRequest.EnvName = vars["envIdentifier"]
+			k8sProxyRequest.EnvName = envIdentifier
 		} else {
 			k8sProxyRequest.EnvId = envId
 		}
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", vars["envIdentifier"]))
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", envIdentifier))
 	}
 
 	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), &k8sProxyRequest)
