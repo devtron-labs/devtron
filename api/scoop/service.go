@@ -79,7 +79,8 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 
 	// 2) create a temp token to trigger notification
 
-	token, err := impl.tokenService.CreateApiJwtToken("", 24*60)
+	expireAtInMs := time.Now().Add(24 * time.Hour).UnixMilli()
+	token, err := impl.tokenService.CreateApiJwtToken("", expireAtInMs)
 	if err != nil {
 		impl.logger.Errorw("error in creating api token", "err", err)
 		return err
