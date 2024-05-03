@@ -256,8 +256,9 @@ func InitializeApp() (*App, error) {
 	cleanUpPoliciesServiceImpl := user.NewCleanUpPoliciesServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, policiesCleanUpRepositoryImpl, cronLoggerImpl)
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enterpriseEnforcerImpl, roleGroupServiceImpl, userCommonServiceImpl, cleanUpPoliciesServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
-	genericNoteRepositoryImpl := repository8.NewGenericNoteRepositoryImpl(db)
-	genericNoteHistoryRepositoryImpl := repository8.NewGenericNoteHistoryRepositoryImpl(db)
+	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
+	genericNoteRepositoryImpl := repository8.NewGenericNoteRepositoryImpl(db, transactionUtilImpl)
+	genericNoteHistoryRepositoryImpl := repository8.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository4.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
@@ -310,7 +311,7 @@ func InitializeApp() (*App, error) {
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sUtilExtended, helmAppServiceImpl, k8sResourceHistoryServiceImpl, clusterServiceImpl, argoApplicationServiceImpl)
 	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enterpriseEnforcerImpl, deleteServiceImpl, k8sUtilExtended, k8sCommonServiceImpl)
 	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
-	ephemeralContainersRepositoryImpl := repository4.NewEphemeralContainersRepositoryImpl(db)
+	ephemeralContainersRepositoryImpl := repository4.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sUtilExtended, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
 	deploymentWindowServiceImpl := deploymentWindow.NewDeploymentWindowServiceImplEA()
@@ -318,7 +319,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger)
+	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enterpriseEnforcerImpl)
 	k8sApplicationRestHandlerImpl := application2.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enterpriseEnforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate)
 	k8sApplicationRouterImpl := application2.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
