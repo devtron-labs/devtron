@@ -13,7 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	scoopClient "github.com/devtron-labs/scoop/client"
-	"github.com/devtron-labs/scoop/pkg/watcherEvents"
+	types "github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -32,7 +32,7 @@ type WatcherService interface {
 	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error)
 	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
-	GetWatchersByClusterId(clusterId int) ([]*watcherEvents.Watcher, error)
+	GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error)
 }
 
 type WatcherServiceImpl struct {
@@ -124,7 +124,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 	}
 
 	watcherRequest.Id = watcher.Id
-	err = impl.informScoops(envs, watcherEvents.ADD, watcherRequest)
+	err = impl.informScoops(envs, types.ADD, watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherRequest", watcherRequest)
 		return 0, err
@@ -467,7 +467,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		return err
 	}
 	watcherRequest.Id = watcher.Id
-	err = impl.informScoops(envs, watcherEvents.UPDATE, watcherRequest)
+	err = impl.informScoops(envs, types.UPDATE, watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherRequest", watcherRequest)
 		return err
@@ -821,7 +821,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	return &interceptedResponse, nil
 }
 
-func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*watcherEvents.Watcher, error) {
+func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error) {
 	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.K8sEventWatcher)
 	if err != nil {
 		impl.logger.Errorw("error in getting watchers by clusterId", "clusterId", clusterId, "err", err)
@@ -853,7 +853,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*watche
 		return nil, err
 	}
 
-	watchersResponse := make([]*watcherEvents.Watcher, 0, len(watchers))
+	watchersResponse := make([]*types.Watcher, 0, len(watchers))
 	for _, watcher := range watchers {
 		nsMap := make(map[string]bool)
 		for _, envId := range watcherEnvMap[watcher.Id] {
@@ -867,7 +867,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*watche
 			impl.logger.Errorw("error in unmarshalling gvk string ", "gvk", watcher.Gvks, "err", err)
 			continue
 		}
-		watcherResp := &watcherEvents.Watcher{
+		watcherResp := &types.Watcher{
 			Id:                    watcher.Id,
 			Name:                  watcher.Name,
 			EventFilterExpression: watcher.FilterExpression,
@@ -883,7 +883,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*watche
 	return watchersResponse, nil
 }
 
-func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action watcherEvents.Action, watcherRequest *WatcherDto) error {
+func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *WatcherDto) error {
 	clusterEnvMap := make(map[int][]*repository2.Environment)
 	for _, env := range envsMap {
 		namespaces := clusterEnvMap[env.ClusterId]
@@ -900,7 +900,7 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 			nsMap[env.Namespace] = true
 		}
 
-		watcher := &watcherEvents.Watcher{
+		watcher := &types.Watcher{
 			Id:                    watcherRequest.Id,
 			Name:                  watcherRequest.Name,
 			GVKs:                  watcherRequest.EventConfiguration.getK8sResources(),
@@ -915,7 +915,8 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 			continue
 		}
 		scoopUrl := fmt.Sprintf("http://127.0.0.1:%d", port)
-		err = scoopClient.UpdateWatcherConfig(scoopUrl, scoopConfig.PassKey, action, watcher)
+		scoopClientImpl, _ := scoopClient.NewScoopClientImpl(impl.logger, scoopUrl, scoopConfig.PassKey)
+		err = scoopClientImpl.UpdateWatcherConfig(context.Background(), action, watcher)
 		if err != nil {
 			impl.logger.Errorw("error in informing to scoop by a REST call", "watcher", watcher, "action", action, "scoopUrl", scoopUrl, "err", err)
 			// not returning the error as we have to continue updating other scoops
