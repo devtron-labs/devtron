@@ -170,7 +170,6 @@
  | IS_AIR_GAP_ENVIRONMENT | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
- | K8s_CLIENT_TIMEOUT_SEC | 0 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 

@@ -102,11 +102,14 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl str
 
 func (impl *GitOpsConfigReadServiceImpl) GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error) {
 	metadata := &bean.BitbucketProviderMetadata{}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(bean.BITBUCKET_PROVIDER)
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetActiveGitOpsConfigByProvider(bean.BITBUCKET_PROVIDER)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 		return nil, err
+	} else if err == pg.ErrNoRows {
+		gitOpsConfigBitbucket, err = impl.gitOpsRepository.GetActiveGitOpsConfigByProvider(bean.BITBUCKET_DC_PROVIDER)
 	}
+
 	if gitOpsConfigBitbucket != nil {
 		metadata.BitBucketWorkspaceId = gitOpsConfigBitbucket.BitBucketWorkspaceId
 		metadata.BitBucketProjectKey = gitOpsConfigBitbucket.BitBucketProjectKey

@@ -5,7 +5,9 @@ go 1.20
 require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
+	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
+	github.com/antihax/optional v1.0.0
 	github.com/argoproj/argo-cd/v2 v2.8.14
 	github.com/argoproj/argo-workflows/v3 v3.4.3
 	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
@@ -22,6 +24,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
+	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
 	github.com/devtron-labs/common-lib v0.0.16
 	github.com/devtron-labs/common-lib-private v0.0.14
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
@@ -78,7 +81,7 @@ require (
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.19.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/oauth2 v0.11.0
+	golang.org/x/oauth2 v0.19.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.33.0
@@ -114,7 +117,6 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect

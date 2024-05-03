@@ -109,6 +109,7 @@ github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a h1:HbKu58rmZp
 github.com/alicebob/miniredis/v2 v2.30.3 h1:hrqDB4cHFSHQf4gO3xu6YKQg8PqJpNjLYsQAFYHstqw=
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
+github.com/antihax/optional v1.0.0 h1:xK2lYat7ZLaVVcIuj82J8kIro4V6kDe0AUDFboUCwcg=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/antlr/antlr4/runtime/Go/antlr v1.4.10 h1:yL7+Jz0jTC6yykIK/Wh74gnTJnrGr5AyrNMXuA0gves=
 github.com/antlr/antlr4/runtime/Go/antlr v1.4.10/go.mod h1:F7bn7fEU90QkQ3tnmaTx3LTKLEDqnwWODIYppRQ5hnY=
@@ -221,6 +222,8 @@ github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc h1:VRRKCwnzq
 github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0 h1:UHTwTt7YeYJJWyx821KC22YfTW5Sot5VuGFHAbvK49Y=
 github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
+github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1 h1:L9i7pulHAwQGD7d9l4dRPPKgE6fj2gMJsaRihEjja5Y=
+github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1/go.mod h1:Omra4isWlpBkqpaDMAGMjnNLryTLMTGXa0Q9pyqaA5o=
 github.com/devtron-labs/common-lib v0.0.16 h1:8TOL4+0ziEk3zdTlXao+w6S9O6BAdXL165l8nr6hPYk=
 github.com/devtron-labs/common-lib v0.0.16/go.mod h1:mzEk3pf4JDXsOPNvCxjoSnsMBTwmt4A73Qc2tobLkZM=
 github.com/devtron-labs/common-lib-private v0.0.14 h1:Ru3ewQAywbBFpPFRbDLOYaurxih2jomo9/rvxcB/bF0=
@@ -1062,8 +1065,8 @@ golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d/go.mod h1:gOpvHmFTYa4Iltr
 golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b/go.mod h1:DAh4E804XQdzx2j+YRIaUnCqCV2RuMz24cGBJ5QYIrc=
 golang.org/x/oauth2 v0.8.0/go.mod h1:yr7u4HXZRm1R1kBWqr/xKNqewf0plRYoB7sla+BCIXE=
 golang.org/x/oauth2 v0.9.0/go.mod h1:qYgFZaFiu6Wg24azG8bdV52QJXJGbZzIIsRCdVKzbLw=
-golang.org/x/oauth2 v0.11.0 h1:vPL4xzxBM4niKCW6g9whtaWVXTJf1U5e4aZxxFx/gbU=
-golang.org/x/oauth2 v0.11.0/go.mod h1:LdF7O/8bLR/qWK9DrpXmbHLTouvRHK0SgJl0GmDBchk=
+golang.org/x/oauth2 v0.19.0 h1:9+E/EZBCbTLNrbN35fHv/a/d/mOBatymz1zbtQrXpIg=
+golang.org/x/oauth2 v0.19.0/go.mod h1:vYi7skDa1x015PmRRYZ7+s1cWyPgrPiSYRe4rnsexc8=
 golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
