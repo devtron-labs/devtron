@@ -97,7 +97,7 @@
 | DEVTRON_HELM_RELEASE_NAME                | devtron                                             | Name of the Devtron Helm release.                   |
 | ENABLE_LEGACY_API                        | "false"                                             | Enable the legacy API.                              |
 | INSTALLATION_THROUGH_HELM                | "True"                                              | Installation through Helm (True or False).          |
-| USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | "True"                                    | Image tag from Git providers for Tag based Build (True or False) | 
+| USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | "True"                                    | Tag Image same as Git provider for Tag based Build (True or False) | 
 
 
 # DEVTRON SECRET PARAMETER
