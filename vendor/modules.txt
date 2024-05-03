@@ -432,7 +432,7 @@ github.com/devtron-labs/common-lib-private/utils/k8s
 # github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
-# github.com/devtron-labs/scoop v0.0.0-20240503153458-33355ad5defc
+# github.com/devtron-labs/scoop v0.0.0-20240502134744-dfe17cf9897d
 ## explicit; go 1.20
 github.com/devtron-labs/scoop/client
 github.com/devtron-labs/scoop/types
@@ -1572,7 +1572,7 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# k8s.io/api v0.29.1 => k8s.io/api v0.26.4
+# k8s.io/api v0.26.11 => k8s.io/api v0.26.4
 ## explicit; go 1.19
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -1632,7 +1632,7 @@ k8s.io/api/storage/v1beta1
 ## explicit; go 1.19
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-# k8s.io/apimachinery v0.29.1 => k8s.io/apimachinery v0.26.4
+# k8s.io/apimachinery v0.26.11 => k8s.io/apimachinery v0.26.4
 ## explicit; go 1.19
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -1689,12 +1689,12 @@ k8s.io/apimachinery/third_party/forked/golang/reflect
 ## explicit; go 1.19
 k8s.io/apiserver/pkg/features
 k8s.io/apiserver/pkg/util/feature
-# k8s.io/cli-runtime v0.29.1 => k8s.io/cli-runtime v0.26.4
+# k8s.io/cli-runtime v0.26.4 => k8s.io/cli-runtime v0.26.4
 ## explicit; go 1.19
 k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.29.1 => k8s.io/client-go v0.26.4
+# k8s.io/client-go v0.26.11 => k8s.io/client-go v0.26.4
 ## explicit; go 1.19
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
@@ -2016,7 +2016,7 @@ k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/validation
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/kubectl v0.29.1 => k8s.io/kubectl v0.26.4
+# k8s.io/kubectl v0.26.4 => k8s.io/kubectl v0.26.4
 ## explicit; go 1.19
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd/apiresources

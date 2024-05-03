@@ -25,7 +25,7 @@ require (
 	github.com/devtron-labs/common-lib v0.0.16-0.20240412102112-228b110c15a9
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
-	github.com/devtron-labs/scoop v0.0.0-20240503153458-33355ad5defc
+	github.com/devtron-labs/scoop v0.0.0-20240502134744-dfe17cf9897d
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-errors/errors v1.4.2
@@ -88,12 +88,12 @@ require (
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.29.1
-	k8s.io/apimachinery v0.29.1
-	k8s.io/client-go v0.29.1
+	k8s.io/api v0.26.11
+	k8s.io/apimachinery v0.26.11
+	k8s.io/client-go v0.26.11
 	k8s.io/helm v2.12.3+incompatible
 	k8s.io/klog/v2 v2.120.1
-	k8s.io/kubectl v0.29.1
+	k8s.io/kubectl v0.26.4
 	k8s.io/kubernetes v1.26.11
 	k8s.io/metrics v0.26.4
 	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
@@ -285,7 +285,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.26.4 // indirect
 	k8s.io/apiserver v0.26.11 // indirect
-	k8s.io/cli-runtime v0.29.1 // indirect
+	k8s.io/cli-runtime v0.26.4 // indirect
 	k8s.io/component-base v0.26.11 // indirect
 	k8s.io/component-helpers v0.26.4 // indirect
 	k8s.io/kube-aggregator v0.26.4 // indirect

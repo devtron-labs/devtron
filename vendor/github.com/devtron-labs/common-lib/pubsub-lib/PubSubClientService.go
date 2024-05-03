@@ -94,42 +94,42 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 // validations(+optional) methods were called before passing the message to the callback func.
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
-	natsTopic := GetNatsTopic(topic)
-	streamName := natsTopic.streamName
-	queueName := natsTopic.queueName
-	consumerName := natsTopic.consumerName
-	natsClient := impl.NatsClient
-	streamConfig := impl.getStreamConfig(streamName)
-	// streamConfig := natsClient.streamConfig
-	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
-	deliveryOption := nats.DeliverLast()
-	if streamConfig.Retention == nats.WorkQueuePolicy {
-		deliveryOption = nats.DeliverAll()
-	}
-
-	consumerConfig := NatsConsumerWiseConfigMapping[consumerName]
-	processingBatchSize := consumerConfig.NatsMsgProcessingBatchSize
-	msgBufferSize := consumerConfig.GetNatsMsgBufferSize()
-
-	// Converting provided ack wait (int) into duration for comparing with nats-server config
-	ackWait := time.Duration(consumerConfig.AckWaitInSecs) * time.Second
-
-	// Update consumer config if new changes detected
-	impl.updateConsumer(natsClient, streamName, consumerName, &consumerConfig)
-
-	channel := make(chan *nats.Msg, msgBufferSize)
-	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel,
-		nats.Durable(consumerName),
-		deliveryOption,
-		nats.ManualAck(),
-		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
-		nats.BindStream(streamName))
-	if err != nil {
-		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
-		return err
-	}
-	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
-	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
+	//natsTopic := GetNatsTopic(topic)
+	//streamName := natsTopic.streamName
+	//queueName := natsTopic.queueName
+	//consumerName := natsTopic.consumerName
+	//natsClient := impl.NatsClient
+	//streamConfig := impl.getStreamConfig(streamName)
+	//// streamConfig := natsClient.streamConfig
+	//_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
+	//deliveryOption := nats.DeliverLast()
+	//if streamConfig.Retention == nats.WorkQueuePolicy {
+	//	deliveryOption = nats.DeliverAll()
+	//}
+	//
+	//consumerConfig := NatsConsumerWiseConfigMapping[consumerName]
+	//processingBatchSize := consumerConfig.NatsMsgProcessingBatchSize
+	//msgBufferSize := consumerConfig.GetNatsMsgBufferSize()
+	//
+	//// Converting provided ack wait (int) into duration for comparing with nats-server config
+	//ackWait := time.Duration(consumerConfig.AckWaitInSecs) * time.Second
+	//
+	//// Update consumer config if new changes detected
+	//impl.updateConsumer(natsClient, streamName, consumerName, &consumerConfig)
+	//
+	//channel := make(chan *nats.Msg, msgBufferSize)
+	//_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel,
+	//	nats.Durable(consumerName),
+	//	deliveryOption,
+	//	nats.ManualAck(),
+	//	nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
+	//	nats.BindStream(streamName))
+	//if err != nil {
+	//	impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
+	//	return err
+	//}
+	//go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
+	//impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
