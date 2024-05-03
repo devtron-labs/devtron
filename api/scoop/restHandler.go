@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -14,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type RestHandler interface {
@@ -28,16 +31,19 @@ type RestHandlerImpl struct {
 	service        Service
 	enforcerUtil   rbac.EnforcerUtil
 	enforcer       casbin.Enforcer
+	userService    user2.UserService
 }
 
 func NewRestHandler(service Service, watcherService autoRemediation.WatcherService,
 	enforcerUtil rbac.EnforcerUtil,
+	userService user2.UserService,
 	enforcer casbin.Enforcer) *RestHandlerImpl {
 	return &RestHandlerImpl{
 		service:        service,
 		watcherService: watcherService,
 		enforcerUtil:   enforcerUtil,
 		enforcer:       enforcer,
+		userService:    userService,
 	}
 }
 
@@ -90,9 +96,30 @@ func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r 
 }
 
 func (handler *RestHandlerImpl) HandleNotificationEvent(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	claimBytes, err := handler.userService.GetFieldValuesFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("error in getting field values from token", "err", err)
+		common.WriteJsonResp(w, errors.New("invalid token"), nil, http.StatusUnauthorized)
+		return
+	}
+
+	tokenClains := apiToken.ApiTokenCustomClaims{}
+	err = json.Unmarshal(claimBytes, &tokenClains)
+	if err != nil {
+		handler.logger.Errorw("error in un marshalling token claims", "claimBytes", claimBytes, "err", err)
+		common.WriteJsonResp(w, errors.New("invalid token"), nil, http.StatusBadRequest)
+		return
+	}
+
+	if expired := tokenClains.ExpiresAt.Before(time.Now()); expired {
+		common.WriteJsonResp(w, errors.New("token expired"), nil, http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	var notification map[string]interface{}
-	err := decoder.Decode(&notification)
+	err = decoder.Decode(&notification)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
