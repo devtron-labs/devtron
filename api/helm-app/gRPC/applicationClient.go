@@ -28,7 +28,7 @@ type HelmAppClient interface {
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
-	TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) ([]*TemplateChartResponse, error)
+	TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
@@ -294,7 +294,7 @@ func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallRel
 	}
 	return response, nil
 }
-func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) ([]*TemplateChartResponse, error) {
+func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkIn
 	if err != nil {
 		return nil, err
 	}
-	return response.BulkTemplateChartResponse, nil
+	return response, nil
 }
 
 func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error) {

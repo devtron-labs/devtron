@@ -406,29 +406,26 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		appNameToId[app.AppName] = app.Id
 	}
 	partitionedRequests := utils.PartitionSlice(installReleaseRequests, impl.restartWorkloadConfig.RequestBatchSize)
-	var finaError error
+	var finalError error
 	for i, _ := range partitionedRequests {
 		req := partitionedRequests[i]
 		wp.Submit(func() {
 			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, &gRPC.BulkInstallReleaseRequest{BulkInstallReleaseRequest: req})
 			if err != nil {
 				impl.Logger.Errorw("error in getting data from template chart", "err", err)
-				finaError = err
+				finalError = err
 				return
 			}
 			templateChartResponseLock.Lock()
-			templateChartResponse = append(templateChartResponse, resp...)
+			templateChartResponse = append(templateChartResponse, resp.BulkTemplateChartResponse...)
 			templateChartResponseLock.Unlock()
 
 		})
-		if finaError != nil {
-			break
-		}
 	}
 	wp.StopWait()
-	if finaError != nil {
+	if finalError != nil {
 		impl.Logger.Errorw("error in fetching response", "installReleaseRequests", installReleaseRequests, "templateChartResponse", templateChartResponse)
-		return nil, finaError
+		return nil, finalError
 	}
 	impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
 
