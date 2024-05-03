@@ -269,9 +269,18 @@ const (
 	Id         FilterCriteriaIdentifier = "id"
 )
 
-type ReleaseConfigStatus string
-
+// IdType is used for identifying nature of id stored in object json or to implement logics. As we are using devtron_resource_object for storing all resource types across
+// devtron we also faced a problem where id of resource object will be unique across all resource types, but old resources are stored in different tables and their id value
+// can be same leading to conflict. To avoid this we are using idType where oldObjectId denotes ids of old resources(of their diff tables) and resourceObjectId is the unique
+// id got from the primary key of devtron_resource_object table.
 type IdType string
+
+const (
+	ResourceObjectIdType IdType = "resourceObjectId"
+	OldObjectId          IdType = "oldObjectId"
+)
+
+type ReleaseConfigStatus string
 
 func (s ReleaseConfigStatus) ToString() string {
 	return string(s)
@@ -298,11 +307,6 @@ const (
 	NotSelectedDependencyArtifactStatus     DependencyArtifactStatus = "noImageSelected"
 	PartialSelectedDependencyArtifactStatus DependencyArtifactStatus = "partialImagesSelected"
 	AllSelectedDependencyArtifactStatus     DependencyArtifactStatus = "allImagesSelected"
-)
-
-const (
-	ResourceObjectIdType IdType = "resourceObjectId"
-	OldObjectId          IdType = "oldObjectId"
 )
 
 const (
