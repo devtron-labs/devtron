@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type Trigger struct {
-	tableName struct{}    `sql:"trigger" pg:",discard_unknown_columns"`
+type AutoRemediationTrigger struct {
+	tableName struct{}    `sql:"auto_remediation_trigger" pg:",discard_unknown_columns"`
 	Id        int         `sql:"id,pk"`
 	Type      TriggerType `sql:"type"`
 	WatcherId int         `sql:"watcher_id"`
@@ -22,15 +22,15 @@ const (
 )
 
 type TriggerRepository interface {
-	Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error)
-	SaveInBulk(trigger []*Trigger, tx *pg.Tx) ([]*Trigger, error)
-	Update(trigger *Trigger) (*Trigger, error)
-	GetTriggerByWatcherId(watcherId int) ([]*Trigger, error)
-	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
-	GetTriggerById(id int) (*Trigger, error)
+	Save(trigger *AutoRemediationTrigger, tx *pg.Tx) (*AutoRemediationTrigger, error)
+	SaveInBulk(trigger []*AutoRemediationTrigger, tx *pg.Tx) ([]*AutoRemediationTrigger, error)
+	Update(trigger *AutoRemediationTrigger) (*AutoRemediationTrigger, error)
+	GetTriggerByWatcherId(watcherId int) ([]*AutoRemediationTrigger, error)
+	GetTriggerByWatcherIds(watcherIds []int) ([]*AutoRemediationTrigger, error)
+	GetTriggerById(id int) (*AutoRemediationTrigger, error)
 	DeleteTriggerByWatcherId(tx *pg.Tx, watcherId int) error
-	GetWatcherByTriggerId(triggerId int) (*Watcher, error)
-	GetAllTriggers() ([]*Trigger, error)
+	GetWatcherByTriggerId(triggerId int) (*K8sEventWatcher, error)
+	GetAllTriggers() ([]*AutoRemediationTrigger, error)
 	sql.TransactionWrapper
 }
 
@@ -49,7 +49,7 @@ func NewTriggerRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *T
 	}
 }
 
-func (impl TriggerRepositoryImpl) Save(trigger *Trigger, tx *pg.Tx) (*Trigger, error) {
+func (impl TriggerRepositoryImpl) Save(trigger *AutoRemediationTrigger, tx *pg.Tx) (*AutoRemediationTrigger, error) {
 	_, err := tx.Model(trigger).Insert()
 	if err != nil {
 		impl.logger.Error(err)
@@ -57,7 +57,7 @@ func (impl TriggerRepositoryImpl) Save(trigger *Trigger, tx *pg.Tx) (*Trigger, e
 	}
 	return trigger, nil
 }
-func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*Trigger, tx *pg.Tx) ([]*Trigger, error) {
+func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*AutoRemediationTrigger, tx *pg.Tx) ([]*AutoRemediationTrigger, error) {
 	_, err := tx.Model(&triggers).Insert()
 	if err != nil {
 		impl.logger.Error(err)
@@ -66,7 +66,7 @@ func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*Trigger, tx *pg.Tx) ([]
 	return triggers, nil
 }
 
-func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
+func (impl TriggerRepositoryImpl) Update(trigger *AutoRemediationTrigger) (*AutoRemediationTrigger, error) {
 	_, err := impl.dbConnection.Model(&trigger).Update()
 	if err != nil {
 		impl.logger.Error(err)
@@ -75,8 +75,8 @@ func (impl TriggerRepositoryImpl) Update(trigger *Trigger) (*Trigger, error) {
 	return trigger, nil
 }
 
-func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) ([]*Trigger, error) {
-	var trigger []*Trigger
+func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) ([]*AutoRemediationTrigger, error) {
+	var trigger []*AutoRemediationTrigger
 	err := impl.dbConnection.Model(&trigger).
 		Where("watcher_id = ? and active =?", watcherId, true).
 		Select()
@@ -86,8 +86,8 @@ func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) ([]*Trigg
 	return trigger, nil
 }
 
-func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
-	var trigger []*Trigger
+func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*AutoRemediationTrigger, error) {
+	var trigger []*AutoRemediationTrigger
 	err := impl.dbConnection.Model(&trigger).
 		Where(" watcher_id IN (?) ", pg.In(watcherIds)).
 		Where(" active = ? ", true).
@@ -99,42 +99,42 @@ func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*T
 }
 
 func (impl TriggerRepositoryImpl) DeleteTriggerByWatcherId(tx *pg.Tx, watcherId int) error {
-	_, err := tx.Model((*Trigger)(nil)).
+	_, err := tx.Model((*AutoRemediationTrigger)(nil)).
 		Set("active = ?", false).
 		Where("watcher_id = ?", watcherId).
 		Update()
 	return err
 }
 
-func (impl TriggerRepositoryImpl) GetTriggerById(id int) (*Trigger, error) {
-	var trigger Trigger
+func (impl TriggerRepositoryImpl) GetTriggerById(id int) (*AutoRemediationTrigger, error) {
+	var trigger AutoRemediationTrigger
 	err := impl.dbConnection.Model(&trigger).
 		Where("id = ? and active =?", id, true).
 		Select()
 	if err != nil {
 		impl.logger.Error(err)
-		return &Trigger{}, err
+		return &AutoRemediationTrigger{}, err
 	}
 	return &trigger, nil
 }
 
-func (impl TriggerRepositoryImpl) GetWatcherByTriggerId(triggerId int) (*Watcher, error) {
-	var trigger Trigger
+func (impl TriggerRepositoryImpl) GetWatcherByTriggerId(triggerId int) (*K8sEventWatcher, error) {
+	var trigger AutoRemediationTrigger
 	err := impl.dbConnection.Model(&trigger).Where("id = ? and active =?", triggerId, true).Select()
 	if err != nil {
 		impl.logger.Error(err)
-		return &Watcher{}, err
+		return &K8sEventWatcher{}, err
 	}
-	var watcher Watcher
+	var watcher K8sEventWatcher
 	err = impl.dbConnection.Model(&watcher).Where("id = ? and active =?", trigger.WatcherId, true).Select()
 	if err != nil {
 		impl.logger.Error(err)
-		return &Watcher{}, err
+		return &K8sEventWatcher{}, err
 	}
 	return &watcher, nil
 }
-func (impl TriggerRepositoryImpl) GetAllTriggers() ([]*Trigger, error) {
-	var trigger []*Trigger
+func (impl TriggerRepositoryImpl) GetAllTriggers() ([]*AutoRemediationTrigger, error) {
+	var trigger []*AutoRemediationTrigger
 	err := impl.dbConnection.Model(&trigger).Where("active =?", true).Select()
 	if err != nil {
 		return trigger, err

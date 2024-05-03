@@ -6,6 +6,9 @@ import (
 	"fmt"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -23,7 +26,7 @@ import (
 )
 
 type Service interface {
-	HandleInterceptedEvent(ctx context.Context, hostUrl, token string, event *types.InterceptedEvent) error
+	HandleInterceptedEvent(ctx context.Context, event *types.InterceptedEvent) error
 	HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error
 }
 
@@ -34,6 +37,8 @@ type ServiceImpl struct {
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	interceptedEventsRepository  repository.InterceptedEventsRepository
 	clusterService               cluster.ClusterService
+	attributesService            attributes.AttributesService
+	tokenService                 apiToken.ApiTokenService
 	eventClient                  client2.EventClient
 	eventFactory                 client2.EventFactory
 }
@@ -44,6 +49,8 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	interceptedEventsRepository repository.InterceptedEventsRepository,
 	clusterService cluster.ClusterService,
+	attributesService attributes.AttributesService,
+	tokenService apiToken.ApiTokenService,
 	eventClient client2.EventClient,
 	eventFactory client2.EventFactory,
 ) *ServiceImpl {
@@ -54,12 +61,30 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		interceptedEventsRepository:  interceptedEventsRepository,
 		clusterService:               clusterService,
+		attributesService:            attributesService,
+		tokenService:                 tokenService,
 		eventClient:                  eventClient,
 		eventFactory:                 eventFactory,
 	}
 }
 
-func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, hostUrl, token string, interceptedEvent *types.InterceptedEvent) error {
+func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedEvent *types.InterceptedEvent) error {
+
+	// 1) get the host url from the attributes table and set hostUrl
+	hostUrlObj, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in getting the host url from attributes table", "err", err)
+		return err
+	}
+
+	// 2) create a temp token to trigger notification
+
+	token, err := impl.tokenService.CreateApiJwtToken("", 24*60)
+	if err != nil {
+		impl.logger.Errorw("error in creating api token", "err", err)
+		return err
+	}
+	hostUrl := hostUrlObj.Value
 	involvedObj, gvkStr, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)

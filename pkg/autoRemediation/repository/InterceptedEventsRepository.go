@@ -13,7 +13,7 @@ type InterceptedEventExecution struct {
 	Id                 int             `sql:"id,pk"`
 	ClusterId          int             `sql:"cluster_id"`
 	Namespace          string          `sql:"namespace"`
-	Action             watch.EventType `sql:"message_type"`
+	Action             watch.EventType `sql:"action"`
 	InvolvedObject     string          `sql:"involved_object"`
 	Gvk                string          `sql:"gvk"`
 	InterceptedAt      time.Time       `sql:"intercepted_at"`
@@ -23,6 +23,7 @@ type InterceptedEventExecution struct {
 	ExecutionMessage   string          `sql:"execution_message"`
 	sql.AuditLog
 }
+
 type Status string
 
 const (
@@ -65,10 +66,9 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 type InterceptedEventData struct {
 	ClusterId          int         `sql:"cluster_id"`
 	Namespace          string      `sql:"namespace"`
-	Message            string      `sql:"message"`
-	MessageType        string      `sql:"message_type"`
+	Action             string      `sql:"action"`
 	Environment        string      `sql:"environment"`
-	Event              string      `sql:"event"`
+	Gvk                string      `sql:"gvk"`
 	InvolvedObject     string      `sql:"involved_object"`
 	InterceptedAt      time.Time   `sql:"intercepted_at"`
 	TriggerExecutionId int         `sql:"trigger_execution_id"`
@@ -114,28 +114,30 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		Table("intercepted_event_execution").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
 		ColumnExpr("intercepted_event_execution.namespace as namespace").
-		ColumnExpr("intercepted_event_execution.message as message").
-		ColumnExpr("intercepted_event_execution.message_type as message_type").
-		ColumnExpr("intercepted_event_execution.event as event").
+		// ColumnExpr("intercepted_event_execution.message as message").
+		ColumnExpr("intercepted_event_execution.action as action").
+		ColumnExpr("intercepted_event_execution.gvk as gvk").
 		ColumnExpr("intercepted_event_execution.involved_object as involved_object").
 		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
 		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
 		ColumnExpr("intercepted_event_execution.status as status").
 		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
 		ColumnExpr("environment.environment_name as environment").
-		ColumnExpr("watcher.name as watcher_name").
-		ColumnExpr("trigger.id as trigger_id").
-		ColumnExpr("trigger.type as trigger_type").
-		ColumnExpr("trigger.data as trigger_data").
-		Join("JOIN trigger ON intercepted_event_execution.trigger_id = trigger.id").
-		Join("JOIN watcher ON trigger.watcher_id = watcher.id").Join("JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").Where("environment.cluster_id=intercepted_event_execution.cluster_id and environment.namespace = intercepted_event_execution.namespace")
+		ColumnExpr("k8s_event_watcher.name as watcher_name").
+		ColumnExpr("auto_remediation_trigger.id as trigger_id").
+		ColumnExpr("auto_remediation_trigger.type as trigger_type").
+		ColumnExpr("auto_remediation_trigger.data as trigger_data").
+		Join("JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
+		Join("JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id").
+		Join("JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").
+		Where("environment.cluster_id=intercepted_event_execution.cluster_id and environment.namespace = intercepted_event_execution.namespace")
 
 	if !interceptedEventsQueryParams.From.IsZero() && !interceptedEventsQueryParams.To.IsZero() {
 		query = query.Where("intercepted_event_execution.intercepted_at BETWEEN ? AND ?", interceptedEventsQueryParams.From, interceptedEventsQueryParams.To)
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.message ILIKE ? OR intercepted_event_execution.involved_object ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
+		query = query.Where("intercepted_event_execution.gvk ILIKE ? OR intercepted_event_execution.involved_object ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 {
@@ -147,7 +149,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	}
 
 	if len(interceptedEventsQueryParams.Watchers) > 0 {
-		query = query.Where("watcher.name IN (?)", pg.In(interceptedEventsQueryParams.Watchers))
+		query = query.Where("k8s_event_watcher.name IN (?)", pg.In(interceptedEventsQueryParams.Watchers))
 	}
 
 	if len(interceptedEventsQueryParams.ExecutionStatus) > 0 {

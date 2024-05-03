@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-type Watcher struct {
-	tableName        struct{} `sql:"watcher" pg:",discard_unknown_columns"`
+type K8sEventWatcher struct {
+	tableName        struct{} `sql:"k8s_event_watcher" pg:",discard_unknown_columns"`
 	Id               int      `sql:"id,pk"`
 	Name             string   `sql:"name,notnull"`
 	Description      string   `sql:"description"`
@@ -17,6 +17,7 @@ type Watcher struct {
 	Active           bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
+
 type WatcherQueryParams struct {
 	Offset      int    `json:"offset"`
 	Size        int    `json:"size"`
@@ -25,32 +26,32 @@ type WatcherQueryParams struct {
 	Search      string `json:"Search"`
 }
 
-type WatcherRepository interface {
-	Save(watcher *Watcher, tx *pg.Tx) (*Watcher, error)
-	Update(tx *pg.Tx, watcher *Watcher, userId int32) error
-	Delete(watcher *Watcher) error
-	GetWatcherById(id int) (*Watcher, error)
-	GetWatcherByIds(ids []int) ([]*Watcher, error)
+type K8sEventWatcherRepository interface {
+	Save(watcher *K8sEventWatcher, tx *pg.Tx) (*K8sEventWatcher, error)
+	Update(tx *pg.Tx, watcher *K8sEventWatcher, userId int32) error
+	Delete(watcher *K8sEventWatcher) error
+	GetWatcherById(id int) (*K8sEventWatcher, error)
+	GetWatcherByIds(ids []int) ([]*K8sEventWatcher, error)
 	DeleteWatcherById(id int) error
-	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error)
+	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*K8sEventWatcher, int, error)
 	sql.TransactionWrapper
 }
-type WatcherRepositoryImpl struct {
+type K8sEventWatcherRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 	*sql.TransactionUtilImpl
 }
 
-func NewWatcherRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *WatcherRepositoryImpl {
+func NewWatcherRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *K8sEventWatcherRepositoryImpl {
 	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
-	return &WatcherRepositoryImpl{
+	return &K8sEventWatcherRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
 		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
-func (impl WatcherRepositoryImpl) Save(watcher *Watcher, tx *pg.Tx) (*Watcher, error) {
+func (impl K8sEventWatcherRepositoryImpl) Save(watcher *K8sEventWatcher, tx *pg.Tx) (*K8sEventWatcher, error) {
 	_, err := tx.Model(watcher).Insert()
 	if err != nil {
 		impl.logger.Error(err)
@@ -58,9 +59,9 @@ func (impl WatcherRepositoryImpl) Save(watcher *Watcher, tx *pg.Tx) (*Watcher, e
 	}
 	return watcher, nil
 }
-func (impl WatcherRepositoryImpl) Update(tx *pg.Tx, watcher *Watcher, userId int32) error {
+func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWatcher, userId int32) error {
 	_, err := tx.
-		Model((*Watcher)(nil)).
+		Model((*K8sEventWatcher)(nil)).
 		Set("name = ?", watcher.Name).
 		Set("description = ?", watcher.Description).
 		Set("filter_expression = ?", watcher.FilterExpression).
@@ -73,7 +74,7 @@ func (impl WatcherRepositoryImpl) Update(tx *pg.Tx, watcher *Watcher, userId int
 	return err
 }
 
-func (impl WatcherRepositoryImpl) Delete(watcher *Watcher) error {
+func (impl K8sEventWatcherRepositoryImpl) Delete(watcher *K8sEventWatcher) error {
 	err := impl.dbConnection.Delete(&watcher)
 	if err != nil {
 		impl.logger.Error(err)
@@ -81,18 +82,18 @@ func (impl WatcherRepositoryImpl) Delete(watcher *Watcher) error {
 	}
 	return nil
 }
-func (impl WatcherRepositoryImpl) GetWatcherById(id int) (*Watcher, error) {
-	var watcher Watcher
+func (impl K8sEventWatcherRepositoryImpl) GetWatcherById(id int) (*K8sEventWatcher, error) {
+	var watcher K8sEventWatcher
 	err := impl.dbConnection.Model(&watcher).Where("id = ? and active = ?", id, true).Select()
 	if err != nil {
 		impl.logger.Error(err)
-		return &Watcher{}, err
+		return &K8sEventWatcher{}, err
 	}
 	return &watcher, nil
 }
 
-func (impl WatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*Watcher, error) {
-	var watchers []*Watcher
+func (impl K8sEventWatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*K8sEventWatcher, error) {
+	var watchers []*K8sEventWatcher
 	err := impl.dbConnection.Model(&watchers).
 		Where("id IN (?) and active = ?", pg.In(ids), true).
 		Select()
@@ -103,8 +104,8 @@ func (impl WatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*Watcher, error)
 	return watchers, nil
 }
 
-func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
-	_, err := impl.dbConnection.Model(&Watcher{}).Set("active = ?", false).Where("id = ?", id).Update()
+func (impl K8sEventWatcherRepositoryImpl) DeleteWatcherById(id int) error {
+	_, err := impl.dbConnection.Model(&K8sEventWatcher{}).Set("active = ?", false).Where("id = ?", id).Update()
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -112,8 +113,8 @@ func (impl WatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	return nil
 }
 
-func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*Watcher, int, error) {
-	var watcher []*Watcher
+func (impl K8sEventWatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*K8sEventWatcher, int, error) {
+	var watcher []*K8sEventWatcher
 	query := impl.dbConnection.Model(&watcher)
 	if params.Search != "" {
 		query = query.Where("name ILIKE ? ", "%"+params.Search+"%")
@@ -125,11 +126,11 @@ func (impl WatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQuery
 	}
 	total, err := query.Where("active = ?", true).Count()
 	if err != nil {
-		return []*Watcher{}, 0, err
+		return []*K8sEventWatcher{}, 0, err
 	}
 	err = query.Offset(params.Offset).Limit(params.Size).Select()
 	if err != nil {
-		return []*Watcher{}, 0, err
+		return []*K8sEventWatcher{}, 0, err
 	}
 	return watcher, total, nil
 }
