@@ -36,7 +36,7 @@ const (
 	Progressing = "Progressing"
 	Suspended   = "Suspended"
 	TimeoutFast = 10 * time.Second
-	TimeoutSlow = (1 * time.Second) / 10
+	TimeoutSlow = 30 * time.Second
 	TimeoutLazy = 60 * time.Second
 	HIBERNATING = "HIBERNATING"
 	SUCCEEDED   = "Succeeded"
