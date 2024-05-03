@@ -25,7 +25,7 @@ Technically, both of them are different methods of restricting deployments to an
 
 ## Configuring Deployment Window
 
-(This is configured by super-admins using APIs)
+(Currently, this is configured by super-admins using APIs)
 
 ---
 
@@ -71,7 +71,7 @@ The below functions are blocked during an ongoing blackout window or outside mai
 
 * [Hibernation](#hibernation)
 * [Restart Workloads](#restart-workloads)
-* [Deletion of Workloads](#dele)
+* [Deletion of Workloads](#deletion-of-workloads)
 * [Deployment](#deployment)
 * [Rollback](#rollback)
 * [Deletion of CD Pipeline](#deletion-of-cd-pipeline)
@@ -156,7 +156,11 @@ If you attempt to delete any CD pipeline with restricted deployment, it will sho
 
 Just like application, [application groups](../application-groups.md) are also subjected to deployment windows.
 
+![Figure 12: Deployment Window in Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/app-group-blackout.jpg)
+
 Let's say you have 10 applications in your application group, and a blackout window is ongoing for 3 of them. In such a case, if you deploy your application group, those 3 applications will not get deployed. Therefore, you might experience a partial success along with an option to retry the failed deployments.
+
+![Figure 13: Partial Deployment of Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/ag-deploy.jpg)
 
 The same stands true for other bulk actions like hibernate, unhibernate, and restart workloads.
 
