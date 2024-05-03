@@ -20,6 +20,7 @@ package appList
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -650,26 +651,34 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
 	appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) {
+	var apiError *util.ApiError
+	ok := errors.As(err, &apiError)
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
 				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
 				if appDeleteErr != nil {
-					common.WriteJsonResp(w, fmt.Errorf("error in deleting devtron pipeline for deleted argocd app"), nil, http.StatusInternalServerError)
+					apiError.UserMessage = constants.ErrorDeletingPipelineForDeletedArgoAppMsg
+					common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 					return
 				} else if appDeleteErr == nil && !acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("argocd app deleted"), nil, http.StatusNotFound)
+					apiError.UserMessage = constants.ArgoAppDeletedErrMsg
+					common.WriteJsonResp(w, apiError, nil, http.StatusNotFound)
 					return
 				}
 			}
 		}
 	}
 	// not returned yet therefore no specific error to be handled, send error in internal message
-	common.WriteJsonResp(w, &util.ApiError{
-		InternalMessage: err.Error(),
-		UserMessage:     "unable to fetch resource tree",
-	}, nil, http.StatusInternalServerError)
+	if ok && apiError != nil {
+		apiError.UserMessage = constants.UnableToFetchResourceTreeErrMsg
+	} else {
+		apiError = &util.ApiError{
+			InternalMessage: err.Error(),
+			UserMessage:     constants.UnableToFetchResourceTreeErrMsg,
+		}
+	}
+	common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
@@ -1012,9 +1021,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
+			internalMsg := fmt.Sprintf("%s, err:- %s", constants.UnableToFetchResourceTreeForAcdErrMsg, err.Error())
+			clientCode, _ := util.GetClientDetailedError(err)
+			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
 			err = &util.ApiError{
+				HttpStatusCode:  httpStatusCode,
 				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				InternalMessage: internalMsg,
 				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
 			}
 			return resourceTree, err
@@ -1115,6 +1128,10 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
 	if err != nil {
 		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		httpStatus, ok := util.IsErrorContextCancelledOrDeadlineExceeded(err)
+		if ok {
+			return nil, &util.ApiError{HttpStatusCode: httpStatus, Code: strconv.Itoa(httpStatus), InternalMessage: err.Error()}
+		}
 		return nil, err
 	}
 	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)

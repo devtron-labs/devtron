@@ -262,6 +262,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
 
+		sql.NewTransactionUtilImpl,
+		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),
+
 		trigger.NewPipelineRestHandler,
 		wire.Bind(new(trigger.PipelineTriggerRestHandler), new(*trigger.PipelineTriggerRestHandlerImpl)),
 		app.GetAppServiceConfig,
