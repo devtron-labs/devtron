@@ -6,11 +6,9 @@ import (
 )
 
 type InterceptedEvent struct {
-	Message        string                  `json:"message"`
-	MessageType    string                  `json:"type"`
-	Event          map[string]interface{}  `json:"event"` // raw k8s event
-	InvolvedObject map[string]interface{}  `json:"involvedObject"`
-	GVK            schema.GroupVersionKind `json:"gvk"`
+	Action          EventType               `json:"action"`
+	InvolvedObjects map[string]interface{}  `json:"involvedObject"`
+	GVK             schema.GroupVersionKind `json:"gvk"`
 
 	InterceptedAt time.Time  `json:"interceptedAt"`
 	Watchers      []*Watcher `json:"watchers"`
@@ -45,3 +43,11 @@ const WATCHER_CUD_URL = "/k8s/watcher"
 const API_RESOURCES_URL = "/k8s/api-resources"
 const RESOURCE_LIST_URL = "/k8s/resources"
 const K8S_CACHE_CONFIG_URL = "/k8s/cache/config"
+
+type EventType string
+
+const (
+	DELETED EventType = "DELETED"
+	CREATED EventType = "CREATED"
+	UPDATED EventType = "UPDATED"
+)
