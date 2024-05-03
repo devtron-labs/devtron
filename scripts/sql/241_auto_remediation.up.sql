@@ -41,7 +41,7 @@ CREATE TABLE "public"."intercepted_event_execution"(
                                               "id" integer NOT NULL default nextval('id_seq_intercepted_event_execution'::regclass),
                                               "cluster_id" int ,
                                               "namespace" character varying(250) NOT NULL,
-                                              "gvk" text,
+                                              "metadata" text,
                                               "execution_message" text,
                                               "action" varchar(20),
                                               "involved_object" text,

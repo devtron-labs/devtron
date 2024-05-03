@@ -1,20 +1,42 @@
 package types
 
 import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
 type InterceptedEvent struct {
-	Action          EventType               `json:"action"`
-	InvolvedObjects map[string]interface{}  `json:"involvedObject"`
-	GVK             schema.GroupVersionKind `json:"gvk"`
+	Action          EventType              `json:"action"`
+	InvolvedObjects map[string]interface{} `json:"involvedObject"`
+	ObjectMeta      InvolvedObjectMetadata `json:"metadata"`
 
 	InterceptedAt time.Time  `json:"interceptedAt"`
 	Watchers      []*Watcher `json:"watchers"`
 
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
+}
+
+type InvolvedObjectMetadata struct {
+	Group     string `json:"group"`
+	Version   string `json:"version"`
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
+func GetObjectMetadata(resource *unstructured.Unstructured) InvolvedObjectMetadata {
+	gvk := resource.GroupVersionKind()
+	name := resource.GetName()
+	ns := resource.GetNamespace()
+	return InvolvedObjectMetadata{
+		Group:     gvk.Group,
+		Version:   gvk.Version,
+		Kind:      gvk.Kind,
+		Name:      name,
+		Namespace: ns,
+	}
 }
 
 type Watcher struct {

@@ -15,7 +15,7 @@ type InterceptedEventExecution struct {
 	Namespace          string          `sql:"namespace"`
 	Action             types.EventType `sql:"action"`
 	InvolvedObject     string          `sql:"involved_object"`
-	Gvk                string          `sql:"gvk"`
+	Metadata           string          `sql:"metadata"`
 	InterceptedAt      time.Time       `sql:"intercepted_at"`
 	TriggerId          int             `sql:"trigger_id"`
 	TriggerExecutionId int             `sql:"trigger_execution_id"`
