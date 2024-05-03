@@ -404,7 +404,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		return err
 	}
 
-	err = impl.informScoops(envsMap, watcherEvents.DELETE, &WatcherDto{Id: watcherId})
+	err = impl.informScoops(envsMap, types.DELETE, &WatcherDto{Id: watcherId})
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherId", watcherId)
 		return err
