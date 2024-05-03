@@ -40,7 +40,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -735,7 +734,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	var filteredDataList []map[string]interface{}
-	containsNameHeader := slices.Contains(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
+	containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
 	if !containsNameHeader {
 		impl.logger.Warnw("data does not contains name field, returning empty data", "headers", resourceList.Headers)
 		resourceList.Data = []map[string]interface{}{}
@@ -1665,4 +1664,13 @@ func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterI
 	}
 	return scoopPort, scoopConfig, nil
 	//return 8081, ScoopServiceClusterConfig{PassKey: "abcd"}, nil
+}
+
+func (impl *K8sApplicationServiceImpl) containsHeader(headers []string, key string) bool {
+	for _, header := range headers {
+		if header == key {
+			return true
+		}
+	}
+	return false
 }
