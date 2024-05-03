@@ -18,19 +18,76 @@
 package security
 
 import (
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type ImageScanExecutionHistory struct {
-	tableName     struct{}  `sql:"image_scan_execution_history" pg:",discard_unknown_columns"`
-	Id            int       `sql:"id,pk"`
-	Image         string    `sql:"image,notnull"`
-	ImageHash     string    `sql:"image_hash,notnull"`
-	ExecutionTime time.Time `sql:"execution_time"`
-	ExecutedBy    int       `sql:"executed_by,notnull"`
+	tableName                       struct{}      `sql:"image_scan_execution_history" pg:",discard_unknown_columns"`
+	Id                              int           `sql:"id,pk"`
+	Image                           string        `sql:"image,notnull"`
+	ImageHash                       string        `sql:"image_hash,notnull"` // TODO Migrate to request metadata
+	ExecutionTime                   time.Time     `sql:"execution_time"`
+	ExecutedBy                      int           `sql:"executed_by,notnull"`
+	SourceMetadataJson              string        `sql:"source_metadata_json"` // to have relevant info to process a scan for a given source type and subtype
+	SourceType                      SourceType    `sql:"source_type"`
+	SourceSubType                   SourceSubType `sql:"source_sub_type"`
+	ScanToolExecutionHistoryMapping *ScanToolExecutionHistoryMapping
 }
+
+func (ed *ExecutionData) IsBuiltImage() bool {
+	return ed.SourceType == SourceTypeImage && ed.SourceSubType == SourceSubTypeCi
+}
+
+func (ed *ExecutionData) IsManifestImage() bool {
+	return ed.SourceType == SourceTypeImage && ed.SourceSubType == SourceSubTypeManifest
+}
+
+func (ed *ExecutionData) IsManifest() bool {
+	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeManifest
+}
+
+func (ed *ExecutionData) IsCode() bool {
+	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeCi
+}
+
+func (ed *ExecutionData) ContainsType(typeToCheck ResourceScanType) bool {
+	for _, scanType := range ed.Types {
+		if scanType == int(typeToCheck) {
+			return true
+		}
+	}
+	return false
+}
+
+type ExecutionData struct {
+	Image         string
+	ScanDataJson  string
+	StartedOn     time.Time
+	ScanToolName  string
+	SourceType    SourceType
+	SourceSubType SourceSubType
+	Types         []int `sql:"types" pg:",array"`
+	Status        serverBean.ScanExecutionProcessState
+}
+
+// multiple history rows for one source event
+type SourceType int
+
+const (
+	SourceTypeImage SourceType = 1
+	SourceTypeCode  SourceType = 2
+	SourceTypeSbom  SourceType = 3 // can be used in future for direct sbom scanning
+)
+
+type SourceSubType int
+
+const (
+	SourceSubTypeCi       SourceSubType = 1 // relevant for ci code(2,1) or ci built image(1,1)
+	SourceSubTypeManifest SourceSubType = 2 // relevant for devtron app deployment manifest/helm app manifest(2,2) or images retrieved from manifest(1,2))
+)
 
 type ImageScanHistoryRepository interface {
 	Save(model *ImageScanExecutionHistory) error
