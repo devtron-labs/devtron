@@ -665,7 +665,14 @@ func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineI
 		}
 	}
 	// not returned yet therefore no specific error to be handled, send error in internal message
-	apiError.UserMessage = constants.UnableToFetchResourceTreeErrMsg
+	if ok && apiError != nil {
+		apiError.UserMessage = constants.UnableToFetchResourceTreeErrMsg
+	} else {
+		apiError = &util.ApiError{
+			InternalMessage: err.Error(),
+			UserMessage:     constants.UnableToFetchResourceTreeErrMsg,
+		}
+	}
 	common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 }
 
