@@ -8,12 +8,37 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
+	admissionregistrationV1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
+	admissionregistrationV1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	apiserverinternalV1alpha1 "k8s.io/api/apiserverinternal/v1alpha1"
+	appsV1 "k8s.io/api/apps/v1"
+	autoscalingV2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
+	certificatesV1 "k8s.io/api/certificates/v1"
+	coordinationV1 "k8s.io/api/coordination/v1"
+	discoveryV1beta1 "k8s.io/api/discovery/v1beta1"
+	networkingV1 "k8s.io/api/networking/v1"
+	networkingv1alpha1 "k8s.io/api/networking/v1alpha1"
+	networkingV1beta1 "k8s.io/api/networking/v1beta1"
+	nodeV1 "k8s.io/api/node/v1"
+	resourceV1alpha1 "k8s.io/api/resource/v1alpha1"
+	schedulingV1 "k8s.io/api/scheduling/v1"
+	storageV1beta1 "k8s.io/api/storage/v1beta1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/duration"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/kubernetes/pkg/apis/flowcontrol"
+	"k8s.io/kubernetes/pkg/apis/rbac"
 	"net/http"
+	"net/http/httputil"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +48,7 @@ import (
 	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	policyV1beta1 "k8s.io/api/policy/v1beta1"
 
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -39,16 +65,18 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
+	apiV1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/printers"
 )
 
 type K8sApplicationService interface {
@@ -68,10 +96,14 @@ type K8sApplicationService interface {
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
 	GetPodContainersList(clusterId int, namespace, podName string) (*k8s.PodContainerList, error)
-	GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error)
+	GetPodListByLabel(clusterId int, namespace, label string) ([]apiV1.Pod, error)
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s3.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
+	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
+	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
+	StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -86,46 +118,73 @@ type K8sApplicationServiceImpl struct {
 	terminalSession              terminal.TerminalSessionHandler
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
-	ephemeralContainerConfig     *EphemeralContainerConfig
+	environmentRepository        repository.EnvironmentRepository
+	k8sAppConfig                 *K8sAppConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 
 	// nil for EA mode
-	deploymentWindowService deploymentWindow.DeploymentWindowService
+	deploymentWindowService                 deploymentWindow.DeploymentWindowService
+	celEvaluatorService                     resourceFilter.CELEvaluatorService
+	printers                                *printers.HumanReadableGenerator
+	interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler
+	scoopClusterServiceMap                  map[int]ScoopServiceClusterConfig
 }
 
-func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
+	environmentRepository repository.EnvironmentRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
-	deploymentWindowService deploymentWindow.DeploymentWindowService,
-) (*K8sApplicationServiceImpl, error) {
-	ephemeralContainerConfig := &EphemeralContainerConfig{}
-	err := env.Parse(ephemeralContainerConfig)
+	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
+	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
+	k8sAppConfig := &K8sAppConfig{}
+	err := env.Parse(k8sAppConfig)
 	if err != nil {
-		Logger.Errorw("error in parsing EphemeralContainerConfig from env", "err", err)
+		logger.Errorw("error in parsing K8sAppConfig from env", "err", err)
 		return nil, err
 	}
+	scoopConfig := make(map[int]ScoopServiceClusterConfig)
+	scoopClusterConfig := k8sAppConfig.ScoopClusterConfig
+	err = json.Unmarshal([]byte(scoopClusterConfig), &scoopConfig)
+	if err != nil {
+		logger.Warnw("error occurred while parsing scoop cluster config", "scoopClusterConfig", scoopClusterConfig, "err", err)
+	}
+	printers := printers.NewTableGenerator()
+	util4.AddHandlers(printers)
 	return &K8sApplicationServiceImpl{
-		logger:                       Logger,
-		clusterService:               clusterService,
-		pump:                         pump,
-		helmAppService:               helmAppService,
-		K8sUtil:                      K8sUtil,
-		aCDAuthConfig:                aCDAuthConfig,
-		K8sResourceHistoryService:    K8sResourceHistoryService,
-		k8sCommonService:             k8sCommonService,
-		terminalSession:              terminalSession,
-		ephemeralContainerService:    ephemeralContainerService,
-		ephemeralContainerRepository: ephemeralContainerRepository,
-		ephemeralContainerConfig:     ephemeralContainerConfig,
-		argoApplicationService:       argoApplicationService,
-		deploymentWindowService:      deploymentWindowService,
+		logger:                                  logger,
+		clusterService:                          clusterService,
+		pump:                                    pump,
+		helmAppService:                          helmAppService,
+		K8sUtil:                                 K8sUtil,
+		aCDAuthConfig:                           aCDAuthConfig,
+		K8sResourceHistoryService:               K8sResourceHistoryService,
+		k8sCommonService:                        k8sCommonService,
+		terminalSession:                         terminalSession,
+		ephemeralContainerService:               ephemeralContainerService,
+		ephemeralContainerRepository:            ephemeralContainerRepository,
+		environmentRepository:                   environmentRepository,
+		k8sAppConfig:                            k8sAppConfig,
+		argoApplicationService:                  argoApplicationService,
+		deploymentWindowService:                 deploymentWindowService,
+		celEvaluatorService:                     celEvaluatorService,
+		printers:                                printers,
+		interClusterServiceCommunicationHandler: interClusterServiceCommunicationHandler,
+		scoopClusterServiceMap:                  scoopConfig,
 	}, nil
 }
 
-type EphemeralContainerConfig struct {
+type K8sAppConfig struct {
 	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
+	ScoopClusterConfig          string `env:"SCOOP_CLUSTER_CONFIG" envDefault:"{}"`
+}
+
+type ScoopServiceClusterConfig struct {
+	ServiceName string `json:"serviceName"`
+	Namespace   string `json:"namespace"`
+	PassKey     string `json:"passKey"`
+	Port        string `json:"port"`
 }
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
@@ -392,6 +451,21 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	return resp, nil
 }
 
+func (impl *K8sApplicationServiceImpl) ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, resourceName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error) {
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return false, err
+	}
+	clusterName := clusterBean.ClusterName
+	resourceIdentifier := k8s3.ResourceIdentifier{
+		Name:             resourceName,
+		Namespace:        namespace,
+		GroupVersionKind: resourceGVK,
+	}
+	return rbacForResource(token, clusterName, resourceIdentifier, resourceAction), nil
+}
+
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
 	rbacCallback func(clusterName string, resourceIdentifier k8s3.ResourceIdentifier) bool) (bool, error) {
 	clusterId := clusterResourceRequest.ClusterId
@@ -466,21 +540,21 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 		for _, pod := range app.ResourceTreeResponse.PodMetadata {
 			if pod.Name == podName {
 
-				//finding the container name in main Containers
+				// finding the container name in main Containers
 				for _, container := range pod.Containers {
 					if container == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in init containers
+				// finding the container name in init containers
 				for _, initContainer := range pod.InitContainers {
 					if initContainer == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in ephemeral containers
+				// finding the container name in ephemeral containers
 				for _, ephemeralContainer := range pod.EphemeralContainers {
 					if ephemeralContainer.Name == requestContainerName {
 						return true
@@ -637,12 +711,103 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
-	//store the copy of requested resource identifier
+	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
-	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace)
+	listOptions := &metav1.ListOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       resourceIdentifierCloned.GroupVersionKind.Kind,
+			APIVersion: resourceIdentifierCloned.GroupVersionKind.GroupVersion().String(),
+		},
+	}
+	if len(request.LabelSelector) > 0 {
+		for _, labelSelector := range request.LabelSelector {
+			_, err = labels.Parse(labelSelector)
+			if err != nil {
+				return resourceList, err
+			}
+		}
+		labelSelectorString := strings.Join(request.LabelSelector, ",")
+		listOptions.LabelSelector = labelSelectorString
+	}
+
+	if len(request.FieldSelector) > 0 {
+		for _, fieldSelector := range request.FieldSelector {
+			_, err = fields.ParseSelector(fieldSelector)
+			if err != nil {
+				return resourceList, err
+			}
+		}
+		FieldSelectorString := strings.Join(request.FieldSelector, ",")
+		listOptions.FieldSelector = FieldSelectorString
+	}
+	asTable := len(request.Filter) == 0
+	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace, asTable, listOptions)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
+	}
+
+	for _, item := range resp.Resources.Items {
+		item.GetKind()
+	}
+
+	resources := resp.Resources
+	if len(request.Filter) > 0 {
+		filteredResources := unstructured.UnstructuredList{}
+		filteredItems := make([]interface{}, 0)
+		// resource := unstructured.Unstructured{}
+		for _, v := range resp.Resources.Items {
+			celRequest := resourceFilter.CELRequest{
+				Expression: request.Filter,
+				ExpressionMetadata: resourceFilter.ExpressionMetadata{
+					Params: []resourceFilter.ExpressionParam{
+						{
+							ParamName: "self",
+							Value:     v.Object,
+							Type:      resourceFilter.ParamTypeObject,
+						},
+					},
+				},
+			}
+			pass, err := impl.celEvaluatorService.EvaluateCELRequest(celRequest)
+			if err != nil || !pass {
+				continue
+			}
+
+			filteredItems = append(filteredItems, interface{}(v.Object))
+			// resource = v
+		}
+		items := map[string]interface{}{
+			"items": filteredItems,
+		}
+		filteredResources.SetUnstructuredContent(items)
+		filteredResources.DeepCopyObject()
+		filteredResources.SetKind(resources.GetKind())
+		filteredResources.SetAPIVersion(resources.GetAPIVersion())
+		resources = filteredResources
+		lst := convertToCore(resources)
+		t := &metav1.Table{}
+		if lst == nil {
+			t, err = convertUnstructuredToTable(resources)
+			if err != nil {
+				impl.logger.Errorw("error in converting unstructured content to table", "err", err)
+			}
+		} else {
+			t, err = impl.printers.GenerateTable(lst, printers.GenerateOptions{NoHeaders: false})
+			if err != nil {
+				impl.logger.Errorw("error in generating table", "err", err)
+			}
+		}
+
+		if err != nil || t == nil {
+			resources.Items = nil
+		} else {
+			m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(t)
+			if err != nil {
+				impl.logger.Errorw("error in converting table to unstructured data", "err", err)
+			}
+			resources.SetUnstructuredContent(m)
+		}
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := resourceIdentifierCloned
@@ -654,7 +819,8 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -662,11 +828,205 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-		//return nil, err
+		// return nil, err
 	} else {
 		resourceList.ServerVersion = k8sServerVersion.String()
 	}
 	return resourceList, nil
+}
+
+func convertToCore(uns unstructured.UnstructuredList) runtime.Object {
+	kind := uns.GetObjectKind().GroupVersionKind().Kind
+
+	switch kind {
+	case "PodList":
+		return convertToCoreList(uns, &apiV1.Pod{}, &apiV1.PodList{})
+	case "PodTemplateList":
+		return convertToCoreList(uns, &apiV1.PodTemplate{}, &apiV1.PodTemplateList{})
+	case "PodDisruptionBudgetList":
+		return convertToCoreList(uns, &policyV1beta1.PodDisruptionBudget{}, &policyV1beta1.PodDisruptionBudgetList{})
+	case "ReplicationControllerList":
+		return convertToCoreList(uns, &apiV1.ReplicationController{}, &apiV1.ReplicationControllerList{})
+	case "ReplicaSetList":
+		return convertToCoreList(uns, &appsV1.ReplicaSet{}, &appsV1.ReplicaSetList{})
+	case "DaemonSetList":
+		return convertToCoreList(uns, &appsV1.DaemonSet{}, &appsV1.DaemonSetList{})
+	case "JobList":
+		return convertToCoreList(uns, &batchv1.Job{}, &batchv1.JobList{})
+	case "CronJobList":
+		return convertToCoreList(uns, &batchv1.CronJob{}, &batchv1.CronJobList{})
+	case "ServiceList":
+		return convertToCoreList(uns, &apiV1.Service{}, &apiV1.ServiceList{})
+	case "IngressList":
+		return convertToCoreList(uns, &networkingV1beta1.Ingress{}, &networkingV1beta1.IngressList{})
+	case "IngressClassList":
+		return convertToCoreList(uns, &networkingV1beta1.IngressClass{}, &networkingV1beta1.IngressClassList{})
+	case "StatefulSetList":
+		return convertToCoreList(uns, &appsV1.StatefulSet{}, &appsV1.StatefulSetList{})
+	case "EndpointsList":
+		return convertToCoreList(uns, &apiV1.Endpoints{}, &apiV1.EndpointsList{})
+	case "NodeList":
+		return convertToCoreList(uns, &apiV1.Node{}, &apiV1.NodeList{})
+	case "EventList":
+		return convertToCoreList(uns, &apiV1.Event{}, &apiV1.EventList{})
+	case "NamespaceList":
+		return convertToCoreList(uns, &apiV1.Namespace{}, &apiV1.NamespaceList{})
+	case "SecretList":
+		return convertToCoreList(uns, &apiV1.Secret{}, &apiV1.SecretList{})
+	case "ServiceAccountList":
+		return convertToCoreList(uns, &apiV1.ServiceAccount{}, &apiV1.ServiceAccountList{})
+	case "PersistentVolumeList":
+		return convertToCoreList(uns, &apiV1.PersistentVolume{}, &apiV1.PersistentVolumeList{})
+	case "PersistentVolumeClaimList":
+		return convertToCoreList(uns, &apiV1.PersistentVolumeClaim{}, &apiV1.PersistentVolumeClaimList{})
+	case "ComponentStatusList":
+		return convertToCoreList(uns, &apiV1.ComponentStatus{}, &apiV1.ComponentStatusList{})
+	case "DeploymentList":
+		return convertToCoreList(uns, &appsV1.Deployment{}, &appsV1.DeploymentList{})
+	case "HorizontalPodAutoscalerList":
+		return convertToCoreList(uns, &autoscalingV2.HorizontalPodAutoscaler{}, &autoscalingV2.HorizontalPodAutoscalerList{})
+	case "ConfigMapList":
+		return convertToCoreList(uns, &apiV1.ConfigMap{}, &apiV1.ConfigMapList{})
+	case "PodSecurityPolicyList":
+		return convertToCoreList(uns, &policyV1beta1.PodSecurityPolicy{}, &policyV1beta1.PodSecurityPolicyList{})
+	case "NetworkPolicyList":
+		return convertToCoreList(uns, &networkingV1.NetworkPolicy{}, &networkingV1.NetworkPolicyList{})
+	case "RoleBindingList":
+		return convertToCoreList(uns, &rbac.RoleBinding{}, &rbac.RoleBindingList{})
+	case "ClusterRoleBindingList":
+		return convertToCoreList(uns, &rbac.ClusterRoleBinding{}, &rbac.ClusterRoleBindingList{})
+	case "CertificateSigningRequestList":
+		return convertToCoreList(uns, &certificatesV1.CertificateSigningRequest{}, &certificatesV1.CertificateSigningRequestList{})
+	case "LeaseList":
+		return convertToCoreList(uns, &coordinationV1.Lease{}, &coordinationV1.LeaseList{})
+	case "StorageClassList":
+		return convertToCoreList(uns, &storageV1beta1.StorageClass{}, &storageV1beta1.StorageClassList{})
+	case "ControllerRevisionList":
+		return convertToCoreList(uns, &apiV1.ResourceQuota{}, &apiV1.ResourceQuotaList{})
+	case "PriorityClassList":
+		return convertToCoreList(uns, &schedulingV1.PriorityClass{}, &schedulingV1.PriorityClassList{})
+	case "RuntimeClassList":
+		return convertToCoreList(uns, &nodeV1.RuntimeClass{}, &nodeV1.RuntimeClassList{})
+	case "VolumeAttachmentList":
+		return convertToCoreList(uns, &storageV1beta1.VolumeAttachment{}, &storageV1beta1.VolumeAttachmentList{})
+	case "EndpointSliceList":
+		return convertToCoreList(uns, &discoveryV1beta1.EndpointSlice{}, &discoveryV1beta1.EndpointSliceList{})
+	case "CSINodeList":
+		return convertToCoreList(uns, &storageV1beta1.CSINode{}, &storageV1beta1.CSINodeList{})
+	case "CSIDriverList":
+		return convertToCoreList(uns, &storageV1beta1.CSIDriver{}, &storageV1beta1.CSIDriverList{})
+	case "CSIStorageCapacityList":
+		return convertToCoreList(uns, &storageV1beta1.CSIStorageCapacity{}, &storageV1beta1.CSIStorageCapacityList{})
+	case "MutatingWebhookConfigurationList":
+		return convertToCoreList(uns, &admissionregistrationV1beta1.MutatingWebhookConfiguration{}, &admissionregistrationV1beta1.MutatingWebhookConfigurationList{})
+	case "ValidatingWebhookConfigurationList":
+		return convertToCoreList(uns, &admissionregistrationV1beta1.ValidatingWebhookConfiguration{}, &admissionregistrationV1beta1.ValidatingWebhookConfigurationList{})
+	case "ValidatingAdmissionPolicyList":
+		return convertToCoreList(uns, &admissionregistrationV1alpha1.ValidatingAdmissionPolicy{}, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyList{})
+	case "ValidatingAdmissionPolicyBindingList":
+		return convertToCoreList(uns, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyBinding{}, &admissionregistrationV1alpha1.ValidatingAdmissionPolicyBindingList{})
+	case "FlowSchemaList":
+		return convertToCoreList(uns, &flowcontrol.FlowSchema{}, &flowcontrol.FlowSchemaList{})
+	case "PriorityLevelConfigurationList":
+		return convertToCoreList(uns, &flowcontrol.PriorityLevelConfiguration{}, &flowcontrol.PriorityLevelConfigurationList{})
+	case "StorageVersionList":
+		return convertToCoreList(uns, &apiserverinternalV1alpha1.StorageVersion{}, &apiserverinternalV1alpha1.StorageVersionList{})
+	case "ClusterCIDRList":
+		return convertToCoreList(uns, &networkingv1alpha1.ClusterCIDR{}, &networkingv1alpha1.ClusterCIDRList{})
+	case "ResourceClassList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClass{}, &resourceV1alpha1.ResourceClassList{})
+	case "ResourceClaimList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClaim{}, &resourceV1alpha1.ResourceClaimList{})
+	case "ResourceClaimTemplateList":
+		return convertToCoreList(uns, &resourceV1alpha1.ResourceClaimTemplate{}, &resourceV1alpha1.ResourceClaimTemplateList{})
+	case "PodSchedulingList":
+		return convertToCoreList(uns, &resourceV1alpha1.PodScheduling{}, &resourceV1alpha1.PodSchedulingList{})
+	default:
+		return nil
+	}
+
+}
+
+func convertUnstructuredToTable(uns unstructured.UnstructuredList) (*metav1.Table, error) {
+	columnDefinitions := []metav1.TableColumnDefinition{
+		{Name: "Name", Type: "string", Format: "name", Description: metav1.ObjectMeta{}.SwaggerDoc()["name"]},
+		{Name: "Labels", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["labels"]},
+		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
+	}
+	table := metav1.Table{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       uns.GetKind(),
+			APIVersion: uns.GetAPIVersion(),
+		},
+		ColumnDefinitions: columnDefinitions,
+		Rows:              nil,
+	}
+	rows := make([]metav1.TableRow, 0)
+	for _, item := range uns.Items {
+		row := metav1.TableRow{
+			Object: runtime.RawExtension{Object: &item},
+		}
+		row.Cells = append(row.Cells, item.GetName(), labels.FormatLabels(item.GetLabels()), translateTimestampSince(item.GetCreationTimestamp()))
+		rows = append(rows, row)
+	}
+	table.Rows = rows
+	return &table, nil
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+//	convertToCoreList function takes in three parameters:
+//
+// - uns: an unstructured.UnstructuredList containing a list of unstructured objects
+// - itemPtr: a pointer to an instance of a structured object representing an item in the list
+// - listPtr: a pointer to an instance of a structured object representing the list
+// The function returns a runtime.Object, which represents the structured list.
+func convertToCoreList(uns unstructured.UnstructuredList, itemPtr, listPtr interface{}) runtime.Object {
+	// Create a new slice to hold the items, based on the type of itemPtr
+	items := reflect.New(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem())).Interface()
+
+	// Iterate through each item in the unstructured list
+	for _, item := range uns.Items {
+		// Create a new instance of the structured item
+		obj := reflect.New(reflect.TypeOf(itemPtr).Elem()).Interface()
+
+		// Convert the unstructured item to the structured item
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.UnstructuredContent(), obj); err != nil {
+			continue
+		}
+
+		// Append the converted item to the items slice
+		reflect.ValueOf(items).Elem().Set(reflect.Append(reflect.ValueOf(items).Elem(), reflect.ValueOf(obj).Elem()))
+	}
+
+	// Create a new instance of the structured list
+	list := reflect.New(reflect.TypeOf(listPtr).Elem()).Interface()
+
+	// Get the value of the list instance
+	listValue := reflect.ValueOf(list).Elem()
+
+	// Set the TypeMeta field of the list with the metadata from the unstructured list
+	listValue.FieldByName("TypeMeta").Set(reflect.ValueOf(metav1.TypeMeta{
+		Kind:       uns.GetKind(),
+		APIVersion: uns.GetAPIVersion(),
+	}))
+
+	// Initialize the Items field of the list as an empty slice
+	listValue.FieldByName("Items").Set(reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(itemPtr).Elem()), 0, 0))
+
+	// Set the Items field of the list with the converted items slice
+	listValue.FieldByName("Items").Set(reflect.ValueOf(items).Elem())
+
+	// Return the list as a runtime.Object
+	return list.(runtime.Object)
 }
 
 func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *k8s3.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s3.ApplyResourcesResponse, error) {
@@ -676,7 +1036,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		return nil, err
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
@@ -840,7 +1200,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
 				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
 			}
-			//try with legacy API
+			// try with legacy API
 			result := v1Client.RESTClient().Patch(types.JSONPatchType).
 				Namespace(pod.Namespace).
 				Resource("pods").
@@ -879,9 +1239,9 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	return err
 }
 
-func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, req cluster.EphemeralContainerRequest) (*corev1.Pod, *corev1.EphemeralContainer, error) {
+func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *apiV1.Pod, req cluster.EphemeralContainerRequest) (*apiV1.Pod, *apiV1.EphemeralContainer, error) {
 	copied := pod.DeepCopy()
-	ephemeralContainer := &corev1.EphemeralContainer{}
+	ephemeralContainer := &apiV1.EphemeralContainer{}
 	if req.AdvancedData != nil {
 		err := json.Unmarshal([]byte(req.AdvancedData.Manifest), ephemeralContainer)
 		if err != nil {
@@ -895,14 +1255,14 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 			return copied, ephemeralContainer, errors.New("Command field is not supported, please remove command and try again")
 		}
 	} else {
-		ephemeralContainer = &corev1.EphemeralContainer{
-			EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+		ephemeralContainer = &apiV1.EphemeralContainer{
+			EphemeralContainerCommon: apiV1.EphemeralContainerCommon{
 				Name:                     req.BasicData.ContainerName,
 				Env:                      nil,
 				Image:                    req.BasicData.Image,
-				ImagePullPolicy:          corev1.PullIfNotPresent,
+				ImagePullPolicy:          apiV1.PullIfNotPresent,
 				Stdin:                    true,
-				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+				TerminationMessagePolicy: apiV1.TerminationMessageReadFile,
 				TTY:                      true,
 			},
 			TargetContainerName: req.BasicData.TargetContainerName,
@@ -973,7 +1333,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}
 	ephemeralContainerStatusMap := make(map[string]bool)
 	for _, c := range pod.Status.EphemeralContainerStatuses {
-		//c.state contains three states running,waiting and terminated
+		// c.state contains three states running,waiting and terminated
 		// at any point of time only one state will be there
 		if c.State.Running != nil {
 			ephemeralContainerStatusMap[c.Name] = true
@@ -1004,7 +1364,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]corev1.Pod, error) {
+func (impl *K8sApplicationServiceImpl) GetPodListByLabel(clusterId int, namespace, label string) ([]apiV1.Pod, error) {
 	clientSet, _, err := impl.k8sCommonService.GetCoreClientByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", clusterId, "err", err)
@@ -1037,7 +1397,7 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 		return nil, fmt.Errorf("no manifest found for this request")
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
@@ -1066,6 +1426,20 @@ func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean
 	return nil
 }
 
+func (impl *K8sApplicationServiceImpl) GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error) {
+	// read scoop service metadata from config
+	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
+	if !ok {
+		return nil, scoopConfig, errors.New("scoop not configured")
+	}
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, scoopConfig.ServiceName, scoopConfig.Namespace, scoopConfig.Port))
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching scoop proxy handler", "clusterId", clusterId, "err", err)
+		return nil, scoopConfig, err
+	}
+	return proxyHandler, scoopConfig, nil
+}
+
 func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error) {
 
 	err := impl.checkForDeploymentWindow(request.DevtronAppIdentifier, userId)
@@ -1074,7 +1448,7 @@ func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Conte
 	}
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
-		if k8s.IsResourceNotFoundErr(err) {
+		if IsResourceNotFoundErr(err) {
 			return nil, &utils.ApiError{Code: "404",
 				HttpStatusCode:  http.StatusNotFound,
 				InternalMessage: err.Error(),
@@ -1180,13 +1554,32 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 		return false, err
 	}
 
-	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
-	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
-	ephemeralRegex := impl.ephemeralContainerConfig.EphemeralServerVersionRegex
+	// ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	// https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	ephemeralRegex := impl.k8sAppConfig.EphemeralServerVersionRegex
 	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
 	if err != nil {
 		impl.logger.Errorw("error in matching ephemeral containers support version regex with k8sServerVersion", "err", err, "EphemeralServerVersionRegex", ephemeralRegex)
 		return false, err
 	}
 	return matched, nil
+}
+
+func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
+	impl.logger.Infow("received request for port forwarding", "clusterId", clusterId, "serviceName", serviceName, "namespace", namespace, "port", port)
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
+	return proxyHandler, err
+}
+
+func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error) {
+	if clusterId == -1 {
+		environment, err := impl.environmentRepository.FindByName(envName)
+		if err != nil {
+			impl.logger.Errorw("Error finding clusterId from envName.", "envName", envName)
+			return nil, err
+		}
+		clusterId = environment.ClusterId
+	}
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
+	return proxyHandler, err
 }

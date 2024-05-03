@@ -72,6 +72,7 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
+	"github.com/devtron-labs/devtron/api/scoop"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -100,6 +101,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -222,6 +224,7 @@ func InitializeApp() (*App, error) {
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		scanningResultsParser.ScanningResultWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
 
 		eventProcessor.EventProcessorWireSet,
@@ -305,7 +308,12 @@ func InitializeApp() (*App, error) {
 
 		infraConfig.NewInfraProfileRouterImpl,
 		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
-
+		scoop.NewServiceImpl,
+		wire.Bind(new(scoop.Service), new(*scoop.ServiceImpl)),
+		scoop.NewRestHandler,
+		wire.Bind(new(scoop.RestHandler), new(*scoop.RestHandlerImpl)),
+		scoop.NewRouterImpl,
+		wire.Bind(new(scoop.Router), new(*scoop.RouterImpl)),
 		router.NewMuxRouter,
 
 		app4.NewAppRepositoryImpl,
