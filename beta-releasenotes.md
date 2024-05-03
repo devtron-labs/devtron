@@ -17,6 +17,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat: resource scan  (#4977)
 - feat: Plugin to trigger Devtron Job (#5053)
 - feat: CD Trigger Plugin (#4810)
 - feat: Introduction to feasibility in Deployment (#4862)
