@@ -53,7 +53,7 @@ If an image matches both pass and fail conditions, the priority of the fail cond
 If you don't define both pass and fail conditions, all images will be eligible for promotion.
 {% endhint %}  
 
-6. (Optional) If required, you can setup approval requirements for this policy. If **Approval for Image Promotion Policy** is enabled, an [approval will be required for an image]((#approving-image-promotion-request)) to be directly promoted to the target environment. Only the users having 'Image Promotion Approver' role (for the application and environment) will be able to approve the image promotion request.
+6. (Optional) If required, you can setup approval requirements for this policy. If **Approval for Image Promotion Policy** is enabled, an [approval will be required for an image]((#approving-image-promotion-request)) to be directly promoted to the target environment. Only the users having 'Artifact Approver' role (for the application and environment) will be able to approve the image promotion request.
 
  * **Number of Approvals (1-6)**: Specify the number of approvals required to promote an image. This can vary from one approval (minimum) to six approvals (maximum).
 
@@ -136,7 +136,7 @@ In case you have configured [SES or SMTP on Devtron](../global-configurations/ma
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-User needs to be a direct promotion approver or a super-admin to approve an image promotion request.
+Only the users having [Artifact approver](./user-access.md#role-based-access-levels) (for the application and environment) or superadmin permissions will be able to approve the image promotion request.
 {% endhint %} 
 
 1. Go to the **Build & Deploy** tab of your application.
@@ -159,7 +159,9 @@ You can also use the **Show requests** dropdown to filter the image promotion re
 
 ![Figure 7: Show Env-specific Promotion Requests](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/show-requests.jpg)
 
-show-requests.jpg
+If there are pending promotion requests, you can approve them as shown below:
+
+![Figure 8: Approving Image Promotion Requests](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/image-promo-approval.gif)
 
 ### Deploying a Promoted Image
 
@@ -174,9 +176,8 @@ However, a promoted image does not automatically qualify as a deployable image. 
 
 In the **Build & Deploy** tab of your application, click **Select Image** for the CD pipeline, and choose your promoted image for deployment.
 
-![Figure 8: Deploying Promoted Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/deploying-promoted-image.jpg)
+![Figure 9: Deploying Promoted Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/deploying-promoted-image.jpg)
 
 You can check the deployment of promoted images in the **Deployment History** of your application. It will also indicate the pipeline from which the image was promoted and deployed to the target environment.
 
-![Figure 9: Deployment History - Checking Image Source](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/promoted-image-deploy-log.jpg)
-
+![Figure 10: Deployment History - Checking Image Source](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/promoted-image-deploy-log.jpg)
