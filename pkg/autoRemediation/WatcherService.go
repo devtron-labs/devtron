@@ -36,7 +36,7 @@ type WatcherService interface {
 }
 
 type WatcherServiceImpl struct {
-	watcherRepository               repository.WatcherRepository
+	watcherRepository               repository.K8sEventWatcherRepository
 	triggerRepository               repository.TriggerRepository
 	interceptedEventsRepository     repository.InterceptedEventsRepository
 	appRepository                   appRepository.AppRepository
@@ -50,7 +50,7 @@ type WatcherServiceImpl struct {
 	logger                          *zap.SugaredLogger
 }
 
-func NewWatcherServiceImpl(watcherRepository repository.WatcherRepository,
+func NewWatcherServiceImpl(watcherRepository repository.K8sEventWatcherRepository,
 	triggerRepository repository.TriggerRepository,
 	interceptedEventsRepository repository.InterceptedEventsRepository,
 	appRepository appRepository.AppRepository,
@@ -87,7 +87,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 		impl.logger.Errorw("error in fetching gvks", "error", err)
 		return 0, err
 	}
-	watcher := &repository.Watcher{
+	watcher := &repository.K8sEventWatcher{
 		Name:             watcherRequest.Name,
 		Description:      watcherRequest.Description,
 		FilterExpression: watcherRequest.EventConfiguration.EventExpression,
@@ -177,7 +177,7 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 		impl.logger.Errorw("error in retrieving details of trigger type job", "error", err)
 		return err
 	}
-	var triggersResult []*repository.Trigger
+	var triggersResult []*repository.AutoRemediationTrigger
 	for _, res := range triggers {
 
 		triggerData := TriggerData{
@@ -203,7 +203,7 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 			impl.logger.Errorw("error in marshalling trigger data ", "error", err)
 			return err
 		}
-		triggerRes := &repository.Trigger{
+		triggerRes := &repository.AutoRemediationTrigger{
 			WatcherId: watcherId,
 			Type:      repository.DEVTRON_JOB,
 			Data:      string(jsonData),
@@ -488,7 +488,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	return nil
 }
 
-func indexOfWatcher(watcherID int, watchersList []*repository.Watcher) int {
+func indexOfWatcher(watcherID int, watchersList []*repository.K8sEventWatcher) int {
 	for i, watcher := range watchersList {
 		if watcher.Id == watcherID {
 			return i
@@ -500,10 +500,10 @@ func indexOfWatcher(watcherID int, watchersList []*repository.Watcher) int {
 type CombinedData struct {
 	time    time.Time
 	Trigger *Trigger
-	Watcher *repository.Watcher
+	Watcher *repository.K8sEventWatcher
 }
 
-func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*repository.Watcher) []CombinedData {
+func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*repository.K8sEventWatcher) []CombinedData {
 	sort.Slice(combinedData, func(i, j int) bool {
 		indexI := indexOfWatcher(combinedData[i].Watcher.Id, watchersList)
 		indexJ := indexOfWatcher(combinedData[j].Watcher.Id, watchersList)
@@ -544,7 +544,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 		}, nil
 	}
 	var watcherIds []int
-	watcherData := make(map[int]*repository.Watcher)
+	watcherData := make(map[int]*repository.K8sEventWatcher)
 	for _, watcher := range watchers {
 		watcherIds = append(watcherIds, watcher.Id)
 		watcherData[watcher.Id] = watcher
@@ -797,10 +797,9 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	var interceptedEvents []InterceptedEventsDto
 	for _, event := range interceptedEventData {
 		interceptedEvent := InterceptedEventsDto{
-			MessageType:        event.MessageType,
-			Message:            event.Message,
-			Event:              event.Event,
+			Action:             event.Action,
 			InvolvedObject:     event.InvolvedObject,
+			Gvk:                event.Gvk,
 			ClusterName:        clusterIdtoName[event.ClusterId],
 			ClusterId:          event.ClusterId,
 			Namespace:          event.Namespace,

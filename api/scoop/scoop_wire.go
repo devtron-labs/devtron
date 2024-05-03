@@ -16,7 +16,7 @@ var ScoopWireSet = wire.NewSet(
 	wire.Bind(new(repository.TriggerRepository), new(*repository.TriggerRepositoryImpl)),
 
 	repository.NewWatcherRepositoryImpl,
-	wire.Bind(new(repository.WatcherRepository), new(*repository.WatcherRepositoryImpl)),
+	wire.Bind(new(repository.K8sEventWatcherRepository), new(*repository.K8sEventWatcherRepositoryImpl)),
 
 	autoRemediation2.NewWatcherServiceImpl,
 	wire.Bind(new(autoRemediation2.WatcherService), new(*autoRemediation2.WatcherServiceImpl)),

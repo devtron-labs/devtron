@@ -100,12 +100,6 @@ type TriggerData struct {
 	WorkflowId             int                `json:"workflowId"`
 }
 
-func (dto *WatcherDto) GetDbTriggerModels() []*repository.Trigger {
-	triggers := make([]*repository.Trigger, 0, len(dto.Triggers))
-
-	return triggers
-}
-
 type WatcherDto struct {
 	Id                 int                `json:"-"`
 	Name               string             `json:"name" validate:"global-entity-name"`
@@ -139,10 +133,10 @@ type InterceptedResponse struct {
 	List   []InterceptedEventsDto `json:"list"`
 }
 type InterceptedEventsDto struct {
-	Message        string `json:"message"`
-	MessageType    string `json:"messageType"`
-	Event          string `json:"event"`
+	// Message        string `json:"message"`
+	Action         string `json:"messageType"`
 	InvolvedObject string `json:"involvedObject"`
+	Gvk            string `json:"gvk"`
 
 	ClusterName     string `json:"clusterName"`
 	ClusterId       int    `json:"clusterId"`
