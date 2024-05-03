@@ -120,7 +120,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 }
 
 func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, gvkStr string, triggers []*autoRemediation.Trigger, err error) {
-	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObject)
+	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObjects)
 	if err != nil {
 		return involvedObj, gvkStr, triggers, err
 	}
@@ -182,7 +182,8 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 		runtimeParams.EnvVariables[param.Key] = param.Value
 	}
 
-	runtimeParams.EnvVariables["K8S_OBJECT"] = involvedObjJsonStr
+	// involvedObjJsonStr is a json string which contain old and new resources.
+	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
 	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "scoop/intercept-event/notify"
 

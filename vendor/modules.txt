@@ -432,7 +432,7 @@ github.com/devtron-labs/common-lib-private/utils/k8s
 # github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
-# github.com/devtron-labs/scoop v0.0.0-20240502152138-5f28ea9da513
+# github.com/devtron-labs/scoop v0.0.0-20240503153458-33355ad5defc
 ## explicit; go 1.20
 github.com/devtron-labs/scoop/client
 github.com/devtron-labs/scoop/types

@@ -1569,6 +1569,10 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 }
 
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
+	return 8081, ScoopServiceClusterConfig{
+		Port:    "8081",
+		PassKey: "abc",
+	}, nil
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
 		return 0, scoopConfig, ScoopNotConfiguredErr

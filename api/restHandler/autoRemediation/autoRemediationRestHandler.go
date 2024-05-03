@@ -57,8 +57,16 @@ func (impl WatcherRestHandlerImpl) evaluateEventExpression(expression string) er
 
 	params := []resourceFilter.ExpressionParam{
 		{
-			ParamName: "event",
+			ParamName: "newResource",
 			Type:      resourceFilter.ParamTypeObject,
+		},
+		{
+			ParamName: "oldResource",
+			Type:      resourceFilter.ParamTypeObject,
+		},
+		{
+			ParamName: "action",
+			Type:      resourceFilter.ParamTypeString,
 		},
 	}
 

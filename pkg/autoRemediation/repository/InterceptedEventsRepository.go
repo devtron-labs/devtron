@@ -2,9 +2,9 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/watch"
 	"time"
 )
 
@@ -13,7 +13,7 @@ type InterceptedEventExecution struct {
 	Id                 int             `sql:"id,pk"`
 	ClusterId          int             `sql:"cluster_id"`
 	Namespace          string          `sql:"namespace"`
-	Action             watch.EventType `sql:"action"`
+	Action             types.EventType `sql:"action"`
 	InvolvedObject     string          `sql:"involved_object"`
 	Gvk                string          `sql:"gvk"`
 	InterceptedAt      time.Time       `sql:"intercepted_at"`

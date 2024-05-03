@@ -851,6 +851,10 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 	})
 
 	watcherIds := maps.Keys(watcherEnvMap)
+	watchersResponse := make([]*types.Watcher, 0)
+	if len(watcherIds) == 0 {
+		return watchersResponse, nil
+	}
 	watchers, err := impl.watcherRepository.GetWatcherByIds(watcherIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting watchers by watcherIds", "watcherIds", watcherIds, "err", err)
@@ -862,8 +866,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 		impl.logger.Errorw("error in getting environment details by env names", "envNames", envNames, "err", err)
 		return nil, err
 	}
-
-	watchersResponse := make([]*types.Watcher, 0, len(watchers))
+	watchersResponse = make([]*types.Watcher, 0, len(watchers))
 	for _, watcher := range watchers {
 		nsMap := make(map[string]bool)
 		for _, envId := range watcherEnvMap[watcher.Id] {

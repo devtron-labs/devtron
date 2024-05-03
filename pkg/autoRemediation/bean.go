@@ -134,7 +134,7 @@ type InterceptedResponse struct {
 }
 type InterceptedEventsDto struct {
 	// Message        string `json:"message"`
-	Action         string `json:"messageType"`
+	Action         string `json:"action"`
 	InvolvedObject string `json:"involvedObject"`
 	Gvk            string `json:"gvk"`
 
