@@ -185,7 +185,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 	// involvedObjJsonStr is a json string which contain old and new resources.
 	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
-	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "scoop/intercept-event/notify"
+	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
 
 	request := bean.CiTriggerRequest{
 		PipelineId: trigger.Data.PipelineId,

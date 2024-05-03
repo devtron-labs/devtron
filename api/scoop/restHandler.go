@@ -37,6 +37,7 @@ type RestHandlerImpl struct {
 func NewRestHandler(service Service, watcherService autoRemediation.WatcherService,
 	enforcerUtil rbac.EnforcerUtil,
 	userService user2.UserService,
+	logger *zap.SugaredLogger,
 	enforcer casbin.Enforcer) *RestHandlerImpl {
 	return &RestHandlerImpl{
 		service:        service,
@@ -44,6 +45,7 @@ func NewRestHandler(service Service, watcherService autoRemediation.WatcherServi
 		enforcerUtil:   enforcerUtil,
 		enforcer:       enforcer,
 		userService:    userService,
+		logger:         logger,
 	}
 }
 
