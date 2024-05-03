@@ -337,7 +337,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResponse)
 	}
 
-	selectors, err := impl.getEnvSelectors(watcherId)
+	selectors, _, err := impl.getEnvSelectors(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in getting selectors for the watcher", "watcherId", watcherId, "error", err)
 		return nil, err
@@ -398,11 +398,17 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		return err
 	}
 
-	// err = impl.informScoops(envs, watcherRequest)
-	// if err != nil {
-	// 	impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherRequest", watcherRequest)
-	// 	return err
-	// }
+	_, envsMap, err := impl.getEnvSelectors(watcherId)
+	if err != nil {
+		impl.logger.Errorw("error in getting selectors for the watcher", "watcherId", watcherId, "error", err)
+		return err
+	}
+
+	err = impl.informScoops(envsMap, watcherEvents.DELETE, &WatcherDto{Id: watcherId})
+	if err != nil {
+		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherId", watcherId)
+		return err
+	}
 
 	err = impl.triggerRepository.CommitTx(tx)
 	if err != nil {
@@ -607,7 +613,7 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			}
 		}
 	}
-	//introducing column triggeredAt would avoid these sorts
+	// introducing column triggeredAt would avoid these sorts
 	if sortOrderBy == "triggeredAt" {
 		sortByTime(combinedData, sortOrder)
 	} else {
@@ -689,10 +695,10 @@ func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repositor
 	return envsMap, nil
 }
 
-func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, error) {
+func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, map[string]*repository2.Environment, error) {
 	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceId(watcherId, resourceQualifiers.K8sEventWatcher)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	envNames := make([]string, 0, len(mappings))
@@ -701,10 +707,14 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 		envNames = append(envNames, mapping.IdentifierValueString)
 	}
 	var envs []*repository2.Environment
+	envsMap := make(map[string]*repository2.Environment)
 	if len(envNames) != 0 {
 		envs, err = impl.environmentRepository.GetWithClusterByNames(envNames)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+		for _, envObj := range envs {
+			envsMap[envObj.Name] = envObj
 		}
 	}
 	clusterWiseEnvs := make(map[string][]string)
@@ -725,7 +735,7 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, erro
 			Names:     clusterWiseEnvs[clusterName],
 		})
 	}
-	return selectors, nil
+	return selectors, envsMap, nil
 }
 func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error) {
 	var clustersFetched []*repository2.Cluster
