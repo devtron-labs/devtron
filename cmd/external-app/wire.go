@@ -117,7 +117,6 @@ func InitializeApp() (*App, error) {
 		repository.NewAppListingRepositoryImpl,
 
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
-		sql.NewTransactionUtilImpl,
 
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
