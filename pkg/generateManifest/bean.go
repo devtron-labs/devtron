@@ -61,7 +61,7 @@ type RestartPodResponse struct {
 }
 
 type ResourceIdentifierResponse struct {
-	ResourceMetaData []*ResourceMetadata `json:"resourceMetaData,omitempty"`
+	ResourceMetaData []*ResourceMetadata `json:"resourceMetaData"`
 	AppName          string              `json:"appName"`
 }
 type ResourceMetadata struct {
