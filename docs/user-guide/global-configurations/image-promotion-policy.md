@@ -53,7 +53,7 @@ If an image matches both pass and fail conditions, the priority of the fail cond
 If you don't define both pass and fail conditions, all images will be eligible for promotion.
 {% endhint %}  
 
-6. (Optional) If required, you can setup approval requirements for this policy. If **Approval for Image Promotion Policy** is enabled, an [approval will be required for an image]((#approving-image-promotion-request)) to be directly promoted to the target environment. Only the users having 'Artifact Approver' role (for the application and environment) will be able to approve the image promotion request.
+6. (Optional) If required, you can setup approval requirements for this policy. If **Approval for Image Promotion Policy** is enabled, an [approval will be required for an image]((#approving-image-promotion-request)) to be directly promoted to the target environment. Only the users having 'Artifact promoter' role (for the application and environment) will be able to approve the image promotion request.
 
  * **Number of Approvals (1-6)**: Specify the number of approvals required to promote an image. This can vary from one approval (minimum) to six approvals (maximum).
 
@@ -136,7 +136,7 @@ In case you have configured [SES or SMTP on Devtron](../global-configurations/ma
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Only the users having [Artifact approver](./user-access.md#role-based-access-levels) (for the application and environment) or superadmin permissions will be able to approve the image promotion request.
+Only the users having [Artifact promoter](./user-access.md#role-based-access-levels) role (for the application and environment) or superadmin permissions will be able to approve the image promotion request.
 {% endhint %} 
 
 1. Go to the **Build & Deploy** tab of your application.
