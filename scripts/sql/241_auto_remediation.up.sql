@@ -44,7 +44,7 @@ CREATE TABLE "public"."intercepted_event_execution"(
                                               "metadata" text,
                                               "execution_message" text,
                                               "action" varchar(20),
-                                              "involved_object" text,
+                                              "involved_objects" text,
                                               "intercepted_at" timestamptz,
                                               "status" varchar(32) , -- failure,success,inprogress
                                               "trigger_id" integer,

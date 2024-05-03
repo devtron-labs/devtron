@@ -798,8 +798,8 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	for _, event := range interceptedEventData {
 		interceptedEvent := InterceptedEventsDto{
 			Action:             event.Action,
-			InvolvedObject:     event.InvolvedObject,
-			Gvk:                event.Gvk,
+			InvolvedObjects:    event.InvolvedObjects,
+			Metadata:           event.Metadata,
 			ClusterName:        clusterIdtoName[event.ClusterId],
 			ClusterId:          event.ClusterId,
 			Namespace:          event.Namespace,

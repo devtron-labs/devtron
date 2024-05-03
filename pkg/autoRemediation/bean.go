@@ -125,9 +125,9 @@ type InterceptedResponse struct {
 }
 type InterceptedEventsDto struct {
 	// Message        string `json:"message"`
-	Action         string `json:"action"`
-	InvolvedObject string `json:"involvedObject"`
-	Gvk            string `json:"gvk"`
+	Action          string `json:"action"`
+	InvolvedObjects string `json:"involvedObjects"`
+	Metadata        string `json:"metadata"`
 
 	ClusterName     string `json:"clusterName"`
 	ClusterId       int    `json:"clusterId"`

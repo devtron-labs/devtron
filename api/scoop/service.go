@@ -103,7 +103,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
-			interceptEventExec.InvolvedObject = involvedObj
+			interceptEventExec.InvolvedObjects = involvedObj
 			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
 			interceptEventExec.Namespace = interceptedEvent.Namespace
 			interceptEventExec.Action = interceptedEvent.Action

@@ -14,7 +14,7 @@ type InterceptedEventExecution struct {
 	ClusterId          int             `sql:"cluster_id"`
 	Namespace          string          `sql:"namespace"`
 	Action             types.EventType `sql:"action"`
-	InvolvedObject     string          `sql:"involved_object"`
+	InvolvedObjects    string          `sql:"involved_objects"`
 	Metadata           string          `sql:"metadata"`
 	InterceptedAt      time.Time       `sql:"intercepted_at"`
 	TriggerId          int             `sql:"trigger_id"`
@@ -68,8 +68,8 @@ type InterceptedEventData struct {
 	Namespace          string      `sql:"namespace"`
 	Action             string      `sql:"action"`
 	Environment        string      `sql:"environment"`
-	Gvk                string      `sql:"gvk"`
-	InvolvedObject     string      `sql:"involved_object"`
+	Metadata           string      `sql:"metadata"`
+	InvolvedObjects    string      `sql:"involved_objects"`
 	InterceptedAt      time.Time   `sql:"intercepted_at"`
 	TriggerExecutionId int         `sql:"trigger_execution_id"`
 	Status             Status      `sql:"status"`
@@ -116,8 +116,8 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		ColumnExpr("intercepted_event_execution.namespace as namespace").
 		// ColumnExpr("intercepted_event_execution.message as message").
 		ColumnExpr("intercepted_event_execution.action as action").
-		ColumnExpr("intercepted_event_execution.gvk as gvk").
-		ColumnExpr("intercepted_event_execution.involved_object as involved_object").
+		ColumnExpr("intercepted_event_execution.metadata as metadata").
+		ColumnExpr("intercepted_event_execution.involved_objects as involved_objects").
 		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
 		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
 		ColumnExpr("intercepted_event_execution.status as status").
@@ -137,7 +137,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.gvk ILIKE ? OR intercepted_event_execution.involved_object ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
+		query = query.Where("intercepted_event_execution.metadata ILIKE ? OR intercepted_event_execution.involved_objects ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 {
