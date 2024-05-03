@@ -399,9 +399,6 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		impl.Logger.Errorw("error in fetching installReleaseRequests", "appIds", appIds, "envId", envId, "err", err)
 		return nil, err
 	}
-	if installReleaseRequests == nil || len(installReleaseRequests) == 0 {
-		return podResp, nil
-	}
 	for _, app := range apps {
 		appNameToId[app.AppName] = app.Id
 	}
