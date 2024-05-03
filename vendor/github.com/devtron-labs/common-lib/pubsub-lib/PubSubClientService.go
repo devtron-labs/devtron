@@ -35,23 +35,28 @@ type PubSubClientServiceImpl struct {
 	logsConfig *model.LogsConfig
 }
 
-func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
+func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientServiceImpl, error) {
 	natsClient, err := NewNatsClient(logger)
 	if err != nil {
-		logger.Fatalw("error occurred while creating nats client stopping now!!")
+		logger.Errorw("error occurred while creating nats client stopping now!!")
+		return nil, err
 	}
 	logsConfig := &model.LogsConfig{}
 	err = env.Parse(logsConfig)
 	if err != nil {
 		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
+		return nil, err
 	}
-	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	err = ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	if err != nil {
+		return nil, err
+	}
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
 		logsConfig: logsConfig,
 	}
-	return pubSubClient
+	return pubSubClient, nil
 }
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
@@ -125,7 +130,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
 		nats.BindStream(streamName))
 	if err != nil {
-		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
+		impl.Logger.Errorw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
