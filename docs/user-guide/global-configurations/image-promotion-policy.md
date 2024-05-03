@@ -112,7 +112,7 @@ Here, you can promote images to the target environment(s).
 
     ![Figure 3: Promote Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/promote-button.jpg)
 
-3. In the `Select Image` tab, you will see a list of images. However, you can use the **Show Images from** dropdown to decide the image you wish to promote. It can be an image either from the CI pipeline or an image that has passed from a particular environment in the workflow (the image must have passed all stages of deployment).
+3. In the `Select Image` tab, you will see a list of images. However, you can use the **Show Images from** dropdown to decide the image you wish to promote. It can be an image either from the CI pipeline or an image that has passed from a particular environment in the workflow (the image must have passed all stages of that environment, e.g., pre, post, if any).
 
     ![Figure 4: Selecting an Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-promotion/show-images.jpg)
 
