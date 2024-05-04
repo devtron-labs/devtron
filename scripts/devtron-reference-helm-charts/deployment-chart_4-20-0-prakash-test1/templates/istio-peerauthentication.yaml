@@ -5,13 +5,13 @@ kind: PeerAuthentication
 metadata:
   name: {{  template ".Chart.Name .fullname" $ }}
   labels:
-    app.devtron.ai/envName: { { $.Values.envName | quote } }
-    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-    app: { { $.Values.appName | quote } }
-    appId: { { $.Values.appId | quote } }
-    envId: { { $.Values.envId | quote } }
-    release: { { $.Release.Name } }
+    app.devtron.ai/envName: {{ $.Values.envName | quote }}
+    app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+    app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+    app: {{ $.Values.appName | quote }}
+    appId: {{ $.Values.appId | quote }}
+    envId: {{ $.Values.envId | quote }}
+    release: {{ $.Release.Name }}
     chart: {{ template ".Chart.Name .chart" $ }}
 {{- if $.Values.appLabels }}
 {{ toYaml $.Values.appLabels | indent 4 }}

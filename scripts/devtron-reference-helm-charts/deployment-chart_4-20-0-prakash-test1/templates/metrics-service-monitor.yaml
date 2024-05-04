@@ -4,12 +4,12 @@ kind: ServiceMonitor
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}
   labels:
-    app.devtron.ai/envName: { { $.Values.envName | quote } }
-    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-    app: { { $.Values.appName | quote } }
-    appId: { { $.Values.appId | quote } }
-    envId: { { $.Values.envId | quote } }
+    app.devtron.ai/envName: {{ $.Values.envName | quote }}
+    app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+    app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+    app: {{ $.Values.appName | quote }}
+    appId: {{ $.Values.appId | quote }}
+    envId: {{ $.Values.envId | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Values.prometheus.release }}
 spec:
@@ -25,12 +25,12 @@ spec:
           targetLabel: devtron_app_hash
   selector:
     matchLabels:
-      app.devtron.ai/envName: { { $.Values.envName | quote } }
-      app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-      app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-      app: { { $.Values.appName | quote } }
-      appId: { { $.Values.appId | quote } }
-      envId: { { $.Values.envId | quote } }
+      app.devtron.ai/envName: {{ $.Values.envName | quote }}
+      app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+      app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+      app: {{ $.Values.appName | quote }}
+      appId: {{ $.Values.appId | quote }}
+      envId: {{ $.Values.envId | quote }}
   namespaceSelector:
     matchNames:
       - {{.Release.Namespace}}

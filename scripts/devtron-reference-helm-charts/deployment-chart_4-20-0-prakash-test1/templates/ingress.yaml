@@ -24,13 +24,13 @@ metadata:
   name: {{ template ".Chart.Name .fullname" . }}-ingress
   namespace: {{ $.Values.NameSpace }}
   labels:
-    app.devtron.ai/envName: { { $.Values.envName | quote } }
-    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-    app: { { $.Values.appName | quote } }
-    appId: { { $.Values.appId | quote } }
-    envId: { { $.Values.envId | quote } }
-    release: { { $.Release.Name } }
+    app.devtron.ai/envName: {{ $.Values.envName | quote }}
+    app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+    app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+    app: {{ $.Values.appName | quote }}
+    appId: {{ $.Values.appId | quote }}
+    envId: {{ $.Values.envId | quote }}
+    release: {{ $.Release.Name }}
     app.kubernetes.io/managed-by: devtron
     chart: {{ template ".Chart.Name .chart" . }}
 {{- if .Values.appLabels }}
@@ -114,13 +114,13 @@ metadata:
   name: {{ template ".Chart.Name .fullname" . }}-ingress-internal
   namespace: {{ $.Values.NameSpace }}
   labels:
-    app.devtron.ai/envName: { { $.Values.envName | quote } }
-    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-    app: { { $.Values.appName | quote } }
-    appId: { { $.Values.appId | quote } }
-    envId: { { $.Values.envId | quote } }
-    release: { { $.Release.Name } }
+    app.devtron.ai/envName: {{ $.Values.envName | quote }}
+    app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+    app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+    app: {{ $.Values.appName | quote }}
+    appId: {{ $.Values.appId | quote }}
+    envId: {{ $.Values.envId | quote }}
+    release: {{ $.Release.Name }}
     app.kubernetes.io/managed-by: devtron
     chart: {{ template ".Chart.Name .chart" . }}
 {{- if .Values.ingressInternal.annotations }}

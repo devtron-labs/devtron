@@ -8,11 +8,11 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
-    app.devtron.ai/envName: { { $.Values.envName | quote } }
-    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-    app: { { $.Values.appName | quote } }
-    appId: { { $.Values.appId | quote } }
-    envId: { { $.Values.envId | quote } }
+    app.devtron.ai/envName: {{ $.Values.envName | quote }}
+    app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+    app: {{ $.Values.appName | quote }}
+    appId: {{ $.Values.appId | quote }}
+    envId: {{ $.Values.envId | quote }}
 spec:
   {{- if .Values.podDisruptionBudget.minAvailable }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
