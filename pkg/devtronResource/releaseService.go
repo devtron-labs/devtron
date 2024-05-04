@@ -75,8 +75,32 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusForGetApiResour
 		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusPath).Exists() {
-			resourceObject.ConfigStatus = &bean.ConfigStatus{
-				Status:   bean.ReleaseConfigStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusStatusPath).String()),
+			var status bean.ReleaseStatus
+			configStatus := bean.ReleaseConfigStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusStatusPath).String())
+			rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceReleaseRolloutStatusPath).String())
+			switch configStatus {
+			case bean.DraftReleaseConfigStatus:
+				status = bean.DraftReleaseStatus
+			case bean.HoldReleaseConfigStatus:
+				status = bean.HoldReleaseStatus
+			case bean.RescindReleaseConfigStatus:
+				status = bean.RescindReleaseStatus
+			case bean.CorruptedReleaseConfigStatus:
+				status = bean.CorruptedReleaseStatus
+			case bean.ReadyForReleaseConfigStatus:
+				switch rolloutStatus {
+				case bean.PartiallyDeployedReleaseRolloutStatus:
+					status = bean.PartiallyReleasedReleaseStatus
+				case bean.CompletelyDeployedReleaseRolloutStatus:
+					status = bean.CompletelyReleasedReleaseRolloutStatus
+				default:
+					status = bean.ReadyForReleaseStatus
+				}
+			default:
+				status = bean.CorruptedReleaseStatus
+			}
+			resourceObject.ReleaseStatus = &bean.ReleaseStatusApiBean{
+				Status:   status,
 				Comment:  gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusCommentPath).String(),
 				IsLocked: gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusIsLockedPath).Bool(),
 			}
@@ -230,7 +254,7 @@ func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objec
 	var err error
 	if reqBean.ConfigStatus == nil {
 		reqBean.ConfigStatus = &bean.ConfigStatus{
-			Status: bean.DraftReleaseStatus,
+			Status: bean.DraftReleaseConfigStatus,
 		}
 	}
 	if reqBean.ConfigStatus != nil {

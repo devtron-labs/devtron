@@ -75,12 +75,6 @@ type DependencyConfigOptions[T any] struct {
 	Data            T                      `json:"data,omitempty"`
 }
 
-type DevtronResourceObjectGetAPIBean struct {
-	*DevtronResourceObjectDescriptorBean
-	*DevtronResourceObjectBasicDataBean
-	ChildObjects []*DevtronResourceObjectGetAPIBean `json:"childObjects,omitempty"`
-}
-
 type DevtronResourceDependencyPatchAPIBean struct {
 	*DevtronResourceObjectDescriptorBean
 	DependencyPatch []*DependencyPatchBean `json:"dependencyPatch,omitempty"`
@@ -89,14 +83,6 @@ type DevtronResourceDependencyPatchAPIBean struct {
 type DependencyPatchBean struct {
 	PatchQuery     []PatchQuery    `json:"query,omitempty"`
 	DependencyInfo *DependencyInfo `json:"dependencyInfo,omitempty"`
-}
-
-type DevtronResourceObjectBasicDataBean struct {
-	Schema       string              `json:"schema,omitempty"`
-	CatalogData  string              `json:"objectData,omitempty"` //json key not changed for backward compatibility
-	Overview     *ResourceOverview   `json:"overview,omitempty"`
-	ConfigStatus *ConfigStatus       `json:"configStatus,omitempty"`
-	ParentConfig *ResourceIdentifier `json:"parentConfig,omitempty"`
 }
 
 type ResourceOverview struct {
@@ -287,10 +273,11 @@ func (s ReleaseConfigStatus) ToString() string {
 }
 
 const (
-	DraftReleaseStatus    ReleaseConfigStatus = "draft"
-	ReadyForReleaseStatus ReleaseConfigStatus = "readyForRelease"
-	HoldReleaseStatus     ReleaseConfigStatus = "hold"
-	RescindReleaseStatus  ReleaseConfigStatus = "rescind"
+	DraftReleaseConfigStatus     ReleaseConfigStatus = "draft"
+	ReadyForReleaseConfigStatus  ReleaseConfigStatus = "readyForRelease"
+	HoldReleaseConfigStatus      ReleaseConfigStatus = "hold"
+	RescindReleaseConfigStatus   ReleaseConfigStatus = "rescind"
+	CorruptedReleaseConfigStatus ReleaseConfigStatus = "corrupted"
 )
 
 type ReleaseRolloutStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
