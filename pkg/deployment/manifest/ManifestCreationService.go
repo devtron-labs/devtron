@@ -686,7 +686,16 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 		App:            appId,
 		Env:            envId,
 		AppMetrics:     appMetrics,
+		EnvName:        overrideRequest.EnvName,
+		AppName:        overrideRequest.AppName,
+		ChartVersion:   envOverride.Chart.ChartVersion,
 	}
+	appMetaInfo, err := impl.appCrudOperationService.GetAppMetaInfoByAppName(overrideRequest.AppName)
+	if err != nil {
+		impl.logger.Errorw("error in getting AppMetaInfoByAppName", "appName", overrideRequest.AppName, "err", err)
+		return "", err
+	}
+	releaseAttribute.ProjectName = appMetaInfo.ProjectName
 	override, err := util4.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
 	if err != nil {
 		return "", &util.ApiError{InternalMessage: "unable to render ImageDescriptorTemplate"}

@@ -1,0 +1,41 @@
+{{- with .Values.istio }}
+{{- if and .enable .authorizationPolicy.enabled }}
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}
+  labels:
+    app.devtron.ai/envName: { { $.Values.envName | quote } }
+    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
+    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
+    app: { { $.Values.appName | quote } }
+    appId: { { $.Values.appId | quote } }
+    envId: { { $.Values.envId | quote } }
+    release: { { $.Release.Name } }
+    app.kubernetes.io/managed-by: devtron
+    chart: {{ template ".Chart.Name .chart" $ }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if .authorizationPolicy.labels }}
+{{ toYaml .authorizationPolicy.labels | indent 4 }}
+    {{- end }}
+{{- if .authorizationPolicy.annotations }}
+  annotations:
+{{ toYaml .authorizationPolicy.annotations | indent 4 }}
+{{- end }}
+spec:
+  selector:
+      matchLabels:
+        app.kubernetes.io/name: {{ template ".Chart.Name .fullname" $ }}
+  action: {{ .authorizationPolicy.action }}
+{{- if $.Values.istio.authorizationPolicy.provider }}
+  provider: 
+{{ toYaml $.Values.istio.authorizationPolicy.provider | indent 4 }}
+{{- end }}
+{{- if $.Values.istio.authorizationPolicy.rules }}
+  rules:
+{{ toYaml $.Values.istio.authorizationPolicy.rules | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

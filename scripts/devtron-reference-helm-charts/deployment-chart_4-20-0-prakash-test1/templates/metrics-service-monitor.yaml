@@ -1,0 +1,41 @@
+{{- if $.Values.appMetrics -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}
+  labels:
+    app.devtron.ai/envName: { { $.Values.envName | quote } }
+    app.devtron.ai/projectName: { { $.Values.projectName | quote } }
+    app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
+    app: { { $.Values.appName | quote } }
+    appId: { { $.Values.appId | quote } }
+    envId: { { $.Values.envId | quote } }
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+spec:
+  jobLabel: {{ template ".Chart.Name .name" $ }}
+  endpoints:
+    - port: envoy-admin
+      interval: 30s
+      path: /stats/prometheus
+      relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_label_pod_template_hash
+          targetLabel: devtron_app_hash
+  selector:
+    matchLabels:
+      app.devtron.ai/envName: { { $.Values.envName | quote } }
+      app.devtron.ai/projectName: { { $.Values.projectName | quote } }
+      app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
+      app: { { $.Values.appName | quote } }
+      appId: { { $.Values.appId | quote } }
+      envId: { { $.Values.envId | quote } }
+  namespaceSelector:
+    matchNames:
+      - {{.Release.Namespace}}
+  podTargetLabels:
+    - appId
+    - envId
+    - devtron_app_hash
+{{- end }}
