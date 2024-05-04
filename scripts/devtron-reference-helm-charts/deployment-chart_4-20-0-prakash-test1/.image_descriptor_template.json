@@ -1,18 +1,1 @@
-{
-  "appMetrics": {{.AppMetrics}},
-  "deploymentType": "{{.DeploymentType}}",
-  "pipelineName": "{{.PipelineName}}",
-  "releaseVersion": "{{.ReleaseVersion}}",
-  "envName": "{{.EnvName}}",
-  "appName": "{{.AppName}}",
-  "envId": "{{.Env}}",
-  "appId": "{{.App}}",
-  "projectName": "{{.ProjectName}}",
-  "chartVersion": "{{.ChartVersion}}",
-  "server": {
-    "deployment": {
-      "image": "{{.Name}}",
-      "image_tag": "{{.Tag}}"
-    }
-  }
-}
+{"appMetrics": {{.AppMetrics}},"deploymentType": "{{.DeploymentType}}","pipelineName": "{{.PipelineName}}","releaseVersion": "{{.ReleaseVersion}}","envName": "{{.EnvName}}","appName": "{{.AppName}}","envId": "{{.Env}}","appId": "{{.App}}","projectName": "{{.ProjectName}}","chartVersion": "{{.ChartVersion}}","server": {"deployment": {"image": "{{.Name}}","image_tag": "{{.Tag}}"}}}
