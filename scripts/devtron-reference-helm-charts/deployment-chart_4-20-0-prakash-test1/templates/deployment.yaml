@@ -124,13 +124,13 @@ spec:
           {{- if and .autoLabelSelector .customLabelSelector }}
 {{ toYaml .customLabelSelector | indent 12 }}
           {{- else if .autoLabelSelector }}
-            app.devtron.ai/envName: { { $.Values.envName | quote } }
-            app.devtron.ai/projectName: { { $.Values.projectName | quote } }
-            app.devtron.ai/chartVersion: { { $.Values.chartVersion | quote } }
-            app: { { $.Values.appName | quote } }
-            appId: { { $.Values.appId | quote } }
-            envId: { { $.Values.envId | quote } }
-            release: { { $.Release.Name } }
+            app.devtron.ai/envName: {{ $.Values.envName | quote }}
+            app.devtron.ai/projectName: {{ $.Values.projectName | quote }}
+            app.devtron.ai/chartVersion: {{ $.Values.chartVersion | quote }}
+            app: {{ $.Values.appName | quote }}
+            appId: {{ $.Values.appId | quote }}
+            envId: {{ $.Values.envId | quote }}
+            release: {{ $.Release.Name }}
             app.kubernetes.io/managed-by: devtron
                                 
           {{- else if .customLabelSelector }}
