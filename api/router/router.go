@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
+	"github.com/devtron-labs/devtron/api/scoop"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -56,6 +57,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
@@ -138,6 +140,8 @@ type MuxRouter struct {
 	commonPolicyRouter                 commonPolicyActions.CommonPolicyRouter
 	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
 	artifactPromotionPolicy            artifactPromotionPolicy.Router
+	scanningResultRouter               scanningResultsParser.ScanningResultRouter
+	scoopRouter                        scoop.Router
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -175,7 +179,9 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	deploymentWindowRouter deploymentWindow.DeploymentWindowRouter,
 	commonPolicyRouter commonPolicyActions.CommonPolicyRouter,
-	artifactPromotionPolicy artifactPromotionPolicy.Router) *MuxRouter {
+	artifactPromotionPolicy artifactPromotionPolicy.Router,
+	scanningResultRouter scanningResultsParser.ScanningResultRouter,
+	scoopRouter scoop.Router) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -251,6 +257,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		deploymentWindowRouter:             deploymentWindowRouter,
 		commonPolicyRouter:                 commonPolicyRouter,
 		artifactPromotionPolicy:            artifactPromotionPolicy,
+		scanningResultRouter:               scanningResultRouter,
+		scoopRouter:                        scoopRouter,
 	}
 	return r
 }
@@ -494,4 +502,10 @@ func (r MuxRouter) Init() {
 
 	artifactPromotionPolicyRouter := r.Router.PathPrefix("/orchestrator/artifact-promotion/policy").Subrouter()
 	r.artifactPromotionPolicy.InitRouter(artifactPromotionPolicyRouter)
+
+	scanResultRouter := r.Router.PathPrefix("/orchestrator/scan-result").Subrouter()
+	r.scanningResultRouter.InitScanningResultRouter(scanResultRouter)
+
+	scoopRouter := r.Router.PathPrefix("/orchestrator/scoop").Subrouter()
+	r.scoopRouter.InitScoopRouter(scoopRouter)
 }

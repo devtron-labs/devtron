@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/go-pg/pg"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,6 +61,10 @@ type K8sApplicationRestHandler interface {
 	CreateEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request)
 	GetAllApiResourceGVKWithoutAuthorization(w http.ResponseWriter, r *http.Request)
+	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
+	DebugPodInfo(w http.ResponseWriter, r *http.Request)
+	PortForwarding(w http.ResponseWriter, r *http.Request)
+	StartK8sProxy(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -119,7 +125,7 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	handler.logger.Infow("rotate pod request", "payload", podRotateRequest)
 	rotatePodRequest := &k8s.RotatePodRequest{
 		ClusterId: appIdentifier.ClusterId,
@@ -133,14 +139,16 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
+// validate and enrich
+// todo seprate concerns of both
+func (handler *K8sApplicationRestHandlerImpl) validateGetResourceRequest(w http.ResponseWriter, r *http.Request) (*k8s.ResourceRequestBean, error) {
 	decoder := json.NewDecoder(r.Body)
 	var request k8s.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+		return &request, err
 	}
 	vars := r.URL.Query()
 	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
@@ -153,9 +161,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		if err != nil {
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+			return &request, err
 		}
-		//setting appIdentifier value in request
+		// setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = request.AppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
@@ -163,17 +171,17 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			if err != nil || !valid {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
+				return &request, err
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
+			return &request, err
 		}
 		// RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
@@ -181,32 +189,57 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		if err != nil {
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+			return &request, err
 		}
-		//setting devtronAppIdentifier value in request
+		// setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			// TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject = handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
 		hasReadAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 		if !hasReadAccessForEnv {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
+			return &request, err
 		}
 		// RBAC enforcer Ends
 	}
 	// Invalid cluster id
 	if request.ClusterId <= 0 {
-		common.WriteJsonResp(w, errors.New("can not resource manifest as target cluster is not provided"), nil, http.StatusBadRequest)
+		err = errors.New("can not resource manifest as target cluster is not provided")
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return &request, err
+	}
+	return &request, nil
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request) {
+	request, err := handler.validateGetResourceRequest(w, r)
+	if err != nil {
 		return
 	}
+	info, err := handler.k8sCommonService.GetResourceSecurityInfo(r.Context(), request)
+	if err != nil {
+		handler.logger.Errorw("error in getting security details for resource", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, info, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request, err := handler.validateGetResourceRequest(w, r)
+	if err != nil {
+		return
+	}
+
 	// Fetching requested resource
-	resource, err := handler.k8sCommonService.GetResource(r.Context(), &request)
+	resource, err := handler.k8sCommonService.GetResource(r.Context(), request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -273,7 +306,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	appDetail, err := handler.helmAppService.GetApplicationDetail(r.Context(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -324,7 +357,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//setting appIdentifier value in request
+	// setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
 	// RBAC enforcer applying
 	rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -334,7 +367,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 	resource, err := handler.k8sApplicationService.RecreateResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
@@ -362,7 +395,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting appIdentifier value in request
+		// setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmAppType {
@@ -373,7 +406,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 				return
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -383,7 +416,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
 		// For Devtron App resources
 		devtronAppIdentifier, err := handler.k8sApplicationService.DecodeDevtronAppId(request.AppId)
@@ -392,13 +425,13 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting devtronAppIdentifier value in request
+		// setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			// TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -464,7 +497,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting appIdentifier value in request
+		// setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
@@ -475,7 +508,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				return
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -486,7 +519,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
 		// For Devtron App resources
 		devtronAppIdentifier, err := handler.k8sApplicationService.DecodeDevtronAppId(request.AppId)
@@ -495,13 +528,13 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting devtronAppIdentifier value in request
+		// setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			// TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -560,7 +593,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting appIdentifier value in request
+		// setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
@@ -571,7 +604,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 				return
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -580,7 +613,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
 		// For Devtron App resources
 		devtronAppIdentifier, err := handler.k8sApplicationService.DecodeDevtronAppId(request.AppId)
@@ -589,22 +622,22 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		//setting devtronAppIdentifier value in request
+		// setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			// TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
-		//RBAC enforcer applying for Devtron App
+		// RBAC enforcer applying for Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
 		hasAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 		if !hasAccessForEnv {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		// RBAC enforcer applying for resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionGet); !ok {
@@ -640,13 +673,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		lastSeenMsgId = lastSeenMsgId + bean2.TimestampOffsetToAvoidDuplicateLogs //increased by one ns to avoid duplicate
+		lastSeenMsgId = lastSeenMsgId + bean2.TimestampOffsetToAvoidDuplicateLogs // increased by one ns to avoid duplicate
 		t := v1.Unix(0, lastSeenMsgId)
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
 	}
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
-	//err is handled inside StartK8sStreamWithHeartBeat method
+	// err is handled inside StartK8sStreamWithHeartBeat method
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -764,7 +797,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 				return
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying for Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
@@ -774,12 +807,12 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.DevtronAppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
-			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+			// TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
-			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			// TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 		}
 		// RBAC enforcer applying For Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
@@ -787,13 +820,13 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
-		//RBAC enforcer applying For Resource Browser
+		// RBAC enforcer applying For Resource Browser
 		if !handler.handleRbac(r, w, *request, token, casbin.ActionGet) {
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if request.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not get pod logs as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
@@ -809,7 +842,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	}
 	vars := r.URL.Query()
 	appTypeStr := vars.Get("appType")
-	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
+	appType, _ := strconv.Atoi(appTypeStr) // ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -830,7 +863,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.DevtronAppIdentifier != nil {
 		// RBAC enforcer applying For Devtron App
 		teamEnvRbacObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
@@ -844,13 +877,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 && appType != bean2.ArgoAppType {
-		//RBAC enforcer applying for Resource Browser
+		// RBAC enforcer applying for Resource Browser
 		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
 			return
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
@@ -1025,7 +1058,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//rbac applied in below function
+	// rbac applied in below function
 	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
 	if resourceRequestBean == nil {
 		return
@@ -1069,7 +1102,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//rbac applied in below function
+	// rbac applied in below function
 	resourceRequestBean := handler.handleEphemeralRBAC(request.PodName, request.Namespace, w, r)
 	if resourceRequestBean == nil {
 		return
@@ -1102,7 +1135,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 	vars := r.URL.Query()
 	appTypeStr := vars.Get("appType")
 	resourceRequestBean.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
-	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
+	appType, _ := strconv.Atoi(appTypeStr) // ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -1112,7 +1145,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return resourceRequestBean
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.DevtronAppIdentifier != nil {
 		// RBAC enforcer applying For Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
@@ -1120,18 +1153,157 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return resourceRequestBean
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 && appType != bean2.ArgoAppType {
-		//RBAC enforcer applying for Resource Browser
+		// RBAC enforcer applying for Resource Browser
 		resourceRequestBean.K8sRequest.ResourceIdentifier.Name = podName
 		resourceRequestBean.K8sRequest.ResourceIdentifier.Namespace = namespace
 		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
 			return resourceRequestBean
 		}
-		//RBAC enforcer Ends
+		// RBAC enforcer Ends
 	} else if resourceRequestBean.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not create/terminate ephemeral containers as target cluster is not provided"), nil, http.StatusBadRequest)
 		return resourceRequestBean
 	}
 	return resourceRequestBean
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterid not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	queryValues := r.URL.Query()
+	podName := queryValues.Get("name")
+	namespace := queryValues.Get("namespace")
+	if len(podName) == 0 {
+		podName = "*"
+	}
+	if len(namespace) == 0 {
+		namespace = "*"
+	}
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Pod"}, casbin.ActionGet, podName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	scoopServiceProxyHandler, scoopConfig, err := handler.k8sApplicationService.GetScoopServiceProxyHandler(r.Context(), clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
+		return
+	}
+	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
+	scoopServiceProxyHandler.ServeHTTP(w, r)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	queryValues := r.URL.Query()
+	clusterIdString := queryValues.Get("clusterId")
+	if len(clusterIdString) == 0 {
+		common.WriteJsonResp(w, errors.New("clusterId not present"), nil, http.StatusBadRequest)
+		return
+	}
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	serviceName := queryValues.Get("serviceName")
+	if len(serviceName) == 0 {
+		common.WriteJsonResp(w, errors.New("serviceName not present"), nil, http.StatusBadRequest)
+		return
+	}
+	servicePort := queryValues.Get("servicePort")
+	if len(servicePort) == 0 {
+		servicePort = "80"
+	}
+
+	namespace := queryValues.Get("namespace")
+	if len(namespace) == 0 {
+		common.WriteJsonResp(w, errors.New("namespace not present"), nil, http.StatusBadRequest)
+		return
+	}
+
+	allowed, err := handler.k8sApplicationService.ValidateK8sResourceAccess(token, clusterId, namespace, schema.GroupVersionKind{Version: "v1", Kind: "Service"}, casbin.ActionUpdate, serviceName, handler.verifyRbacForResource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusConflict)
+		return
+	}
+	if !allowed {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	proxy, err := handler.k8sApplicationService.PortForwarding(r.Context(), clusterId, serviceName, namespace, servicePort)
+	if err != nil {
+		handler.logger.Errorw("Error in port forwarding: ", "Error: ", err)
+		_ = json.NewEncoder(w).Encode(bean.Error{Code: 500, Message: "Error doing port forwarding."})
+		return
+	}
+	r.URL.Path = strings.TrimPrefix(r.URL.Path, "/orchestrator/k8s/port-forward")
+	proxy.ServeHTTP(w, r)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWriter, r *http.Request) {
+	isSuperAdmin := false
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	r.Header.Del("Authorization")
+	urlPathArray := strings.Split(r.URL.Path, "/")
+	if len(urlPathArray) < 6 {
+		common.WriteJsonResp(w, errors.New(`please provide cluster or env`), nil, http.StatusBadRequest)
+		return
+	}
+
+	var clusterId = -1
+	envName := ""
+	if urlPathArray[4] == "cluster" {
+		cId, err := strconv.Atoi(urlPathArray[5])
+		if err != nil {
+			common.WriteJsonResp(w, errors.New(`cannot parse cluster to number`), nil, http.StatusBadRequest)
+			return
+		}
+		clusterId = cId
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%d", clusterId))
+	} else if urlPathArray[4] == "env" {
+		envName = urlPathArray[5]
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", envName))
+	} else {
+		common.WriteJsonResp(w, errors.New(`please provide cluster or env`), nil, http.StatusBadRequest)
+		return
+	}
+
+	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterId, envName)
+
+	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			common.WriteJsonResp(w, errors.New("cannot find requested env or cluster"), nil, http.StatusBadRequest)
+			return
+		}
+		common.WriteJsonResp(w, errors.New("failed to start k8s proxy server"), nil, http.StatusInternalServerError)
+		return
+	}
+	proxyServer.ServeHTTP(w, r)
 }

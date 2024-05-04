@@ -499,7 +499,7 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 
 	// App Delete --> Start
-	//soft delete app
+	// soft delete app
 	appModel := &model.App
 	appModel.Active = false
 	appModel.UpdatedBy = userId
@@ -561,9 +561,9 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
-	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
-	//that case DeleteApplication returned with grpc error and the user was not able to delete the
-	//cd-pipeline after helm app is created in that namespace.
+	// handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	// that case DeleteApplication returned with grpc error and the user was not able to delete the
+	// cd-pipeline after helm app is created in that namespace.
 	exists, err := impl.checkIfNsExists(app)
 	if err != nil {
 		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
@@ -585,7 +585,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
 				Code:           strconv.Itoa(http.StatusNotFound),
-				HttpStatusCode: 200, //need to revisit the status code
+				HttpStatusCode: 200, // need to revisit the status code
 				UserMessage:    message,
 			}
 		}
@@ -982,7 +982,19 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
-	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	var templateChartResponse *gRPC.TemplateChartResponse
+	var templateChartResponseWithChart *gRPC.TemplateChartResponseWithChart
+	var chart []byte
+	if templateChartRequest.ReturnChartBytes {
+		templateChartResponseWithChart, err = impl.helmAppClient.TemplateChartAndRetrieveChart(ctx, installReleaseRequest)
+		if err == nil {
+			templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
+			chart = templateChartResponseWithChart.ChartBytes.Content
+		}
+	} else {
+		templateChartResponse, err = impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
@@ -995,7 +1007,8 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	response := &openapi2.TemplateChartResponse{
-		Manifest: &templateChartResponse.GeneratedManifest,
+		Manifest:   &templateChartResponse.GeneratedManifest,
+		ChartBytes: chart,
 	}
 
 	return response, nil
@@ -1063,7 +1076,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		//projectId := int32(0) //TODO pick from db
+		// projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)

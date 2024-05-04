@@ -29,6 +29,7 @@ const (
 	ArtifactPromotionApproval EventType = 7
 	ImageScanning             EventType = 8
 )
+const ScoopNotification EventType = 9
 
 var RulesSupportedEvents = []int{int(ImageScanning)}
 

@@ -41,11 +41,11 @@ type QualifiersMappingRepositoryImpl struct {
 	logger *zap.SugaredLogger
 }
 
-func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) (*QualifiersMappingRepositoryImpl, error) {
+func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) (*QualifiersMappingRepositoryImpl, error) {
 	return &QualifiersMappingRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}, nil
 }
 

@@ -1,0 +1,153 @@
+openapi: 3.0.0
+info:
+  title: Kubernetes Resource Scan API
+  description: API for scanning Kubernetes resources for vulnerabilities
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /orchestrator/k8s/resource/security:
+    post:
+      summary: Scan a Kubernetes resource for vulnerabilities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: Successful response with vulnerability scan results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+
+components:
+  schemas:
+    ScanRequest:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+          description: The ID of the Kubernetes cluster
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequest'
+      required:
+        - clusterId
+        - k8sRequest
+
+    K8sRequest:
+      type: object
+      properties:
+        resourceIdentifier:
+          $ref: '#/components/schemas/ResourceIdentifier'
+      required:
+        - resourceIdentifier
+
+    ResourceIdentifier:
+      type: object
+      properties:
+        groupVersionKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+        namespace:
+          type: string
+          description: The namespace of the Kubernetes resource
+        name:
+          type: string
+          description: The name of the Kubernetes resource
+      required:
+        - groupVersionKind
+        - namespace
+        - name
+
+    GroupVersionKind:
+      type: object
+      properties:
+        Group:
+          type: string
+          description: The API group of the Kubernetes resource
+        Version:
+          type: string
+          description: The API version of the Kubernetes resource
+        Kind:
+          type: string
+          description: The kind of Kubernetes resource
+      required:
+        - Group
+        - Version
+        - Kind
+
+    ScanResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanResult'
+
+    ScanResult:
+      type: object
+      properties:
+        image:
+          type: string
+          description: The Docker image scanned
+        scanningInProgress:
+          type: boolean
+          description: Indicates if scanning is in progress
+        error:
+          type: string
+          description: Error message if any occurred during scanning
+        scanResult:
+          $ref: '#/components/schemas/InnerScanResult'
+
+    InnerScanResult:
+      type: object
+      properties:
+        vulnerabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vulnerability'
+          description: List of vulnerabilities found
+        severityCount:
+          $ref: '#/components/schemas/SeverityCount'
+          description: Count of vulnerabilities by severity
+        executionTime:
+          type: string
+          format: date-time
+          description: Timestamp indicating when the scan was executed
+        scanToolId:
+          type: integer
+          description: ID of the scanning tool used
+
+    Vulnerability:
+      type: object
+      properties:
+        cveName:
+          type: string
+          description: Common Vulnerabilities and Exposures (CVE) name
+        severity:
+          type: string
+          description: Severity of the vulnerability
+        package:
+          type: string
+          description: Name of the package with the vulnerability
+        currentVersion:
+          type: string
+          description: Current version of the package
+        fixedVersion:
+          type: string
+          description: Fixed version of the package if available
+
+    SeverityCount:
+      type: object
+      properties:
+        high:
+          type: integer
+          description: Number of high severity vulnerabilities
+        moderate:
+          type: integer
+          description: Number of moderate severity vulnerabilities
+        low:
+          type: integer
+          description: Number of low severity vulnerabilities

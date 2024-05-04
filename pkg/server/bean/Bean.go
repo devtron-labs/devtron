@@ -50,10 +50,24 @@ const (
 
 type ScanExecutionProcessState int
 
+func (state ScanExecutionProcessState) String() string {
+	switch state {
+	case ScanExecutionProcessStateFailed:
+		return "Failed"
+	case ScanExecutionProcessStateRunning:
+		return "Running"
+	case ScanExecutionProcessStateCompleted:
+		return "Completed"
+	default:
+		return "Failed"
+	}
+
+}
+
 const (
-	ScanExecutionProcessStateFailed    ScanExecutionProcessState = iota - 1 //resolved value = -1
-	ScanExecutionProcessStateRunning                                        //resolved value =  0
-	ScanExecutionProcessStateCompleted                                      //resolved value =  1
+	ScanExecutionProcessStateFailed    ScanExecutionProcessState = iota - 1 // resolved value = -1
+	ScanExecutionProcessStateRunning                                        // resolved value =  0
+	ScanExecutionProcessStateCompleted                                      // resolved value =  1
 )
 
 type HelmReleaseStatus = string
