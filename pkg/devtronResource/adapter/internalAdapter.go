@@ -89,7 +89,6 @@ func getReleasePolicyRolloutStatusFromResourceObjData(objectData string) (bean.P
 	default:
 		//setting default as not deployed in case it is not set at creation time, needs to be check in future if this needs to be replaced with error
 		policyRolloutStatus = bean.PolicyReleaseRolloutStatusNotDeployed
-		return policyRolloutStatus, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean2.PatchValueNotSupportedError, bean2.PatchValueNotSupportedError)
 	}
 	return policyRolloutStatus, nil
 }
