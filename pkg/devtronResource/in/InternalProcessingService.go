@@ -8,6 +8,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	"github.com/go-pg/pg"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -101,10 +103,66 @@ func (impl *InternalProcessingServiceImpl) DeleteObjectAndItsDependency(req *bea
 	if updatedResourceObject != nil {
 		impl.dtResourceObjectAuditService.SaveAudit(updatedResourceObject, repository.AuditOperationTypeDeleted, nil)
 	}
+	err = impl.checkDeleteObjImpactAndPerformInfoPatch(tx, resourceObjectId, resourceSchema.Id, req)
+	if err != nil {
+		impl.logger.Errorw("error, checkDeleteObjImpactAndPerformInfoPatch", "err", err, "req", req)
+		return err
+	}
 	err = impl.devtronResourceObjectRepository.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction, DeleteObject", "err", err)
 		return err
+	}
+	return nil
+}
+
+// TODO: pick this in v2 part to refactor
+func (impl *InternalProcessingServiceImpl) checkDeleteObjImpactAndPerformInfoPatch(tx *pg.Tx, objectId, schemaId int,
+	req *bean.DevtronResourceObjectDescriptorBean) error {
+	if req.Kind == bean.DevtronResourceApplication.ToString() &&
+		req.SubKind == bean.DevtronResourceDevtronApplication.ToString() &&
+		req.Version == bean.DevtronResourceVersion1.ToString() {
+		//check release objects having this app as upstream
+		//getting release schemaId
+		devtronResourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean.DevtronResourceRelease.ToString(),
+			"", bean.DevtronResourceVersionAlpha1.ToString())
+		if err != nil {
+			impl.logger.Errorw("error in getting devtronResourceSchema", "err", err, "kind", bean.DevtronResourceRelease)
+			return err
+		}
+		releaseObjs, err := impl.devtronResourceObjectRepository.GetDownstreamObjectsByOwnSchemaIdAndUpstreamId(devtronResourceSchema.Id, objectId, schemaId)
+		if err != nil {
+			impl.logger.Errorw("error, GetDownstreamObjectsByOwnSchemaIdAndUpstreamId", "err", err)
+			return err
+		}
+		objectsToBePatched := make([]*repository.DevtronResourceObject, 0, len(releaseObjs))
+		for i := range releaseObjs {
+			releaseObj := releaseObjs[i]
+			var statusToBeUpdated bean.ReleaseConfigStatus
+			//get rollout status of this releaseObj
+			rollOutStatus := gjson.Get(releaseObj.ObjectData, bean.ReleaseResourceRolloutStatusPath).String()
+			if rollOutStatus == bean.PartiallyDeployedReleaseRolloutStatus.ToString() ||
+				rollOutStatus == bean.CompletelyDeployedReleaseRolloutStatus.ToString() {
+				statusToBeUpdated = bean.CorruptedReleaseConfigStatus
+			} else {
+				statusToBeUpdated = bean.DraftReleaseConfigStatus
+			}
+			//patch config status as corrupted
+			releaseObj.ObjectData, err = helper.PatchResourceObjectDataAtAPath(releaseObj.ObjectData, bean.ReleaseResourceConfigStatusStatusPath, statusToBeUpdated)
+			if err != nil {
+				impl.logger.Errorw("error, PatchResourceObjectData", "err", err, "releaseObj", releaseObj)
+				continue
+			} else {
+				objectsToBePatched = append(objectsToBePatched, releaseObj)
+			}
+		}
+		if len(objectsToBePatched) > 0 {
+			err = impl.devtronResourceObjectRepository.UpdateInBulk(tx, objectsToBePatched)
+			if err != nil {
+				impl.logger.Errorw("error, UpdateInBulk", "err", err, "objects", objectsToBePatched)
+				return err
+			}
+		}
 	}
 	return nil
 }

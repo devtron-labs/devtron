@@ -13,6 +13,7 @@ type DevtronResourceObjectRepository interface {
 	GetConnection() *pg.DB
 	Save(tx *pg.Tx, model *DevtronResourceObject) error
 	Update(tx *pg.Tx, model *DevtronResourceObject) error
+	UpdateInBulk(tx *pg.Tx, models []*DevtronResourceObject) error
 	UpdateIdentifier(id, devtronResourceSchemaId int, identifier string) error
 
 	// FindByIdAndSchemaId will fetch the DevtronResourceObject by DevtronResourceObject.Id and DevtronResourceObject.DevtronResourceSchemaId
@@ -45,6 +46,8 @@ type DevtronResourceObjectRepository interface {
 		devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	GetDownstreamObjectsByParentArgAndSchemaIds(argumentValues []interface{}, argumentTypes []string,
 		devtronResourceSchemaIds []int) ([]*DevtronResourceObject, error)
+	GetDownstreamObjectsByOwnSchemaIdAndUpstreamId(ownSchemaId, upstreamId,
+		upstreamSchemaId int) ([]*DevtronResourceObject, error)
 	GetObjectsByArgAndSchemaIds(allArgumentValues []interface{},
 		allArgumentTypes []string, devtronSchemaIdsForArgsForAllArguments []int) ([]*DevtronResourceObject, error)
 
@@ -103,6 +106,16 @@ func (repo *DevtronResourceObjectRepositoryImpl) Update(tx *pg.Tx, model *Devtro
 		err = tx.Update(model)
 	} else {
 		err = repo.dbConnection.Update(model)
+	}
+	return err
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) UpdateInBulk(tx *pg.Tx, models []*DevtronResourceObject) error {
+	var err error
+	if tx != nil {
+		_, err = tx.Model(&models).Update()
+	} else {
+		_, err = repo.dbConnection.Model(&models).Update()
 	}
 	return err
 }
@@ -315,6 +328,20 @@ func (repo *DevtronResourceObjectRepositoryImpl) GetDownstreamObjectsByParentArg
 	if err != nil {
 		repo.logger.Errorw("error, GetDownstreamObjectsByParentArgAndSchemaIds", "err", err,
 			"argumentValues", argumentValues, "argumentTypes", argumentTypes, "devtronResourceSchemaIds", devtronResourceSchemaIds)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) GetDownstreamObjectsByOwnSchemaIdAndUpstreamId(ownSchemaId, upstreamId,
+	upstreamSchemaId int) ([]*DevtronResourceObject, error) {
+	var models []*DevtronResourceObject
+	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).
+		Where("devtron_resource_schema_id = ?", ownSchemaId).
+		Where(getDownstreamWhereClauseByArgValueTypeAndSchemaId(upstreamId, "id", upstreamSchemaId)).Select()
+	if err != nil {
+		repo.logger.Errorw("error, GetResourceObjectsByOwnSchemaIAndUpstreamId", "err", err,
+			"ownSchemaId", ownSchemaId, "upstreamId", upstreamId, "upstreamSchemaId", upstreamSchemaId)
 		return nil, err
 	}
 	return models, nil
