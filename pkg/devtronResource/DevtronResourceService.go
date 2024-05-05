@@ -598,6 +598,8 @@ func (impl *DevtronResourceServiceImpl) getResourceDependenciesData(req *bean.De
 	f := getFuncToUpdateResourceDependenciesDataInResponseObj(req.Kind, req.SubKind, req.Version)
 	if f != nil {
 		return f(impl, req, query, resourceSchema, resourceObject, response)
+	} else {
+		//do nothing, as currently all resource types do not need handling for this
 	}
 	return response, nil
 }

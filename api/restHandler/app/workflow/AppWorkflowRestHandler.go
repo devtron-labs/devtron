@@ -343,21 +343,8 @@ func (handler *AppWorkflowRestHandlerImpl) FindAllComponentsByAppName(w http.Res
 		return
 	}
 	// RBAC enforcer Ends
-	// getting all ciComponents by appId
-	ciPipelineMap, externalCiPipelineMap, err := handler.pipelineBuilder.GetCiComponentDetails(appId)
-	if err != nil {
-		handler.Logger.Errorw("error in getting ciComponents by appId", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	// getting all ciComponents by appId
-	cdPipelineMap, err := handler.pipelineBuilder.GetCdComponentDetails(appId)
-	if err != nil {
-		handler.Logger.Errorw("error in getting cdComponents by appId", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resp, err := handler.appWorkflowService.GetAppWorkflowComponentDetails(appId, ciPipelineMap, externalCiPipelineMap, cdPipelineMap)
+
+	resp, err := handler.appWorkflowService.GetAppWorkflowComponents(appId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting all wf component details by appId", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

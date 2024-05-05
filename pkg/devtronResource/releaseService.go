@@ -41,8 +41,9 @@ func (impl *DevtronResourceServiceImpl) handleReleaseDependencyUpdateRequest(req
 		if dep.TypeOfDependency == bean.DevtronResourceDependencyTypeParent {
 			existingDepParentTypeIndex = i
 		}
-		//TODO: level will fail here, fix
-		mapOfExistingDeps[helper.GetKeyForADependencyMap(dep.OldObjectId, dep.DevtronResourceSchemaId)] = i
+		if dep.TypeOfDependency != bean.DevtronResourceDependencyTypeLevel { //not including level since we will be relying on new levels in request
+			mapOfExistingDeps[helper.GetKeyForADependencyMap(dep.OldObjectId, dep.DevtronResourceSchemaId)] = i
+		}
 	}
 
 	//updating config
@@ -358,6 +359,7 @@ func (impl *DevtronResourceServiceImpl) listRelease(resourceObjects, childObject
 func (impl *DevtronResourceServiceImpl) getFilteredReleaseObjectsForReleaseTrackIds(resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error) {
 	finalResourceObjects := make([]*repository.DevtronResourceObject, 0, len(resourceObjects))
 	for _, resourceObject := range resourceObjects {
+		//TODO: do bulk operation
 		parentConfig, _, err := impl.getParentConfigVariablesFromDependencies(resourceObject.ObjectData)
 		if err != nil {
 			impl.logger.Errorw("error in getting parentConfig for", "err", err, "id", resourceObject.Id)

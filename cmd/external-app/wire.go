@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
@@ -62,6 +63,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
@@ -116,8 +118,8 @@ func InitializeApp() (*App, error) {
 		delete2.NewDeleteServiceImpl,
 
 		//TODO: check why policy is giving error of unused provider
-		//globalPolicy.GlobalPolicyWireSetEA,
-		//devtronResource2.PolicyWireSet,
+		globalPolicy.GlobalPolicyWireSetEA,
+		devtronResource2.PolicyWireSet,
 		devtronResource.DevtronResourceWireSetEA,
 
 		pipelineConfig.NewMaterialRepositoryImpl,

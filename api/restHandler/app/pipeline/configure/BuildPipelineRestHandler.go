@@ -2265,10 +2265,8 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTagList(w http.ResponseWri
 	// get rbac objects for the appIds
 	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
 	rbacObjects := make([]string, len(rbacObjectsWithAppId))
-	itr := 0
-	for _, object := range rbacObjectsWithAppId {
-		rbacObjects[itr] = object
-		itr++
+	for i := range rbacObjectsWithAppId {
+		rbacObjects[i] = rbacObjectsWithAppId[i]
 	}
 	// enforce rbac in batch
 	token := r.Header.Get("token")

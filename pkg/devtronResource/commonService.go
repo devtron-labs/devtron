@@ -60,7 +60,6 @@ func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies
 				impl.logger.Errorw("error in getting kind and subKind by devtronResourceSchemaId", "err", err, "devtronResourceSchemaId", parentResourceSchemaId)
 				return nil, nil, err
 			}
-			//resolved conflicts here, in case of issue check change
 			parentConfig = &bean.ResourceIdentifier{
 				Id: parentResourceObjectId,
 			}
