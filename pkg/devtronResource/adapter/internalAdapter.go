@@ -17,8 +17,10 @@ func GetPatchQueryForPolicyAutoAction(autoAction, stateTo *bean.ReleaseStatusDef
 			return nil, err
 		}
 		patchQueries = append(patchQueries, bean2.PatchQuery{
-			Path:  bean2.ReleaseResourceConfigStatusStatusPath,
-			Value: configStatus,
+			Path: bean2.ReleaseStatusQueryPath,
+			Value: &bean2.ConfigStatus{
+				Status: configStatus,
+			},
 		})
 	}
 	if autoAction.LockStatus != stateTo.LockStatus {
