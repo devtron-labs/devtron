@@ -21,11 +21,11 @@ func appendDependencyArgDetails(argValues *[]interface{}, argTypes *[]string, sc
 }
 
 func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesApi(req *bean.DevtronResourceObjectDescriptorBean, query *bean2.GetDependencyQueryParams,
-	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error) {
+	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DtResourceObjectDependenciesReqBean) error {
 	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, true)
 	if err != nil {
 		impl.logger.Errorw("error in getting dependencies from json object", "err", err)
-		return nil, err
+		return err
 	}
 	argValuesToGetDownstream := make([]interface{}, 0, len(dependenciesOfParent)+1)
 	argTypesToGetDownstream := make([]string, 0, len(dependenciesOfParent)+1)
@@ -42,21 +42,21 @@ func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesAp
 		&argValuesToGetDownstream, &argTypesToGetDownstream, &schemaIdsOfArgsToGetDownstream)
 	if err != nil {
 		impl.logger.Errorw("error, addChildCdPipelinesNotPresentInObjects", "err", err, "childDependencies", childDependenciesOfParent)
-		return nil, err
+		return err
 	}
 
 	err = impl.updateChildDependenciesWithOwnDependenciesData(req.OldObjectId, resourceSchema.Id, mapOfChildDependenciesAndIndex, childDependenciesOfParent, &appIdsToGetMetadata, &pipelineIdsToGetMetadata)
 	if err != nil {
 		impl.logger.Errorw("error, updateChildDependenciesWithOwnDependenciesData", "err", err,
 			"parentOldObjectId", req.OldObjectId, "parentSchemaId", resourceSchema.Id)
-		return nil, err
+		return err
 	}
 
 	downstreamDependencyObjects, err := impl.getDownstreamDependencyObjects(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream)
 	if err != nil {
 		impl.logger.Errorw("err, getDownstreamDependencyObjects", "err", err, "argValues", argValuesToGetDownstream,
 			"argTypes", argTypesToGetDownstream, "schemaIds", schemaIdsOfArgsToGetDownstream)
-		return nil, err
+		return err
 	}
 
 	indexesToCheckInDownstreamObjectForChildDependency, err :=
@@ -65,7 +65,7 @@ func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesAp
 	if err != nil {
 		impl.logger.Errorw("error, updateNonChildDependenciesWithDownstreamDependencies", "err", err,
 			"downstreamDependencyObjects", downstreamDependencyObjects)
-		return nil, err
+		return err
 	}
 
 	err = impl.updateChildDependenciesWithDownstreamDependencies(indexesToCheckInDownstreamObjectForChildDependency,
@@ -73,13 +73,13 @@ func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesAp
 		nonChildDependenciesOfParent, childDependenciesOfParent)
 	if err != nil {
 		impl.logger.Errorw("error in updating child dependency data", "err", err)
-		return nil, err
+		return err
 	}
 	mapOfAppsMetadata, mapOfCdPipelinesMetadata, err := impl.getMapOfAppAndCdPipelineMetadata(appIdsToGetMetadata, pipelineIdsToGetMetadata)
 	if err != nil {
 		impl.logger.Errorw("error, getMapOfAppAndCdPipelineMetadata", "err", "appIds", appIdsToGetMetadata,
 			"pipelineIds", pipelineIdsToGetMetadata)
-		return nil, err
+		return err
 	}
 	metaDataObj := &bean.DependencyMetaDataBean{
 		MapOfAppsMetadata:        mapOfAppsMetadata,
@@ -89,7 +89,7 @@ func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesAp
 	childDependenciesOfParent = impl.getUpdatedDependencyArrayWithMetadata(childDependenciesOfParent, metaDataObj)
 	response.Dependencies = nonChildDependenciesOfParent
 	response.ChildDependencies = childDependenciesOfParent
-	return response, nil
+	return nil
 }
 
 func (impl *DevtronResourceServiceImpl) getMapOfAppAndCdPipelineMetadata(appIdsToGetMetadata, pipelineIdsToGetMetadata []int) (mapOfAppsMetadata map[int]interface{}, mapOfCdPipelinesMetadata map[int]interface{}, err error) {

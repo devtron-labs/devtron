@@ -254,8 +254,8 @@ func (impl *DevtronResourceServiceImpl) getFilteredDependenciesWithMetaData(depe
 }
 
 func validateDependencyFilterCondition(dependencyOfParent *bean.DevtronResourceDependencyBean, dependencyFilterKeys []bean.FilterKeyObject) bool {
-	dependencyFilterKey := helper.GetDependencyIdentifierMap(dependencyOfParent.DevtronResourceSchemaId, strconv.Itoa(dependencyOfParent.OldObjectId))
-	allDependencyFilterKey := helper.GetDependencyIdentifierMap(dependencyOfParent.DevtronResourceSchemaId, bean.AllIdentifierQueryString)
+	dependencyFilterKey := helper.GetFilterKeyObjectFromId(dependencyOfParent.DevtronResourceSchemaId, strconv.Itoa(dependencyOfParent.OldObjectId))
+	allDependencyFilterKey := helper.GetFilterKeyObjectFromId(dependencyOfParent.DevtronResourceSchemaId, bean.AllIdentifierQueryString)
 	if dependencyFilterKeys == nil || len(dependencyFilterKeys) == 0 {
 		return true
 	} else if slices.Contains(dependencyFilterKeys, dependencyFilterKey) {

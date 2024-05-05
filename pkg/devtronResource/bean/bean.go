@@ -4,29 +4,7 @@ import (
 	"time"
 )
 
-type DevtronResourceBean struct {
-	DisplayName          string                       `json:"displayName,omitempty"`
-	Description          string                       `json:"description,omitempty"`
-	DevtronResourceId    int                          `json:"devtronResourceId"`
-	Kind                 string                       `json:"kind,omitempty"`
-	VersionSchemaDetails []*DevtronResourceSchemaBean `json:"versionSchemaDetails,omitempty"`
-	LastUpdatedOn        time.Time                    `json:"lastUpdatedOn,omitempty"`
-}
-
-type DevtronResourceSchemaBean struct {
-	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
-	Version                 string `json:"version,omitempty"`
-	Schema                  string `json:"schema,omitempty"`
-	SampleSchema            string `json:"sampleSchema,omitempty"`
-}
-
-type DevtronResourceSchemaRequestBean struct {
-	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
-	Schema                  string `json:"schema,omitempty"`
-	DisplayName             string `json:"displayName,omitempty"`
-	Description             string `json:"description,omitempty"`
-	UserId                  int    `json:"-"`
-}
+// TODO: rename this and apiBean, InternalBean files as resource object bean files
 
 type DevtronResourceObjectDescriptorBean struct {
 	Kind         string                       `json:"kind,omitempty"`
@@ -52,9 +30,8 @@ func (reqBean *DevtronResourceObjectDescriptorBean) GetResourceIdByIdType() int 
 	return 0
 }
 
-type FilterKeyObject = string
-
-type DevtronResourceObjectBean struct {
+// not used anymore, TODO: remove if testing passed and not required anymore
+type devtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Schema            string                           `json:"schema,omitempty"`
 	ObjectData        string                           `json:"objectData"`
@@ -266,36 +243,6 @@ const (
 	OldObjectId          IdType = "oldObjectId"
 )
 
-type ReleaseConfigStatus string
-
-func (s ReleaseConfigStatus) ToString() string {
-	return string(s)
-}
-
-const (
-	DraftReleaseConfigStatus     ReleaseConfigStatus = "draft"
-	ReadyForReleaseConfigStatus  ReleaseConfigStatus = "readyForRelease"
-	HoldReleaseConfigStatus      ReleaseConfigStatus = "hold"
-	RescindReleaseConfigStatus   ReleaseConfigStatus = "rescind"
-	CorruptedReleaseConfigStatus ReleaseConfigStatus = "corrupted"
-)
-
-type ReleaseRolloutStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
-
-const (
-	NotDeployedReleaseRolloutStatus        ReleaseRolloutStatus = "notDeployed"
-	PartiallyDeployedReleaseRolloutStatus  ReleaseRolloutStatus = "partiallyDeployed"
-	CompletelyDeployedReleaseRolloutStatus ReleaseRolloutStatus = "completelyDeployed"
-)
-
-type DependencyArtifactStatus string
-
-const (
-	NotSelectedDependencyArtifactStatus     DependencyArtifactStatus = "noImageSelected"
-	PartialSelectedDependencyArtifactStatus DependencyArtifactStatus = "partialImagesSelected"
-	AllSelectedDependencyArtifactStatus     DependencyArtifactStatus = "allImagesSelected"
-)
-
 const (
 	SchemaUpdateSuccessMessage = "Schema updated successfully."
 	DryRunSuccessfullMessage   = "Dry run successful"
@@ -345,13 +292,6 @@ const (
 func (n DevtronResourceSearchableKeyName) ToString() string {
 	return string(n)
 }
-
-type SearchPropertyBy string
-
-const (
-	ArtifactTag SearchPropertyBy = "artifactTag"
-	ImageTag    SearchPropertyBy = "imageTag"
-)
 
 type DevtronResourceKind string
 
@@ -421,20 +361,6 @@ func (v ValueType) ToString() string {
 	return string(v)
 }
 
-type DevtronResourceUIComponent string
-
-func (d DevtronResourceUIComponent) ToString() string {
-	return string(d)
-}
-
-const (
-	UIComponentAll          DevtronResourceUIComponent = "*"
-	UIComponentCatalog      DevtronResourceUIComponent = "catalog"
-	UIComponentOverview     DevtronResourceUIComponent = "overview"
-	UIComponentConfigStatus DevtronResourceUIComponent = "configStatus"
-	UIComponentNote         DevtronResourceUIComponent = "note"
-)
-
 const (
 	KindKey                    = "kind"
 	VersionKey                 = "version"
@@ -464,71 +390,10 @@ const (
 	OldObjectIdDbColumnKey = "old_object_id"
 	NameDbColumnKey        = "name"
 
-	ResourceObjectDependenciesPath = "dependencies"
-
-	DependencyConfigImageKey              = "artifactConfig.image"
-	DependencyConfigArtifactIdKey         = "artifactConfig.artifactId"
-	DependencyConfigRegistryNameKey       = "artifactConfig.registryName"
-	DependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
-	DependencyConfigCiWorkflowKey         = "ciWorkflowId"
-	DependencyConfigCommitSourceKey       = "commitSource"
-	DependencyConfigReleaseInstructionKey = "releaseInstruction"
-	DependencyChildInheritanceKey         = "childInheritance"
-
-	ResourceSchemaMetadataPath       = "properties.overview.properties.metadata"
-	ResourceObjectMetadataPath       = "overview.metadata"
-	ResourceObjectOverviewPath       = "overview"
-	ResourceObjectIdPath             = "overview.id"
-	ResourceObjectNamePath           = "overview.name"
-	ResourceObjectDescriptionPath    = "overview.description"
-	ResourceObjectCreatedOnPath      = "overview.createdOn"
-	ResourceObjectCreatedByPath      = "overview.createdBy"
-	ResourceObjectReleaseNotePath    = "overview.releaseNote"
-	ResourceObjectReleaseVersionPath = "overview.releaseVersion"
-	ResourceObjectTagsPath           = "overview.tags"
-	ResourceObjectIdTypePath         = "overview.idType"
-
-	ResourceObjectCreatedByIdPath   = "overview.createdBy.id"
-	ResourceObjectCreatedByNamePath = "overview.createdBy.name"
-	ResourceObjectCreatedByIconPath = "overview.createdBy.icon"
-
-	ResourceConfigStatusPath         = "status.config"
-	ResourceConfigStatusStatusPath   = "status.config.status"
-	ResourceConfigStatusCommentPath  = "status.config.comment"
-	ResourceConfigStatusIsLockedPath = "status.config.lock"
-
-	ResourceReleaseRolloutStatusPath = "status.rollout.status"
-
 	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
 	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
 
 	EmptyJsonObject = "{}"
-)
-
-type PatchQueryPath string
-type PatchQueryOperation string
-
-func (n PatchQueryPath) ToString() string {
-	return string(n)
-}
-
-const (
-	Replace PatchQueryOperation = "replace"
-	Add     PatchQueryOperation = "add"
-	Remove  PatchQueryOperation = "remove"
-)
-const (
-	ReleaseInstructionQueryPath PatchQueryPath = "releaseInstruction"
-	CommitQueryPath             PatchQueryPath = "commit"
-	ImageQueryPath              PatchQueryPath = "image"
-	DescriptionQueryPath        PatchQueryPath = "description"
-	NoteQueryPath               PatchQueryPath = "note"
-	ReadMeQueryPath             PatchQueryPath = "readme"
-	NameQueryPath               PatchQueryPath = "name"
-	StatusQueryPath             PatchQueryPath = "status"
-	LockQueryPath               PatchQueryPath = "lock"
-	TagsQueryPath               PatchQueryPath = "tags"
-	ApplicationQueryPath        PatchQueryPath = "application"
 )
 
 const (
@@ -550,6 +415,7 @@ const (
 	InvalidQueryConfigOption             = "Invalid query param: configOption!"
 	InvalidResourceVersion               = "Invalid resource version! Implementation not supported."
 	PatchPathNotSupportedError           = "patch path not supported"
+	PatchValueNotSupportedError          = "patch value not supported"
 	IdTypeNotSupportedError              = "resource object id type not supported"
 	InvalidNoDependencyRequest           = "Invalid dependency request. No dependencies present. "
 	InvalidFilterCriteria                = "invalid format filter criteria!"

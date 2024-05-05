@@ -53,10 +53,87 @@ type DtResourceObjectInternalBean struct {
 }
 
 var PatchQueryPathAuditPathMap = map[PatchQueryPath]string{
-	DescriptionQueryPath: ResourceObjectDescriptionPath,
-	StatusQueryPath:      ResourceConfigStatusPath,
-	NoteQueryPath:        ResourceObjectReleaseNotePath,
-	TagsQueryPath:        ResourceObjectTagsPath,
-	LockQueryPath:        ResourceConfigStatusIsLockedPath,
-	NameQueryPath:        ResourceObjectNamePath,
+	DescriptionQueryPath:   ResourceObjectDescriptionPath,
+	ReleaseStatusQueryPath: ReleaseResourceConfigStatusPath,
+	ReleaseNoteQueryPath:   ReleaseResourceObjectReleaseNotePath,
+	TagsQueryPath:          ResourceObjectTagsPath,
+	ReleaseLockQueryPath:   ReleaseResourceConfigStatusIsLockedPath,
+	NameQueryPath:          ResourceObjectNamePath,
 }
+
+type ReleaseConfigStatus string
+
+func (s ReleaseConfigStatus) ToString() string {
+	return string(s)
+}
+
+const (
+	DraftReleaseConfigStatus     ReleaseConfigStatus = "draft"
+	ReadyForReleaseConfigStatus  ReleaseConfigStatus = "readyForRelease"
+	HoldReleaseConfigStatus      ReleaseConfigStatus = "hold"
+	RescindReleaseConfigStatus   ReleaseConfigStatus = "rescind"
+	CorruptedReleaseConfigStatus ReleaseConfigStatus = "corrupted"
+)
+
+type ReleaseRolloutStatus string //status of release, i.e. rollout status of the release. Not to be confused with config status
+
+func (s ReleaseRolloutStatus) ToString() string {
+	return string(s)
+}
+
+const (
+	NotDeployedReleaseRolloutStatus        ReleaseRolloutStatus = "notDeployed"
+	PartiallyDeployedReleaseRolloutStatus  ReleaseRolloutStatus = "partiallyDeployed"
+	CompletelyDeployedReleaseRolloutStatus ReleaseRolloutStatus = "completelyDeployed"
+)
+
+type DependencyArtifactStatus string
+
+func (s DependencyArtifactStatus) ToString() string {
+	return string(s)
+}
+
+const (
+	NotSelectedDependencyArtifactStatus     DependencyArtifactStatus = "noImageSelected"
+	PartialSelectedDependencyArtifactStatus DependencyArtifactStatus = "partialImagesSelected"
+	AllSelectedDependencyArtifactStatus     DependencyArtifactStatus = "allImagesSelected"
+)
+
+const (
+	ResourceSchemaMetadataPath      = "properties.overview.properties.metadata"
+	ResourceObjectMetadataPath      = "overview.metadata"
+	ResourceObjectOverviewPath      = "overview"
+	ResourceObjectIdPath            = "overview.id"
+	ResourceObjectNamePath          = "overview.name"
+	ResourceObjectDescriptionPath   = "overview.description"
+	ResourceObjectCreatedOnPath     = "overview.createdOn"
+	ResourceObjectCreatedByPath     = "overview.createdBy"
+	ResourceObjectTagsPath          = "overview.tags"
+	ResourceObjectIdTypePath        = "overview.idType"
+	ResourceObjectCreatedByIdPath   = "overview.createdBy.id"
+	ResourceObjectCreatedByNamePath = "overview.createdBy.name"
+	ResourceObjectCreatedByIconPath = "overview.createdBy.icon"
+
+	ResourceObjectDependenciesPath = "dependencies"
+	DependencyChildInheritanceKey  = "childInheritance"
+)
+
+// release specific keys
+const (
+	ReleaseResourceObjectReleaseNotePath    = "overview.releaseNote"
+	ReleaseResourceObjectReleaseVersionPath = "overview.releaseVersion"
+
+	ReleaseResourceConfigStatusPath         = "status.config"
+	ReleaseResourceConfigStatusStatusPath   = "status.config.status"
+	ReleaseResourceConfigStatusCommentPath  = "status.config.comment"
+	ReleaseResourceConfigStatusIsLockedPath = "status.config.lock"
+	ReleaseResourceRolloutStatusPath        = "status.rollout.status"
+
+	ReleaseResourceDependencyConfigImageKey              = "artifactConfig.image"
+	ReleaseResourceDependencyConfigArtifactIdKey         = "artifactConfig.artifactId"
+	ReleaseResourceDependencyConfigRegistryNameKey       = "artifactConfig.registryName"
+	ReleaseResourceDependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
+	ReleaseResourceDependencyConfigCiWorkflowKey         = "ciWorkflowId"
+	ReleaseResourceDependencyConfigCommitSourceKey       = "commitSource"
+	ReleaseResourceDependencyConfigReleaseInstructionKey = "releaseInstruction"
+)

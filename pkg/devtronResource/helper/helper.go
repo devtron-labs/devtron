@@ -72,7 +72,7 @@ func GetKindSubKindOfResource(devtronResource *repository.DevtronResource, devtr
 	return kind, subKind
 }
 
-func GetDependencyIdentifierMap(devtronResourceSchemaId int, oldObjectId string) bean.FilterKeyObject {
+func GetFilterKeyObjectFromId(devtronResourceSchemaId int, oldObjectId string) bean.FilterKeyObject {
 	// key can be "oldObjectId-schemaId" or "name-schemaId"
 	return fmt.Sprintf("%d/%s", devtronResourceSchemaId, oldObjectId)
 }

@@ -52,9 +52,9 @@ type DevtronResourceService interface {
 	//    - supports filtering on resource object list b=in format resource|type|comma seperated values
 	//    - release-track|id|12,13,14
 	ListResourceObjectByKindAndVersion(kind, subKind, version string, isLite, fetchChild bool, filterCriteria []string) (pagination.PaginatedResponse[*bean.DevtronResourceObjectGetAPIBean], error)
-	// GetResourceObject will get the bean.DevtronResourceObjectBean based on the given bean.DevtronResourceObjectDescriptorBean
+	// GetResourceObject will get the bean.DevtronResourceObjectGetAPIBean based on the given bean.DevtronResourceObjectDescriptorBean
 	GetResourceObject(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectGetAPIBean, error)
-	// CreateResourceObject creates resource object corresponding to kind,version according to bean.DevtronResourceObjectBean
+	// CreateResourceObject creates resource object corresponding to kind,version according to bean.DtResourceObjectCreateReqBean
 	CreateResourceObject(ctx context.Context, reqBean *bean.DtResourceObjectCreateReqBean) error
 	// CreateOrUpdateResourceObject is only used for catalog
 	CreateOrUpdateResourceObject(ctx context.Context, reqBean *bean.DtResourceObjectCatalogReqBean) error
@@ -62,9 +62,9 @@ type DevtronResourceService interface {
 	PatchResourceObject(ctx context.Context, req *bean.DtResourceObjectPatchReqBean) (*bean.SuccessResponse, error)
 	// DeleteResourceObject deletes resource object corresponding to kind,version, id or name
 	DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error)
-	// GetResourceDependencies will get the bean.DevtronResourceObjectBean based on the given bean.DevtronResourceObjectDescriptorBean
+	// GetResourceDependencies will get the bean.DtResourceObjectDependenciesReqBean based on the given bean.DevtronResourceObjectDescriptorBean
 	// It provides the dependencies and child dependencies []bean.DevtronResourceDependencyBean
-	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DevtronResourceObjectBean, error)
+	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DtResourceObjectDependenciesReqBean, error)
 	GetDependencyConfigOptions(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetConfigOptionsQueryParams) (any, error)
 	CreateOrUpdateResourceDependencies(ctx context.Context, req *bean.DtResourceObjectDependenciesReqBean) error
 	// PatchResourceDependencies supports json patch operation corresponding to kind,subKind,version on json object data takes in ([]PatchQuery in DevtronResourceObjectBean), returns error if any
@@ -453,6 +453,20 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceObject(ctx context
 	if err != nil {
 		return err
 	}
+	isValid, err := impl.checkIfResourcePatchOperationValid(reqBean.DevtronResourceObjectDescriptorBean,
+		devtronResourceObject.ObjectData, []bean.PatchQuery{{Path: bean.CatalogQueryPath}})
+	if err != nil {
+		impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", reqBean)
+		return err
+	}
+	if !isValid {
+		impl.logger.Errorw("error in resource patch operation : invalid action", "req", reqBean)
+		return &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: bean.InvalidPatchOperation,
+			UserMessage:     bean.InvalidPatchOperation,
+		}
+	}
 	resourceObjReq := adapter.GetRequirementRequestForCatalogRequest(reqBean, false)
 	return impl.createOrUpdateDevtronResourceObject(newCtx, resourceObjReq, devtronResourceSchema, devtronResourceObject, nil)
 }
@@ -471,6 +485,19 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 	}
 	// performing json patch operations
 	objectData := existingResourceObject.ObjectData
+	isValid, err := impl.checkIfResourcePatchOperationValid(req.DevtronResourceObjectDescriptorBean, objectData, req.PatchQuery)
+	if err != nil {
+		impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", req)
+		return nil, err
+	}
+	if !isValid {
+		impl.logger.Errorw("error in resource patch operation : invalid action", "req", req)
+		return nil, &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: bean.InvalidPatchOperation,
+			UserMessage:     bean.InvalidPatchOperation,
+		}
+	}
 	newObjectData, auditPaths, err := impl.performResourcePatchOperation(req.DevtronResourceObjectDescriptorBean, objectData, req.PatchQuery)
 	if err != nil {
 		impl.logger.Errorw("error encountered in PatchResourceObject", "query", req.PatchQuery, "err", err)
@@ -487,6 +514,16 @@ func (impl *DevtronResourceServiceImpl) PatchResourceObject(ctx context.Context,
 	}
 	impl.dtResourceObjectAuditService.SaveAudit(existingResourceObject, repository.AuditOperationTypePatch, auditPaths)
 	return adapter.GetSuccessPassResponse(), nil
+}
+
+// checkIfResourcePatchOperationValid : this function checks patch operation(includes dependency patch as well) validity
+func (impl *DevtronResourceServiceImpl) checkIfResourcePatchOperationValid(descriptorBean *bean.DevtronResourceObjectDescriptorBean,
+	objectData string, queries []bean.PatchQuery) (bool, error) {
+	f := getFuncToCheckPatchOperationValidity(descriptorBean.Kind, descriptorBean.SubKind, descriptorBean.Version)
+	if f != nil {
+		return f(impl, objectData, queries)
+	}
+	return true, nil
 }
 
 func (impl *DevtronResourceServiceImpl) performResourcePatchOperation(descriptorBean *bean.DevtronResourceObjectDescriptorBean, objectData string, queries []bean.PatchQuery) (string, []string, error) {
@@ -545,7 +582,7 @@ func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context
 //
 //Get resource object dependencies and related method starts
 
-func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DevtronResourceObjectBean, error) {
+func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DtResourceObjectDependenciesReqBean, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
 	resourceSchemaOfRequestObject, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req)
 	if err != nil {
@@ -566,7 +603,8 @@ func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.Devtro
 		impl.logger.Errorw("error in getting resource dependencies data", "err", err, "query", query)
 		return nil, err
 	}
-	return adapter.RemoveInternalOnlyFieldsFromResourceObjectBean(response), nil
+	adapter.RemoveInternalOnlyFieldsFromDependencyReqBean(response)
+	return response, nil
 }
 
 // getDependencyBeanForGetDependenciesApi is used for get resource dependencies by extra child objects data which is not present in schema
@@ -580,7 +618,6 @@ func (impl *DevtronResourceServiceImpl) getDependencyBeanForGetDependenciesApi(p
 	childObjects, err := impl.getChildObjectsByParentResourceType(parentResourceType, dependency, isLite, oldObjectId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getDependencyBeanForGetDependenciesApi", "err", err, "dependency", dependency)
-
 		return nil, err
 	}
 	// setting child objects only for ui (get resource dependencies api), not stored in schema
@@ -590,18 +627,18 @@ func (impl *DevtronResourceServiceImpl) getDependencyBeanForGetDependenciesApi(p
 }
 
 func (impl *DevtronResourceServiceImpl) getResourceDependenciesData(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams,
-	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject) (*bean.DevtronResourceObjectBean, error) {
-	response := &bean.DevtronResourceObjectBean{
+	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject) (*bean.DtResourceObjectDependenciesReqBean, error) {
+	response := &bean.DtResourceObjectDependenciesReqBean{
 		Dependencies:      make([]*bean.DevtronResourceDependencyBean, 0),
 		ChildDependencies: make([]*bean.DevtronResourceDependencyBean, 0),
 	}
 	f := getFuncToUpdateResourceDependenciesDataInResponseObj(req.Kind, req.SubKind, req.Version)
 	if f != nil {
-		return f(impl, req, query, resourceSchema, resourceObject, response)
+		err := f(impl, req, query, resourceSchema, resourceObject, response)
+		return response, err
 	} else {
-		//do nothing, as currently all resource types do not need handling for this
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKind, bean.InvalidResourceKind)
 	}
-	return response, nil
 }
 
 //Get resource object dependencies and related method ends
@@ -1051,6 +1088,19 @@ func (impl *DevtronResourceServiceImpl) PatchResourceDependencies(ctx context.Co
 	for _, patchReq := range req.DependencyPatch {
 		// performing json patch operations
 		patchQuery := patchReq.PatchQuery
+		isValid, err := impl.checkIfResourcePatchOperationValid(req.DevtronResourceObjectDescriptorBean, objectData, patchQuery)
+		if err != nil {
+			impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", req)
+			return nil, err
+		}
+		if !isValid {
+			impl.logger.Errorw("error in resource patch operation : invalid action", "req", req)
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: bean.InvalidPatchOperation,
+				UserMessage:     bean.InvalidPatchOperation,
+			}
+		}
 		dependencyInfo := patchReq.DependencyInfo
 		jsonPath := ""
 		for _, query := range patchQuery {
@@ -1077,15 +1127,15 @@ func (impl *DevtronResourceServiceImpl) PatchResourceDependencies(ctx context.Co
 
 func (impl *DevtronResourceServiceImpl) performDependencyPatchOperation(devtronResourceSchemaId int, objectData string, query bean.PatchQuery, dependencyInfo *bean.DependencyInfo) (string, string, error) {
 	switch query.Path {
-	case bean.ApplicationQueryPath:
+	case bean.ReleaseDepApplicationQueryPath:
 		//currently only remove is supported
 		if query.Operation != bean.Remove || dependencyInfo == nil {
 			return "", "", util.GetApiErrorAdapter(http.StatusNotFound, "400", bean.InvalidPatchOperation, bean.InvalidPatchOperation)
 		}
 		return impl.removeApplicationDependency(devtronResourceSchemaId, objectData, dependencyInfo)
-	case bean.ReleaseInstructionQueryPath:
+	case bean.ReleaseDepInstructionQueryPath:
 		return impl.patchReleaseInstructionForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value.(string))
-	case bean.ImageQueryPath:
+	case bean.ReleaseDepConfigImageQueryPath:
 		return impl.patchConfigImageForApplication(devtronResourceSchemaId, objectData, dependencyInfo, query.Value)
 	default:
 		return "", "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)

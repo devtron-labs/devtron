@@ -57,3 +57,60 @@ const (
 	PartiallyReleasedReleaseStatus         ReleaseStatus = "partiallyReleased"
 	CompletelyReleasedReleaseRolloutStatus ReleaseStatus = "completelyReleased"
 )
+
+type DevtronResourceUIComponent string
+
+func (d DevtronResourceUIComponent) ToString() string {
+	return string(d)
+}
+
+const (
+	UIComponentAll          DevtronResourceUIComponent = "*"
+	UIComponentCatalog      DevtronResourceUIComponent = "catalog"
+	UIComponentOverview     DevtronResourceUIComponent = "overview"
+	UIComponentConfigStatus DevtronResourceUIComponent = "configStatus"
+	UIComponentNote         DevtronResourceUIComponent = "note"
+)
+
+type PatchQueryPath string
+type PatchQueryOperation string
+
+func (n PatchQueryPath) ToString() string {
+	return string(n)
+}
+
+func (n PatchQueryOperation) ToString() string {
+	return string(n)
+}
+
+const (
+	Replace PatchQueryOperation = "replace"
+	Add     PatchQueryOperation = "add"
+	Remove  PatchQueryOperation = "remove"
+)
+
+const (
+	// common query paths
+	DescriptionQueryPath PatchQueryPath = "description"
+	NameQueryPath        PatchQueryPath = "name"
+	TagsQueryPath        PatchQueryPath = "tags"
+	CatalogQueryPath     PatchQueryPath = "catalog"
+
+	//release specific query paths
+	CommitQueryPath                PatchQueryPath = "commit"
+	ReleaseNoteQueryPath           PatchQueryPath = "note"
+	ReleaseStatusQueryPath         PatchQueryPath = "status"
+	ReleaseLockQueryPath           PatchQueryPath = "lock"
+	ReleaseDepInstructionQueryPath PatchQueryPath = "releaseInstruction"
+	ReleaseDepConfigImageQueryPath PatchQueryPath = "image"
+	ReleaseDepApplicationQueryPath PatchQueryPath = "application"
+)
+
+type FilterKeyObject = string
+
+type SearchPropertyBy string
+
+const (
+	ArtifactTag SearchPropertyBy = "artifactTag"
+	ImageTag    SearchPropertyBy = "imageTag"
+)

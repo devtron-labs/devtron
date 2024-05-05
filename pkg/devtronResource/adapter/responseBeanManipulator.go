@@ -26,7 +26,7 @@ func removeInternalOnlyFieldsFromDependencyObjectBean(dependencies []*bean.Devtr
 	}
 }
 
-func RemoveInternalOnlyFieldsFromResourceObjectBean(reqBean *bean.DevtronResourceObjectBean) *bean.DevtronResourceObjectBean {
+func RemoveInternalOnlyFieldsFromDependencyReqBean(reqBean *bean.DtResourceObjectDependenciesReqBean) {
 	if reqBean.DevtronResourceObjectDescriptorBean != nil {
 		removeInternalOnlyFieldsFromDescriptorObjectBean(reqBean.DevtronResourceObjectDescriptorBean)
 	}
@@ -36,5 +36,4 @@ func RemoveInternalOnlyFieldsFromResourceObjectBean(reqBean *bean.DevtronResourc
 	if reqBean.ChildDependencies != nil || len(reqBean.ChildDependencies) != 0 {
 		removeInternalOnlyFieldsFromDependencyObjectBean(reqBean.ChildDependencies)
 	}
-	return reqBean
 }

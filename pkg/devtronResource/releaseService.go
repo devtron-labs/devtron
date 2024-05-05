@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -75,10 +76,10 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusForGetApiResour
 		//getting metadata out of this object
 		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
-		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusPath).Exists() {
+		if gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceConfigStatusPath).Exists() {
 			var status bean.ReleaseStatus
-			configStatus := bean.ReleaseConfigStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusStatusPath).String())
-			rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ResourceReleaseRolloutStatusPath).String())
+			configStatus := bean.ReleaseConfigStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceConfigStatusStatusPath).String())
+			rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
 			switch configStatus {
 			case bean.DraftReleaseConfigStatus:
 				status = bean.DraftReleaseStatus
@@ -102,8 +103,8 @@ func (impl *DevtronResourceServiceImpl) updateReleaseConfigStatusForGetApiResour
 			}
 			resourceObject.ReleaseStatus = &bean.ReleaseStatusApiBean{
 				Status:   status,
-				Comment:  gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusCommentPath).String(),
-				IsLocked: gjson.Get(existingResourceObject.ObjectData, bean.ResourceConfigStatusIsLockedPath).Bool(),
+				Comment:  gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceConfigStatusCommentPath).String(),
+				IsLocked: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceConfigStatusIsLockedPath).Bool(),
 			}
 		}
 	}
@@ -117,11 +118,11 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteForGetApiResourceObj(re
 		//getting metadata out of this object
 		resourceObject.OldObjectId, _ = helper.GetResourceObjectIdAndType(existingResourceObject)
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
-		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectReleaseNotePath).Exists() {
+		if gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectReleaseNotePath).Exists() {
 			resourceObject.Overview.Note = &bean.NoteBean{
-				Value: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectReleaseNotePath).String(),
+				Value: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectReleaseNotePath).String(),
 			}
-			audit, err := impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ResourceObjectReleaseNotePath)
+			audit, err := impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ReleaseResourceObjectReleaseNotePath)
 			if err != nil {
 				impl.logger.Errorw("error in getting audit ")
 			} else if audit != nil && audit.Id >= 0 {
@@ -149,7 +150,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataForGetApiResour
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
 			resourceObject.Overview = &bean.ResourceOverview{
 				Description:    gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectDescriptionPath).String(),
-				ReleaseVersion: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectReleaseVersionPath).String(),
+				ReleaseVersion: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String(),
 				CreatedBy: &bean.UserSchema{
 					Id:   int32(gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIdPath).Int()),
 					Name: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByNamePath).String(),
@@ -182,7 +183,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseVersionAndParentConfigInRes
 		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
 		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
 			resourceObject.Overview = &bean.ResourceOverview{
-				ReleaseVersion: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectReleaseVersionPath).String(),
+				ReleaseVersion: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String(),
 			}
 		}
 	}
@@ -259,7 +260,7 @@ func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objec
 		}
 	}
 	if reqBean.ConfigStatus != nil {
-		objectData, err = sjson.Set(objectData, bean.ResourceConfigStatusPath, adapter.BuildConfigStatusSchemaData(reqBean.ConfigStatus))
+		objectData, err = sjson.Set(objectData, bean.ReleaseResourceConfigStatusPath, adapter.BuildConfigStatusSchemaData(reqBean.ConfigStatus))
 		if err != nil {
 			impl.logger.Errorw("error in setting id in schema", "err", err, "request", reqBean)
 			return objectData, err
@@ -278,7 +279,7 @@ func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objec
 func (impl *DevtronResourceServiceImpl) setReleaseOverviewFieldsInObjectData(objectData string, overview *bean.ResourceOverview) (string, error) {
 	var err error
 	if overview.ReleaseVersion != "" {
-		objectData, err = sjson.Set(objectData, bean.ResourceObjectReleaseVersionPath, overview.ReleaseVersion)
+		objectData, err = sjson.Set(objectData, bean.ReleaseResourceObjectReleaseVersionPath, overview.ReleaseVersion)
 		if err != nil {
 			impl.logger.Errorw("error in setting description in schema", "err", err, "overview", overview)
 			return objectData, err
@@ -304,7 +305,7 @@ func (impl *DevtronResourceServiceImpl) setReleaseOverviewFieldsInObjectData(obj
 		}
 	}
 	if overview.Note != nil {
-		objectData, err = sjson.Set(objectData, bean.ResourceObjectReleaseNotePath, overview.Note.Value)
+		objectData, err = sjson.Set(objectData, bean.ReleaseResourceObjectReleaseNotePath, overview.Note.Value)
 		if err != nil {
 			impl.logger.Errorw("error in setting description in schema", "err", err, "overview", overview)
 			return objectData, err
@@ -321,7 +322,7 @@ func (impl *DevtronResourceServiceImpl) setReleaseOverviewFieldsInObjectData(obj
 }
 
 func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseResourceObj(object *repository.DevtronResourceObject) (string, error) {
-	releaseVersion := gjson.Get(object.ObjectData, bean.ResourceObjectReleaseVersionPath).String()
+	releaseVersion := gjson.Get(object.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
 	_, releaseTrackObject, err := impl.getParentConfigVariablesFromDependencies(object.ObjectData)
 	if err != nil {
 		impl.logger.Errorw("error in getting release track object", "err", err, "resourceObjectId", object.Id)
@@ -404,11 +405,11 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 }
 
 func (impl *DevtronResourceServiceImpl) updateReleaseDataForGetDependenciesApi(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams,
-	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DevtronResourceObjectBean) (*bean.DevtronResourceObjectBean, error) {
+	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DtResourceObjectDependenciesReqBean) error {
 	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, query.IsLite)
 	if err != nil {
 		impl.logger.Errorw("error in getting dependencies from json object", "err", err)
-		return nil, err
+		return err
 	}
 	filterDependencyTypes := []bean.DevtronResourceDependencyType{
 		bean.DevtronResourceDependencyTypeLevel,
@@ -417,17 +418,17 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDataForGetDependenciesApi(r
 	appIdsToGetMetadata := helper.GetDependencyOldObjectIdsForSpecificType(dependenciesOfParent, bean.DevtronResourceDependencyTypeUpstream)
 	dependencyFilterKeys, err := impl.getFilterKeysFromDependenciesInfo(query.DependenciesInfo)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	appMetadataObj, appIdNameMap, err := impl.getMapOfAppMetadata(appIdsToGetMetadata)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	metadataObj := &bean.DependencyMetaDataBean{
 		MapOfAppsMetadata: appMetadataObj,
 	}
 	response.Dependencies = impl.getFilteredDependenciesWithMetaData(dependenciesOfParent, filterDependencyTypes, dependencyFilterKeys, metadataObj, appIdNameMap)
-	return response, nil
+	return nil
 }
 
 func (impl *DevtronResourceServiceImpl) getReleaseDependenciesData(resourceObject *repository.DevtronResourceObject, filterDependencyTypes []bean.DevtronResourceDependencyType, dependenciesInfo []string, isLite bool) ([]*bean.DevtronResourceDependencyBean, error) {
@@ -457,15 +458,15 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 		configData.DevtronAppDependencyConfig = &bean.DevtronAppDependencyConfig{}
 	}
 	if !isLite {
-		artifactId := int(gjson.Get(configDataJsonObj, bean.DependencyConfigArtifactIdKey).Int())
+		artifactId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigArtifactIdKey).Int())
 		// getting artifact git commit data and image at runtime by artifact id instead of setting this schema, this has to be modified when commit source is also kept in schema (eg ci trigger is introduced)
 		artifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error encountered in updateReleaseDependencyConfigDataInObj", "artifactId", artifactId, "err", err)
 			return err
 		}
-		configData.ReleaseInstruction = gjson.Get(configDataJsonObj, bean.DependencyConfigReleaseInstructionKey).String()
-		configData.CiWorkflowId = int(gjson.Get(configDataJsonObj, bean.DependencyConfigCiWorkflowKey).Int())
+		configData.ReleaseInstruction = gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigReleaseInstructionKey).String()
+		configData.CiWorkflowId = int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigCiWorkflowKey).Int())
 		gitCommitData := make([]bean.GitCommitData, 0)
 		if artifactId > 0 {
 			materialInfo, err := artifact.GetMaterialInfo()
@@ -483,8 +484,8 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 		configData.ArtifactConfig = &bean.ArtifactConfig{
 			ArtifactId:   artifactId,
 			Image:        artifact.Image,
-			RegistryType: gjson.Get(configDataJsonObj, bean.DependencyConfigRegistryTypeKey).String(),
-			RegistryName: gjson.Get(configDataJsonObj, bean.DependencyConfigRegistryNameKey).String(),
+			RegistryType: gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryTypeKey).String(),
+			RegistryName: gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryNameKey).String(),
 			CommitSource: gitCommitData,
 		}
 	}
@@ -527,7 +528,7 @@ func (impl *DevtronResourceServiceImpl) getFilterKeysFromDependenciesInfo(depend
 		} else {
 			identifierString = bean.AllIdentifierQueryString
 		}
-		dependencyFilterKey := helper.GetDependencyIdentifierMap(dependencyResourceSchema.Id, identifierString)
+		dependencyFilterKey := helper.GetFilterKeyObjectFromId(dependencyResourceSchema.Id, identifierString)
 		if !slices.Contains(dependencyFilterKeys, dependencyFilterKey) {
 			dependencyFilterKeys = append(dependencyFilterKeys, dependencyFilterKey)
 		}
@@ -677,10 +678,36 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyChildObjectsInObj
 	return childObjects, nil
 }
 
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourcePatchValid(objectData string, queries []bean.PatchQuery) (bool, error) {
+	operationsPaths := make([]bean2.PolicyReleaseOperationPath, 0, len(queries))
+	for _, query := range queries {
+		operationsPaths = append(operationsPaths, bean2.PatchQueryPathReleasePolicyOpPathMap[query.Path])
+	}
+	return impl.checkIfReleaseResourceOperationValid(objectData, bean2.PolicyReleaseOperationTypePatch, operationsPaths)
+}
+
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(objectData string) (bool, error) {
+	return impl.checkIfReleaseResourceOperationValid(objectData, bean2.PolicyReleaseOperationTypeDeploymentTrigger, nil)
+}
+
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceDeletionValid(objectData string) (bool, error) {
+	return impl.checkIfReleaseResourceOperationValid(objectData, bean2.PolicyReleaseOperationTypeDelete, nil)
+}
+
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceOperationValid(objectData string, operationType bean2.PolicyReleaseOperationType,
+	operationPaths []bean2.PolicyReleaseOperationPath) (bool, error) {
+	stateFrom, err := adapter.GetPolicyDefinitionStateFromReleaseObject(objectData)
+	if err != nil {
+		impl.logger.Errorw("error, GetPolicyDefinitionStateFromReleaseObject", "err", err, "objectData", objectData)
+		return false, err
+	}
+	return impl.releasePolicyEvaluationService.EvaluateReleaseActionRequest(operationType, operationPaths, stateFrom)
+}
+
 func (impl *DevtronResourceServiceImpl) performReleaseResourcePatchOperation(objectData string, queries []bean.PatchQuery) (string, []string, error) {
 	var err error
 	auditPaths := make([]string, 0, len(queries))
-	toPerformPolicyCheck := false
+	toPerformStatusPolicyCheck := false
 	newObjectData := objectData //will be using this for patches and mutation since we need old object for policy check
 	for _, query := range queries {
 		newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
@@ -689,11 +716,11 @@ func (impl *DevtronResourceServiceImpl) performReleaseResourcePatchOperation(obj
 			return "", nil, err
 		}
 		auditPaths = append(auditPaths, bean.PatchQueryPathAuditPathMap[query.Path])
-		if query.Path == bean.StatusQueryPath || query.Path == bean.LockQueryPath {
-			toPerformPolicyCheck = true
+		if query.Path == bean.ReleaseStatusQueryPath || query.Path == bean.ReleaseLockQueryPath {
+			toPerformStatusPolicyCheck = true
 		}
 	}
-	if toPerformPolicyCheck {
+	if toPerformStatusPolicyCheck {
 		newObjectData, err = impl.checkReleasePatchPolicyAndAutoAction(objectData, newObjectData)
 		if err != nil {
 			impl.logger.Errorw("error, checkReleasePatchPolicyAndAutoAction", "err", err, "objectData", objectData, "newObjectData", newObjectData)
@@ -704,8 +731,16 @@ func (impl *DevtronResourceServiceImpl) performReleaseResourcePatchOperation(obj
 }
 
 func (impl *DevtronResourceServiceImpl) checkReleasePatchPolicyAndAutoAction(oldObjectData, newObjectData string) (string, error) {
-	stateFrom := adapter.GetPolicyDefinitionStateFromReleaseObject(oldObjectData)
-	stateTo := adapter.GetPolicyDefinitionStateFromReleaseObject(newObjectData)
+	stateFrom, err := adapter.GetPolicyDefinitionStateFromReleaseObject(oldObjectData)
+	if err != nil {
+		impl.logger.Errorw("error, GetPolicyDefinitionStateFromReleaseObject", "err", err, "oldObjectData", oldObjectData)
+		return "", err
+	}
+	stateTo, err := adapter.GetPolicyDefinitionStateFromReleaseObject(newObjectData)
+	if err != nil {
+		impl.logger.Errorw("error, GetPolicyDefinitionStateFromReleaseObject", "err", err, "newObjectData", newObjectData)
+		return "", err
+	}
 
 	isValid, autoAction, err := impl.releasePolicyEvaluationService.EvaluateReleaseStatusChangeAndGetAutoAction(stateTo, stateFrom)
 	if err != nil {
@@ -721,29 +756,15 @@ func (impl *DevtronResourceServiceImpl) checkReleasePatchPolicyAndAutoAction(old
 		}
 	}
 	if autoAction != nil {
-		if autoAction.LockStatus == nil {
-			autoAction.LockStatus = stateTo.LockStatus //not handling stateTo lock status nil because it is coming from adapter and always assuming it to be present
+		patchQueries, err := adapter.GetPatchQueryForPolicyAutoAction(autoAction, stateTo)
+		if err != nil {
+			impl.logger.Errorw("error, GetPatchQueryForPolicyAutoAction", "autoAction", autoAction, "stateTo", stateTo, "newObjectData", newObjectData)
+			return "", err
 		}
-		//policy valid, apply auto action if needed
-		if autoAction.ConfigStatus != stateTo.ConfigStatus {
-			query := bean.PatchQuery{
-				Path:  bean.StatusQueryPath,
-				Value: autoAction.ConfigStatus,
-			}
-			newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
+		for _, patchQuery := range patchQueries {
+			newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, patchQuery)
 			if err != nil {
-				impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
-				return newObjectData, err
-			}
-		}
-		if *autoAction.LockStatus != *stateTo.LockStatus {
-			query := bean.PatchQuery{
-				Path:  bean.LockQueryPath,
-				Value: *autoAction.LockStatus,
-			}
-			newObjectData, err = impl.patchQueryForReleaseObject(newObjectData, query)
-			if err != nil {
-				impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", query)
+				impl.logger.Errorw("error in auto action patch operation, release track", "err", err, "objectData", "query", patchQuery)
 				return newObjectData, err
 			}
 		}
@@ -756,14 +777,14 @@ func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData st
 	switch query.Path {
 	case bean.DescriptionQueryPath:
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectDescriptionPath, query.Value)
-	case bean.StatusQueryPath:
+	case bean.ReleaseStatusQueryPath:
 		objectData, err = impl.patchConfigStatus(objectData, query.Value)
-	case bean.NoteQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectReleaseNotePath, query.Value)
+	case bean.ReleaseNoteQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceObjectReleaseNotePath, query.Value)
 	case bean.TagsQueryPath:
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectTagsPath, query.Value)
-	case bean.LockQueryPath:
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusIsLockedPath, query.Value)
+	case bean.ReleaseLockQueryPath:
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusIsLockedPath, query.Value)
 	case bean.NameQueryPath:
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
 	default:
@@ -773,22 +794,16 @@ func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData st
 }
 
 func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, value interface{}) (string, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		impl.logger.Errorw("error encountered in patchConfigStatus", "value", value, "err", err)
-		return objectData, err
+	var err error
+	if configStatus, ok := value.(bean.ConfigStatus); ok {
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusCommentPath, configStatus.Comment)
+		if err != nil {
+			return objectData, err
+		}
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusStatusPath, configStatus.Status)
+	} else {
+		return objectData, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchValueNotSupportedError, bean.PatchValueNotSupportedError)
 	}
-	var configStatus bean.ConfigStatus
-	err = json.Unmarshal(data, &configStatus)
-	if err != nil {
-		impl.logger.Errorw("error encountered in patchConfigStatus", "value ", value, "err", err)
-		return objectData, err
-	}
-	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusCommentPath, configStatus.Comment)
-	if err != nil {
-		return objectData, err
-	}
-	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceConfigStatusStatusPath, configStatus.Status)
 	return objectData, err
 }
 
@@ -797,7 +812,7 @@ func (impl *DevtronResourceServiceImpl) validateReleaseDelete(object *repository
 		return false, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
 	}
 	//getting release rollout status
-	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(object.ObjectData, bean.ResourceReleaseRolloutStatusPath).String())
+	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(object.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
 	return rolloutStatus != bean.PartiallyDeployedReleaseRolloutStatus &&
 		rolloutStatus != bean.CompletelyDeployedReleaseRolloutStatus, nil
 }
