@@ -37,7 +37,6 @@ func GetPatchQueryForPolicyAutoAction(autoAction, stateTo *bean.ReleaseStatusDef
 func GetPolicyDefinitionStateFromReleaseObject(objectData string) (*bean.ReleaseStatusDefinitionState, error) {
 	policyConfigStatus, err := getReleasePolicyConfigStatusFromResourceObjData(objectData)
 	if err != nil {
-		//not handling as this is not meanin
 		return nil, err
 	}
 	policyRolloutStatus, err := getReleasePolicyRolloutStatusFromResourceObjData(objectData)
