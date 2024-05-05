@@ -1964,4 +1964,4 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
         }
     ],
     "consequence": "BLOCK"
-}', true, false, 1, now(),1,now())
+}', true, false, 1, now(),1,now());
