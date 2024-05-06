@@ -64,7 +64,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
         RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
-        GIT_CONFIG_NAME: ${{ env.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
         GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
     # Send notification on discord
     - name: discord-notify
