@@ -137,7 +137,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.metadata ILIKE ? OR intercepted_event_execution.involved_objects ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%", "%"+interceptedEventsQueryParams.SearchString+"%")
+		query = query.Where("intercepted_event_execution.metadata ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 {

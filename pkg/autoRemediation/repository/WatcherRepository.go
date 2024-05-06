@@ -56,7 +56,6 @@ func NewWatcherRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *K
 func (impl K8sEventWatcherRepositoryImpl) Save(watcher *K8sEventWatcher, tx *pg.Tx) (*K8sEventWatcher, error) {
 	_, err := tx.Model(watcher).Insert()
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
 	return watcher, nil
@@ -80,7 +79,6 @@ func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWat
 func (impl K8sEventWatcherRepositoryImpl) Delete(watcher *K8sEventWatcher) error {
 	err := impl.dbConnection.Delete(&watcher)
 	if err != nil {
-		impl.logger.Error(err)
 		return err
 	}
 	return nil
@@ -89,7 +87,6 @@ func (impl K8sEventWatcherRepositoryImpl) GetWatcherById(id int) (*K8sEventWatch
 	var watcher K8sEventWatcher
 	err := impl.dbConnection.Model(&watcher).Where("id = ? and active = ?", id, true).Select()
 	if err != nil {
-		impl.logger.Error(err)
 		return &K8sEventWatcher{}, err
 	}
 	return &watcher, nil
@@ -101,7 +98,6 @@ func (impl K8sEventWatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*K8sEven
 		Where("id IN (?) and active = ?", pg.In(ids), true).
 		Select()
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
 	return watchers, nil
@@ -110,7 +106,6 @@ func (impl K8sEventWatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*K8sEven
 func (impl K8sEventWatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	_, err := impl.dbConnection.Model(&K8sEventWatcher{}).Set("active = ?", false).Where("id = ?", id).Update()
 	if err != nil {
-		impl.logger.Error(err)
 		return err
 	}
 	return nil

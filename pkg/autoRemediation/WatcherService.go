@@ -433,7 +433,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
 	watcher.SelectedActions = watcherRequest.EventConfiguration.SelectedActions
 	watcher.Gvks = gvks
-	watcher.AuditLog = sql.NewDefaultAuditLog(userId)
+	watcher.UpdateAuditLog(userId)
 	tx, err := impl.triggerRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction for creating trigger", watcherId, "error", err)
@@ -798,6 +798,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 		clusterIdtoName[cluster.Id] = cluster.ClusterName
 	}
 	var interceptedEvents []InterceptedEventsDto
+	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
 		interceptedEvent := InterceptedEventsDto{
 			Action:             event.Action,
@@ -813,6 +814,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 			TriggerId:          event.TriggerId,
 			TriggerExecutionId: event.TriggerExecutionId,
 		}
+
 		var triggerData TriggerData
 		if err := json.Unmarshal([]byte(event.TriggerData), &triggerData); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
@@ -823,7 +825,22 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 			IdentifierType: event.TriggerType,
 			Data:           triggerData,
 		}
+		if interceptedEvent.Trigger.IdentifierType == repository.DEVTRON_JOB {
+			triggerExecutionIds = append(triggerExecutionIds, event.TriggerExecutionId)
+		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
+	}
+	triggerExecutionIdToStatus, err := impl.getStatusForJobs(triggerExecutionIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching status from ci workflows", "err", err)
+		return nil, err
+	}
+	for i := range interceptedEvents {
+		interceptedEvent := &interceptedEvents[i]
+		status := triggerExecutionIdToStatus[interceptedEvent.TriggerExecutionId]
+		if status != "" {
+			interceptedEvent.ExecutionStatus = repository.Status(status)
+		}
 	}
 	interceptedResponse := InterceptedResponse{
 		Offset: params.Offset,
@@ -833,7 +850,18 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	}
 	return &interceptedResponse, nil
 }
-
+func (impl *WatcherServiceImpl) getStatusForJobs(triggerExecutionIds []int) (map[int]string, error) {
+	ciWorkflows, err := impl.ciWorkflowRepository.FindCiWorkflowGitTriggersByIds(triggerExecutionIds) // function should have been FindCiWorkflowByIds instead of FindCiWorkflowGitTriggersByIds
+	if err != nil {
+		impl.logger.Errorw("error in getting ci workflows", "err", err)
+		return nil, err
+	}
+	triggerExecutionIdToStatus := make(map[int]string)
+	for _, workflow := range ciWorkflows {
+		triggerExecutionIdToStatus[workflow.Id] = workflow.Status
+	}
+	return triggerExecutionIdToStatus, nil
+}
 func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error) {
 	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.K8sEventWatcher)
 	if err != nil {
