@@ -62,10 +62,10 @@ jobs:
             echo "Not creating release due to beta"
         fi
       env:
-        GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+        GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
         RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
-        GIT_CONFIG_NAME: ${{ secrets.GIT_TARGET_USERNAME }}
-        GIT_CONFIG_EMAIL: ${{ secrets.GIT_TARGET_EMAIL }}
+        GIT_CONFIG_NAME: ${{ env.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
     # Send notification on discord
     - name: discord-notify
       run: |
