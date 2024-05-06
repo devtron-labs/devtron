@@ -138,6 +138,8 @@
  | EXTERNAL_CI_API_SECRET | devtroncd-secret |  | 
  | EXTERNAL_CI_PAYLOAD | {"ciProjectDetails":[{"gitRepository":"https://github.com/vikram1601/getting-started-nodejs.git","checkoutPath":"./abc","commitHash":"239077135f8cdeeccb7857e2851348f558cb53d3","commitTime":"2022-10-30T20:00:00","branch":"master","message":"Update README.md","author":"User Name "}],"dockerImage":"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2"} |  | 
  | EXTERNAL_CI_WEB_HOOK_URL |  |  | 
+ | FEATURE_RESTART_WORKLOAD_BATCH_SIZE | 1 |  | 
+ | FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE | 5 |  | 
  | FORCE_SECURITY_SCANNING | false |  | 
  | GITOPS_REPO_PREFIX |  |  | 
  | GITOPS_SECRET_NAME | devtron-gitops-secret |  | 
