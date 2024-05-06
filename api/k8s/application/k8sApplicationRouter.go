@@ -1,6 +1,8 @@
 package application
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 )
@@ -89,10 +91,10 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.PathPrefix("/port-forward").
 		HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
 
-	k8sAppRouter.PathPrefix("/proxy/cluster/{clusterIdentifier}").
-		HandlerFunc(impl.k8sApplicationRestHandler.StartK8sProxy)
+	k8sAppRouter.PathPrefix(fmt.Sprintf("/proxy/%s/{%s}", bean.Cluster, bean.ClusterIdentifier)).
+		HandlerFunc(impl.k8sApplicationRestHandler.HandleK8sProxyRequest)
 
-	k8sAppRouter.PathPrefix("/proxy/env/{envIdentifier}").
-		HandlerFunc(impl.k8sApplicationRestHandler.StartK8sProxy)
+	k8sAppRouter.PathPrefix(fmt.Sprintf("/proxy/%s/{%s}", bean.Env, bean.EnvIdentifier)).
+		HandlerFunc(impl.k8sApplicationRestHandler.HandleK8sProxyRequest)
 
 }
