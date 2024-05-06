@@ -23,7 +23,9 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/pkg/errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -752,6 +754,10 @@ func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configT
 		defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 		if err != nil {
 			impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, errors.New("no default ses/smtp configuration found, cannot send notification")
+			}
+			return nil, util2.NewApiError().WithUserMessage("error in finding ses/smtp config").WithInternalMessage(err.Error()).WithHttpStatusCode(http.StatusInternalServerError)
 		}
 
 		providers := make([]*Provider, 0, len(emailIds))
