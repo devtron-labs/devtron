@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	util3 "github.com/devtron-labs/devtron/pkg/k8s/application/util"
 	"github.com/go-pg/pg"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -64,7 +65,7 @@ type K8sApplicationRestHandler interface {
 	GetResourceSecurityInfo(w http.ResponseWriter, r *http.Request)
 	DebugPodInfo(w http.ResponseWriter, r *http.Request)
 	PortForwarding(w http.ResponseWriter, r *http.Request)
-	StartK8sProxy(w http.ResponseWriter, r *http.Request)
+	HandleK8sProxyRequest(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -1264,23 +1265,16 @@ func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWrit
 	proxy.ServeHTTP(w, r)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWriter, r *http.Request) {
-	isSuperAdmin := false
+func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.ResponseWriter, r *http.Request) {
+	// Devtron login token
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isSuperAdmin = true
-	}
 
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
+	// Authorization header is deleted as it is sent by Kubectl and K8s understands it as Auth-Token for the Cluster
 	r.Header.Del("Authorization")
 
 	vars := mux.Vars(r)
-	clusterIdentifier := vars["clusterIdentifier"]
-	envIdentifier := vars["envIdentifier"]
+	clusterIdentifier := vars[bean2.ClusterIdentifier]
+	envIdentifier := vars[bean2.EnvIdentifier]
 
 	k8sProxyRequest := bean2.K8sProxyRequest{}
 
@@ -1291,7 +1285,7 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 		} else {
 			k8sProxyRequest.ClusterId = clusterId
 		}
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/cluster/%s", clusterIdentifier))
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s/%s", bean2.BaseForK8sProxy, bean2.Cluster, clusterIdentifier))
 	} else {
 		envId, err := strconv.Atoi(envIdentifier)
 		if err != nil {
@@ -1299,17 +1293,63 @@ func (handler *K8sApplicationRestHandlerImpl) StartK8sProxy(w http.ResponseWrite
 		} else {
 			k8sProxyRequest.EnvId = envId
 		}
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/orchestrator/k8s/proxy/env/%s", envIdentifier))
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s/%s", bean2.BaseForK8sProxy, bean2.Env, envIdentifier))
 	}
 
-	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), &k8sProxyRequest)
+	clusterRequested, err := handler.k8sApplicationService.GetClusterForK8sProxy(&k8sProxyRequest)
+	if err != nil {
+		handler.logger.Errorw("Error in finding cluster", "Error:", err)
+		errorMessage := "An error occurred. Please try again."
+		if errors.Is(err, pg.ErrNoRows) {
+			errorMessage = "Cannot find requested env or cluster."
+		}
+		errorResponse := bean.ErrorResponse{
+			Kind:    "Status",
+			Code:    400,
+			Message: errorMessage,
+			Reason:  "Bad Request",
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(errorResponse)
+		return
+
+	}
+
+	namespace, gvk, resourceName := util3.ParseK8sProxyURL(r.URL.Path)
+	resourceAction := casbin.ActionGet
+	if r.Method != http.MethodGet {
+		resourceAction = bean2.ALL
+	}
+
+	allowed := handler.k8sApplicationService.ValidateK8sResourceForCluster(token, resourceName, namespace, gvk, handler.verifyRbacForResource, clusterRequested.ClusterName, resourceAction)
+	if !allowed {
+		role := bean2.RoleView
+		if resourceAction == bean2.ALL {
+			role = bean2.RoleAdmin
+		}
+		errorResponse := bean.ErrorResponse{
+			Kind:    "Status",
+			Code:    403,
+			Message: fmt.Sprintf("You need %s access on Cluster: %s, Namespace: %s, Group: %s, Version: %s, Kind: %s, Resource Name: %s. Here * represents all.", role, clusterRequested.ClusterName, namespace, gvk.Group, gvk.Version, gvk.Kind, resourceName),
+			Reason:  "Forbidden",
+		}
+
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(errorResponse)
+		return
+	}
+	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterRequested.Id)
 
 	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			common.WriteJsonResp(w, errors.New("cannot find requested env or cluster"), nil, http.StatusBadRequest)
-			return
+		handler.logger.Errorw("Error in starting proxy server: ", "Error: ", err)
+		errorResponse := bean.ErrorResponse{
+			Kind:    "Status",
+			Code:    500,
+			Message: "An error occurred. Please try again.",
+			Reason:  "Internal Server Error",
 		}
-		common.WriteJsonResp(w, errors.New("failed to start k8s proxy server"), nil, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
 	proxyServer.ServeHTTP(w, r)
