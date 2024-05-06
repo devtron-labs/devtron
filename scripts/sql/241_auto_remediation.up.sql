@@ -5,6 +5,7 @@ CREATE TABLE "public"."k8s_event_watcher" (
                                     "description" text ,
                                     "filter_expression" text NOT NULL,
                                     "gvks" text,
+                                    "selected_actions" []varchar(15),
                                     "active" bool NOT NULL,
                                     "created_on"                timestamptz NOT NULL,
                                     "created_by"                int4        NOT NULL,
@@ -88,7 +89,7 @@ VALUES (
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\', "emailIds": \'"$EMAIL_IDS"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\',"emailIds":\'${EMAIL_IDS}\'}\'
     # Make the API call
-    curl -X POST https://devtron-14.devtron.info/orchestrator/scoop/intercept-event/notify?clusterId=1 -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTQ3NDU5NzUsImp0aSI6IjI4Y2Y2YWQzLTY0OGYtNDhjNS04MjIzLTFhZGY3MzExZDQ3YiIsImlhdCI6MTcxNDY1OTU3NSwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzE0NjU5NTc1LCJzdWIiOiJhZG1pbiJ9.xIWS9sRDYBqbh0GTWtt9nHlSD3GCzyJNjrNaOc1W_W8" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
+    curl -X POST \'${NOTIFICATION_URL}\' -H "token: \'${NOTIFICATION_TOKEN}\'" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
@@ -148,7 +149,7 @@ VALUES (
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\'}\'
     # Make the API call
-    curl -X POST https://devtron-14.devtron.info/orchestrator/scoop/intercept-event/notify?clusterId=1 -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTQ3NDU5NzUsImp0aSI6IjI4Y2Y2YWQzLTY0OGYtNDhjNS04MjIzLTFhZGY3MzExZDQ3YiIsImlhdCI6MTcxNDY1OTU3NSwiaXNzIjoiYXJnb2NkIiwibmJmIjoxNzE0NjU5NTc1LCJzdWIiOiJhZG1pbiJ9.xIWS9sRDYBqbh0GTWtt9nHlSD3GCzyJNjrNaOc1W_W8" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
+    curl -X POST \'${NOTIFICATION_URL}\' -H "token: \'${NOTIFICATION_TOKEN}\'" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
