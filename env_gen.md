@@ -32,7 +32,7 @@
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
  | CACHED_GVKs | [] |  | 
- | CACHED_NAMESPACES | devtroncd |  | 
+ | CACHED_NAMESPACES | gireesh-ns |  | 
  | CACHE_LIMIT | 5000000000 |  | 
  | CAN_APPROVER_DEPLOY | false |  | 
  | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 

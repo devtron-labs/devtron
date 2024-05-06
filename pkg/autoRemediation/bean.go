@@ -69,15 +69,6 @@ func (gvk *K8sResource) GetGVK() schema.GroupVersionKind {
 	}
 }
 
-func GvkJson(gvk schema.GroupVersionKind) K8sResource {
-	gvkJson := K8sResource{
-		Group:   gvk.Group,
-		Version: gvk.Version,
-		Kind:    gvk.Kind,
-	}
-	return gvkJson
-}
-
 type RuntimeParameter struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -134,9 +125,9 @@ type InterceptedResponse struct {
 }
 type InterceptedEventsDto struct {
 	// Message        string `json:"message"`
-	Action         string `json:"action"`
-	InvolvedObject string `json:"involvedObject"`
-	Gvk            string `json:"gvk"`
+	Action          string `json:"action"`
+	InvolvedObjects string `json:"involvedObjects"`
+	Metadata        string `json:"metadata"`
 
 	ClusterName     string `json:"clusterName"`
 	ClusterId       int    `json:"clusterId"`

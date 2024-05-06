@@ -79,13 +79,14 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 
 	// 2) create a temp token to trigger notification
 
-	token, err := impl.tokenService.CreateApiJwtToken("", 24*60)
+	expireAtInMs := time.Now().Add(24 * time.Hour).UnixMilli()
+	token, err := impl.tokenService.CreateApiJwtToken("", expireAtInMs)
 	if err != nil {
 		impl.logger.Errorw("error in creating api token", "err", err)
 		return err
 	}
 	hostUrl := hostUrlObj.Value
-	involvedObj, gvkStr, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
+	involvedObj, metadata, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)
 		return err
@@ -102,8 +103,8 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 		case repository.DEVTRON_JOB:
 			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
-			interceptEventExec.Gvk = gvkStr
-			interceptEventExec.InvolvedObject = involvedObj
+			interceptEventExec.Metadata = metadata
+			interceptEventExec.InvolvedObjects = involvedObj
 			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
 			interceptEventExec.Namespace = interceptedEvent.Namespace
 			interceptEventExec.Action = interceptedEvent.Action
@@ -119,17 +120,17 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	return err
 }
 
-func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, gvkStr string, triggers []*autoRemediation.Trigger, err error) {
+func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, metadata string, triggers []*autoRemediation.Trigger, err error) {
 	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObjects)
 	if err != nil {
-		return involvedObj, gvkStr, triggers, err
+		return involvedObj, metadata, triggers, err
 	}
 	involvedObj = string(involvedObjectBytes)
-	gvkBytes, err := json.Marshal(autoRemediation.GvkJson(interceptedEvent.GVK))
+	metadataBytes, err := json.Marshal(interceptedEvent.ObjectMeta)
 	if err != nil {
-		return involvedObj, gvkStr, triggers, err
+		return involvedObj, metadata, triggers, err
 	}
-	gvkStr = string(gvkBytes)
+	metadata = string(metadataBytes)
 	watchersMap := make(map[int]*types.Watcher)
 	for _, watcher := range interceptedEvent.Watchers {
 		watchersMap[watcher.Id] = watcher
@@ -185,7 +186,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 	// involvedObjJsonStr is a json string which contain old and new resources.
 	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
-	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "scoop/intercept-event/notify"
+	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
 
 	request := bean.CiTriggerRequest{
 		PipelineId: trigger.Data.PipelineId,

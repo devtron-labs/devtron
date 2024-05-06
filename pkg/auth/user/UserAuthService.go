@@ -60,7 +60,7 @@ type UserAuthService interface {
 
 type UserAuthServiceImpl struct {
 	userAuthRepository repository.UserAuthRepository
-	//sessionClient is being used for argocd username-password login proxy
+	// sessionClient is being used for argocd username-password login proxy
 	sessionClient       session2.ServiceClient
 	logger              *zap.SugaredLogger
 	userRepository      repository.UserRepository
@@ -72,7 +72,7 @@ type UserAuthServiceImpl struct {
 var (
 	cStore         *sessions.CookieStore
 	dexOauthConfig *oauth2.Config
-	//googleOauthConfig *oauth2.Config
+	// googleOauthConfig *oauth2.Config
 	oauthStateString     = randToken()
 	idTokenVerifier      *oidc.IDTokenVerifier
 	jwtKey               = randKey()
@@ -317,7 +317,7 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 	if dbUser.Id > 0 {
 		// Do nothing, User already exist in our db. (unique check by email id)
 	} else {
-		//create new user in our db on d basis of info got from google api or hex. assign a basic role
+		// create new user in our db on d basis of info got from google api or hex. assign a basic role
 		model := &repository.UserModel{
 			EmailId:     Claims.Email,
 			AccessToken: rawIDToken,
@@ -376,6 +376,7 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/api/v1/session",
 		"/orchestrator/app/ci-pipeline/github-webhook/trigger",
 		"/orchestrator/webhook/msg/nats",
+		"/orchestrator/scoop/intercept-event/notify",
 		"/orchestrator/devtron/auth/verify",
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
@@ -492,7 +493,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		return false, err
 	}
 
-	//TODO - extends for other purpose
+	// TODO - extends for other purpose
 	return true, nil
 }
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
@@ -534,19 +535,19 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
 
-		//deleting user_roles for this role_id (foreign key constraint)
+		// deleting user_roles for this role_id (foreign key constraint)
 		err = impl.userAuthRepository.DeleteUserRoleByRoleIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting user_roles by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
-		//deleting role_group_role_mapping for this role_id (foreign key constraint)
+		// deleting role_group_role_mapping for this role_id (foreign key constraint)
 		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting role_group_role_mapping by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
-		//deleting roles
+		// deleting roles
 		err = impl.userAuthRepository.DeleteRolesByIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw(fmt.Sprintf("error in deleting roles "), "err", err, "role", roleModels)

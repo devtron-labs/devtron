@@ -326,16 +326,18 @@ components:
     InterceptEvent:
       type: object
       properties:
-        message:
+        action:
           type: string
-        messageType:
+          enum:
+            - 'CREATED'
+            - 'UPDATED'
+            - 'DELETED'
+          description: kind of action
+        metadata:
+          description: json string of the gvk,name and namespace
           type: string
-          description: kind of message, like info, error, warning
-        event:
-          description: json string of the event
-          type: string
-        involvedObject:
-          description: json string of the involved object
+        involvedObjects:
+          description: json string of the involved objects with newResource and oldResource keys
           type: string
         environmet:
           type: string
