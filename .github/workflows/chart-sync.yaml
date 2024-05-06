@@ -28,7 +28,7 @@ jobs:
         git-target-repo: ${{ secrets.GIT_TARGET_REPO }}
         git-source-repo: ${{ secrets.GIT_SOURCE_REPO }}
         git-target-useremail: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
-        git-target-username: ${{ env.GH_SYSTEMSDT_USERNAME }}
+        git-target-username: ${{ vars.GH_SYSTEMSDT_USERNAME }}
         git-target-token: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
         git-target-dir: ${{ secrets.GIT_TARGET_DIR }}
         git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
