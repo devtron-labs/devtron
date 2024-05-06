@@ -57,6 +57,6 @@ jobs:
         git commit -am "Updated release notes"
         git push https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} $RELEASE_NOTES_BRANCH
       env:
-        GH_TOKEN: ${{ secrets.GIT_TOKEN }}
-        GIT_CONFIG_NAME: ${{ secrets.GIT_TARGET_USERNAME }}
-        GIT_CONFIG_EMAIL: ${{ secrets.GIT_TARGET_EMAIL }}
+        GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+        GIT_CONFIG_NAME: ${{ env.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
