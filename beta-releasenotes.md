@@ -27,3 +27,4 @@
 - doc: Changes made in the doc according to the newer version (#5024)
 - doc: Added Linked CI with Child Info + Runtime Build Parameters (#4991)
 ## Others
+- misc: uniform GitHub action (#5069)
