@@ -106,15 +106,15 @@ func (handler *RestHandlerImpl) HandleNotificationEvent(w http.ResponseWriter, r
 		return
 	}
 
-	tokenClains := apiToken.ApiTokenCustomClaims{}
-	err = json.Unmarshal(claimBytes, &tokenClains)
+	tokenClaims := apiToken.ApiTokenCustomClaims{}
+	err = json.Unmarshal(claimBytes, &tokenClaims)
 	if err != nil {
 		handler.logger.Errorw("error in un marshalling token claims", "claimBytes", claimBytes, "err", err)
 		common.WriteJsonResp(w, errors.New("invalid token"), nil, http.StatusBadRequest)
 		return
 	}
 
-	if expired := tokenClains.ExpiresAt.Before(time.Now()); expired {
+	if expired := tokenClaims.ExpiresAt.Before(time.Now()); expired {
 		common.WriteJsonResp(w, errors.New("token expired"), nil, http.StatusUnauthorized)
 		return
 	}

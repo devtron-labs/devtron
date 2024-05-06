@@ -4,15 +4,17 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/scoop/types"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
 type EventConfiguration struct {
-	Selectors       []Selector     `json:"selectors" validate:"dive,required"`
-	K8sResources    []*K8sResource `json:"k8sResources" validate:"required"`
-	EventExpression string         `json:"eventExpression" validate:"required"`
+	Selectors       []Selector        `json:"selectors" validate:"dive,required"`
+	K8sResources    []*K8sResource    `json:"k8sResources" validate:"required"`
+	EventExpression string            `json:"eventExpression" validate:"required"`
+	SelectedActions []types.EventType `json:"selectedActions" validate:"required"`
 }
 
 func (ec *EventConfiguration) getEnvsFromSelectors() []string {

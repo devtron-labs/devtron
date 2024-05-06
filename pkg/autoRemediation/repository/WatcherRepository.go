@@ -2,19 +2,21 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type K8sEventWatcher struct {
-	tableName        struct{} `sql:"k8s_event_watcher" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id,pk"`
-	Name             string   `sql:"name,notnull"`
-	Description      string   `sql:"description"`
-	FilterExpression string   `sql:"filter_expression,notnull"`
-	Gvks             string   `sql:"gvks"`
-	Active           bool     `sql:"active,notnull"`
+	tableName        struct{}          `sql:"k8s_event_watcher" pg:",discard_unknown_columns"`
+	Id               int               `sql:"id,pk"`
+	Name             string            `sql:"name,notnull"`
+	Description      string            `sql:"description"`
+	FilterExpression string            `sql:"filter_expression,notnull"`
+	Gvks             string            `sql:"gvks"`
+	SelectedActions  []types.EventType `sql:"selected_actions"`
+	Active           bool              `sql:"active,notnull"`
 	sql.AuditLog
 }
 
@@ -66,6 +68,7 @@ func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWat
 		Set("description = ?", watcher.Description).
 		Set("filter_expression = ?", watcher.FilterExpression).
 		Set("gvks = ?", watcher.Gvks).
+		Set("selected_actions = ?", watcher.SelectedActions).
 		Set("updated_by = ?", userId).
 		Set("updated_on = ?", time.Now()).
 		Where("active = ?", true).

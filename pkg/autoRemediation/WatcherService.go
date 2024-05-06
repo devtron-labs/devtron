@@ -91,6 +91,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 		Name:             watcherRequest.Name,
 		Description:      watcherRequest.Description,
 		FilterExpression: watcherRequest.EventConfiguration.EventExpression,
+		SelectedActions:  watcherRequest.EventConfiguration.SelectedActions,
 		Gvks:             gvks,
 		Active:           true,
 		AuditLog:         sql.NewDefaultAuditLog(userId),
@@ -313,6 +314,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 		EventConfiguration: EventConfiguration{
 			K8sResources:    k8sResources,
 			EventExpression: watcher.FilterExpression,
+			SelectedActions: watcher.SelectedActions,
 		},
 	}
 
@@ -429,6 +431,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.Name = watcherRequest.Name
 	watcher.Description = watcherRequest.Description
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
+	watcher.SelectedActions = watcherRequest.EventConfiguration.SelectedActions
 	watcher.Gvks = gvks
 	watcher.AuditLog = sql.NewDefaultAuditLog(userId)
 	tx, err := impl.triggerRepository.StartTx()
@@ -888,6 +891,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			GVKs: util.Map(k8sResources, func(k8Resource *K8sResource) schema.GroupVersionKind {
 				return k8Resource.GetGVK()
 			}),
+			SelectedActions: watcher.SelectedActions,
 		}
 
 		watchersResponse = append(watchersResponse, watcherResp)
@@ -919,6 +923,7 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 			GVKs:                  watcherRequest.EventConfiguration.getK8sResources(),
 			EventFilterExpression: watcherRequest.EventConfiguration.EventExpression,
 			Namespaces:            nsMap,
+			SelectedActions:       watcherRequest.EventConfiguration.SelectedActions,
 		}
 
 		port, scoopConfig, err := impl.k8sApplicationService.GetScoopPort(context.Background(), clusterId)
