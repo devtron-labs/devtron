@@ -148,7 +148,7 @@ func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int,
 		return err
 	}
 	for _, pco := range pipelineOverrides {
-		appIdToInstallReleaseRequest[pco.Pipeline.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.PipelineMergedValues}
+		appIdToInstallReleaseRequest[pco.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.MergedValuesYaml}
 	}
 	return err
 }
