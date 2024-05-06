@@ -52,7 +52,6 @@ func NewTriggerRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *T
 func (impl TriggerRepositoryImpl) Save(trigger *AutoRemediationTrigger, tx *pg.Tx) (*AutoRemediationTrigger, error) {
 	_, err := tx.Model(trigger).Insert()
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
 	return trigger, nil
@@ -60,7 +59,6 @@ func (impl TriggerRepositoryImpl) Save(trigger *AutoRemediationTrigger, tx *pg.T
 func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*AutoRemediationTrigger, tx *pg.Tx) ([]*AutoRemediationTrigger, error) {
 	_, err := tx.Model(&triggers).Insert()
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
 	return triggers, nil
@@ -69,7 +67,6 @@ func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*AutoRemediationTrigger,
 func (impl TriggerRepositoryImpl) Update(trigger *AutoRemediationTrigger) (*AutoRemediationTrigger, error) {
 	_, err := impl.dbConnection.Model(&trigger).Update()
 	if err != nil {
-		impl.logger.Error(err)
 		return nil, err
 	}
 	return trigger, nil
@@ -112,7 +109,6 @@ func (impl TriggerRepositoryImpl) GetTriggerById(id int) (*AutoRemediationTrigge
 		Where("id = ? and active =?", id, true).
 		Select()
 	if err != nil {
-		impl.logger.Error(err)
 		return &AutoRemediationTrigger{}, err
 	}
 	return &trigger, nil
@@ -128,7 +124,6 @@ func (impl TriggerRepositoryImpl) GetWatcherByTriggerId(triggerId int) (*K8sEven
 	var watcher K8sEventWatcher
 	err = impl.dbConnection.Model(&watcher).Where("id = ? and active =?", trigger.WatcherId, true).Select()
 	if err != nil {
-		impl.logger.Error(err)
 		return &K8sEventWatcher{}, err
 	}
 	return &watcher, nil
