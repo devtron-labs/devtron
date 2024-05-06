@@ -14,7 +14,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-    - run: |
+    - env:
+        GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+        GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
+      run: |
          export GIT_USERNAME="${GIT_CONFIG_NAME}"
          export GIT_PASSWORD="${GH_TOKEN}"
          export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron-enterprise.git"
@@ -44,7 +48,3 @@ jobs:
          git checkout -b oss-enterprise-sync-$GIT_COMMIT && git push -u origin oss-enterprise-sync-$GIT_COMMIT
          PR_RESPONSE=$(gh pr create --title "SYNC: OSS sync for $GIT_COMMIT" --fill --base main --head oss-enterprise-sync-$GIT_COMMIT --repo $ENTERPRISE_REPO)
          echo "FINAL PR RESPONSE: $PR_RESPONSE"
-    env:
-       GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
-       GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
-       GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
