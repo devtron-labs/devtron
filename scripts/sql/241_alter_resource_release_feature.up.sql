@@ -1507,6 +1507,30 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
                 "configStatus": "draft",
                 "dependencyArtifactStatus": "allImagesSelected",
                 "rolloutStatus": "notDeployed",
+                "lockStatus": "locked"
+            },
+            "possibleFromStates":
+            [
+                {
+                    "configStatus": "draft",
+                    "dependencyArtifactStatus": "allImagesSelected",
+                    "rolloutStatus": "notDeployed",
+                    "lockStatus": "unLocked"
+                },
+                {
+                    "configStatus": "readyForRelease",
+                    "rolloutStatus": "notDeployed",
+                    "dependencyArtifactStatus": "allImagesSelected",
+                    "lockStatus": "locked"
+                }
+            ]
+        },
+        {
+            "stateTo":
+            {
+                "configStatus": "draft",
+                "dependencyArtifactStatus": "allImagesSelected",
+                "rolloutStatus": "notDeployed",
                 "lockStatus": "unLocked"
             },
             "possibleFromStates":
@@ -1964,4 +1988,4 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
         }
     ],
     "consequence": "BLOCK"
-}', true, false, 1, now(),1,now())
+}', true, false, 1, now(),1,now());
