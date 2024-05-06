@@ -50,6 +50,6 @@ jobs:
          PR_RESPONSE=$(gh pr create --title "SYNC: OSS sync for $GIT_COMMIT" --fill --base main --head oss-enterprise-sync-$GIT_COMMIT --repo $ENTERPRISE_REPO)
          echo "FINAL PR RESPONSE: $PR_RESPONSE"
       env:
-       GH_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
-       GIT_CONFIG_NAME: ${{ secrets.GIT_TARGET_USERNAME }}
-       GIT_CONFIG_EMAIL: ${{ secrets.GIT_TARGET_EMAIL }}
+       GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+       GIT_CONFIG_NAME: ${{ env.GH_SYSTEMSDT_USERNAME }}
+       GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
