@@ -1202,7 +1202,13 @@ func (handler *K8sApplicationRestHandlerImpl) DebugPodInfo(w http.ResponseWriter
 	}
 	scoopServiceProxyHandler, scoopConfig, err := handler.k8sApplicationService.GetScoopServiceProxyHandler(r.Context(), clusterId)
 	if err != nil {
-		common.WriteJsonResp(w, errors.New("failed to fetch pod debug info"), nil, http.StatusInternalServerError)
+		fetchErr := errors.New("failed to fetch pod debug info")
+		statusErr := http.StatusInternalServerError
+		if errors.Is(err, application2.ScoopNotConfiguredErr) {
+			fetchErr = err
+			statusErr = http.StatusFailedDependency
+		}
+		common.WriteJsonResp(w, fetchErr, nil, statusErr)
 		return
 	}
 	r.Header.Add("X-PASS-KEY", scoopConfig.PassKey)
