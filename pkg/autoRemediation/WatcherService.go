@@ -440,7 +440,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		return err
 	}
 
-	err = impl.watcherRepository.Update(tx, watcher, userId)
+	err = impl.watcherRepository.Update(tx, watcher)
 	if err != nil {
 		impl.logger.Errorw("error in updating watcher", "error", err)
 		return err
