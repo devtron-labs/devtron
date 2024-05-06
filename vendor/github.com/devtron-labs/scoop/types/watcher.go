@@ -43,6 +43,7 @@ type Watcher struct {
 	Id                    int                       `json:"id"`
 	Name                  string                    `json:"name"`
 	Namespaces            map[string]bool           `json:"namespaces"`
+	SelectedActions       []EventType               `json:"selectedActions"`
 	GVKs                  []schema.GroupVersionKind `json:"groupVersionKinds"`
 	EventFilterExpression string                    `json:"eventFilterExpression"`
 	ClusterId             int                       `json:"clusterId"`
