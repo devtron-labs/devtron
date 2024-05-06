@@ -1464,9 +1464,10 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 			pipelineType = CiPipeline.EXTERNAL
 		} else if pipeline.PipelineType == string(CiPipeline.CI_JOB) {
 			pipelineType = CiPipeline.CI_JOB
-		} else if pipeline.PipelineType == string(CiPipeline.NORMAL_JOB) {
-			pipelineType = CiPipeline.NORMAL_JOB
 		}
+		//else if pipeline.PipelineType == string(CiPipeline.NORMAL_JOB) {
+		//	pipelineType = CiPipeline.NORMAL_JOB
+		//}
 
 		ciPipeline := &bean.CiPipelineMin{
 			Id:               pipeline.Id,
