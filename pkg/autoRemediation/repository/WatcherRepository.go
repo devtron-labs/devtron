@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type K8sEventWatcher struct {
@@ -61,18 +60,19 @@ func (impl K8sEventWatcherRepositoryImpl) Save(watcher *K8sEventWatcher, tx *pg.
 	return watcher, nil
 }
 func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWatcher, userId int32) error {
-	_, err := tx.
-		Model((*K8sEventWatcher)(nil)).
-		Set("name = ?", watcher.Name).
-		Set("description = ?", watcher.Description).
-		Set("filter_expression = ?", watcher.FilterExpression).
-		Set("gvks = ?", watcher.Gvks).
-		Set("selected_actions = ?", watcher.SelectedActions).
-		Set("updated_by = ?", userId).
-		Set("updated_on = ?", time.Now()).
-		Where("active = ?", true).
-		Where("id = ?", watcher.Id).
-		Update()
+	//_, err := tx.
+	//	Model((*K8sEventWatcher)(nil)).
+	//	Set("name = ?", watcher.Name).
+	//	Set("description = ?", watcher.Description).
+	//	Set("filter_expression = ?", watcher.FilterExpression).
+	//	Set("gvks = ?", watcher.Gvks).
+	//	Set("selected_actions = ?", watcher.SelectedActions).
+	//	Set("updated_by = ?", userId).
+	//	Set("updated_on = ?", time.Now()).
+	//	Where("active = ?", true).
+	//	Where("id = ?", watcher.Id).
+	//	Update()
+	_, err := tx.Model(watcher).Where("active = ?", true).Where("id = ?", watcher.Id).Update()
 	return err
 }
 

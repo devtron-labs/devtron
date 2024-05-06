@@ -89,7 +89,7 @@ VALUES (
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\', "emailIds": \'"$EMAIL_IDS"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\',"emailIds":\'${EMAIL_IDS}\'}\'
     # Make the API call
-    curl -X POST \'${NOTIFICATION_URL}\' -H "token: \'${NOTIFICATION_TOKEN}\'" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
+    curl -X POST ${NOTIFICATION_URL} -H "token: ${NOTIFICATION_TOKEN}" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
@@ -149,7 +149,7 @@ VALUES (
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\'}\'
     # Make the API call
-    curl -X POST \'${NOTIFICATION_URL}\' -H "token: \'${NOTIFICATION_TOKEN}\'" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
+    curl -X POST ${NOTIFICATION_URL} -H "token: ${NOTIFICATION_TOKEN}" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
