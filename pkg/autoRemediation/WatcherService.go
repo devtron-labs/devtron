@@ -430,7 +430,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.Description = watcherRequest.Description
 	watcher.FilterExpression = watcherRequest.EventConfiguration.EventExpression
 	watcher.Gvks = gvks
-	watcher.AuditLog = sql.NewDefaultAuditLog(userId)
+	watcher.UpdateAuditLog(userId)
 	tx, err := impl.triggerRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction for creating trigger", watcherId, "error", err)
