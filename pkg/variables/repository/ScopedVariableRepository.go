@@ -33,11 +33,11 @@ type ScopedVariableRepositoryImpl struct {
 	logger *zap.SugaredLogger
 }
 
-func NewScopedVariableRepository(dbConnection *pg.DB, logger *zap.SugaredLogger) *ScopedVariableRepositoryImpl {
+func NewScopedVariableRepository(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) *ScopedVariableRepositoryImpl {
 	return &ScopedVariableRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 

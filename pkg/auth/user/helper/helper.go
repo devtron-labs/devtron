@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"golang.org/x/exp/slices"
+	"strings"
 )
 
 func IsSystemOrAdminUser(userId int32) bool {
@@ -43,4 +44,8 @@ func CheckIfUserIdsExists(userIds []int32) error {
 		return err
 	}
 	return nil
+}
+
+func ExtractTokenNameFromEmail(email string) string {
+	return strings.Split(email, ":")[1]
 }
