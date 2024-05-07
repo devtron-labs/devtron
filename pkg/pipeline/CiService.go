@@ -312,6 +312,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 		return nil, false, err
 	}
 
+	// todo: need to do changes here
 	var env *repository1.Environment
 	isJob := false
 	if app.AppType == helper.Job {

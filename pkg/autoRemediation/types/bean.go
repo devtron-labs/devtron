@@ -12,7 +12,7 @@ import (
 type EventConfiguration struct {
 	Selectors       []Selector        `json:"selectors" validate:"dive,required"`
 	K8sResources    []*K8sResource    `json:"k8sResources" validate:"required"`
-	EventExpression string            `json:"eventExpression" validate:"required"`
+	EventExpression string            `json:"eventExpression"`
 	SelectedActions []types.EventType `json:"selectedActions" validate:"required"`
 }
 
