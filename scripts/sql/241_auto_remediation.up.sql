@@ -72,20 +72,13 @@ INSERT INTO "plugin_stage_mapping" ("plugin_id", "stage_type", "created_on", "cr
 VALUES ((SELECT id FROM plugin_metadata WHERE name = 'Custom Email Notifier v1.0.0'), 0, 'now()', 1, 'now()', 1);
 
 -- Insert Plugin Script
-INSERT INTO "plugin_pipeline_script" ("id", "script", "type", "deleted", "created_on", "created_by", "updated_giton", "updated_by")
+INSERT INTO "plugin_pipeline_script" ("id", "script", "type", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (
            nextval('id_seq_plugin_pipeline_script'),
            E'#!/bin/sh
 
     # URL and token from environment variables
     echo "------------STARTING PLUGIN CUSTOM EMAIL NOTIFIER------------"
-    echo "CONFIG_TYPE given: $CONFIG_TYPE"
-    echo "CONFIG_NAME given: $CONFIG_NAME"
-    echo "EMAIL_IDS given: $EMAIL_IDS"
-    echo "NOTIFICATION_URL Fetched: $NOTIFICATION_URL"
-    echo "NOTIFICATION_TOKEN Fetched: $NOTIFICATION_TOKEN"
-    echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\', "emailIds": \'"$EMAIL_IDS"\'}"
-    echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\',"emailIds":\'${EMAIL_IDS}\'}\'
     # Make the API call
     curl -X POST ${NOTIFICATION_URL} -H "token: $NOTIFICATION_TOKEN" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
@@ -138,15 +131,9 @@ VALUES (
 
     # URL and token from environment variables
     echo "------------STARTING PLUGIN CUSTOM WEBHOOK NOTIFIER------------"
-    echo "CONFIG_TYPE given: $CONFIG_TYPE"
-    echo "CONFIG_NAME given: $CONFIG_NAME"
-    echo "NOTIFICATION_URL Fetched: $NOTIFICATION_URL"
-    echo "NOTIFICATION_TOKEN Fetched: $NOTIFICATION_TOKEN"
-    echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\'}"
-    echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\'}\'
     # Make the API call
     curl -X POST ${NOTIFICATION_URL} -H "token: $NOTIFICATION_TOKEN" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
-    echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
+    echo "------------FINISHING PLUGIN CUSTOM WEBHOOK NOTIFIER------------"
     ',
            'SHELL',
            'f',
