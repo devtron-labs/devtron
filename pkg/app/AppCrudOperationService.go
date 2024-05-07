@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
-	"github.com/devtron-labs/devtron/util/argo"
 	"regexp"
 	"strconv"
 	"strings"
@@ -538,7 +537,6 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		bean3.AppNameDevtronLabel:     appName,
 		bean3.EnvNameDevtronLabel:     envName,
 		bean3.ProjectNameDevtronLabel: appMetaInfo.Team.Name,
-		bean3.ManagedByK8sLabel:       argo.DEVTRON_USER,
 	}, nil
 }
 
