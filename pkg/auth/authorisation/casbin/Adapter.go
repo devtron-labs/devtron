@@ -68,7 +68,7 @@ func Create() (*casbin.SyncedEnforcer, error) {
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
 		log.Println(err1)
-		return nil, err
+		return nil, err1
 	}
 	e = auth
 	err = e.LoadPolicy()
