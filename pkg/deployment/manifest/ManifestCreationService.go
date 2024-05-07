@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/tidwall/gjson"
@@ -228,20 +227,13 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			configMapJson = nil
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
-		appLabelJsonByte, err = impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+		appLabelJsonByte, err = impl.appCrudOperationService.GetAppLabelsForDeployment(overrideRequest.AppId, overrideRequest.AppName, overrideRequest.EnvName)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.AppendAdditionalLabelsToAppLabel")
-		appLabelJsonByteWithAdditionalLabels, err := impl.appendAdditionalLabelsToAppLabel(appLabelJsonByte, overrideRequest)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in appending extra labels to app labels", "err", err)
-			appLabelJsonByteWithAdditionalLabels = nil
-		}
-		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByteWithAdditionalLabels, strategy)
+		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
@@ -267,32 +259,6 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	return valuesOverrideResponse, err
 }
 
-func (impl *ManifestCreationServiceImpl) appendAdditionalLabelsToAppLabel(appLabelJsonByte []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
-	appMetaInfo, err := impl.appCrudOperationService.GetAppMetaInfoByAppName(overrideRequest.AppName)
-	if err != nil {
-		impl.logger.Errorw("error in GetAppMetaInfoByAppName by appName", "appName", overrideRequest.AppName, "err", err)
-		return appLabelJsonByte, err
-	}
-	extraLabelsToPropagate := map[string]string{
-		bean3.AppNameDevtronLabel:     overrideRequest.AppName,
-		bean3.EnvNameDevtronLabel:     overrideRequest.EnvName,
-		bean3.ProjectNameDevtronLabel: appMetaInfo.ProjectName,
-		bean3.ManagedByK8sLabel:       argo.DEVTRON_USER,
-	}
-	var appLabelMap map[string]map[string]interface{}
-	if err := json.Unmarshal(appLabelJsonByte, &appLabelMap); err != nil {
-		return appLabelJsonByte, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to unmarshal appLabelJsonByte"}
-	}
-	for labelKey, labelValue := range extraLabelsToPropagate {
-		appLabelMap[bean3.AppLabelsKey][labelKey] = labelValue
-	}
-	appLabelString, err := json.Marshal(appLabelMap)
-	if err != nil {
-		return appLabelJsonByte, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to marshal appLabelJsonByte"}
-	}
-
-	return appLabelString, nil
-}
 func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
 	strategy := &chartConfig.PipelineStrategy{}
 	var err error
