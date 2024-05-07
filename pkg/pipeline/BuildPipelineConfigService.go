@@ -397,7 +397,7 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		return nil, err
 	}
 	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
-		impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", modifiedCiPipeline.PipelineType)
+		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
 		return nil, errors.New(CiPipeline2.PIPELINE_TYPE_IS_NOT_VALID)
 	}
 	cannotUpdate := false
@@ -1641,9 +1641,6 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 		} else if pipeline.PipelineType == string(constants.LINKED_CD) {
 			pipelineType = constants.LINKED_CD
 		}
-		//else if pipeline.PipelineType == string(CiPipeline.NORMAL_JOB) {
-		//	pipelineType = CiPipeline.NORMAL_JOB
-		//}
 
 		ciPipeline := &bean.CiPipelineMin{
 			Id:               pipeline.Id,

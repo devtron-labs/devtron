@@ -6,8 +6,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -175,10 +175,9 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "LINKED") 207_ci_external.up
-// TODO migrate the deprecated values and maintain a consistent PipelineType
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType != string(constants.LINKED_CD)
+	return ci.ParentCiPipeline != 0 &&
+		ci.PipelineType == string(constants.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
