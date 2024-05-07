@@ -57,6 +57,8 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
 	configRouter.Path("/template/list").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetTemplateComparisonMetadata).Methods("GET")
 	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
+	configRouter.Path("/template/workloads").HandlerFunc(router.restHandler.GetRestartWorkloadData).Queries("appIds", "{appIds}").
+		Queries("envId", "{envId}").Methods("GET")
 	// Start -- user defined gitops repository
 	configRouter.Path("/template/gitops/config/{appId}").HandlerFunc(router.restHandler.GetGitOpsConfiguration).Methods("GET")
 	configRouter.Path("/template/gitops/config").HandlerFunc(router.restHandler.SaveGitOpsConfiguration).Methods("POST")
