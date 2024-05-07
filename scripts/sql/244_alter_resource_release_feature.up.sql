@@ -207,6 +207,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                         "oldObjectId"
                     ]
                 },
+                "firstReleasedOn":
+                {
+                    "type": "string",
+                    "format": "date"
+                },
                 "releaseVersion":
                 {
                     "type": "string"
@@ -427,6 +432,11 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                         "resourceObjectId",
                         "oldObjectId"
                     ]
+                },
+                "firstReleasedOn":
+                {
+                    "type": "string",
+                    "format": "date"
                 },
                 "releaseVersion":
                 {
