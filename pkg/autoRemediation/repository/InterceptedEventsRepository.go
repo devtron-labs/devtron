@@ -36,7 +36,7 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
-	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*types2.InterceptedEventData, int, error)
+	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
@@ -64,7 +64,7 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 	return interceptedEvents, nil
 }
 
-func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*types2.InterceptedEventData, int, error) {
+func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error) {
 
 	var interceptedEvents []*types2.InterceptedEventData
 	query := impl.dbConnection.Model().

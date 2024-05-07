@@ -764,7 +764,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 		}, nil
 	}
 
-	clusterIds := util.Map(interceptedEventData, func(event *repository.InterceptedEventData) int {
+	clusterIds := util.Map(interceptedEventData, func(event *types2.InterceptedEventData) int {
 		return event.ClusterId
 	})
 
@@ -793,7 +793,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 	return &interceptedResponse, nil
 }
 
-func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*repository.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
+func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types2.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
 	var interceptedEvents []types2.InterceptedEventsDto
 	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
