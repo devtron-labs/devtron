@@ -16,14 +16,17 @@ func searchInArray(array []string, value string) int {
 	return -1
 }
 
-// TODO write test cases on this func
 func ParseK8sProxyURL(url string) (string, schema.GroupVersionKind, string) {
 	urlParts := strings.Split(url, "/")
 	arrLen := len(urlParts)
+	if urlParts[arrLen-1] == bean.Empty {
+		urlParts = urlParts[:arrLen-1]
+		arrLen--
+	}
 	grammar := pluralize.NewClient()
 	namespace := bean.ALL
 	group := bean.ALL
-	version := bean.V1
+	version := bean.ALL
 	kind := bean.ALL
 	resourceName := bean.ALL
 
@@ -60,6 +63,10 @@ func ParseK8sProxyURL(url string) (string, schema.GroupVersionKind, string) {
 
 	if idx := searchInArray(urlParts, bean.NAMESPACES); idx != -1 && arrLen > idx+1 {
 		namespace = urlParts[idx+1]
+	} else if idx := searchInArray(urlParts, bean.NODES); idx != -1 {
+		// what if command is of nodes
+		// will check for super admin access
+		return bean.ALL, schema.GroupVersionKind{Group: bean.ALL, Version: bean.ALL, Kind: bean.ALL}, bean.ALL
 	}
 
 	return namespace, schema.GroupVersionKind{Group: group, Version: version, Kind: kind}, resourceName
