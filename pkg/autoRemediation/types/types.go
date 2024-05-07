@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/scoop/types"
 	"time"
@@ -18,6 +19,19 @@ type InterceptedEventQueryParams struct {
 	ClusterIdNamespacePairs []*repository.ClusterNamespacePair
 	ExecutionStatus         []string
 	Actions                 []types.EventType
+}
+
+func (params InterceptedEventQueryParams) GetClusterNsPairsQuery() string {
+	query := ""
+	n := len(params.ClusterIdNamespacePairs)
+	for i, pair := range params.ClusterIdNamespacePairs {
+		query += fmt.Sprintf("(%d,'%s')", pair.ClusterId, pair.NamespaceName)
+		if i < n-1 {
+			query += ","
+		}
+	}
+
+	return query
 }
 
 type WatcherQueryParams struct {

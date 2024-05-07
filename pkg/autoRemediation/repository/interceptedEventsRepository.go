@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/scoop/types"
@@ -128,8 +129,10 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 			if len(interceptedEventsQueryParams.ClusterIds) > 0 {
 				q = q.WhereOr("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
 			}
+
 			if len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
-				q = q.WhereOr("(intercepted_event_execution.cluster_id,intercepted_event_execution.namespace) IN (?)", pg.InMulti(interceptedEventsQueryParams.ClusterIdNamespacePairs))
+				clusterNamespaceGroupQuery := fmt.Sprintf("(intercepted_event_execution.cluster_id,intercepted_event_execution.namespace) IN (%s)", interceptedEventsQueryParams.GetClusterNsPairsQuery())
+				q = q.WhereOr(clusterNamespaceGroupQuery)
 			}
 			return q, nil
 		})
