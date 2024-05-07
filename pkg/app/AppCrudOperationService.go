@@ -554,7 +554,8 @@ func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, app
 		impl.logger.Errorw("error in getting extra app labels to propagate", "appName", appName, "envName", envName, "err", err)
 		return nil, err
 	}
-
+	//when app labels are provided by the user and share the same label key names as those in the extraAppLabelsToPropagate map,
+	//priority will be given to the user-provided label keys.
 	mergedAppLabels := MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
 
 	appLabelJson.Labels = mergedAppLabels
