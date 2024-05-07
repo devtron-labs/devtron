@@ -89,5 +89,5 @@ type K8sProxyRequest struct {
 }
 
 type InterClusterCommunicationConfig struct {
-	ProxyUpTime int64 `env:"PROXY_UP_TIME" envDefault:"10"`
+	ProxyUpTime int64 `env:"PROXY_UP_TIME" envDefault:"60"`
 }

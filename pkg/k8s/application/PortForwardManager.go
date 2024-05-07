@@ -88,7 +88,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 			if *stoppingDueToInactivity == false {
 				impl.logger.Errorw("An error occurred while listening to k8s api proxy server", "err", err)
 			}
-
+			return
 		}
 	}()
 	go func() {
@@ -99,6 +99,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 			if err != nil {
 				impl.logger.Errorw("An error occurred while closing k8s api server", "err", err)
 			}
+			return
 		}
 	}()
 	return unUsedPort, nil
