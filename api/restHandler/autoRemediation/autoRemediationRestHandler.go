@@ -27,6 +27,7 @@ type WatcherRestHandler interface {
 	UpdateWatcherById(w http.ResponseWriter, r *http.Request)
 	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 	RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request)
+	GetWatchersByClusterId(w http.ResponseWriter, r *http.Request)
 }
 
 type WatcherRestHandlerImpl struct {
@@ -397,4 +398,27 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
 }
 
-/**/
+func (handler *WatcherRestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get("token")
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.logger.Errorw("error in getting clusterId from query param", "err", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	watchers, err := handler.watcherService.GetWatchersByClusterId(clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, watchers, http.StatusOK)
+}

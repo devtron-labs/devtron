@@ -10,27 +10,28 @@ type Router interface {
 }
 
 type RouterImpl struct {
-	restHandler        RestHandler
-	watcherRestHandler autoRemediation.WatcherRestHandler
+	interceptEventHandler RestHandler
+	watcherRestHandler    autoRemediation.WatcherRestHandler
 }
 
 func NewRouterImpl(restHandler RestHandler, watcherRestHandler autoRemediation.WatcherRestHandler) *RouterImpl {
 	return &RouterImpl{
-		restHandler:        restHandler,
-		watcherRestHandler: watcherRestHandler,
+		interceptEventHandler: restHandler,
+		watcherRestHandler:    watcherRestHandler,
 	}
 }
 
 func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 
 	router.Path("/intercept-event/notify").
-		HandlerFunc(impl.restHandler.HandleNotificationEvent).Methods("POST")
+		HandlerFunc(impl.interceptEventHandler.HandleNotificationEvent).Methods("POST")
 
 	router.Path("/intercept-event").
-		HandlerFunc(impl.restHandler.HandleInterceptedEvent).Methods("POST")
+		HandlerFunc(impl.interceptEventHandler.HandleInterceptedEvent).Methods("POST")
+
 	router.Path("/watchers/sync").
 		Queries("clusterId", "{clusterId}").
-		HandlerFunc(impl.restHandler.GetWatchersByClusterId).Methods("GET")
+		HandlerFunc(impl.watcherRestHandler.GetWatchersByClusterId).Methods("GET")
 
 	router.Path("/k8s/watcher").HandlerFunc(impl.watcherRestHandler.SaveWatcher).Methods("POST")
 

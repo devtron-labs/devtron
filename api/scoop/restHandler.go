@@ -21,7 +21,6 @@ import (
 
 type RestHandler interface {
 	HandleInterceptedEvent(w http.ResponseWriter, r *http.Request)
-	GetWatchersByClusterId(w http.ResponseWriter, r *http.Request)
 	HandleNotificationEvent(w http.ResponseWriter, r *http.Request)
 }
 
@@ -77,7 +76,7 @@ func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r 
 	token := r.Header.Get("token")
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
