@@ -27,6 +27,9 @@ import (
 
 type WatcherService interface {
 	CreateWatcher(watcherRequest *types2.WatcherDto, userId int32) (int, error)
+	createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error
+	createJobsForTriggerOfWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error
+	getJobEnvPipelineDetailsForWatcher(triggers []*types2.Trigger) (*jobDetails, error)
 	GetWatcherById(watcherId int) (*types2.WatcherDto, error)
 	DeleteWatcherById(watcherId int, userId int32) error
 	UpdateWatcherById(watcherId int, watcherRequest *types2.WatcherDto, userId int32) error
@@ -34,6 +37,13 @@ type WatcherService interface {
 	FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error)
 	GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error)
+	getClusterInfoOfParamsCluster(clusters []string) ([]int, map[int]string, error)
+	overrideInterceptedEventsStatus(interceptedEvents []types2.InterceptedEventsDto, triggerExecutionIds []int) ([]types2.InterceptedEventsDto, error)
+	getTriggerDataAndPipelineIds(triggers []*repository.AutoRemediationTrigger) ([]int, map[int]types2.Trigger, error)
+	getStatusForJobs(triggerExecutionIds []int) (map[int]string, error)
+	informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *types2.WatcherDto) error
+	getEnvsMap(envs []string) (map[string]*repository2.Environment, error)
+	getEnvSelectors(watcherId int) ([]types2.Selector, map[string]*repository2.Environment, error)
 }
 
 type WatcherServiceImpl struct {
@@ -149,19 +159,21 @@ func fetchGvksFromK8sResources(resources []*types2.K8sResource) (string, error) 
 }
 
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
-	var triggersJobsForWatcher []*types2.Trigger
+	var triggersForTypeJobs []*types2.Trigger
 	if watcherRequest.Triggers == nil {
 		return nil
 	}
 	for i, _ := range watcherRequest.Triggers {
 		if watcherRequest.Triggers[i].IdentifierType == types2.DEVTRON_JOB {
-			triggersJobsForWatcher = append(triggersJobsForWatcher, &watcherRequest.Triggers[i])
+			triggersForTypeJobs = append(triggersForTypeJobs, &watcherRequest.Triggers[i])
 		}
 	}
-	err := impl.createTriggerJobsForWatcher(triggersJobsForWatcher, watcherId, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating triggers for watcher", "error", err)
-		return err
+	if len(triggersForTypeJobs) != 0 { // if trigger type is job then job's data is processed
+		err := impl.createJobsForTriggerOfWatcher(triggersForTypeJobs, watcherId, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating triggers for watcher", "error", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -173,7 +185,7 @@ type jobDetails struct {
 	pipelineIdtoAppworkflow map[int]int
 }
 
-func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error {
+func (impl *WatcherServiceImpl) createJobsForTriggerOfWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error {
 	jobInfo, err := impl.getJobEnvPipelineDetailsForWatcher(triggers)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving details of trigger type job", "error", err)
@@ -746,23 +758,19 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]types2.Selecto
 	}
 	return selectors, envsMap, nil
 }
-func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.InterceptedEventQueryParams) (*types2.InterceptedResponse, error) {
-	var clustersFetched []*repository2.Cluster
+func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params types2.InterceptedEventQueryParams) (*types2.InterceptedResponse, error) {
+	var clusterIds []int
+	var clusterIdToClusterName map[int]string
 	if len(params.Clusters) != 0 {
 		var err error
-		clustersFetched, err = impl.clusterRepository.FindByNames(params.Clusters)
+		clusterIds, clusterIdToClusterName, err = impl.getClusterInfoOfParamsCluster(params.Clusters)
 		if err != nil {
 			impl.logger.Errorw("error in retrieving clusters ", "err", err)
 			return &types2.InterceptedResponse{}, err
 		}
 	}
-
-	var clusterId []int
-	for _, cluster := range clustersFetched {
-		clusterId = append(clusterId, cluster.Id)
-	}
 	parameters := types2.InterceptedEventQuery{
-		ClusterIds:      clusterId,
+		ClusterIds:      clusterIds,
 		Offset:          params.Offset,
 		Size:            params.Size,
 		SortOrder:       params.SortOrder,
@@ -786,22 +794,25 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercept
 			List:   []types2.InterceptedEventsDto{},
 		}, nil
 	}
-	var clusterIds []int
-	for _, event := range interceptedEventData {
-		clusterIds = append(clusterIds, event.ClusterId)
+	interceptedEvents, triggerExecutionIds, err := populateInterceptedEventsAndFetchExecutionIds(interceptedEventData, clusterIdToClusterName)
+	if err != nil {
+		impl.logger.Errorw("error in populating intercepted events and fetching execution ids ", "err", err)
+		return nil, err
 	}
-	var clusters []repository2.Cluster
-	if len(clusterIds) != 0 {
-		clusters, err = impl.clusterRepository.FindByIds(clusterIds)
-		if err != nil {
-			impl.logger.Errorw("error in retrieving cluster names ", "err", err)
-			return &types2.InterceptedResponse{}, err
-		}
+	interceptedEvents, err = impl.overrideInterceptedEventsStatus(interceptedEvents, triggerExecutionIds)
+	if err != nil {
+		impl.logger.Errorw("error in overriding intercepted event's status with workflow's status ", "err", err)
+		return nil, err
 	}
-	clusterIdtoName := make(map[int]string)
-	for _, cluster := range clusters {
-		clusterIdtoName[cluster.Id] = cluster.ClusterName
+	interceptedResponse := types2.InterceptedResponse{
+		Offset: params.Offset,
+		Size:   params.Size,
+		Total:  total,
+		List:   interceptedEvents,
 	}
+	return &interceptedResponse, nil
+}
+func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*repository.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
 	var interceptedEvents []types2.InterceptedEventsDto
 	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
@@ -809,7 +820,7 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercept
 			Action:             event.Action,
 			InvolvedObjects:    event.InvolvedObjects,
 			Metadata:           event.Metadata,
-			ClusterName:        clusterIdtoName[event.ClusterId],
+			ClusterName:        clusterIdToClusterName[event.ClusterId],
 			ClusterId:          event.ClusterId,
 			Namespace:          event.Namespace,
 			EnvironmentName:    event.Environment,
@@ -819,11 +830,9 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercept
 			TriggerId:          event.TriggerId,
 			TriggerExecutionId: event.TriggerExecutionId,
 		}
-
-		var triggerData types2.TriggerData
-		if err := json.Unmarshal([]byte(event.TriggerData), &triggerData); err != nil {
-			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return nil, err
+		triggerData, err := getTriggerDataFromJson(event.TriggerData)
+		if err != nil {
+			return []types2.InterceptedEventsDto{}, []int{}, err
 		}
 		interceptedEvent.Trigger = types2.Trigger{
 			Id:             event.TriggerId,
@@ -835,10 +844,13 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercept
 		}
 		interceptedEvents = append(interceptedEvents, interceptedEvent)
 	}
+	return interceptedEvents, triggerExecutionIds, nil
+}
+func (impl *WatcherServiceImpl) overrideInterceptedEventsStatus(interceptedEvents []types2.InterceptedEventsDto, triggerExecutionIds []int) ([]types2.InterceptedEventsDto, error) {
 	triggerExecutionIdToStatus, err := impl.getStatusForJobs(triggerExecutionIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching status from ci workflows", "err", err)
-		return nil, err
+		return []types2.InterceptedEventsDto{}, err
 	}
 	for i := range interceptedEvents {
 		interceptedEvent := &interceptedEvents[i]
@@ -847,13 +859,26 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercept
 			interceptedEvent.ExecutionStatus = types2.Status(status)
 		}
 	}
-	interceptedResponse := types2.InterceptedResponse{
-		Offset: params.Offset,
-		Size:   params.Size,
-		Total:  total,
-		List:   interceptedEvents,
+	return interceptedEvents, nil
+}
+func (impl *WatcherServiceImpl) getClusterInfoOfParamsCluster(clusters []string) ([]int, map[int]string, error) {
+	var clustersFetched []*repository2.Cluster
+	if len(clusters) != 0 {
+		var err error
+		clustersFetched, err = impl.clusterRepository.FindByNames(clusters)
+		if err != nil {
+			impl.logger.Errorw("error in retrieving clusters ", "err", err)
+			return []int{}, map[int]string{}, err
+		}
 	}
-	return &interceptedResponse, nil
+
+	var clusterId []int
+	clusterIdToClusterName := make(map[int]string)
+	for _, cluster := range clustersFetched {
+		clusterId = append(clusterId, cluster.Id)
+		clusterIdToClusterName[cluster.Id] = cluster.ClusterName
+	}
+	return clusterId, clusterIdToClusterName, nil
 }
 func (impl *WatcherServiceImpl) getStatusForJobs(triggerExecutionIds []int) (map[int]string, error) {
 	ciWorkflows, err := impl.ciWorkflowRepository.FindCiWorkflowGitTriggersByIds(triggerExecutionIds) // function should have been FindCiWorkflowByIds instead of FindCiWorkflowGitTriggersByIds
