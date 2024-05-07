@@ -58,18 +58,22 @@ func WalkThroughProject() {
 	var allFields []EnvField
 	uniqueKeys := make(map[string]bool)
 
-	filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() && strings.HasSuffix(path, ".go") {
 			err = processGoFile(path, &allFields, &uniqueKeys)
 			if err != nil {
+				log.Println("error in processing go file", err)
 				return err
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return
+	}
 	writeToFile(allFields)
 }
 
