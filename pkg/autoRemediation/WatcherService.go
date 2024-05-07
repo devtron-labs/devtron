@@ -27,9 +27,6 @@ import (
 
 type WatcherService interface {
 	CreateWatcher(watcherRequest *types2.WatcherDto, userId int32) (int, error)
-	createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error
-	createJobsForTriggerOfWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error
-	getJobEnvPipelineDetailsForWatcher(triggers []*types2.Trigger) (*jobDetails, error)
 	GetWatcherById(watcherId int) (*types2.WatcherDto, error)
 	DeleteWatcherById(watcherId int, userId int32) error
 	UpdateWatcherById(watcherId int, watcherRequest *types2.WatcherDto, userId int32) error
@@ -37,13 +34,6 @@ type WatcherService interface {
 	FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error)
 	GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error)
-	getClusterInfoOfParamsCluster(clusters []string) ([]int, map[int]string, error)
-	overrideInterceptedEventsStatus(interceptedEvents []types2.InterceptedEventsDto, triggerExecutionIds []int) ([]types2.InterceptedEventsDto, error)
-	getTriggerDataAndPipelineIds(triggers []*repository.AutoRemediationTrigger) ([]int, map[int]types2.Trigger, error)
-	getStatusForJobs(triggerExecutionIds []int) (map[int]string, error)
-	informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *types2.WatcherDto) error
-	getEnvsMap(envs []string) (map[string]*repository2.Environment, error)
-	getEnvSelectors(watcherId int) ([]types2.Selector, map[string]*repository2.Environment, error)
 }
 
 type WatcherServiceImpl struct {
