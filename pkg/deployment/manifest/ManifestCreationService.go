@@ -32,12 +32,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/tidwall/gjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -232,8 +234,14 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-
-		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.AppendAdditionalLabelsToAppLabel")
+		appLabelJsonByteWithAdditionalLabels, err := impl.appendAdditionalLabelsToAppLabel(appLabelJsonByte, overrideRequest)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in appending extra labels to app labels", "err", err)
+			appLabelJsonByteWithAdditionalLabels = nil
+		}
+		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByteWithAdditionalLabels, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
@@ -259,6 +267,32 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	return valuesOverrideResponse, err
 }
 
+func (impl *ManifestCreationServiceImpl) appendAdditionalLabelsToAppLabel(appLabelJsonByte []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
+	appMetaInfo, err := impl.appCrudOperationService.GetAppMetaInfoByAppName(overrideRequest.AppName)
+	if err != nil {
+		impl.logger.Errorw("error in GetAppMetaInfoByAppName by appName", "appName", overrideRequest.AppName, "err", err)
+		return appLabelJsonByte, err
+	}
+	extraLabelsToPropagate := map[string]string{
+		bean3.AppNameDevtronLabel:     overrideRequest.AppName,
+		bean3.EnvNameDevtronLabel:     overrideRequest.EnvName,
+		bean3.ProjectNameDevtronLabel: appMetaInfo.ProjectName,
+		bean3.ManagedByK8sLabel:       argo.DEVTRON_USER,
+	}
+	var appLabelMap map[string]map[string]interface{}
+	if err := json.Unmarshal(appLabelJsonByte, &appLabelMap); err != nil {
+		return appLabelJsonByte, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to unmarshal appLabelJsonByte"}
+	}
+	for labelKey, labelValue := range extraLabelsToPropagate {
+		appLabelMap[bean3.AppLabelsKey][labelKey] = labelValue
+	}
+	appLabelString, err := json.Marshal(appLabelMap)
+	if err != nil {
+		return appLabelJsonByte, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to marshal appLabelJsonByte"}
+	}
+
+	return appLabelString, nil
+}
 func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
 	strategy := &chartConfig.PipelineStrategy{}
 	var err error
@@ -680,7 +714,6 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 	if digestPolicyConfigurations.UseDigestForTrigger() {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
-
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
@@ -690,19 +723,11 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 		App:            appId,
 		Env:            envId,
 		AppMetrics:     appMetrics,
-		EnvName:        overrideRequest.EnvName,
-		AppName:        overrideRequest.AppName,
-		ChartVersion:   envOverride.Chart.ChartVersion,
 	}
-	appMetaInfo, err := impl.appCrudOperationService.GetAppMetaInfoByAppName(overrideRequest.AppName)
-	if err != nil {
-		impl.logger.Errorw("error in getting AppMetaInfoByAppName", "appName", overrideRequest.AppName, "err", err)
-		return "", err
-	}
-	releaseAttribute.ProjectName = appMetaInfo.ProjectName
+
 	override, err := util4.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
 	if err != nil {
-		return "", &util.ApiError{InternalMessage: "unable to render ImageDescriptorTemplate"}
+		return "", &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to render ImageDescriptorTemplate"}
 	}
 	if overrideRequest.AdditionalOverride != nil {
 		userOverride, err := overrideRequest.AdditionalOverride.MarshalJSON()
