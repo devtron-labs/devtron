@@ -6,6 +6,6 @@ SET ci_pipeline_type = 'CI_BUILD'
 WHERE ci_pipeline.app_id = app.id AND ci_pipeline.ci_pipeline_type IS NULL AND app.app_type = 0;
 
 UPDATE "public"."ci_pipeline"
-SET ci_pipeline_type = 'NORMAL_JOB'
+SET ci_pipeline_type = 'CI_BUILD'
     FROM app
 WHERE ci_pipeline.app_id = app.id AND ci_pipeline.ci_pipeline_type IS NULL AND app.app_type = 2;
