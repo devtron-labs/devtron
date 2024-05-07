@@ -11,6 +11,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -104,7 +105,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	interceptEventExecs := make([]*repository.InterceptedEventExecution, 0, len(triggers))
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
-		case repository.DEVTRON_JOB:
+		case types2.DEVTRON_JOB:
 			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
@@ -124,7 +125,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	return err
 }
 
-func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, metadata string, triggers []*autoRemediation.Trigger, err error) {
+func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, metadata string, triggers []*types2.Trigger, err error) {
 	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObjects)
 	if err != nil {
 		return involvedObj, metadata, triggers, err
@@ -178,7 +179,7 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObjJsonStr, hostUrl, token, namespace string, clusterId int) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, involvedObjJsonStr, hostUrl, token, namespace string, clusterId int) *repository.InterceptedEventExecution {
 
 	interceptEventExec := &repository.InterceptedEventExecution{
 		TriggerId: trigger.Id,
@@ -283,7 +284,7 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 	return err
 }
 
-func (impl ServiceImpl) extractRuntimeParams(trigger *autoRemediation.Trigger, involvedObjJsonStr string, hostUrl string, token string) bean.RuntimeParameters {
+func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, involvedObjJsonStr string, hostUrl string, token string) bean.RuntimeParameters {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
@@ -299,7 +300,7 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *autoRemediation.Trigger, i
 	return runtimeParams
 }
 
-func (impl ServiceImpl) createTriggerRequest(trigger *autoRemediation.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {
+func (impl ServiceImpl) createTriggerRequest(trigger *types2.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {
 	env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return nil, err

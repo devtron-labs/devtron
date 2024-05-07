@@ -1,6 +1,7 @@
 package repository
 
 import (
+	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
@@ -35,7 +36,7 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
-	FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error)
+	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
@@ -81,33 +82,33 @@ type InterceptedEventData struct {
 	TriggerData        string      `sql:"trigger_data"`
 }
 
-type InterceptedEventQueryParams struct {
-	Offset          int       `json:"offset"`
-	Size            int       `json:"size"`
-	SortOrder       string    `json:"sortOrder"`
-	SearchString    string    `json:"searchString"`
-	From            time.Time `json:"from"`
-	To              time.Time `json:"to"`
-	Watchers        []string  `json:"watchers"`
-	Clusters        []string  `json:"clusters"`
-	Namespaces      []string  `json:"namespaces"`
-	ExecutionStatus []string  `json:"execution_status"`
-}
+//type InterceptedEventQueryParams struct {
+//	Offset          int       `json:"offset"`
+//	Size            int       `json:"size"`
+//	SortOrder       string    `json:"sortOrder"`
+//	SearchString    string    `json:"searchString"`
+//	From            time.Time `json:"from"`
+//	To              time.Time `json:"to"`
+//	Watchers        []string  `json:"watchers"`
+//	Clusters        []string  `json:"clusters"`
+//	Namespaces      []string  `json:"namespaces"`
+//	ExecutionStatus []string  `json:"execution_status"`
+//}
 
-type InterceptedEventQuery struct {
-	Offset          int       `json:"offset"`
-	Size            int       `json:"size"`
-	SortOrder       string    `json:"sortOrder"`
-	SearchString    string    `json:"searchString"`
-	From            time.Time `json:"from"`
-	To              time.Time `json:"to"`
-	Watchers        []string  `json:"watchers"`
-	ClusterIds      []int     `json:"clusters"`
-	Namespaces      []string  `json:"namespaces"`
-	ExecutionStatus []string  `json:"execution_status"`
-}
+//type InterceptedEventQuery struct {
+//	Offset          int       `json:"offset"`
+//	Size            int       `json:"size"`
+//	SortOrder       string    `json:"sortOrder"`
+//	SearchString    string    `json:"searchString"`
+//	From            time.Time `json:"from"`
+//	To              time.Time `json:"to"`
+//	Watchers        []string  `json:"watchers"`
+//	ClusterIds      []int     `json:"clusters"`
+//	Namespaces      []string  `json:"namespaces"`
+//	ExecutionStatus []string  `json:"execution_status"`
+//}
 
-func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
+func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
 
 	var interceptedEvents []*InterceptedEventData
 	query := impl.dbConnection.Model().

@@ -1,7 +1,6 @@
-package autoRemediation
+package types
 
 import (
-	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/scoop/types"
@@ -17,7 +16,7 @@ type EventConfiguration struct {
 	SelectedActions []types.EventType `json:"selectedActions" validate:"required"`
 }
 
-func (ec *EventConfiguration) getEnvsFromSelectors() []string {
+func (ec *EventConfiguration) GetEnvsFromSelectors() []string {
 	envNames := make([]string, 0)
 	for _, selector := range ec.Selectors {
 		envNames = append(envNames, selector.Names...)
@@ -25,7 +24,7 @@ func (ec *EventConfiguration) getEnvsFromSelectors() []string {
 	return envNames
 }
 
-func (ec *EventConfiguration) getK8sResources() []schema.GroupVersionKind {
+func (ec *EventConfiguration) GetK8sResources() []schema.GroupVersionKind {
 	gvks := make([]schema.GroupVersionKind, 0, len(ec.K8sResources))
 	for _, gvk := range ec.K8sResources {
 		gvks = append(gvks, gvk.GetGVK())
@@ -33,7 +32,7 @@ func (ec *EventConfiguration) getK8sResources() []schema.GroupVersionKind {
 	return gvks
 }
 
-func getEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment) []*resourceQualifiers.SelectionIdentifier {
+func GetEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment) []*resourceQualifiers.SelectionIdentifier {
 	selectionIdentifiers := make([]*resourceQualifiers.SelectionIdentifier, 0)
 	envs := maps.Keys(envNameIdMap)
 	for _, envName := range envs {
@@ -77,10 +76,15 @@ type RuntimeParameter struct {
 }
 
 type Trigger struct {
-	Id             int                    `json:"-"`
-	IdentifierType repository.TriggerType `json:"identifierType" validate:"required,oneof=DEVTRON_JOB"`
-	Data           TriggerData            `json:"data" validate:"dive"`
+	Id             int         `json:"-"`
+	IdentifierType TriggerType `json:"identifierType" validate:"required,oneof=DEVTRON_JOB"`
+	Data           TriggerData `json:"data" validate:"dive"`
 }
+type TriggerType string
+
+const (
+	DEVTRON_JOB TriggerType = "DEVTRON_JOB"
+)
 
 type TriggerData struct {
 	RuntimeParameters      []RuntimeParameter `json:"runtimeParameters"`
@@ -136,10 +140,18 @@ type InterceptedEventsDto struct {
 	Namespace       string `json:"namespace"`
 	EnvironmentName string `json:"environmentName"`
 
-	WatcherName        string            `json:"watcherName"`
-	InterceptedTime    string            `json:"interceptedTime"`
-	ExecutionStatus    repository.Status `json:"executionStatus"`
-	TriggerId          int               `json:"triggerId"`
-	TriggerExecutionId int               `json:"triggerExecutionId"`
-	Trigger            Trigger           `json:"trigger"`
+	WatcherName        string  `json:"watcherName"`
+	InterceptedTime    string  `json:"interceptedTime"`
+	ExecutionStatus    Status  `json:"executionStatus"`
+	TriggerId          int     `json:"triggerId"`
+	TriggerExecutionId int     `json:"triggerExecutionId"`
+	Trigger            Trigger `json:"trigger"`
 }
+type Status string
+
+const (
+	Failure     Status = "Failure"
+	Success     Status = "Success"
+	Progressing Status = "Progressing"
+	Errored     Status = "Error"
+)

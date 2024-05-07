@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -25,14 +26,24 @@ import (
 )
 
 type WatcherService interface {
-	CreateWatcher(watcherRequest *WatcherDto, userId int32) (int, error)
-	GetWatcherById(watcherId int) (*WatcherDto, error)
+	CreateWatcher(watcherRequest *types2.WatcherDto, userId int32) (int, error)
+	createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error
+	createJobsForTriggerOfWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error
+	getJobEnvPipelineDetailsForWatcher(triggers []*types2.Trigger) (*jobDetails, error)
+	GetWatcherById(watcherId int) (*types2.WatcherDto, error)
 	DeleteWatcherById(watcherId int, userId int32) error
-	UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error
-	RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error)
-	FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error)
-	GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error)
+	UpdateWatcherById(watcherId int, watcherRequest *types2.WatcherDto, userId int32) error
+	RetrieveInterceptedEvents(params types2.InterceptedEventQueryParams) (*types2.InterceptedResponse, error)
+	FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error)
+	GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error)
 	GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error)
+	getClusterInfoOfParamsCluster(clusters []string) ([]int, map[int]string, error)
+	overrideInterceptedEventsStatus(interceptedEvents []types2.InterceptedEventsDto, triggerExecutionIds []int) ([]types2.InterceptedEventsDto, error)
+	getTriggerDataAndPipelineIds(triggers []*repository.AutoRemediationTrigger) ([]int, map[int]types2.Trigger, error)
+	getStatusForJobs(triggerExecutionIds []int) (map[int]string, error)
+	informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *types2.WatcherDto) error
+	getEnvsMap(envs []string) (map[string]*repository2.Environment, error)
+	getEnvSelectors(watcherId int) ([]types2.Selector, map[string]*repository2.Environment, error)
 }
 
 type WatcherServiceImpl struct {
@@ -80,7 +91,7 @@ func NewWatcherServiceImpl(watcherRepository repository.K8sEventWatcherRepositor
 	}
 }
 
-func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId int32) (int, error) {
+func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *types2.WatcherDto, userId int32) (int, error) {
 
 	gvks, err := fetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
 	if err != nil {
@@ -113,12 +124,12 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 		return 0, err
 	}
 
-	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.getEnvsFromSelectors())
+	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.GetEnvsFromSelectors())
 	if err != nil {
 		impl.logger.Errorw("error in getting envs using selectors", "err", err)
 		return 0, err
 	}
-	envSelectionIdentifiers := getEnvSelectionIdentifiers(envs)
+	envSelectionIdentifiers := types2.GetEnvSelectionIdentifiers(envs)
 	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, resourceQualifiers.K8sEventWatcher, []int{watcher.Id}, resourceQualifiers.EnvironmentSelector, envSelectionIdentifiers)
 	if err != nil {
 		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
@@ -139,7 +150,7 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *WatcherDto, userId
 	return watcher.Id, nil
 }
 
-func fetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
+func fetchGvksFromK8sResources(resources []*types2.K8sResource) (string, error) {
 	gvks, err := json.Marshal(resources)
 	if err != nil {
 		return "", err
@@ -147,20 +158,22 @@ func fetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
 	return string(gvks), nil
 }
 
-func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
-	var triggersJobsForWatcher []*Trigger
+func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
+	var triggersForTypeJobs []*types2.Trigger
 	if watcherRequest.Triggers == nil {
 		return nil
 	}
 	for i, _ := range watcherRequest.Triggers {
-		if watcherRequest.Triggers[i].IdentifierType == repository.DEVTRON_JOB {
-			triggersJobsForWatcher = append(triggersJobsForWatcher, &watcherRequest.Triggers[i])
+		if watcherRequest.Triggers[i].IdentifierType == types2.DEVTRON_JOB {
+			triggersForTypeJobs = append(triggersForTypeJobs, &watcherRequest.Triggers[i])
 		}
 	}
-	err := impl.createTriggerJobsForWatcher(triggersJobsForWatcher, watcherId, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating triggers for watcher", "error", err)
-		return err
+	if len(triggersForTypeJobs) != 0 { // if trigger type is job then job's data is processed
+		err := impl.createJobsForTriggerOfWatcher(triggersForTypeJobs, watcherId, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating triggers for watcher", "error", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -172,7 +185,7 @@ type jobDetails struct {
 	pipelineIdtoAppworkflow map[int]int
 }
 
-func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger, watcherId int, userId int32, tx *pg.Tx) error {
+func (impl *WatcherServiceImpl) createJobsForTriggerOfWatcher(triggers []*types2.Trigger, watcherId int, userId int32, tx *pg.Tx) error {
 	jobInfo, err := impl.getJobEnvPipelineDetailsForWatcher(triggers)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving details of trigger type job", "error", err)
@@ -181,7 +194,7 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 	var triggersResult []*repository.AutoRemediationTrigger
 	for _, res := range triggers {
 
-		triggerData := TriggerData{
+		triggerData := types2.TriggerData{
 			RuntimeParameters: res.Data.RuntimeParameters,
 		}
 		if jobInfo.displayNameToId[res.Data.JobName] != 0 && res.Data.PipelineName == "" {
@@ -221,7 +234,7 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 	return nil
 }
 
-func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*Trigger) (*jobDetails, error) {
+func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*types2.Trigger) (*jobDetails, error) {
 	var jobsDetails *jobDetails
 	var jobNames, envNames, pipelineNames []string
 
@@ -297,7 +310,7 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*T
 
 }
 
-func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, error) {
+func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*types2.WatcherDto, error) {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in getting watcher by id", watcherId, "error", err)
@@ -308,10 +321,10 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 		impl.logger.Errorw("error in getting k8sResources from gvks", "error", err)
 		return nil, err
 	}
-	watcherResponse := WatcherDto{
+	watcherResponse := types2.WatcherDto{
 		Name:        watcher.Name,
 		Description: watcher.Description,
-		EventConfiguration: EventConfiguration{
+		EventConfiguration: types2.EventConfiguration{
 			K8sResources:    k8sResources,
 			EventExpression: watcher.FilterExpression,
 			SelectedActions: watcher.SelectedActions,
@@ -321,20 +334,20 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers for watcher id", "watcherId", watcherId, "error", err)
-		return &WatcherDto{}, err
+		return &types2.WatcherDto{}, err
 	}
 	if len(triggers) == 0 {
-		watcherResponse.Triggers = []Trigger{}
+		watcherResponse.Triggers = []types2.Trigger{}
 	}
 	for _, trigger := range triggers {
-		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
+		triggerResp, err := getTriggerDataFromJson(trigger.Data)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
 		}
-		triggerResponse := Trigger{
+		triggerResponse := types2.Trigger{
 			Id:             trigger.Id,
-			IdentifierType: trigger.Type,
+			IdentifierType: types2.TriggerType(trigger.Type),
 			Data:           triggerResp,
 		}
 		watcherResponse.Triggers = append(watcherResponse.Triggers, triggerResponse)
@@ -351,17 +364,17 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*WatcherDto, erro
 
 }
 
-func (impl *WatcherServiceImpl) getTriggerDataFromJson(data string) (TriggerData, error) {
-	var triggerResp TriggerData
+func getTriggerDataFromJson(data string) (types2.TriggerData, error) {
+	var triggerResp types2.TriggerData
 	if err := json.Unmarshal([]byte(data), &triggerResp); err != nil {
-		impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-		return TriggerData{}, err
+
+		return types2.TriggerData{}, err
 	}
 	return triggerResp, nil
 }
 
-func getK8sResourcesFromGvks(gvks string) ([]*K8sResource, error) {
-	var k8sResources []*K8sResource
+func getK8sResourcesFromGvks(gvks string) ([]*types2.K8sResource, error) {
+	var k8sResources []*types2.K8sResource
 	if err := json.Unmarshal([]byte(gvks), &k8sResources); err != nil {
 		return nil, err
 	}
@@ -407,7 +420,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		return err
 	}
 
-	err = impl.informScoops(envsMap, types.Delete, &WatcherDto{Id: watcherId})
+	err = impl.informScoops(envsMap, types.Delete, &types2.WatcherDto{Id: watcherId})
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherId", watcherId)
 		return err
@@ -421,7 +434,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 	return nil
 }
 
-func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest *WatcherDto, userId int32) error {
+func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest *types2.WatcherDto, userId int32) error {
 	watcher, err := impl.watcherRepository.GetWatcherById(watcherId)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watcher by id", watcherId, "error", err)
@@ -464,13 +477,13 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		return err
 	}
 
-	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.getEnvsFromSelectors())
+	envs, err := impl.getEnvsMap(watcherRequest.EventConfiguration.GetEnvsFromSelectors())
 	if err != nil {
 		impl.logger.Errorw("error in getting envs using env names", "envNames", envs, "err", err)
 		return err
 	}
 
-	envSelectionIdentifiers := getEnvSelectionIdentifiers(envs)
+	envSelectionIdentifiers := types2.GetEnvSelectionIdentifiers(envs)
 	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, resourceQualifiers.K8sEventWatcher, []int{watcher.Id}, resourceQualifiers.EnvironmentSelector, envSelectionIdentifiers)
 	if err != nil {
 		impl.logger.Errorw("error in mapping watchers to the given envs", "watcher", watcher, "envSelectionIdentifiers", envSelectionIdentifiers, "err", err)
@@ -500,13 +513,13 @@ func indexOfWatcher(watcherID int, watchersList []*repository.K8sEventWatcher) i
 	return -1
 }
 
-type CombinedData struct {
+type WatcherTriggerData struct {
 	time    time.Time
-	Trigger *Trigger
+	Trigger *types2.Trigger
 	Watcher *repository.K8sEventWatcher
 }
 
-func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*repository.K8sEventWatcher) []CombinedData {
+func sortByWatcherNameOrder(combinedData []WatcherTriggerData, watchersList []*repository.K8sEventWatcher) []WatcherTriggerData {
 	sort.Slice(combinedData, func(i, j int) bool {
 		indexI := indexOfWatcher(combinedData[i].Watcher.Id, watchersList)
 		indexJ := indexOfWatcher(combinedData[j].Watcher.Id, watchersList)
@@ -515,7 +528,7 @@ func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*reposit
 	return combinedData
 }
 
-func sortByTime(combinedData []CombinedData, sortOrder string) {
+func sortByTime(combinedData []WatcherTriggerData, sortOrder string) {
 	less := func(i, j int) bool {
 		if sortOrder == "asc" {
 			return combinedData[i].time.Before(combinedData[j].time)
@@ -524,26 +537,19 @@ func sortByTime(combinedData []CombinedData, sortOrder string) {
 	}
 	sort.Slice(combinedData, less)
 }
-func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size int, sortOrder string, sortOrderBy string) (WatchersResponse, error) {
+func (impl *WatcherServiceImpl) FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error) {
 	// implemented under assumption of having one trigger for one watcher of type JOB only
-	params := repository.WatcherQueryParams{
-		Offset:      offset,
-		Size:        size,
-		Search:      search,
-		SortOrderBy: sortOrderBy,
-		SortOrder:   sortOrder,
-	}
 	watchers, total, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watchers ", "error", err)
-		return WatchersResponse{}, err
+		return types2.WatchersResponse{}, err
 	}
 	if len(watchers) == 0 {
-		return WatchersResponse{
-			Size:   size,
-			Offset: offset,
+		return types2.WatchersResponse{
+			Size:   params.Size,
+			Offset: params.Offset,
 			Total:  0,
-			List:   []WatcherItem{},
+			List:   []types2.WatcherItem{},
 		}, nil
 	}
 	var watcherIds []int
@@ -556,25 +562,80 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 
 	if err != nil {
 		impl.logger.Errorw("error in retrieving triggers ", "error", err)
-		return WatchersResponse{}, err
+		return types2.WatchersResponse{}, err
 	}
-	triggerIdWatcherId := make(map[int]int)
+	triggerIdToWatcherId := make(map[int]int)
 	for _, trigger := range triggers {
-		triggerIdWatcherId[trigger.Id] = trigger.WatcherId
+		triggerIdToWatcherId[trigger.Id] = trigger.WatcherId
 	}
+	jobPipelineIds, watcherIdToTriggerData, err := impl.getTriggerDataAndPipelineIds(triggers)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving triggers ", "error", err)
+		return types2.WatchersResponse{}, err
+	}
+	var ciWorkflows []*pipelineConfig.CiWorkflow
+	if len(jobPipelineIds) != 0 {
+		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
+			return types2.WatchersResponse{}, err
+		}
+	}
+	pipelineIdToTriggerTime := make(map[int]time.Time)
+	for _, workflow := range ciWorkflows {
+		pipelineIdToTriggerTime[workflow.CiPipelineId] = workflow.StartedOn
+	}
+	watcherTriggerData := populateWatcherTriggerData(watcherIds, watcherIdToTriggerData, watcherData, triggerIdToWatcherId, pipelineIdToTriggerTime)
+	// introducing column triggeredAt would avoid these sorts
+	if params.SortOrderBy == "triggeredAt" {
+		sortByTime(watcherTriggerData, params.SortOrder)
+	} else {
+		sortByWatcherNameOrder(watcherTriggerData, watchers)
+	}
+	watcherResponses := types2.WatchersResponse{
+		Size:   params.Size,
+		Offset: params.Offset,
+		Total:  total,
+	}
+
+	for _, data := range watcherTriggerData {
+		if data.Trigger != nil {
+			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
+				Id:              data.Watcher.Id,
+				Name:            data.Watcher.Name,
+				Description:     data.Watcher.Description,
+				TriggeredAt:     data.time,
+				JobPipelineName: data.Trigger.Data.PipelineName,
+				JobPipelineId:   data.Trigger.Data.PipelineId,
+				WorkflowId:      data.Trigger.Data.WorkflowId,
+				JobId:           data.Trigger.Data.JobId,
+			})
+		} else {
+			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
+				Id:          data.Watcher.Id,
+				Name:        data.Watcher.Name,
+				Description: data.Watcher.Description,
+				TriggeredAt: data.time,
+			})
+		}
+
+	}
+	return watcherResponses, nil
+}
+func (impl *WatcherServiceImpl) getTriggerDataAndPipelineIds(triggers []*repository.AutoRemediationTrigger) ([]int, map[int]types2.Trigger, error) {
 	var jobPipelineIds []int
-	triggerDto := make(map[int]Trigger)
+	watcherIdToTriggerData := make(map[int]types2.Trigger)
 	for _, trigger := range triggers {
-		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
+		triggerResp, err := getTriggerDataFromJson(trigger.Data)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return WatchersResponse{}, err
+			return []int{}, map[int]types2.Trigger{}, err
 		}
 		jobPipelineIds = append(jobPipelineIds, triggerResp.PipelineId)
-		triggerDto[trigger.WatcherId] = Trigger{
+		watcherIdToTriggerData[trigger.WatcherId] = types2.Trigger{
 			Id:             trigger.Id,
-			IdentifierType: trigger.Type,
-			Data: TriggerData{
+			IdentifierType: types2.TriggerType(trigger.Type),
+			Data: types2.TriggerData{
 				RuntimeParameters:      triggerResp.RuntimeParameters,
 				JobId:                  triggerResp.JobId,
 				JobName:                triggerResp.JobName,
@@ -586,87 +647,43 @@ func (impl *WatcherServiceImpl) FindAllWatchers(offset int, search string, size 
 			},
 		}
 	}
-	var ciWorkflows []*pipelineConfig.CiWorkflow
-	if len(jobPipelineIds) != 0 {
-		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
-			return WatchersResponse{}, err
-		}
-	}
-	var combinedData []CombinedData
-	pipelineIdTime := make(map[int]time.Time)
-	for _, workflow := range ciWorkflows {
-		pipelineIdTime[workflow.CiPipelineId] = workflow.StartedOn
-	}
+	return jobPipelineIds, watcherIdToTriggerData, nil
+}
+func populateWatcherTriggerData(watcherIds []int, watcherIdToTriggerData map[int]types2.Trigger, watcherData map[int]*repository.K8sEventWatcher, triggerIdToWatcherId map[int]int, pipelineIdToTriggerTime map[int]time.Time) []WatcherTriggerData {
+	var watcherTriggerData []WatcherTriggerData
 	for _, id := range watcherIds {
-		if _, exists := triggerDto[id]; exists {
-			trigger := triggerDto[id]
-			watcher := watcherData[triggerIdWatcherId[trigger.Id]]
+		if _, exists := watcherIdToTriggerData[id]; exists {
+			trigger := watcherIdToTriggerData[id]
+			watcher := watcherData[triggerIdToWatcherId[trigger.Id]]
 			if trigger.Id != 0 {
-				combinedData = append(combinedData, CombinedData{
-					time:    pipelineIdTime[trigger.Data.PipelineId],
+				watcherTriggerData = append(watcherTriggerData, WatcherTriggerData{
+					time:    pipelineIdToTriggerTime[trigger.Data.PipelineId],
 					Trigger: &trigger,
 					Watcher: watcher,
 				})
 			} else {
-				combinedData = append(combinedData, CombinedData{
+				watcherTriggerData = append(watcherTriggerData, WatcherTriggerData{
 					Trigger: nil,
 					Watcher: watcher,
 				})
 			}
 		}
 	}
-	// introducing column triggeredAt would avoid these sorts
-	if sortOrderBy == "triggeredAt" {
-		sortByTime(combinedData, sortOrder)
-	} else {
-		sortByWatcherNameOrder(combinedData, watchers)
-	}
-	watcherResponses := WatchersResponse{
-		Size:   params.Size,
-		Offset: params.Offset,
-		Total:  total,
-	}
-
-	for _, cd := range combinedData {
-		if cd.Trigger != nil {
-			watcherResponses.List = append(watcherResponses.List, WatcherItem{
-				Id:              cd.Watcher.Id,
-				Name:            cd.Watcher.Name,
-				Description:     cd.Watcher.Description,
-				TriggeredAt:     cd.time,
-				JobPipelineName: cd.Trigger.Data.PipelineName,
-				JobPipelineId:   cd.Trigger.Data.PipelineId,
-				WorkflowId:      cd.Trigger.Data.WorkflowId,
-				JobId:           cd.Trigger.Data.JobId,
-			})
-		} else {
-			watcherResponses.List = append(watcherResponses.List, WatcherItem{
-				Id:          cd.Watcher.Id,
-				Name:        cd.Watcher.Name,
-				Description: cd.Watcher.Description,
-				TriggeredAt: cd.time,
-			})
-		}
-
-	}
-	return watcherResponses, nil
+	return watcherTriggerData
 }
-
-func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*Trigger, error) {
+func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error) {
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers by watcher ids", "watcherIds", watcherIds, "err", err)
 		return nil, err
 	}
 
-	triggersResult := make([]*Trigger, 0, len(triggers))
+	triggersResult := make([]*types2.Trigger, 0, len(triggers))
 	for _, trigger := range triggers {
-		triggerResp := Trigger{}
+		triggerResp := types2.Trigger{}
 		triggerResp.Id = trigger.Id
-		triggerResp.IdentifierType = trigger.Type
-		triggerData := TriggerData{}
+		triggerResp.IdentifierType = types2.TriggerType(trigger.Type)
+		triggerData := types2.TriggerData{}
 		if err := json.Unmarshal([]byte(trigger.Data), &triggerData); err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
@@ -699,7 +716,7 @@ func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repositor
 	return envsMap, nil
 }
 
-func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, map[string]*repository2.Environment, error) {
+func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]types2.Selector, map[string]*repository2.Environment, error) {
 	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceId(watcherId, resourceQualifiers.K8sEventWatcher)
 	if err != nil {
 		return nil, nil, err
@@ -731,33 +748,29 @@ func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]Selector, map[
 		clusterWiseEnvs[env.Cluster.ClusterName] = list
 	}
 
-	selectors := make([]Selector, 0, len(clusterWiseEnvs))
+	selectors := make([]types2.Selector, 0, len(clusterWiseEnvs))
 	for clusterName, _ := range clusterWiseEnvs {
-		selectors = append(selectors, Selector{
-			Type:      EnvironmentSelector,
+		selectors = append(selectors, types2.Selector{
+			Type:      types2.EnvironmentSelector,
 			GroupName: clusterName,
 			Names:     clusterWiseEnvs[clusterName],
 		})
 	}
 	return selectors, envsMap, nil
 }
-func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.InterceptedEventQueryParams) (*InterceptedResponse, error) {
-	var clustersFetched []*repository2.Cluster
+func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params types2.InterceptedEventQueryParams) (*types2.InterceptedResponse, error) {
+	var clusterIds []int
+	var clusterIdToClusterName map[int]string
 	if len(params.Clusters) != 0 {
 		var err error
-		clustersFetched, err = impl.clusterRepository.FindByNames(params.Clusters)
+		clusterIds, clusterIdToClusterName, err = impl.getClusterInfoOfParamsCluster(params.Clusters)
 		if err != nil {
 			impl.logger.Errorw("error in retrieving clusters ", "err", err)
-			return &InterceptedResponse{}, err
+			return &types2.InterceptedResponse{}, err
 		}
 	}
-
-	var clusterId []int
-	for _, cluster := range clustersFetched {
-		clusterId = append(clusterId, cluster.Id)
-	}
-	parameters := repository.InterceptedEventQuery{
-		ClusterIds:      clusterId,
+	parameters := types2.InterceptedEventQuery{
+		ClusterIds:      clusterIds,
 		Offset:          params.Offset,
 		Size:            params.Size,
 		SortOrder:       params.SortOrder,
@@ -771,84 +784,101 @@ func (impl WatcherServiceImpl) RetrieveInterceptedEvents(params repository.Inter
 	interceptedEventData, total, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(&parameters)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving intercepted events", "err", err)
-		return &InterceptedResponse{}, err
+		return &types2.InterceptedResponse{}, err
 	}
 	if len(interceptedEventData) == 0 {
-		return &InterceptedResponse{
+		return &types2.InterceptedResponse{
 			Size:   params.Size,
 			Offset: params.Offset,
 			Total:  0,
-			List:   []InterceptedEventsDto{},
+			List:   []types2.InterceptedEventsDto{},
 		}, nil
 	}
-	var clusterIds []int
-	for _, event := range interceptedEventData {
-		clusterIds = append(clusterIds, event.ClusterId)
-	}
-	var clusters []repository2.Cluster
-	if len(clusterIds) != 0 {
-		clusters, err = impl.clusterRepository.FindByIds(clusterIds)
-		if err != nil {
-			impl.logger.Errorw("error in retrieving cluster names ", "err", err)
-			return &InterceptedResponse{}, err
-		}
-	}
-	clusterIdtoName := make(map[int]string)
-	for _, cluster := range clusters {
-		clusterIdtoName[cluster.Id] = cluster.ClusterName
-	}
-	var interceptedEvents []InterceptedEventsDto
-	var triggerExecutionIds []int
-	for _, event := range interceptedEventData {
-		interceptedEvent := InterceptedEventsDto{
-			Action:             event.Action,
-			InvolvedObjects:    event.InvolvedObjects,
-			Metadata:           event.Metadata,
-			ClusterName:        clusterIdtoName[event.ClusterId],
-			ClusterId:          event.ClusterId,
-			Namespace:          event.Namespace,
-			EnvironmentName:    event.Environment,
-			WatcherName:        event.WatcherName,
-			InterceptedTime:    (event.InterceptedAt).String(),
-			ExecutionStatus:    event.Status,
-			TriggerId:          event.TriggerId,
-			TriggerExecutionId: event.TriggerExecutionId,
-		}
-
-		var triggerData TriggerData
-		if err := json.Unmarshal([]byte(event.TriggerData), &triggerData); err != nil {
-			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
-			return nil, err
-		}
-		interceptedEvent.Trigger = Trigger{
-			Id:             event.TriggerId,
-			IdentifierType: event.TriggerType,
-			Data:           triggerData,
-		}
-		if interceptedEvent.Trigger.IdentifierType == repository.DEVTRON_JOB {
-			triggerExecutionIds = append(triggerExecutionIds, event.TriggerExecutionId)
-		}
-		interceptedEvents = append(interceptedEvents, interceptedEvent)
-	}
-	triggerExecutionIdToStatus, err := impl.getStatusForJobs(triggerExecutionIds)
+	interceptedEvents, triggerExecutionIds, err := populateInterceptedEventsAndFetchExecutionIds(interceptedEventData, clusterIdToClusterName)
 	if err != nil {
-		impl.logger.Errorw("error in fetching status from ci workflows", "err", err)
+		impl.logger.Errorw("error in populating intercepted events and fetching execution ids ", "err", err)
 		return nil, err
 	}
-	for i := range interceptedEvents {
-		interceptedEvent := &interceptedEvents[i]
-		status := triggerExecutionIdToStatus[interceptedEvent.TriggerExecutionId]
-		if status != "" {
-			interceptedEvent.ExecutionStatus = repository.Status(status)
-		}
+	interceptedEvents, err = impl.overrideInterceptedEventsStatus(interceptedEvents, triggerExecutionIds)
+	if err != nil {
+		impl.logger.Errorw("error in overriding intercepted event's status with workflow's status ", "err", err)
+		return nil, err
 	}
-	interceptedResponse := InterceptedResponse{
+	interceptedResponse := types2.InterceptedResponse{
 		Offset: params.Offset,
 		Size:   params.Size,
 		Total:  total,
 		List:   interceptedEvents,
 	}
 	return &interceptedResponse, nil
+}
+func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*repository.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
+	var interceptedEvents []types2.InterceptedEventsDto
+	var triggerExecutionIds []int
+	for _, event := range interceptedEventData {
+		interceptedEvent := types2.InterceptedEventsDto{
+			Action:             event.Action,
+			InvolvedObjects:    event.InvolvedObjects,
+			Metadata:           event.Metadata,
+			ClusterName:        clusterIdToClusterName[event.ClusterId],
+			ClusterId:          event.ClusterId,
+			Namespace:          event.Namespace,
+			EnvironmentName:    event.Environment,
+			WatcherName:        event.WatcherName,
+			InterceptedTime:    (event.InterceptedAt).String(),
+			ExecutionStatus:    types2.Status(event.Status),
+			TriggerId:          event.TriggerId,
+			TriggerExecutionId: event.TriggerExecutionId,
+		}
+		triggerData, err := getTriggerDataFromJson(event.TriggerData)
+		if err != nil {
+			return []types2.InterceptedEventsDto{}, []int{}, err
+		}
+		interceptedEvent.Trigger = types2.Trigger{
+			Id:             event.TriggerId,
+			IdentifierType: types2.TriggerType(event.TriggerType),
+			Data:           triggerData,
+		}
+		if interceptedEvent.Trigger.IdentifierType == types2.DEVTRON_JOB {
+			triggerExecutionIds = append(triggerExecutionIds, event.TriggerExecutionId)
+		}
+		interceptedEvents = append(interceptedEvents, interceptedEvent)
+	}
+	return interceptedEvents, triggerExecutionIds, nil
+}
+func (impl *WatcherServiceImpl) overrideInterceptedEventsStatus(interceptedEvents []types2.InterceptedEventsDto, triggerExecutionIds []int) ([]types2.InterceptedEventsDto, error) {
+	triggerExecutionIdToStatus, err := impl.getStatusForJobs(triggerExecutionIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching status from ci workflows", "err", err)
+		return []types2.InterceptedEventsDto{}, err
+	}
+	for i := range interceptedEvents {
+		interceptedEvent := &interceptedEvents[i]
+		status := triggerExecutionIdToStatus[interceptedEvent.TriggerExecutionId]
+		if status != "" {
+			interceptedEvent.ExecutionStatus = types2.Status(status)
+		}
+	}
+	return interceptedEvents, nil
+}
+func (impl *WatcherServiceImpl) getClusterInfoOfParamsCluster(clusters []string) ([]int, map[int]string, error) {
+	var clustersFetched []*repository2.Cluster
+	if len(clusters) != 0 {
+		var err error
+		clustersFetched, err = impl.clusterRepository.FindByNames(clusters)
+		if err != nil {
+			impl.logger.Errorw("error in retrieving clusters ", "err", err)
+			return []int{}, map[int]string{}, err
+		}
+	}
+
+	var clusterId []int
+	clusterIdToClusterName := make(map[int]string)
+	for _, cluster := range clustersFetched {
+		clusterId = append(clusterId, cluster.Id)
+		clusterIdToClusterName[cluster.Id] = cluster.ClusterName
+	}
+	return clusterId, clusterIdToClusterName, nil
 }
 func (impl *WatcherServiceImpl) getStatusForJobs(triggerExecutionIds []int) (map[int]string, error) {
 	ciWorkflows, err := impl.ciWorkflowRepository.FindCiWorkflowGitTriggersByIds(triggerExecutionIds) // function should have been FindCiWorkflowByIds instead of FindCiWorkflowGitTriggersByIds
@@ -916,7 +946,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			Name:                  watcher.Name,
 			EventFilterExpression: watcher.FilterExpression,
 			Namespaces:            nsMap,
-			GVKs: util.Map(k8sResources, func(k8Resource *K8sResource) schema.GroupVersionKind {
+			GVKs: util.Map(k8sResources, func(k8Resource *types2.K8sResource) schema.GroupVersionKind {
 				return k8Resource.GetGVK()
 			}),
 			SelectedActions: watcher.SelectedActions,
@@ -928,7 +958,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 	return watchersResponse, nil
 }
 
-func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *WatcherDto) error {
+func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Environment, action types.Action, watcherRequest *types2.WatcherDto) error {
 	clusterEnvMap := make(map[int][]*repository2.Environment)
 	for _, env := range envsMap {
 		namespaces := clusterEnvMap[env.ClusterId]
@@ -948,7 +978,7 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 		watcher := &types.Watcher{
 			Id:                    watcherRequest.Id,
 			Name:                  watcherRequest.Name,
-			GVKs:                  watcherRequest.EventConfiguration.getK8sResources(),
+			GVKs:                  watcherRequest.EventConfiguration.GetK8sResources(),
 			EventFilterExpression: watcherRequest.EventConfiguration.EventExpression,
 			Namespaces:            nsMap,
 			SelectedActions:       watcherRequest.EventConfiguration.SelectedActions,

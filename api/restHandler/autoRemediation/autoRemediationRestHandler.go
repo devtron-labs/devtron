@@ -7,14 +7,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
-	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
+	"github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -85,14 +87,14 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var watcherRequest autoRemediation.WatcherDto
+	var watcherRequest types.WatcherDto
 	err = json.NewDecoder(r.Body).Decode(&watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveWatcher", "err", err, "payload", watcherRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	impl.logger.Infow("request payload, SaveWatcher", "err", err, "payload", watcherRequest)
 	err = impl.validator.Struct(watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("validation err, SaveWatcher", "err", err, "payload", watcherRequest)
@@ -114,7 +116,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
 	// RBAC
@@ -141,7 +143,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
 	// RBAC enforcer Ends
@@ -167,7 +169,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*")
 	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
 	// RBAC enforcer Ends
@@ -189,7 +191,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
-	var watcherRequest autoRemediation.WatcherDto
+	var watcherRequest types.WatcherDto
 	err = json.NewDecoder(r.Body).Decode(&watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveWatcher", "err", err, "payload", watcherRequest)
@@ -218,7 +220,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
 	// RBAC enforcer Ends
@@ -239,14 +241,36 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		return
 	}
 	queryParams := r.URL.Query()
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	// RBAC enforcer Ends
+	watcherQueryParams, err := getWatcherQueryParams(queryParams)
+	if err != nil {
+		impl.logger.Errorw("error in fetching watcherQueryParams", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	watchersResponse, err := impl.watcherService.FindAllWatchers(watcherQueryParams)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, find all ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, watchersResponse, http.StatusOK)
+}
+func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, error) {
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
 		sortOrder = "asc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
-		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
-		return
+		return types.WatcherQueryParams{}, errors.New("sort order can only be ASC or DESC")
 	}
 	sortOrderBy := queryParams.Get("orderBy")
 	if sortOrderBy == "" {
@@ -254,46 +278,37 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		sortOrder = "asc"
 	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
-		common.WriteJsonResp(w, errors.New("sort order can only be by name or triggeredAt"), nil, http.StatusBadRequest)
-		return
+		return types.WatcherQueryParams{}, errors.New("sort order can only be by name or triggeredAt")
 	}
 	sizeStr := queryParams.Get("size")
 	size := 20
 	if sizeStr != "" {
+		var err error
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
-			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
-			return
+			return types.WatcherQueryParams{}, errors.New("invalid size")
 		}
 	}
 	offsetStr := queryParams.Get("offset")
 	offset := 0
 	if offsetStr != "" {
+		var err error
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
-			return
+			return types.WatcherQueryParams{}, errors.New("invalid size")
 		}
 	}
 	search := queryParams.Get("search")
 	search = strings.ToLower(search)
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer Ends
-	watchersResponse, err := impl.watcherService.FindAllWatchers(offset, search, size, sortOrder, sortOrderBy)
-	if err != nil {
-		impl.logger.Errorw("service err, find all ", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, watchersResponse, http.StatusOK)
-}
+	return types.WatcherQueryParams{
+		Offset:      offset,
+		Size:        size,
+		Search:      search,
+		SortOrder:   sortOrder,
+		SortOrderBy: sortOrderBy,
+	}, nil
 
+}
 func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -301,31 +316,48 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 		return
 	}
 	queryParams := r.URL.Query()
+	interceptedEventQuery, err := getInterceptedEventsQueryParams(queryParams)
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	// RBAC enforcer Ends
+	eventsResponse, err := impl.watcherService.RetrieveInterceptedEvents(interceptedEventQuery)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, find all ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
+}
+func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedEventQueryParams, error) {
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
 		sortOrder = "desc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
-		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
-		return
+		return types.InterceptedEventQueryParams{}, errors.New("sort order can only be ASC or DESC")
 	}
 	sizeStr := queryParams.Get("size")
 	size := 20
 	if sizeStr != "" {
+		var err error
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
-			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
-			return
+			return types.InterceptedEventQueryParams{}, errors.New("invalid size")
 		}
 	}
 	offsetStr := queryParams.Get("offset")
 	offset := 0
 	if offsetStr != "" {
+		var err error
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
-			return
+			return types.InterceptedEventQueryParams{}, errors.New("invalid offset")
 		}
 	}
 	search := queryParams.Get("search")
@@ -333,19 +365,19 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	from := queryParams.Get("from")
 	var fromTime time.Time
 	if from != "" {
+		var err error
 		fromTime, err = time.Parse(time.RFC1123, from)
 		if err != nil {
-			common.WriteJsonResp(w, errors.New("invalid from time"), nil, http.StatusBadRequest)
-			return
+			return types.InterceptedEventQueryParams{}, errors.New("invalid from time")
 		}
 	}
 	to := queryParams.Get("to")
 	var toTime time.Time
 	if to != "" {
+		var err error
 		toTime, err = time.Parse(time.RFC1123, to)
 		if err != nil {
-			common.WriteJsonResp(w, errors.New("invalid to time"), nil, http.StatusBadRequest)
-			return
+			return types.InterceptedEventQueryParams{}, errors.New("invalid to time")
 		}
 	}
 	watchers := queryParams.Get("watchers")
@@ -368,16 +400,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	if executionStatus != "" {
 		executionStatusArray = strings.Split(executionStatus, ",")
 	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer Ends
-	interceptedEventQuery := repository.InterceptedEventQueryParams{
+	return types.InterceptedEventQueryParams{
 		Offset:          offset,
 		Size:            size,
 		SortOrder:       sortOrder,
@@ -388,16 +411,9 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 		Clusters:        clustersArray,
 		Namespaces:      namespacesArray,
 		ExecutionStatus: executionStatusArray,
-	}
-	eventsResponse, err := impl.watcherService.RetrieveInterceptedEvents(interceptedEventQuery)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, find all ", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
-}
+	}, nil
 
+}
 func (handler *WatcherRestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
 
 	token := r.Header.Get("token")
