@@ -1,3 +1,7 @@
+DROP TABLE "public"."devtron_resource_task_run";
+
+DROP SEQUENCE IF EXISTS id_devtron_resource_task_run;
+
 ALTER TABLE devtron_resource_object
     DROP COLUMN identifier;
 
