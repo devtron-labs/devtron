@@ -195,8 +195,8 @@ func (impl *WatcherServiceImpl) createTriggerJobsForWatcher(triggers []*Trigger,
 			triggerData.PipelineName = res.Data.PipelineName
 			triggerData.WorkflowId = jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]]
 		}
+		triggerData.ExecutionEnvironment = res.Data.ExecutionEnvironment
 		if jobInfo.envNameToId[res.Data.ExecutionEnvironment] != 0 {
-			triggerData.ExecutionEnvironment = res.Data.ExecutionEnvironment
 			triggerData.ExecutionEnvironmentId = jobInfo.envNameToId[res.Data.ExecutionEnvironment]
 		}
 		jsonData, err := json.Marshal(triggerData)

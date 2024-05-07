@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util5 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/scoop/types"
+	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
@@ -37,6 +38,7 @@ type ServiceImpl struct {
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	interceptedEventsRepository  repository.InterceptedEventsRepository
 	clusterService               cluster.ClusterService
+	environmentService           cluster.EnvironmentService
 	attributesService            attributes.AttributesService
 	tokenService                 apiToken.ApiTokenService
 	eventClient                  client2.EventClient
@@ -53,6 +55,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	tokenService apiToken.ApiTokenService,
 	eventClient client2.EventClient,
 	eventFactory client2.EventFactory,
+	environmentService cluster.EnvironmentService,
 ) *ServiceImpl {
 	return &ServiceImpl{
 		logger:                       logger,
@@ -65,6 +68,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		tokenService:                 tokenService,
 		eventClient:                  eventClient,
 		eventFactory:                 eventFactory,
+		environmentService:           environmentService,
 	}
 }
 
@@ -101,7 +105,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case repository.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token)
+			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
 			interceptEventExec.InvolvedObjects = involvedObj
@@ -174,28 +178,20 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObjJsonStr, hostUrl, token string) *repository.InterceptedEventExecution {
-	runtimeParams := bean.RuntimeParameters{
-		EnvVariables: make(map[string]string),
+func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObjJsonStr, hostUrl, token, namespace string, clusterId int) *repository.InterceptedEventExecution {
+
+	interceptEventExec := &repository.InterceptedEventExecution{
+		TriggerId: trigger.Id,
 	}
 
-	for _, param := range trigger.Data.RuntimeParameters {
-		runtimeParams.EnvVariables[param.Key] = param.Value
+	request, err := impl.createTriggerRequest(trigger, namespace, clusterId)
+	if err != nil {
+		interceptEventExec.Status = repository.Errored
+		interceptEventExec.ExecutionMessage = err.Error()
+		return interceptEventExec
 	}
-
-	// involvedObjJsonStr is a json string which contain old and new resources.
-	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
-	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
-	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
-
-	request := bean.CiTriggerRequest{
-		PipelineId: trigger.Data.PipelineId,
-		// system user
-		TriggeredBy:   1,
-		EnvironmentId: trigger.Data.ExecutionEnvironmentId,
-		PipelineType:  "CI_BUILD",
-		RuntimeParams: &runtimeParams,
-	}
+	runtimeParams := impl.extractRuntimeParams(trigger, involvedObjJsonStr, hostUrl, token)
+	request.RuntimeParams = &runtimeParams
 
 	ciWorkflowId := 0
 	status := repository.Progressing
@@ -225,7 +221,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 		}
 
 		// trigger job pipeline
-		ciWorkflowId, err = impl.ciHandler.HandleCIManual(request)
+		ciWorkflowId, err = impl.ciHandler.HandleCIManual(*request)
 		if err != nil {
 			impl.logger.Errorw("error in trigger job ci pipeline", "triggerRequest", request, "err", err)
 			executionMessage = err.Error()
@@ -234,14 +230,10 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 
 	}
 
-	interceptEventExec := &repository.InterceptedEventExecution{
-		TriggerId:          trigger.Id,
-		TriggerExecutionId: ciWorkflowId,
-		Status:             status,
-		// store the error here if something goes wrong before triggering the job
-		ExecutionMessage: executionMessage,
-	}
-
+	interceptEventExec.TriggerExecutionId = ciWorkflowId
+	interceptEventExec.Status = status
+	// store the error here if something goes wrong before triggering the job
+	interceptEventExec.ExecutionMessage = executionMessage
 	return interceptEventExec
 }
 
@@ -289,4 +281,37 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 		impl.logger.Errorw("error in sending scoop event notification", "notification", notification, "err", err)
 	}
 	return err
+}
+
+func (impl ServiceImpl) extractRuntimeParams(trigger *autoRemediation.Trigger, involvedObjJsonStr string, hostUrl string, token string) bean.RuntimeParameters {
+	runtimeParams := bean.RuntimeParameters{
+		EnvVariables: make(map[string]string),
+	}
+
+	for _, param := range trigger.Data.RuntimeParameters {
+		runtimeParams.EnvVariables[param.Key] = param.Value
+	}
+
+	// involvedObjJsonStr is a json string which contain old and new resources.
+	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
+	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
+	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
+	return runtimeParams
+}
+
+func (impl ServiceImpl) createTriggerRequest(trigger *autoRemediation.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {
+	env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		return nil, err
+	}
+	if env != nil {
+		trigger.Data.ExecutionEnvironmentId = env.Id
+	}
+	return &bean.CiTriggerRequest{
+		PipelineId: trigger.Data.PipelineId,
+		// system user
+		TriggeredBy:   1,
+		EnvironmentId: trigger.Data.ExecutionEnvironmentId,
+		PipelineType:  "CI_BUILD",
+	}, nil
 }
