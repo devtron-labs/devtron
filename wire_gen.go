@@ -741,7 +741,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	dashboardRouterImpl, err := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	if err != nil {
+		return nil, err
+	}
 	attributesRestHandlerImpl := restHandler.NewAttributesRestHandlerImpl(sugaredLogger, enforcerImpl, userServiceImpl, attributesServiceImpl)
 	attributesRouterImpl := router.NewAttributesRouterImpl(attributesRestHandlerImpl)
 	userAttributesRepositoryImpl := repository2.NewUserAttributesRepositoryImpl(db)
@@ -888,7 +891,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	proxyRouterImpl := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enforcerImpl)
+	proxyRouterImpl, err := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enforcerImpl)
+	if err != nil {
+		return nil, err
+	}
 	infraConfigRestHandlerImpl := infraConfig2.NewInfraConfigRestHandlerImpl(sugaredLogger, infraConfigServiceImpl, userServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enforcerImpl)

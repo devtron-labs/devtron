@@ -249,7 +249,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	dashboardRouterImpl, err := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	if err != nil {
+		return nil, err
+	}
 	installedAppVersionHistoryRepositoryImpl := repository4.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	gitOpsConfigRepositoryImpl := repository3.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
