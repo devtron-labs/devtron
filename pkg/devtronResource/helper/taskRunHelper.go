@@ -52,3 +52,7 @@ func GetTaskRunSourceIdentifier(id int, idType bean.IdType, resourceId, resource
 func GetTaskRunSourceDependencyIdentifier(id int, idType bean.IdType, resourceId, resourceSchemaId int) string {
 	return fmt.Sprintf("%d|%s|%d|%d", id, idType, resourceId, resourceSchemaId)
 }
+
+func GetTaskRunIdentifier(id int, idType bean.IdType, resourceId, resourceSchemaId int) string {
+	return fmt.Sprintf("%d|%s|%d|%d", id, idType, resourceId, resourceSchemaId)
+}

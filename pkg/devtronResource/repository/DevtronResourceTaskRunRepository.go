@@ -33,6 +33,7 @@ type DevtronResourceTaskRun struct {
 	TaskJson                      string        `sql:"task_json"` //json string
 	RunSourceIdentifier           string        `sql:"run_source_identifier"`
 	RunSourceDependencyIdentifier string        `sql:"run_source_dependency_identifier"`
+	RunTargetIdentifier           string        `sql:"run_target_identifier"`
 	TaskType                      bean.TaskType `sql:"task_type"`
 	TaskTypeIdentifier            int           `sql:"task_type_identifier"` // for pre, post, deploy it refers to cdWorkflowRunnerId
 	//DevtronResourceSchemaId       int           `sql:"devtron_resource_schema_id"`// will be introduced in future
