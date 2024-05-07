@@ -17,9 +17,7 @@ const Proxy = "proxy"
 func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) (func(writer http.ResponseWriter, request *http.Request), error) {
 	proxy, err := GetProxyServer(serverAddr, transport, Dashboard)
 	if err != nil {
-		return func(writer http.ResponseWriter, request *http.Request) {
-			http.Error(writer, "error while getting proxy server", http.StatusInternalServerError)
-		}, err
+		return nil, err
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
@@ -59,9 +57,7 @@ func rewriteRequestUrl(path string, pathToExclude string) string {
 func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforcer casbin.Enforcer) (func(writer http.ResponseWriter, request *http.Request), error) {
 	proxy, err := GetProxyServer(serverAddr, transport, Proxy)
 	if err != nil {
-		return func(writer http.ResponseWriter, request *http.Request) {
-			http.Error(writer, "error while getting proxy server", http.StatusInternalServerError)
-		}, err
+		return nil, err
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 
