@@ -79,17 +79,15 @@ VALUES (
 
     # URL and token from environment variables
     echo "------------STARTING PLUGIN CUSTOM EMAIL NOTIFIER------------"
-    echo "CONFIG_TYPE: $CONFIG_TYPE"
-    echo "CONFIG_NAME: $CONFIG_NAME"
-    echo "EMAIL_IDS: $EMAIL_IDS"
-    url = $NOTIFICATION_URL
-    token = $NOTIFICATION_TOKEN
-    echo "NOTIFICATION_URL: $NOTIFICATION_URL"
-    echo "NOTIFICATION_TOKEN: $NOTIFICATION_TOKEN"
+    echo "CONFIG_TYPE given: $CONFIG_TYPE"
+    echo "CONFIG_NAME given: $CONFIG_NAME"
+    echo "EMAIL_IDS given: $EMAIL_IDS"
+    echo "NOTIFICATION_URL Fetched: $NOTIFICATION_URL"
+    echo "NOTIFICATION_TOKEN Fetched: $NOTIFICATION_TOKEN"
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\', "emailIds": \'"$EMAIL_IDS"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\',"emailIds":\'${EMAIL_IDS}\'}\'
     # Make the API call
-    curl -X POST ${NOTIFICATION_URL} -H "token: ${NOTIFICATION_TOKEN}" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
+    curl -X POST ${NOTIFICATION_URL} -H "token: $NOTIFICATION_TOKEN" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'","emailIds":"\'${EMAIL_IDS}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
@@ -140,16 +138,14 @@ VALUES (
 
     # URL and token from environment variables
     echo "------------STARTING PLUGIN CUSTOM WEBHOOK NOTIFIER------------"
-    echo "CONFIG_TYPE: $CONFIG_TYPE"
-    echo "CONFIG_NAME: $CONFIG_NAME"
-    url = $NOTIFICATION_URL
-    token = $NOTIFICATION_TOKEN
-    echo "NOTIFICATION_URL: $NOTIFICATION_URL"
-    echo "NOTIFICATION_TOKEN: $NOTIFICATION_TOKEN"
+    echo "CONFIG_TYPE given: $CONFIG_TYPE"
+    echo "CONFIG_NAME given: $CONFIG_NAME"
+    echo "NOTIFICATION_URL Fetched: $NOTIFICATION_URL"
+    echo "NOTIFICATION_TOKEN Fetched: $NOTIFICATION_TOKEN"
     echo "{"configType": \'"${CONFIG_TYPE}"\', "configName": \'"${CONFIG_NAME}"\'}"
     echo \'{"configType":\'${CONFIG_TYPE}\',"configName":\'${CONFIG_NAME}\'}\'
     # Make the API call
-    curl -X POST ${NOTIFICATION_URL} -H "token: ${NOTIFICATION_TOKEN}" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
+    curl -X POST ${NOTIFICATION_URL} -H "token: $NOTIFICATION_TOKEN" -H "Content-Type: application/json" -d ''{"configType": "\'${CONFIG_TYPE}\'","configName":"\'${CONFIG_NAME}\'"}''
     echo "------------FINISHING PLUGIN CUSTOM EMAIL NOTIFIER------------"
     ',
            'SHELL',
