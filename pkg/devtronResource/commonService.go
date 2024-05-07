@@ -288,6 +288,18 @@ func (impl *DevtronResourceServiceImpl) getDependencyBeanFromJsonString(parentRe
 	}, nil
 }
 
+func (impl *DevtronResourceServiceImpl) getDependencyBeanWithChildInheritance(parentResourceType *bean.DevtronResourceTypeReq, dependency string, isLite bool) (*bean.DevtronResourceDependencyBean, error) {
+	dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependency, isLite)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getDependencyBeanWithChildInheritance", "dependency", dependency, "err", err)
+		return nil, err
+	}
+	if dependencyBean.Config.ArtifactConfig != nil && dependencyBean.Config.ArtifactConfig.ArtifactId != 0 {
+		dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
+	}
+	return dependencyBean, nil
+}
+
 // GetDependenciesBeanFromObjectData is used for by internal services for getting minimal data with filter conditions bean.DependencyFilterCondition.
 func GetDependenciesBeanFromObjectData(objectData string, filterCondition *bean.DependencyFilterCondition) []*bean.DevtronResourceDependencyBean {
 	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)

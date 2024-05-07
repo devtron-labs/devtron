@@ -1202,16 +1202,13 @@ func (impl *DevtronResourceServiceImpl) patchReleaseInstructionForADependency(de
 		ResourceVersion: bean.DevtronResourceVersion(version),
 	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), false)
+		dependencyBean, err := impl.getDependencyBeanWithChildInheritance(parentResourceType, dependencyResult.String(), false)
 		if err != nil {
 			return nil, 0, err
 		}
 		if dependencyBean.OldObjectId == id && helper.IsApplicationDependency(dependencyBean.DevtronResourceTypeReq) {
 			dependencyBean.Config.ReleaseInstruction = releaseInstruction
 			indexChanged = dependencyBean.Index
-		}
-		if dependencyBean.Config.ArtifactConfig != nil && dependencyBean.Config.ArtifactConfig.ArtifactId != 0 {
-			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
 		}
 		dependencies = append(dependencies, dependencyBean)
 	}
@@ -1257,7 +1254,7 @@ func (impl *DevtronResourceServiceImpl) patchImageForADependency(devtronResource
 		ResourceVersion: bean.DevtronResourceVersion(version),
 	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), false)
+		dependencyBean, err := impl.getDependencyBeanWithChildInheritance(parentResourceType, dependencyResult.String(), false)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -1269,8 +1266,6 @@ func (impl *DevtronResourceServiceImpl) patchImageForADependency(devtronResource
 			}
 			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
 			indexChanged = dependencyBean.Index
-		} else if dependencyBean.Config.ArtifactConfig != nil && dependencyBean.Config.ArtifactConfig.ArtifactId != 0 {
-			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
 		}
 		dependencies = append(dependencies, dependencyBean)
 	}
@@ -1334,16 +1329,13 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticular
 		ResourceVersion: bean.DevtronResourceVersion(version),
 	}
 	for _, dependencyResult := range dependenciesResultArr {
-		dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependencyResult.String(), false)
+		dependencyBean, err := impl.getDependencyBeanWithChildInheritance(parentResourceType, dependencyResult.String(), false)
 		if err != nil {
 			return nil, 0, err
 		}
 		if dependencyBean.OldObjectId == id && helper.IsApplicationDependency(dependencyBean.DevtronResourceTypeReq) {
 			indexOfDependencyRemoved = dependencyBean.Index
 			continue
-		}
-		if dependencyBean.Config.ArtifactConfig != nil && dependencyBean.Config.ArtifactConfig.ArtifactId != 0 {
-			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
 		}
 		dependencies = append(dependencies, dependencyBean)
 	}
