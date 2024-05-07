@@ -328,7 +328,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*types2.WatcherDt
 		watcherResponse.Triggers = []types2.Trigger{}
 	}
 	for _, trigger := range triggers {
-		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
+		triggerResp, err := getTriggerDataFromJson(trigger.Data)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
 			return nil, err
@@ -352,10 +352,10 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*types2.WatcherDt
 
 }
 
-func (impl *WatcherServiceImpl) getTriggerDataFromJson(data string) (types2.TriggerData, error) {
+func getTriggerDataFromJson(data string) (types2.TriggerData, error) {
 	var triggerResp types2.TriggerData
 	if err := json.Unmarshal([]byte(data), &triggerResp); err != nil {
-		impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+
 		return types2.TriggerData{}, err
 	}
 	return triggerResp, nil
@@ -501,13 +501,13 @@ func indexOfWatcher(watcherID int, watchersList []*repository.K8sEventWatcher) i
 	return -1
 }
 
-type CombinedData struct {
+type WatcherTriggerData struct {
 	time    time.Time
 	Trigger *types2.Trigger
 	Watcher *repository.K8sEventWatcher
 }
 
-func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*repository.K8sEventWatcher) []CombinedData {
+func sortByWatcherNameOrder(combinedData []WatcherTriggerData, watchersList []*repository.K8sEventWatcher) []WatcherTriggerData {
 	sort.Slice(combinedData, func(i, j int) bool {
 		indexI := indexOfWatcher(combinedData[i].Watcher.Id, watchersList)
 		indexJ := indexOfWatcher(combinedData[j].Watcher.Id, watchersList)
@@ -516,7 +516,7 @@ func sortByWatcherNameOrder(combinedData []CombinedData, watchersList []*reposit
 	return combinedData
 }
 
-func sortByTime(combinedData []CombinedData, sortOrder string) {
+func sortByTime(combinedData []WatcherTriggerData, sortOrder string) {
 	less := func(i, j int) bool {
 		if sortOrder == "asc" {
 			return combinedData[i].time.Before(combinedData[j].time)
@@ -527,13 +527,6 @@ func sortByTime(combinedData []CombinedData, sortOrder string) {
 }
 func (impl *WatcherServiceImpl) FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error) {
 	// implemented under assumption of having one trigger for one watcher of type JOB only
-	//params := WatcherQueryParams{
-	//	Offset:      offset,
-	//	Size:        size,
-	//	Search:      search,
-	//	SortOrderBy: sortOrderBy,
-	//	SortOrder:   sortOrder,
-	//}
 	watchers, total, err := impl.watcherRepository.FindAllWatchersByQueryName(params)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watchers ", "error", err)
@@ -559,20 +552,75 @@ func (impl *WatcherServiceImpl) FindAllWatchers(params types2.WatcherQueryParams
 		impl.logger.Errorw("error in retrieving triggers ", "error", err)
 		return types2.WatchersResponse{}, err
 	}
-	triggerIdWatcherId := make(map[int]int)
+	triggerIdToWatcherId := make(map[int]int)
 	for _, trigger := range triggers {
-		triggerIdWatcherId[trigger.Id] = trigger.WatcherId
+		triggerIdToWatcherId[trigger.Id] = trigger.WatcherId
 	}
-	var jobPipelineIds []int
-	triggerDto := make(map[int]types2.Trigger)
-	for _, trigger := range triggers {
-		triggerResp, err := impl.getTriggerDataFromJson(trigger.Data)
+	jobPipelineIds, watcherIdToTriggerData, err := impl.getTriggerDataAndPipelineIds(triggers)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving triggers ", "error", err)
+		return types2.WatchersResponse{}, err
+	}
+	var ciWorkflows []*pipelineConfig.CiWorkflow
+	if len(jobPipelineIds) != 0 {
+		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds)
 		if err != nil {
-			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
 			return types2.WatchersResponse{}, err
 		}
+	}
+	pipelineIdToTriggerTime := make(map[int]time.Time)
+	for _, workflow := range ciWorkflows {
+		pipelineIdToTriggerTime[workflow.CiPipelineId] = workflow.StartedOn
+	}
+	watcherTriggerData := populateWatcherTriggerData(watcherIds, watcherIdToTriggerData, watcherData, triggerIdToWatcherId, pipelineIdToTriggerTime)
+	// introducing column triggeredAt would avoid these sorts
+	if params.SortOrderBy == "triggeredAt" {
+		sortByTime(watcherTriggerData, params.SortOrder)
+	} else {
+		sortByWatcherNameOrder(watcherTriggerData, watchers)
+	}
+	watcherResponses := types2.WatchersResponse{
+		Size:   params.Size,
+		Offset: params.Offset,
+		Total:  total,
+	}
+
+	for _, data := range watcherTriggerData {
+		if data.Trigger != nil {
+			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
+				Id:              data.Watcher.Id,
+				Name:            data.Watcher.Name,
+				Description:     data.Watcher.Description,
+				TriggeredAt:     data.time,
+				JobPipelineName: data.Trigger.Data.PipelineName,
+				JobPipelineId:   data.Trigger.Data.PipelineId,
+				WorkflowId:      data.Trigger.Data.WorkflowId,
+				JobId:           data.Trigger.Data.JobId,
+			})
+		} else {
+			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
+				Id:          data.Watcher.Id,
+				Name:        data.Watcher.Name,
+				Description: data.Watcher.Description,
+				TriggeredAt: data.time,
+			})
+		}
+
+	}
+	return watcherResponses, nil
+}
+func (impl *WatcherServiceImpl) getTriggerDataAndPipelineIds(triggers []*repository.AutoRemediationTrigger) ([]int, map[int]types2.Trigger, error) {
+	var jobPipelineIds []int
+	watcherIdToTriggerData := make(map[int]types2.Trigger)
+	for _, trigger := range triggers {
+		triggerResp, err := getTriggerDataFromJson(trigger.Data)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling trigger data", "error", err)
+			return []int{}, map[int]types2.Trigger{}, err
+		}
 		jobPipelineIds = append(jobPipelineIds, triggerResp.PipelineId)
-		triggerDto[trigger.WatcherId] = types2.Trigger{
+		watcherIdToTriggerData[trigger.WatcherId] = types2.Trigger{
 			Id:             trigger.Id,
 			IdentifierType: types2.TriggerType(trigger.Type),
 			Data: types2.TriggerData{
@@ -587,74 +635,30 @@ func (impl *WatcherServiceImpl) FindAllWatchers(params types2.WatcherQueryParams
 			},
 		}
 	}
-	var ciWorkflows []*pipelineConfig.CiWorkflow
-	if len(jobPipelineIds) != 0 {
-		ciWorkflows, err = impl.ciWorkflowRepository.FindLastOneTriggeredWorkflowByCiIds(jobPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in fetching last triggered workflow by ci ids", jobPipelineIds, "error", err)
-			return types2.WatchersResponse{}, err
-		}
-	}
-	var combinedData []CombinedData
-	pipelineIdTime := make(map[int]time.Time)
-	for _, workflow := range ciWorkflows {
-		pipelineIdTime[workflow.CiPipelineId] = workflow.StartedOn
-	}
+	return jobPipelineIds, watcherIdToTriggerData, nil
+}
+func populateWatcherTriggerData(watcherIds []int, watcherIdToTriggerData map[int]types2.Trigger, watcherData map[int]*repository.K8sEventWatcher, triggerIdToWatcherId map[int]int, pipelineIdToTriggerTime map[int]time.Time) []WatcherTriggerData {
+	var watcherTriggerData []WatcherTriggerData
 	for _, id := range watcherIds {
-		if _, exists := triggerDto[id]; exists {
-			trigger := triggerDto[id]
-			watcher := watcherData[triggerIdWatcherId[trigger.Id]]
+		if _, exists := watcherIdToTriggerData[id]; exists {
+			trigger := watcherIdToTriggerData[id]
+			watcher := watcherData[triggerIdToWatcherId[trigger.Id]]
 			if trigger.Id != 0 {
-				combinedData = append(combinedData, CombinedData{
-					time:    pipelineIdTime[trigger.Data.PipelineId],
+				watcherTriggerData = append(watcherTriggerData, WatcherTriggerData{
+					time:    pipelineIdToTriggerTime[trigger.Data.PipelineId],
 					Trigger: &trigger,
 					Watcher: watcher,
 				})
 			} else {
-				combinedData = append(combinedData, CombinedData{
+				watcherTriggerData = append(watcherTriggerData, WatcherTriggerData{
 					Trigger: nil,
 					Watcher: watcher,
 				})
 			}
 		}
 	}
-	// introducing column triggeredAt would avoid these sorts
-	if params.SortOrderBy == "triggeredAt" {
-		sortByTime(combinedData, params.SortOrder)
-	} else {
-		sortByWatcherNameOrder(combinedData, watchers)
-	}
-	watcherResponses := types2.WatchersResponse{
-		Size:   params.Size,
-		Offset: params.Offset,
-		Total:  total,
-	}
-
-	for _, cd := range combinedData {
-		if cd.Trigger != nil {
-			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
-				Id:              cd.Watcher.Id,
-				Name:            cd.Watcher.Name,
-				Description:     cd.Watcher.Description,
-				TriggeredAt:     cd.time,
-				JobPipelineName: cd.Trigger.Data.PipelineName,
-				JobPipelineId:   cd.Trigger.Data.PipelineId,
-				WorkflowId:      cd.Trigger.Data.WorkflowId,
-				JobId:           cd.Trigger.Data.JobId,
-			})
-		} else {
-			watcherResponses.List = append(watcherResponses.List, types2.WatcherItem{
-				Id:          cd.Watcher.Id,
-				Name:        cd.Watcher.Name,
-				Description: cd.Watcher.Description,
-				TriggeredAt: cd.time,
-			})
-		}
-
-	}
-	return watcherResponses, nil
+	return watcherTriggerData
 }
-
 func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error) {
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
 	if err != nil {

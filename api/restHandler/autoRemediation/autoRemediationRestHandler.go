@@ -29,6 +29,7 @@ type WatcherRestHandler interface {
 	UpdateWatcherById(w http.ResponseWriter, r *http.Request)
 	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 	RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request)
+	GetWatchersByClusterId(w http.ResponseWriter, r *http.Request)
 }
 
 type WatcherRestHandlerImpl struct {
@@ -240,44 +241,6 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 		return
 	}
 	queryParams := r.URL.Query()
-	//sortOrder := queryParams.Get("order")
-	//sortOrder = strings.ToLower(sortOrder)
-	//if sortOrder == "" {
-	//	sortOrder = "asc"
-	//}
-	//if !(sortOrder == "asc" || sortOrder == "desc") {
-	//	common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
-	//	return
-	//}
-	//sortOrderBy := queryParams.Get("orderBy")
-	//if sortOrderBy == "" {
-	//	sortOrderBy = "name"
-	//	sortOrder = "asc"
-	//}
-	//if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
-	//	common.WriteJsonResp(w, errors.New("sort order can only be by name or triggeredAt"), nil, http.StatusBadRequest)
-	//	return
-	//}
-	//sizeStr := queryParams.Get("size")
-	//size := 20
-	//if sizeStr != "" {
-	//	size, err = strconv.Atoi(sizeStr)
-	//	if err != nil || size < 0 {
-	//		common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
-	//		return
-	//	}
-	//}
-	//offsetStr := queryParams.Get("offset")
-	//offset := 0
-	//if offsetStr != "" {
-	//	offset, err = strconv.Atoi(offsetStr)
-	//	if err != nil || offset < 0 {
-	//		common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
-	//		return
-	//	}
-	//}
-	//search := queryParams.Get("search")
-	//search = strings.ToLower(search)
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
@@ -307,7 +270,6 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 		sortOrder = "asc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
-		//common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return types.WatcherQueryParams{}, errors.New("sort order can only be ASC or DESC")
 	}
 	sortOrderBy := queryParams.Get("orderBy")
@@ -316,7 +278,6 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 		sortOrder = "asc"
 	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
-		//common.WriteJsonResp(w, errors.New("sort order can only be by name or triggeredAt"), nil, http.StatusBadRequest)
 		return types.WatcherQueryParams{}, errors.New("sort order can only be by name or triggeredAt")
 	}
 	sizeStr := queryParams.Get("size")
@@ -325,7 +286,6 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 		var err error
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
-			//common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
 			return types.WatcherQueryParams{}, errors.New("invalid size")
 		}
 	}
@@ -335,7 +295,6 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 		var err error
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			//common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
 			return types.WatcherQueryParams{}, errors.New("invalid size")
 		}
 	}
@@ -455,5 +414,27 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 	}, nil
 
 }
+func (handler *WatcherRestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
 
-/**/
+	token := r.Header.Get("token")
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.logger.Errorw("error in getting clusterId from query param", "err", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	watchers, err := handler.watcherService.GetWatchersByClusterId(clusterId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, watchers, http.StatusOK)
+}
