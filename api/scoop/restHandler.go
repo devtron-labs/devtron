@@ -11,11 +11,9 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/devtron-labs/scoop/types"
-	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -69,31 +67,6 @@ func (handler *RestHandlerImpl) HandleInterceptedEvent(w http.ResponseWriter, r 
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
-}
-
-func (handler *RestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
-
-	token := r.Header.Get("token")
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	vars := mux.Vars(r)
-	clusterId, err := strconv.Atoi(vars["clusterId"])
-	if err != nil {
-		handler.logger.Errorw("error in getting clusterId from query param", "err", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	watchers, err := handler.watcherService.GetWatchersByClusterId(clusterId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, watchers, http.StatusOK)
 }
 
 func (handler *RestHandlerImpl) HandleNotificationEvent(w http.ResponseWriter, r *http.Request) {
