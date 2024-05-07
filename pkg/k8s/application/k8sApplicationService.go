@@ -10,8 +10,8 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
 	admissionregistrationV1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
@@ -78,6 +78,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/printers"
 )
+
+var ScoopNotConfiguredErr = errors.New("scoop not configured")
 
 type K8sApplicationService interface {
 	ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error)
@@ -1430,7 +1432,7 @@ func (impl *K8sApplicationServiceImpl) GetScoopServiceProxyHandler(ctx context.C
 	// read scoop service metadata from config
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
-		return nil, scoopConfig, errors.New("scoop not configured")
+		return nil, scoopConfig, ScoopNotConfiguredErr
 	}
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, scoopConfig.ServiceName, scoopConfig.Namespace, scoopConfig.Port))
 	if err != nil {

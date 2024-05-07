@@ -68,3 +68,19 @@ func FilterDuplicates[T any](items []T) []T {
 	set := mapset.NewSetFromSlice(ToInterfaceArrayAny(items))
 	return ToTypedArrayAny[T](set.ToSlice())
 }
+
+func PartitionSlice[T any](array []T, chunkSize int) [][]T {
+	partitionedArray := make([][]T, 0)
+	for index := 0; index < len(array); {
+		chunk := make([]T, 0)
+		for i := 0; i < chunkSize; i++ {
+			if index+i == len(array) {
+				break
+			}
+			chunk = append(chunk, array[index+i])
+		}
+		partitionedArray = append(partitionedArray, chunk)
+		index = index + chunkSize
+	}
+	return partitionedArray
+}
