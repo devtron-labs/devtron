@@ -27,9 +27,12 @@ type PushChartToGitRequestDTO struct {
 	UserId            int32
 }
 
-func (cfg GitConfig) GetAuth() *git.BasicAuth {
+func (cfg GitConfig) GetAuth(bearer string) *git.BasicAuth {
+
 	return &git.BasicAuth{
-		Username: cfg.GitUserName,
-		Password: cfg.GitToken,
+		Username:   cfg.GitUserName,
+		Password:   cfg.GitToken,
+		BearerAuth: bearer,
 	}
+
 }

@@ -68,7 +68,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resources/apply").
 		HandlerFunc(impl.k8sApplicationRestHandler.ApplyResources).Methods("POST")
 
-	//create/delete ephemeral containers API's
+	// create/delete ephemeral containers API's
 	k8sAppRouter.Path("/resources/ephemeralContainers").
 		Queries("identifier", "{identifier}").
 		HandlerFunc(impl.k8sApplicationRestHandler.CreateEphemeralContainer).Methods("POST")
@@ -78,5 +78,18 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
+
+	k8sAppRouter.Path("/resource/security").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceSecurityInfo).Methods("POST")
+
+	k8sAppRouter.Path("/pod").
+		Queries("clusterId", "{clusterId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
+
+	k8sAppRouter.PathPrefix("/port-forward").
+		HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
+
+	k8sAppRouter.PathPrefix("/proxy").
+		HandlerFunc(impl.k8sApplicationRestHandler.StartK8sProxy)
 
 }

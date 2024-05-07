@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
+option go_package = "github.com/devtron-labs/kubelink/bean/grpc/gRPC";
 
 message ClusterConfig {
   string apiServerUrl = 1;
@@ -42,6 +42,8 @@ service ApplicationService {
   rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
+  rpc TemplateChartBulk(BulkInstallReleaseRequest) returns (BulkTemplateChartResponse){}
+  rpc TemplateChartAndRetrieveChart(InstallReleaseRequest) returns (TemplateChartResponseWithChart){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
@@ -301,8 +303,12 @@ message InstallReleaseRequest {
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
   ChartContent chartContent = 11;
+  string appName=12;
 }
 
+message  BulkInstallReleaseRequest{
+  repeated  InstallReleaseRequest BulkInstallReleaseRequest=1;
+}
 message InstallReleaseResponse {
   bool success = 1;
 }
@@ -318,7 +324,17 @@ message RollbackReleaseRequest {
 
 message TemplateChartResponse {
   string generatedManifest = 1;
+  string appName=2;
 }
+message BulkTemplateChartResponse {
+  repeated TemplateChartResponse BulkTemplateChartResponse=1;
+}
+
+message TemplateChartResponseWithChart {
+  TemplateChartResponse templateChartResponse = 1;
+  ChartContent chartBytes = 2;
+}
+
 
 message HelmInstallCustomRequest {
   string valuesYaml = 1;

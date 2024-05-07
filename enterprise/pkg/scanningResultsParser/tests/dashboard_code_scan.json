@@ -1,0 +1,1410 @@
+{
+  "SchemaVersion": 2,
+  "CreatedAt": "2024-04-15T02:17:08.39168+05:30",
+  "ArtifactName": ".",
+  "ArtifactType": "filesystem",
+  "Metadata": {
+    "ImageConfig": {
+      "architecture": "",
+      "created": "0001-01-01T00:00:00Z",
+      "os": "",
+      "rootfs": {
+        "type": "",
+        "diff_ids": null
+      },
+      "config": {}
+    }
+  },
+  "Results": [
+    {
+      "Target": "yarn.lock",
+      "Class": "lang-pkgs",
+      "Type": "yarn",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-31207",
+          "PkgID": "vite@4.5.2",
+          "PkgName": "vite",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/vite@4.5.2"
+          },
+          "InstalledVersion": "4.5.2",
+          "FixedVersion": "2.9.18, 3.2.10, 4.5.3, 5.0.13, 5.1.7, 5.2.6",
+          "Status": "fixed",
+          "Layer": {},
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-31207",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Title": "vitejs: \"server.fs.deny\" configuration does not deny requests that include patterns",
+          "Description": "Vite (French word for \"quick\", pronounced /vit/, like \"veet\") is a frontend build tooling to improve the frontend development experience.`server.fs.deny` does not deny requests for patterns with directories. This vulnerability has been patched in version(s) 5.2.6, 5.1.7, 5.0.13, 4.5.3, 3.2.10 and 2.9.18.",
+          "Severity": "MEDIUM",
+          "CweIDs": [
+            "CWE-200",
+            "CWE-284"
+          ],
+          "VendorSeverity": {
+            "ghsa": 2,
+            "redhat": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 5.9
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 5.9
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2024-31207",
+            "https://github.com/vitejs/vite",
+            "https://github.com/vitejs/vite/commit/011bbca350e447d1b499d242804ce62738c12bc0",
+            "https://github.com/vitejs/vite/commit/5a056dd2fc80dbafed033062fe6aaf4717309f48",
+            "https://github.com/vitejs/vite/commit/89c7c645f09d16a38f146ef4a1528f218e844d67",
+            "https://github.com/vitejs/vite/commit/96a7f3a41ef2f9351c46f3ab12489bb4efa03cc9",
+            "https://github.com/vitejs/vite/commit/ba5269cca81de3f5fbb0f49d58a1c55688043258",
+            "https://github.com/vitejs/vite/commit/d2db33f7d4b96750b35370c70dd2c35ec3b9b649",
+            "https://github.com/vitejs/vite/security/advisories/GHSA-8jhw-289h-jh2g",
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-31207",
+            "https://www.cve.org/CVERecord?id=CVE-2024-31207"
+          ],
+          "PublishedDate": "2024-04-04T16:15:09.333Z",
+          "LastModifiedDate": "2024-04-04T16:33:06.61Z"
+        }
+      ]
+    },
+    {
+      "Target": "Dockerfile",
+      "Class": "config",
+      "Type": "dockerfile",
+      "MisconfSummary": {
+        "Successes": 26,
+        "Failures": 1,
+        "Exceptions": 0
+      },
+      "Misconfigurations": [
+        {
+          "Type": "Dockerfile Security Check",
+          "ID": "DS026",
+          "AVDID": "AVD-DS-0026",
+          "Title": "No HEALTHCHECK defined",
+          "Description": "You should add HEALTHCHECK instruction in your docker container images to perform the health check on running containers.",
+          "Message": "Add HEALTHCHECK instruction in your Dockerfile",
+          "Namespace": "builtin.dockerfile.DS026",
+          "Query": "data.builtin.dockerfile.DS026.deny",
+          "Resolution": "Add HEALTHCHECK instruction in Dockerfile",
+          "Severity": "LOW",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds026",
+          "References": [
+            "https://blog.aquasec.com/docker-security-best-practices",
+            "https://avd.aquasec.com/misconfig/ds026"
+          ],
+          "Status": "FAIL",
+          "Layer": {},
+          "CauseMetadata": {
+            "Provider": "Dockerfile",
+            "Service": "general",
+            "Code": {
+              "Lines": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Target": "src/uploadTestReport.py",
+      "Class": "secret",
+      "Secrets": [
+        {
+          "RuleID": "slack-access-token",
+          "Category": "Slack",
+          "Severity": "HIGH",
+          "Title": "Slack token",
+          "StartLine": 4,
+          "EndLine": 4,
+          "Code": {
+            "Lines": [
+              {
+                "Number": 2,
+                "Content": "",
+                "IsCause": false,
+                "Annotation": "",
+                "Truncated": false,
+                "FirstCause": false,
+                "LastCause": false
+              },
+              {
+                "Number": 3,
+                "Content": "# token",
+                "IsCause": false,
+                "Annotation": "",
+                "Truncated": false,
+                "Highlighted": "# token",
+                "FirstCause": false,
+                "LastCause": false
+              },
+              {
+                "Number": 4,
+                "Content": "TOKEN = '*****************-951838745444-eIemyqGMT9gCrPCjgBhpHkFb'",
+                "IsCause": true,
+                "Annotation": "",
+                "Truncated": false,
+                "Highlighted": "TOKEN = '*****************-951838745444-eIemyqGMT9gCrPCjgBhpHkFb'",
+                "FirstCause": true,
+                "LastCause": true
+              },
+              {
+                "Number": 5,
+                "Content": "URL = 'https://slack.com/api/files.upload'",
+                "IsCause": false,
+                "Annotation": "",
+                "Truncated": false,
+                "Highlighted": "URL = 'https://slack.com/api/files.upload'",
+                "FirstCause": false,
+                "LastCause": false
+              }
+            ]
+          },
+          "Match": "TOKEN = '*****************-951838745444-eIemyqGMT9gCrPCjgBhpHkFb'",
+          "Layer": {}
+        }
+      ]
+    },
+    {
+      "Target": "OS Packages",
+      "Class": "license"
+    },
+    {
+      "Target": "yarn.lock",
+      "Class": "license",
+      "Licenses": [
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "@tippyjs/react",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "airbnb-prop-types",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "ansi-styles",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "brcast",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "callsites",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "chalk",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "clsx",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "color-convert",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "color-name",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "compute-histogram",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "compute-iqr",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "compute-quantile",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "consolidated-events",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "debug",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "debug",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "decimal.js-light",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "deepmerge",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "direction",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "document.contains",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "dom-helpers",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "error-ex",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "es-to-primitive",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "escape-string-regexp",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "escape-string-regexp",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "eventemitter3",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "fast-deep-equal",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "fast-json-patch",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "faye-websocket",
+          "FilePath": "yarn.lock",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "filter-obj",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "find-root",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "flexsearch",
+          "FilePath": "yarn.lock",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "for-each",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "gensync",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "global-cache",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "globals",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "has-flag",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "has-symbols",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "history",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "hoist-non-react-statics",
+          "FilePath": "yarn.lock",
+          "Name": "BSD-3-Clause",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "immediate",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "import-fresh",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "inherits",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-arrayish",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-bigint",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-boolean-object",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-date-object",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-negative-zero",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-number-object",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-regex",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-shared-array-buffer",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-string",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-symbol",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-touch-device",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "is-weakref",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "isarray",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "js-tokens",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "jsesc",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "json-parse-even-better-errors",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "lie",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "lines-and-columns",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "localforage",
+          "FilePath": "yarn.lock",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "lodash",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "loose-envify",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "lru-cache",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "marked",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "ms",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "ms",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "object-assign",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "object-is",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "object-keys",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "parent-module",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "parse-json",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "path-browserify",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "path-parse",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "path-to-regexp",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "path-type",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "performance-now",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "picocolors",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "picomatch",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "prop-types",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "prop-types-exact",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "querystringify",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "raf",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-csv",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-dates",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-dom",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-ga4",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-gtm-module",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-is",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-keybind",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-lifecycles-compat",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-mde",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-moment-proptypes",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-outside-click-handler",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-portal",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-router",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-router-dom",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-toastify",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-with-direction",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-with-styles",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "react-with-styles-interface-css",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "recharts-scale",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "reflect.ownkeys",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "requires-port",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "resolve-from",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "resolve-pathname",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "safe-buffer",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "scheduler",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "source-map",
+          "FilePath": "yarn.lock",
+          "Name": "BSD-3-Clause",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "source-map-js",
+          "FilePath": "yarn.lock",
+          "Name": "BSD-3-Clause",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "split-on-first",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "strict-uri-encode",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "supports-color",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "supports-preserve-symlinks-flag",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "svg-parser",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "tiny-warning",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "tippy.js",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "to-fast-properties",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "unencumbered",
+          "PkgName": "tslib",
+          "FilePath": "yarn.lock",
+          "Name": "0BSD",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "uri-js",
+          "FilePath": "yarn.lock",
+          "Name": "BSD-2-Clause",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "url-parse",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "validate.io-array",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "validate.io-object",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "value-equal",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "websocket-driver",
+          "FilePath": "yarn.lock",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "websocket-extensions",
+          "FilePath": "yarn.lock",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "which-boxed-primitive",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "xterm",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "xterm-addon-fit",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "xterm-addon-search",
+          "FilePath": "yarn.lock",
+          "Name": "MIT",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "xterm-webfont",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "yallist",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "yaml",
+          "FilePath": "yarn.lock",
+          "Name": "ISC",
+          "Confidence": 1,
+          "Link": ""
+        }
+      ]
+    },
+    {
+      "Target": "Loose File License(s)",
+      "Class": "license-file",
+      "Licenses": [
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "",
+          "FilePath": "LICENSE",
+          "Name": "Apache-2.0",
+          "Confidence": 1,
+          "Link": "https://spdx.org/licenses/Apache-2.0.html"
+        }
+      ]
+    }
+  ]
+}
