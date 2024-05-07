@@ -36,7 +36,7 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
-	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*InterceptedEventData, int, error)
+	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*types2.InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	sql.TransactionWrapper
 }
@@ -64,27 +64,9 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 	return interceptedEvents, nil
 }
 
-type InterceptedEventData struct {
-	ClusterId          int         `sql:"cluster_id"`
-	Namespace          string      `sql:"namespace"`
-	Action             string      `sql:"action"`
-	Environment        string      `sql:"environment"`
-	Metadata           string      `sql:"metadata"`
-	InvolvedObjects    string      `sql:"involved_objects"`
-	InterceptedAt      time.Time   `sql:"intercepted_at"`
-	TriggerExecutionId int         `sql:"trigger_execution_id"`
-	Status             Status      `sql:"status"`
-	ExecutionMessage   string      `sql:"execution_message"`
-	WatcherName        string      `sql:"watcher_name"`
-	TriggerId          int         `sql:"trigger_id,pk"`
-	TriggerType        TriggerType `sql:"trigger_type"`
-	WatcherId          int         `sql:"watcher_id"`
-	TriggerData        string      `sql:"trigger_data"`
-}
+func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*types2.InterceptedEventData, int, error) {
 
-func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
-
-	var interceptedEvents []*InterceptedEventData
+	var interceptedEvents []*types2.InterceptedEventData
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").

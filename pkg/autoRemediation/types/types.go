@@ -34,3 +34,20 @@ type InterceptedEventQuery struct {
 	Namespaces      []string  `json:"namespaces"`
 	ExecutionStatus []string  `json:"execution_status"`
 }
+type InterceptedEventData struct {
+	ClusterId          int         `sql:"cluster_id"`
+	Namespace          string      `sql:"namespace"`
+	Action             string      `sql:"action"`
+	Environment        string      `sql:"environment"`
+	Metadata           string      `sql:"metadata"`
+	InvolvedObjects    string      `sql:"involved_objects"`
+	InterceptedAt      time.Time   `sql:"intercepted_at"`
+	TriggerExecutionId int         `sql:"trigger_execution_id"`
+	Status             Status      `sql:"status"`
+	ExecutionMessage   string      `sql:"execution_message"`
+	WatcherName        string      `sql:"watcher_name"`
+	TriggerId          int         `sql:"trigger_id,pk"`
+	TriggerType        TriggerType `sql:"trigger_type"`
+	WatcherId          int         `sql:"watcher_id"`
+	TriggerData        string      `sql:"trigger_data"`
+}
