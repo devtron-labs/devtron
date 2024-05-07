@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -92,7 +91,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, SaveWatcher", "err", err, "payload", watcherRequest)
+
 	err = impl.validator.Struct(watcherRequest)
 	if err != nil {
 		impl.logger.Errorw("validation err, SaveWatcher", "err", err, "payload", watcherRequest)
@@ -114,7 +113,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC
@@ -141,7 +140,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -167,7 +166,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -218,7 +217,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -281,12 +280,12 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
 	watchersResponse, err := impl.watcherService.FindAllWatchers(offset, search, size, sortOrder, sortOrderBy)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("service err, find all ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -373,7 +372,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends

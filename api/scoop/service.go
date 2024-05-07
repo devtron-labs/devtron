@@ -238,7 +238,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 		TriggerId:          trigger.Id,
 		TriggerExecutionId: ciWorkflowId,
 		Status:             status,
-		// store the error here if something goes wrong before actually triggering the job even
+		// store the error here if something goes wrong before triggering the job
 		ExecutionMessage: executionMessage,
 	}
 
