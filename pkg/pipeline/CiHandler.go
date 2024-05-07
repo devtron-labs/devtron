@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"io/ioutil"
 	"net/http"
