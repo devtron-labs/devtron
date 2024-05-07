@@ -27,7 +27,7 @@ import (
 
 type Service interface {
 	HandleInterceptedEvent(ctx context.Context, event *types.InterceptedEvent) error
-	HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error
+	HandleNotificationEvent(ctx context.Context, notification map[string]interface{}) error
 }
 
 type ServiceImpl struct {
@@ -245,7 +245,7 @@ func (impl ServiceImpl) triggerJob(trigger *autoRemediation.Trigger, involvedObj
 	return interceptEventExec
 }
 
-func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId int, notification map[string]interface{}) error {
+func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notification map[string]interface{}) error {
 
 	var configType string
 	var ok bool
@@ -279,14 +279,14 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, clusterId i
 
 	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emailIds)
 	if err != nil {
-		impl.logger.Errorw("error in constructing event payload ", "clusterId", clusterId, "notification", notification, "err", err)
+		impl.logger.Errorw("error in constructing event payload ", "notification", notification, "err", err)
 		return err
 	}
 
 	notification["payload"] = payload
 	_, err = impl.eventClient.SendAnyEvent(notification)
 	if err != nil {
-		impl.logger.Errorw("error in sending scoop event notification", "clusterId", clusterId, "notification", notification, "err", err)
+		impl.logger.Errorw("error in sending scoop event notification", "notification", notification, "err", err)
 	}
 	return err
 }

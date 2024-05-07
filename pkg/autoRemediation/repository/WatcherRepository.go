@@ -29,7 +29,7 @@ type WatcherQueryParams struct {
 
 type K8sEventWatcherRepository interface {
 	Save(watcher *K8sEventWatcher, tx *pg.Tx) (*K8sEventWatcher, error)
-	Update(tx *pg.Tx, watcher *K8sEventWatcher, userId int32) error
+	Update(tx *pg.Tx, watcher *K8sEventWatcher) error
 	Delete(watcher *K8sEventWatcher) error
 	GetWatcherById(id int) (*K8sEventWatcher, error)
 	GetWatcherByIds(ids []int) ([]*K8sEventWatcher, error)
@@ -59,20 +59,12 @@ func (impl K8sEventWatcherRepositoryImpl) Save(watcher *K8sEventWatcher, tx *pg.
 	}
 	return watcher, nil
 }
-func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWatcher, userId int32) error {
-	//_, err := tx.
-	//	Model((*K8sEventWatcher)(nil)).
-	//	Set("name = ?", watcher.Name).
-	//	Set("description = ?", watcher.Description).
-	//	Set("filter_expression = ?", watcher.FilterExpression).
-	//	Set("gvks = ?", watcher.Gvks).
-	//	Set("selected_actions = ?", watcher.SelectedActions).
-	//	Set("updated_by = ?", userId).
-	//	Set("updated_on = ?", time.Now()).
-	//	Where("active = ?", true).
-	//	Where("id = ?", watcher.Id).
-	//	Update()
-	_, err := tx.Model(watcher).Where("active = ?", true).Where("id = ?", watcher.Id).Update()
+
+func (impl K8sEventWatcherRepositoryImpl) Update(tx *pg.Tx, watcher *K8sEventWatcher) error {
+	_, err := tx.Model(watcher).
+		Where("active = ?", true).
+		Where("id = ?", watcher.Id).
+		Update()
 	return err
 }
 

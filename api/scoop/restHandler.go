@@ -127,15 +127,7 @@ func (handler *RestHandlerImpl) HandleNotificationEvent(w http.ResponseWriter, r
 		return
 	}
 
-	clusterIdStr := r.URL.Query().Get("clusterId")
-	clusterId, err := strconv.Atoi(clusterIdStr)
-	if err != nil {
-		handler.logger.Errorw("error in getting clusterId from query param", "err", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	err = handler.service.HandleNotificationEvent(context.Background(), clusterId, notification)
+	err = handler.service.HandleNotificationEvent(context.Background(), notification)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
