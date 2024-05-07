@@ -1445,6 +1445,7 @@ CREATE TABLE IF NOT EXISTS public.devtron_resource_task_run
     "task_json"                          jsonb                   NOT NULL ,
     "run_source_identifier"              varchar(500)            NOT NULL,
     "run_source_dependency_identifier"   varchar(500)            NOT NULL,
+    "run_target_identifier"              varchar(500)            NOT NULL,
     "task_type"                          varchar(100)            NOT NULL,
     "task_type_identifier"               int                     NOT NULL,
     PRIMARY KEY ("id")
