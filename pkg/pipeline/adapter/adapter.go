@@ -173,12 +173,9 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(CiPipeline.LINKED_CD)
 }
 
-// IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "LINKED") 207_ci_external.up
-// TODO migrate the deprecated values and maintain a consistent PipelineType
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 &&
-		(ci.PipelineType == string(CiPipeline.CI_EXTERNAL) || ci.PipelineType == string(CiPipeline.LINKED))
+		ci.PipelineType == string(CiPipeline.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
