@@ -1696,7 +1696,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
                     "configStatus": "hold",
                     "rolloutStatus": "partiallyDeployed",
                     "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
+                    "lockStatus": "locked"
                 }
             ],
             "autoAction":
@@ -1766,7 +1766,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
                     "configStatus": "hold",
                     "rolloutStatus": "completelyDeployed",
                     "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
+                    "lockStatus": "locked"
                 }
             ],
             "autoAction":
