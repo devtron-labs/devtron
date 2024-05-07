@@ -1267,10 +1267,10 @@ func (handler *K8sApplicationRestHandlerImpl) PortForwarding(w http.ResponseWrit
 
 func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.ResponseWriter, r *http.Request) {
 	// Devtron login token
-	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	token := strings.TrimPrefix(r.Header.Get(bean2.Authorization), "Bearer ")
 
 	// Authorization header is deleted as it is sent by Kubectl and K8s understands it as Auth-Token for the Cluster/Node
-	r.Header.Del("Authorization")
+	r.Header.Del(bean2.Authorization)
 
 	vars := mux.Vars(r)
 	clusterIdentifier := vars[bean2.ClusterIdentifier]
@@ -1278,7 +1278,7 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 
 	k8sProxyRequest := bean2.K8sProxyRequest{}
 
-	if clusterIdentifier != "" {
+	if clusterIdentifier != bean2.Empty {
 		clusterId, err := strconv.Atoi(clusterIdentifier)
 		if err != nil {
 			k8sProxyRequest.ClusterName = clusterIdentifier

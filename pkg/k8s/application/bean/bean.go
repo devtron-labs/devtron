@@ -5,8 +5,10 @@ import (
 )
 
 const (
+	Authorization     = "Authorization"
 	BaseForK8sProxy   = "/orchestrator/k8s/proxy"
 	Cluster           = "cluster"
+	Empty             = ""
 	Env               = "env"
 	ClusterIdentifier = "clusterIdentifier"
 	EnvIdentifier     = "envIdentifier"
@@ -18,6 +20,7 @@ const (
 	V1                = "v1"
 	ALL               = "*"
 	NAMESPACES        = "namespaces"
+	NODES             = "nodes"
 )
 
 const (
@@ -83,4 +86,8 @@ type K8sProxyRequest struct {
 	ClusterName string
 	EnvId       int
 	EnvName     string
+}
+
+type InterClusterCommunicationConfig struct {
+	ProxyUpTime int64 `env:"PROXY_UP_TIME" envDefault:"10"`
 }
