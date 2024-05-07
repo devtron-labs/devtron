@@ -82,32 +82,6 @@ type InterceptedEventData struct {
 	TriggerData        string      `sql:"trigger_data"`
 }
 
-//type InterceptedEventQueryParams struct {
-//	Offset          int       `json:"offset"`
-//	Size            int       `json:"size"`
-//	SortOrder       string    `json:"sortOrder"`
-//	SearchString    string    `json:"searchString"`
-//	From            time.Time `json:"from"`
-//	To              time.Time `json:"to"`
-//	Watchers        []string  `json:"watchers"`
-//	Clusters        []string  `json:"clusters"`
-//	Namespaces      []string  `json:"namespaces"`
-//	ExecutionStatus []string  `json:"execution_status"`
-//}
-
-//type InterceptedEventQuery struct {
-//	Offset          int       `json:"offset"`
-//	Size            int       `json:"size"`
-//	SortOrder       string    `json:"sortOrder"`
-//	SearchString    string    `json:"searchString"`
-//	From            time.Time `json:"from"`
-//	To              time.Time `json:"to"`
-//	Watchers        []string  `json:"watchers"`
-//	ClusterIds      []int     `json:"clusters"`
-//	Namespaces      []string  `json:"namespaces"`
-//	ExecutionStatus []string  `json:"execution_status"`
-//}
-
 func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQuery) ([]*InterceptedEventData, int, error) {
 
 	var interceptedEvents []*InterceptedEventData
