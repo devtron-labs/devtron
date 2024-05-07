@@ -20,14 +20,16 @@ package util
 type EventType int
 
 const (
-	Trigger        EventType = 1
-	Success        EventType = 2
-	Fail           EventType = 3
-	Approval       EventType = 4
-	ConfigApproval EventType = 5
-	Blocked 	   EventType = 6
-	ImageScanning  EventType = 8
+	Trigger                   EventType = 1
+	Success                   EventType = 2
+	Fail                      EventType = 3
+	Approval                  EventType = 4
+	ConfigApproval            EventType = 5
+	Blocked                   EventType = 6
+	ArtifactPromotionApproval EventType = 7
+	ImageScanning             EventType = 8
 )
+const ScoopNotification EventType = 9
 
 var RulesSupportedEvents = []int{int(ImageScanning)}
 

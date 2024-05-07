@@ -35,6 +35,8 @@ const (
 	ApplicationService_IsReleaseInstalled_FullMethodName                  = "/ApplicationService/IsReleaseInstalled"
 	ApplicationService_RollbackRelease_FullMethodName                     = "/ApplicationService/RollbackRelease"
 	ApplicationService_TemplateChart_FullMethodName                       = "/ApplicationService/TemplateChart"
+	ApplicationService_TemplateChartBulk_FullMethodName                   = "/ApplicationService/TemplateChartBulk"
+	ApplicationService_TemplateChartAndRetrieveChart_FullMethodName       = "/ApplicationService/TemplateChartAndRetrieveChart"
 	ApplicationService_InstallReleaseWithCustomChart_FullMethodName       = "/ApplicationService/InstallReleaseWithCustomChart"
 	ApplicationService_GetNotes_FullMethodName                            = "/ApplicationService/GetNotes"
 	ApplicationService_UpgradeReleaseWithCustomChart_FullMethodName       = "/ApplicationService/UpgradeReleaseWithCustomChart"
@@ -63,6 +65,8 @@ type ApplicationServiceClient interface {
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*BooleanResponse, error)
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest, opts ...grpc.CallOption) (*BooleanResponse, error)
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*TemplateChartResponse, error)
+	TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest, opts ...grpc.CallOption) (*BulkTemplateChartResponse, error)
+	TemplateChartAndRetrieveChart(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*TemplateChartResponseWithChart, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
@@ -246,6 +250,24 @@ func (c *applicationServiceClient) TemplateChart(ctx context.Context, in *Instal
 	return out, nil
 }
 
+func (c *applicationServiceClient) TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest, opts ...grpc.CallOption) (*BulkTemplateChartResponse, error) {
+	out := new(BulkTemplateChartResponse)
+	err := c.cc.Invoke(ctx, ApplicationService_TemplateChartBulk_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) TemplateChartAndRetrieveChart(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*TemplateChartResponseWithChart, error) {
+	out := new(TemplateChartResponseWithChart)
+	err := c.cc.Invoke(ctx, ApplicationService_TemplateChartAndRetrieveChart_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *applicationServiceClient) InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest, opts ...grpc.CallOption) (*HelmInstallCustomResponse, error) {
 	out := new(HelmInstallCustomResponse)
 	err := c.cc.Invoke(ctx, ApplicationService_InstallReleaseWithCustomChart_FullMethodName, in, out, opts...)
@@ -320,6 +342,8 @@ type ApplicationServiceServer interface {
 	IsReleaseInstalled(context.Context, *ReleaseIdentifier) (*BooleanResponse, error)
 	RollbackRelease(context.Context, *RollbackReleaseRequest) (*BooleanResponse, error)
 	TemplateChart(context.Context, *InstallReleaseRequest) (*TemplateChartResponse, error)
+	TemplateChartBulk(context.Context, *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error)
+	TemplateChartAndRetrieveChart(context.Context, *InstallReleaseRequest) (*TemplateChartResponseWithChart, error)
 	InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
@@ -380,6 +404,12 @@ func (UnimplementedApplicationServiceServer) RollbackRelease(context.Context, *R
 }
 func (UnimplementedApplicationServiceServer) TemplateChart(context.Context, *InstallReleaseRequest) (*TemplateChartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TemplateChart not implemented")
+}
+func (UnimplementedApplicationServiceServer) TemplateChartBulk(context.Context, *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TemplateChartBulk not implemented")
+}
+func (UnimplementedApplicationServiceServer) TemplateChartAndRetrieveChart(context.Context, *InstallReleaseRequest) (*TemplateChartResponseWithChart, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TemplateChartAndRetrieveChart not implemented")
 }
 func (UnimplementedApplicationServiceServer) InstallReleaseWithCustomChart(context.Context, *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InstallReleaseWithCustomChart not implemented")
@@ -703,6 +733,42 @@ func _ApplicationService_TemplateChart_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_TemplateChartBulk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkInstallReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).TemplateChartBulk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_TemplateChartBulk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).TemplateChartBulk(ctx, req.(*BulkInstallReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_TemplateChartAndRetrieveChart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstallReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).TemplateChartAndRetrieveChart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_TemplateChartAndRetrieveChart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).TemplateChartAndRetrieveChart(ctx, req.(*InstallReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ApplicationService_InstallReleaseWithCustomChart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HelmInstallCustomRequest)
 	if err := dec(in); err != nil {
@@ -877,6 +943,14 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TemplateChart",
 			Handler:    _ApplicationService_TemplateChart_Handler,
+		},
+		{
+			MethodName: "TemplateChartBulk",
+			Handler:    _ApplicationService_TemplateChartBulk_Handler,
+		},
+		{
+			MethodName: "TemplateChartAndRetrieveChart",
+			Handler:    _ApplicationService_TemplateChartAndRetrieveChart_Handler,
 		},
 		{
 			MethodName: "InstallReleaseWithCustomChart",

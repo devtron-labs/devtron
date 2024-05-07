@@ -105,7 +105,8 @@ func NewFullModeDeploymentServiceImpl(
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
+	environmentRepository repository5.EnvironmentRepository,
+) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -156,7 +157,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return nil, err
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
@@ -304,7 +305,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
-	isManualSync := !impl.acdConfig.ArgoCDAutoSyncEnabled
+	isManualSync := impl.acdConfig.IsManualSyncEnabled()
 
 	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
 		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedApp.UserId, time.Now())
@@ -415,6 +416,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
+
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
 

@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	ciPipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/response/pagination"
@@ -130,7 +130,8 @@ type CiPipelineRepository interface {
 	FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
-	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
+	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
+	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
 	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
@@ -146,6 +147,7 @@ type CiPipelineRepository interface {
 	GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 	GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
+	FindByNameAndAppID(name string, appId int) (*CiPipeline, error)
 	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
 	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
 		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error)
@@ -157,11 +159,11 @@ type CiPipelineRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiPipelineRepositoryImpl {
+func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) *CiPipelineRepositoryImpl {
 	return &CiPipelineRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -169,7 +171,7 @@ func (impl *CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineI
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
-		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline_type != ?", constants.LINKED_CD).
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
@@ -508,17 +510,22 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 			return q, nil
 		}).
 		Where("app_id in (?)", pg.In(appIds)).
-		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline_type != ?", constants.LINKED_CD).
 		Select()
 	return ciPipelines, err
 }
 
-func (impl *CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*").
+func (impl *CiPipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
+}
+func (impl *CiPipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
+		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
+		Count()
+	return pipelineCount, err
 }
 
 func (impl *CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error) {
@@ -559,7 +566,7 @@ func (impl *CiPipelineRepositoryImpl) FindByParentCiPipelineIds(parentCiPipeline
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline in (?)", pg.In(parentCiPipelineIds)).
-		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline_type != ?", constants.LINKED_CD).
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
@@ -717,7 +724,7 @@ func (impl *CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, 
 	pipeline := &CiPipeline{}
 	cnt, err := impl.dbConnection.Model(pipeline).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
-		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline_type != ?", constants.LINKED_CD).
 		Where("deleted = ?", false).
 		Count()
 	if err == pg.ErrNoRows {
@@ -726,13 +733,23 @@ func (impl *CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, 
 	return cnt, err
 }
 
+func (impl CiPipelineRepositoryImpl) FindByNameAndAppID(name string, appId int) (*CiPipeline, error) {
+	pipeline := &CiPipeline{}
+	err := impl.dbConnection.Model(pipeline).Where("name = ? and app_id=? and active=true ", name, appId).Select()
+	if err != nil {
+		impl.logger.Errorw("error in finding pipeline by name and appId", "name", name, "appId", appId, "err", err)
+		return nil, err
+	}
+	return pipeline, nil
+}
+
 func (impl *CiPipelineRepositoryImpl) GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "GetLinkedCiPipelines")
 	defer span.End()
 	var linkedCIPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&linkedCIPipelines).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
-		Where("ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline_type != ?", constants.LINKED_CD).
 		Where("deleted = ?", false).
 		Select()
 	if err != nil {
@@ -770,7 +787,7 @@ func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sou
 		JoinOn("e.active = ?", true).
 		// constrains
 		Where("ci_pipeline.parent_ci_pipeline = ?", sourceCiPipelineId).
-		Where("ci_pipeline.ci_pipeline_type != ?", ciPipelineBean.LINKED_CD).
+		Where("ci_pipeline.ci_pipeline_type != ?", constants.LINKED_CD).
 		Where("ci_pipeline.deleted = ?", false)
 	// app name filtering with lower case
 	if len(appNameMatch) != 0 {

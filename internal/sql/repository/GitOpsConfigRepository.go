@@ -28,6 +28,8 @@ type GitOpsConfigRepository interface {
 	UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) error
 	GetGitOpsConfigById(id int) (*GitOpsConfig, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
+	GetAllGitOpsConfigCount() (int, error)
+	GetActiveGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
@@ -91,6 +93,18 @@ func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, e
 	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
 	return userModel, err
 }
+func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfigCount() (int, error) {
+	cnt, err := impl.dbConnection.Model(&GitOpsConfig{}).Count()
+	return cnt, err
+}
+
+func (impl *GitOpsConfigRepositoryImpl) GetActiveGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
+	var model GitOpsConfig
+	query := impl.dbConnection.Model(&model).Where("provider = ?", provider).Where("active = ?", true)
+	err := query.Select()
+	return &model, err
+}
+
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
 	var model GitOpsConfig
 	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Select()

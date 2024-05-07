@@ -42,9 +42,11 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -59,11 +61,13 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/remoteConnection"
 	repository3 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -117,7 +121,9 @@ func InitializeApp() (*App, error) {
 		devtronResource.DevtronResourceWireSetEA,
 		helper.NewAppListingRepositoryQueryBuilder,
 		repository.NewAppListingRepositoryImpl,
+
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
@@ -246,7 +252,19 @@ func InitializeApp() (*App, error) {
 		deploymentWindow.NewDeploymentWindowServiceImplEA,
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
 
+		appWorkflow.NewAppWorkflowRepositoryImpl,
+		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
+
 		appStore.AppStoreWireSet,
+
+		security.NewImageScanServiceImplEA,
+		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
+
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+
+		out.NewChartScanPublishServiceImplEA,
+		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
 
 		repository3.NewRemoteConnectionRepositoryImpl,
 		wire.Bind(new(repository3.RemoteConnectionRepository), new(*repository3.RemoteConnectionRepositoryImpl)),

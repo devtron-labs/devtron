@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -15,6 +16,8 @@ import (
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	"github.com/devtron-labs/devtron/pkg/security"
+	bean2 "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -44,6 +47,9 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+
+	//Get vulnerabilities
+	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*bean2.ImageScanResult, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -53,6 +59,7 @@ type K8sCommonServiceImpl struct {
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	argoApplicationService      argoApplication.ArgoApplicationService
+	imageScanService            security.ImageScanService
 }
 
 type K8sApplicationServiceConfig struct {
@@ -62,7 +69,9 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExtended, helmAppService service.HelmAppService,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService,
-	argoApplicationService argoApplication.ArgoApplicationService) *K8sCommonServiceImpl {
+	argoApplicationService argoApplication.ArgoApplicationService,
+	imageScanService security.ImageScanService,
+) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -76,6 +85,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExt
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
 		argoApplicationService:      argoApplicationService,
+		imageScanService:            imageScanService,
 	}
 }
 
@@ -275,6 +285,9 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 	}
 	clusterConfig := cluster.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
+
+	//Use clusterConfig to setup ConfigFlags and then use WrapConfigFn to wrap for SSH and proxy handling
+	//genericclioptions.NewConfigFlags(true).
 	if err != nil {
 		impl.logger.Errorw("Error in getting rest config", "err", err, "clusterId", clusterId)
 		return restConfig, err, nil
@@ -707,4 +720,21 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		}
 	}
 	return resourceTree
+}
+
+func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*bean2.ImageScanResult, error) {
+	resource, err := impl.GetResource(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error in fetching manifest", "err", err, "request", request.K8sRequest)
+		return nil, err
+	}
+
+	manifestResponse := resource.ManifestResponse
+	images := k8sObjectsUtil.ExtractImages(manifestResponse.Manifest)
+	scanResults, err := impl.imageScanService.FetchScanResultsForImages(images)
+	if err != nil {
+		impl.logger.Errorw("error in fetching scan results for images", "err", err, "images", images)
+		return nil, err
+	}
+	return scanResults, nil
 }

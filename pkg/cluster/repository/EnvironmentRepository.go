@@ -55,6 +55,7 @@ type EnvironmentRepository interface {
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
 	FindAllActive() ([]*Environment, error)
+	FindAllActiveEnvironmentCount() (int, error)
 	MarkEnvironmentDeleted(mappings *Environment, tx *pg.Tx) error
 	GetConnection() (dbConnection *pg.DB)
 	FindAllActiveEnvOnlyDetails() ([]*Environment, error)
@@ -258,6 +259,13 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAllActive() ([]*Environment,
 		Join("inner join cluster c on environment.cluster_id = c.id").
 		Select()
 	return mappings, err
+}
+func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveEnvironmentCount() (int, error) {
+	cnt, err := repositoryImpl.
+		dbConnection.Model(&Environment{}).
+		Where("environment.active = ?", true).
+		Count()
+	return cnt, err
 }
 func (repositoryImpl EnvironmentRepositoryImpl) FindAllActiveEnvOnlyDetails() ([]*Environment, error) {
 	var mappings []*Environment

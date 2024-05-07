@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
@@ -76,9 +77,12 @@ type WorkflowEventProcessorImpl struct {
 	pcoReadService                  configHistory.PipelineConfigOverrideReadService
 
 	//repositories import to be removed
-	pipelineRepository   pipelineConfig.PipelineRepository
-	ciArtifactRepository repository.CiArtifactRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	ciArtifactRepository    repository.CiArtifactRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	policyService           security.PolicyService
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
+	imageScanHistoryRepo    security2.ImageScanHistoryRepository
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -101,7 +105,11 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	imageScanService security.ImageScanService,
 	pcoReadService configHistory.PipelineConfigOverrideReadService,
-	notificationConfigService notifier.NotificationConfigService) (*WorkflowEventProcessorImpl, error) {
+	notificationConfigService notifier.NotificationConfigService,
+	policyService security.PolicyService,
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
+	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -128,6 +136,9 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		imageScanService:                imageScanService,
 		pcoReadService:                  pcoReadService,
 		notificationConfigService:       notificationConfigService,
+		policyService:                   policyService,
+		imageScanDeployInfoRepo:         imageScanDeployInfoRepo,
+		imageScanHistoryRepo:            imageScanHistoryRepo,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -750,6 +761,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		}
 
 		triggerContext := bean5.TriggerContext{
+			Context:     context.Background(),
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
@@ -770,6 +782,9 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					return
 				}
 				for _, detail := range imageDetails {
+					if detail.ImageTags == nil {
+						continue
+					}
 					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
@@ -791,6 +806,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 			impl.logger.Debug(resp)
 		}
+
+		impl.sendForScanV2(ciCompleteEvent)
 	}
 
 	// add required logging here
@@ -810,6 +827,31 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) sendForScanV2(ciCompleteEvent bean.CiCompleteEvent) {
+	if !impl.appServiceConfig.ScanV2Enabled {
+		return
+	}
+	scanRequestCode := &security.ScanEvent{
+		Image:            ciCompleteEvent.DockerImage,
+		ImageDigest:      ciCompleteEvent.Digest,
+		CiProjectDetails: ciCompleteEvent.CiProjectDetails,
+		SourceType:       security2.SourceTypeCode,
+		SourceSubType:    security2.SourceSubTypeCi,
+		CiWorkflowId:     *ciCompleteEvent.WorkflowId,
+		DockerRegistryId: ciCompleteEvent.DockerRegistryId,
+	}
+
+	scanRequestImage := &security.ScanEvent{
+		Image:         ciCompleteEvent.DockerImage,
+		ImageDigest:   ciCompleteEvent.Digest,
+		SourceType:    security2.SourceTypeImage,
+		SourceSubType: security2.SourceSubTypeCi,
+		CiWorkflowId:  *ciCompleteEvent.WorkflowId,
+	}
+	impl.policyService.SendScanEventAsync(scanRequestCode)
+	impl.policyService.SendScanEventAsync(scanRequestImage)
 }
 
 func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext bean5.TriggerContext, ciPipelineId int, request *bean8.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
@@ -1095,12 +1137,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
 			return
 		}
-		impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
-		//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
-		//trying to delete deployment app once
-		err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
-		if err != nil {
-			impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+		if pipeline.DeploymentAppType == bean5.Helm {
+			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
+			//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+			//trying to delete deployment app once
+			err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+			}
 		}
 	}
 	// add required logging here

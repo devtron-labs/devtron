@@ -22,7 +22,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,7 +59,7 @@ type AppListingService interface {
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
-	//------------------
+	// ------------------
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
@@ -431,7 +431,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 			impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
 			return false, err
 		}
-		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed}, cdWfr.Status) {
 			return false, nil
 		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
@@ -791,7 +791,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(CiPipeline.LINKED_CD) {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
@@ -868,7 +868,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
@@ -929,7 +929,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
@@ -963,7 +963,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }

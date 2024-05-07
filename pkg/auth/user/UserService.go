@@ -28,7 +28,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	helper3 "github.com/devtron-labs/devtron/pkg/auth/common/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
-	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	adapter2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
@@ -77,6 +77,7 @@ type UserService interface {
 	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
+	GetEmailAndVersionFromToken(token string) (string, string, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -105,6 +106,8 @@ type UserService interface {
 	GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error)
 	GetSuperAdminIds() ([]int32, error)
 	FetchUserIdsByEmails(emails []string) ([]int32, error)
+	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error)
+	CheckIfTokenIsValid(email string, version string) error
 }
 
 type UserServiceImpl struct {
@@ -1244,7 +1247,7 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 			groupsModified = groupsModified || isGroupModified
 		} else {
 			//  case: when user group exist but just time config is changed we add polices for new configuration
-			hasTimeoutChanged := helper2.HasTimeWindowChangedForUserRoleGroup(userRoleGroup, val)
+			hasTimeoutChanged := userHelper.HasTimeWindowChangedForUserRoleGroup(userRoleGroup, val)
 			if hasTimeoutChanged {
 				policiesToBeAdded, restrictedGroupsToBeAdded, isGroupModified, err := impl.CheckAccessAndReturnAdditionPolices(roleGroup.CasbinName, token, isActionPerformingUserSuperAdmin, tx, loggedInUser, emailId, userRoleGroup, managerAuth)
 				if err != nil {
@@ -1268,7 +1271,7 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 			groupsModified = groupsModified || isGroupModified
 		} else {
 			// case: when existing policies has been given but with differnt timeoutWindow Configration , existing policies has to be removed.
-			hasTimeoutChanged := helper2.HasTimeWindowChangedForUserRoleGroup(item, val)
+			hasTimeoutChanged := userHelper.HasTimeWindowChangedForUserRoleGroup(item, val)
 			if hasTimeoutChanged {
 				policiesToBeEliminated, restrictedGroupsToBeAdded, isGroupModified := impl.CheckAccessAndReturnEliminatedPolices(token, isActionPerformingUserSuperAdmin, emailId, item, managerAuth)
 				eliminatedPolicies = append(eliminatedPolicies, policiesToBeEliminated...)
@@ -2090,7 +2093,7 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 
 func (impl UserServiceImpl) GetUserByToken(context context.Context, token string) (int32, string, error) {
 	_, span := otel.Tracer("userService").Start(context, "GetUserByToken")
-	email, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	email, version, err := impl.GetEmailAndVersionFromToken(token)
 	span.End()
 	if err != nil {
 		return http.StatusUnauthorized, "", err
@@ -2105,8 +2108,35 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 		}
 		return http.StatusUnauthorized, "", err
 	}
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
+	if userInfo.UserType == bean.USER_TYPE_API_TOKEN && len(version) > 0 {
+		err := impl.CheckIfTokenIsValid(email, version)
+		if err != nil {
+			impl.logger.Errorw("token is not valid", "error", err, "token", token)
+			return http.StatusUnauthorized, "", err
+		}
+	}
 	return userInfo.Id, userInfo.UserType, nil
 }
+
+func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) error {
+	tokenName := userHelper.ExtractTokenNameFromEmail(email)
+	embeddedTokenVersion, _ := strconv.Atoi(version)
+	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenExistsByTokenNameAndVersion(tokenName, embeddedTokenVersion)
+	if err != nil || !isProvidedTokenValid {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user not found for token",
+			UserMessage:     fmt.Sprintf("no user found against provided token"),
+		}
+		return err
+	}
+	return nil
+}
+
 func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
 	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)
@@ -2166,6 +2196,50 @@ func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (strin
 		groupsClaims = groups
 	}
 	return email, groupsClaims, nil
+}
+
+func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, string, error) {
+	if token == "" {
+		impl.logger.Infow("no token provided")
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "no token provided",
+		}
+		return "", "", err
+	}
+
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
+	if err != nil {
+		impl.logger.Errorw("failed to verify token", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "failed to verify token",
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return "", "", err
+	}
+
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		impl.logger.Errorw("failed to MapClaims", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "token invalid",
+			UserMessage:     "token verification failed while parsing token",
+		}
+		return "", "", err
+	}
+
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
+	tokenVersion := jwt.GetField(mapClaims, "version")
+
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
+	}
+
+	return email, tokenVersion, nil
 }
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
@@ -2280,7 +2354,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequ
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, 0, len(models))
 	for _, model := range models {
-		if !helper2.IsSystemOrAdminUserByEmail(model.EmailId) {
+		if !userHelper.IsSystemOrAdminUserByEmail(model.EmailId) {
 			filteredUserIds = append(filteredUserIds, model.Id)
 		}
 	}
@@ -3156,7 +3230,7 @@ func (impl UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*bean.Use
 }
 
 func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error) {
-	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	emailId, version, err := impl.GetEmailAndVersionFromToken(token)
 	if err != nil {
 		impl.logger.Error("unable to fetch user by token")
 		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
@@ -3171,6 +3245,17 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 	//if user is inactive, no need to store audit log
 	if !isInactive {
 		impl.SaveLoginAudit(emailId, "localhost", userId)
+	}
+
+	// checking length of version, to ensure backward compatibility as earlier we did not
+	// have version for api-tokens
+	// therefore, for tokens without version we will skip the below part
+	if strings.HasPrefix(emailId, bean2.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
+		err := impl.CheckIfTokenIsValid(emailId, version)
+		if err != nil {
+			impl.logger.Errorw("token is not valid", "error", err, "token", token)
+			return isInactive, userId, err
+		}
 	}
 
 	return isInactive, userId, nil
@@ -3225,4 +3310,16 @@ func (impl UserServiceImpl) FetchUserIdsByEmails(emails []string) ([]int32, erro
 		ids = append(ids, user.Id)
 	}
 	return ids, nil
+}
+
+func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
+	if err != nil {
+		return emailIds, err
+	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
 }

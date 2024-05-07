@@ -102,11 +102,14 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl str
 
 func (impl *GitOpsConfigReadServiceImpl) GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error) {
 	metadata := &bean.BitbucketProviderMetadata{}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(bean.BITBUCKET_PROVIDER)
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetActiveGitOpsConfigByProvider(bean.BITBUCKET_PROVIDER)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 		return nil, err
+	} else if err == pg.ErrNoRows {
+		gitOpsConfigBitbucket, err = impl.gitOpsRepository.GetActiveGitOpsConfigByProvider(bean.BITBUCKET_DC_PROVIDER)
 	}
+
 	if gitOpsConfigBitbucket != nil {
 		metadata.BitBucketWorkspaceId = gitOpsConfigBitbucket.BitBucketWorkspaceId
 		metadata.BitBucketProjectKey = gitOpsConfigBitbucket.BitBucketProjectKey
@@ -139,12 +142,6 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
-	count := 0
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return count, err
-	}
-	count = len(models)
-	return count, nil
+	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
+	return count, err
 }

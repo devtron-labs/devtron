@@ -60,9 +60,11 @@ type HelmAppService interface {
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
 	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	// UpdateApplication is a wrapper over helmAppClient.UpdateApplication, sends update request to kubelink for external chart store apps
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)
+	// UpdateApplicationWithChartInfo is a wrapper over helmAppClient.UpdateApplicationWithChartInfo sends update request to kubelink for helm chart store apps
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
@@ -122,8 +124,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 }
 
 type HelmReleaseConfig struct {
-	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"0"`
-	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"0"`
+	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1"`
+	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1"`
 	RevisionHistoryLimitExternalHelmApp int `env:"REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP" envDefault:"0"`
 }
 
@@ -503,7 +505,7 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 
 	// App Delete --> Start
-	//soft delete app
+	// soft delete app
 	appModel := &model.App
 	appModel.Active = false
 	appModel.UpdatedBy = userId
@@ -565,9 +567,9 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
-	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
-	//that case DeleteApplication returned with grpc error and the user was not able to delete the
-	//cd-pipeline after helm app is created in that namespace.
+	// handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	// that case DeleteApplication returned with grpc error and the user was not able to delete the
+	// cd-pipeline after helm app is created in that namespace.
 	exists, err := impl.checkIfNsExists(app)
 	if err != nil {
 		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
@@ -589,7 +591,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
 				Code:           strconv.Itoa(http.StatusNotFound),
-				HttpStatusCode: 200, //need to revisit the status code
+				HttpStatusCode: 200, // need to revisit the status code
 				UserMessage:    message,
 			}
 		}
@@ -986,18 +988,33 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
-	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	var templateChartResponse *gRPC.TemplateChartResponse
+	var templateChartResponseWithChart *gRPC.TemplateChartResponseWithChart
+	var chart []byte
+	if templateChartRequest.ReturnChartBytes {
+		templateChartResponseWithChart, err = impl.helmAppClient.TemplateChartAndRetrieveChart(ctx, installReleaseRequest)
+		if err == nil {
+			templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
+			chart = templateChartResponseWithChart.ChartBytes.Content
+		}
+	} else {
+		templateChartResponse, err = impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
-		if clientErrCode.IsInvalidArgumentCode() {
+		if clientErrCode.IsFailedPreconditionCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
 	}
 
 	response := &openapi2.TemplateChartResponse{
-		Manifest: &templateChartResponse.GeneratedManifest,
+		Manifest:   &templateChartResponse.GeneratedManifest,
+		ChartBytes: chart,
 	}
 
 	return response, nil
@@ -1007,6 +1024,12 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.Inst
 	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsFailedPreconditionCode() {
+			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
+			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return notesTxt, err
 	}
 	notesTxt = response.Notes
@@ -1059,7 +1082,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		//projectId := int32(0) //TODO pick from db
+		// projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)

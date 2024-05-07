@@ -84,7 +84,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
 			return nil, err
 		}
-		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces)
+		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
 		if err != nil {
 			if errStatus, ok := err.(*errors.StatusError); ok {
 				if errStatus.Status().Code == 404 {

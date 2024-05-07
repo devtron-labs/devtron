@@ -34,6 +34,8 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 	EntityJobs                                  = "jobs"
+	ArtifactPromoter                            = "artifactPromoter"
+	ConfigApprover                              = "configApprover"
 	EmptyStringIndicatingAll                    = ""
 )
 
@@ -113,4 +115,9 @@ const (
 	Active_TemporaryAccess          StatusType = 5
 	Inactive_TemporaryAccess        StatusType = 6
 	Active_Inactive_TemporaryAccess StatusType = 7
+)
+
+const (
+	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+	ApiTokenTableName = "api_token"
 )

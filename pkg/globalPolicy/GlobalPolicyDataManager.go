@@ -19,7 +19,7 @@ type GlobalPolicyDataManager interface {
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
 	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error)
-	GetPolicyByCriteria(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
+	GetPolicyByCriteria(policyType bean.GlobalPolicyType, policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPoliciesByHistoryIds(historyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
@@ -385,7 +385,7 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(tx *pg.Tx, policyNam
 
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetPolicyByCriteria(nameSearchString string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyByCriteria(policyType bean.GlobalPolicyType, nameSearchString string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error) {
 
 	nameSearchString = "%" + nameSearchString + "%"
 	orderByName := false
@@ -393,7 +393,7 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByCriteria(nameSearchString st
 		orderByName = true
 	}
 
-	globalPolicies, err := impl.globalPolicyRepository.GetByNameSearchKey(nameSearchString, orderByName, sortRequest.SortOrderDesc)
+	globalPolicies, err := impl.globalPolicyRepository.GetByNameSearchKey(policyType, nameSearchString, orderByName, sortRequest.SortOrderDesc)
 	if err != nil {
 		impl.logger.Errorw("error in getting global policy by name search string", "err", err)
 		return nil, err

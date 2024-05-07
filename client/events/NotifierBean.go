@@ -11,6 +11,12 @@ type NotificationMetaData struct {
 	EventTime  string `json:"eventTime"`
 }
 
+type ImageMetadata struct {
+	ImageTagNames  []string `json:"imageTagNames"`
+	ImageComment   string   `json:"imageComment"`
+	DockerImageUrl string   `json:"dockerImageUrl"`
+}
+
 type DraftApprovalResponse struct {
 	ProtectConfigFileType string                `json:"protectConfigFileType"`
 	ProtectConfigFileName string                `json:"protectConfigFileName"`
@@ -19,9 +25,14 @@ type DraftApprovalResponse struct {
 	DraftState            uint8                 `json:"draftState"`
 }
 type DeploymentApprovalResponse struct {
-	ImageTagNames        []string              `json:"imageTagNames"`
-	ImageComment         string                `json:"imageComment"`
-	DockerImageUrl       string                `json:"dockerImageUrl"`
 	NotificationMetaData *NotificationMetaData `json:"notificationMetaData"`
 	Status               bean.ApprovalState    `json:"status"`
+	ImageMetadata
+}
+
+type PromotionApprovalResponse struct {
+	SourceInfo           string                `json:"sourceInfo"`
+	NotificationMetaData *NotificationMetaData `json:"notificationMetaData"`
+	Status               bean.ApprovalState    `json:"status"`
+	ImageMetadata
 }

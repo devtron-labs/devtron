@@ -1,10 +1,5 @@
 package bean
 
-const (
-	Severity         string = "severity"
-	PolicyPermission        = "policyPermission"
-)
-
 type ConditionType int
 
 const (
