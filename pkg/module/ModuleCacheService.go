@@ -121,6 +121,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	_, _, clusterDynamicClient, err := impl.K8sUtil.GetK8sInClusterConfigAndDynamicClients()
 	if err != nil {
 		log.Println("not able to get k8s cluster rest config.", "error", err)
+		os.Exit(2)
 		return
 	}
 

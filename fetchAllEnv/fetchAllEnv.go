@@ -63,7 +63,10 @@ func WalkThroughProject() {
 			return err
 		}
 		if !info.IsDir() && strings.HasSuffix(path, ".go") {
-			processGoFile(path, &allFields, &uniqueKeys)
+			err = processGoFile(path, &allFields, &uniqueKeys)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -84,12 +87,12 @@ func getEnvKeyAndValue(tag reflect.StructTag) (string, string) {
 	return envKey, envValue
 }
 
-func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[string]bool) {
+func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[string]bool) error {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		log.Println("error parsing file:", err)
-		return
+		return err
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
@@ -114,6 +117,7 @@ func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[strin
 		}
 		return true
 	})
+	return nil
 }
 
 func main() {
