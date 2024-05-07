@@ -25,7 +25,7 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
 	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
-	github.com/devtron-labs/common-lib v0.0.16-0.20240412072404-71d8bae5ad58
+	github.com/devtron-labs/common-lib v0.0.16-0.20240507071833-5a793f5192e8
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240507073533-d4ac3454e6f4
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/evanphx/json-patch v5.6.0+incompatible
@@ -44,7 +44,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.3.1
-	github.com/google/wire v0.5.0
+	github.com/google/wire v0.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/sessions v1.2.1

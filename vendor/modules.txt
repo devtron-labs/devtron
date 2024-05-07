@@ -409,7 +409,7 @@ github.com/devtron-labs/authenticator/password
 # github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
 ## explicit; go 1.20
 github.com/devtron-labs/bitbucketdc-gosdk/swagger
-# github.com/devtron-labs/common-lib v0.0.16-0.20240412072404-71d8bae5ad58
+# github.com/devtron-labs/common-lib v0.0.16-0.20240507071833-5a793f5192e8
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier
@@ -712,7 +712,7 @@ github.com/google/shlex
 # github.com/google/uuid v1.3.1
 ## explicit
 github.com/google/uuid
-# github.com/google/wire v0.5.0
+# github.com/google/wire v0.6.0
 ## explicit; go 1.12
 github.com/google/wire
 # github.com/googleapis/enterprise-certificate-proxy v0.2.3
