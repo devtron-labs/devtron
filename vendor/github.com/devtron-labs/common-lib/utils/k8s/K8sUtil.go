@@ -85,7 +85,8 @@ type K8sService interface {
 	GetCoreV1ClientInCluster() (*v12.CoreV1Client, error)
 	GetKubeVersion() (*version.Info, error)
 	ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool
-	BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error)
+	BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error)
+	ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool
 	GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error)
 	GetK8sInClusterRestConfig() (*rest.Config, error)
 	GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error)
@@ -719,7 +720,7 @@ func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v
 	}
 }
 
-func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
+func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
 	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
@@ -798,6 +799,9 @@ func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.Un
 							rowIndex[commonBean.K8sClusterResourceNamespaceKey] = namespace
 						}
 					}
+					if includeMetadata {
+						rowIndex[commonBean.K8sClusterResourceMetadataKey] = metadata
+					}
 				}
 			}
 			allowed = impl.ValidateResource(cellObj, gvk, validateResourceAccess)
@@ -834,7 +838,7 @@ func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, 
 	}
 	if len(ownerReferences) > 0 {
 		for _, ownerRef := range ownerReferences {
-			allowed := impl.validateForResource(namespace, ownerRef, validateCallback)
+			allowed := impl.ValidateForResource(namespace, ownerRef, validateCallback)
 			if allowed {
 				return allowed
 			}
@@ -844,7 +848,7 @@ func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, 
 	return validateCallback(namespace, groupName, resKind, resourceName)
 }
 
-func (impl K8sServiceImpl) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+func (impl K8sServiceImpl) ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resourceReference := resourceRef.(map[string]interface{})
 	resKind := resourceReference[commonBean.K8sClusterResourceKindKey].(string)
 	apiVersion := resourceReference[commonBean.K8sClusterResourceApiVersionKey].(string)

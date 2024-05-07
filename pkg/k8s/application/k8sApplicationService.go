@@ -734,22 +734,31 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	var filteredDataList []map[string]interface{}
-	containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
-	if !containsNameHeader {
-		impl.logger.Warnw("data does not contains name field, returning empty data", "headers", resourceList.Headers)
-		resourceList.Data = []map[string]interface{}{}
-		return resourceList, nil
-	}
+	//containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
+	//if !containsNameHeader {
+	//	impl.logger.Warnw("data does not contains name field, returning empty data", "headers", resourceList.Headers)
+	//	resourceList.Data = []map[string]interface{}{}
+	//	return resourceList, nil
+	//}
 	for _, dataRow := range resourceList.Data {
 		resourceName := ""
 		resourceNamespace := ""
-		if resourceNameIntf, ok := dataRow[k8sCommonBean.K8sClusterResourceNameKey]; ok {
+		var metadata map[string]interface{}
+		if metadataIntf, ok := dataRow[k8sCommonBean.K8sClusterResourceMetadataKey]; ok {
+			if metadata, ok = metadataIntf.(map[string]interface{}); !ok {
+				continue
+			}
+		} else {
+			continue
+		}
+
+		if resourceNameIntf, ok := metadata[k8sCommonBean.K8sClusterResourceNameKey]; ok {
 			resourceName, _ = resourceNameIntf.(string)
 		}
 		if len(resourceName) == 0 {
 			continue
 		}
-		if resourceNamespaceIntf, ok := dataRow[k8sCommonBean.K8sClusterResourceNamespaceKey]; ok {
+		if resourceNamespaceIntf, ok := metadata[k8sCommonBean.K8sClusterResourceNamespaceKey]; ok {
 			resourceNamespace, _ = resourceNamespaceIntf.(string)
 		}
 		resourceIdentifierCloned.Name = resourceName
@@ -759,8 +768,22 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 		if allowed {
 			filteredDataList = append(filteredDataList, dataRow)
 		} else {
-			//TODO KB: Need to check for parent resources as well, can also be done in batch for all notAllowed Resources
+			if ownerRefIntf, ok := metadata[k8sCommonBean.K8sClusterResourceOwnerReferenceKey]; ok {
+				if ownerRefs, ok := ownerRefIntf.([]map[string]interface{}); ok {
+					for _, ownerRef := range ownerRefs {
+						allowedResponse := impl.K8sUtil.ValidateForResource(resourceNamespace, ownerRef, func(namespace string, group string, kind string, resourceName string) bool {
+							k8sRequest.ResourceIdentifier = k8s3.ResourceIdentifier{Name: resourceName, Namespace: resourceNamespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind}}
+							return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
+						})
+						if allowedResponse {
+							filteredDataList = append(filteredDataList, dataRow)
+							break
+						}
+					}
+				}
+			}
 		}
+		delete(dataRow, k8sCommonBean.K8sClusterResourceMetadataKey)
 	}
 	resourceList.Data = filteredDataList
 	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
@@ -901,7 +924,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV1(ctx context.Context, to
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
 
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -1653,10 +1676,10 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 }
 
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
-	return 8081, ScoopServiceClusterConfig{
-		Port:    "8081",
-		PassKey: "abc",
-	}, nil
+	//return 8081, ScoopServiceClusterConfig{
+	//	Port:    "8081",
+	//	PassKey: "abcd",
+	//}, nil
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
 		return 0, scoopConfig, ScoopNotConfiguredErr
@@ -1670,11 +1693,11 @@ func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterI
 	//return 8081, ScoopServiceClusterConfig{PassKey: "abcd"}, nil
 }
 
-func (impl *K8sApplicationServiceImpl) containsHeader(headers []string, key string) bool {
-	for _, header := range headers {
-		if header == key {
-			return true
-		}
-	}
-	return false
-}
+//func (impl *K8sApplicationServiceImpl) containsHeader(headers []string, key string) bool {
+//	for _, header := range headers {
+//		if header == key {
+//			return true
+//		}
+//	}
+//	return false
+//}

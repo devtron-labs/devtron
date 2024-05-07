@@ -22,7 +22,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
-	github.com/devtron-labs/common-lib v0.0.16-0.20240412102112-228b110c15a9
+	github.com/devtron-labs/common-lib v0.0.16-0.20240507152853-f4e0998357d1
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/devtron-labs/scoop v0.0.0-20240506090051-715bde2fb272
@@ -41,7 +41,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.3.1
-	github.com/google/wire v0.5.0
+	github.com/google/wire v0.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/sessions v1.2.1
