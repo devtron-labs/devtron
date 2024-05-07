@@ -1433,466 +1433,494 @@ set schema='{
 where devtron_resource_id = (select id from devtron_resource where kind = 'helm-application')
   and version = 'v1';
 
+-- create devtron resource task run table
+CREATE SEQUENCE IF NOT EXISTS id_devtron_resource_task_run;
+CREATE TABLE IF NOT EXISTS public.devtron_resource_task_run
+(
+    "created_by"                         int4                    NOT NULL,
+    "updated_by"                         int4                    NOT NULL,
+    "created_on"                         timestamptz             NOT NULL,
+    "updated_on"                         timestamptz             NOT NULL,
+    "id"                                 int                     NOT NULL DEFAULT nextval('id_devtron_resource_task_run'::regclass),
+    "task_json"                          jsonb                   NOT NULL ,
+    "run_source_identifier"              varchar(500)            NOT NULL,
+    "run_source_dependency_identifier"   varchar(500)            NOT NULL,
+    "task_type"                          varchar(100)            NOT NULL,
+    "task_type_identifier"               int                     NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+-- unique index on combinaton of task type and task_type_identifier
+CREATE UNIQUE INDEX "idx_unique_task_type_and_identifier_id"
+    ON devtron_resource_task_run(task_type,task_type_identifier);
+
+-- index on run_source_identifier
+CREATE INDEX "idx_run_source_identifier" ON devtron_resource_task_run USING BTREE ("run_source_identifier");
+
+-- index on run_source_dependency_identifier
+CREATE INDEX "idx_run_source_dependency_identifier" ON devtron_resource_task_run USING BTREE ("run_source_dependency_identifier");
+
+
 
 INSERT INTO global_policy(name, policy_of, version, description, policy_json, enabled, deleted, created_by, created_on, updated_by, updated_on)
 VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validation release status changes.',
-'{
-    "definitions":
-    [
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "noImageSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "noImageSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "noImageSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "noImageSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "partialImagesSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "partialImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "partialImagesSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "partialImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                },
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "notDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "draft",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "rolloutStatus": "notDeployed",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "locked"
-                },
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "noImageSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                },
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "partialImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "notDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "*"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "unLocked"
-                },
-                {
-                    "configStatus": "draft",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "rolloutStatus": "notDeployed",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "readyForRelease",
-                "lockStatus": "locked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "notDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "notDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "draft",
-                "lockStatus": "unLocked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "notDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "hold",
-                "lockStatus": "unLocked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "*"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "readyForRelease",
-                "lockStatus": "locked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "hold",
-                "lockStatus": "unLocked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "readyForRelease",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "*"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ],
-            "autoAction":
-            {
-                "configStatus": "readyForRelease",
-                "lockStatus": "locked"
-            }
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "hold",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "hold",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "hold",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "locked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "unLocked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "hold",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "unLocked"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "rescind",
-                "rolloutStatus": "completelyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "*"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "completelyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        },
-        {
-            "stateTo":
-            {
-                "configStatus": "rescind",
-                "rolloutStatus": "partiallyDeployed",
-                "dependencyArtifactStatus": "allImagesSelected",
-                "lockStatus": "*"
-            },
-            "possibleFromStates":
-            [
-                {
-                    "configStatus": "readyForRelease",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                },
-                {
-                    "configStatus": "hold",
-                    "rolloutStatus": "partiallyDeployed",
-                    "dependencyArtifactStatus": "allImagesSelected",
-                    "lockStatus": "locked"
-                }
-            ]
-        }
-    ],
-    "consequence": "BLOCK"
-}', true, false, 1, now(),1,now()),
-    ('ReleaseActionCheckPolicy', 'RELEASE_ACTION_CHECK', 'V1', 'Policy used for validating different actions requested on release.',
+       '{
+           "definitions":
+           [
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "noImageSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "noImageSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "noImageSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "noImageSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "partialImagesSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "partialImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "partialImagesSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "partialImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       },
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "notDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "draft",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "rolloutStatus": "notDeployed",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "locked"
+                       },
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "noImageSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       },
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "partialImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "notDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "*"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "unLocked"
+                       },
+                       {
+                           "configStatus": "draft",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "rolloutStatus": "notDeployed",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "readyForRelease",
+                       "lockStatus": "locked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "notDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "notDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "draft",
+                       "lockStatus": "unLocked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "notDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "hold",
+                       "lockStatus": "unLocked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "*"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "unLocked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "readyForRelease",
+                       "lockStatus": "locked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "hold",
+                       "lockStatus": "unLocked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "readyForRelease",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "*"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "unLocked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ],
+                   "autoAction":
+                   {
+                       "configStatus": "readyForRelease",
+                       "lockStatus": "locked"
+                   }
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "hold",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "unLocked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "hold",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "hold",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "locked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "unLocked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "hold",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "unLocked"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "rescind",
+                       "rolloutStatus": "completelyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "*"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "completelyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               },
+               {
+                   "stateTo":
+                   {
+                       "configStatus": "rescind",
+                       "rolloutStatus": "partiallyDeployed",
+                       "dependencyArtifactStatus": "allImagesSelected",
+                       "lockStatus": "*"
+                   },
+                   "possibleFromStates":
+                   [
+                       {
+                           "configStatus": "readyForRelease",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       },
+                       {
+                           "configStatus": "hold",
+                           "rolloutStatus": "partiallyDeployed",
+                           "dependencyArtifactStatus": "allImagesSelected",
+                           "lockStatus": "locked"
+                       }
+                   ]
+               }
+           ],
+           "consequence": "BLOCK"
+       }', true, false, 1, now(),1,now()),
+      ('ReleaseActionCheckPolicy', 'RELEASE_ACTION_CHECK', 'V1', 'Policy used for validating different actions requested on release.',
        '{
     "definitions":
     [
