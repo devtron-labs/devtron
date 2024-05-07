@@ -106,8 +106,8 @@ type CiArtifactWithParentArtifact struct {
 	CiArtifactId     int
 }
 
-func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
-	for _, ns := range req.Namespaces {
+func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string) (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
+	for _, ns := range underscoreSeperatedClusterIdNamespaces {
 		items := strings.Split(ns, "_")
 		// TODO refactoring: invalid condition; always false
 		if len(items) < 1 && len(items) > 2 {

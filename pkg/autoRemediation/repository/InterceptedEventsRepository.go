@@ -101,8 +101,8 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		query = query.Where("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
 	}
 
-	if len(interceptedEventsQueryParams.Namespaces) > 0 {
-		query = query.Where("intercepted_event_execution.namespace IN (?)", pg.In(interceptedEventsQueryParams.Namespaces))
+	if len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
+		query = query.Where("(intercepted_event_execution.cluster_id,intercepted_event_execution.namespace) IN (?)", pg.InMulti(interceptedEventsQueryParams.ClusterIdNamespacePairs))
 	}
 
 	if len(interceptedEventsQueryParams.Watchers) > 0 {

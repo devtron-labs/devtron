@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
@@ -333,14 +334,14 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
 }
-func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedEventQueryParams, error) {
+func getInterceptedEventsQueryParams(queryParams url.Values) (*types.InterceptedEventQueryParams, error) {
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
 		sortOrder = "desc"
 	}
 	if !(sortOrder == "asc" || sortOrder == "desc") {
-		return types.InterceptedEventQueryParams{}, errors.New("sort order can only be ASC or DESC")
+		return nil, errors.New("sort order can only be ASC or DESC")
 	}
 	sizeStr := queryParams.Get("size")
 	size := 20
@@ -348,7 +349,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 		var err error
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
-			return types.InterceptedEventQueryParams{}, errors.New("invalid size")
+			return nil, errors.New("invalid size")
 		}
 	}
 	offsetStr := queryParams.Get("offset")
@@ -357,7 +358,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 		var err error
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			return types.InterceptedEventQueryParams{}, errors.New("invalid offset")
+			return nil, errors.New("invalid offset")
 		}
 	}
 	search := queryParams.Get("search")
@@ -368,7 +369,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 		var err error
 		fromTime, err = time.Parse(time.RFC1123, from)
 		if err != nil {
-			return types.InterceptedEventQueryParams{}, errors.New("invalid from time")
+			return nil, errors.New("invalid from time")
 		}
 	}
 	to := queryParams.Get("to")
@@ -377,7 +378,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 		var err error
 		toTime, err = time.Parse(time.RFC1123, to)
 		if err != nil {
-			return types.InterceptedEventQueryParams{}, errors.New("invalid to time")
+			return nil, errors.New("invalid to time")
 		}
 	}
 	watchers := queryParams.Get("watchers")
@@ -385,32 +386,33 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (types.InterceptedE
 	if watchers != "" {
 		watchersArray = strings.Split(watchers, ",")
 	}
-	clusters := queryParams.Get("clusters")
-	var clustersArray []string
-	if clusters != "" {
-		clustersArray = strings.Split(clusters, ",")
-	}
+
 	namespaces := queryParams.Get("namespaces")
 	var namespacesArray []string
 	if namespaces != "" {
 		namespacesArray = strings.Split(namespaces, ",")
 	}
+	clusterNamespacePair, clusterIds, err := app.GetNamespaceClusterMapping(namespacesArray)
+	if err != nil {
+		return nil, err
+	}
+
 	executionStatus := queryParams.Get("executionStatuses")
 	var executionStatusArray []string
 	if executionStatus != "" {
 		executionStatusArray = strings.Split(executionStatus, ",")
 	}
-	return types.InterceptedEventQueryParams{
-		Offset:          offset,
-		Size:            size,
-		SortOrder:       sortOrder,
-		SearchString:    search,
-		From:            fromTime,
-		To:              toTime,
-		Watchers:        watchersArray,
-		Clusters:        clustersArray,
-		Namespaces:      namespacesArray,
-		ExecutionStatus: executionStatusArray,
+	return &types.InterceptedEventQueryParams{
+		Offset:                  offset,
+		Size:                    size,
+		SortOrder:               sortOrder,
+		SearchString:            search,
+		From:                    fromTime,
+		To:                      toTime,
+		Watchers:                watchersArray,
+		ClusterIds:              clusterIds,
+		ClusterIdNamespacePairs: clusterNamespacePair,
+		ExecutionStatus:         executionStatusArray,
 	}, nil
 
 }

@@ -147,6 +147,7 @@ type InterceptedEventsDto struct {
 	TriggerExecutionId int     `json:"triggerExecutionId"`
 	Trigger            Trigger `json:"trigger"`
 }
+
 type Status string
 
 const (
