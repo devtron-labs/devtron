@@ -128,8 +128,9 @@ const (
 
 // release specific keys
 const (
-	ReleaseResourceObjectReleaseNotePath    = "overview.releaseNote"
-	ReleaseResourceObjectReleaseVersionPath = "overview.releaseVersion"
+	ReleaseResourceObjectReleaseNotePath     = "overview.releaseNote"
+	ReleaseResourceObjectReleaseVersionPath  = "overview.releaseVersion"
+	ReleaseResourceObjectFirstReleasedOnPath = "overview.firstReleasedOn"
 
 	ReleaseResourceConfigStatusPath         = "status.config"
 	ReleaseResourceConfigStatusStatusPath   = "status.config.status"

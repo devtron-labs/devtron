@@ -64,13 +64,14 @@ type DependencyPatchBean struct {
 }
 
 type ResourceOverview struct {
-	Description    string            `json:"description,omitempty"`
-	Note           *NoteBean         `json:"note,omitempty"`
-	ReleaseVersion string            `json:"releaseVersion,omitempty"`
-	CreatedBy      *UserSchema       `json:"createdBy,omitempty"`
-	CreatedOn      time.Time         `json:"createdOn,omitempty"`
-	Tags           map[string]string `json:"tags,omitempty"`
-	RunSource      *RunSource        `json:"runSource,omitempty"`
+	Description     string            `json:"description,omitempty"`
+	Note            *NoteBean         `json:"note,omitempty"`
+	ReleaseVersion  string            `json:"releaseVersion,omitempty"`
+	CreatedBy       *UserSchema       `json:"createdBy,omitempty"`
+	CreatedOn       time.Time         `json:"createdOn,omitempty"`
+	Tags            map[string]string `json:"tags,omitempty"`
+	FirstReleasedOn time.Time         `json:"firstReleasedOn,omitempty"`
+	RunSource       *RunSource        `json:"runSource,omitempty"`
 }
 
 type DevtronResourceTaskRunBean struct {

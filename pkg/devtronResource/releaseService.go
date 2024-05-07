@@ -168,6 +168,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseOverviewDataForGetApiResour
 					Name: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByNamePath).String(),
 					Icon: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIconPath).Bool(),
 				},
+				FirstReleasedOn: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectFirstReleasedOnPath).Time(),
 			}
 			resourceObject.Overview.CreatedOn, err = helper.GetCreatedOnTime(existingResourceObject.ObjectData)
 			if err != nil {
@@ -893,6 +894,16 @@ func (impl *DevtronResourceServiceImpl) executeDeploymentsForDependencies(ctx co
 			return nil, err
 		}
 		if found {
+			//check if firstReleasedOn is present, if not then update it
+			firstReleasedOnExists := len(gjson.Get(objectData, bean.ReleaseResourceObjectFirstReleasedOnPath).String()) != 0
+			if !firstReleasedOnExists {
+				objectDataNew, err := helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceObjectFirstReleasedOnPath, triggeredTime)
+				if err != nil {
+					impl.logger.Errorw("error, PatchResourceObjectData", "err", err, "releaseObj", objectData, "path", bean.ReleaseResourceObjectFirstReleasedOnPath, "value", triggeredTime)
+					return nil, err
+				}
+				existingObject.ObjectData = objectDataNew
+			}
 			// updated existing object (rollout status to partially deployed)
 			err = impl.updateRolloutStatusInExistingObject(existingObject,
 				bean.PartiallyDeployedReleaseRolloutStatus, triggeredBy, triggeredTime)
