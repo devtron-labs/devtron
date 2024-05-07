@@ -1063,10 +1063,6 @@ type ReleaseAttributes struct {
 	App            string // App here corresponds to appId
 	Env            string // Env here corresponds to envId
 	AppMetrics     *bool
-	EnvName        string
-	AppName        string
-	ProjectName    string
-	ChartVersion   string
 }
 
 func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1alpha1.Application, installedAppVersionHistoryId int, updateTimedOutStatus bool) error {

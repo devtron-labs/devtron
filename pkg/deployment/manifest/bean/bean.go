@@ -12,6 +12,11 @@ const (
 	HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
 	Enabled                 = "enabled"
 	ReplicaCount            = "replicaCount"
+	AppNameDevtronLabel     = "api.devtron.ai/appName"
+	EnvNameDevtronLabel     = "api.devtron.ai/envName"
+	ProjectNameDevtronLabel = "api.devtron.ai/project"
+	ManagedByK8sLabel       = "app.kubernetes.io/managed-by"
+	AppLabelsKey            = "appLabels"
 )
 
 type ConfigMapAndSecretJsonV2 struct {
