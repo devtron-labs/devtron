@@ -280,6 +280,13 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 		sortOrderBy = "name"
 		sortOrder = "asc"
 	}
+	if sortOrderBy == "triggeredAt" {
+		if sortOrder == "desc" {
+			sortOrder = "asc"
+		} else {
+			sortOrder = "desc"
+		}
+	}
 	if !(sortOrderBy == "name" || sortOrderBy == "triggeredAt") {
 		return types.WatcherQueryParams{}, errors.New("sort order can only be by name or triggeredAt")
 	}
@@ -341,10 +348,14 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
 		sortOrder = "desc"
-	}
-	if !(sortOrder == "asc" || sortOrder == "desc") {
+	} else if !(sortOrder == "asc" || sortOrder == "desc") {
 		return nil, errors.New("sort order can only be ASC or DESC")
+	} else if sortOrder == "asc" {
+		sortOrder = "desc"
+	} else {
+		sortOrder = "asc"
 	}
+
 	sizeStr := queryParams.Get("size")
 	size := 20
 	if sizeStr != "" {
