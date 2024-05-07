@@ -1342,6 +1342,9 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticular
 			indexOfDependencyRemoved = dependencyBean.Index
 			continue
 		}
+		if dependencyBean.Config.ArtifactConfig != nil && dependencyBean.Config.ArtifactConfig.ArtifactId != 0 {
+			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
+		}
 		dependencies = append(dependencies, dependencyBean)
 	}
 	return dependencies, indexOfDependencyRemoved, nil
