@@ -72,11 +72,11 @@ func Create() (*casbin.SyncedEnforcer, error) {
 	}
 	e = auth
 	err = e.LoadPolicy()
-	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	log.Println("casbin Policies Loaded Successfully")
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return e, nil
