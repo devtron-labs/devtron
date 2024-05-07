@@ -30,7 +30,7 @@ func ValidateTasksPayload(tasks []*bean.Task) bool {
 
 func ConvertErrorAccordingToDeployment(err error) error {
 	if err == nil {
-		return util.NewApiError().WithCode("200").WithUserMessage(bean.CanTriggerMessage)
+		return util.NewApiError().WithCode("200")
 	}
 	return util.NewApiError().WithCode(constants.NotProcessed).WithUserMessage(err.Error()).WithInternalMessage(err.Error())
 }
@@ -40,7 +40,7 @@ func ConvertErrorAccordingToFeasibility(err error, deploymentWindowByPassed bool
 		return util.NewApiError().WithCode(constants.DeploymentWindowByPassed).WithUserMessage(bean.DeploymentByPassingMessage)
 	}
 	if err == nil {
-		return util.NewApiError().WithCode("200").WithUserMessage(bean.CanTriggerMessage)
+		return util.NewApiError().WithCode("200")
 	}
 	return err
 }

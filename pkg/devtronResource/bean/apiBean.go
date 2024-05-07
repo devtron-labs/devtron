@@ -132,7 +132,7 @@ const (
 	ReleaseLockStatusChangeSuccessMessage          = "Requirement is locked."
 	ReleaseUnLockStatusChangeSuccessMessage        = "Requirement is unlocked."
 	ReleaseHoldStatusChangeSuccessDetailMessage    = "No deployments can be triggered in 'On Hold' state"
-	ReleaseRescindStatusChangeSuccessDetailMessage = "This release is no longer usable. Clone to create new release."
+	ReleaseRescindStatusChangeSuccessDetailMessage = "This release is no longer usable."
 
 	ReleaseStatusPatchErrMessage                           = "Cannot change status"
 	ReleaseStatusReadyForReleaseNoAppErrMessage            = "Please add applications and images first."
