@@ -396,7 +396,10 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
 	}
-
+	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
+		impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", modifiedCiPipeline.PipelineType)
+		return nil, errors.New(CiPipeline2.PIPELINE_TYPE_IS_NOT_VALID)
+	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
 		if material.ScmId != "" {
