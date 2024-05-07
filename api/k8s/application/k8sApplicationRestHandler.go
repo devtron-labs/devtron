@@ -1352,5 +1352,9 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 		_ = json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
+	userEmail, _, err := handler.userService.GetEmailAndGroupClaimsFromToken(token)
+	if err == nil {
+		handler.logger.Infow("K8sProxyRequest", "Method:", r.Method, "Path:", r.URL.Path, "Email:", userEmail)
+	}
 	proxyServer.ServeHTTP(w, r)
 }

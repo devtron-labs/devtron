@@ -159,7 +159,6 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) updateLastActivity(clus
 	if proxyServerMetadata, ok := impl.k8sApiProxyCache[clusterIdString.GetClusterId()]; ok {
 		proxyServerMetadata.lastActivityTimestamp = time.Now()
 	}
-
 }
 
 type ClusterServiceKey string
