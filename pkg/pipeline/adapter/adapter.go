@@ -173,6 +173,7 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(CiPipeline.LINKED_CD)
 }
 
+// IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 &&
 		ci.PipelineType == string(CiPipeline.LINKED)
