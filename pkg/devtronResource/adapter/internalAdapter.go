@@ -55,6 +55,19 @@ func GetPolicyDefinitionStateFromReleaseObject(objectData string) (*bean.Release
 	}
 	return state, nil
 }
+func GetReleaseAppCountAndDepArtifactStatusFromResourceObjData(objectData string) (appCount int, depArtifactStatus bean2.DependencyArtifactStatus) {
+	upstreamDep := gjson.Get(objectData, `dependencies.#(typeOfDependency=="upstream")#`) //assuming only apps are upstream of release
+	upstreamDepLen := len(upstreamDep.Array())
+	artifactLen := len(gjson.Get(upstreamDep.String(), `#(config.artifactConfig.artifactId>0)#`).Array())
+	if artifactLen == 0 {
+		depArtifactStatus = bean2.NotSelectedDependencyArtifactStatus
+	} else if artifactLen < upstreamDepLen {
+		depArtifactStatus = bean2.PartialSelectedDependencyArtifactStatus
+	} else if artifactLen == upstreamDepLen {
+		depArtifactStatus = bean2.AllSelectedDependencyArtifactStatus
+	}
+	return upstreamDepLen, depArtifactStatus
+}
 
 func getReleasePolicyConfigStatusFromResourceObjData(objectData string) (bean.PolicyReleaseConfigStatus, error) {
 	var policyConfigStatus bean.PolicyReleaseConfigStatus
@@ -71,8 +84,10 @@ func getReleasePolicyConfigStatusFromResourceObjData(objectData string) (bean.Po
 	case bean2.CorruptedReleaseConfigStatus.ToString():
 		policyConfigStatus = bean.PolicyReleaseConfigStatusCorrupted
 	default:
-		//setting default as draft in case it is not set at creation time, needs to be check in future if this needs to be replaced with error
-		policyConfigStatus = bean.PolicyReleaseConfigStatusDraft
+		if len(objDataConfigStatus) == 0 {
+			//setting default as draft in case it is not set at creation time, needs to be check in future if this needs to be replaced with error
+			policyConfigStatus = bean.PolicyReleaseConfigStatusDraft
+		}
 	}
 	return policyConfigStatus, nil
 }
@@ -88,8 +103,10 @@ func getReleasePolicyRolloutStatusFromResourceObjData(objectData string) (bean.P
 	case bean2.CompletelyDeployedReleaseRolloutStatus.ToString():
 		policyRolloutStatus = bean.PolicyReleaseRolloutStatusCompletelyDeployed
 	default:
-		//setting default as not deployed in case it is not set at creation time, needs to be check in future if this needs to be replaced with error
-		policyRolloutStatus = bean.PolicyReleaseRolloutStatusNotDeployed
+		if len(objDatRolloutStatus) == 0 {
+			//setting default as not deployed in case it is not set at creation time, needs to be check in future if this needs to be replaced with error
+			policyRolloutStatus = bean.PolicyReleaseRolloutStatusNotDeployed
+		}
 	}
 	return policyRolloutStatus, nil
 }
@@ -150,4 +167,11 @@ func getReleaseLockStatusFromPolicyLockStatus(policyLockStatus bean.PolicyLockSt
 		return lockStatus, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean2.PatchValueNotSupportedError, bean2.PatchValueNotSupportedError)
 	}
 	return lockStatus, nil
+}
+
+func GetLastReleaseTaskRunInfo(response []bean2.DtReleaseTaskRunInfo) *bean2.DtReleaseTaskRunInfo {
+	if len(response) == 0 {
+		return nil
+	}
+	return &response[len(response)-1]
 }

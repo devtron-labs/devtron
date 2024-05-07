@@ -61,7 +61,15 @@ func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTra
 		reqBean.Overview.CreatedBy = createdByDetails
 		reqBean.Overview.CreatedOn = time.Now()
 	}
+	// populating identifier value for release-track
+	populateIdentifierValueForCreateReleaseTrackRequest(reqBean)
 	return nil
+}
+
+func populateIdentifierValueForCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) {
+	if len(reqBean.Identifier) == 0 {
+		reqBean.Identifier = reqBean.Name
+	}
 }
 
 func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseTrackObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
@@ -189,7 +197,8 @@ func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, allCh
 	return resp, nil
 }
 
-func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperation(objectData string, queries []bean.PatchQuery) (string, []string, error) {
+func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperation(objectData string,
+	queries []bean.PatchQuery) (*bean.SuccessResponse, string, []string, error) {
 	var err error
 	auditPaths := make([]string, 0, len(queries))
 	for _, query := range queries {
@@ -202,10 +211,10 @@ func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperatio
 		auditPaths = append(auditPaths, bean.PatchQueryPathAuditPathMap[query.Path])
 		if err != nil {
 			impl.logger.Errorw("error in patch operation, release track", "err", err, "objectData", "query", query)
-			return "", nil, err
+			return nil, "", nil, err
 		}
 	}
-	return objectData, auditPaths, nil
+	return adapter.GetSuccessPassResponse(), objectData, auditPaths, nil
 }
 
 func (impl *DevtronResourceServiceImpl) validateReleaseTrackDelete(object *repository.DevtronResourceObject) (bool, error) {

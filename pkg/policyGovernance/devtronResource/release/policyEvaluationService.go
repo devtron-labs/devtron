@@ -6,9 +6,9 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"net/http"
-	slices2 "slices"
 )
 
 type PolicyEvaluationService interface {
@@ -43,13 +43,18 @@ func (impl *PolicyEvaluationServiceImpl) EvaluateReleaseActionRequest(operationT
 	for i := range policyDetail.Definitions {
 		definition := policyDetail.Definitions[i]
 		if operationTypeFromReq == definition.OperationType {
+			toCheckStates := len(definition.OperationPaths) == 0 //if no operation path then check, else iterate and see if any operation path match
 			for _, operationPath := range definition.OperationPaths {
-				if slices2.Contains(operationPathFromReq, operationPath) {
-					for _, possibleFromState := range definition.PossibleFromStates {
-						if matchDefinitionState(possibleFromState, stateFromReq) {
-							isValid = true
-							return isValid, nil
-						}
+				if util2.ContainsStringAlias(operationPathFromReq, operationPath) {
+					toCheckStates = true
+					break
+				}
+			}
+			if toCheckStates {
+				for _, possibleFromState := range definition.PossibleFromStates {
+					if matchDefinitionState(possibleFromState, stateFromReq) {
+						isValid = true
+						return isValid, nil
 					}
 				}
 			}

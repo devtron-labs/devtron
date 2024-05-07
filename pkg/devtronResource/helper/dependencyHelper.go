@@ -69,3 +69,12 @@ func GetKeyForADependencyMap(oldObjectId, devtronResourceSchemaId int) string {
 	// key can be "oldObjectId-schemaId" or "name-schemaId"
 	return fmt.Sprintf("%d-%d", oldObjectId, devtronResourceSchemaId)
 }
+
+func IsApplicationDependency(devtronResourceTypeReq *bean.DevtronResourceTypeReq) bool {
+	if devtronResourceTypeReq == nil {
+		return false
+	}
+	return devtronResourceTypeReq.ResourceKind ==
+		BuildExtendedResourceKindUsingKindAndSubKind(bean.DevtronResourceApplication.ToString(),
+			bean.DevtronResourceDevtronApplication.ToString())
+}

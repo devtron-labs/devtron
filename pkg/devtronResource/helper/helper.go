@@ -73,7 +73,7 @@ func GetKindSubKindOfResource(devtronResource *repository.DevtronResource, devtr
 }
 
 func GetFilterKeyObjectFromId(devtronResourceSchemaId int, oldObjectId string) bean.FilterKeyObject {
-	// key can be "oldObjectId-schemaId" or "name-schemaId"
+	// key can be "schemaId/oldObjectId" or "schemaId/*"
 	return fmt.Sprintf("%d/%s", devtronResourceSchemaId, oldObjectId)
 }
 
@@ -85,4 +85,8 @@ func GetResourceObjectIdAndType(existingResourceObject *repository.DevtronResour
 		objectId = existingResourceObject.OldObjectId
 	}
 	return objectId, idType
+}
+
+func GetKeyForPipelineIdAndAppId(pipelineId, appId int) string {
+	return fmt.Sprintf("%v-%v", pipelineId, appId)
 }

@@ -70,42 +70,42 @@ func (impl *InternalProcessingServiceImpl) DeleteObjectAndItsDependency(req *bea
 	}
 	exists, err := impl.dtResourceReadService.CheckIfDevtronObjectExistsByIdAndIdType(resourceObjectId, resourceSchema.Id, req.IdType)
 	if err != nil {
+		impl.logger.Errorw("error in checking existing resource object, DeleteObject", "id", resourceObjectId, "idType", req.IdType, "err", err)
 		return err
 	}
-	if !exists {
-		impl.logger.Errorw("no resource object found to be deleted, DeleteObject", "id", resourceObjectId, "idType", req.IdType, "err", err)
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
-	}
-	var updatedResourceObject *repository.DevtronResourceObject
-	if req.IdType == bean.ResourceObjectIdType {
-		updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectById(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
-		if err != nil {
+	// for some devtron resources; we use it directly in dependencies.
+	// So even though resource object is not preset, there might be usage of them in dependencies.
+	if exists {
+		var updatedResourceObject *repository.DevtronResourceObject
+		if req.IdType == bean.ResourceObjectIdType {
+			updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectById(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
+				return err
+			}
+		} else if req.IdType == bean.OldObjectId {
+			updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectByOldObjectId(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteObject", "err", err, "oldObjectId", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
+				return err
+			}
+		} else {
+			err = fmt.Errorf(bean.IdTypeNotSupportedError)
 			impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
 			return err
 		}
-	} else if req.IdType == bean.OldObjectId {
-		updatedResourceObject, err = impl.devtronResourceObjectRepository.DeleteObjectByOldObjectId(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
-		if err != nil {
-			impl.logger.Errorw("error, DeleteObject", "err", err, "oldObjectId", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
-			return err
+		if updatedResourceObject != nil {
+			impl.dtResourceObjectAuditService.SaveAudit(updatedResourceObject, repository.AuditOperationTypeDeleted, nil)
 		}
-	} else {
-		err = fmt.Errorf(bean.IdTypeNotSupportedError)
-		impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
-		return err
-	}
-
-	err = impl.devtronResourceObjectRepository.DeleteDependencyInObjectData(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
-	if err != nil {
-		impl.logger.Errorw("error, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
-		return err
-	}
-	if updatedResourceObject != nil {
-		impl.dtResourceObjectAuditService.SaveAudit(updatedResourceObject, repository.AuditOperationTypeDeleted, nil)
 	}
 	err = impl.checkDeleteObjImpactAndPerformInfoPatch(tx, resourceObjectId, resourceSchema.Id, req)
 	if err != nil {
 		impl.logger.Errorw("error, checkDeleteObjImpactAndPerformInfoPatch", "err", err, "req", req)
+		return err
+	}
+	err = impl.devtronResourceObjectRepository.DeleteDependencyInObjectData(tx, resourceObjectId, resourceSchema.DevtronResourceId, req.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in DeleteDependencyInObjectData, DeleteObject", "err", err, "id", resourceObjectId, "idType", req.IdType, "devtronResourceId", resourceSchema.DevtronResourceId)
 		return err
 	}
 	err = impl.devtronResourceObjectRepository.CommitTx(tx)
@@ -139,6 +139,7 @@ func (impl *InternalProcessingServiceImpl) checkDeleteObjImpactAndPerformInfoPat
 		for i := range releaseObjs {
 			releaseObj := releaseObjs[i]
 			var statusToBeUpdated bean.ReleaseConfigStatus
+
 			//get rollout status of this releaseObj
 			rollOutStatus := gjson.Get(releaseObj.ObjectData, bean.ReleaseResourceRolloutStatusPath).String()
 			if rollOutStatus == bean.PartiallyDeployedReleaseRolloutStatus.ToString() ||
@@ -146,6 +147,12 @@ func (impl *InternalProcessingServiceImpl) checkDeleteObjImpactAndPerformInfoPat
 				statusToBeUpdated = bean.CorruptedReleaseConfigStatus
 			} else {
 				statusToBeUpdated = bean.DraftReleaseConfigStatus
+				//also update lock in this case, set to unlock
+				releaseObj.ObjectData, err = helper.PatchResourceObjectDataAtAPath(releaseObj.ObjectData, bean.ReleaseResourceConfigStatusIsLockedPath, false)
+				if err != nil {
+					impl.logger.Errorw("error, PatchResourceObjectData", "err", err, "releaseObj", releaseObj)
+					continue
+				}
 			}
 			//patch config status as corrupted
 			releaseObj.ObjectData, err = helper.PatchResourceObjectDataAtAPath(releaseObj.ObjectData, bean.ReleaseResourceConfigStatusStatusPath, statusToBeUpdated)

@@ -1423,6 +1423,34 @@ set schema='{
 where devtron_resource_id = (select id from devtron_resource where kind = 'helm-application')
   and version = 'v1';
 
+-- create devtron resource task run table
+CREATE SEQUENCE IF NOT EXISTS id_devtron_resource_task_run;
+CREATE TABLE IF NOT EXISTS public.devtron_resource_task_run
+(
+    "created_by"                         int4                    NOT NULL,
+    "updated_by"                         int4                    NOT NULL,
+    "created_on"                         timestamptz             NOT NULL,
+    "updated_on"                         timestamptz             NOT NULL,
+    "id"                                 int                     NOT NULL DEFAULT nextval('id_devtron_resource_task_run'::regclass),
+    "task_json"                          jsonb                   NOT NULL ,
+    "run_source_identifier"              varchar(500)            NOT NULL,
+    "run_source_dependency_identifier"   varchar(500)            NOT NULL,
+    "task_type"                          varchar(100)            NOT NULL,
+    "task_type_identifier"               int                     NOT NULL,
+    PRIMARY KEY ("id")
+    );
+
+-- unique index on combinaton of task type and task_type_identifier
+CREATE UNIQUE INDEX "idx_unique_task_type_and_identifier_id"
+    ON devtron_resource_task_run(task_type,task_type_identifier);
+
+-- index on run_source_identifier
+CREATE INDEX "idx_run_source_identifier" ON devtron_resource_task_run USING BTREE ("run_source_identifier");
+
+-- index on run_source_dependency_identifier
+CREATE INDEX "idx_run_source_dependency_identifier" ON devtron_resource_task_run USING BTREE ("run_source_dependency_identifier");
+
+
 
 INSERT INTO global_policy(name, policy_of, version, description, policy_json, enabled, deleted, created_by, created_on, updated_by, updated_on)
 VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validation release status changes.',

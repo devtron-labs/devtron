@@ -34,6 +34,8 @@ type DevtronResourceRestHandler interface {
 	PatchResourceDependencies(w http.ResponseWriter, r *http.Request)
 	GetSchema(w http.ResponseWriter, r *http.Request)
 	UpdateSchema(w http.ResponseWriter, r *http.Request)
+	ExecuteTask(w http.ResponseWriter, r *http.Request)
+	GetTaskRunInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronResourceRestHandlerImpl struct {
@@ -130,85 +132,6 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceObject(w http.Response
 	return
 }
 
-func getKindSubKindVersion(w http.ResponseWriter, r *http.Request) (kind string, subKind string, version string, caughtError bool) {
-	vars := mux.Vars(r)
-	kindVar := vars[apiBean.PathParamKind]
-	versionVar := vars[apiBean.PathParamVersion]
-	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, statusCode)
-		caughtError = true
-	}
-	return kind, subKind, versionVar, caughtError
-}
-
-func getReqBeanObjForGetResourceObject(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, bool) {
-	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetResourceQueryParams](w, r)
-	if caughtError {
-		return nil, caughtError
-	}
-	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
-		caughtError = true
-		return nil, caughtError
-	}
-	reqBeanDescriptor.OldObjectId = queryParams.Id
-	reqBeanDescriptor.Identifier = queryParams.Identifier
-	reqBeanDescriptor.UIComponents = queryParams.Component
-	return reqBeanDescriptor, caughtError
-}
-
-func getReqBeanObjAndQueryParamsForGetDependencies(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetDependencyQueryParams, bool) {
-	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetDependencyQueryParams](w, r)
-	if caughtError {
-		return nil, nil, caughtError
-	}
-	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
-		caughtError = true
-		return nil, nil, caughtError
-	}
-	reqBeanDescriptor.OldObjectId = queryParams.Id
-	reqBeanDescriptor.Identifier = queryParams.Identifier
-	return reqBeanDescriptor, &queryParams, caughtError
-}
-
-func getReqBeanObjAndQueryParamsForGetConfigOptions(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetConfigOptionsQueryParams, bool) {
-	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetConfigOptionsQueryParams](w, r)
-	if caughtError {
-		return nil, nil, caughtError
-	}
-	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
-		caughtError = true
-		return nil, nil, caughtError
-	}
-	reqBeanDescriptor.OldObjectId = queryParams.Id
-	reqBeanDescriptor.Identifier = queryParams.Identifier
-	return reqBeanDescriptor, &queryParams, caughtError
-}
-
-func decodeQueryAndPathParams[T apiBean.QueryParams](w http.ResponseWriter, r *http.Request) (reqBeanDescriptor *serviceBean.DevtronResourceObjectDescriptorBean, queryParams T, caughtError bool) {
-	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
-	if caughtError {
-		return
-	}
-	v := r.URL.Query()
-	var decoder = schema.NewDecoder()
-	decoder.IgnoreUnknownKeys(true)
-	err := decoder.Decode(&queryParams, v)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	reqBeanDescriptor = &serviceBean.DevtronResourceObjectDescriptorBean{
-		Kind:    kind,
-		SubKind: subKind,
-		Version: versionVar,
-	}
-	return reqBeanDescriptor, queryParams, caughtError
-}
-
 func (handler *DevtronResourceRestHandlerImpl) CreateResourceObject(w http.ResponseWriter, r *http.Request) {
 	ctx := util.NewRequestCtx(r.Context())
 	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
@@ -285,6 +208,7 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceObject(w ht
 	common.WriteJsonResp(w, err, apiBean.ResourceUpdateSuccessMessage, http.StatusOK)
 	return
 }
+
 func (handler *DevtronResourceRestHandlerImpl) PatchResourceObject(w http.ResponseWriter, r *http.Request) {
 	ctx := util.NewRequestCtx(r.Context())
 	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
@@ -364,7 +288,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetResourceDependencies(w http.Re
 		return
 	}
 	token := r.Header.Get("token")
-	isValidated := handler.checkAuthForDependencyGet(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
+	isValidated := handler.checkAuthForDependencyAPIs(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
 	if !isValidated {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -386,7 +310,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetDependencyConfigOptions(w http
 		return
 	}
 	token := r.Header.Get("token")
-	isValidated := handler.checkAuthForDependencyGet(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
+	isValidated := handler.checkAuthForDependencyAPIs(reqBeanDescriptor.OldObjectId, token, reqBeanDescriptor.Kind, reqBeanDescriptor.SubKind)
 	if !isValidated {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -485,6 +409,81 @@ func (handler *DevtronResourceRestHandlerImpl) PatchResourceDependencies(w http.
 		return
 	}
 
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) ExecuteTask(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var reqBean serviceBean.DevtronResourceTaskExecutionBean
+	err := decoder.Decode(&reqBean)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// struct tags validation
+	err = handler.validator.Struct(reqBean)
+	if err != nil {
+		handler.logger.Errorw("validation err, ExecuteTask", "err", err, "payload", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, kind, subKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	if reqBean.DevtronResourceObjectDescriptorBean == nil {
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
+	} else {
+		reqBean.DevtronResourceObjectDescriptorBean.Kind = kind
+		reqBean.DevtronResourceObjectDescriptorBean.SubKind = subKind
+		reqBean.DevtronResourceObjectDescriptorBean.Version = version
+	}
+	reqBean.UserId = ctx.GetUserId()
+	resp, err := handler.devtronResourceService.ExecuteTask(ctx, &reqBean)
+	if err != nil {
+		handler.logger.Errorw("service error, ExecuteTask", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	reqBean, queryParams, caughtError := getReqBeanObjAndQueryParamsForTaskRunInfo(w, r)
+	if caughtError {
+		return
+	}
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, reqBean.Kind, reqBean.SubKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	reqBean.UserId = ctx.GetUserId()
+	resp, err := handler.devtronResourceService.GetTaskRunInfo(reqBean, queryParams)
+	if err != nil {
+		handler.logger.Errorw("service error, GetTaskRunInfo", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 	return
 }
@@ -610,7 +609,7 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForObject(id int, token,
 	return isValidated
 }
 
-func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyGet(id int, token, kind, subKind string) bool {
+func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyAPIs(id int, token, kind, subKind string) bool {
 	isValidated := true
 	switch kind {
 	case serviceBean.DevtronResourceApplication.ToString():
@@ -678,6 +677,100 @@ func (handler *DevtronResourceRestHandlerImpl) checkAuthForDependencyUpdate(id i
 		isValidated = false
 	}
 	return isValidated
+}
+
+func getKindSubKindVersion(w http.ResponseWriter, r *http.Request) (kind string, subKind string, version string, caughtError bool) {
+	vars := mux.Vars(r)
+	kindVar := vars[apiBean.PathParamKind]
+	versionVar := vars[apiBean.PathParamVersion]
+	kind, subKind, statusCode, err := resolveKindSubKindValues(kindVar)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		caughtError = true
+	}
+	return kind, subKind, versionVar, caughtError
+}
+
+func getReqBeanObjForGetResourceObject(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, bool) {
+	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetResourceQueryParams](w, r)
+	if caughtError {
+		return nil, caughtError
+	}
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, caughtError
+	}
+	reqBeanDescriptor.OldObjectId = queryParams.Id
+	reqBeanDescriptor.Identifier = queryParams.Identifier
+	reqBeanDescriptor.UIComponents = queryParams.Component
+	return reqBeanDescriptor, caughtError
+}
+
+func getReqBeanObjAndQueryParamsForGetDependencies(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetDependencyQueryParams, bool) {
+	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetDependencyQueryParams](w, r)
+	if caughtError {
+		return nil, nil, caughtError
+	}
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, nil, caughtError
+	}
+	reqBeanDescriptor.OldObjectId = queryParams.Id
+	reqBeanDescriptor.Identifier = queryParams.Identifier
+	return reqBeanDescriptor, &queryParams, caughtError
+}
+
+func getReqBeanObjAndQueryParamsForTaskRunInfo(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetTaskRunInfoQueryParams, bool) {
+	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetTaskRunInfoQueryParams](w, r)
+	if caughtError {
+		return nil, nil, caughtError
+	}
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, nil, caughtError
+	}
+	reqBeanDescriptor.OldObjectId = queryParams.Id
+	reqBeanDescriptor.Identifier = queryParams.Identifier
+	return reqBeanDescriptor, &queryParams, false
+}
+
+func getReqBeanObjAndQueryParamsForGetConfigOptions(w http.ResponseWriter, r *http.Request) (*serviceBean.DevtronResourceObjectDescriptorBean, *apiBean.GetConfigOptionsQueryParams, bool) {
+	reqBeanDescriptor, queryParams, caughtError := decodeQueryAndPathParams[apiBean.GetConfigOptionsQueryParams](w, r)
+	if caughtError {
+		return nil, nil, caughtError
+	}
+	if queryParams.Id == 0 && len(queryParams.Identifier) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("invalid parameter: id or identifier"), nil, http.StatusBadRequest)
+		caughtError = true
+		return nil, nil, caughtError
+	}
+	reqBeanDescriptor.OldObjectId = queryParams.Id
+	reqBeanDescriptor.Identifier = queryParams.Identifier
+	return reqBeanDescriptor, &queryParams, caughtError
+}
+
+func decodeQueryAndPathParams[T apiBean.QueryParams](w http.ResponseWriter, r *http.Request) (reqBeanDescriptor *serviceBean.DevtronResourceObjectDescriptorBean, queryParams T, caughtError bool) {
+	kind, subKind, versionVar, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	v := r.URL.Query()
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	reqBeanDescriptor = &serviceBean.DevtronResourceObjectDescriptorBean{
+		Kind:    kind,
+		SubKind: subKind,
+		Version: versionVar,
+	}
+	return reqBeanDescriptor, queryParams, caughtError
 }
 
 func resolveKindSubKindValues(kindVar string) (kind, subKind string, statusCode int, err error) {

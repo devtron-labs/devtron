@@ -87,6 +87,14 @@ const (
 	CompletelyDeployedReleaseRolloutStatus ReleaseRolloutStatus = "completelyDeployed"
 )
 
+func (s ReleaseRolloutStatus) IsPartiallyDeployed() bool {
+	return s == PartiallyDeployedReleaseRolloutStatus
+}
+
+func (s ReleaseRolloutStatus) IsCompletelyDeployed() bool {
+	return s == CompletelyDeployedReleaseRolloutStatus
+}
+
 type DependencyArtifactStatus string
 
 func (s DependencyArtifactStatus) ToString() string {
@@ -136,4 +144,11 @@ const (
 	ReleaseResourceDependencyConfigCiWorkflowKey         = "ciWorkflowId"
 	ReleaseResourceDependencyConfigCommitSourceKey       = "commitSource"
 	ReleaseResourceDependencyConfigReleaseInstructionKey = "releaseInstruction"
+)
+
+//taskRun specific keys
+
+const (
+	ResourceObjectRunSourcePath = "overview.runSource"
+	ResourceTaskRunActionPath   = "action"
 )

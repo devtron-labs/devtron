@@ -95,7 +95,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
-
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
 	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
 	if filterEvaluationAudit != nil {

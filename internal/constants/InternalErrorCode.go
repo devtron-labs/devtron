@@ -90,13 +90,17 @@ const (
 	GitHostCreateFailedInDb          string = "9002"
 
 	// feasibility errors
-	VulnerabilityFound     string = "10001"
-	ApprovalNodeFail       string = "10002"
-	FilteringConditionFail string = "10003"
-	DeploymentWindowFail   string = "10004"
-	PreCDDoesNotExists     string = "10005"
-	PostCDDoesNotExists    string = "10006"
-	ArtifactNotAvailable   string = "10007"
+	VulnerabilityFound       string = "10001"
+	ApprovalNodeFail         string = "10002"
+	FilteringConditionFail   string = "10003"
+	DeploymentWindowFail     string = "10004"
+	PreCDDoesNotExists       string = "10005"
+	PostCDDoesNotExists      string = "10006"
+	ArtifactNotAvailable     string = "10007"
+	DeploymentWindowByPassed string = "10008"
+
+	//Not Processed Internal error
+	NotProcessed string = "11001"
 )
 const (
 	HttpStatusUnprocessableEntity = "422"

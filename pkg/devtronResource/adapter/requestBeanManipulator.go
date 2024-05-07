@@ -13,6 +13,10 @@ func SetIdTypeAndResourceIdBasedOnKind(reqBeanDescriptor *bean.DevtronResourceOb
 		reqBeanDescriptor.Id = id
 		reqBeanDescriptor.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
 
+	} else if reqBeanDescriptor.Kind == bean.DevtronResourceTaskRun.ToString() {
+		reqBeanDescriptor.IdType = bean.ResourceObjectIdType
+		reqBeanDescriptor.Id = id
+		reqBeanDescriptor.OldObjectId = 0 // reqBean.Id and reqBean.OldObjectId both can not be used at a time
 	} else {
 		reqBeanDescriptor.IdType = bean.OldObjectId
 		reqBeanDescriptor.OldObjectId = id // from FE, we are taking the id of the resource (devtronApp, helmApp, cluster, job) from their respective tables

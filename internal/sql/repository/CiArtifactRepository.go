@@ -706,6 +706,16 @@ func (impl CiArtifactRepositoryImpl) GetAllArtifactsForWfComponents(ciPipelineId
 							return query, nil
 						})
 					return query, nil
+				}).
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					subQuery := impl.dbConnection.
+						Model().
+						Table("cd_workflow").
+						ColumnExpr("DISTINCT cd_workflow.ci_artifact_id").
+						Where("cd_workflow.pipeline_id IN (?)", pg.In(cdPipelineIds))
+					query = query.
+						Where("ci_artifact.id in (?)", subQuery)
+					return query, nil
 				})
 		}
 		return query, nil
@@ -817,6 +827,9 @@ func (impl CiArtifactRepositoryImpl) GetByImageAndDigestAndPipelineId(ctx contex
 }
 
 func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) {
+	if len(ids) == 0 {
+		return nil, pg.ErrNoRows
+	}
 	var artifact []*CiArtifact
 	err := impl.dbConnection.Model(&artifact).
 		Column("ci_artifact.*").

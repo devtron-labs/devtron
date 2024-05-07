@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"time"
 )
 
@@ -69,6 +70,33 @@ type ResourceOverview struct {
 	CreatedBy      *UserSchema       `json:"createdBy,omitempty"`
 	CreatedOn      time.Time         `json:"createdOn,omitempty"`
 	Tags           map[string]string `json:"tags,omitempty"`
+	RunSource      *RunSource        `json:"runSource,omitempty"`
+}
+
+type DevtronResourceTaskRunBean struct {
+	*DevtronResourceObjectDescriptorBean
+	Overview *ResourceOverview `json:"overview,omitempty"`
+	Action   []*TaskRunAction  `json:"action,omitempty"`
+}
+
+type RunSource struct {
+	Id                      int               `json:"id,omitempty"`
+	IdType                  IdType            `json:"idType,omitempty"`
+	DevtronResourceId       int               `json:"devtronResourceId,omitempty"`
+	DevtronResourceSchemaId int               `json:"devtronResourceSchemaId,omitempty"`
+	DependencyDetail        *DependencyDetail `json:"dependencyDetail,omitempty"`
+}
+
+type DependencyDetail struct {
+	Id                      int    `json:"id,omitempty"`
+	IdType                  IdType `json:"idType,omitempty"`
+	DevtronResourceId       int    `json:"devtronResourceId,omitempty"`
+	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId,omitempty"`
+}
+
+type TaskRunAction struct {
+	TaskType           TaskType `json:"taskType,omitempty"`
+	CdWorkflowRunnerId int      `json:"cdWfrId,omitempty"`
 }
 
 type NoteBean struct {
@@ -130,6 +158,119 @@ type DevtronResourceDependencyBean struct {
 	Config                  *DependencyConfigBean            `json:"config,omitempty"`
 	ChildObjects            []*ChildObject                   `json:"childObjects,omitempty"`
 	ChildInheritance        []*ChildInheritance              `json:"childInheritance,omitempty"` // right now being used internally for release, cd pipeline is being inherited.
+}
+
+func NewDevtronResourceDependencyBean() *DevtronResourceDependencyBean {
+	return &DevtronResourceDependencyBean{}
+}
+
+func (d *DevtronResourceDependencyBean) WithOldObjectId(id int) *DevtronResourceDependencyBean {
+	d.OldObjectId = id
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithDevtronResourceId(dtResourceId int) *DevtronResourceDependencyBean {
+	d.DevtronResourceId = dtResourceId
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithDevtronResourceSchemaId(dtResourceSchemaId int) *DevtronResourceDependencyBean {
+	d.DevtronResourceSchemaId = dtResourceSchemaId
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithDependentOnIndex(dependentOnIndex int) *DevtronResourceDependencyBean {
+	d.DependentOnIndex = dependentOnIndex
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithDependentOnIndexes(dependentOnIndexes ...int) *DevtronResourceDependencyBean {
+	d.DependentOnIndexes = append(d.DependentOnIndexes, dependentOnIndexes...)
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithTypeOfDependency(typeOfDependency DevtronResourceDependencyType) *DevtronResourceDependencyBean {
+	d.TypeOfDependency = typeOfDependency
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithDependentOnParentIndex(dependentOnParentIndex int) *DevtronResourceDependencyBean {
+	d.DependentOnParentIndex = dependentOnParentIndex
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithIndex(index int) *DevtronResourceDependencyBean {
+	d.Index = index
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithIdType(idType IdType) *DevtronResourceDependencyBean {
+	d.IdType = idType
+	return d
+}
+
+func (d *DevtronResourceDependencyBean) WithChildInheritance(childInheritance ...*ChildInheritance) *DevtronResourceDependencyBean {
+	d.ChildInheritance = append(d.ChildInheritance, childInheritance...)
+	return d
+}
+
+type DependencyFilterCondition struct {
+	filterByTypes            []DevtronResourceDependencyType
+	filterByIndexes          []int
+	filterByDependentOnIndex int
+	fetchChildInheritance    bool
+}
+
+func (c *DependencyFilterCondition) GetFilterByTypes() []DevtronResourceDependencyType {
+	if c == nil {
+		return []DevtronResourceDependencyType{}
+	}
+	return c.filterByTypes
+}
+
+func (c *DependencyFilterCondition) GetFilterByIndexes() []int {
+	if c == nil {
+		return []int{}
+	}
+	return c.filterByIndexes
+}
+
+func (c *DependencyFilterCondition) GetFilterByDependentOnIndex() int {
+	if c == nil {
+		return 0
+	}
+	return c.filterByDependentOnIndex
+}
+
+func (c *DependencyFilterCondition) GetChildInheritance() bool {
+	if c == nil {
+		return false
+	}
+	return c.fetchChildInheritance
+}
+
+func NewDependencyFilterCondition() *DependencyFilterCondition {
+	return &DependencyFilterCondition{}
+}
+
+func (c *DependencyFilterCondition) WithFilterByTypes(types ...DevtronResourceDependencyType) *DependencyFilterCondition {
+	c.filterByTypes = append(c.filterByTypes, types...)
+	return c
+}
+
+func (c *DependencyFilterCondition) WithFilterByIndexes(indexes ...int) *DependencyFilterCondition {
+	c.filterByIndexes = append(c.filterByIndexes, indexes...)
+	return c
+}
+
+func (c *DependencyFilterCondition) WithFilterByDependentOnIndex(dependentOnIndex int) *DependencyFilterCondition {
+	c.filterByDependentOnIndex = dependentOnIndex
+	return c
+}
+
+func (c *DependencyFilterCondition) WithChildInheritance() *DependencyFilterCondition {
+	c.fetchChildInheritance = true
+	return c
 }
 
 type DependencyConfigBean struct {
@@ -214,6 +355,38 @@ type UserSchema struct {
 	Name string `json:"name"`
 }
 
+type DevtronResourceTaskExecutionBean struct {
+	*DevtronResourceObjectDescriptorBean
+	DryRun        bool      `json:"dryRun"`
+	Tasks         []*Task   `json:"tasks" validate:"required"`
+	TriggeredTime time.Time `json:"-"` // for internal use
+}
+
+type Task struct {
+	AppId                int               `json:"appId" validate:"required"`
+	CdWorkflowType       bean.WorkflowType `json:"cdWorkflowType" validate:"required"`
+	DeploymentWithConfig string            `json:"deploymentWithConfig" validate:"required"`
+	PipelineId           int               `json:"pipelineId" validate:"required"`
+}
+
+type TaskExecutionResponseBean struct {
+	AppId         int    `json:"appId"`
+	EnvId         int    `json:"envId"`
+	IsVirtualEnv  bool   `json:"isVirtualEnv"`
+	AppName       string `json:"appName"`
+	EnvName       string `json:"envName"`
+	Feasibility   error  `json:"feasibility"`
+	TriggerStatus error  `json:"triggerStatus"`
+}
+
+type TaskType string
+
+const (
+	TaskTypePreDeployment  TaskType = "pre-deployment"
+	TaskTypePostDeployment TaskType = "post-deployment"
+	TaskTypeDeployment     TaskType = "deployment"
+)
+
 type FilterCriteriaDecoder struct {
 	Resource DevtronResourceKind
 	Type     FilterCriteriaIdentifier
@@ -257,7 +430,9 @@ const (
 )
 
 type SuccessResponse struct {
-	Success bool `json:"success"`
+	Success       bool   `json:"success"`
+	UserMessage   string `json:"userMessage"`
+	DetailMessage string `json:"detailMessage"`
 }
 
 type DevtronResourceDependencyType string
@@ -305,6 +480,7 @@ const (
 	DevtronResourceCdPipeline         DevtronResourceKind = "cd-pipeline"
 	DevtronResourceReleaseTrack       DevtronResourceKind = "release-track"
 	DevtronResourceRelease            DevtronResourceKind = "release"
+	DevtronResourceTaskRun            DevtronResourceKind = "task-run"
 
 	DevtronResourceAppWorkflow DevtronResourceKind = "appWorkflow" // DevtronResourceAppWorkflow is an internal only resource kind used for filtering
 )
@@ -397,33 +573,40 @@ const (
 )
 
 const (
-	ResourceAlreadyExistsMessage         = "Resource already exists!"
-	ResourceDoesNotExistMessage          = "Resource does not exists!"
-	InvalidResourceSchemaId              = "Invalid resource schema id! No resource schema found."
-	InvalidResourceKindOrVersion         = "Invalid resource kind or version! No resource schema found."
-	ReleaseVersionNotFound               = "Invalid overview data! overview.releaseVersion is required."
-	ResourceNameNotFound                 = "Invalid payload data! name is required."
-	ResourceParentConfigNotFound         = "parentConfig is required! parent dependency not defined."
-	ResourceParentConfigDataNotFound     = "parentConfig.data is required! parent dependency data not found."
-	InvalidResourceParentConfigData      = "Invalid parentConfig data! either id or identifier is required."
-	InvalidResourceRequestDescriptorData = "Invalid request! either id or identifier is required."
-	InvalidResourceParentConfigId        = "Invalid parentConfig! incorrect parent dependency."
-	InvalidResourceParentConfigKind      = "Invalid parentConfig kind! incorrect parent dependency."
-	InvalidResourceKindOrComponent       = "Invalid resource kind or component! Implementation not available."
-	InvalidResourceKind                  = "Invalid resource kind! Implementation not supported."
-	InvalidQueryDependencyInfo           = "Invalid query param: dependencyInfo!"
-	InvalidQueryConfigOption             = "Invalid query param: configOption!"
-	InvalidResourceVersion               = "Invalid resource version! Implementation not supported."
-	PatchPathNotSupportedError           = "patch path not supported"
-	PatchValueNotSupportedError          = "patch value not supported"
-	IdTypeNotSupportedError              = "resource object id type not supported"
-	InvalidNoDependencyRequest           = "Invalid dependency request. No dependencies present. "
-	InvalidFilterCriteria                = "invalid format filter criteria!"
-	InvalidSearchKey                     = "invalid format search key!"
-	InvalidPatchOperation                = "invalid patch operation or not supported or dependency info not found"
-	ApplicationDependencyFoundError      = "application cannot be patched as other dependencies are dependent on this application"
-	ApplicationDependencyNotFoundError   = "no application found "
-	InvalidDeleteRequest                 = "invalid delete request, action not allowed"
+	ResourceAlreadyExistsMessage             = "Resource already exists!"
+	ResourceDoesNotExistMessage              = "Resource does not exists!"
+	InvalidResourceSchemaId                  = "Invalid resource schema id! No resource schema found."
+	InvalidResourceKindOrVersion             = "Invalid resource kind or version! No resource schema found."
+	ReleaseVersionNotFound                   = "Invalid overview data! overview.releaseVersion is required."
+	ResourceNameNotFound                     = "Invalid payload data! name is required."
+	ResourceParentConfigNotFound             = "parentConfig is required! parent dependency not defined."
+	ResourceParentConfigDataNotFound         = "parentConfig.data is required! parent dependency data not found."
+	InvalidResourceParentConfigData          = "Invalid parentConfig data! either id or identifier is required."
+	InvalidResourceRequestDescriptorData     = "Invalid request! either id or identifier is required."
+	InvalidResourceParentConfigId            = "Invalid parentConfig! incorrect parent dependency."
+	InvalidResourceParentConfigKind          = "Invalid parentConfig kind! incorrect parent dependency."
+	InvalidResourceKindOrComponent           = "Invalid resource kind or component! Implementation not available."
+	InvalidResourceKind                      = "Invalid resource kind! Implementation not supported."
+	InvalidQueryDependencyInfo               = "Invalid query param: dependencyInfo!"
+	InvalidQueryConfigOption                 = "Invalid query param: configOption!"
+	InvalidResourceVersion                   = "Invalid resource version! Implementation not supported."
+	UnimplementedResourceKindOrVersion       = "Invalid resource kind or version! Implementation not supported."
+	PatchPathNotSupportedError               = "patch path not supported"
+	PatchValueNotSupportedError              = "patch value not supported"
+	IdTypeNotSupportedError                  = "resource object id type not supported"
+	InvalidNoDependencyRequest               = "Invalid dependency request. No dependencies present. "
+	InvalidFilterCriteria                    = "invalid format filter criteria!"
+	InvalidSearchKey                         = "invalid format search key!"
+	InvalidPatchOperation                    = "invalid patch operation or not supported or dependency info not found"
+	InvalidTaskRunOperation                  = "invalid taskRun trigger"
+	ApplicationDependencyFoundError          = "application cannot be patched as other dependencies are dependent on this application"
+	ApplicationDependencyNotFoundError       = "no application found "
+	InvalidDeleteRequest                     = "invalid delete request, action not allowed"
+	NoTaskFoundMessage                       = "no task found to execute"
+	CanTriggerMessage                        = "Can trigger"
+	DeploymentByPassingMessage               = "You are authorised to deploy outside maintenance window"
+	InvalidParentConfigIdOrIdentifier        = "invalid parent id or identifier"
+	ActionPolicyInValidDueToStatusErrMessage = "Operation not allowed with the current status."
 )
 
 type ChildObjectType string
@@ -432,3 +615,22 @@ const DefaultCdPipelineSelector string = "*"
 const (
 	EnvironmentChildObjectType ChildObjectType = "environments"
 )
+
+type CdPipelineReleaseInfo struct {
+	AppId                      int            `json:"appId"`
+	AppName                    string         `json:"appName"`
+	EnvId                      int            `json:"envId"`
+	EnvName                    string         `json:"envName"`
+	PipelineId                 int            `json:"pipelineId"`
+	DeploymentAppDeleteRequest bool           `json:"deploymentAppDeleteRequest"`
+	ExistingStages             *ExistingStage `json:"existingStages"`
+	DeployStatus               string         `json:"deployStatus"`
+	PreStatus                  string         `json:"preStatus"`
+	PostStatus                 string         `json:"postStatus"`
+}
+
+type ExistingStage struct {
+	Pre    bool `json:"pre"`
+	Deploy bool `json:"deploy"`
+	Post   bool `json:"post"`
+}

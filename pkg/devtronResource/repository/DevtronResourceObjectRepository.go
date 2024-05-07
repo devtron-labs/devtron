@@ -112,10 +112,12 @@ func (repo *DevtronResourceObjectRepositoryImpl) Update(tx *pg.Tx, model *Devtro
 
 func (repo *DevtronResourceObjectRepositoryImpl) UpdateInBulk(tx *pg.Tx, models []*DevtronResourceObject) error {
 	var err error
-	if tx != nil {
-		_, err = tx.Model(&models).Update()
-	} else {
-		_, err = repo.dbConnection.Model(&models).Update()
+	for i := range models { //iterating due to issues in bulk update, TODO: kartik check in v2
+		if tx != nil {
+			err = tx.Update(models[i])
+		} else {
+			err = repo.dbConnection.Update(models[i])
+		}
 	}
 	return err
 }

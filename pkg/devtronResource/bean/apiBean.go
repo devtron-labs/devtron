@@ -114,3 +114,27 @@ const (
 	ArtifactTag SearchPropertyBy = "artifactTag"
 	ImageTag    SearchPropertyBy = "imageTag"
 )
+
+type DtReleaseTaskRunInfo struct {
+	Level          int                      `json:"level"`
+	TaskRunAllowed *bool                    `json:"taskRunAllowed,omitempty"`
+	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies,omitempty"`
+}
+
+func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
+	if res.TaskRunAllowed == nil {
+		return false
+	}
+	return *res.TaskRunAllowed
+}
+
+const (
+	ReleaseLockStatusChangeSuccessMessage          = "Requirement is locked."
+	ReleaseUnLockStatusChangeSuccessMessage        = "Requirement is unlocked."
+	ReleaseHoldStatusChangeSuccessDetailMessage    = "No deployments can be triggered in 'On Hold' state"
+	ReleaseRescindStatusChangeSuccessDetailMessage = "This release is no longer usable. Clone to create new release."
+
+	ReleaseStatusPatchErrMessage                           = "Cannot change status"
+	ReleaseStatusReadyForReleaseNoAppErrMessage            = "Please add applications and images first."
+	ReleaseStatusReadyForReleaseNoOrPartialImageErrMessage = "To mark it ready for release, all apps should have respective images added."
+)

@@ -1,43 +1,16 @@
 package devtronResource
 
 import (
-	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
-	"strings"
 )
-
-func (impl *DevtronResourceServiceImpl) updateCatalogDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
-	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
-	referencedPaths, schemaWithUpdatedRefData, err := helper.GetReferencedPathsAndUpdatedSchema(resourceSchema.Schema)
-	if err != nil {
-		impl.logger.Errorw("err, getReferencedPathsAndUpdatedSchema", "err", err, "schema", resourceSchema.Schema)
-		return err
-	}
-	schema, err := impl.getUpdatedSchemaWithAllRefObjectValues(schemaWithUpdatedRefData, referencedPaths)
-	if err != nil {
-		impl.logger.Errorw("error, getUpdatedSchemaWithAllRefObjectValues", "err", err,
-			"schemaWithUpdatedRefData", schemaWithUpdatedRefData, "referencedPaths", referencedPaths)
-		return err
-	}
-	resourceObject.Schema = schema
-	//checking if resource object exists
-	if existingResourceObject != nil && existingResourceObject.Id > 0 {
-		//getting metadata out of this object
-		metadataObject := gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectMetadataPath)
-		resourceObject.CatalogData = metadataObject.Raw
-	}
-	return nil
-}
 
 func (impl *DevtronResourceServiceImpl) getParentConfigVariablesFromDependencies(objectData string) (parentConfig *bean.ResourceIdentifier, parentResourceObject *repository.DevtronResourceObject, err error) {
 	if gjson.Get(objectData, bean.ResourceObjectDependenciesPath).Exists() {
@@ -113,66 +86,6 @@ func (impl *DevtronResourceServiceImpl) updateParentConfigInResourceObj(resource
 		resourceObject.ParentConfig.Identifier = parentResourceObject.Identifier
 	}
 	return nil
-}
-
-func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithAllRefObjectValues(schema string, referencedPaths map[string]bool) (string, error) {
-	//we need to get metadata from the resource schema because it is the only part which is being used at UI.
-	//In future iterations, this should be removed and made generic for the user to work on the whole object.
-	responseSchemaResult := gjson.Get(schema, bean.ResourceSchemaMetadataPath)
-	responseSchema := responseSchemaResult.String()
-	var err error
-	for refPath := range referencedPaths {
-		refPathSplit := strings.Split(refPath, "/")
-		if len(refPathSplit) < 3 {
-			return responseSchema, fmt.Errorf("invalid schema found, references not mentioned correctly")
-		}
-		resourceKind := refPathSplit[2]
-		if resourceKind == string(bean.DevtronResourceUser) {
-			responseSchema, err = impl.getUpdatedSchemaWithUserRefDetails(resourceKind, responseSchema)
-			if err != nil {
-				impl.logger.Errorw("error, getUpdatedSchemaWithUserRefDetails", "err", err)
-			}
-		} else {
-			impl.logger.Errorw("error while extracting kind of resource; kind not supported as of now", "resource kind", resourceKind)
-			return responseSchema, errors.New(fmt.Sprintf("%s kind is not supported", resourceKind))
-		}
-	}
-	return responseSchema, nil
-}
-
-func (impl *DevtronResourceServiceImpl) getUpdatedSchemaWithUserRefDetails(resourceKind, responseSchema string) (string, error) {
-	userModel, err := impl.userRepository.GetAllExcludingApiTokenUser()
-	if err != nil {
-		impl.logger.Errorw("error while fetching all users", "err", err, "resource kind", resourceKind)
-		return responseSchema, err
-	}
-	//creating enums and enumNames
-	enums := make([]map[string]interface{}, 0, len(userModel))
-	enumNames := make([]interface{}, 0, len(userModel))
-	for _, user := range userModel {
-		enum := make(map[string]interface{})
-		enum[bean.IdKey] = user.Id
-		enum[bean.NameKey] = user.EmailId
-		enum[bean.IconKey] = true // to get image from user profile when it is done
-		enums = append(enums, enum)
-		//currently we are referring only object, in future if reference is some field(got from refPathSplit) then we will pass its data as it is
-		enumNames = append(enumNames, user.EmailId)
-	}
-	//updating schema with enum and enumNames
-	referencesUpdatePathCommon := fmt.Sprintf("%s.%s", bean.ReferencesKey, resourceKind)
-	referenceUpdatePathEnum := fmt.Sprintf("%s.%s", referencesUpdatePathCommon, bean.EnumKey)
-	referenceUpdatePathEnumNames := fmt.Sprintf("%s.%s", referencesUpdatePathCommon, bean.EnumNamesKey)
-	responseSchema, err = sjson.Set(responseSchema, referenceUpdatePathEnum, enums)
-	if err != nil {
-		impl.logger.Errorw("error in setting references enum in resourceSchema", "err", err)
-		return responseSchema, err
-	}
-	responseSchema, err = sjson.Set(responseSchema, referenceUpdatePathEnumNames, enumNames)
-	if err != nil {
-		impl.logger.Errorw("error in setting references enumNames in resourceSchema", "err", err)
-		return responseSchema, err
-	}
-	return responseSchema, nil
 }
 
 func (impl *DevtronResourceServiceImpl) getUserSchemaDataById(userId int32) (*bean.UserSchema, error) {
@@ -291,4 +204,170 @@ func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJ
 		dependencies = append(dependencies, dependencyBean)
 	}
 	return dependencies, nil
+}
+
+// getDependencyBeanForGetDependenciesApi is used for get resource dependencies by extra child objects data which is not present in schema
+func (impl *DevtronResourceServiceImpl) getDependencyBeanForGetDependenciesApi(parentResourceType *bean.DevtronResourceTypeReq, dependency string, isLite bool) (*bean.DevtronResourceDependencyBean, error) {
+	dependencyBean, err := impl.getDependencyBeanFromJsonString(parentResourceType, dependency, isLite)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getDependencyBeanForGetDependenciesApi", "err", err, "dependency", dependency)
+		return nil, err
+	}
+	if !isLite {
+		childObjects, err := impl.getChildObjectsByParentResourceType(parentResourceType, dependency)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getDependencyBeanForGetDependenciesApi", "err", err, "dependency", dependency)
+			return nil, err
+		}
+		// setting child objects only for ui (get resource dependencies api), not stored in schema
+		dependencyBean.ChildObjects = childObjects
+	}
+	return dependencyBean, nil
+}
+
+func (impl *DevtronResourceServiceImpl) getDependencyBeanFromJsonString(parentResourceType *bean.DevtronResourceTypeReq, dependency string, isLite bool) (*bean.DevtronResourceDependencyBean, error) {
+	typeResult := gjson.Get(dependency, bean.TypeOfDependencyKey)
+	typeOfDependency := typeResult.String()
+	devtronResourceIdResult := gjson.Get(dependency, bean.DevtronResourceIdKey)
+	devtronResourceId := int(devtronResourceIdResult.Int())
+	schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
+	schemaId := int(schemaIdResult.Int())
+	var resourceKind bean.DevtronResourceKind
+	var resourceVersion bean.DevtronResourceVersion
+	if schemaId != 0 {
+		kind, subKind, version, err := helper.GetKindSubKindAndVersionOfResourceBySchemaId(schemaId,
+			impl.devtronResourcesSchemaMapById, impl.devtronResourcesMapById)
+		if err != nil {
+			impl.logger.Errorw("error in getting kind and subKind by devtronResourceSchemaId", "err", err, "devtronResourceSchemaId", schemaId)
+			return nil, err
+		}
+		resourceKind = helper.BuildExtendedResourceKindUsingKindAndSubKind(kind, subKind)
+		resourceVersion = bean.DevtronResourceVersion(version)
+	}
+	oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
+	oldObjectId := int(oldObjectIdResult.Int())
+	idTypeResult := gjson.Get(dependency, bean.IdTypeKey)
+	idType := bean.IdType(idTypeResult.String())
+	indexResult := gjson.Get(dependency, bean.IndexKey)
+	index := int(indexResult.Int())
+	dependentOnIndexResult := gjson.Get(dependency, bean.DependentOnIndexKey)
+	dependentOnIndex := int(dependentOnIndexResult.Int())
+	dependentOnIndexArrayResult := gjson.Get(dependency, bean.DependentOnIndexesKey)
+	var dependentOnIndexArray []int
+	if dependentOnIndexArrayResult.IsArray() {
+		dependentOnIndexArrayResult.ForEach(
+			func(key, value gjson.Result) bool {
+				dependentOnIndexArray = append(dependentOnIndexArray, int(value.Int()))
+				return true
+			},
+		)
+	}
+	dependentOnParentIndexResult := gjson.Get(dependency, bean.DependentOnParentIndexKey)
+	dependentOnParentIndex := int(dependentOnParentIndexResult.Int())
+	//not handling for nested dependencies
+	configDataJsonObj := gjson.Get(dependency, bean.ConfigKey)
+	configData, err := impl.getConfigDataByParentResourceType(parentResourceType, configDataJsonObj.String(), isLite)
+	if err != nil {
+		return nil, err
+	}
+	return &bean.DevtronResourceDependencyBean{
+		OldObjectId:             oldObjectId,
+		DevtronResourceId:       devtronResourceId,
+		DevtronResourceSchemaId: schemaId,
+		DevtronResourceTypeReq: &bean.DevtronResourceTypeReq{
+			ResourceKind:    resourceKind,
+			ResourceVersion: resourceVersion,
+		},
+		DependentOnIndex:       dependentOnIndex,
+		DependentOnIndexes:     dependentOnIndexArray,
+		DependentOnParentIndex: dependentOnParentIndex,
+		TypeOfDependency:       bean.DevtronResourceDependencyType(typeOfDependency),
+		Config:                 configData,
+		Index:                  index,
+		IdType:                 idType,
+	}, nil
+}
+
+// GetDependenciesBeanFromObjectData is used for by internal services for getting minimal data with filter conditions bean.DependencyFilterCondition.
+func GetDependenciesBeanFromObjectData(objectData string, filterCondition *bean.DependencyFilterCondition) []*bean.DevtronResourceDependencyBean {
+	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)
+	dependenciesResultArr := dependenciesResult.Array()
+	dependencies := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesResultArr))
+	for _, dependencyResult := range dependenciesResultArr {
+		dependency := dependencyResult.String()
+		typeResult := gjson.Get(dependency, bean.TypeOfDependencyKey)
+		typeOfDependency := bean.DevtronResourceDependencyType(typeResult.String())
+		if !slices.Contains(filterCondition.GetFilterByTypes(), typeOfDependency) {
+			continue
+		}
+		dependentOnIndexArrayResult := gjson.Get(dependency, bean.DependentOnIndexesKey)
+		var dependentOnIndexArray []int
+		if dependentOnIndexArrayResult.IsArray() {
+			dependentOnIndexArrayResult.ForEach(
+				func(key, value gjson.Result) bool {
+					dependentOnIndexArray = append(dependentOnIndexArray, int(value.Int()))
+					return true
+				},
+			)
+		}
+		if filterCondition.GetFilterByDependentOnIndex() != 0 && !slices.Contains(dependentOnIndexArray, filterCondition.GetFilterByDependentOnIndex()) {
+			continue
+		}
+		indexResult := gjson.Get(dependency, bean.IndexKey)
+		index := int(indexResult.Int())
+		if len(filterCondition.GetFilterByIndexes()) != 0 && !slices.Contains(filterCondition.GetFilterByIndexes(), index) {
+			continue
+		}
+		dependencyBean := bean.NewDevtronResourceDependencyBean().
+			WithDependentOnIndexes(dependentOnIndexArray...).
+			WithTypeOfDependency(typeOfDependency).
+			WithIndex(index)
+
+		devtronResourceIdResult := gjson.Get(dependency, bean.DevtronResourceIdKey)
+		devtronResourceId := int(devtronResourceIdResult.Int())
+		dependencyBean = dependencyBean.WithDevtronResourceId(devtronResourceId)
+
+		schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
+		schemaId := int(schemaIdResult.Int())
+		dependencyBean = dependencyBean.WithDevtronResourceSchemaId(schemaId)
+
+		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
+		oldObjectId := int(oldObjectIdResult.Int())
+		dependencyBean = dependencyBean.WithOldObjectId(oldObjectId)
+
+		idTypeResult := gjson.Get(dependency, bean.IdTypeKey)
+		idType := bean.IdType(idTypeResult.String())
+		dependencyBean = dependencyBean.WithIdType(idType)
+
+		dependentOnIndexResult := gjson.Get(dependency, bean.DependentOnIndexKey)
+		dependentOnIndex := int(dependentOnIndexResult.Int())
+		dependencyBean = dependencyBean.WithDependentOnIndex(dependentOnIndex)
+
+		dependentOnParentIndexResult := gjson.Get(dependency, bean.DependentOnParentIndexKey)
+		dependentOnParentIndex := int(dependentOnParentIndexResult.Int())
+		dependencyBean = dependencyBean.WithDependentOnParentIndex(dependentOnParentIndex)
+
+		//not handling for nested dependencies
+
+		if filterCondition.GetChildInheritance() {
+			childInheritance, err := getChildInheritanceData(dependency)
+			if err == nil {
+				dependencyBean.WithChildInheritance(childInheritance...)
+			}
+		}
+		dependencies = append(dependencies, dependencyBean)
+	}
+	return dependencies
+}
+
+func (impl *DevtronResourceServiceImpl) getChildObjectsByParentResourceType(parentResourceType *bean.DevtronResourceTypeReq, dependency string) (childObjects []*bean.ChildObject, err error) {
+	f := getFuncToUpdateChildObjectsData(parentResourceType.ResourceKind.ToString(),
+		parentResourceType.ResourceSubKind.ToString(), parentResourceType.ResourceVersion.ToString())
+	if f != nil {
+		childObjects, err = f(impl, dependency)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return childObjects, nil
 }

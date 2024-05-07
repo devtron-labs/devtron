@@ -1,6 +1,7 @@
 package devtronResource
 
 import (
+	"context"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
@@ -49,6 +50,7 @@ func getFuncToSetUserProvidedDataInResourceObject(kind, subKind, version string)
 var setUserProvidedDataByKindVersionFuncMap = map[string]func(*DevtronResourceServiceImpl, string, *bean.DtResourceObjectInternalBean) (string, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "", bean.DevtronResourceVersionAlpha1):      (*DevtronResourceServiceImpl).updateUserProvidedDataInReleaseObj,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "", bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateUserProvidedDataInReleaseTrackObj,
+	getKeyForKindAndVersion(bean.DevtronResourceTaskRun, "", bean.DevtronResourceVersionAlpha1):      (*DevtronResourceServiceImpl).updateUserProvidedDataInTaskRunObj,
 }
 
 func getFuncToValidateCreateResourceRequest(kind, subKind, version string) func(*bean.DtResourceObjectCreateReqBean) error {
@@ -258,7 +260,7 @@ var getArtifactConfigOptionsFuncMap = map[string]func(*DevtronResourceServiceImp
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseArtifactListInResponseObject,
 }
 
-func getFuncToUpdateChildObjectsData(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, string, bool, int) ([]*bean.ChildObject, error) {
+func getFuncToUpdateChildObjectsData(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, string) ([]*bean.ChildObject, error) {
 	if f, ok := updateChildObjectsFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -266,13 +268,13 @@ func getFuncToUpdateChildObjectsData(kind string, subKind string, version string
 	}
 }
 
-var updateChildObjectsFuncMap = map[string]func(*DevtronResourceServiceImpl, string, bool, int) ([]*bean.ChildObject, error){
+var updateChildObjectsFuncMap = map[string]func(*DevtronResourceServiceImpl, string) ([]*bean.ChildObject, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDependencyChildObjectsInObj,
 }
 
 func getFuncToCheckPatchOperationValidity(kind, subKind, version string) func(impl *DevtronResourceServiceImpl,
-	objectData string, queries []bean.PatchQuery) (bool, error) {
+	objectData string, queries []bean.PatchQuery) error {
 	if f, ok := checkPatchOperationValidityFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -281,13 +283,65 @@ func getFuncToCheckPatchOperationValidity(kind, subKind, version string) func(im
 }
 
 var checkPatchOperationValidityFuncMap = map[string]func(impl *DevtronResourceServiceImpl,
-	objectData string, queries []bean.PatchQuery) (bool, error){
+	objectData string, queries []bean.PatchQuery) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).checkIfReleaseResourcePatchValid,
 }
 
+func getFuncToCheckTaskRunOperationValidity(kind, subKind, version string) func(impl *DevtronResourceServiceImpl, objectData string) error {
+	if f, ok := checkTaskRunOperationValidityFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var checkTaskRunOperationValidityFuncMap = map[string]func(impl *DevtronResourceServiceImpl, objectData string) error{
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).checkIfReleaseResourceTaskRunValid,
+}
+
+func getFuncToPerformDryRun(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, string, int) ([]*bean.TaskExecutionResponseBean, error) {
+	if f, ok := performDryRunFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var performDryRunFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, string, int) ([]*bean.TaskExecutionResponseBean, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).performFeasibilityChecks,
+}
+
+func getFuncToExecuteTask(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, *repository.DevtronResourceObject) ([]*bean.TaskExecutionResponseBean, error) {
+	if f, ok := executeTaskFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+func getFuncToFetchTaskRunInfo(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error) {
+	if f, ok := fetchTaskRunInfoFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var executeTaskFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, *repository.DevtronResourceObject) ([]*bean.TaskExecutionResponseBean, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).executeDeploymentsForDependencies,
+}
+
+var fetchTaskRunInfoFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).fetchReleaseTaskRunInfo,
+}
+
 func getFuncToPerformPatchOperation(kind, subKind, version string) func(*DevtronResourceServiceImpl,
-	string, []bean.PatchQuery) (string, []string, error) {
+	string, []bean.PatchQuery) (*bean.SuccessResponse, string, []string, error) {
 	if f, ok := patchOperationFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -295,7 +349,7 @@ func getFuncToPerformPatchOperation(kind, subKind, version string) func(*Devtron
 	}
 }
 
-var patchOperationFuncMap = map[string]func(*DevtronResourceServiceImpl, string, []bean.PatchQuery) (string, []string, error){
+var patchOperationFuncMap = map[string]func(*DevtronResourceServiceImpl, string, []bean.PatchQuery) (*bean.SuccessResponse, string, []string, error){
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).performReleaseTrackResourcePatchOperation,
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",

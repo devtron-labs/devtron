@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*bean.TriggerFeasibilityResponse, bool, error) {
+func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*bean.TriggerFeasibilityResponse, bool, bool, error) {
 	var approvalRequestId int
 	var err error
 	artifactId := triggerRequirementRequest.TriggerRequest.Artifact.Id
@@ -30,7 +30,7 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 		err = impl.CheckIfPreOrPostExists(cdPipeline, triggerRequirementRequest.TriggerRequest.WorkflowType, triggerRequirementRequest.DeploymentType)
 		if err != nil {
 			impl.logger.Errorw("error encountered in CheckFeasibility", "err", err, "cdPipelineId", cdPipeline.Id)
-			return nil, false, err
+			return nil, false, false, err
 		}
 	}
 
@@ -38,16 +38,16 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, triggerRequirementRequest.TriggerRequest.WorkflowType)
 		if err != nil {
 			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-			return nil, false, err
+			return nil, false, false, err
 		}
 		if !isArtifactAvailable {
-			return nil, false, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE).WithCode(constants.ArtifactNotAvailable)
+			return nil, false, false, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE).WithCode(constants.ArtifactNotAvailable)
 		}
 
 		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-			return nil, false, err
+			return nil, false, false, err
 		}
 	}
 
@@ -56,53 +56,53 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 		approvalRequestId, err = impl.checkApprovalNodeForDeployment(triggeredBy, cdPipeline, artifactId)
 		if err != nil {
 			impl.logger.Errorw("error encountered in CheckFeasibility", "artifactId", artifactId, "err", err)
-			return nil, false, err
+			return nil, false, false, err
 		}
 	}
 	filters, err := impl.resourceFilterService.GetFiltersByScope(triggerRequirementRequest.Scope)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource filters for the pipeline", "scope", triggerRequirementRequest.Scope, "err", err)
-		return nil, false, err
+		return nil, false, false, err
 	}
 
 	// get releaseTags from imageTaggingService
 	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifactId)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifactId, "err", err)
-		return nil, false, err
+		return nil, false, false, err
 	}
 
 	materialInfos, err := artifact.GetMaterialInfo()
 	if err != nil {
 		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifactId, "materialInfo", artifact.MaterialInfo, "err", err)
-		return nil, false, err
+		return nil, false, false, err
 	}
 
 	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, triggerRequirementRequest.TriggerRequest.Artifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		impl.logger.Errorw("error encountered in CheckFeasibility", "imageTagNames", imageTagNames, "filters", filters, "err", err)
-		return nil, false, err
+		return nil, false, false, err
 	}
 
 	// allow or block w.r.t filterState
 	if filterState != resourceFilter.ALLOW {
-		return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequirementRequest.TriggerRequest, filterIdVsState, filters), true, &util.ApiError{Code: constants.FilteringConditionFail, InternalMessage: "the artifact does not pass filtering condition", UserMessage: "the artifact does not pass filtering condition"}
+		return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequirementRequest.TriggerRequest, filterIdVsState, filters), true, false, &util.ApiError{Code: constants.FilteringConditionFail, InternalMessage: "the artifact does not pass filtering condition", UserMessage: "the artifact does not pass filtering condition"}
 	}
 
-	triggerRequest, err := impl.checkForDeploymentWindow(triggerRequirementRequest.TriggerRequest, triggerRequirementRequest.Stage)
+	triggerRequest, isDeploymentWindowByPassed, err := impl.checkForDeploymentWindow(triggerRequirementRequest.TriggerRequest, triggerRequirementRequest.Stage)
 	if err != nil {
 		impl.logger.Errorw("error encountered in CheckFeasibility", "triggerRequest", triggerRequirementRequest.TriggerRequest)
-		return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequirementRequest.TriggerRequest, filterIdVsState, filters), true, err
+		return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequirementRequest.TriggerRequest, filterIdVsState, filters), true, false, err
 	}
 
-	return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequest, filterIdVsState, filters), true, nil
+	return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequest, filterIdVsState, filters), true, isDeploymentWindowByPassed, nil
 }
 
-func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
+func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, bool, error) {
 	triggerTime := time.Now()
 	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
 	if err != nil {
-		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
+		return triggerRequest, false, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(envState)
 	triggerRequest.DeploymentWindowState = envState
@@ -110,11 +110,11 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 	if !isDeploymentAllowed(triggerRequest, actionState) {
 		err = impl.handleBlockedTrigger(triggerRequest, stage)
 		if err != nil {
-			return triggerRequest, err
+			return triggerRequest, false, err
 		}
-		return triggerRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.DeploymentWindowFail)
+		return triggerRequest, false, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.DeploymentWindowFail)
 	}
-	return triggerRequest, nil
+	return triggerRequest, actionState.IsActionBypass(), nil
 }
 
 func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {

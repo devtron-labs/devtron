@@ -33,6 +33,12 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 	devtronResourceRouter.Path("/dependencies/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.PatchResourceDependencies).Methods("PATCH")
 
+	devtronResourceRouter.Path("/task/execute/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
+		HandlerFunc(router.devtronResourceRestHandler.ExecuteTask).Methods("POST")
+
+	devtronResourceRouter.Path("/task/info/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
+		HandlerFunc(router.devtronResourceRestHandler.GetTaskRunInfo).Methods("GET")
+
 	//regex in path allows to have sub-kinds, for ex - "/applications/devtron-apps/v1" & "/cluster/v1" both will be accepted
 	devtronResourceRouter.Path("/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.GetResourceObject).Methods("GET")
@@ -54,5 +60,4 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 
 	devtronResourceRouter.Path("/schema").
 		HandlerFunc(router.devtronResourceRestHandler.UpdateSchema).Methods("PUT")
-
 }

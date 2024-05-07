@@ -2,7 +2,9 @@ package adapter
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 func GetRequirementReqForCreateRequest(reqBean *bean.DtResourceObjectCreateReqBean, objectDataPath string, skipJsonSchemaValidation bool) *bean.ResourceObjectRequirementRequest {
@@ -52,8 +54,7 @@ func BuildConfigStatusSchemaData(status *bean.ConfigStatus) *bean.ReleaseConfigS
 	}
 }
 
-func BuildDependencyData(id, devtronResourceId, devtronResourceSchemaId int, maxIndex float64, dependencyType bean.DevtronResourceDependencyType, idType bean.IdType) *bean.DevtronResourceDependencyBean {
-	maxIndex++
+func CreateDependencyData(id, devtronResourceId, devtronResourceSchemaId int, maxIndex float64, dependencyType bean.DevtronResourceDependencyType, idType bean.IdType) *bean.DevtronResourceDependencyBean {
 	return &bean.DevtronResourceDependencyBean{
 		OldObjectId:             id,
 		IdType:                  idType,
@@ -141,4 +142,142 @@ func BuildWebHookMaterialInfo(id int, eventActionType string, data interface{}) 
 
 func GetDefaultCdPipelineSelector() []string {
 	return []string{bean.DefaultCdPipelineSelector}
+}
+
+func BuildTaskExecutionResponseBean(appId, envId int, appName, envName string, isVirtualEnv bool, feasibilityStatus, processingStatus error) *bean.TaskExecutionResponseBean {
+	return &bean.TaskExecutionResponseBean{
+		AppId:         appId,
+		EnvId:         envId,
+		AppName:       appName,
+		EnvName:       envName,
+		IsVirtualEnv:  isVirtualEnv,
+		Feasibility:   feasibilityStatus,
+		TriggerStatus: processingStatus,
+	}
+}
+
+func BuildDevtronResourceTaskRunBean(descriptorBean *bean.DevtronResourceObjectDescriptorBean, overview *bean.ResourceOverview, actions []*bean.TaskRunAction) *bean.DevtronResourceTaskRunBean {
+	return &bean.DevtronResourceTaskRunBean{
+		DevtronResourceObjectDescriptorBean: descriptorBean,
+		Overview:                            overview,
+		Action:                              actions,
+	}
+}
+func BuildRunSourceObject(id int, idType bean.IdType, drId, drSchemaId int, dependency *bean.DependencyDetail) *bean.RunSource {
+	return &bean.RunSource{
+		Id:                      id,
+		IdType:                  idType,
+		DevtronResourceId:       drId,
+		DevtronResourceSchemaId: drSchemaId,
+		DependencyDetail:        dependency,
+	}
+}
+
+func BuildDependencyDetail(id int, idType bean.IdType, drId, drSchemaId int) *bean.DependencyDetail {
+	return &bean.DependencyDetail{
+		Id:                      id,
+		IdType:                  idType,
+		DevtronResourceId:       drId,
+		DevtronResourceSchemaId: drSchemaId,
+	}
+}
+
+func BuildActionObject(taskType bean.TaskType, cdWfrId int) *bean.TaskRunAction {
+	return &bean.TaskRunAction{
+		TaskType:           taskType,
+		CdWorkflowRunnerId: cdWfrId,
+	}
+}
+
+// MapDependenciesByDependentOnIndex will map the []*bean.DevtronResourceDependencyBean
+// corresponding to DependentOnIndex OR DependentOnIndexes
+// here Independent bean.DevtronResourceDependencyBean are mapped to Key -> 0
+func MapDependenciesByDependentOnIndex(dependencies []*bean.DevtronResourceDependencyBean) map[int][]*bean.DevtronResourceDependencyBean {
+	response := make(map[int][]*bean.DevtronResourceDependencyBean)
+	for _, dependency := range dependencies {
+		if dependency.DependentOnIndex != 0 {
+			response[dependency.DependentOnIndex] = append(response[dependency.DependentOnIndex], dependency)
+		} else if len(dependency.DependentOnIndexes) != 0 {
+			for _, dependentOnIndex := range dependency.DependentOnIndexes {
+				if dependentOnIndex != 0 {
+					response[dependentOnIndex] = append(response[dependentOnIndex], dependency)
+				}
+			}
+		} else {
+			response[0] = append(response[0], dependency)
+		}
+	}
+	return response
+}
+
+func NewCdPipelineReleaseInfo(appId, envId, pipelineId int, appName, envName string, deleteRequest bool) *bean.CdPipelineReleaseInfo {
+	return &bean.CdPipelineReleaseInfo{
+		AppId:                      appId,
+		AppName:                    appName,
+		EnvId:                      envId,
+		EnvName:                    envName,
+		PipelineId:                 pipelineId,
+		DeploymentAppDeleteRequest: deleteRequest,
+		DeployStatus:               pipelineConfigBean.NotTriggered,
+		PreStatus:                  pipelineConfigBean.NotTriggered,
+		PostStatus:                 pipelineConfigBean.NotTriggered,
+	}
+}
+
+func GetReleaseConfigAndLockStatusChangeSuccessResponse(statusTo bean.ReleaseConfigStatus,
+	isLocked bool) *bean.SuccessResponse {
+	statusUserMessage, statusDetailMessage := getReleaseConfigStatusSuccessChangeMessage(statusTo)
+	lockUserMessage := getReleaseLockStatusSuccessChangeMessage(isLocked)
+	resp := &bean.SuccessResponse{
+		Success:       true,
+		UserMessage:   fmt.Sprintf("%s & %s", statusUserMessage, lockUserMessage),
+		DetailMessage: statusDetailMessage,
+	}
+	return resp
+}
+
+func GetReleaseConfigStatusChangeSuccessResponse(statusTo bean.ReleaseConfigStatus) *bean.SuccessResponse {
+	resp := &bean.SuccessResponse{
+		Success: true,
+	}
+	resp.UserMessage, resp.DetailMessage = getReleaseConfigStatusSuccessChangeMessage(statusTo)
+	return resp
+}
+
+func GetReleaseLockStatusChangeSuccessResponse(isLocked bool) *bean.SuccessResponse {
+	resp := &bean.SuccessResponse{
+		Success: true,
+	}
+	resp.UserMessage = getReleaseLockStatusSuccessChangeMessage(isLocked)
+	return resp
+}
+
+func getReleaseConfigStatusSuccessChangeMessage(statusTo bean.ReleaseConfigStatus) (string, string) {
+	statusMessage := ""
+	detailMessage := ""
+	switch statusTo {
+	case bean.DraftReleaseConfigStatus:
+		statusMessage = fmt.Sprintf("Status is changed to '%s'", "Draft")
+	case bean.ReadyForReleaseConfigStatus:
+		statusMessage = fmt.Sprintf("Status is changed to '%s'", "Ready for release")
+	case bean.HoldReleaseConfigStatus:
+		statusMessage = fmt.Sprintf("Release is '%s'", "On hold")
+		detailMessage = bean.ReleaseHoldStatusChangeSuccessDetailMessage
+	case bean.RescindReleaseConfigStatus:
+		statusMessage = fmt.Sprintf("Release is '%s'", "Rescinded")
+		detailMessage = bean.ReleaseRescindStatusChangeSuccessDetailMessage
+	case bean.CorruptedReleaseConfigStatus:
+		statusMessage = fmt.Sprintf("Release is '%s'", "Corrupted")
+	}
+	return statusMessage, detailMessage
+}
+
+func getReleaseLockStatusSuccessChangeMessage(isLocked bool) string {
+	statusMessage := ""
+	if isLocked {
+		statusMessage = bean.ReleaseLockStatusChangeSuccessMessage
+	} else {
+		statusMessage = bean.ReleaseUnLockStatusChangeSuccessMessage
+	}
+	return statusMessage
 }

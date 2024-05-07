@@ -37,6 +37,7 @@ type TriggerRequest struct {
 	WorkflowType           bean.WorkflowType
 	TriggerMessage         string
 	DeploymentWindowState  *deploymentWindow.EnvironmentState
+	CdWorkflowRunnerId     int // current used for release if runner id comes we dont create runner
 	TriggerContext
 }
 

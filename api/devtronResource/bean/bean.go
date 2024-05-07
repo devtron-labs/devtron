@@ -8,7 +8,7 @@ type GetQueryParams struct {
 }
 
 type QueryParams interface {
-	GetQueryParams | GetResourceQueryParams | GetDependencyQueryParams | GetConfigOptionsQueryParams
+	GetQueryParams | GetResourceQueryParams | GetDependencyQueryParams | GetConfigOptionsQueryParams | GetTaskRunInfoQueryParams
 }
 
 type GetResourceQueryParams struct {
@@ -20,6 +20,12 @@ type GetDependencyQueryParams struct {
 	GetQueryParams
 	IsLite           bool     `schema:"lite"`
 	DependenciesInfo []string `schema:"dependencyInfo"`
+}
+
+type GetTaskRunInfoQueryParams struct {
+	GetQueryParams
+	IsLite     bool `schema:"lite"`
+	LevelIndex int  `schema:"levelIndex"`
 }
 
 type ConfigOptionType = string

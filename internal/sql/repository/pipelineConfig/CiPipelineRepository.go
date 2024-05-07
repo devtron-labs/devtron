@@ -368,7 +368,7 @@ func (impl *CiPipelineRepositoryImpl) FindOneWithMinData(id int) (pipeline *CiPi
 func (impl *CiPipelineRepositoryImpl) FindOneWithMinDataIncludingInactive(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App").
+		Column("ci_pipeline.*", "App", "CiTemplate").
 		Where("ci_pipeline.id= ?", id).
 		Select()
 

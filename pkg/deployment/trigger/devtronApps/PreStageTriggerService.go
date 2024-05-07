@@ -102,6 +102,8 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
 
 	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
@@ -243,27 +245,36 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 			return nil, nil, err
 		}
 	}
-	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:                  pipeline.Name,
-		WorkflowType:          request.WorkflowType,
-		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
-		TriggeredBy:           triggeredBy,
-		StartedOn:             triggeredAt,
-		Namespace:             request.RunStageInEnvNamespace,
-		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
-		CdWorkflowId:          cdWf.Id,
-		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), request.WorkflowType, pipeline.Name),
-		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		ReferenceId:           request.TriggerContext.ReferenceId,
-		TriggerMetadata:       request.TriggerMessage,
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-	span.End()
-	if err != nil {
-		return nil, nil, err
+	var runner *pipelineConfig.CdWorkflowRunner
+	if request.CdWorkflowRunnerId == 0 {
+		runner = &pipelineConfig.CdWorkflowRunner{
+			Name:                  pipeline.Name,
+			WorkflowType:          request.WorkflowType,
+			ExecutorType:          impl.config.GetWorkflowExecutorType(),
+			Status:                pipelineConfig.WorkflowStarting, // starting PreStage
+			TriggeredBy:           triggeredBy,
+			StartedOn:             triggeredAt,
+			Namespace:             request.RunStageInEnvNamespace,
+			BlobStorageEnabled:    impl.config.BlobStorageEnabled,
+			CdWorkflowId:          cdWf.Id,
+			LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), request.WorkflowType, pipeline.Name),
+			AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
+			ReferenceId:           request.TriggerContext.ReferenceId,
+			TriggerMetadata:       request.TriggerMessage,
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		span.End()
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(request.CdWorkflowRunnerId)
+		if err != nil {
+			impl.logger.Errorw("error in createStartingWfAndRunner", "CdWorkflowRunnerId", request.CdWorkflowRunnerId, "err", err)
+			return nil, nil, err
+		}
 	}
 	return cdWf, runner, nil
 }
@@ -755,12 +766,23 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
-		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
-		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
-		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
-		if dbErr != nil {
-			impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
-			return nil, dbErr
+		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
+		// source ci could be empty where linked cd is derived from a webhook (external ci) linked pipeline
+		var buildRegistryConfig *types.DockerArtifactStoreBean
+		var dbErr error
+		if sourceCiPipeline != nil && sourceCiPipeline.Id != 0 {
+			buildRegistryConfig, dbErr = impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
+			if dbErr != nil {
+				impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
+				return nil, dbErr
+			}
+		} else {
+			buildRegistryConfig, dbErr = impl.ciTemplateService.GetBaseDockerConfigForCiPipeline(cdPipeline.AppId)
+			if dbErr != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
 		}
 		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
 	} else if cdPipeline.AppId > 0 {
@@ -956,7 +978,6 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	return buildRegistryConfig, nil
 }
 
-
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
 	var imagePathReservationIds []int
 	for _, images := range registryImageMap {
@@ -1076,4 +1097,20 @@ func convert(ts string) (*time.Time, error) {
 		return nil, err
 	}
 	return &t, nil
+}
+
+func (impl *TriggerServiceImpl) getIfBlobStorageIsEnabled() bool {
+	return impl.config.BlobStorageEnabled
+}
+
+func (impl *TriggerServiceImpl) getLogLocationBasedOnWorkflowType(workflowType bean2.WorkflowType, pipelineName string, cdWfId int) string {
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+	case pipelineConfig.WorkflowTypePost:
+		return fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWfId), workflowType, pipelineName)
+	case pipelineConfig.WorkflowTypeDeploy:
+		return ""
+	}
+	// default assuming to be empty
+	return ""
 }
