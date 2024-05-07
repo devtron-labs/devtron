@@ -1,4 +1,5 @@
 ## Bugs
+- fix: argocd config update fix (#5074)
 - fix: handle 5xx in fetch resource tree api and cd-trigger (#5050)
 - fix: gitops update updated (#5055)
 - fix: App create api validations (#5019)
