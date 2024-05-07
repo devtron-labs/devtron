@@ -1,6 +1,7 @@
 package repository
 
 import (
+	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
@@ -19,14 +20,6 @@ type K8sEventWatcher struct {
 	sql.AuditLog
 }
 
-type WatcherQueryParams struct {
-	Offset      int    `json:"offset"`
-	Size        int    `json:"size"`
-	SortOrder   string `json:"sortOrder"`
-	SortOrderBy string `json:"sortOrderBy"`
-	Search      string `json:"Search"`
-}
-
 type K8sEventWatcherRepository interface {
 	Save(watcher *K8sEventWatcher, tx *pg.Tx) (*K8sEventWatcher, error)
 	Update(tx *pg.Tx, watcher *K8sEventWatcher) error
@@ -34,7 +27,7 @@ type K8sEventWatcherRepository interface {
 	GetWatcherById(id int) (*K8sEventWatcher, error)
 	GetWatcherByIds(ids []int) ([]*K8sEventWatcher, error)
 	DeleteWatcherById(id int) error
-	FindAllWatchersByQueryName(params WatcherQueryParams) ([]*K8sEventWatcher, int, error)
+	FindAllWatchersByQueryName(params types2.WatcherQueryParams) ([]*K8sEventWatcher, int, error)
 	sql.TransactionWrapper
 }
 type K8sEventWatcherRepositoryImpl struct {
@@ -103,7 +96,7 @@ func (impl K8sEventWatcherRepositoryImpl) DeleteWatcherById(id int) error {
 	return nil
 }
 
-func (impl K8sEventWatcherRepositoryImpl) FindAllWatchersByQueryName(params WatcherQueryParams) ([]*K8sEventWatcher, int, error) {
+func (impl K8sEventWatcherRepositoryImpl) FindAllWatchersByQueryName(params types2.WatcherQueryParams) ([]*K8sEventWatcher, int, error) {
 	var watcher []*K8sEventWatcher
 	query := impl.dbConnection.Model(&watcher)
 	if params.Search != "" {
