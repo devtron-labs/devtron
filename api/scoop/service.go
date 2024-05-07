@@ -239,7 +239,7 @@ func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, involvedObjJsonStr, 
 		TriggerId:          trigger.Id,
 		TriggerExecutionId: ciWorkflowId,
 		Status:             status,
-		// store the error here if something goes wrong before actually triggering the job even
+		// store the error here if something goes wrong before triggering the job
 		ExecutionMessage: executionMessage,
 	}
 
