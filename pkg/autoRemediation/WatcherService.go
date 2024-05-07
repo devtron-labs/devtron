@@ -802,7 +802,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params types2.Intercep
 	}
 	return &interceptedResponse, nil
 }
-func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*repository.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
+func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types2.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
 	var interceptedEvents []types2.InterceptedEventsDto
 	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
