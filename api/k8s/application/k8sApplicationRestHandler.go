@@ -1269,7 +1269,7 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 	// Devtron login token
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 
-	// Authorization header is deleted as it is sent by Kubectl and K8s understands it as Auth-Token for the Cluster
+	// Authorization header is deleted as it is sent by Kubectl and K8s understands it as Auth-Token for the Cluster/Node
 	r.Header.Del("Authorization")
 
 	vars := mux.Vars(r)

@@ -76,9 +76,11 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 	impl.clusterServiceCache[dummyClusterKey] = reverseProxyMetadata
 	go func() {
 		// inactivity handling
+		// handle in case of error while listening to proxy server
 		for {
 			proxyServerMetadata := impl.clusterServiceCache[dummyClusterKey]
 			lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
+			//TODO make 60 seconds config driven
 			if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
 				impl.logger.Infow("stopping forwarded port because of inactivity", "k8sProxyPort", k8sProxyPort)
 				forwardedPort := proxyServerMetadata.forwardedPort
