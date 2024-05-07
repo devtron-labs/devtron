@@ -356,7 +356,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
-	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	_, _, err = app.GetNamespaceClusterMapping(fetchAppListingRequest.Namespaces)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
