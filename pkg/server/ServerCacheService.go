@@ -76,6 +76,7 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 		releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), &appIdentifier)
 		if err != nil {
 			log.Println("got error in fetching devtron helm release values.", "error", err)
+			return nil, err
 		}
 		currentVersion := gjson.Get(releaseInfo.GetMergedValues(), impl.serverEnvConfig.DevtronVersionIdentifierInHelmValues).String()
 		if len(currentVersion) == 0 {

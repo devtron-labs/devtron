@@ -73,7 +73,10 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 		}
 		if !exists {
 			// insert cicd module entry
-			impl.updateModuleToInstalled(ModuleNameCicd)
+			err = impl.updateModuleToInstalled(ModuleNameCicd)
+			if err != nil {
+				return nil, err
+			}
 
 			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
 			teamId := 1
@@ -86,7 +89,10 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 			// insert first release components if this was old release and user installed full mode at that time
 			if time.Now().After(team.CreatedOn.Add(1 * time.Hour)) {
 				for _, supportedModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
-					impl.updateModuleToInstalled(supportedModuleName)
+					err = impl.updateModuleToInstalled(supportedModuleName)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -102,7 +108,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 	return impl, nil
 }
 
-func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
+func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) error {
 	module := &moduleRepo.Module{
 		Name:      moduleName,
 		Version:   impl.serverDataStore.CurrentVersion,
@@ -112,8 +118,9 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
 		log.Println("Error while saving module.", "moduleName", moduleName, "error", err)
-		return
+		return err
 	}
+	return nil
 }
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
