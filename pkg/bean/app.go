@@ -209,7 +209,6 @@ type ExternalCiConfigRole struct {
 
 // -------------------
 type PatchAction int
-type PipelineType string
 
 const (
 	CREATE          PatchAction = iota
