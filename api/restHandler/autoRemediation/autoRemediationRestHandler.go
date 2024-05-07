@@ -9,8 +9,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/types"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
+	types2 "github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -397,11 +399,20 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 		return nil, err
 	}
 
+	selectedActionsStr := queryParams.Get("selectedActions")
+	var selectedActionsArray []types2.EventType
+	if selectedActionsStr != "" {
+		selectedActionsArray = util.Map(strings.Split(selectedActionsStr, ","), func(action string) types2.EventType {
+			return types2.EventType(action)
+		})
+	}
+
 	executionStatus := queryParams.Get("executionStatuses")
 	var executionStatusArray []string
 	if executionStatus != "" {
 		executionStatusArray = strings.Split(executionStatus, ",")
 	}
+
 	return &types.InterceptedEventQueryParams{
 		Offset:                  offset,
 		Size:                    size,
@@ -413,6 +424,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 		ClusterIds:              clusterIds,
 		ClusterIdNamespacePairs: clusterNamespacePair,
 		ExecutionStatus:         executionStatusArray,
+		Actions:                 selectedActionsArray,
 	}, nil
 
 }

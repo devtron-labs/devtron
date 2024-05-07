@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"time"
 )
@@ -67,6 +68,31 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error) {
 
 	var interceptedEvents []*types2.InterceptedEventData
+
+	query := impl.buildInterceptEventsListingQuery(interceptedEventsQueryParams)
+	// Count total number of intercepted events
+	total, err := query.Count()
+	if err != nil {
+		return interceptedEvents, 0, err
+	}
+
+	err = query.
+		Offset(interceptedEventsQueryParams.Offset).
+		Limit(interceptedEventsQueryParams.Size).
+		Select(&interceptedEvents)
+	return interceptedEvents, total, err
+}
+
+func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
+	var interceptedEvents []*InterceptedEventExecution
+	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()
+	if err != nil {
+		return nil, err
+	}
+	return interceptedEvents, nil
+}
+
+func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) *orm.Query {
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
@@ -97,12 +123,16 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 		query = query.Where("intercepted_event_execution.metadata ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
-	if len(interceptedEventsQueryParams.ClusterIds) > 0 {
-		query = query.Where("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
-	}
-
-	if len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
-		query = query.Where("(intercepted_event_execution.cluster_id,intercepted_event_execution.namespace) IN (?)", pg.InMulti(interceptedEventsQueryParams.ClusterIdNamespacePairs))
+	if len(interceptedEventsQueryParams.ClusterIds) > 0 || len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
+		query = query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			if len(interceptedEventsQueryParams.ClusterIds) > 0 {
+				q = q.WhereOr("intercepted_event_execution.cluster_id IN (?)", pg.In(interceptedEventsQueryParams.ClusterIds))
+			}
+			if len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
+				q = q.WhereOr("(intercepted_event_execution.cluster_id,intercepted_event_execution.namespace) IN (?)", pg.InMulti(interceptedEventsQueryParams.ClusterIdNamespacePairs))
+			}
+			return q, nil
+		})
 	}
 
 	if len(interceptedEventsQueryParams.Watchers) > 0 {
@@ -112,29 +142,16 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	if len(interceptedEventsQueryParams.ExecutionStatus) > 0 {
 		query = query.Where("intercepted_event_execution.status IN (?)", pg.In(interceptedEventsQueryParams.ExecutionStatus))
 	}
+
+	if len(interceptedEventsQueryParams.Actions) > 0 {
+		query = query.Where("intercepted_event_execution.action IN (?)", pg.In(interceptedEventsQueryParams.Actions))
+	}
+
 	if interceptedEventsQueryParams.SortOrder == "asc" {
 		query = query.Order("intercepted_event_execution.intercepted_at asc")
 	} else {
 		query = query.Order("intercepted_event_execution.intercepted_at desc")
 	}
-	// Count total number of intercepted events
-	total, err := query.Count()
-	if err != nil {
-		return interceptedEvents, 0, err
-	}
 
-	err = query.
-		Offset(interceptedEventsQueryParams.Offset).
-		Limit(interceptedEventsQueryParams.Size).
-		Select(&interceptedEvents)
-	return interceptedEvents, total, err
-}
-
-func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
-	var interceptedEvents []*InterceptedEventExecution
-	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()
-	if err != nil {
-		return nil, err
-	}
-	return interceptedEvents, nil
+	return query
 }

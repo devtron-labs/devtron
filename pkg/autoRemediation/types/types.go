@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/scoop/types"
 	"time"
 )
 
@@ -16,7 +17,9 @@ type InterceptedEventQueryParams struct {
 	ClusterIds              []int
 	ClusterIdNamespacePairs []*repository.ClusterNamespacePair
 	ExecutionStatus         []string
+	Actions                 []types.EventType
 }
+
 type WatcherQueryParams struct {
 	Offset      int    `json:"offset"`
 	Search      string `json:"search"`
