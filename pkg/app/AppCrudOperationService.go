@@ -555,7 +555,7 @@ func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, app
 		return nil, err
 	}
 
-	mergedAppLabels := MergeChildMapWithParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
+	mergedAppLabels := MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
 
 	appLabelJson.Labels = mergedAppLabels
 	appLabelByte, err := json.Marshal(appLabelJson)
