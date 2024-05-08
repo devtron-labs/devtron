@@ -68,7 +68,7 @@ func (impl *EAModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRequ
 }
 
 func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	installAppVersionRequest.UpdateDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM)
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -329,7 +329,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	return "", errors.New("method getGitOpsRepoName not implemented")
+	return "", errors.New("this is not implemented")
 }
 
 func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -379,6 +379,14 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 }
 
 func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
 	return nil, errors.New("this is not implemented")
 }
 

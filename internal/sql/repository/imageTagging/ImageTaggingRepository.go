@@ -85,10 +85,10 @@ type ImageTaggingRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewImageTaggingRepositoryImpl(db *pg.DB) *ImageTaggingRepositoryImpl {
+func NewImageTaggingRepositoryImpl(db *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *ImageTaggingRepositoryImpl {
 	return &ImageTaggingRepositoryImpl{
 		dbConnection:        db,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(db),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 

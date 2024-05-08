@@ -144,6 +144,9 @@ type AppEnvironmentContainer struct {
 type DeploymentDetailContainer struct {
 	InstalledAppId                int             `json:"installedAppId,omitempty"`
 	AppId                         int             `json:"appId,omitempty"`
+	CdPipelineId                  int             `json:"cdPipelineId,omitempty"`
+	TriggerType                   string          `json:"triggerType,omitempty"`
+	ParentEnvironmentName         string          `json:"parentEnvironmentName"`
 	AppStoreInstalledAppVersionId int             `json:"appStoreInstalledAppVersionId,omitempty"`
 	AppStoreChartName             string          `json:"appStoreChartName,omitempty"`
 	AppStoreChartId               int             `json:"appStoreChartId,omitempty"`
@@ -169,7 +172,7 @@ type DeploymentDetailContainer struct {
 	ParentArtifactId              int             `json:"parentArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
-	CiPipelineId                  int             `json:"-"`
+	CiPipelineId                  int             `json:"ciPipelineId,omitempty"`
 	IsExternalCi                  bool            `json:"externalCi"`
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
@@ -177,6 +180,7 @@ type DeploymentDetailContainer struct {
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	HelmPackageName               string          `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string          `json:"-"`
 }
 

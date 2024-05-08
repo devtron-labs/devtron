@@ -57,9 +57,11 @@ type HelmAppService interface {
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
 	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	// UpdateApplication is a wrapper over helmAppClient.UpdateApplication, sends update request to kubelink for external chart store apps
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)
+	// UpdateApplicationWithChartInfo is a wrapper over helmAppClient.UpdateApplicationWithChartInfo sends update request to kubelink for helm chart store apps
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
@@ -119,8 +121,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 }
 
 type HelmReleaseConfig struct {
-	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"0"`
-	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"0"`
+	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1"`
+	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1"`
 	RevisionHistoryLimitExternalHelmApp int `env:"REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP" envDefault:"0"`
 }
 
@@ -965,7 +967,9 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
-		if clientErrCode.IsInvalidArgumentCode() {
+		if clientErrCode.IsFailedPreconditionCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
@@ -982,6 +986,12 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.Inst
 	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsFailedPreconditionCode() {
+			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
+			return notesTxt, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
 		return notesTxt, err
 	}
 	notesTxt = response.Notes

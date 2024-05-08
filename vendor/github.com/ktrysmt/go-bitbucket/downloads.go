@@ -11,5 +11,5 @@ func (dl *Downloads) Create(do *DownloadsOptions) (interface{}, error) {
 
 func (dl *Downloads) List(do *DownloadsOptions) (interface{}, error) {
 	urlStr := dl.c.requestUrl("/repositories/%s/%s/downloads", do.Owner, do.RepoSlug)
-	return dl.c.executePaginated("GET", urlStr, "")
+	return dl.c.executePaginated("GET", urlStr, "", nil)
 }

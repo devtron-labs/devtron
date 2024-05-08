@@ -34,12 +34,12 @@ type GitOpsConfigReadServiceImpl struct {
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	globalEnvVariables *util.GlobalEnvVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
-		globalEnvVariables: globalEnvVariables,
+		globalEnvVariables: envVariables.GlobalEnvVariables,
 	}
 }
 
@@ -139,12 +139,6 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
-	count := 0
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return count, err
-	}
-	count = len(models)
-	return count, nil
+	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
+	return count, err
 }

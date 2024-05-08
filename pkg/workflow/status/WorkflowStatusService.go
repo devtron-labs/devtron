@@ -193,7 +193,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 
-		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		if impl.acdConfig.IsManualSyncEnabled() {
 			// if manual sync check for application sync status
 			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 			if !isArgoAppSynced {
@@ -277,7 +277,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			// drop event
 			return nil, isTimelineUpdated
 		}
-		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		if impl.acdConfig.IsManualSyncEnabled() {
 			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 			if !isArgoAppSynced {
 				return nil, isTimelineUpdated
@@ -362,10 +362,9 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		if isSucceeded {
 			// handling deployment success event
 			// updating cdWfr status
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.FinishedOn = time.Now()
-			installedAppVersionHistory.UpdatedOn = time.Now()
-			installedAppVersionHistory.UpdatedBy = 1
+			installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowSucceeded)
+			installedAppVersionHistory.SetFinishedOn()
+			installedAppVersionHistory.UpdateAuditLog(1)
 			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory, "err", err)
@@ -470,7 +469,7 @@ func (impl *WorkflowStatusServiceImpl) CheckArgoPipelineTimelineStatusPeriodical
 }
 
 func (impl *WorkflowStatusServiceImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelineId int) error {
-	if impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsAutoSyncEnabled() {
 		// don't check for apps if auto sync is enabled
 		return nil
 	}
@@ -529,7 +528,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDDevtronApps(deployedBeforeMinutes 
 }
 
 func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int, installedAppVersionId int) error {
-	if impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsAutoSyncEnabled() {
 		// don't check for apps if auto sync is enabled
 		return nil
 	}

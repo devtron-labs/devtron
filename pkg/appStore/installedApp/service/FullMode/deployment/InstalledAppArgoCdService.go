@@ -10,7 +10,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/go-pg/pg"
 	"net/http"
@@ -86,19 +87,29 @@ func (impl *FullModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName strin
 	return isFound, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
-	if isMonoRepoMigrationRequired {
-		// update repo details on ArgoCD as repo is changed
-		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
-		if err != nil {
-			return err
-		}
+func isArgoCdGitOpsRepoUrlOutOfSync(argoApplication *v1alpha1.Application, gitOpsRepoURLInDb string) bool {
+	if argoApplication != nil && argoApplication.Spec.Source != nil {
+		return argoApplication.Spec.Source.RepoURL != gitOpsRepoURLInDb
 	}
+	return false
+}
+
+func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	acdAppName := installAppVersionRequest.ACDAppName
 	argoApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.Logger.Errorw("Service err:UpdateAndSyncACDApps - error in acd app by name", "acdAppName", acdAppName, "err", err)
 		return err
+	}
+	//if either monorepo case is true or there is diff. in git-ops repo url registered with argo-cd and git-ops repo url saved in db,
+	//then sync argo with git-ops repo url from db because we have already pushed changes to that repo
+	isArgoRepoUrlOutOfSync := isArgoCdGitOpsRepoUrlOutOfSync(argoApplication, installAppVersionRequest.GitOpsRepoURL)
+	if isMonoRepoMigrationRequired || isArgoRepoUrlOutOfSync {
+		// update repo details on ArgoCD as repo is changed
+		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
@@ -116,7 +127,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		}
 		return err
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
@@ -154,23 +165,23 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
-		appNamespace = "default"
+		appNamespace = cluster2.DEFAULT_NAMESPACE
 	}
-	appreq := &argocdServer.AppTemplate{
+	appReq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
-		TargetServer:    envModel.Cluster.ServerUrl,
+		TargetServer:    envModel.ClusterServerUrl,
 		Project:         "default",
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		AutoSyncEnabled: impl.acdConfig.ArgoCDAutoSyncEnabled,
 	}
-	_, err := impl.argoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+	_, err := impl.argoK8sClient.CreateAcdApp(appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo cd app ", "err", err)

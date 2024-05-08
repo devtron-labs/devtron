@@ -92,6 +92,7 @@ type DockerArtifactStoreRepository interface {
 	FindActiveDefaultStore() (*DockerArtifactStore, error)
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
+	FindAllDockerArtifactCount() (int, error)
 	FindAllChartProviders() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	FindOneWithDeploymentCount(storeId string) (*DockerArtifactStoreExt, error)
@@ -169,7 +170,12 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 		Select()
 	return providers, err
 }
-
+func (impl DockerArtifactStoreRepositoryImpl) FindAllDockerArtifactCount() (int, error) {
+	dockerArtifactCount, err := impl.dbConnection.Model(&DockerArtifactStore{}).
+		Where("docker_artifact_store.active = ?", true).
+		Count()
+	return dockerArtifactCount, err
+}
 func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).

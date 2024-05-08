@@ -33,7 +33,7 @@ spec:
           envFrom:
             - secretRef:
                 name: devtron-secret
-          image: quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.duplicateChartImage ) }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -43,7 +43,15 @@ spec:
             - /bin/sh
             - -c
             - cp -r /scripts/. /shared/
-          image: {{ $.Values.components.devtron.image }}
+          {{- if $.Values.installer.modules }}
+          {{- if (has "cicd" $.Values.installer.modules) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -76,7 +84,7 @@ spec:
             - secretRef:
                 name: postgresql-migrator
           {{- if .image }}        
-          image: {{ .image }}    
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -120,7 +128,7 @@ spec:
       {{- end }}
       containers:
       - name: devtron-rollout
-        image: "quay.io/devtron/kubectl:latest"
+        image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd && kubectl rollout restart deployment/kubelink -n devtroncd']
         {{- if .casbin }}
         {{- if .casbin.resources }}        
@@ -133,7 +141,15 @@ spec:
             - /bin/sh
             - -c
             - cp -r /scripts/. /shared/
-          image: {{ $.Values.components.devtron.image }}
+          {{- if $.Values.installer.modules }}
+          {{- if (has "cicd" $.Values.installer.modules) }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global "extraImage" $.Values.components.devtron.cicdImage ) }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
+          {{- else }}
+          image: {{ include "common.image" (dict "component" $.Values.components.devtron "global" $.Values.global) }}
+          {{- end }}
           name: init-devtron
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -165,7 +181,7 @@ spec:
             - secretRef:
                 name: postgresql-migrator
           {{- if .image }}        
-          image: {{ .image }}    
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -212,7 +228,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.components.gitsensor.image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
@@ -245,7 +261,7 @@ spec:
             - secretRef:
                 name: postgresql-migrator
           {{- if .image }}        
-          image: {{ .image }}    
+          image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
           {{- else }}
           image: migrate/migrate
           {{- end }} 
@@ -290,7 +306,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.components.lens.image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.lens "global" $.Values.global) }}
           name: init-lens
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -328,7 +344,7 @@ spec:
         - secretRef:
             name: postgresql-migrator
         {{- if .image }}        
-        image: {{ .image }}    
+        image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global) }}
         {{- else }}
         image: migrate/migrate
         {{- end }} 
@@ -366,7 +382,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: postgresql-miscellaneous
-        image: quay.io/devtron/postgres:11.9
+        image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 1000
