@@ -55,7 +55,9 @@ type InterceptedEventQuery struct {
 	ExecutionStatus []string  `json:"execution_status"`
 }
 type InterceptedEventData struct {
+	InterceptedEventId int         `sql:"intercepted_event_id"`
 	ClusterId          int         `sql:"cluster_id"`
+	ClusterName        string      `sql:"cluster_name"`
 	Namespace          string      `sql:"namespace"`
 	Action             string      `sql:"action"`
 	Environment        string      `sql:"environment"`

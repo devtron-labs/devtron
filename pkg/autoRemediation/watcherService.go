@@ -34,6 +34,7 @@ type WatcherService interface {
 	FindAllWatchers(params types2.WatcherQueryParams) (types2.WatchersResponse, error)
 	GetTriggerByWatcherIds(watcherIds []int) ([]*types2.Trigger, error)
 	GetWatchersByClusterId(clusterId int) ([]*types.Watcher, error)
+	GetInterceptedEventById(interceptedEventId int) (*types2.InterceptedEventData, error)
 }
 
 type WatcherServiceImpl struct {
@@ -353,7 +354,16 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*types2.WatcherDt
 	return &watcherResponse, nil
 
 }
+func (impl *WatcherServiceImpl) GetInterceptedEventById(interceptedEventId int) (*types2.InterceptedEventData, error) {
+	interceptedEvent, err := impl.interceptedEventsRepository.GetInterceptedEventById(interceptedEventId)
+	if err != nil {
+		impl.logger.Errorw("error in getting intercepted event by id", interceptedEventId, "error", err)
+		return nil, err
+	}
 
+	return interceptedEvent, nil
+
+}
 func getTriggerDataFromJson(data string) (types2.TriggerData, error) {
 	var triggerResp types2.TriggerData
 	if err := json.Unmarshal([]byte(data), &triggerResp); err != nil {
@@ -798,6 +808,7 @@ func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types
 	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
 		interceptedEvent := types2.InterceptedEventsDto{
+			InterceptedEventId: event.InterceptedEventId,
 			Action:             event.Action,
 			InvolvedObjects:    event.InvolvedObjects,
 			Metadata:           event.Metadata,

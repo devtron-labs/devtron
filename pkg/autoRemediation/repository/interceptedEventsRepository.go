@@ -40,6 +40,7 @@ type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
+	GetInterceptedEventById(id int) (*types2.InterceptedEventData, error)
 	sql.TransactionWrapper
 }
 
@@ -96,6 +97,7 @@ func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(tri
 func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) *orm.Query {
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
+		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
 		ColumnExpr("intercepted_event_execution.namespace as namespace").
 		// ColumnExpr("intercepted_event_execution.message as message").
@@ -112,9 +114,9 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 		ColumnExpr("auto_remediation_trigger.type as trigger_type").
 		ColumnExpr("auto_remediation_trigger.data as trigger_data").
 		ColumnExpr("COUNT(*) OVER() as total_count").
-		Join("JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
-		Join("JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id").
-		Join("JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").
+		Join("INNER JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
+		Join("INNER JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id").
+		Join("INNER JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").
 		Where("environment.cluster_id=intercepted_event_execution.cluster_id and environment.namespace = intercepted_event_execution.namespace")
 
 	if !interceptedEventsQueryParams.From.IsZero() && !interceptedEventsQueryParams.To.IsZero() {
@@ -158,4 +160,28 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 	}
 
 	return query
+}
+func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventById(id int) (*types2.InterceptedEventData, error) {
+	var interceptedEvents = types2.InterceptedEventData{}
+	err := impl.dbConnection.Model().Table("intercepted_event_execution").
+		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
+		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
+		ColumnExpr("intercepted_event_execution.namespace as namespace").
+		ColumnExpr("intercepted_event_execution.action as action").
+		ColumnExpr("intercepted_event_execution.metadata as metadata").
+		ColumnExpr("intercepted_event_execution.involved_objects as involved_objects").
+		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
+		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
+		ColumnExpr("auto_remediation_trigger.id as trigger_id").
+		ColumnExpr("intercepted_event_execution.status as status").
+		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
+		ColumnExpr("cluster.cluster_name as cluster_name").
+		Join("INNER JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
+		Join("INNER JOIN cluster ON cluster.id = intercepted_event_execution.cluster_id").
+		Where("intercepted_event_execution.id = ?", id).
+		Select(&interceptedEvents)
+	if err != nil {
+		return nil, err
+	}
+	return &interceptedEvents, nil
 }

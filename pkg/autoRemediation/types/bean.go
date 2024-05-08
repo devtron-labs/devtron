@@ -129,11 +129,27 @@ type InterceptedResponse struct {
 	Total  int                    `json:"total"`
 	List   []InterceptedEventsDto `json:"list"`
 }
+
+//	type InterceptedEventResponseById struct {
+//		InterceptedEventId int             `json:"interceptedEventId" sql:"intercepted_event_id"`
+//		ClusterId          int             `json:"clusterId" sql:"cluster_id"`
+//		ClusterName        string          `json:"clusterName" sql:"cluster_name"`
+//		Namespace          string          `json:"namespace" sql:"namespace"`
+//		Action             types.EventType `json:"action" sql:"action"`
+//		InvolvedObjects    string          `json:"involvedObjects" sql:"involved_objects"`
+//		Metadata           string          `json:"metadata" sql:"metadata"`
+//		InterceptedAt      time.Time       `json:"interceptedAt" sql:"intercepted_at"`
+//		TriggerId          int             `json:"triggerId" sql:"trigger_id"`
+//		TriggerExecutionId int             `json:"triggerExecutionId" sql:"trigger_execution_id"`
+//		Status             Status          `json:"status" sql:"status"`
+//		ExecutionMessage   string          `json:"executionMessage" sql:"execution_message"`
+//	}
 type InterceptedEventsDto struct {
 	// Message        string `json:"message"`
-	Action          string `json:"action"`
-	InvolvedObjects string `json:"involvedObjects"`
-	Metadata        string `json:"metadata"`
+	InterceptedEventId int    `json:"interceptedEventId"`
+	Action             string `json:"action"`
+	InvolvedObjects    string `json:"involvedObjects"`
+	Metadata           string `json:"metadata"`
 
 	ClusterName     string `json:"clusterName"`
 	ClusterId       int    `json:"clusterId"`

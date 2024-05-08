@@ -28,7 +28,7 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 
 	router.Path("/intercept-event").
 		HandlerFunc(impl.interceptEventHandler.HandleInterceptedEvent).Methods("POST")
-
+	router.Path("/intercept-event/{identifier}").HandlerFunc(impl.watcherRestHandler.GetInterceptedEventById).Methods("GET")
 	router.Path("/watchers/sync").
 		Queries("clusterId", "{clusterId}").
 		HandlerFunc(impl.watcherRestHandler.GetWatchersByClusterId).Methods("GET")

@@ -33,6 +33,7 @@ type WatcherRestHandler interface {
 	RetrieveWatchers(w http.ResponseWriter, r *http.Request)
 	RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request)
 	GetWatchersByClusterId(w http.ResponseWriter, r *http.Request)
+	GetInterceptedEventById(w http.ResponseWriter, r *http.Request)
 }
 
 type WatcherRestHandlerImpl struct {
@@ -159,7 +160,31 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
-
+func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	interceptedEventId, err := strconv.Atoi(vars["identifier"])
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	// RBAC enforcer Ends
+	res, err := impl.watcherService.GetInterceptedEventById(interceptedEventId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetInterceptedEventById", "err", err, "interceptedEventId", interceptedEventId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
 func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
