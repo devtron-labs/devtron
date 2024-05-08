@@ -517,8 +517,6 @@ func getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[strin
 }
 
 func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMetadata, duplicatePodToReplicasetMapping map[string]string, podMetaData []*argoApplication.PodMetadata) []*argoApplication.PodMetadata {
-	// Build pod metadata from pod manifests
-
 	// Initialize mappings for containers
 	containersPodMapping := make(map[string][]*string) // Mapping from pod name to container names
 	initContainersPodMapping := make(map[string][]*string)
