@@ -343,7 +343,8 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	if newPodNames != nil {
-		podMetaData = buildPodMetadataFromPodsAndUpdateMetadataOfDuplicatePods(resp, podManifests, newPodNames, duplicatePodToReplicasetMapping, podMetaData)
+		podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		podMetaData = updateMetadataOfDuplicatePods(podsMetadataFromPods, duplicatePodToReplicasetMapping, podMetaData)
 	}
 	return
 }
