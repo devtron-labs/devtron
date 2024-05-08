@@ -9,18 +9,21 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type InterClusterServiceCommunicationHandler interface {
 	GetClusterServiceProxyHandler(ctx context.Context, clusterServiceKey ClusterServiceKey) (*httputil.ReverseProxy, error)
 	GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (int, error)
+	GetK8sApiProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error)
 }
 
 type InterClusterServiceCommunicationHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	portForwardManager  PortForwardManager
 	clusterServiceCache map[ClusterServiceKey]*ProxyServerMetadata
+	lock                *sync.Mutex
 }
 
 type ProxyServerMetadata struct {
@@ -31,7 +34,7 @@ type ProxyServerMetadata struct {
 
 func NewInterClusterServiceCommunicationHandlerImpl(logger *zap.SugaredLogger, portForwardManager PortForwardManager) (*InterClusterServiceCommunicationHandlerImpl, error) {
 	clusterServiceCache := map[ClusterServiceKey]*ProxyServerMetadata{}
-	return &InterClusterServiceCommunicationHandlerImpl{logger: logger, portForwardManager: portForwardManager, clusterServiceCache: clusterServiceCache}, nil
+	return &InterClusterServiceCommunicationHandlerImpl{logger: logger, portForwardManager: portForwardManager, clusterServiceCache: clusterServiceCache, lock: &sync.Mutex{}}, nil
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyHandler(ctx context.Context, clusterServiceKey ClusterServiceKey) (*httputil.ReverseProxy, error) {
@@ -49,6 +52,44 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyP
 		return 0, err
 	}
 	return proxyMetadata.forwardedPort, nil
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error) {
+	impl.lock.Lock()
+	defer impl.lock.Unlock()
+	dummyClusterKey := NewClusterServiceKey(clusterId, "dummy", "dummy", "dummy")
+	proxyServerMetadata, ok := impl.clusterServiceCache[dummyClusterKey]
+	if ok {
+		return proxyServerMetadata.proxyServer, nil
+	}
+	k8sProxyPort, err := impl.portForwardManager.StartK8sProxy(ctx, clusterId)
+	if err != nil {
+		return nil, err
+	}
+	proxyTransport := proxy.NewProxyTransport()
+	serverAddr := fmt.Sprintf("http://localhost:%d", k8sProxyPort)
+	proxyServer := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
+		return urlPath
+	}) //TODO Fix this
+
+	reverseProxyMetadata := &ProxyServerMetadata{forwardedPort: k8sProxyPort, proxyServer: proxyServer}
+	impl.clusterServiceCache[dummyClusterKey] = reverseProxyMetadata
+	go func() {
+		// inactivity handling
+		for {
+			proxyServerMetadata := impl.clusterServiceCache[dummyClusterKey]
+			lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
+			if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
+				impl.logger.Infow("stopping forwarded port because of inactivity", "k8sProxyPort", k8sProxyPort)
+				forwardedPort := proxyServerMetadata.forwardedPort
+				impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
+				delete(impl.clusterServiceCache, dummyClusterKey)
+				return
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+	return reverseProxyMetadata.proxyServer, nil
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx context.Context, clusterServiceKey ClusterServiceKey) (*ProxyServerMetadata, error) {

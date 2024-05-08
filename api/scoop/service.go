@@ -85,7 +85,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	// 2) create a temp token to trigger notification
 
 	expireAtInMs := time.Now().Add(24 * time.Hour).UnixMilli()
-	token, err := impl.tokenService.CreateApiJwtToken("", expireAtInMs)
+	token, err := impl.tokenService.CreateApiJwtToken("", 1, expireAtInMs)
 	if err != nil {
 		impl.logger.Errorw("error in creating api token", "err", err)
 		return err
@@ -302,6 +302,9 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, involvedOb
 
 func (impl ServiceImpl) createTriggerRequest(trigger *types2.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {
 	env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
+
+	// if env is not found for the namespace in given cluster ,
+	// then set the trigger env to 0. so that the trigger will happen in default env
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return nil, err
 	}

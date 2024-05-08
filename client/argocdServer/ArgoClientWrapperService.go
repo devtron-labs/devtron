@@ -12,12 +12,14 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -101,6 +103,10 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 	impl.logger.Debugw("trying to normal refresh application through get ", "argoAppName", argoAppName)
 	_, err := impl.acdClient.Get(context, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refreshType})
 	if err != nil {
+		internalMsg := fmt.Sprintf("%s, err:- %s", constants.CannotGetAppWithRefreshErrMsg, err.Error())
+		clientCode, _ := util.GetClientDetailedError(err)
+		httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
+		err = &util.ApiError{HttpStatusCode: httpStatusCode, Code: strconv.Itoa(httpStatusCode), InternalMessage: internalMsg, UserMessage: err.Error()}
 		impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
 		return err
 	}

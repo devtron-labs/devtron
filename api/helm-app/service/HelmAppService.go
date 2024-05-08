@@ -58,9 +58,11 @@ type HelmAppService interface {
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
 	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	// UpdateApplication is a wrapper over helmAppClient.UpdateApplication, sends update request to kubelink for external chart store apps
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)
+	// UpdateApplicationWithChartInfo is a wrapper over helmAppClient.UpdateApplicationWithChartInfo sends update request to kubelink for helm chart store apps
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
@@ -982,11 +984,13 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	var templateChartResponse *gRPC.TemplateChartResponse
 	var templateChartResponseWithChart *gRPC.TemplateChartResponseWithChart
-	var chart *gRPC.ChartContent
+	var chart []byte
 	if templateChartRequest.ReturnChartBytes {
 		templateChartResponseWithChart, err = impl.helmAppClient.TemplateChartAndRetrieveChart(ctx, installReleaseRequest)
-		templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
-		chart = templateChartResponseWithChart.ChartBytes
+		if err == nil {
+			templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
+			chart = templateChartResponseWithChart.ChartBytes.Content
+		}
 	} else {
 		templateChartResponse, err = impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	}
@@ -1004,7 +1008,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	response := &openapi2.TemplateChartResponse{
 		Manifest:   &templateChartResponse.GeneratedManifest,
-		ChartBytes: chart.Content,
+		ChartBytes: chart,
 	}
 
 	return response, nil

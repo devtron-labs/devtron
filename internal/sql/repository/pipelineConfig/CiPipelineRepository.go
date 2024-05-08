@@ -160,11 +160,11 @@ type CiPipelineRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiPipelineRepositoryImpl {
+func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) *CiPipelineRepositoryImpl {
 	return &CiPipelineRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 

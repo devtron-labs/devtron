@@ -47,7 +47,7 @@ type K8sCommonService interface {
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
 
-	// Get vulnerabilities
+	//Get vulnerabilities
 	GetResourceSecurityInfo(ctx context.Context, request *ResourceRequestBean) ([]*bean2.ImageScanResult, error)
 }
 type K8sCommonServiceImpl struct {
@@ -285,8 +285,8 @@ func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, 
 	clusterConfig := cluster.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 
-	// Use clusterConfig to setup ConfigFlags and then use WrapConfigFn to wrap for SSH and proxy handling
-	// genericclioptions.NewConfigFlags(true).
+	//Use clusterConfig to setup ConfigFlags and then use WrapConfigFn to wrap for SSH and proxy handling
+	//genericclioptions.NewConfigFlags(true).
 	if err != nil {
 		impl.logger.Errorw("Error in getting rest config", "err", err, "clusterId", clusterId)
 		return restConfig, err, nil
@@ -727,6 +727,7 @@ func (impl *K8sCommonServiceImpl) GetResourceSecurityInfo(ctx context.Context, r
 		impl.logger.Errorw("error in fetching manifest", "err", err, "request", request.K8sRequest)
 		return nil, err
 	}
+
 	manifestResponse := resource.ManifestResponse
 	images := k8sObjectsUtil.ExtractImages(manifestResponse.Manifest)
 	scanResults, err := impl.imageScanService.FetchScanResultsForImages(images)

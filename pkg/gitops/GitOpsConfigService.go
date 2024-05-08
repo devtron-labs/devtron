@@ -351,6 +351,8 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
 	model.AllowCustomRepository = request.AllowCustomRepository
+	model.UpdatedBy = request.UserId
+	model.UpdatedOn = time.Now()
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
