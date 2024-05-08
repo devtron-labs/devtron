@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
