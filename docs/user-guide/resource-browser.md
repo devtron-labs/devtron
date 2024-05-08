@@ -4,6 +4,12 @@
 
 The Devtron Resource Browser provides you a central interface to view and manage all your [Kubernetes objects](../../reference/glossary.md#objects) across clusters.  It helps you perform key actions like viewing logs, editing live manifests, and even creating/deleting resources directly from the user interface. This is especially useful for troubleshooting purposes as it supports multi-cluster too.
 
+{% hint style="info" %}
+### Additional References
+* [Resource browser versus traditional tools like kubectl](https://devtron.ai/blog/managing-kubernetes-resources-across-multiple-clusters)
+* [Why you should use Devtron's Resource Browser](https://devtron.ai/blog/what-is-the-kubernetes-resource-browser-in-devtron)
+{% endhint %}
+
 First, the Resource Browser shows you a list of clusters added to your Devtron setup. By default, it displays a cluster named '*default_cluster*' after the [initial setup](../../setup/install/README.md) is successful.
 
 ![Figure 1: Devtron Resource Browser - List of Clusters](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-browser.jpg)
@@ -29,11 +35,11 @@ This shows the combined CPU and memory consumption of all running pods in the cl
 | CPU Usage       | Percentage of CPU resources currently being used across all the pods in the cluster.                        |
 | CPU Capacity   | Total amount of CPU resources available across all the nodes in the cluster. Measured in millicores (m).    |
 | CPU Requests   | Total amount of CPU resources requested by all the pods in the cluster.                                     |
-| CPU Limits      | Maximum amount of CPU resources that a pod can use.                                                         |
+| CPU Limits      | Maximum amount of CPU resources that a total number of pods can use in the cluster.                        |
 | Memory Usage   | Percentage of memory resources currently being used across all the pods in the cluster.                     |
 | Memory Capacity | Total amount of memory resources available across all the nodes in the cluster. Measured in Megabytes (Mi). |
 | Memory Requests | Total amount of memory resources requested by all the pods in the cluster.                                  |
-| Memory Limits  | Maximum amount of memory resources that a pod can use.                                                      |
+| Memory Limits  | Maximum amount of memory resources that a total number of pods can use in the cluster.                       |
 
 ### Errors
 
@@ -80,7 +86,7 @@ Moreover, you can use filters that allow you to quickly filter your workload as 
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to edit a manifest.
+Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to edit its manifest.
 {% endhint %}
 
 You can edit the [manifest](../reference/glossary.md#manifest) of a Kubernetes object. This can be for fixing errors, scaling resources, or changing configuration.
@@ -97,17 +103,12 @@ You can monitor activities like creation, deletion, updation, scaling, or errors
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to delete a resource.
+Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to delete it.
 {% endhint %}
 
 You can delete an unwanted resource if it is orphaned and no longer required by your applications.
 
 ![Figure 7: Deleting a Resource](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete.gif)
-
-You can perform all the actions on the following:
-* [Nodes](#nodes)
-* [Pods](#pods)
-* [Other Resource Kinds](#other-resource-kinds)
 
 ---
 
@@ -123,12 +124,13 @@ If you have multiple nodes, you can search a node by name or label in the search
 
 | Fields | Description |
 | --- | --- |
-| Node | User-defined name for the node in Devtron. E.g. `demo-new`.<br>Note: Two nodes cannot have the same name at the same time.</br> |
+| Node | Alphanumeric name of the node |
 | Status | Status of a node. It can be either `Ready` or `Not Ready`. |
-| Roles | Shows the roles of a node. |
-| Errors | Shows the error in nodes. |
-| K8s Version | Shows the version of Kubernetes cluster. |
-| Node Group | Shows which collection of worker nodes it belongs to. |
+| Roles | Shows the roles of a node, e.g., agent |
+| Errors | Shows the number of errors in nodes (if any) |
+| K8s Version | Shows the version of Kubernetes cluster |
+| Node Group | Shows which collection of worker nodes it belongs to |
+| No. of Pods | Shows the total number of pods present in the node |
 
 Clicking on a node shows you a number of details such as:
 
@@ -234,17 +236,12 @@ Taints are `key:value` pairs associated with effect. After you add taints to nod
 
 * Click **Save**.
 
-You can also add more taints using **+ Add taint button**, or delete the existing taint by using the delete icon.
+You can also add more taints using **+ Add taint button**, or delete the existing taint by using the delete icon. 
 
-#### Taint Effects
-
-A taint can produce three possible effects:
-
-| Effect | Description |
-| --- | --- |
-| NoSchedule | The Kubernetes scheduler will only allow scheduling pods that have tolerations for the tainted nodes. |
-| PreferNoSchedule | The Kubernetes scheduler will try to avoid scheduling pods that do not have tolerations for the tainted nodes. |
-| NoExecute | Kubernetes will evict the running pods from the nodes if the pods do not have tolerations for the tainted nodes. |
+{% hint style="info" %}
+### Additional Reference
+[Click here](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts) to read about taint effects.
+{% endhint %}
 
 ### Edit a Node Config
 
@@ -298,9 +295,15 @@ Moreover, you can download the pod logs for ease of sharing and troubleshooting 
 
 {% embed url="https://www.youtube.com/watch?v=PP0ZKAZCT58" caption="Downloading Pod Logs" %}
 
-#### Last Restart Pod Log
+#### Pod Last Restart Snapshot
 
-In case any of your pod restarts, you can determine the cause by viewing its container log, time, status, node events in the pod listing screen as shown below:
+Frequent pod restarts can impact your application as it might lead to an unexpected downtime. In such cases, it is important to determine the root cause and take actions (both preventive and corrective) if needed.
+
+In case any of your pod restarts, you can view its details from the pod listing screen:
+* Last pod restart event, along with timestamp and message
+* Reason behind restart
+* Container log before restart
+* Node status and events  
 
 ![Figure 16: Checking Restart Pod Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/restart-pod-log.gif)
 
@@ -308,7 +311,7 @@ In case any of your pod restarts, you can determine the cause by viewing its con
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to access the pod terminal.
+Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to access pod terminal.
 {% endhint %}
 
 You can access the terminal within a running container of a pod to view its logs, troubleshoot issues, or execute commands directly. This is different from the [cluster terminal](#cluster-terminal) you get at node level. 
@@ -380,7 +383,9 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal ic
 
 You can also create pod for debugging which will connect to pod terminal. To find out why a particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
 
-The **Debug Mode** is helpful in scenarios where you can't access your Node by using an SSH connection. When enabled, a pod is created on the node, which opens an interactive shell on the Node.
+The **Auto select** option selects a node automatically from a list of nodes, and then creates a pod.
+
+The **Debug Mode** is helpful in scenarios where you can't access your Node by using an SSH connection. When enabled, a pod is created on the selected node, which opens an interactive shell on the Node.
 
 * Check the current state of the pod and recent events with the following command:
 
@@ -394,13 +399,7 @@ kubectl get pods
 kubectl describe pod <podname>
 ```
 
-| Pod Status       | Description                             | Common Causes                              |
-| ---------------- | --------------------------------------- | ------------------------------------------ |
-| Pending          | Pod cannot be scheduled onto a node     | Insufficient resources (CPU, memory, etc.) |
-| Waiting          | Pod has been scheduled but cannot run   | Failed to pull container image             |
-| CrashLoopBackOff | Container keeps crashing and restarting | Incorrect access token for API interaction |
-
-Here, you can see configuration information about the container(s) and pod (labels, resource requirements, etc.), as well as status information about the container(s) and pod (state, readiness, restart count, events, etc.).
+Here, you can see configuration information about the container(s) and pod (labels, resource requirements, etc.), as well as status information about the container(s) and pod (state, readiness, restart count, events, etc.). [Click here](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) to know more about pod lifecycle.
 
 {% hint style="info" %}
 A container can have no shells or multiple shells running in it. If you are unable to create a successful connection, try changing the shell, as the container may not have that shell running.
@@ -412,7 +411,7 @@ A container can have no shells or multiple shells running in it. If you are unab
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to create resources.
+Users need to be [admin of the Kubernetes resources](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to create resources.
 {% endhint %}
 
 You can create one or more [Kubernetes objects](../reference/glossary.md#objects) in your cluster using YAML. In case you wish to create multiple objects, separate each resource definition by three dashes (---).
