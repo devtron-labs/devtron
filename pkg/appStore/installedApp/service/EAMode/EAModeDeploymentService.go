@@ -102,7 +102,7 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
 			RepoName:            appStoreAppVersion.AppStore.Name,
 			IsPublic:            ociRegistryConfig.IsPublic,
-			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
 			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStoreId,
 			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
 		}
