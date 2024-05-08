@@ -86,7 +86,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if err != nil {
 		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(request.CdWorkflowRunnerId, triggeredBy, err)
 		if err2 != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerPostStage", "cdWfr", request.CdWorkflowRunnerId, "err", err)
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerPostStage", "cdWfr", request.CdWorkflowRunnerId, "err2", err2)
 		}
 		impl.logger.Errorw("error encountered in TriggerPostStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err

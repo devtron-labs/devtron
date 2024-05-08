@@ -461,7 +461,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		if err != nil {
 			err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(overrideRequest.CdWorkflowRunnerId, overrideRequest.UserId, err)
 			if err2 != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err", err)
+				impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err2", err2)
 			}
 			impl.logger.Errorw("error encountered in ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
 			return 0, "", err

@@ -92,7 +92,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	if err != nil {
 		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(request.CdWorkflowRunnerId, triggeredBy, err)
 		if err2 != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerPreStage", "cdWfr", request.CdWorkflowRunnerId, "err", err)
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerPreStage", "cdWfr", request.CdWorkflowRunnerId, "err2", err2)
 		}
 		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
