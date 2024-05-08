@@ -102,7 +102,11 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
 		// listen in installer object to save status in-memory
 		// build informer to listen on installer object
-		go impl.buildInformerToListenOnInstallerObject()
+		err := impl.buildInformerToListenOnInstallerObject()
+		if err != nil {
+			log.Println("Error building informer:", err)
+			return nil, err
+		}
 	}
 
 	return impl, nil
@@ -123,42 +127,43 @@ func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) e
 	return nil
 }
 
-func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
+func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() error {
 	impl.logger.Debug("building informer cache to listen on installer object")
 	_, _, clusterDynamicClient, err := impl.K8sUtil.GetK8sInClusterConfigAndDynamicClients()
 	if err != nil {
 		log.Println("not able to get k8s cluster rest config.", "error", err)
-		os.Exit(2)
-		return
+		return err
 	}
+	go func() {
+		installerResource := schema.GroupVersionResource{
+			Group:    impl.serverEnvConfig.InstallerCrdObjectGroupName,
+			Version:  impl.serverEnvConfig.InstallerCrdObjectVersion,
+			Resource: impl.serverEnvConfig.InstallerCrdObjectResource,
+		}
+		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			clusterDynamicClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
+		informer := factory.ForResource(installerResource).Informer()
 
-	installerResource := schema.GroupVersionResource{
-		Group:    impl.serverEnvConfig.InstallerCrdObjectGroupName,
-		Version:  impl.serverEnvConfig.InstallerCrdObjectVersion,
-		Resource: impl.serverEnvConfig.InstallerCrdObjectResource,
-	}
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		clusterDynamicClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
-	informer := factory.ForResource(installerResource).Informer()
+		informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				impl.handleInstallerObjectChange(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				impl.handleInstallerObjectChange(newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				impl.serverDataStore.InstallerCrdObjectStatus = ""
+				impl.serverDataStore.InstallerCrdObjectExists = false
+			},
+		})
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			impl.handleInstallerObjectChange(obj)
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			impl.handleInstallerObjectChange(newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			impl.serverDataStore.InstallerCrdObjectStatus = ""
-			impl.serverDataStore.InstallerCrdObjectExists = false
-		},
-	})
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	go informer.Run(ctx.Done())
-	<-ctx.Done()
+		go informer.Run(ctx.Done())
+		<-ctx.Done()
+	}()
+	return nil
 }
 
 func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{}) {
