@@ -1011,6 +1011,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		defer cancel()
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
+		// Simulate context cancellation after a delay
+		go func() {
+			time.Sleep(1 * time.Second) // Simulate a delay
+			cancel()                    // Cancel the context after the delay
+		}()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
 		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
@@ -1032,6 +1037,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
 		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
 		if err != nil {
+			//handle here for
 			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
 			return resourceTree, err
 		}
