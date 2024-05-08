@@ -1,0 +1,31 @@
+{{- if $.Values.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "wms-client.fullname" . }}-ingress
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template "wms-client.name" . }}
+    chart: {{ template "wms-client.chart" . }}
+    release: {{ .Release.Name }}
+    annotations:
+    {{- range $key, $value := $.Values.ingress.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: {{ template "wms-client.fullname" . }}-service-prod
+            servicePort: http
+  - host: {{ .Values.ingress.stagehost }}
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: {{ template "wms-client.fullname" . }}-service-stage
+            servicePort: http
+{{- end -}}

@@ -1,0 +1,41 @@
+replicaCount: 1
+MaxSurge: 1
+MaxUnavailable: 0
+GracePeriod: 30
+pauseForSecondsBeforeSwitchActive: 30
+waitForSecondsBeforeScalingDown: 30
+
+Spec:
+ Affinity:
+  key: ""
+  Values: nodes
+
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 90
+  TargetMemoryUtilizationPercentage: 80
+
+secret:
+ enabled: false
+ data: {}
+#   my_own_secret: S3ViZXJuZXRlcyBXb3Jrcw==
+
+EnvVariables: []
+#  - name: FLASK_ENV
+#    value: qa
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+   limits:
+    cpu: "0.05"
+    memory: 50Mi
+   requests:
+    cpu: "0.01"
+    memory: 10Mi
+
+

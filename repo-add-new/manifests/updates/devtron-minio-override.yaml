@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-minio
+#    update:
+#      data:
+#        accesskey: ""
+#        secretkey: ""
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron-minio
+    update:
+      spec:
+        replicas: 2
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  memory: 100Mi

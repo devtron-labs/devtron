@@ -1,0 +1,44 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: CiPipeline material change source
+paths:
+  /orchestrator/app/ci-pipeline/patch-source:
+    patch:
+      description: update source of a ci-matrial
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestBody"
+      responses:
+        "200":
+          description: Successfully fetched commit info. if CommitInfo is null, then commit is not found.
+          content:
+            application/json:
+              schema:
+                type: object
+
+#{"appId": 16, "environmentId": 1, "source": {"type":"SOURCE_TYPE_BRANCH_FIXED", "value": "main1", "regex":""}}
+# Components
+components:
+  schemas:
+    RequestBody:
+      type: object
+      properties:
+        appId:
+          type: integer
+        environmentId:
+          type: integer
+        source:
+          type: object
+          properties:
+            type:
+              type: string
+              description: "SOURCE_TYPE_BRANCH_FIXED / SOURCE_TYPE_BRANCH_REGEX"
+            value:
+              type: string
+              description: "name of the branch"
+            regex:
+              type: string
+              description: "regular expression when type is SOURCE_TYPE_BRANCH_REGEX"

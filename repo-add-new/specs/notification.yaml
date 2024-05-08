@@ -1,0 +1,326 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  termsOfService: http://swagger.io/terms/
+  contact:
+    name: Swagger API Team
+    email: apiteam@swagger.io
+    url: http://swagger.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://petstore.swagger.io/api
+paths:
+  /notification:
+    get:
+      summary: Returns all notification settings
+      description: Returns all notification settings
+      operationId: findNotificationSetting
+      parameters:
+        - name: offset
+          in: query
+          description: value can be regex search string.
+          required: true
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: value can be regex search string.
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new NotificationSetting
+      description: create NotificationSetting api.
+      operationId: addNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update  NotificationSetting
+      description: Update NotificationSetting api either recipients or events(trigger/success/failed).
+      operationId: updateNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: delete NotificationSetting
+      description: delete NotificationSetting.
+      operationId: deleteNotificationSetting
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSetting'
+      responses:
+        '200':
+          description: create NotificationSetting response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /notification/recipient:
+    get:
+      summary: used to fetch providers(recipients)
+      description: recipients fetch by string search, it will return slacks providers and email ids
+      operationId: deleteGroupPolicy
+      parameters:
+        - name: value
+          in: query
+          description: value can be regex search string.
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: list of recipients
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /notification/channel:
+    get:
+      summary: get all NotificationSettingConfig list
+      description: get all NotificationSettingConfig list
+      operationId: findNotificationSettingConfig
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationConfigResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new NotificationSettingConfig
+      description: create NotificationSettingConfig, Slack or SES
+      operationId: addNotificationSettingConfig
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationConfig'
+      responses:
+        '200':
+          description: create NotificationSettingConfig response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationConfigResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    NotificationSetting:
+      type: object
+      required:
+        - configName
+      properties:
+        id:
+          type: integer
+          description: Unique id
+        configName:
+          type: string
+          description: Unique name of group
+        appId:
+          type: integer
+          description: app id
+        envId:
+          type: integer
+          description: env id
+        pipelineIds:
+          type: array
+          items:
+            type: integer
+        eventTypeIds:
+          type: array
+          items:
+            type: integer
+        pipelineType:
+          type: string
+          description: pipeline type CI or CD
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/providers'
+          description: role filters objects
+    providers:
+      type: object
+      required:
+        - dest
+      properties:
+        dest:
+          type: string
+          description: channel destination name
+        rule:
+          type: string
+          description: rule
+        configId:
+          type: integer
+          description: config id
+
+
+    NotificationConfig:
+      type: object
+      required:
+        - channel
+      properties:
+        channel:
+          type: string
+          description: channel type
+          enum:
+            - slack
+            - ses
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+    NotificationConfigResponse:
+      type: object
+      properties:
+        slackConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+        sesConfigs:
+          type: array
+          items:
+            $ref: '#/components/schemas/configs'
+          description: config holds for either slack or ses
+    configs:
+      type: object
+      required:
+        - type
+        - configName
+      properties:
+        id:
+          type: integer
+          description: unique id for config either slack or ses on response or update only
+        type:
+          type: string
+          description: channel destination type, slack or ses
+        configName:
+          type: string
+          description: configName
+        secretKey:
+          type: string
+          description: secretKey, only in case of ses
+        accessKey:
+          type: string
+          description: accessKey, only in case of ses
+        fromEmail:
+          type: string
+          description: fromEmail, only in case of ses
+        region:
+          type: string
+          description: region, only in case of ses
+        webhookUrl:
+          type: string
+          description: webhook url, only fill in case of type is slack
+        teamId:
+          type: integer
+          description: project id, only fill in case of type is slack
+        userId:
+          type: integer
+          description: project id, only fill in case of type is slack
+
+    entity:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: it contains entity id
+        name:
+          type: string
+          description: it contains entity name
+
+
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

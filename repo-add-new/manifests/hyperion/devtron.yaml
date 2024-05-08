@@ -1,0 +1,206 @@
+# Source: devtron/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devtron-secret
+  labels:
+    release: devtron
+type: Opaque
+---
+# Source: devtron/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-cm
+  labels:
+    release: devtron
+data:
+  DASHBOARD_PORT: "80"
+  DASHBOARD_HOST: "dashboard-service.devtroncd"
+  CD_HOST: "argocd-server.devtroncd"
+  CD_PORT: "80" 
+  CD_NAMESPACE: "devtroncd"
+  EVENT_URL: "http://notifier-service.devtroncd:80/notify"
+  GIT_SENSOR_URL: "http://git-sensor-service.devtroncd:80"
+  GIT_SENSOR_TIMEOUT: "300"
+  GRAFANA_ORG_ID: "2"
+  LENS_URL: "http://lens-service.devtroncd:80"
+  LENS_TIMEOUT: "300"
+  NATS_SERVER_HOST: "nats://devtron-nats.devtroncd:4222"
+  CLUSTER_ID: "devtron-stan"
+  CLIENT_ID: "orchestrator"
+  ACK_DURATION: "30"
+  PG_ADDR: "postgresql-postgresql.devtroncd"
+  PG_PORT: "5432"
+  PG_USER: "postgres"
+  PG_DATABASE: "orchestrator"
+  APP: "orchestrator"
+  PG_LOG_QUERY: "true"
+  LOG_LEVEL: "0"
+  GIT_WORKING_DIRECTORY: "/tmp/gitops/"
+  ACD_URL: "argocd-server.devtroncd"
+  ACD_USER: "admin"
+  ACD_TIMEOUT: "300"
+  ACD_SKIP_VERIFY: "true"
+  DEX_HOST: "http://argocd-dex-server.devtroncd"
+  DEX_PORT: "5556"
+  MODE: "PROD" 
+  CD_LIMIT_CI_CPU: "0.5"
+  CD_LIMIT_CI_MEM: "3G"
+  CD_REQ_CI_CPU: "0.5"
+  CD_REQ_CI_MEM: "1G"
+  CD_NODE_TAINTS_KEY: "dedicated"
+  CD_NODE_LABEL_SELECTOR: "kubernetes.io/os=linux"
+  CD_WORKFLOW_SERVICE_ACCOUNT: "cd-runner"
+  DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
+  DEFAULT_CD_ARTIFACT_KEY_LOCATION: "devtron/cd-artifacts"
+  CD_NODE_TAINTS_VALUE: "ci"
+  CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
+  DEFAULT_CD_NAMESPACE: "devtron-cd"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:76a0f1bb-138-5415"
+  DEFAULT_CD_TIMEOUT: "3600"
+  WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
+  CI_LOGS_KEY_PREFIX: "ci-artifacts"
+  DEFAULT_NAMESPACE: "devtron-ci"
+  DEFAULT_TIMEOUT: "3600"
+  LIMIT_CI_CPU: "0.5"
+  LIMIT_CI_MEM: "3G"
+  REQ_CI_CPU: "0.5"
+  REQ_CI_MEM: "1G"
+  CI_NODE_TAINTS_KEY: ""
+  CI_NODE_TAINTS_VALUE: ""
+  CI_NODE_LABEL_SELECTOR: ""
+  CACHE_LIMIT: "5000000000"
+  DEFAULT_ARTIFACT_KEY_LOCATION: "devtron/ci-artifacts"
+  WORKFLOW_SERVICE_ACCOUNT: "ci-runner"
+  EXTERNAL_CI_PAYLOAD: "{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"
+  CI_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
+  IMAGE_SCANNER_ENDPOINT: "http://image-scanner-service.devtroncd:80"
+  ECR_REPO_NAME_PREFIX: "devtron/"
+  ACD_USERNAME: "admin"
+  DEX_RURL: "http://argocd-dex-server.devtroncd:8080/callback"
+  DEX_URL: "http://argocd-dex-server.devtroncd:5556/dex"
+  CExpirationTime: "600"
+  JwtExpirationTime: "120"
+  ACD_CM: "argocd-cm"
+  ACD_NAMESPACE: "devtroncd"
+  MINIO_ENDPOINT: http://devtron-minio:9000
+  GRAFANA_HOST: "devtron-grafana.devtroncd"
+  GRAFANA_PORT: "80"
+  GRAFANA_NAMESPACE: "devtroncd"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-cluster-components
+  labels:
+    release: devtron
+data:
+  rollout.yaml: >-
+    rollout:
+      resources:
+        limits:
+          cpu: 250m
+          memory: 200Mi
+        requests:
+          cpu: 50m
+          memory: 100Mi
+---
+# Source: devtron/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-service
+  labels:
+    app: devtron
+    chart: devtron-3.9.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: devtron
+      protocol: TCP
+      name: devtron
+  selector:
+    app: devtron
+---
+# Source: devtron/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devtron
+  labels:
+    app: devtron
+    chart: devtron-3.9.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: devtron
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: devtron
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+        - name: devtron
+          image: "quay.io/devtron/devtron:52693bde-146-6171"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: devtron
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: 5525423a62b342ee763eb2e88dd40cfefd83f00e187a4ea2ff85dd39c00b6e01
+            - name: SECRET_HASH
+              value: fe216c236a95cf38868e5a08ef90f94e015e8842d79893e5214aa2cbccc27da4
+            - name: DEVTRON_APP_NAME
+              value: devtron
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: devtron-cm
+          - secretRef:
+              name: devtron-secret
+          volumeMounts:
+            - mountPath: /cluster/component
+              name: devtron-cluster-components-vol
+      volumes:
+        - configMap:
+            name: devtron-cluster-components
+          name: devtron-cluster-components-vol
+  revisionHistoryLimit: 3
+---
+# Source: devtron/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: devtron-sm
+  labels:
+    kind: Prometheus
+    app: devtron
+    chart: devtron-3.9.1
+    release: devtron
+spec:
+  endpoints:
+    - port: devtron
+      path: /metrics
+      scheme: http
+      interval: 30s
+      scrapeTimeout: 3s
+  selector:
+    matchLabels:
+      app: devtron

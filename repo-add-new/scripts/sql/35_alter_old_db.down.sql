@@ -1,0 +1,1 @@
+----empty script as up.sql for this contains dropping redundant tables

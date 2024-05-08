@@ -1,0 +1,152 @@
+# Default values for myapp.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+MinReadySeconds: 5
+MaxSurge: 1
+MaxUnavailable: 0
+GracePeriod: 30
+ContainerPort:
+  - name: app
+    port: 8080
+    servicePort: 80
+
+pauseForSecondsBeforeSwitchActive: 30
+waitForSecondsBeforeScalingDown: 30
+
+Spec:
+ Affinity:
+  key: ""
+#  Key: kops.k8s.io/instancegroup 
+  Values: nodes
+
+
+image:
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  enabled: true 
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 90
+  TargetMemoryUtilizationPercentage: 80
+
+secret:
+  enabled: false
+
+service:
+  type: ClusterIP
+
+server:
+ deployment:
+   image_tag: 1-95af053
+   image: ""
+   enabled: true
+
+
+EnvVariables:
+  - name: FLASK_ENV
+    value: qa
+
+LivenessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ReadinessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+prometheus:
+  release: monitoring
+
+servicemonitor:
+  enabled: false
+
+ingress:
+  enabled: false
+  annotations: {} 
+#    nginx.ingress.kubernetes.io/rewrite-target: /
+#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+#     kubernetes.io/ingress.class: nginx
+#     kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: /
+  host: ""
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  annotations: {}
+ #     kubernetes.io/ingress.class: nginx
+ #     kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: ""
+  host: ""
+  tls: []
+ #  - secretName: chart-example-tls
+ #    hosts:
+ #      - chart-example.local
+
+dbMigrationConfig:
+  enabled: false
+args:
+  enabled: false
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+   limits:
+    cpu: 1
+    memory: 200Mi
+   requests:
+    cpu: 0.10
+    memory: 100Mi
+
+volumeMounts: [] 
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1
+
+deployment:
+ strategy:
+  blueGreen:
+   autoPromotionSeconds: 30
+   scaleDownDelaySeconds: 30
+   previewReplicaCount: 1
+   autoPromotionEnabled: false
+  rolling:
+   maxSurge: "25%"
+   maxUnavailable: 3

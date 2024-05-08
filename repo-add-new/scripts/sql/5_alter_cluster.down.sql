@@ -1,0 +1,1 @@
+ALTER TABLE "public"."cluster" DROP COLUMN "agent_installation_stage";

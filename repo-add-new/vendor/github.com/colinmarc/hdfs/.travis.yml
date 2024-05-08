@@ -1,0 +1,33 @@
+sudo: required
+language: go
+go_import_path: github.com/colinmarc/hdfs
+go: 1.11beta2
+env:
+- PLATFORM=cdh5
+- PLATFORM=cdh5 KERBEROS=true
+- PLATFORM=hdp2
+install:
+- git clone https://github.com/sstephenson/bats $HOME/bats
+- mkdir -p $HOME/bats/build
+- "$HOME/bats/install.sh $HOME/bats/build"
+- export PATH="$PATH:$HOME/bats/build/bin"
+- ./travis-setup.sh $PLATFORM
+before_script:
+- export HADOOP_CONF_DIR="/etc/hadoop/conf"
+- find protocol -name *.pb.go | xargs touch # so make doesn't try to regen protobuf files
+script: make test
+before_deploy: make release
+deploy:
+  skip_cleanup: true
+  provider: releases
+  api_key:
+    secure: HgyYfxoZfsZhDNeeL4Myi85aeyei80hQL29VhQKqkFrcoKL4V4+fJo7uG5XfKLCU0nQrRA98EtQO6w8AD+ULn/Ez8DA/RHey3Ny5GzX2ZaQ35KiuM71jPcvggxh8e2EJ14txxm7TAnqCxP7p5sJggiU0xj2w3vDUUJp5Q+vP3WE=
+  file: gohdfs-*.tar.gz
+  file_glob: true
+  on:
+    repo: colinmarc/hdfs
+    tags: true
+    all_branches: true
+    condition: $PLATFORM = hdp2
+cache:
+- "$HOME/bats"

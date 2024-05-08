@@ -1,0 +1,174 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: GitOps bitbucket support
+paths:
+  /orchestrator/gitops/validate:
+    post:
+      description: Validate gitops configuration by dry run
+      operationId: GitOpsValidateDryRun
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully return all validation stages results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/gitops/config:
+    post:
+      description: create/save new configuration and validate them before saving
+      operationId: CreateGitOpsConfig
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully return all validation stages results and if validation is correct then saves the configuration in the backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: update configuration and validate them before saving
+      operationId: UpdateGitOpsConfig
+      requestBody:
+        description: A JSON object containing the gitops configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitOpsConfigDto'
+      responses:
+        '200':
+          description: Successfully return all validation stages results and if validation is correct then updates the configuration in the backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    GitOpsConfigDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        provider:
+          type: string
+        username:
+          type: string
+        token:
+          type: string
+        gitLabGroupId:
+          type: string
+        gitHubOrgId:
+          type: string
+        host:
+          type: string
+        active:
+          type: boolean
+        azureProjectName:
+          type: string
+        bitBucketWorkspaceId:
+          type: string
+        bitBucketProjectKey:
+          type: string
+        userId:
+          type: integer
+    DetailedError:
+      type: object
+      properties:
+        successfulStages:
+          type: array
+          items:
+            type: string
+          description: All successful stages
+        validatedOn:
+          type: string
+          description: Timestamp of validation
+        stageErrorMap:
+          type: array
+          items:
+            type: object
+            properties:
+              stage:
+                type: string
+              error:
+                type: string
+          description: map of stage and their respective errors
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

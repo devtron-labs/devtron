@@ -1,0 +1,47 @@
+MinReadySeconds: 60
+LivenessProbe:
+  Path:
+  port: 5000
+
+ReadinessProbe:
+  Path:
+  port: 5000
+
+
+ContainerPort:
+  - name: wms-coms
+    port: 9010
+    servicePort: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+#     kubernetes.io/ingress.class: nginx
+#     kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: /
+  host: 
+  stagehost: 
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+volumeMounts: []
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+image:
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+
+prometheus:
+  release: monitoring

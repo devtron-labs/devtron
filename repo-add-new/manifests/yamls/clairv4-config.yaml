@@ -1,0 +1,29 @@
+introspection_addr: :6061
+http_listen_addr: :6060
+log_level: debug
+indexer:
+  connstring: "host=clair-pg-postgresql port=5432 dbname=clairv4 user=clair password=clair sslmode=disable"
+  scanlock_retry: 10
+  layer_scan_concurrency: 5
+  migrations: true
+matcher:
+  indexer_addr: ":6060"
+  connstring: "host=clair-pg-postgresql port=5432 dbname=clairv4 user=clair password=clair sslmode=disable"
+  max_conn_pool: 100
+  run: ""
+  migrations: true
+  updater_sets:
+    - "alpine"
+    - "aws"
+    - "debian"
+    - "oracle"
+    - "photon"
+    - "pyupio"
+    - "rhel"
+    - "suse"
+    - "ubuntu"
+notifier:
+  connstring: "host=clair-pg-postgresql port=5432 dbname=clairv4 user=clair password=clair sslmode=disable"
+  delivery_interval: 1m
+  poll_interval: 5m
+  migrations: true

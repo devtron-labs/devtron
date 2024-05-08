@@ -1,0 +1,36 @@
+{{- if eq .Values.kind "ScaledJob" }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-keda
+spec:
+  {{- if $.Values.kedaAutoscaling.maxReplicaCount }}
+  maxReplicaCount: {{ $.Values.kedaAutoscaling.maxReplicaCount | default 1 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.minReplicaCount }}
+  minReplicaCount: {{ $.Values.kedaAutoscaling.minReplicaCount | default 0 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.pollingInterval }}
+  pollingInterval: {{ $.Values.kedaAutoscaling.pollingInterval | default 30 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.scalingStrategy }}
+  scalingStrategy:
+{{ toYaml $.Values.kedaAutoscaling.scalingStrategy | indent 4 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ $.Values.kedaAutoscaling.successfulJobsHistoryLimit | default 100 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.rolloutStrategy }}
+  rolloutStrategy: {{ $.Values.kedaAutoscaling.rolloutStrategy }} 
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ $.Values.kedaAutoscaling.failedJobsHistoryLimit | default 100 }}
+  {{- end }}
+  {{- if $.Values.kedaAutoscaling.envSourceContainerName }}
+  envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}
+  {{- end }}
+  triggers:
+{{ toYaml $.Values.kedaAutoscaling.triggers | indent 4 }}
+  jobTargetRef:
+{{- include "job-template-spec" . | indent 4 }}
+{{- end }}

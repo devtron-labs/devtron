@@ -1,0 +1,10 @@
+deployment:
+  strategy:
+    blueGreen:
+      autoPromotionSeconds: 30
+      scaleDownDelaySeconds: 30
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+    rolling:
+      maxSurge: "25%"
+      maxUnavailable: 3

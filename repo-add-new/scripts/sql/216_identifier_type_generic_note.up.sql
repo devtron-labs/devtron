@@ -1,0 +1,1 @@
+UPDATE generic_note SET identifier_type=0 WHERE identifier_type is NULL;

@@ -1,0 +1,248 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Historical Task definitions - get api changes
+paths:
+  /orchestrator/app/history/deployed-component/detail/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch detail of a history on the basis of the history component and it's name
+      operationId: FetchHistoryByDeployedConfigurationDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: historyComponent
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "DEPLOYMENT_TEMPLATE"
+              - "CONFIGMAP"
+              - "SECRET"
+              - "PIPELINE_STRATEGY"
+        - name: historyComponentName
+          in: query
+          required: false
+          description: name of config-map, secret
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryComponentDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/deployed-component/list/{appId}/{pipelineId}:
+    get:
+      description: fetch deployed history details list
+      operationId: FetchHistoryListByDeployedConfigurationDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: historyComponent
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "DEPLOYMENT_TEMPLATE"
+              - "CONFIGMAP"
+              - "SECRET"
+              - "PIPELINE_STRATEGY"
+        - name: historyComponentName
+          in: query
+          required: false
+          description: name of config-map, secret
+          schema:
+            type: string
+        - name: baseConfigurationId
+          in: query
+          required: true
+          description: id of base configuration
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryComponentListDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}:
+    get:
+      description: fetch all deployed configurations history (deployment template, pipeline strategy, configmaps, secrets)
+      operationId: FetchHistoryListForAllDeployedConfigurations
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: wfrId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryConfigurationListDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    HistoryComponentDetailDto:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryComponentValuesDto'
+        codeEditorValue:
+          type: object
+          properties:
+            displayName:
+              type: string
+            value:
+              type: string
+    HistoryComponentValuesDto:
+      type: object
+      properties:
+        fieldName:
+          type: object
+          properties:
+            displayName:
+              type: string
+            value:
+              type: string
+    HistoryComponentListDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: string
+        deploymentStatus:
+          type: string
+    HistoryConfigurationListDto:
+        type: array
+        items:
+          $ref: '#/components/schemas/HistoryConfiguration'
+    HistoryConfiguration:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          enum:
+            - "DEPLOYMENT_TEMPLATE"
+            - "CONFIGMAP"
+            - "SECRET"
+            - "PIPELINE_STRATEGY"
+        childList:
+          type: array
+          items:
+            type: string
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

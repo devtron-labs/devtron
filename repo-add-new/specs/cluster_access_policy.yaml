@@ -1,0 +1,171 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Cluster access policy
+paths:
+  /orchestrator/user:
+    post:
+      summary: Creates a new User
+      operationId: addUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: create user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: update user
+      operationId: updateUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/role/group:
+    post:
+      summary: Creates a new role group
+      operationId: addUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: create user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: update user
+      operationId: updateUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        groups:
+          type: array
+          items:
+            type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/roleFilter'
+          description: role filters objects
+    RoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/roleFilter'
+          description: role filters objects
+    roleFilter:
+      type: object
+      required:
+        - action
+      properties:
+        cluster:
+          type: string
+          description: cluster name
+        namespace:
+          type: string
+          description: namespace names. for multiple selection comma separated values, for all selection an empty string.
+        group:
+          type: string
+          description: group names. for multiple selection comma separated values, for all selection an empty string.
+        kind:
+          type: string
+          description: kind names. for multiple selection comma separated values, for all selection an empty string.
+        resource:
+          type: string
+          description: resource names. for multiple selection comma separated values, for all selection an empty string.
+        action:
+          type: string
+          description: action is type of role, i.e, admin, trigger, view, etc.
+          enum: ["view","edit","admin"]
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

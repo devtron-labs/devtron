@@ -1,0 +1,1 @@
+delete from module where name = 'argo-cd';

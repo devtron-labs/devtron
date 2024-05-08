@@ -1,0 +1,123 @@
+openapi: "3.0.0"
+info:
+  title: image-tags
+  version: "1.0"
+paths:
+  /orchestrator/apps/image-tags/{artifact-id}:
+    post:
+      description: Create tags and comment for a particular image in a app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: "#/components/schemas/ImageTaggingRequestDTO"
+      responses:
+        "200":
+          description: success on tags and comment creation for the given artifact.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageTaggingResponseDTO"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "400":
+          description: will get this response if invalid payload is sent in the request.
+        "403":
+          description: will get this response if user doesn't have build and deploy permission for the app
+    get:
+      description: will get all the tags and comment added for the provided artifact-id
+      responses:
+        "200":
+          description: on succesfull fetching of all the tags and comment for the requested artifact.
+          content:
+            application/json:
+              schema:
+                $ref: "#components/schemas/ImageTaggingResponseDTO"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have access to the app that the requested artifact belongs.
+
+
+#components
+components:
+  schemas:
+    ImageTaggingResponseDTO:
+      type: object
+      properties:
+        prodEnvExists:
+          type: boolean
+          description: true/false
+        imageReleaseTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReleaseTag'
+        imageComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageComment'
+        appReleaseTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReleaseTag'
+
+
+
+    ImageComment:
+      type: object
+      properties:
+        id:
+         type: integer
+         description: id of the image comment
+        comment:
+          type: string
+          description: image comments
+          example: 'this image is build for arm64 platform only'
+        artifactId:
+          type: integer
+          description: id of the artifact to which this comment is added
+
+
+    ReleaseTag:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: id of the tag
+        tagName:
+          type: string
+          description: tag name
+          example: "v1.1"
+        appId:
+          type: integer
+          description: id of the app in which this tag is created
+        artifactId:
+          type: integer
+          description: id of the artifact to which this tag is tagged
+        softDeleted:
+          type: boolean
+          description: tag is deleted or not
+
+
+    ImageTaggingRequestDTO:
+      type: object
+      properties:
+        createTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReleaseTag'
+          description: tag objects requested for creation
+        updateTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReleaseTag'
+          description: tag objects requested for deletion
+        imageComment:
+          type: object
+          items:
+            $ref: '#/components/schemas/ImageComment'
+          description: image comment data
+
+

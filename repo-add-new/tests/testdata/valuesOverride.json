@@ -1,0 +1,11 @@
+{
+  "appName": "test-app",
+  "environment": "test-environment",
+  "override": {
+    "image": {
+      "tag": "1.2.3"
+    }
+  }
+}
+
+

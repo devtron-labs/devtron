@@ -1,0 +1,16 @@
+productionSlot: green
+
+server:
+ deployment:
+   - slot: green
+     image_tag: IMAGE_TAG
+     image: IMAGE_REPO
+     enabled: false
+
+   - slot: blue
+     image_tag: IMAGE_TAG
+     image: IMAGE_REPO
+     enabled: false
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1 

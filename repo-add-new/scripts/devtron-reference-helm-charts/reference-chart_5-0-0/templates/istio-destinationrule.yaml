@@ -1,0 +1,34 @@
+{{- with .Values.istio }}
+{{- if and .enable .destinationRule.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{  template ".Chart.Name .fullname" $ }}-destinationrule
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if .destinationRule.labels }}
+{{ toYaml .destinationRule.labels | indent 4 }}
+    {{- end }}
+{{- if .destinationRule.annotations }}
+  annotations:
+{{ toYaml .destinationRule.annotations | indent 4 }}
+{{- end }}
+spec:
+  host: "{{  include ".servicename" $ }}.{{ $.Release.Namespace }}.svc.cluster.local"
+{{- if $.Values.istio.destinationRule.subsets }}
+  subsets:
+{{ toYaml $.Values.istio.destinationRule.subsets | indent 4 }}
+{{- end }}
+{{- if $.Values.istio.destinationRule.trafficPolicy }}
+  trafficPolicy:
+{{ toYaml $.Values.istio.destinationRule.trafficPolicy | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

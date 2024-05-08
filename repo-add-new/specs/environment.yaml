@@ -1,0 +1,110 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/env/namespace/autocomplete:
+    get:
+      description: list of namespaces group by clusters
+      parameters:
+        - in: query
+          name: ids
+          example: "1,2"
+          description: cluster ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: namespace list group by cluster
+                    items:
+                      $ref: '#/components/schemas/Cluster'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    Cluster:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        clusterId:
+          type: integer
+          description: cluster id
+        clusterName:
+          type: string
+          description: cluster name
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Environment'
+    Environment:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          description: cluster id
+        environmentName:
+          type: string
+          description: cluster name
+        environmentIdentifier:
+          type: string
+          description: environment identifier
+        namespace:
+          type: string
+          description: namespace
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

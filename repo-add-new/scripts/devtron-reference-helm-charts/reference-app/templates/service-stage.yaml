@@ -1,0 +1,28 @@
+{{- $active0 := (index .Values.server.deployment 0).enabled -}}
+{{- $active1 := (index .Values.server.deployment 1).enabled -}}
+{{- if (and $active0 $active1 ) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-service-stage
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }} 
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ template ".Chart.Name .name" $ }}
+    release: {{ $.Release.Name }}
+    {{- if eq $.Values.productionSlot "blue" }}
+    slot: green
+    {{- else }}
+    slot: blue
+    {{- end }}
+{{- end }}
