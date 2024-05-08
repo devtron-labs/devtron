@@ -561,11 +561,11 @@ func (impl *DevtronResourceServiceImpl) checkIfResourcePatchOperationValid(descr
 }
 
 // checkIfResourceTaskRunOperationValid : this function checks task run operation(includes feasibility as well) validity
-func (impl *DevtronResourceServiceImpl) checkIfResourceTaskRunOperationValid(descriptorBean *bean.DevtronResourceObjectDescriptorBean,
-	objectData string) error {
-	f := getFuncToCheckTaskRunOperationValidity(descriptorBean.Kind, descriptorBean.SubKind, descriptorBean.Version)
+func (impl *DevtronResourceServiceImpl) checkIfResourceTaskRunOperationValid(req *bean.DevtronResourceTaskExecutionBean,
+	existingResourceObject *repository.DevtronResourceObject) error {
+	f := getFuncToCheckTaskRunOperationValidity(req.Kind, req.SubKind, req.Version)
 	if f != nil {
-		return f(impl, objectData)
+		return f(impl, req, existingResourceObject)
 	} else {
 		return nil //sending true as all resources do not have mapped functions for this validity
 	}
@@ -1951,7 +1951,7 @@ func (impl *DevtronResourceServiceImpl) ExecuteTask(ctx context.Context, req *be
 		impl.logger.Errorw("error encountered in ExecuteTask, object not found")
 		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
 	}
-	err = impl.checkIfResourceTaskRunOperationValid(req.DevtronResourceObjectDescriptorBean, existingResourceObject.ObjectData)
+	err = impl.checkIfResourceTaskRunOperationValid(req, existingResourceObject)
 	if err != nil {
 		impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", req)
 		return nil, err

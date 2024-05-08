@@ -738,14 +738,41 @@ func (impl *DevtronResourceServiceImpl) checkIfReleaseResourcePatchValid(objectD
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(objectData string) error {
-	isValid, err := impl.checkIfReleaseResourceOperationValid(objectData, bean4.PolicyReleaseOperationTypeDeploymentTrigger, nil)
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(req *bean.DevtronResourceTaskExecutionBean, existingResourceObject *repository.DevtronResourceObject) error {
+	isValid, err := impl.checkIfReleaseResourceOperationValid(existingResourceObject.ObjectData, bean4.PolicyReleaseOperationTypeDeploymentTrigger, nil)
 	if err != nil {
-		impl.logger.Errorw("err, checkIfReleaseResourceTaskRunValid", "err", err, "objectData", objectData)
+		impl.logger.Errorw("err, checkIfReleaseResourceTaskRunValid", "err", err, "objectData", existingResourceObject.ObjectData)
 		return err
 	}
 	if !isValid {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ActionPolicyInValidDueToStatusErrMessage, bean.ActionPolicyInValidDueToStatusErrMessage)
+	}
+
+	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(req.DevtronResourceObjectDescriptorBean, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
+	if err != nil {
+		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "descriptorBean", req.DevtronResourceObjectDescriptorBean, "err", err)
+		return err
+	}
+	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo)
+	if err != nil {
+		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "taskRunInfo", taskRunInfo, "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func checkIfTaskExecutionAllowed(tasks []*bean.Task, taskInfo []bean.DtReleaseTaskRunInfo) error {
+	levelIndexVsDeploymentAllowedMap := make(map[int]*bool, len(taskInfo))
+	for _, info := range taskInfo {
+		levelIndexVsDeploymentAllowedMap[info.Level] = info.TaskRunAllowed
+	}
+	for _, task := range tasks {
+		if val, ok := levelIndexVsDeploymentAllowedMap[task.LevelIndex]; !ok {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidLevelIndexOrLevelIndexChangedMessage, bean.InvalidLevelIndexOrLevelIndexChangedMessage)
+		} else if ok && !*val {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.StageTaskExecutionNotAllowedMessage, bean.StageTaskExecutionNotAllowedMessage)
+		}
 	}
 	return nil
 }
