@@ -405,7 +405,19 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 	if namespaces != "" {
 		namespacesArray = strings.Split(namespaces, ",")
 	}
-	clusterNamespacePair, clusterIds, err := app.GetNamespaceClusterMapping(namespacesArray)
+	clusterIdsFetched := queryParams.Get("clusterIds")
+	var clusterIdsArray []string
+	if clusterIdsFetched != "" {
+		clusterIdsArray = strings.Split(clusterIdsFetched, ",")
+	}
+	var underScoreSeperatedClusterIdNamespaces []string
+
+	for _, cluster := range clusterIdsArray {
+		for _, ns := range namespacesArray {
+			underScoreSeperatedClusterIdNamespaces = append(underScoreSeperatedClusterIdNamespaces, cluster+"_"+ns)
+		}
+	}
+	clusterNamespacePair, clusterIds, err := app.GetNamespaceClusterMapping(underScoreSeperatedClusterIdNamespaces)
 	if err != nil {
 		return nil, err
 	}
