@@ -805,7 +805,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	k8sApplicationServiceImpl, err := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, environmentRepositoryImpl, argoApplicationServiceImpl, celServiceImpl, interClusterServiceCommunicationHandlerImpl, deploymentWindowServiceImpl)
+	k8sApplicationServiceImpl, err := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, environmentRepositoryImpl, clusterRepositoryImpl, argoApplicationServiceImpl, celServiceImpl, interClusterServiceCommunicationHandlerImpl, deploymentWindowServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -973,15 +973,7 @@ func InitializeApp() (*App, error) {
 	coreAppRouterImpl := router.NewCoreAppRouterImpl(coreAppRestHandlerImpl)
 	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImplExtended, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
 	helmAppRouterImpl := client4.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
-	portForwardManagerImpl, err := application2.NewPortForwardManagerImpl(sugaredLogger, k8sCommonServiceImpl)
-	if err != nil {
-		return nil, err
-	}
-	interClusterServiceCommunicationHandlerImpl, err := application2.NewInterClusterServiceCommunicationHandlerImpl(sugaredLogger, portForwardManagerImpl)
-	if err != nil {
-		return nil, err
-	}
-	k8sApplicationRestHandlerImpl := application3.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enterpriseEnforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate, interClusterServiceCommunicationHandlerImpl)
+	k8sApplicationRestHandlerImpl := application3.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enterpriseEnforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate)
 	k8sApplicationRouterImpl := application3.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
 	pProfRestHandlerImpl := restHandler.NewPProfRestHandler(userServiceImpl, enterpriseEnforcerImpl)
 	pProfRouterImpl := router.NewPProfRouter(sugaredLogger, pProfRestHandlerImpl)
