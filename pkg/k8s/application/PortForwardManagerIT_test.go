@@ -11,23 +11,23 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository10 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestPortForwardManager(t *testing.T) {
 	t.Run("base", func(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
 		config, err := sql.GetConfig()
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
 		db, err := sql.NewDbConnection(config, sugaredLogger)
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
 		runtimeConfig, err := client.GetRuntimeConfig()
 		assert.Nil(t, err)
 		v := informer.NewGlobalMapClusterNamespace()
@@ -49,16 +49,19 @@ func TestPortForwardManager(t *testing.T) {
 		environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 		k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 		//k8sApplicationService := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, nil, nil, nil, k8sResourceHistoryServiceImpl, nil)
-		K8sCommonService := k8s.NewK8sCommonServiceImpl(sugaredLogger, k8sUtil, nil, k8sResourceHistoryServiceImpl, clusterServiceImpl, nil)
+		K8sCommonService := k8s.NewK8sCommonServiceImpl(sugaredLogger, k8sUtil, nil, k8sResourceHistoryServiceImpl, clusterServiceImpl, nil, nil)
 		portForwardManagerImpl, err := NewPortForwardManagerImpl(sugaredLogger, K8sCommonService)
-		assert.NotNil(t, err)
-		portForwardRequest := bean.PortForwardRequest{
-			Namespace:   "monitoring",
-			ServiceName: "scoop-stage-mon-service",
-			ClusterId:   1,
-			PortString:  []string{"8088:80"},
-		}
-		_, err = portForwardManagerImpl.ForwardPort(context.Background(), portForwardRequest)
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
+		//portForwardRequest := bean.PortForwardRequest{
+		//	Namespace:   "monitoring",
+		//	ServiceName: "scoop-stage-mon-service",
+		//	ClusterId:   1,
+		//	TargetPort:  "80",
+		//}
+		//_, err = portForwardManagerImpl.ForwardPort(context.Background(), portForwardRequest)
+		proxyPort, err := portForwardManagerImpl.StartK8sProxy(context.Background(), 1)
+		assert.Nil(t, err)
+		assert.NotZero(t, proxyPort)
+		time.Sleep(50 * time.Minute)
 	})
 }

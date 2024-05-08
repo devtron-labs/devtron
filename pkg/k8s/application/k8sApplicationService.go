@@ -11,6 +11,8 @@ import (
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	client2 "github.com/devtron-labs/scoop/client"
 	types2 "github.com/devtron-labs/scoop/types"
@@ -80,6 +82,8 @@ import (
 	"k8s.io/kubernetes/pkg/printers"
 )
 
+var ScoopNotConfiguredErr = errors.New("scoop not configured")
+
 type K8sApplicationService interface {
 	ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error)
 	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error)
@@ -104,6 +108,7 @@ type K8sApplicationService interface {
 	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
+	StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error)
 	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
@@ -119,6 +124,7 @@ type K8sApplicationServiceImpl struct {
 	terminalSession              terminal.TerminalSessionHandler
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
+	environmentRepository        repository.EnvironmentRepository
 	k8sAppConfig                 *K8sAppConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 
@@ -134,6 +140,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
+	environmentRepository repository.EnvironmentRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
 	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
@@ -163,6 +170,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		terminalSession:                         terminalSession,
 		ephemeralContainerService:               ephemeralContainerService,
 		ephemeralContainerRepository:            ephemeralContainerRepository,
+		environmentRepository:                   environmentRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
 		deploymentWindowService:                 deploymentWindowService,
@@ -177,6 +185,13 @@ type K8sAppConfig struct {
 	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
 	ScoopClusterConfig          string `env:"SCOOP_CLUSTER_CONFIG" envDefault:"{}"`
 	UseResourceListV2           bool   `env:"USE_RESOURCE_LIST_V2"`
+}
+
+type ScoopServiceClusterConfig struct {
+	ServiceName string `json:"serviceName"`
+	Namespace   string `json:"namespace"`
+	PassKey     string `json:"passKey"`
+	Port        string `json:"port"`
 }
 
 type ScoopServiceClusterConfig struct {
@@ -834,6 +849,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV1(ctx context.Context, to
 		labelSelectorString := strings.Join(request.LabelSelector, ",")
 		listOptions.LabelSelector = labelSelectorString
 	}
+
 	if len(request.FieldSelector) > 0 {
 		for _, fieldSelector := range request.FieldSelector {
 			_, err = fields.ParseSelector(fieldSelector)
@@ -924,7 +940,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV1(ctx context.Context, to
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
 
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -1525,7 +1541,7 @@ func (impl *K8sApplicationServiceImpl) checkForDeploymentWindow(identifier *bean
 		return fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+		return deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
 	}
 	return nil
 }
@@ -1675,6 +1691,19 @@ func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, cluste
 	return proxyHandler, err
 }
 
+func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error) {
+	if clusterId == -1 {
+		environment, err := impl.environmentRepository.FindByName(envName)
+		if err != nil {
+			impl.logger.Errorw("Error finding clusterId from envName.", "envName", envName)
+			return nil, err
+		}
+		clusterId = environment.ClusterId
+	}
+	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
+	return proxyHandler, err
+}
+
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
 	//return 8081, ScoopServiceClusterConfig{
 	//	Port:    "8081",
@@ -1692,12 +1721,3 @@ func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterI
 	return scoopPort, scoopConfig, nil
 	//return 8081, ScoopServiceClusterConfig{PassKey: "abcd"}, nil
 }
-
-//func (impl *K8sApplicationServiceImpl) containsHeader(headers []string, key string) bool {
-//	for _, header := range headers {
-//		if header == key {
-//			return true
-//		}
-//	}
-//	return false
-//}

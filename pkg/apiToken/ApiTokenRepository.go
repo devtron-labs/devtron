@@ -18,6 +18,7 @@
 package apiToken
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -29,6 +30,7 @@ type ApiToken struct {
 	Id           int      `sql:"id,pk"`
 	UserId       int32    `sql:"user_id, notnull"`
 	Name         string   `sql:"name, notnull"`
+	Version      int      `sql:"version, notnull"`
 	Description  string   `sql:"description, notnull"`
 	ExpireAtInMs int64    `sql:"expire_at_in_ms"`
 	Token        string   `sql:"token, notnull"`
@@ -42,6 +44,7 @@ type ApiTokenRepository interface {
 	FindAllActive() ([]*ApiToken, error)
 	FindActiveById(id int) (*ApiToken, error)
 	FindByName(name string) (*ApiToken, error)
+	UpdateIf(apiToken *ApiToken, previousTokenVersion int) error
 }
 
 type ApiTokenRepositoryImpl struct {
@@ -58,6 +61,20 @@ func (impl ApiTokenRepositoryImpl) Save(apiToken *ApiToken) error {
 
 func (impl ApiTokenRepositoryImpl) Update(apiToken *ApiToken) error {
 	return impl.dbConnection.Update(apiToken)
+}
+
+func (impl ApiTokenRepositoryImpl) UpdateIf(apiToken *ApiToken, previousTokenVersion int) error {
+	res, err := impl.dbConnection.Model(apiToken).
+		Where("id = ?", apiToken.Id).
+		Where("version = ?", previousTokenVersion).
+		Update()
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf(TokenVersionMismatch)
+	}
+	return nil
 }
 
 func (impl ApiTokenRepositoryImpl) FindAllActive() ([]*ApiToken, error) {

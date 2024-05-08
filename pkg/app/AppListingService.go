@@ -441,7 +441,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 			impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
 			return false, err
 		}
-		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed}, cdWfr.Status) {
 			return false, nil
 		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil

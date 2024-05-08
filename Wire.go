@@ -308,7 +308,12 @@ func InitializeApp() (*App, error) {
 
 		infraConfig.NewInfraProfileRouterImpl,
 		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
-
+		scoop.NewServiceImpl,
+		wire.Bind(new(scoop.Service), new(*scoop.ServiceImpl)),
+		scoop.NewRestHandler,
+		wire.Bind(new(scoop.RestHandler), new(*scoop.RestHandlerImpl)),
+		scoop.NewRouterImpl,
+		wire.Bind(new(scoop.Router), new(*scoop.RouterImpl)),
 		router.NewMuxRouter,
 
 		app4.NewAppRepositoryImpl,

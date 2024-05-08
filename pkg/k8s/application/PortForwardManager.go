@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
+	proxy "k8s.io/kubectl/pkg/proxy"
 	"k8s.io/kubectl/pkg/util/podutils"
 	"net"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 type PortForwardManager interface {
 	ForwardPort(ctx context.Context, request bean.PortForwardRequest) (int, error)
 	StopPortForwarding(ctx context.Context, port int) bool
+	StartK8sProxy(ctx context.Context, clusterId int) (int, error)
 }
 
 type PortForwardManagerImpl struct {
@@ -51,6 +53,48 @@ func (impl *PortForwardManagerImpl) StopPortForwarding(ctx context.Context, port
 		return true
 	}
 	return false
+}
+
+func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId int) (int, error) {
+	config, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	if err != nil {
+		return 0, err
+	}
+	var keepAlive time.Duration
+	apiProxyServer, err := proxy.NewServer("", "/", "", nil, config, keepAlive, false)
+	if err != nil {
+		return 0, err
+	}
+	unUsedPort, err := impl.getUnUsedPort()
+	if err != nil {
+		return 0, err
+	}
+	// Separate listening from serving so we can report the bound port
+	// when it is chosen by os (eg: port == 0)
+	var listener net.Listener
+	listener, err = apiProxyServer.Listen("localhost", unUsedPort)
+	if err != nil {
+		return 0, err
+	}
+	impl.logger.Infow("Starting to serve k8s api proxy server", "addr", listener.Addr().String())
+	stopChannel := make(chan struct{})
+	impl.stopChannels[unUsedPort] = stopChannel
+	go func() {
+		err = apiProxyServer.ServeOnListener(listener)
+		if err != nil {
+			impl.logger.Errorw("error occurred while listening to k8s api proxy server", "err", err)
+		}
+	}()
+	go func() {
+		select {
+		case <-stopChannel:
+			err := listener.Close()
+			if err != nil {
+				impl.logger.Errorw("error occurred while closing k8s api server", "err", err)
+			}
+		}
+	}()
+	return unUsedPort, nil
 }
 
 func (impl *PortForwardManagerImpl) ForwardPort(ctx context.Context, request bean.PortForwardRequest) (int, error) {

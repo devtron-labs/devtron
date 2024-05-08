@@ -13,7 +13,11 @@ func getPath(item string, path []string) []string {
 func ExtractImages(obj unstructured.Unstructured) []string {
 	images := make([]string, 0)
 
-	subPath := commonBean.GetContainerSubPathForKind(obj.GetKind())
+	kind := obj.GetKind()
+	subPath, ok := commonBean.KindToPath[kind]
+	if !ok {
+		return images
+	}
 	allContainers := make([]interface{}, 0)
 	containers, _, _ := unstructured.NestedSlice(obj.Object, getPath(commonBean.Containers, subPath)...)
 	if len(containers) > 0 {
@@ -36,16 +40,14 @@ func ExtractImages(obj unstructured.Unstructured) []string {
 	return images
 }
 
-func ExtractImageFromManifestYaml(manifestYaml string) []string {
-	var dockerImagesFinal []string
+func ExtractImageFromManifestYaml(manifestYaml string) ([]string, error) {
 	parsedManifests, err := yamlUtil.SplitYAMLs([]byte(manifestYaml))
 	if err != nil {
-
-		return dockerImagesFinal
+		return nil, err
 	}
-	for _, manifest := range parsedManifests {
-		dockerImages := ExtractImages(manifest)
-		dockerImagesFinal = append(dockerImagesFinal, dockerImages...)
+	dockerImages, err := ExtractAllDockerImages(parsedManifests)
+	if err != nil {
+		return nil, err
 	}
-	return dockerImagesFinal
+	return dockerImages, nil
 }

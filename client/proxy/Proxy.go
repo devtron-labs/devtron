@@ -24,6 +24,11 @@ func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper
 }
 
 func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger) *httputil.ReverseProxy {
+	proxy := GetProxyServerWithPathTrimFunc(serverAddr, transport, pathToExclude, basePathToInclude, activityLogger, nil)
+	return proxy
+}
+
+func GetProxyServerWithPathTrimFunc(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger, pathTrimFunc func(string) string) *httputil.ReverseProxy {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -34,7 +39,11 @@ func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclud
 		path := request.URL.Path
 		request.URL.Host = target.Host
 		request.URL.Scheme = target.Scheme
-		request.URL.Path = rewriteRequestUrl(basePathToInclude, path, pathToExclude)
+		if pathTrimFunc == nil {
+			request.URL.Path = rewriteRequestUrl(basePathToInclude, path, pathToExclude)
+		} else {
+			request.URL.Path = pathTrimFunc(request.URL.Path)
+		}
 		fmt.Printf("%s\n", request.URL.Path)
 		activityLogger.LogActivity()
 	}

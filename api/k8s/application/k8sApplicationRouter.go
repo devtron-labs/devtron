@@ -89,4 +89,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.PathPrefix("/port-forward").
 		HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
 
+	k8sAppRouter.PathPrefix("/proxy").
+		HandlerFunc(impl.k8sApplicationRestHandler.StartK8sProxy)
+
 }
