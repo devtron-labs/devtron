@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util3 "github.com/devtron-labs/devtron/pkg/k8s/application/util"
-	"github.com/go-pg/pg"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
@@ -1299,14 +1298,11 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 	clusterRequested, err := handler.k8sApplicationService.GetClusterForK8sProxy(&k8sProxyRequest)
 	if err != nil {
 		handler.logger.Errorw("Error in finding cluster", "Error:", err)
-		errorMessage := "An error occurred. Please try again."
-		if errors.Is(err, pg.ErrNoRows) {
-			errorMessage = "Cannot find requested env or cluster."
-		}
+
 		errorResponse := bean.ErrorResponse{
 			Kind:    "Status",
 			Code:    400,
-			Message: errorMessage,
+			Message: "Cannot find requested env or cluster.",
 			Reason:  "Bad Request",
 		}
 		w.WriteHeader(http.StatusForbidden)
