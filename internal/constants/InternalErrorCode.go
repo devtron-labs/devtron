@@ -88,7 +88,23 @@ const (
 
 	GitHostCreateFailedAlreadyExists string = "9001"
 	GitHostCreateFailedInDb          string = "9002"
+
+	// feasibility errors
+	OperationPerformError string = "10001"
+	VulnerabilityFound    string = "10002"
+)
+
+const (
+	HttpClientSideTimeout = 499
 )
 
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}
 var AppDoesNotExist = &ErrorCode{"4004", "application %s does not exist"}
+
+const (
+	ErrorDeletingPipelineForDeletedArgoAppMsg = "error in deleting devtron pipeline for deleted argocd app"
+	ArgoAppDeletedErrMsg                      = "argocd app deleted"
+	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
+	UnableToFetchResourceTreeForAcdErrMsg     = "app detail fetched, failed to get resource tree from acd"
+	CannotGetAppWithRefreshErrMsg             = "cannot get application with refresh"
+)
