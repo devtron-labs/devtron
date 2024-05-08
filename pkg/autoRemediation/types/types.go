@@ -70,4 +70,5 @@ type InterceptedEventData struct {
 	TriggerType        TriggerType `sql:"trigger_type"`
 	WatcherId          int         `sql:"watcher_id"`
 	TriggerData        string      `sql:"trigger_data"`
+	TotalCount         int         `sql:"total_count"`
 }

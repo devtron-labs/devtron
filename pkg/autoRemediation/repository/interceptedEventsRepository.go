@@ -71,16 +71,16 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 	var interceptedEvents []*types2.InterceptedEventData
 
 	query := impl.buildInterceptEventsListingQuery(interceptedEventsQueryParams)
-	// Count total number of intercepted events
-	total, err := query.Count()
-	if err != nil {
-		return interceptedEvents, 0, err
-	}
 
-	err = query.
+	err := query.
 		Offset(interceptedEventsQueryParams.Offset).
 		Limit(interceptedEventsQueryParams.Size).
 		Select(&interceptedEvents)
+
+	total := 0
+	if len(interceptedEvents) > 0 {
+		total = interceptedEvents[0].TotalCount
+	}
 	return interceptedEvents, total, err
 }
 
@@ -111,6 +111,7 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 		ColumnExpr("auto_remediation_trigger.id as trigger_id").
 		ColumnExpr("auto_remediation_trigger.type as trigger_type").
 		ColumnExpr("auto_remediation_trigger.data as trigger_data").
+		ColumnExpr("COUNT(*) OVER() as total_count").
 		Join("JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
 		Join("JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id").
 		Join("JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").
