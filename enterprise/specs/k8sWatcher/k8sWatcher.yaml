@@ -127,31 +127,25 @@ paths:
             items:
               type: string
           description: Watcher names
-        - name: clusters
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: cluster names
-        - name: namespaces
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          description: cluster names
-        - name: executionStatuses
+        - name: selectedActions
           in: query
           schema:
             type: array
             items:
               type: string
               enum:
-                - 'Succeeded'
-                - 'Failed'
-                - 'Progressing'
-          description: cluster names
+                - 'CREATED'
+                - 'UPDATED'
+                - 'DELETED'
+          description: kind of action
+        - name: namespaces
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: "1_ns-1,1_ns-2,2_ns-3,3,4,5"
+          description: comma separated list of clusterId_namepsace
         - in: query
           name: order
           schema:

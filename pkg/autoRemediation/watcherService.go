@@ -810,6 +810,7 @@ func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types
 			ExecutionStatus:    types2.Status(event.Status),
 			TriggerId:          event.TriggerId,
 			TriggerExecutionId: event.TriggerExecutionId,
+			ExecutionMessage:   event.ExecutionMessage,
 		}
 		triggerData, err := getTriggerDataFromJson(event.TriggerData)
 		if err != nil {
