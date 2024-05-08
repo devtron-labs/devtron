@@ -516,18 +516,30 @@ func getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[strin
 	return
 }
 
-func updatePodMetadataWithDuplicateMapping(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool, duplicatePodToReplicasetMapping map[string]string, podMetaData []*argoApplication.PodMetadata) []*argoApplication.PodMetadata {
+func buildPodMetadataFromPodsAndUpdateMetadataOfDuplicatePods(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool, duplicatePodToReplicasetMapping map[string]string, podMetaData []*argoApplication.PodMetadata) []*argoApplication.PodMetadata {
+	// Build pod metadata from pod manifests
 	podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
-	containersPodMapping := make(map[string][]*string)
-	initContainersPodMapping := make(map[string][]*string)
+
+	// Initialize mappings for containers
+	containersPodMapping := make(map[string][]*string) // Mapping from pod name to container names
+
+	// Iterate over pod metadata from pods
 	for _, podMetadataFromPod := range podsMetadataFromPods {
+		// If pod is not a duplicate
 		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]; !ok {
+			// Append pod metadata to the final result
 			podMetaData = append(podMetaData, podMetadataFromPod)
 		} else {
+			// If pod is a duplicate, update mappings
+			// iterate over podMetadata that was made by reading replicaset manifest
 			for _, podMetadataFromReplicaSet := range podMetaData {
 				if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
+					// Update containers mapping
 					if podMetadataFromPod.Containers != nil {
 						containersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.Containers
+						// Update containers mapping for other duplicate pods with the same replicaset
+						// because we are only fetching manifest for one pod
+						// and propagate to other pods having same parent
 						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
 						for podName, podParentName := range duplicatePodToReplicasetMapping {
 							if podParentName == currentPodParentName {
@@ -535,28 +547,17 @@ func updatePodMetadataWithDuplicateMapping(resp *v1alpha1.ApplicationTree, podMa
 							}
 						}
 					}
-					if podMetadataFromPod.InitContainers != nil {
-						initContainersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.InitContainers
-						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
-						for podName, podParentName := range duplicatePodToReplicasetMapping {
-							if podParentName == currentPodParentName {
-								initContainersPodMapping[podName] = podMetadataFromPod.InitContainers
-							}
-						}
-					}
 				}
 			}
 		}
 	}
-	for _, podMetadataFromPods := range podsMetadataFromPods {
-		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPods.Name]; ok {
-			for _, val := range podMetaData {
-				if val.Name == podMetadataFromPods.Name {
-					val.Containers = containersPodMapping[podMetadataFromPods.Name]
-					val.InitContainers = initContainersPodMapping[podMetadataFromPods.Name]
-				}
-			}
+
+	// Update pod metadata with containers mapping
+	for _, metadata := range podMetaData {
+		if containers, ok := containersPodMapping[metadata.Name]; ok {
+			metadata.Containers = containers
 		}
 	}
+	// Return updated pod metadata
 	return podMetaData
 }
