@@ -629,6 +629,64 @@ paths:
                   result:
                     $ref: '#/components/schemas/TaskRunInfoResponse'
 
+    post:
+      description: Get release task (deployment) information
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInfoObjectDto'
+      # parameters:
+      #   - name: id
+      #     description: id of the release object, either this or identifier is required. Preferred.
+      #     in: query
+      #     required: false
+      #     schema:
+      #       example: 23
+      #       type: integer
+      #   - name: identifier
+      #     description: identifier of the release
+      #       `{release-track name}-{release version}` is the unique string combination,
+      #       either this or id is required.
+      #     schema:
+      #       type: string
+      #       example: "android-0.0.1"
+      #     in: query
+      #     required: false
+      #   - name: lite
+      #     description: lite mode for fetching only level data.
+      #     schema:
+      #       type: boolean
+      #       default: false
+      #       example: false
+      #     in: query
+      #     required: false
+      #   - name: levelIndex
+      #     description: fetch dependencies data for a particular level
+      #     schema:
+      #       type: number
+      #       example: 1
+      #     in: query
+      #     required: false
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/RolloutStatusInfo'
+
+
   /orchestrator/resource/task/execute/release/alpha1:
     post:
       description: Execute task (deployment) for release application
@@ -789,6 +847,40 @@ components:
                   - LAST_DEPLOYED_CONFIG
               pipelineId:
                 type: number
+
+    TaskInfoObjectDto:
+      type: object
+      required:
+        [id, idType,kind,version]
+      properties:
+        id:
+          type: integer
+          description: id of the release object
+          example: 1 # either id or identifier is required. Prefered.
+        identifier:
+          type: string
+          description: identifier of the release
+            `{release-track name}-{release version}` is the unique string combination,
+          example: "orchestrator-0.0.1" # either id or identifier is required. Prefered.
+#        infoType:
+#          type: string
+#          enum:
+#            - deploy
+#            - rollout-status
+#          description: signifies what kind of info to be fetched
+        filterCriteria:
+          type: array
+          items:
+            type: string
+            enum:
+              - applications/devtron-application|identifier|demo-app
+              - environment|identifier|devtron-demo
+              - deploymentStatus|value
+              - rolloutStatus|value
+            description: denotes filtering criteria resource|id orIdentiifer| value
+
+
+
 
     DevtronResourcePatchObjectDto:
       type: object
@@ -1604,6 +1696,70 @@ components:
           type: string
           description: artifact registry store name
           example: "devtron-docker"
+
+    RolloutStatusDependency:
+      type: object
+      properties:
+        appId:
+          type: integer
+          example: 5
+          description: The ID of the application.
+        appName:
+          type: string
+          example: orchestrator
+          description: The name of the application.
+        pipelineId:
+          type: integer
+          example: 1
+          description: The ID of the pipeline related to this application.
+        deployStatus:
+          type: string
+          example: Progressing
+          description: The deployment status of this application.
+        preStatus:
+          type: string
+          example: Succeeded
+          description: The status of the pre-deployment stage.
+        postStatus:
+          type: string
+          example: Not Triggered
+          description: The status of the post-deployment stage.
+        deploymentAppDeleteRequest:
+          type: boolean
+          example: false
+          description: Indicates whether there is a deletion request for the deployment of this application.
+        existingStages:
+          type: object
+          properties:
+            pre:
+              type: boolean
+              example: true
+              description: Indicates if the pre-deployment stage exists.
+            deploy:
+              type: boolean
+              example: true
+              description: Indicates if the deployment stage exists.
+            post:
+              type: boolean
+              example: false
+              description: Indicates if the post-deployment stage exists.
+    RolloutStatusInfo:
+      type: array
+      items:
+        properties:
+          envName:
+            type: string
+            example: devtron-demo
+            description: The name of the environment.
+          envId:
+            type: integer
+            example: 1
+            description: The ID of the environment.
+          dependencies:
+            type: array
+            items:
+              $ref: '#/components/schemas/RolloutStatusDependency'
+            description: List of dependencies.
 
     ErrorResponse:
       required:
