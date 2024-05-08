@@ -868,11 +868,20 @@ components:
 #            - deploy
 #            - rollout-status
 #          description: signifies what kind of info to be fetched
+#        stageType:
+#          type: string
+#          enum:
+#            - all-deployments
+#            - yet-to-trigger
+#            - ongoing
+#            - failed
+#            - completed
+#          description: signifies which stage data is to be fetched
         filterCriteria:
           type: array
           items:
             type: string
-            enum:
+            example:
               - applications/devtron-application|identifier|demo-app
               - environment|identifier|devtron-demo
               - deploymentStatus|value
@@ -1697,52 +1706,93 @@ components:
           description: artifact registry store name
           example: "devtron-docker"
 
+    # RolloutStatusDependency:
+    #   type: object
+    #   properties:
+    #     appId:
+    #       type: integer
+    #       example: 5
+    #       description: The ID of the application.
+    #     appName:
+    #       type: string
+    #       example: orchestrator
+    #       description: The name of the application.
+    #     pipelineId:
+    #       type: integer
+    #       example: 1
+    #       description: The ID of the pipeline related to this application.
+    #     deployStatus:
+    #       type: string
+    #       example: Progressing
+    #       description: The deployment status of this application.
+    #     preStatus:
+    #       type: string
+    #       example: Succeeded
+    #       description: The status of the pre-deployment stage.
+    #     postStatus:
+    #       type: string
+    #       example: Not Triggered
+    #       description: The status of the post-deployment stage.
+    #     deploymentAppDeleteRequest:
+    #       type: boolean
+    #       example: false
+    #       description: Indicates whether there is a deletion request for the deployment of this application.
+    #     existingStages:
+    #       type: object
+    #       properties:
+    #         pre:
+    #           type: boolean
+    #           example: true
+    #           description: Indicates if the pre-deployment stage exists.
+    #         deploy:
+    #           type: boolean
+    #           example: true
+    #           description: Indicates if the deployment stage exists.
+    #         post:
+    #           type: boolean
+    #           example: false
+    #           description: Indicates if the post-deployment stage exists.
     RolloutStatusDependency:
-      type: object
-      properties:
-        appId:
-          type: integer
-          example: 5
-          description: The ID of the application.
-        appName:
-          type: string
-          example: orchestrator
-          description: The name of the application.
-        pipelineId:
-          type: integer
-          example: 1
-          description: The ID of the pipeline related to this application.
-        deployStatus:
-          type: string
-          example: Progressing
-          description: The deployment status of this application.
-        preStatus:
-          type: string
-          example: Succeeded
-          description: The status of the pre-deployment stage.
-        postStatus:
-          type: string
-          example: Not Triggered
-          description: The status of the post-deployment stage.
-        deploymentAppDeleteRequest:
-          type: boolean
-          example: false
-          description: Indicates whether there is a deletion request for the deployment of this application.
-        existingStages:
-          type: object
-          properties:
-            pre:
-              type: boolean
-              example: true
-              description: Indicates if the pre-deployment stage exists.
-            deploy:
-              type: boolean
-              example: true
-              description: Indicates if the deployment stage exists.
-            post:
-              type: boolean
-              example: false
-              description: Indicates if the post-deployment stage exists.
+      type: array
+      items:
+        type: object
+        properties:
+          appId:
+            type: number
+            description: application id
+          appName:
+            type: string
+            description: application name.
+          envId:
+            type: number
+            description: environment id
+          envName:
+            type: string
+            description: environment name
+          pipelineId:
+            type: number
+            description: pipeline id
+          deployStatus:
+            type: string
+          preStatus:
+            type: string
+          postStatus:
+            type: string
+          deploymentAppDeleteRequest:
+            type: boolean
+          existingStages:
+            type: object
+            properties:
+              pre:
+                type: boolean
+                description: returns true if pre-deployment exists
+              deploy:
+                type: boolean
+                description: returns true if deployment exists
+              post:
+                type: boolean
+                description: returns true if post-deployment exists
+
     RolloutStatusInfo:
       type: array
       items:
@@ -1760,6 +1810,28 @@ components:
             items:
               $ref: '#/components/schemas/RolloutStatusDependency'
             description: List of dependencies.
+          indexObject:
+            type: array
+            items:
+              properties:
+                indexType:
+                  type: string
+                  example: "environment"
+                  description: type of the index values
+                indexIdentifier:
+                  type: string
+                  example: "devtron-demo"
+                  description: The name of the environment for release rollout status.
+                indexArray:
+                  type: array
+                  items:
+                    type: integer
+                    example:
+                      - 1
+                      - 2
+                      - 3
+
+
 
     ErrorResponse:
       required:
