@@ -44,7 +44,6 @@ func GetProxyServerWithPathTrimFunc(serverAddr string, transport http.RoundTripp
 		} else {
 			request.URL.Path = pathTrimFunc(request.URL.Path)
 		}
-		fmt.Printf("%s\n", request.URL.Path)
 		activityLogger.LogActivity()
 	}
 	return proxy
