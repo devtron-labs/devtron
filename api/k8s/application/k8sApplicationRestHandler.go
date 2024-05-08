@@ -1356,5 +1356,6 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 	if err == nil {
 		handler.logger.Infow("K8sProxyRequest", "Method:", r.Method, "Path:", r.URL.Path, "Email:", userEmail)
 	}
+	r.Header.Set("Cluster-Id", strconv.Itoa(clusterRequested.Id))
 	proxyServer.ServeHTTP(w, r)
 }
