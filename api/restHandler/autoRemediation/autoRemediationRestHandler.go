@@ -327,6 +327,10 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	}
 	queryParams := r.URL.Query()
 	interceptedEventQuery, err := getInterceptedEventsQueryParams(queryParams)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
