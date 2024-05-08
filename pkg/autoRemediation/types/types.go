@@ -54,23 +54,24 @@ type InterceptedEventQuery struct {
 	Namespaces      []string  `json:"namespaces"`
 	ExecutionStatus []string  `json:"execution_status"`
 }
+
 type InterceptedEventData struct {
-	InterceptedEventId int         `sql:"intercepted_event_id"`
-	ClusterId          int         `sql:"cluster_id"`
-	ClusterName        string      `sql:"cluster_name"`
-	Namespace          string      `sql:"namespace"`
-	Action             string      `sql:"action"`
-	Environment        string      `sql:"environment"`
-	Metadata           string      `sql:"metadata"`
-	InvolvedObjects    string      `sql:"involved_objects"`
-	InterceptedAt      time.Time   `sql:"intercepted_at"`
-	TriggerExecutionId int         `sql:"trigger_execution_id"`
-	Status             Status      `sql:"status"`
-	ExecutionMessage   string      `sql:"execution_message"`
-	WatcherName        string      `sql:"watcher_name"`
-	TriggerId          int         `sql:"trigger_id,pk"`
-	TriggerType        TriggerType `sql:"trigger_type"`
-	WatcherId          int         `sql:"watcher_id"`
-	TriggerData        string      `sql:"trigger_data"`
-	TotalCount         int         `sql:"total_count"`
+	InterceptedEventId int         `sql:"intercepted_event_id" json:"interceptedEventId"`
+	ClusterId          int         `sql:"cluster_id" json:"clusterId"`
+	ClusterName        string      `sql:"cluster_name" json:"clusterName"`
+	Namespace          string      `sql:"namespace" json:"namespace"`
+	Action             string      `sql:"action" json:"action"`
+	Environment        string      `sql:"environment" json:"environment"`
+	Metadata           string      `sql:"metadata" json:"metadata"`
+	InvolvedObjects    string      `sql:"involved_objects" json:"involvedObjects"`
+	InterceptedAt      time.Time   `sql:"intercepted_at" json:"interceptedAt"`
+	TriggerExecutionId int         `sql:"trigger_execution_id" json:"triggerExecutionId"`
+	Status             Status      `sql:"status" json:"status"`
+	ExecutionMessage   string      `sql:"execution_message" json:"executionMessage"`
+	WatcherName        string      `sql:"watcher_name" json:"watcherName"`
+	TriggerId          int         `sql:"trigger_id,pk" json:"triggerId"`
+	TriggerType        TriggerType `sql:"trigger_type" json:"triggerType"`
+	WatcherId          int         `sql:"watcher_id" json:"watcherId"`
+	TriggerData        string      `sql:"trigger_data" json:"triggerData"`
+	TotalCount         int         `sql:"total_count" json:"totalCount"`
 }
