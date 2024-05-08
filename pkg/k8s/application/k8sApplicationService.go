@@ -11,7 +11,6 @@ import (
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	client2 "github.com/devtron-labs/scoop/client"
@@ -193,15 +192,6 @@ type ScoopServiceClusterConfig struct {
 	PassKey     string `json:"passKey"`
 	Port        string `json:"port"`
 }
-
-type ScoopServiceClusterConfig struct {
-	ServiceName string `json:"serviceName"`
-	Namespace   string `json:"namespace"`
-	PassKey     string `json:"passKey"`
-	Port        string `json:"port"`
-}
-
-var ScoopNotConfiguredErr = errors.New("scoop not configured")
 
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
@@ -749,12 +739,12 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
 	var filteredDataList []map[string]interface{}
-	//containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
-	//if !containsNameHeader {
+	// containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
+	// if !containsNameHeader {
 	//	impl.logger.Warnw("data does not contains name field, returning empty data", "headers", resourceList.Headers)
 	//	resourceList.Data = []map[string]interface{}{}
 	//	return resourceList, nil
-	//}
+	// }
 	for _, dataRow := range resourceList.Data {
 		resourceName := ""
 		resourceNamespace := ""
@@ -940,7 +930,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV1(ctx context.Context, to
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
 
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -1705,10 +1695,10 @@ func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clu
 }
 
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
-	//return 8081, ScoopServiceClusterConfig{
+	// return 8081, ScoopServiceClusterConfig{
 	//	Port:    "8081",
 	//	PassKey: "abcd",
-	//}, nil
+	// }, nil
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
 		return 0, scoopConfig, ScoopNotConfiguredErr
@@ -1719,5 +1709,5 @@ func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterI
 		return 0, scoopConfig, err
 	}
 	return scoopPort, scoopConfig, nil
-	//return 8081, ScoopServiceClusterConfig{PassKey: "abcd"}, nil
+	// return 8081, ScoopServiceClusterConfig{PassKey: "abcd"}, nil
 }

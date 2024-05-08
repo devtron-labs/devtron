@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"github.com/go-pg/pg"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"

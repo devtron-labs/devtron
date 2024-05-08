@@ -44,7 +44,7 @@ type ApiTokenService interface {
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
 	CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error)
-	CreateApiJwtToken(email string, expireAtInMs int64) (string, error)
+	CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -230,7 +230,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 
 	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
+	token, err := impl.CreateApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		token, err := impl.createApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
+		token, err := impl.CreateApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
 		if err != nil {
 			return nil, err
 		}
@@ -404,7 +404,7 @@ func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(claims *TokenCu
 	return token, nil
 
 }
-func (impl ApiTokenServiceImpl) createApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {
 		return "", err
