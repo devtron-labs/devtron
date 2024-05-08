@@ -113,6 +113,7 @@ const (
 	ResourceObjectOverviewPath      = "overview"
 	ResourceObjectIdPath            = "overview.id"
 	ResourceObjectNamePath          = "overview.name"
+	ResourceObjectIdentifierPath    = "overview.identifier"
 	ResourceObjectDescriptionPath   = "overview.description"
 	ResourceObjectCreatedOnPath     = "overview.createdOn"
 	ResourceObjectCreatedByPath     = "overview.createdBy"
@@ -153,3 +154,10 @@ const (
 	ResourceObjectRunSourcePath = "overview.runSource"
 	ResourceTaskRunActionPath   = "action"
 )
+
+var DefaultConfigStatus = &ConfigStatus{
+	Status:   DraftReleaseConfigStatus,
+	IsLocked: false,
+}
+
+var DefaultRolloutStatus = NotDeployedReleaseRolloutStatus

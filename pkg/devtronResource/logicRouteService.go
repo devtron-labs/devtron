@@ -7,6 +7,7 @@ import (
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	"time"
 )
 
 func getFuncForGetApiResourceKindUIComponent(kind, component string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceSchema,
@@ -369,6 +370,21 @@ var validateResourceObjectDeleteFuncMap = map[string]func(*DevtronResourceServic
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseDelete,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseTrackDelete,
+}
+
+func getFuncToSetDefaultAndGetPathUpdateMapForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier, time.Time) (map[string]interface{}, error) {
+	if f, ok := setDefaultAndGetPathUpdateMapForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var setDefaultAndGetPathUpdateMapForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier, time.Time) (map[string]interface{}, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).setDefaultValueAndGetPathUpdateMapForReleaseClone,
 }
 
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {

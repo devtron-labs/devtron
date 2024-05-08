@@ -272,23 +272,31 @@ func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseReq
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) getIdentifierForCreateReleaseRequest(descriptorBean *bean.DevtronResourceObjectDescriptorBean, parentConfig *bean.ResourceIdentifier, releaseVersion string) (identifier string, err error) {
-	// identifier for release is {release-track-name-version}
+func (impl *DevtronResourceServiceImpl) getIdentifierForCreateReleaseRequest(descriptorBean *bean.DevtronResourceObjectDescriptorBean,
+	parentConfig *bean.ResourceIdentifier, releaseVersion string) (identifier string, err error) {
+	return impl.getIdentifierForReleaseByParentDescriptorBean(releaseVersion, parentConfig)
+}
+
+func (impl *DevtronResourceServiceImpl) getIdentifierForReleaseByParentDescriptorBean(releaseVersion string, parentConfig *bean.ResourceIdentifier) (string, error) {
+	// identifier for release is {releaseTrackName-version}
 	if len(parentConfig.Identifier) != 0 {
 		// identifier for parent is same as name for release-track,
 		return fmt.Sprintf("%s-%s", parentConfig.Identifier, releaseVersion), nil
 	} else if (parentConfig.Id) != 0 {
-		_, existingObject, err := impl.getResourceSchemaAndExistingObject(&bean.DevtronResourceObjectDescriptorBean{Kind: parentConfig.ResourceKind.ToString(), SubKind: parentConfig.ResourceSubKind.ToString(), Version: parentConfig.ResourceVersion.ToString(), Id: parentConfig.Id})
+		_, existingObject, err := impl.getResourceSchemaAndExistingObject(&bean.DevtronResourceObjectDescriptorBean{
+			SchemaId: parentConfig.SchemaId,
+			Kind:     parentConfig.ResourceKind.ToString(),
+			SubKind:  parentConfig.ResourceSubKind.ToString(),
+			Version:  parentConfig.ResourceVersion.ToString(),
+			Id:       parentConfig.Id})
 		if err != nil {
 			impl.logger.Errorw("error encountered in getIdentifierForCreateReleaseRequest", "id", parentConfig.Id, "err", err)
 			return "", err
 		}
 		return fmt.Sprintf("%s-%s", existingObject.Identifier, releaseVersion), nil
 	}
-
 	return "", util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidParentConfigIdOrIdentifier, bean.InvalidParentConfigIdOrIdentifier)
 }
-
 func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
 	if reqBean.ConfigStatus == nil {
@@ -1490,4 +1498,33 @@ func (impl *DevtronResourceServiceImpl) updateRolloutStatusInExistingObject(exis
 	}
 	impl.dtResourceObjectAuditService.SaveAudit(existingObject, repository.AuditOperationTypeUpdate, []string{bean.ReleaseResourceRolloutStatusPath})
 	return nil
+}
+
+func (impl *DevtronResourceServiceImpl) setDefaultValueAndGetPathUpdateMapForReleaseClone(req *bean.DtResourceObjectCloneReqBean,
+	parentConfig *bean.ResourceIdentifier, createdOn time.Time) (map[string]interface{}, error) {
+	identifier, err := impl.getIdentifierForReleaseByParentDescriptorBean(req.Overview.ReleaseVersion, parentConfig)
+	if err != nil {
+		impl.logger.Errorw("error, getIdentifierForReleaseByParentDescriptorBean", "err", err, "parentConfig", parentConfig, "releaseVersion", req.Overview.ReleaseVersion)
+		return nil, err
+	}
+	req.Identifier = identifier
+	if len(req.Name) == 0 {
+		req.Name = req.Overview.ReleaseVersion
+	}
+	//step 5 : create new resource object
+	userObj, err := impl.userRepository.GetById(req.UserId)
+	replaceDataMap := map[string]interface{}{
+		bean.ResourceObjectIdPath:                 req.Id,                   //reset Id
+		bean.ResourceObjectTagsPath:               req.Overview.Tags,        //reset tags
+		bean.ResourceObjectIdentifierPath:         req.Identifier,           //reset identifier
+		bean.ResourceObjectNamePath:               req.Name,                 //reset name
+		bean.ResourceObjectDescriptionPath:        req.Overview.Description, //reset description
+		bean.ReleaseResourceObjectReleaseNotePath: "",                       //reset note
+		bean.ResourceObjectCreatedByIdPath:        userObj.Id,               //reset created by
+		bean.ResourceObjectCreatedByNamePath:      userObj.EmailId,
+		bean.ResourceObjectCreatedOnPath:          createdOn,                 //reset created on
+		bean.ReleaseResourceConfigStatusPath:      bean.DefaultConfigStatus,  //reset config status
+		bean.ReleaseResourceRolloutStatusPath:     bean.DefaultRolloutStatus, //reset rollout status
+	}
+	return replaceDataMap, nil
 }

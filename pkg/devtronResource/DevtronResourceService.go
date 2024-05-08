@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"go.opentelemetry.io/otel"
@@ -66,6 +67,10 @@ type DevtronResourceService interface {
 	PatchResourceObject(ctx context.Context, req *bean.DtResourceObjectPatchReqBean) (*bean.SuccessResponse, error)
 	// DeleteResourceObject deletes resource object corresponding to kind,version, id or name
 	DeleteResourceObject(ctx context.Context, req *bean.DevtronResourceObjectDescriptorBean) (*bean.SuccessResponse, error)
+
+	// CloneResourceObject clones resource object within the same kind and version and within the same parent resource object
+	CloneResourceObject(ctx context.Context, req *bean.DtResourceObjectCloneReqBean) error
+
 	// GetResourceDependencies will get the bean.DtResourceObjectDependenciesReqBean based on the given bean.DevtronResourceObjectDescriptorBean
 	// It provides the dependencies and child dependencies []bean.DevtronResourceDependencyBean
 	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DtResourceObjectDependenciesReqBean, error)
@@ -622,6 +627,130 @@ func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context
 //
 
 //
+//Clone resource object and related method starts
+
+// CloneResourceObject : clones a resource object
+// step 1 : validate that if the new version requested is already present
+// step 2 : validate if clone source is valid
+// step 3 : get parent for clone request
+// step 4 : remove/update fields from clone source object data
+// step 5 : create new resource object
+func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context, req *bean.DtResourceObjectCloneReqBean) error {
+	createdOn := time.Now()
+	//step 1 : validate that if the new version requested is already present
+	_, existingResourceObjectFound, err := impl.getResourceSchemaAndCheckIfObjectFound(req.DevtronResourceObjectDescriptorBean)
+	if err != nil {
+		impl.logger.Errorw("error in getResourceSchemaAndCheckIfObjectFound", "err", err, "request", req.DevtronResourceObjectDescriptorBean)
+		return err
+	}
+	if existingResourceObjectFound {
+		impl.logger.Errorw("error in CloneResourceObject, request resource object already exists", "request", req.DevtronResourceObjectDescriptorBean)
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceAlreadyExistsMessage, bean.ResourceAlreadyExistsMessage)
+	}
+	//step 2 : validate if clone source is valid
+	cloneFromDescriptorBean := &bean.DevtronResourceObjectDescriptorBean{
+		//using kind, subKind, version from request and not from cloneFrom because this should be same with where getting cloned
+		Kind:       req.Kind,
+		SubKind:    req.SubKind,
+		Version:    req.Version,
+		Id:         req.CloneFrom.Id,
+		Identifier: req.CloneFrom.Identifier,
+	}
+	schemaObj, cloneFromObj, err := impl.getResourceSchemaAndExistingObject(cloneFromDescriptorBean)
+	if err != nil {
+		impl.logger.Errorw("error in getResourceSchemaAndExistingObject", "err", err, "cloneFromDescriptorBean", cloneFromDescriptorBean)
+		return err
+	}
+	if cloneFromObj == nil || cloneFromObj.Id == 0 {
+		impl.logger.Errorw("error in CloneResourceObject, clone source does not exists", "request", req.DevtronResourceObjectDescriptorBean)
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.CloneSourceDoesNotExistsErrMessage, bean.CloneSourceDoesNotExistsErrMessage)
+	}
+	//step 3 : get parent for clone request
+	parentTypeDep, err := impl.getParentDependencyFromObjectData(schemaObj.Id, cloneFromObj.ObjectData)
+	if err != nil {
+		impl.logger.Errorw("err, getParentDependencyFromObjectData", "err", err, "schemaId", schemaObj.Id, cloneFromObj.ObjectData)
+		//only logging since every resource currently do not have parent dependency
+	}
+	var parentConfig *bean.ResourceIdentifier
+	if parentTypeDep != nil && parentTypeDep.OldObjectId > 0 {
+		schemaOfParent := impl.devtronResourcesSchemaMapById[parentTypeDep.DevtronResourceSchemaId]
+		parentConfig = &bean.ResourceIdentifier{
+			Id:         parentTypeDep.OldObjectId,
+			Identifier: parentTypeDep.Identifier,
+			DevtronResourceTypeReq: bean.DevtronResourceTypeReq{
+				SchemaId: schemaOfParent.Id,
+			},
+		}
+	}
+	//step 4 : remove/update fields from clone source object data
+	replaceDataMap := make(map[string]interface{})
+	f := getFuncToSetDefaultAndGetPathUpdateMapForCloneReq(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		replaceDataMap, err = f(impl, req, parentConfig, createdOn)
+		if err != nil {
+			impl.logger.Errorw("err, SetDefaultAndGetPathUpdateMapForCloneReq", "err", err, "req", req)
+			return err
+		}
+	}
+
+	//step 5 : create new resource object
+	objectData := cloneFromObj.ObjectData
+	for pathToBeUpdated, valueToBeUpdated := range replaceDataMap {
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, pathToBeUpdated, valueToBeUpdated)
+		if err != nil {
+			impl.logger.Errorw("error in updating new data in clone source object", "err", err, "pathToBeUpdated", pathToBeUpdated, "valueToBeUpdated", valueToBeUpdated)
+			return err
+		}
+	}
+	devtronResourceObject := &repository.DevtronResourceObject{
+		Identifier:              req.Identifier,
+		DevtronResourceId:       schemaObj.DevtronResourceId,
+		DevtronResourceSchemaId: schemaObj.Id,
+		ObjectData:              objectData,
+		Deleted:                 false,
+		AuditLog: sql.AuditLog{
+			CreatedBy: req.UserId,
+			CreatedOn: createdOn,
+			UpdatedBy: req.UserId,
+			UpdatedOn: createdOn,
+		},
+	}
+	// for IdType -> bean.ResourceObjectIdType; DevtronResourceObject.OldObjectId is not present
+	if req.IdType != bean.ResourceObjectIdType {
+		devtronResourceObject.OldObjectId = req.OldObjectId
+	}
+	tx, err := impl.devtronResourceObjectRepository.StartTx()
+	defer impl.devtronResourceObjectRepository.RollbackTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error encountered in db tx, createOrUpdateDevtronResourceObject", "err", err)
+		return err
+	}
+	err = impl.devtronResourceObjectRepository.Save(tx, devtronResourceObject)
+	if err != nil {
+		impl.logger.Errorw("error in saving", "err", err, "req", devtronResourceObject)
+		return err
+	}
+	if parentConfig != nil {
+		err = impl.addChildDependencyToParentResourceObj(ctx, tx, parentConfig, devtronResourceObject, req.IdType)
+		if err != nil {
+			impl.logger.Errorw("error in updating parent resource object", "err", err, "parentConfig", parentConfig)
+			return err
+		}
+	}
+	//saving audit
+	impl.dtResourceObjectAuditService.SaveAudit(devtronResourceObject, repository.AuditOperationTypeClone, nil)
+	err = impl.devtronResourceObjectRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx createOrUpdateDevtronResourceObject", "err", err)
+		return err
+	}
+	return nil
+}
+
+//Clone resource object and related method ends
+//
+
+//
 //Get resource object dependencies and related method starts
 
 func (impl *DevtronResourceServiceImpl) GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetDependencyQueryParams) (*bean.DtResourceObjectDependenciesReqBean, error) {
@@ -700,7 +829,6 @@ func (impl *DevtronResourceServiceImpl) GetDependencyConfigOptions(req *bean.Dev
 		if err != nil {
 			return nil, err
 		}
-	case apiBean.CommitConfig:
 	default:
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidQueryConfigOption, bean.InvalidQueryConfigOption)
 	}
@@ -1648,7 +1776,13 @@ func (impl *DevtronResourceServiceImpl) getDevtronResourceIdsFromIdentifiers(ide
 }
 
 func (impl *DevtronResourceServiceImpl) getResourceSchemaAndExistingObject(req *bean.DevtronResourceObjectDescriptorBean) (*repository.DevtronResourceSchema, *repository.DevtronResourceObject, error) {
-	resourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(req.Kind, req.SubKind, req.Version)
+	var resourceSchema *repository.DevtronResourceSchema
+	var err error
+	if req.SchemaId != 0 {
+		resourceSchema, err = impl.devtronResourceSchemaRepository.FindById(req.SchemaId)
+	} else {
+		resourceSchema, err = impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(req.Kind, req.SubKind, req.Version)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in getting devtronResourceSchema", "err", err, "request", req)
 		if util.IsErrNoRows(err) {

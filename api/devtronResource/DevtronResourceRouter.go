@@ -39,6 +39,9 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 	devtronResourceRouter.Path("/task/info/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.GetTaskRunInfo).Methods("GET")
 
+	devtronResourceRouter.Path("/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}/clone").
+		HandlerFunc(router.devtronResourceRestHandler.CloneResourceObject).Methods("POST")
+
 	//regex in path allows to have sub-kinds, for ex - "/applications/devtron-apps/v1" & "/cluster/v1" both will be accepted
 	devtronResourceRouter.Path("/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.GetResourceObject).Methods("GET")

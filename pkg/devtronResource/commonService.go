@@ -179,6 +179,19 @@ func validateDependencyFilterCondition(dependencyOfParent *bean.DevtronResourceD
 	return false
 }
 
+func (impl *DevtronResourceServiceImpl) getParentDependencyFromObjectData(devtronResourceSchemaId int, objectData string) (*bean.DevtronResourceDependencyBean, error) {
+	parentTypeDependencies, err := impl.getSpecificDependenciesInObjectDataFromJsonString(devtronResourceSchemaId, objectData, bean.DevtronResourceDependencyTypeParent)
+	if err != nil {
+		impl.logger.Errorw("error in getting parent dependency of ")
+		return nil, err
+	}
+	if len(parentTypeDependencies) != 1 {
+		impl.logger.Errorw("invalid parent dependency mapping found", "schemaId", devtronResourceSchemaId, "objectData", objectData)
+		return nil, err
+	}
+	return parentTypeDependencies[0], nil
+}
+
 func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJsonString(devtronResourceSchemaId int, objectData string, typeOfDependency bean.DevtronResourceDependencyType) ([]*bean.DevtronResourceDependencyBean, error) {
 	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)
 	dependenciesResultArr := dependenciesResult.Array()

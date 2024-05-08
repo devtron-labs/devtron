@@ -116,6 +116,7 @@ type DevtronResourceTypeReq struct {
 	ResourceKind    DevtronResourceKind    `json:"resourceKind"`
 	ResourceSubKind DevtronResourceKind    `json:"-"` // ResourceSubKind will be derived internally from the given ResourceKind
 	ResourceVersion DevtronResourceVersion `json:"resourceVersion"`
+	SchemaId        int                    `json:"-"`
 }
 
 type PatchQuery struct {
@@ -608,6 +609,7 @@ const (
 	DeploymentByPassingMessage               = "You are authorised to deploy outside maintenance window"
 	InvalidParentConfigIdOrIdentifier        = "invalid parent id or identifier"
 	ActionPolicyInValidDueToStatusErrMessage = "Operation not allowed with the current status."
+	CloneSourceDoesNotExistsErrMessage       = "Clone source does not exists."
 )
 
 type ChildObjectType string

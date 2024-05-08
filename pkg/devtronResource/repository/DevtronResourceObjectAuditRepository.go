@@ -13,6 +13,7 @@ const (
 	AuditOperationTypeUpdate  AuditOperationType = "UPDATE"
 	AuditOperationTypePatch   AuditOperationType = "PATCH"
 	AuditOperationTypeDeleted AuditOperationType = "DELETE"
+	AuditOperationTypeClone   AuditOperationType = "CLONE"
 )
 
 type DevtronResourceObjectAuditRepository interface {
