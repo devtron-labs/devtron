@@ -459,6 +459,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		triggerOperationRequest := adapter.GetTriggerOperationDto(triggerRequest, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF, overrideRequest.PipelineId, scope, triggeredAt, overrideRequest.CdWorkflowId)
 		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest, overrideRequest.DeploymentType)
 		if err != nil {
+			err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(overrideRequest.CdWorkflowRunnerId, overrideRequest.UserId, err)
+			if err2 != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err", err)
+			}
 			impl.logger.Errorw("error encountered in ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
 			return 0, "", err
 		}
@@ -2123,4 +2127,20 @@ func (impl *TriggerServiceImpl) GetCdWorkflowRunnerWithEnvConfig(cdWorkflowType 
 			pipeline.RunPreStageInEnv, pipeline.RunPostStageInEnv),
 		cdWorkflowId, impl.getIfBlobStorageIsEnabled(),
 		impl.getLogLocationBasedOnWorkflowType(cdWorkflowType, pipeline.Name, cdWorkflowId))
+}
+
+func (impl *TriggerServiceImpl) markCurrentRunnerFailedIfRunnerIsFound(cdWfrId int, userId int32, errFound error) error {
+	if cdWfrId != 0 {
+		runner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(cdWfrId)
+		if err != nil {
+			impl.logger.Errorw("err in FindWorkflowRunnerById, performOperationsForAutoOrManualTrigger", "cdWfrId", cdWfrId, "err", err)
+			return err
+		}
+		err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errFound, userId)
+		if err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			return err
+		}
+	}
+	return nil
 }
