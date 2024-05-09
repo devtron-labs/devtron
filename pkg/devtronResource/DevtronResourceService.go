@@ -637,6 +637,7 @@ func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context
 // step 5 : create new resource object
 func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context, req *bean.DtResourceObjectCloneReqBean) error {
 	createdOn := time.Now()
+	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	//step 1 : validate that if the new version requested is already present
 	_, existingResourceObjectFound, err := impl.getResourceSchemaAndCheckIfObjectFound(req.DevtronResourceObjectDescriptorBean)
 	if err != nil {
