@@ -106,7 +106,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 	// 3. Create Git Repo if required
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
 		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, ctx)
 		if errMsg != nil {
 			manifestPushResponse.Error = errMsg
@@ -148,7 +148,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	gitCommitTimeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", manifestPushTemplate.UserId, time.Now())
 
 	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
 		argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", manifestPushTemplate.UserId, time.Now())
 		timelines = append(timelines, argoCDSyncInitiatedTimeline)

@@ -42,12 +42,14 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
+	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH     = "manifest_push"
 	CHART_WORKING_DIR_PATH                     = "/tmp/charts/"
 )
 
 type ChartCreateRequest struct {
-	ChartMetaData *chart.Metadata
-	ChartPath     string
+	ChartMetaData       *chart.Metadata
+	ChartPath           string
+	IncludePackageChart bool
 }
 
 type ChartCreateResponse struct {
@@ -432,6 +434,10 @@ func IsAcdApp(deploymentAppType string) bool {
 // TODO refactoring: This feature belongs to enterprise only
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}
+
+func IsManifestPush(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH
 }
 
 func IsOCIRegistryChartProvider(ociRegistry dockerRegistryRepository.DockerArtifactStore) bool {

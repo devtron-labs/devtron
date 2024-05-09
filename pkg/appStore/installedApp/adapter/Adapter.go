@@ -11,7 +11,7 @@ import (
 func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, tempRefChart string) *bean.PushChartToGitRequestDTO {
 	return &bean.PushChartToGitRequestDTO{
 		AppName:           installAppRequestDTO.AppName,
-		EnvName:           installAppRequestDTO.Environment.Name,
+		EnvName:           installAppRequestDTO.EnvironmentName,
 		ChartAppStoreName: installAppRequestDTO.AppStoreName,
 		RepoURL:           installAppRequestDTO.GitOpsRepoURL,
 		TempChartRefDir:   tempRefChart,
@@ -19,14 +19,15 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 	}
 }
 
-func ParseChartCreateRequest(appName string) *util.ChartCreateRequest {
+func ParseChartCreateRequest(appName string, includePackageChart bool) *util.ChartCreateRequest {
 	chartPath := getRefProxyChartPath()
 	return &util.ChartCreateRequest{
 		ChartMetaData: &chart.Metadata{
 			Name:    appName,
 			Version: "1.0.1",
 		},
-		ChartPath: chartPath,
+		ChartPath:           chartPath,
+		IncludePackageChart: includePackageChart,
 	}
 }
 

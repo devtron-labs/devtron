@@ -156,7 +156,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return nil, err
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
@@ -304,7 +304,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
-	isManualSync := !impl.acdConfig.ArgoCDAutoSyncEnabled
+	isManualSync := impl.acdConfig.IsManualSyncEnabled()
 
 	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
 		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedApp.UserId, time.Now())
@@ -417,6 +417,12 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 	clusterId := int32(installedApp.ClusterId)
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
+
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
+		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
+	}
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,

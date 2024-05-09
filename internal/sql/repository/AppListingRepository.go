@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -76,6 +77,7 @@ type AppNameTypeIdContainerDBResponse struct {
 }
 
 type LastDeployed struct {
+	CiArtifactId      int    `sql:"ci_artifact_id"`
 	LastDeployedBy    string `sql:"last_deployed_by"`
 	LastDeployedImage string `sql:"last_deployed_image"`
 }
@@ -86,6 +88,7 @@ type AppListingRepositoryImpl struct {
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
 	environmentRepository            repository2.EnvironmentRepository
 	gitOpsRepository                 GitOpsConfigRepository
+	appWorkflowRepository            appWorkflow2.AppWorkflowRepository
 }
 
 func NewAppListingRepositoryImpl(
@@ -93,13 +96,14 @@ func NewAppListingRepositoryImpl(
 	dbConnection *pg.DB,
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
 	environmentRepository repository2.EnvironmentRepository,
-	gitOpsRepository GitOpsConfigRepository) *AppListingRepositoryImpl {
+	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppListingRepositoryImpl {
 	return &AppListingRepositoryImpl{
 		dbConnection:                     dbConnection,
 		Logger:                           Logger,
 		appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder,
 		environmentRepository:            environmentRepository,
 		gitOpsRepository:                 gitOpsRepository,
+		appWorkflowRepository:            appWorkflowRepository,
 	}
 }
 
@@ -157,7 +161,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
 	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
-	query := `select ca.image as last_deployed_image, 
+	query := `select ca.id as ci_artifact_id,ca.image as last_deployed_image, 
 			    case
 					when u.active = false then u.email_id || ' (inactive)'
 					else u.email_id
@@ -320,6 +324,20 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 	return appEnvArr, appsSize, nil
 }
 
+func (impl AppListingRepositoryImpl) getEnvironmentNameFromPipelineId(pipelineID int) (string, error) {
+	var environmentName string
+	query := "SELECT e.environment_name " +
+		"FROM pipeline p " +
+		"JOIN environment e ON p.environment_id = e.id WHERE p.id = ?"
+
+	_, err := impl.dbConnection.Query(&environmentName, query, pipelineID)
+	if err != nil {
+		impl.Logger.Errorw("error in finding environment", "err", err, "pipelineID", pipelineID)
+		return "", err
+	}
+	return environmentName, nil
+}
+
 // DeploymentDetailsByAppIdAndEnvId It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
 func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
@@ -339,7 +357,10 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" p.id as cd_pipeline_id," +
+		" p.ci_pipeline_id," +
+		" p.trigger_type" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -421,6 +442,11 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
+	}
+	appWfMapping, _ := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
+	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
+		parentEnvironmentName, _ := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
+		deploymentDetail.ParentEnvironmentName = parentEnvironmentName
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
@@ -604,8 +630,8 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	var otherEnvironments []*bean.Environment
 	//TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
-       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
-      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image,
+      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status,ca.id as ci_artifact_id
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
                   	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 

@@ -8,6 +8,7 @@ import (
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
+	"github.com/devtron-labs/devtron/api/appStore"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -51,6 +52,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -82,6 +84,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util3.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -89,10 +92,10 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		gitOps.GitOpsEAWireSet,
+		providerConfig.DeploymentProviderConfigWireSet,
 		argoApplication.ArgoApplicationWireSet,
 		NewApp,
 		NewMuxRouter,
-		util3.GetGlobalEnvVariables,
 		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.IntValidator,
@@ -100,12 +103,14 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 
+		sql.NewTransactionUtilImpl,
+
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-		//appStatus
+		// appStatus
 		appStatus.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatus.AppStatusRepository), new(*appStatus.AppStatusRepositoryImpl)),
-		//appStatus ends
+		// appStatus ends
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
@@ -126,7 +131,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		//acd session client bind with authenticator login
+		// acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
@@ -153,7 +158,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 		pipelineConfig.NewCiPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
-		// // needed for enforcer util ends
+		// needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
@@ -182,7 +187,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
-		util3.GetDevtronSecretName,
 
 		repository2.NewK8sResourceHistoryRepositoryImpl,
 		wire.Bind(new(repository2.K8sResourceHistoryRepository), new(*repository2.K8sResourceHistoryRepositoryImpl)),
@@ -190,12 +194,8 @@ func InitializeApp() (*App, error) {
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 
-		util.NewChartTemplateServiceImpl,
-		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
-		//pubsub_lib.NewPubSubClientServiceImpl,
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,
@@ -218,6 +218,7 @@ func InitializeApp() (*App, error) {
 
 		// end: docker registry wire set injection
 		cron.NewCronLoggerImpl,
+		appStore.AppStoreWireSet,
 	)
 	return &App{}, nil
 }

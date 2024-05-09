@@ -16,8 +16,9 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
+
+	//"github.com/xanzy/go-gitlab"
 	"net/http"
-	"regexp"
 )
 
 type InstalledAppGitOpsService interface {
@@ -45,18 +46,6 @@ func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *be
 		impl.Logger.Errorw("Error in pushing chart to git", "err", err)
 		return appStoreGitOpsResponse, err
 	}
-	space := regexp.MustCompile(`\s+`)
-	appStoreName := space.ReplaceAllString(installAppVersionRequest.AppName, "-")
-
-	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
-	// step-2 commit dependencies and values in git
-	if !installAppVersionRequest.IsNewGitOpsRepo {
-		githash, err = impl.gitOperationService.CommitRequirementsAndValues(appStoreName, chartGitAttribute.RepoUrl, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
-		if err != nil {
-			impl.Logger.Errorw("error in committing config to git", "err", err)
-			return appStoreGitOpsResponse, err
-		}
-	}
 	appStoreGitOpsResponse.ChartGitAttribute = chartGitAttribute
 	appStoreGitOpsResponse.GitHash = githash
 	return appStoreGitOpsResponse, nil
@@ -71,6 +60,8 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionReq
 		impl.Logger.Errorw("Error in building chart while generating manifest", "err", err)
 		return manifestResponse, err
 	}
+	// valuesConfig and dependencyConfig's ChartConfig object contains ChartRepoName which is extracted from gitOpsRepoUrl
+	// that resides in the db and not from the current orchestrator cm prefix and appName.
 	valuesConfig, dependencyConfig, err := impl.getValuesAndRequirementForGitConfig(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching values and requirements.yaml config while generating manifest", "err", err)
@@ -125,14 +116,18 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 		noTargetFoundForRequirements, _ := impl.parseGitRepoErrorResponse(requirementsCommitErr)
 		if noTargetFoundForRequirements || noTargetFoundForValues {
 			//create repo again and try again  -  auto fix
-			*monoRepoMigrationRequired = true // since repo is created again, will use this flag to check if ACD patch operation required
-			installAppVersionRequest.GitOpsRepoURL = ""
+			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL), installAppVersionRequest.UserId)
+			if err != nil {
+				impl.Logger.Errorw("error in creating gitops repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
+				return nil, err
+			}
 			return impl.GitOpsOperations(manifest, installAppVersionRequest)
 		}
 		impl.Logger.Errorw("error in performing GitOps for upgrade deployment", "ValuesCommitErr", valuesCommitErr, "RequirementsCommitErr", requirementsCommitErr)
 		return nil, fmt.Errorf("error in committing values and requirements to git repository")
 	}
 	gitOpsResponse.GitHash = gitHash
+	gitOpsResponse.ChartGitAttribute = &commonBean.ChartGitAttribute{RepoUrl: installAppVersionRequest.GitOpsRepoURL, ChartLocation: installAppVersionRequest.ACDAppName}
 	return gitOpsResponse, nil
 }
 
@@ -167,6 +162,7 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
 func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
+	// in case of monorepo migration installAppVersionRequest.GitOpsRepoURL is ""
 	if len(installAppVersionRequest.GitOpsRepoURL) == 0 {
 		gitOpsConfigStatus, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 		if err != nil {
@@ -189,24 +185,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 		installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
 		installAppVersionRequest.IsCustomRepository = false
 		installAppVersionRequest.IsNewGitOpsRepo = isNew
-		dbConnection := impl.installedAppRepository.GetConnection()
-		tx, err := dbConnection.Begin()
-		if err != nil {
-			return nil, "", err
-		}
-		// Rollback tx on error.
-		defer tx.Rollback()
-		InstalledApp.UpdateGitOpsRepository(gitopsRepoURL, false)
-		_, err = impl.installedAppRepository.UpdateInstalledApp(InstalledApp, tx)
-		if err != nil {
-			impl.Logger.Errorw("error while fetching from db", "error", err)
-			return nil, "", err
-		}
-		err = tx.Commit()
-		if err != nil {
-			impl.Logger.Errorw("error while commit db transaction to db", "error", err)
-			return nil, "", err
-		}
+
 	}
 	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, builtChartPath)
 	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(pushChartToGitRequest, requirementsConfig, valuesConfig)
@@ -285,7 +264,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
-	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName)
+	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, true)
 	chartCreateResponse, err := impl.appStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in building chart proxy", "err", err)

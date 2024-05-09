@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/module"
 	"net/http"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -210,7 +210,7 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 		isPostStageExist = true
 	}
 
-	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributesRepository.FindByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
@@ -286,6 +286,7 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return false, err
 	}
+	defer resp.Body.Close()
 	impl.logger.Debugw("event completed", "event resp", resp)
 	return true, err
 }

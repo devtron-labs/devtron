@@ -42,12 +42,14 @@ import (
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean8 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -63,6 +65,7 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -114,13 +117,11 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
-
-	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	imageScanService                    security2.ImageScanService
+	enforcerUtil                        rbac.EnforcerUtil
+	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
-	scanResultRepository          security.ImageScanResultRepository
-	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
@@ -138,6 +139,7 @@ type TriggerServiceImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
+	K8sUtil                       *util5.K8sServiceImpl
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -168,10 +170,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
-	globalEnvVariables *util3.GlobalEnvVariables,
+	envVariables *util3.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
-	scanResultRepository security.ImageScanResultRepository,
-	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -188,7 +188,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
+	imageScanService security2.ImageScanService,
+	K8sUtil *util5.K8sServiceImpl) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -218,11 +220,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
-		globalEnvVariables:                  globalEnvVariables,
+		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
-		scanResultRepository:                scanResultRepository,
-		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageScanHistoryRepository:          imageScanHistoryRepository,
 		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
@@ -240,6 +240,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		imageScanService:                    imageScanService,
+		K8sUtil:                             K8sUtil,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -400,7 +402,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 		if err != nil {
 			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
 			return 0, err
@@ -579,32 +582,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 	// custom GitOps repo url validation --> Ends
-
+	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(pipeline, artifact.ImageDigest)
 	//checking vulnerability for deploying image
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return err
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, env.ClusterId, pipeline.EnvironmentId, pipeline.AppId, false)
-		if err != nil {
-			impl.logger.Errorw("error while fetching blocked cve list", "err", err)
-			return err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(request.TriggerContext.Context, vulnerabilityCheckRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+		return err
 	}
 	if isVulnerable == true {
 		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
@@ -839,32 +822,8 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
-		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.checkIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
-}
-
-// checkIfRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
-	monoRepoMigrationRequired := false
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
-		return false
-	}
-	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName, err = impl.getAcdAppGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
-		if err != nil || gitOpsRepoName == "" {
-			return false
-		}
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
-		monoRepoMigrationRequired = true
-	}
-	return monoRepoMigrationRequired
 }
 
 // getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
@@ -923,9 +882,23 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplate := envOverride.Chart.ReferenceTemplate
+	referenceTemplatePath := path.Join(bean5.RefChartDirPath, referenceTemplate)
 
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
+		var sanitizedK8sVersion string
+		//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
+		//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
+		//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
+		cronJobChartRegex := regexp.MustCompile(bean.CronJobChartRegexExpression)
+		if cronJobChartRegex.MatchString(referenceTemplate) {
+			k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+			if err != nil {
+				impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+				return false, err
+			}
+			sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(k8sServerVersion.String())
+		}
 		referenceChartByte := envOverride.Chart.ReferenceChart
 		// here updating reference chart into database.
 		if len(envOverride.Chart.ReferenceChart) == 0 {
@@ -973,6 +946,9 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
+			if len(sanitizedK8sVersion) > 0 {
+				req.K8SVersion = sanitizedK8sVersion
+			}
 			if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
 			}
@@ -994,7 +970,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 		} else {
 
-			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave, sanitizedK8sVersion)
 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
@@ -1053,7 +1029,7 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
@@ -1065,7 +1041,7 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, err.Error())
 	}
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			StatusTime:         syncTime,
@@ -1092,13 +1068,13 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 }
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
-func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
+func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride) (bool, error) {
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
 		return false, nil
 	}
 	argoAppName := pipeline.DeploymentAppName
-	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
+	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName)
 	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(ctx, argoAppName)
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
@@ -1108,7 +1084,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, envOverride.Chart.GitRepoUrl, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
 				ChartLocation:  envOverride.Chart.ChartLocation,
@@ -1120,6 +1096,9 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 			if err != nil {
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
+			}
+			if envOverride.Chart.GitRepoUrl != argoApplication.Spec.Source.RepoURL {
+				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
 		} else {
@@ -1173,7 +1152,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
@@ -1197,12 +1176,15 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string, k8sServerVersion string) (*gRPC.HelmInstallCustomResponse, error) {
 
 	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
 		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
+	}
+	if len(k8sServerVersion) > 0 {
+		helmInstallRequest.K8SVersion = k8sServerVersion
 	}
 	if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
 		helmInstallRequest.RunInCtx = true
