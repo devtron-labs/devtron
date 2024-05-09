@@ -579,7 +579,7 @@ paths:
                       $ref: '#/components/schemas/ArtifactsList'
 
   /orchestrator/resource/task/info/release/alpha1:
-    get:
+    post:
       description: Get release task (deployment) information
       parameters:
         - name: id
@@ -613,31 +613,6 @@ paths:
             example: 1
           in: query
           required: false
-        - name: filterCriteria
-          in: query
-          required: false
-          schema:
-            type: array
-          description: this will contain the task-info identifiers. For applications  `application/devtron-application|identifier|value`, `environment|id|{id}`, `deploymentStatus|stageType|value`, `rolloutStatus|value`
-            if filterCriteria is not given the response will fetch all the task info.
-      responses:
-        '200':
-          description: list response
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    $ref: '#/components/schemas/TaskRunInfoResponse'
-
-    post:
-      description: Get release task (deployment) information
       requestBody:
         description: json
         required: true
@@ -659,8 +634,7 @@ paths:
                     type: string
                     description: status
                   result:
-                    $ref: '#/components/schemas/RolloutStatusInfo'
-
+                    $ref: '#/components/schemas/TaskRunInfoResponse'
 
   /orchestrator/resource/task/execute/release/alpha1:
     post:
@@ -825,18 +799,11 @@ components:
 
     TaskInfoObjectDto:
       type: object
-      required:
-        [id, idType,kind,version]
       properties:
-        id:
-          type: integer
-          description: id of the release object
-          example: 1 # either id or identifier is required. Prefered.
-        identifier:
-          type: string
-          description: identifier of the release
-            `{release-track name}-{release version}` is the unique string combination,
-          example: "orchestrator-0.0.1" # either id or identifier is required. Prefered.
+        showAll:
+          type: boolean
+          description: if set to true gives all dependencies at once without any relevance of stage or level
+          example: false
         filterCriteria:
           type: array
           items:
@@ -1663,52 +1630,6 @@ components:
           description: artifact registry store name
           example: "devtron-docker"
 
-    RolloutStatusDependency:
-      type: object
-      properties:
-        appId:
-          type: number
-          description: application id
-        appName:
-          type: string
-          description: application name.
-        envId:
-          type: number
-          description: environment id
-        envName:
-          type: string
-          description: environment name
-        pipelineId:
-          type: number
-          description: pipeline id
-        deployStatus:
-          type: string
-        preStatus:
-          type: string
-        postStatus:
-          type: string
-        deploymentAppDeleteRequest:
-          type: boolean
-        existingStages:
-          type: object
-          properties:
-            pre:
-              type: boolean
-              description: returns true if pre-deployment exists
-            deploy:
-              type: boolean
-              description: returns true if deployment exists
-            post:
-              type: boolean
-              description: returns true if post-deployment exists
-
-    RolloutStatusInfo:
-      type: object
-      properties:
-        dependencies:
-          items:
-            $ref: '#/components/schemas/RolloutStatusDependency'
-          description: List of dependencies.
 
     ErrorResponse:
       required:
