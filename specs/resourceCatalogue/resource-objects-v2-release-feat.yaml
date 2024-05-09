@@ -638,38 +638,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TaskInfoObjectDto'
-      # parameters:
-      #   - name: id
-      #     description: id of the release object, either this or identifier is required. Preferred.
-      #     in: query
-      #     required: false
-      #     schema:
-      #       example: 23
-      #       type: integer
-      #   - name: identifier
-      #     description: identifier of the release
-      #       `{release-track name}-{release version}` is the unique string combination,
-      #       either this or id is required.
-      #     schema:
-      #       type: string
-      #       example: "android-0.0.1"
-      #     in: query
-      #     required: false
-      #   - name: lite
-      #     description: lite mode for fetching only level data.
-      #     schema:
-      #       type: boolean
-      #       default: false
-      #       example: false
-      #     in: query
-      #     required: false
-      #   - name: levelIndex
-      #     description: fetch dependencies data for a particular level
-      #     schema:
-      #       type: number
-      #       example: 1
-      #     in: query
-      #     required: false
       responses:
         '200':
           description: list response
@@ -862,34 +830,16 @@ components:
           description: identifier of the release
             `{release-track name}-{release version}` is the unique string combination,
           example: "orchestrator-0.0.1" # either id or identifier is required. Prefered.
-#        infoType:
-#          type: string
-#          enum:
-#            - deploy
-#            - rollout-status
-#          description: signifies what kind of info to be fetched
-#        stageType:
-#          type: string
-#          enum:
-#            - all-deployments
-#            - yet-to-trigger
-#            - ongoing
-#            - failed
-#            - completed
-#          description: signifies which stage data is to be fetched
         filterCriteria:
           type: array
           items:
             type: string
-            example:
+            enum:
               - applications/devtron-application|identifier|demo-app
               - environment|identifier|devtron-demo
               - deploymentStatus|value
               - rolloutStatus|value
             description: denotes filtering criteria resource|id orIdentiifer| value
-
-
-
 
     DevtronResourcePatchObjectDto:
       type: object
@@ -1706,132 +1656,52 @@ components:
           description: artifact registry store name
           example: "devtron-docker"
 
-    # RolloutStatusDependency:
-    #   type: object
-    #   properties:
-    #     appId:
-    #       type: integer
-    #       example: 5
-    #       description: The ID of the application.
-    #     appName:
-    #       type: string
-    #       example: orchestrator
-    #       description: The name of the application.
-    #     pipelineId:
-    #       type: integer
-    #       example: 1
-    #       description: The ID of the pipeline related to this application.
-    #     deployStatus:
-    #       type: string
-    #       example: Progressing
-    #       description: The deployment status of this application.
-    #     preStatus:
-    #       type: string
-    #       example: Succeeded
-    #       description: The status of the pre-deployment stage.
-    #     postStatus:
-    #       type: string
-    #       example: Not Triggered
-    #       description: The status of the post-deployment stage.
-    #     deploymentAppDeleteRequest:
-    #       type: boolean
-    #       example: false
-    #       description: Indicates whether there is a deletion request for the deployment of this application.
-    #     existingStages:
-    #       type: object
-    #       properties:
-    #         pre:
-    #           type: boolean
-    #           example: true
-    #           description: Indicates if the pre-deployment stage exists.
-    #         deploy:
-    #           type: boolean
-    #           example: true
-    #           description: Indicates if the deployment stage exists.
-    #         post:
-    #           type: boolean
-    #           example: false
-    #           description: Indicates if the post-deployment stage exists.
     RolloutStatusDependency:
-      type: array
-      items:
-        type: object
-        properties:
-          appId:
-            type: number
-            description: application id
-          appName:
-            type: string
-            description: application name.
-          envId:
-            type: number
-            description: environment id
-          envName:
-            type: string
-            description: environment name
-          pipelineId:
-            type: number
-            description: pipeline id
-          deployStatus:
-            type: string
-          preStatus:
-            type: string
-          postStatus:
-            type: string
-          deploymentAppDeleteRequest:
-            type: boolean
-          existingStages:
-            type: object
-            properties:
-              pre:
-                type: boolean
-                description: returns true if pre-deployment exists
-              deploy:
-                type: boolean
-                description: returns true if deployment exists
-              post:
-                type: boolean
-                description: returns true if post-deployment exists
+      type: object
+      properties:
+        appId:
+          type: number
+          description: application id
+        appName:
+          type: string
+          description: application name.
+        envId:
+          type: number
+          description: environment id
+        envName:
+          type: string
+          description: environment name
+        pipelineId:
+          type: number
+          description: pipeline id
+        deployStatus:
+          type: string
+        preStatus:
+          type: string
+        postStatus:
+          type: string
+        deploymentAppDeleteRequest:
+          type: boolean
+        existingStages:
+          type: object
+          properties:
+            pre:
+              type: boolean
+              description: returns true if pre-deployment exists
+            deploy:
+              type: boolean
+              description: returns true if deployment exists
+            post:
+              type: boolean
+              description: returns true if post-deployment exists
 
     RolloutStatusInfo:
-      type: array
-      items:
-        properties:
-          envName:
-            type: string
-            example: devtron-demo
-            description: The name of the environment.
-          envId:
-            type: integer
-            example: 1
-            description: The ID of the environment.
-          dependencies:
-            type: array
-            items:
-              $ref: '#/components/schemas/RolloutStatusDependency'
-            description: List of dependencies.
-          indexObject:
-            type: array
-            items:
-              properties:
-                indexType:
-                  type: string
-                  example: "environment"
-                  description: type of the index values
-                indexIdentifier:
-                  type: string
-                  example: "devtron-demo"
-                  description: The name of the environment for release rollout status.
-                indexArray:
-                  type: array
-                  items:
-                    type: integer
-                    example:
-                      - 1
-                      - 2
-                      - 3
-
-
+      type: object
+      properties:
+        dependencies:
+          items:
+            $ref: '#/components/schemas/RolloutStatusDependency'
+          description: List of dependencies.
 
     ErrorResponse:
       required:
