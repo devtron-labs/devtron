@@ -1317,6 +1317,7 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticular
 	dependenciesResultArr := dependenciesResult.Array()
 	indexOfDependencyRemoved := 0
 	dependencies := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesResultArr))
+	finalDependencies := make([]*bean.DevtronResourceDependencyBean, 0, len(dependenciesResultArr))
 	kind, subKind, version, err := helper.GetKindSubKindAndVersionOfResourceBySchemaId(devtronResourceSchemaId,
 		impl.devtronResourcesSchemaMapById, impl.devtronResourcesMapById)
 	if err != nil {
@@ -1327,18 +1328,45 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticular
 		ResourceSubKind: bean.DevtronResourceKind(subKind),
 		ResourceVersion: bean.DevtronResourceVersion(version),
 	}
+	levelIndexVsDependentOnIndexesMap := make(map[int][]int, len(dependenciesResultArr))
+	var removedDependencyBean *bean.DevtronResourceDependencyBean
 	for _, dependencyResult := range dependenciesResultArr {
 		dependencyBean, err := impl.getDependencyBeanWithChildInheritance(parentResourceType, dependencyResult.String(), false)
 		if err != nil {
 			return nil, 0, err
 		}
+		//currently length will only one as application in only dependent on level, done this to remove level when app is deleted and stage got empty.
+		for _, i := range dependencyBean.DependentOnIndexes {
+			levelIndexVsDependentOnIndexesMap[i] = append(levelIndexVsDependentOnIndexesMap[i], dependencyBean.Index)
+		}
+
 		if dependencyBean.OldObjectId == id && helper.IsApplicationDependency(dependencyBean.DevtronResourceTypeReq) {
+			removedDependencyBean = dependencyBean
 			indexOfDependencyRemoved = dependencyBean.Index
 			continue
 		}
 		dependencies = append(dependencies, dependencyBean)
 	}
-	return dependencies, indexOfDependencyRemoved, nil
+	// checking if this is the only app in the stage as we have levelIndexVsDependentOnIndexesMap which keeps index of dependecy vs dependanct index array
+	removedLevelIndex := 0
+	for _, i := range removedDependencyBean.DependentOnIndexes {
+		if len(levelIndexVsDependentOnIndexesMap[i]) == 1 {
+			removedLevelIndex = i
+		}
+	}
+	// removing level dependency when app was the only app in the level/stage
+	if removedLevelIndex != 0 {
+		for _, dependency := range dependencies {
+			if dependency.Index == removedLevelIndex {
+				continue
+			}
+			finalDependencies = append(finalDependencies, dependency)
+		}
+	} else {
+		finalDependencies = dependencies
+	}
+
+	return finalDependencies, indexOfDependencyRemoved, nil
 }
 
 //Patch resource object dependencies and related method ends
