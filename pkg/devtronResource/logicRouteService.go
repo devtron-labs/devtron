@@ -372,19 +372,34 @@ var validateResourceObjectDeleteFuncMap = map[string]func(*DevtronResourceServic
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseTrackDelete,
 }
 
-func getFuncToSetDefaultAndGetPathUpdateMapForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
-	*bean.ResourceIdentifier, time.Time) (map[string]interface{}, error) {
-	if f, ok := setDefaultAndGetPathUpdateMapForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+func getFuncToSetDefaultValueAndValidateForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier) error {
+	if f, ok := setDefaultValueAdnValidateForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
 		return nil
 	}
 }
 
-var setDefaultAndGetPathUpdateMapForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
-	*bean.ResourceIdentifier, time.Time) (map[string]interface{}, error){
+var setDefaultValueAdnValidateForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
-		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).setDefaultValueAndGetPathUpdateMapForReleaseClone,
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).setDefaultValueAndValidateForReleaseClone,
+}
+
+func getFuncToGetPathUpdateMapForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	time.Time) (map[string]interface{}, error) {
+	if f, ok := getPathUpdateMapForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var getPathUpdateMapForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	time.Time) (map[string]interface{}, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).getPathUpdateMapForReleaseClone,
 }
 
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {

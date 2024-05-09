@@ -637,18 +637,7 @@ func (impl *DevtronResourceServiceImpl) DeleteResourceObject(ctx context.Context
 // step 5 : create new resource object
 func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context, req *bean.DtResourceObjectCloneReqBean) error {
 	createdOn := time.Now()
-	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
-	//step 1 : validate that if the new version requested is already present
-	_, existingResourceObjectFound, err := impl.getResourceSchemaAndCheckIfObjectFound(req.DevtronResourceObjectDescriptorBean)
-	if err != nil {
-		impl.logger.Errorw("error in getResourceSchemaAndCheckIfObjectFound", "err", err, "request", req.DevtronResourceObjectDescriptorBean)
-		return err
-	}
-	if existingResourceObjectFound {
-		impl.logger.Errorw("error in CloneResourceObject, request resource object already exists", "request", req.DevtronResourceObjectDescriptorBean)
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceAlreadyExistsMessage, bean.ResourceAlreadyExistsMessage)
-	}
-	//step 2 : validate if clone source is valid
+	//step 1 : validate if clone source is valid
 	cloneFromDescriptorBean := &bean.DevtronResourceObjectDescriptorBean{
 		//using kind, subKind, version from request and not from cloneFrom because this should be same with where getting cloned
 		Kind:       req.Kind,
@@ -666,7 +655,7 @@ func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context,
 		impl.logger.Errorw("error in CloneResourceObject, clone source does not exists", "request", req.DevtronResourceObjectDescriptorBean)
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.CloneSourceDoesNotExistsErrMessage, bean.CloneSourceDoesNotExistsErrMessage)
 	}
-	//step 3 : get parent for clone request
+	//step 2 : get parent from clone source
 	parentTypeDep, err := impl.getParentDependencyFromObjectData(schemaObj.Id, cloneFromObj.ObjectData)
 	if err != nil {
 		impl.logger.Errorw("err, getParentDependencyFromObjectData", "err", err, "schemaId", schemaObj.Id, cloneFromObj.ObjectData)
@@ -683,13 +672,31 @@ func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context,
 			},
 		}
 	}
+	//step 3 : validate that if the new version requested is already present
+	funcToSetDefault := getFuncToSetDefaultValueAndValidateForCloneReq(req.Kind, req.SubKind, req.Version)
+	if funcToSetDefault != nil {
+		err = funcToSetDefault(impl, req, parentConfig)
+		if err != nil {
+			impl.logger.Errorw("err, SetDefaultValueAndValidateForCloneReq", "err", err, "req", req)
+			return err
+		}
+	}
+	_, existingResourceObjectFound, err := impl.getResourceSchemaAndCheckIfObjectFound(req.DevtronResourceObjectDescriptorBean)
+	if err != nil {
+		impl.logger.Errorw("error in getResourceSchemaAndCheckIfObjectFound", "err", err, "request", req.DevtronResourceObjectDescriptorBean)
+		return err
+	}
+	if existingResourceObjectFound {
+		impl.logger.Errorw("error in CloneResourceObject, request resource object already exists", "request", req.DevtronResourceObjectDescriptorBean)
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceAlreadyExistsMessage, bean.ResourceAlreadyExistsMessage)
+	}
 	//step 4 : remove/update fields from clone source object data
 	replaceDataMap := make(map[string]interface{})
-	f := getFuncToSetDefaultAndGetPathUpdateMapForCloneReq(req.Kind, req.SubKind, req.Version)
-	if f != nil {
-		replaceDataMap, err = f(impl, req, parentConfig, createdOn)
+	funcToGetPathUpdateMap := getFuncToGetPathUpdateMapForCloneReq(req.Kind, req.SubKind, req.Version)
+	if funcToGetPathUpdateMap != nil {
+		replaceDataMap, err = funcToGetPathUpdateMap(impl, req, createdOn)
 		if err != nil {
-			impl.logger.Errorw("err, SetDefaultAndGetPathUpdateMapForCloneReq", "err", err, "req", req)
+			impl.logger.Errorw("err, GetPathUpdateMapForCloneReq", "err", err, "req", req)
 			return err
 		}
 	}

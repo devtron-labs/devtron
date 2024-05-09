@@ -25,11 +25,9 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/exp/slices"
-	"golang.org/x/mod/semver"
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -238,12 +236,9 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview == nil {
-		releaseVersionForValidation := reqBean.Overview.ReleaseVersion
-		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
-			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
-		}
-		if !semver.IsValid(releaseVersionForValidation) {
-			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
+		err := helper.CheckIfReleaseVersionIsValid(reqBean.Overview.ReleaseVersion)
+		if err != nil {
+			return err
 		}
 	} else if reqBean.ParentConfig == nil {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigNotFound, bean.ResourceParentConfigNotFound)
@@ -1535,19 +1530,32 @@ func (impl *DevtronResourceServiceImpl) updateRolloutStatusInExistingObject(exis
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) setDefaultValueAndGetPathUpdateMapForReleaseClone(req *bean.DtResourceObjectCloneReqBean,
-	parentConfig *bean.ResourceIdentifier, createdOn time.Time) (map[string]interface{}, error) {
+func (impl *DevtronResourceServiceImpl) setDefaultValueAndValidateForReleaseClone(req *bean.DtResourceObjectCloneReqBean,
+	parentConfig *bean.ResourceIdentifier) error {
+	err := helper.CheckIfReleaseVersionIsValid(req.Overview.ReleaseVersion)
+	if err != nil {
+		return err
+	}
+	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	identifier, err := impl.getIdentifierForReleaseByParentDescriptorBean(req.Overview.ReleaseVersion, parentConfig)
 	if err != nil {
 		impl.logger.Errorw("error, getIdentifierForReleaseByParentDescriptorBean", "err", err, "parentConfig", parentConfig, "releaseVersion", req.Overview.ReleaseVersion)
-		return nil, err
+		return err
 	}
 	req.Identifier = identifier
 	if len(req.Name) == 0 {
 		req.Name = req.Overview.ReleaseVersion
 	}
-	//step 5 : create new resource object
+	return nil
+}
+
+func (impl *DevtronResourceServiceImpl) getPathUpdateMapForReleaseClone(req *bean.DtResourceObjectCloneReqBean,
+	createdOn time.Time) (map[string]interface{}, error) {
 	userObj, err := impl.userRepository.GetById(req.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in getting user", "err", err, "userId", req.UserId)
+		return nil, err
+	}
 	replaceDataMap := map[string]interface{}{
 		bean.ResourceObjectIdPath:                 req.Id,                   //reset Id
 		bean.ResourceObjectTagsPath:               req.Overview.Tags,        //reset tags
