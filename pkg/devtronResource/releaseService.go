@@ -29,6 +29,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -236,8 +237,14 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 || !semver.IsValid(reqBean.Overview.ReleaseVersion) {
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
+	if reqBean.Overview == nil {
+		releaseVersionForValidation := reqBean.Overview.ReleaseVersion
+		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
+			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
+		}
+		if !semver.IsValid(releaseVersionForValidation) {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
+		}
 	} else if reqBean.ParentConfig == nil {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigNotFound, bean.ResourceParentConfigNotFound)
 	} else if reqBean.ParentConfig.Id == 0 && len(reqBean.ParentConfig.Identifier) == 0 {
