@@ -33,7 +33,7 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 	devtronResourceRouter.Path("/dependencies/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.PatchResourceDependencies).Methods("PATCH")
 
-	devtronResourceRouter.Path("clone/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
+	devtronResourceRouter.Path("/clone/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.CloneResourceObject).Methods("POST")
 
 	devtronResourceRouter.Path("/task/execute/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
