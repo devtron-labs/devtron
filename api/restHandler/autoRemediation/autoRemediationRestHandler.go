@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/response"
 	types2 "github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -120,7 +119,7 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC
@@ -131,7 +130,6 @@ func (impl WatcherRestHandlerImpl) SaveWatcher(w http.ResponseWriter, r *http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
@@ -147,7 +145,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -160,6 +158,7 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -168,23 +167,27 @@ func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter
 	}
 	vars := mux.Vars(r)
 	interceptedEventId, err := strconv.Atoi(vars["identifier"])
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-		return
-	}
-	// RBAC enforcer Ends
+
 	res, err := impl.watcherService.GetInterceptedEventById(interceptedEventId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetInterceptedEventById", "err", err, "interceptedEventId", interceptedEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, res.ClusterName)
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+
 	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
+
 func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -197,7 +200,7 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -248,7 +251,7 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -273,7 +276,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -291,6 +294,7 @@ func (impl WatcherRestHandlerImpl) RetrieveWatchers(w http.ResponseWriter, r *ht
 	}
 	common.WriteJsonResp(w, nil, watchersResponse, http.StatusOK)
 }
+
 func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, error) {
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
@@ -344,6 +348,7 @@ func getWatcherQueryParams(queryParams url.Values) (types.WatcherQueryParams, er
 	}, nil
 
 }
+
 func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -360,7 +365,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isSuperAdmin {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
@@ -372,6 +377,7 @@ func (impl WatcherRestHandlerImpl) RetrieveInterceptedEvents(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, nil, eventsResponse, http.StatusOK)
 }
+
 func getInterceptedEventsQueryParams(queryParams url.Values) (*types.InterceptedEventQueryParams, error) {
 	sortOrder := queryParams.Get("order")
 	sortOrder = strings.ToLower(sortOrder)
@@ -470,6 +476,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 	}, nil
 
 }
+
 func (handler *WatcherRestHandlerImpl) GetWatchersByClusterId(w http.ResponseWriter, r *http.Request) {
 
 	token := r.Header.Get("token")
