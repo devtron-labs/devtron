@@ -102,26 +102,66 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 		jobPipelineIds = append(jobPipelineIds, trigger.Data.PipelineId)
 	}
 
+	tx, err := impl.interceptedEventsRepository.StartTx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			impl.logger.Debugw("rolling back db tx")
+			rollbackErr := impl.interceptedEventsRepository.RollbackTx(tx)
+			if err != nil {
+				impl.logger.Errorw("error in rolling back db transaction while saving intercepted event executions", "err", rollbackErr)
+			}
+		}
+	}()
+
+	triggerMap := make(map[int]*types2.Trigger)
 	interceptEventExecs := make([]*repository.InterceptedEventExecution, 0, len(triggers))
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case types2.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger, watchersMap, interceptedEvent, hostUrl, token)
+			triggerMap[trigger.Id] = trigger
+			interceptEventExec := &repository.InterceptedEventExecution{
+				TriggerId: trigger.Id,
+			}
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
 			interceptEventExec.InvolvedObjects = involvedObj
 			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
 			interceptEventExec.Namespace = interceptedEvent.Namespace
 			interceptEventExec.Action = interceptedEvent.Action
+			interceptEventExec.Status = repository.Initiated
 			interceptEventExec.AuditLog = sql.NewDefaultAuditLog(1)
 			interceptEventExecs = append(interceptEventExecs, interceptEventExec)
 		}
 	}
 
-	err = impl.saveInterceptedEvents(interceptEventExecs)
+	// save the intercepted events first
+	err = impl.saveInterceptedEvents(tx, interceptEventExecs)
 	if err != nil {
-		impl.logger.Errorw("error in saving intercepted event executions", "interceptedEvent", interceptedEvent, "err", err)
+		impl.logger.Errorw("error in saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
+		return err
 	}
+
+	// trigger them, this can be triggered through NATS
+	for _, interceptEventExec := range interceptEventExecs {
+		interceptEventExec = impl.triggerJob(triggerMap[interceptEventExec.TriggerId], interceptEventExec, watchersMap, interceptedEvent, hostUrl, token)
+	}
+
+	// update the status accordingly
+	err = impl.updateInterceptedEvents(tx, interceptEventExecs)
+	if err != nil {
+		impl.logger.Errorw("error in updating intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
+		return err
+	}
+
+	err = impl.interceptedEventsRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
+		return err
+	}
+
 	return err
 }
 
@@ -149,41 +189,29 @@ func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.Intercep
 	return
 }
 
-func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.InterceptedEventExecution) error {
-	tx, err := impl.interceptedEventsRepository.StartTx()
-	if err != nil {
-		return err
-	}
+func (impl ServiceImpl) saveInterceptedEvents(tx *pg.Tx, interceptEventExecs []*repository.InterceptedEventExecution) error {
 
-	defer func() {
-		if err != nil {
-			impl.logger.Debugw("rolling back db tx")
-			rollbackErr := impl.interceptedEventsRepository.RollbackTx(tx)
-			if err != nil {
-				impl.logger.Errorw("error in rolling back db transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", rollbackErr)
-			}
-		}
-	}()
-
-	_, err = impl.interceptedEventsRepository.Save(interceptEventExecs, tx)
+	_, err := impl.interceptedEventsRepository.Save(interceptEventExecs, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving intercepted event executions ", "interceptEventExecs", interceptEventExecs, "err", err)
 		return err
 	}
 
-	err = impl.interceptedEventsRepository.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction while saving intercepted event executions", "interceptEventExecs", interceptEventExecs, "err", err)
-		return err
-	}
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl, token string) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) updateInterceptedEvents(tx *pg.Tx, interceptEventExecs []*repository.InterceptedEventExecution) error {
 
-	interceptEventExec := &repository.InterceptedEventExecution{
-		TriggerId: trigger.Id,
+	_, err := impl.interceptedEventsRepository.Update(interceptEventExecs, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating intercepted event executions ", "interceptEventExecs", interceptEventExecs, "err", err)
+		return err
 	}
+
+	return nil
+}
+
+func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *repository.InterceptedEventExecution, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl, token string) *repository.InterceptedEventExecution {
 
 	request, err := impl.createTriggerRequest(trigger, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 	if err != nil {
@@ -192,7 +220,7 @@ func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, watchersMap map[int]
 		return interceptEventExec
 	}
 
-	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, hostUrl, token)
+	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, hostUrl, token, interceptEventExec.Id)
 	request.RuntimeParams = &runtimeParams
 
 	ciWorkflowId := 0
@@ -296,7 +324,7 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 	return err
 }
 
-func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl string, token string) (bean.RuntimeParameters, error) {
+func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl string, token string, interceptEventId int) (bean.RuntimeParameters, error) {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
@@ -332,7 +360,7 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMa
 		interceptedEvent.ObjectMeta.Kind, interceptedEvent.ObjectMeta.Name,
 		action, cluster.ClusterName, interceptedEvent.ObjectMeta.Namespace,
 		watcherName, hostUrl, trigger.Data.PipelineName,
-		interceptedEvent.InterceptedAt, 0)
+		interceptedEvent.InterceptedAt, interceptEventId)
 
 	notificationDataBytes, err := json.Marshal(notificationData)
 	if err != nil {

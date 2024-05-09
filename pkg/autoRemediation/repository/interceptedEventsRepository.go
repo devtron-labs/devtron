@@ -30,6 +30,7 @@ type InterceptedEventExecution struct {
 type Status string
 
 const (
+	Initiated   Status = "Initiated"
 	Failure     Status = "Failure"
 	Success     Status = "Success"
 	Progressing Status = "Progressing"
@@ -38,6 +39,7 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
+	Update(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	GetInterceptedEventById(id int) (*types2.InterceptedEventData, error)
@@ -61,6 +63,14 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 
 func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
 	err := tx.Insert(&interceptedEvents)
+	if err != nil {
+		return interceptedEvents, err
+	}
+	return interceptedEvents, nil
+}
+
+func (impl InterceptedEventsRepositoryImpl) Update(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
+	err := tx.Update(&interceptedEvents)
 	if err != nil {
 		return interceptedEvents, err
 	}
