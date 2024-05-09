@@ -214,6 +214,10 @@ func (impl ServiceImpl) updateInterceptedEvents(tx *pg.Tx, interceptEventExecs [
 
 func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *repository.InterceptedEventExecution, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl, token string) *repository.InterceptedEventExecution {
 
+	defer func() {
+		interceptEventExec.UpdatedOn = time.Now()
+	}()
+
 	request, err := impl.createTriggerRequest(trigger, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 	if err != nil {
 		interceptEventExec.Status = repository.Errored

@@ -696,7 +696,7 @@ func (impl *WatcherServiceImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*typ
 		triggerResp.Data.PipelineId = triggerData.PipelineId
 		triggerResp.Data.JobId = triggerData.JobId
 		triggerResp.Data.ExecutionEnvironmentId = triggerData.ExecutionEnvironmentId
-		triggerResp.WatcherId = triggerData.WorkflowId
+		triggerResp.WatcherId = trigger.WatcherId
 		triggersResult = append(triggersResult, &triggerResp)
 	}
 

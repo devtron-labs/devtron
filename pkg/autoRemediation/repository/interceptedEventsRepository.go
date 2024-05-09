@@ -74,9 +74,12 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 }
 
 func (impl InterceptedEventsRepositoryImpl) Update(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
-	err := tx.Update(&interceptedEvents)
-	if err != nil {
-		return interceptedEvents, err
+	// getting error in bulk updating
+	for _, interceptedEvent := range interceptedEvents {
+		_, err := tx.Model(interceptedEvent).WherePK().Update()
+		if err != nil {
+			return interceptedEvents, err
+		}
 	}
 	return interceptedEvents, nil
 }
