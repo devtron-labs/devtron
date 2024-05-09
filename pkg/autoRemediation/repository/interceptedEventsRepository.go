@@ -20,6 +20,7 @@ type InterceptedEventExecution struct {
 	Action             types.EventType `sql:"action"`
 	InvolvedObjects    string          `sql:"involved_objects"`
 	Metadata           string          `sql:"metadata"`
+	SearchData         string          `sql:"search_data"`
 	InterceptedAt      time.Time       `sql:"intercepted_at"`
 	TriggerId          int             `sql:"trigger_id"`
 	TriggerExecutionId int             `sql:"trigger_execution_id"`
@@ -117,7 +118,6 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
 		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
 		ColumnExpr("intercepted_event_execution.namespace as namespace").
-		// ColumnExpr("intercepted_event_execution.message as message").
 		ColumnExpr("intercepted_event_execution.action as action").
 		ColumnExpr("intercepted_event_execution.metadata as metadata").
 		ColumnExpr("intercepted_event_execution.involved_objects as involved_objects").
@@ -141,8 +141,7 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-
-		query = query.Where("concat(intercepted_event_execution.metadata::json->>'group', '/', intercepted_event_execution.metadata::json->>'kind', '/', intercepted_event_execution.metadata::json->>'name') ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
+		query = query.Where("intercepted_event_execution.search_data ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 || len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {

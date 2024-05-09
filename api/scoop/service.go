@@ -127,6 +127,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 			}
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
+			interceptEventExec.SearchData = fmt.Sprintf("%s/%s/%s", interceptedEvent.ObjectMeta.Group, interceptedEvent.ObjectMeta.Kind, interceptedEvent.ObjectMeta.Name)
 			interceptEventExec.InvolvedObjects = involvedObj
 			interceptEventExec.InterceptedAt = interceptedEvent.InterceptedAt
 			interceptEventExec.Namespace = interceptedEvent.Namespace
