@@ -580,7 +580,7 @@ const (
 	ResourceDoesNotExistMessage                 = "Resource does not exists!"
 	InvalidResourceSchemaId                     = "Invalid resource schema id! No resource schema found."
 	InvalidResourceKindOrVersion                = "Invalid resource kind or version! No resource schema found."
-	ReleaseVersionNotFound                      = "Invalid overview data! overview.releaseVersion is required."
+	ReleaseVersionNotValid                      = "Invalid releaseVersion data! Version absent or not following semantic versioning."
 	ResourceNameNotFound                        = "Invalid payload data! name is required."
 	ResourceParentConfigNotFound                = "parentConfig is required! parent dependency not defined."
 	ResourceParentConfigDataNotFound            = "parentConfig.data is required! parent dependency data not found."

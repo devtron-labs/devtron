@@ -25,6 +25,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/exp/slices"
+	"golang.org/x/mod/semver"
 	"math"
 	"net/http"
 	"strconv"
@@ -235,8 +236,8 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 {
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotFound, bean.ReleaseVersionNotFound)
+	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 || !semver.IsValid(reqBean.Overview.ReleaseVersion) {
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
 	} else if reqBean.ParentConfig == nil {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigNotFound, bean.ResourceParentConfigNotFound)
 	} else if reqBean.ParentConfig.Id == 0 && len(reqBean.ParentConfig.Identifier) == 0 {
