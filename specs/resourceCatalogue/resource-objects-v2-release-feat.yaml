@@ -617,7 +617,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
+            type: array
           description: this will contain the task-info identifiers. For applications  `application/devtron-application|identifier|value`, `environment|id|{id}`, `deploymentStatus|stageType|value`, `rolloutStatus|value`
             if filterCriteria is not given the response will fetch all the task info.
       responses:
