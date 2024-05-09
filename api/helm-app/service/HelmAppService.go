@@ -1154,6 +1154,9 @@ func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap ma
 		return err
 	}
 	for _, clusterBean := range clusterBeans {
+		if clusterBean.IsVirtualCluster {
+			continue
+		}
 		if namespace, ok := clusterIdToNsMap[clusterBean.Id]; ok {
 			exists, err := impl.checkIfNsExists(namespace, &clusterBean)
 			if err != nil {
