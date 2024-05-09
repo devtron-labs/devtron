@@ -359,6 +359,9 @@ func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environ
 
 func (repo EnvironmentRepositoryImpl) GetWithClusterByNames(envNames []string) ([]*Environment, error) {
 	var environment []*Environment
+	if len(envNames) == 0 {
+		return nil, nil
+	}
 	err := repo.dbConnection.
 		Model(&environment).
 		Column("environment.*", "Cluster").

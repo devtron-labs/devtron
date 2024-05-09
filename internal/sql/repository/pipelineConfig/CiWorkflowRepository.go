@@ -290,6 +290,9 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 }
 func (impl *CiWorkflowRepositoryImpl) FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) ([]*CiWorkflow, error) {
 	var ciWorkflow []*CiWorkflow
+	if len(pipelineId) == 0 {
+		return nil, nil
+	}
 	query := "SELECT MAX(id) as id " +
 		" FROM ci_workflow ciw" +
 		" WHERE ciw.ci_pipeline_id in(?)" +

@@ -289,6 +289,9 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 }
 func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
+	if len(ciPipelineId) == 0 {
+		return nil, nil
+	}
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id IN (?)", pg.In(ciPipelineId)).
 		Where("type = ?", CIPIPELINE).

@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -81,7 +80,7 @@ func (impl K8sEventWatcherRepositoryImpl) GetWatcherById(id int) (*K8sEventWatch
 func (impl K8sEventWatcherRepositoryImpl) GetWatcherByIds(ids []int) ([]*K8sEventWatcher, error) {
 	var watchers []*K8sEventWatcher
 	if len(ids) == 0 {
-		return watchers, errors.New("no watcherIds given to fetch watchers")
+		return nil, nil
 	}
 	err := impl.dbConnection.Model(&watchers).
 		Where("id IN (?) and active = ?", pg.In(ids), true).
