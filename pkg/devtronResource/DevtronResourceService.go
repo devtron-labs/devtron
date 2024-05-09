@@ -1717,13 +1717,26 @@ func (impl *DevtronResourceServiceImpl) getParentResourceObject(ctx context.Cont
 	if parentConfig == nil {
 		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigDataNotFound, bean.ResourceParentConfigDataNotFound)
 	}
-	resourceSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(parentConfig.ResourceKind.ToString(), parentConfig.ResourceSubKind.ToString(), parentConfig.ResourceVersion.ToString())
-	if err != nil {
-		impl.logger.Errorw("error in getting parent devtronResourceSchema", "err", err, "kind", parentConfig.ResourceKind, "subKind", parentConfig.ResourceSubKind, "version", parentConfig.ResourceVersion)
-		if util.IsErrNoRows(err) {
-			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrVersion, bean.InvalidResourceKindOrVersion)
+	var resourceSchema *repository.DevtronResourceSchema
+	var err error
+	if parentConfig.SchemaId > 0 {
+		resourceSchema, err = impl.devtronResourceSchemaRepository.FindById(parentConfig.SchemaId)
+		if err != nil {
+			impl.logger.Errorw("error in getting parent devtronResourceSchema", "err", err, "kind", parentConfig.ResourceKind, "subKind", parentConfig.ResourceSubKind, "version", parentConfig.ResourceVersion)
+			if util.IsErrNoRows(err) {
+				err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrVersion, bean.InvalidResourceKindOrVersion)
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		resourceSchema, err = impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(parentConfig.ResourceKind.ToString(), parentConfig.ResourceSubKind.ToString(), parentConfig.ResourceVersion.ToString())
+		if err != nil {
+			impl.logger.Errorw("error in getting parent devtronResourceSchema", "err", err, "kind", parentConfig.ResourceKind, "subKind", parentConfig.ResourceSubKind, "version", parentConfig.ResourceVersion)
+			if util.IsErrNoRows(err) {
+				err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrVersion, bean.InvalidResourceKindOrVersion)
+			}
+			return nil, err
+		}
 	}
 	if parentConfig.Id > 0 {
 		parentResourceObject, err := impl.devtronResourceObjectRepository.FindByIdAndSchemaId(parentConfig.Id, resourceSchema.Id)
