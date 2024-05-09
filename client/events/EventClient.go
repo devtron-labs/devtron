@@ -246,7 +246,7 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 
 func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
 
-	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_DURABLE, string(body))
+	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_TOPIC, string(body))
 	if err != nil {
 		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
 		return err
