@@ -43,6 +43,7 @@ type ImageScanResultRepository interface {
 	FindByImageDigest(imageDigest string) ([]*ImageScanExecutionResult, error)
 	FindByImageDigests(digest []string) ([]*ImageScanExecutionResult, error)
 	FindByImage(image string) ([]*ImageScanExecutionResult, error)
+	FindByImages(images []string) ([]*ImageScanExecutionResult, error)
 }
 
 type ImageScanResultRepositoryImpl struct {
@@ -102,9 +103,15 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionId(scanExecutionId
 
 func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionIds(ids []int) ([]*ImageScanExecutionResult, error) {
 	var models []*ImageScanExecutionResult
+	if len(ids) == 0 {
+		return models, nil
+	}
 	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_result.image_scan_execution_history_id in(?)", pg.In(ids)).
 		Select()
+	if err == pg.ErrNoRows {
+		return models, nil
+	}
 	return models, err
 }
 
@@ -126,5 +133,12 @@ func (impl ImageScanResultRepositoryImpl) FindByImage(image string) ([]*ImageSca
 	var model []*ImageScanExecutionResult
 	err := impl.dbConnection.Model(&model).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_history.image = ?", image).Order("image_scan_execution_history.execution_time desc").Select()
+	return model, err
+}
+
+func (impl ImageScanResultRepositoryImpl) FindByImages(images []string) ([]*ImageScanExecutionResult, error) {
+	var model []*ImageScanExecutionResult
+	err := impl.dbConnection.Model(&model).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
+		Where("image_scan_execution_history.image IN (?)", pg.In(images)).Select()
 	return model, err
 }

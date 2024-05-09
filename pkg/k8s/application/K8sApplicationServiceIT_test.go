@@ -330,7 +330,7 @@ func CreateAndDeletePod(podName string, t *testing.T, k8sApplicationService *K8s
 }
 
 func TestMatchRegex(t *testing.T) {
-	cfg := &EphemeralContainerConfig{}
+	cfg := &K8sAppConfig{}
 	env.Parse(cfg)
 	ephemeralRegex := cfg.EphemeralServerVersionRegex
 	type args struct {

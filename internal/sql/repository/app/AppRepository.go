@@ -86,6 +86,7 @@ type AppRepository interface {
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error)
 
 	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
+	GetTeamIdById(id int) (int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -535,4 +536,13 @@ func (repo AppRepositoryImpl) UpdateAppOfferingModeForAppIds(successAppIds []*in
 	var app *App
 	_, err := repo.dbConnection.Query(app, query, appOfferingMode, userId, time.Now(), pg.In(successAppIds))
 	return err
+}
+
+func (repo AppRepositoryImpl) GetTeamIdById(id int) (int, error) {
+	var teamId int
+	err := repo.dbConnection.Model(&App{}).
+		Column("team_id").
+		Where("id = ?", id).
+		Where("active = ?", true).Select(&teamId)
+	return teamId, err
 }

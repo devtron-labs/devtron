@@ -116,3 +116,8 @@ const (
 	Inactive_TemporaryAccess        StatusType = 6
 	Active_Inactive_TemporaryAccess StatusType = 7
 )
+
+const (
+	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+	ApiTokenTableName = "api_token"
+)

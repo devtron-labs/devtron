@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -55,7 +56,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	pipelineConstants "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -450,12 +451,14 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// Validation for checking deployment App type
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-
+	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
 		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
+		//making environment array for fetching the clusterIds
+		envIds = append(envIds, &pipeline.EnvironmentId)
 		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfigured, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -463,7 +466,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
-
+	err = impl.checkIfNsExistsForEnvIds(envIds)
+	if err != nil {
+		return nil, err
+	}
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
@@ -730,7 +736,7 @@ func (impl *CdPipelineConfigServiceImpl) getPipelineAndCheckAction(cdPipelines *
 }
 
 func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineId int) (bool, error) {
-	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(constants.LINKED_CD))
+	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(pipelineConstants.LINKED_CD))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
 		return true, err
@@ -744,7 +750,7 @@ func (impl *CdPipelineConfigServiceImpl) checkForDeploymentWindow(pipeline *pipe
 		return fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envState))
+		return deploymentWindow.GetActionBlockedError(actionState.GetBypassActionMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
 	}
 	return nil
 }
@@ -2566,4 +2572,23 @@ func (impl *CdPipelineConfigServiceImpl) GetPipelineEnvironmentsForApplication(a
 		envIds = append(envIds, pipeline.EnvironmentId)
 	}
 	return envIds, nil
+}
+func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
+	//fetching environments for the given environment Ids
+	environmentList, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return fmt.Errorf("error in fetching environment err:", err)
+	}
+	clusterIdToNsMap := make(map[int]string, 0)
+	clusterIds := make([]int, 0)
+	for _, environment := range environmentList {
+		clusterIds = append(clusterIds, environment.ClusterId)
+		clusterIdToNsMap[environment.ClusterId] = environment.Namespace
+	}
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterIds)
+	if err != nil {
+		return err
+	}
+	return nil
 }

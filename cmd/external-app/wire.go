@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -59,9 +60,11 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -117,6 +120,7 @@ func InitializeApp() (*App, error) {
 		repository.NewAppListingRepositoryImpl,
 
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
@@ -249,6 +253,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
 
 		appStore.AppStoreWireSet,
+		security.NewImageScanServiceImplEA,
+		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
+
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+
+		out.NewChartScanPublishServiceImplEA,
+		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
 	)
 	return &App{}, nil
 }

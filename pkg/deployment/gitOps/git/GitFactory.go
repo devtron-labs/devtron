@@ -5,9 +5,11 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"os"
 	"time"
 )
 
@@ -28,7 +30,9 @@ func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigRea
 	if err != nil {
 		return err
 	}
-	factory.GitOpsHelper.SetAuth(cfg.GetAuth())
+
+	bearer := getBearer(cfg)
+	factory.GitOpsHelper.SetAuth(cfg.GetAuth(bearer))
 	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitOpsHelper)
 	if err != nil {
 		return err
@@ -69,7 +73,8 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger)
+	bearer := getBearer(cfg)
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(bearer), factory.logger)
 
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
@@ -81,12 +86,32 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	return client, gitOpsHelper, nil
 }
 
+func getBearer(cfg *bean.GitConfig) string {
+	bearer := ""
+	if cfg.GitProvider == BITBUCKET_DC_PROVIDER && UsePatAuth() {
+		bearer = "Bearer " + cfg.GitToken
+	}
+	return bearer
+}
+func UsePatAuth() bool {
+	usePat := false
+	if os.Getenv("USE_PAT_BITBUCKETDC") == "true" {
+		usePat = true
+	}
+	return usePat
+}
+
 func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.GitOpsConfigReadService) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsConfigReadService)
 	if err != nil {
 		return nil, err
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger)
+	//bearer := ""
+	//if cfg.GitProvider == BITBUCKET_DC_PROVIDER {
+	//	bearer = "Bearer " + cfg.GitToken
+	//}
+	bearer := getBearer(cfg)
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(bearer), logger)
 	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)

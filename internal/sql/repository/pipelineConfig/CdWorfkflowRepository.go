@@ -43,7 +43,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
-	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
+	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) ([]*CdWorkflowRunner, error)
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -395,6 +395,26 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdA
 	return wfr, err
 }
 
+func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerTypeAndStatus(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+	var wfr CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		Where("p.environment_id = ?", environmentId).
+		Where("p.app_id = ?", appId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Order("cd_workflow_runner.id DESC").Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "appId", appId, "envId", environmentId, "runnerType", runnerType)
+		return wfr, err
+	}
+	return wfr, err
+}
+
 func (impl *CdWorkflowRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
@@ -511,9 +531,9 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) error {
 	err := impl.dbConnection.Insert(wfr)
-	return wfr, err
+	return err
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {

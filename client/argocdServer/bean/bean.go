@@ -25,7 +25,7 @@ type ArgoCdAppPatchReqDto struct {
 const RegisterRepoMaxRetryCount = 3
 
 // EmptyRepoErrorList - ArgoCD can't register empty repo and throws these error message in such cases
-var EmptyRepoErrorList = []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+var EmptyRepoErrorList = []string{"failed to get index: 404 Not Found", "remote repository is empty", ArgoRepoSyncDelayErr}
 
 // ArgoRepoSyncDelayErr - This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
 const ArgoRepoSyncDelayErr = "Unable to resolve 'HEAD' to a commit SHA"

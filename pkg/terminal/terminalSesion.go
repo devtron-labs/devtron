@@ -49,6 +49,7 @@ import (
 
 const END_OF_TRANSMISSION = "\u0004"
 const ProcessExitedMsg = "Process exited"
+const ProcessTimedOut = "Process timedOut"
 
 // PtyHandler is what remotecommand expects from a pty
 type PtyHandler interface {
@@ -186,24 +187,53 @@ func (sm *SessionMap) SetTerminalSessionStartTime(sessionId string) {
 	}
 }
 
+func (sm *SessionMap) setAndSendSignal(sessionId string, session sockjs.Session) {
+	sm.Lock.Lock()
+	defer sm.Lock.Unlock()
+	terminalSession, ok := sm.Sessions[sessionId]
+	if ok && terminalSession.id == "" {
+		log.Printf("handleTerminalSession: can't find session '%s'", sessionId)
+		session.Close(http.StatusGone, fmt.Sprintf("handleTerminalSession: can't find session '%s'", sessionId))
+		return
+	} else if ok {
+		terminalSession.sockJSSession = session
+		sm.Sessions[sessionId] = terminalSession
+
+		select {
+		case terminalSession.bound <- nil:
+			log.Printf("message sent on bound channel for sessionId : %s", sessionId)
+		default:
+			// if a request from the front end is not received within a particular time frame, and no one is reading from the bound channel, we will ignore sending on the bound channel.
+			log.Printf("skipping send on bound, channel receiver possibly timed out. sessionId: %s", sessionId)
+		}
+
+	}
+}
+
 // Close shuts down the SockJS connection and sends the status code and reason to the client
 // Can happen if the process exits or if there is an error starting up the process
 // For now the status code is unused and reason is shown to the user (unless "")
 func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
+
 	sm.Lock.Lock()
 	defer sm.Lock.Unlock()
+
 	terminalSession := sm.Sessions[sessionId]
+
 	if terminalSession.sockJSSession != nil {
-		terminalSession.doneChan <- struct{}{} // TODO KB: review this
+
 		err := terminalSession.sockJSSession.Close(status, reason)
 		if err != nil {
 			log.Println(err)
 		}
+
+		close(terminalSession.doneChan)
+
 		isErroredConnectionTermination := isConnectionClosedByError(status)
 		middleware.IncTerminalSessionRequestCounter(SessionTerminated, strconv.FormatBool(isErroredConnectionTermination))
 		middleware.RecordTerminalSessionDurationMetrics(terminalSession.podName, terminalSession.namespace, terminalSession.clusterId, time.Since(terminalSession.startedOn).Seconds())
-		close(terminalSession.doneChan)
 		terminalSession.contextCancelFunc()
+		close(terminalSession.bound)
 		delete(sm.Sessions, sessionId)
 	}
 
@@ -221,10 +251,9 @@ var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
 // handleTerminalSession is Called by net/http for any new /api/sockjs connections
 func handleTerminalSession(session sockjs.Session) {
 	var (
-		buf             string
-		err             error
-		msg             TerminalMessage
-		terminalSession TerminalSession
+		buf string
+		err error
+		msg TerminalMessage
 	)
 
 	if buf, err = session.Recv(); err != nil {
@@ -243,15 +272,8 @@ func handleTerminalSession(session sockjs.Session) {
 		return
 	}
 
-	if terminalSession = terminalSessions.Get(msg.SessionID); terminalSession.id == "" {
-		log.Printf("handleTerminalSession: can't find session '%s'", msg.SessionID)
-		session.Close(http.StatusGone, fmt.Sprintf("handleTerminalSession: can't find session '%s'", msg.SessionID))
-		return
-	}
+	terminalSessions.setAndSendSignal(msg.SessionID, session)
 
-	terminalSession.sockJSSession = session
-	terminalSessions.Set(msg.SessionID, terminalSession)
-	terminalSession.bound <- nil
 }
 
 type SocketConfig struct {
@@ -382,7 +404,6 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 	timedCtx, _ := context.WithTimeout(sessionCtx, 60*time.Second)
 	select {
 	case <-session.bound:
-		close(session.bound)
 
 		var err error
 		if isValidShell(validShells, request.Shell) {
@@ -408,8 +429,7 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
 	case <-timedCtx.Done():
 		// handle case when connection has not been initiated from FE side within particular time
-		close(session.bound)
-		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
+		terminalSessions.Close(request.SessionId, 1, ProcessTimedOut)
 	}
 }
 

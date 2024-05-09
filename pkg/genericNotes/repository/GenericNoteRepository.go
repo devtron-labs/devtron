@@ -51,8 +51,7 @@ type GenericNoteRepository interface {
 	GetDescriptionFromAppIds(appIds []int) ([]*GenericNote, error)
 }
 
-func NewGenericNoteRepositoryImpl(dbConnection *pg.DB) *GenericNoteRepositoryImpl {
-	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
+func NewGenericNoteRepositoryImpl(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *GenericNoteRepositoryImpl {
 	return &GenericNoteRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: TransactionUtilImpl,

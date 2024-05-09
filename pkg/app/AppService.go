@@ -79,6 +79,7 @@ type AppServiceConfig struct {
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
+	ScanV2Enabled                              bool   `env:"SCAN_V2_ENABLED" envDefault:"false"`
 }
 
 const AppNotFound = "app not found"
@@ -460,7 +461,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 		if !isArgoAppSynced {
 			return isValid, installedAppVersionHistory, appId, envId, nil
@@ -509,7 +510,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 		if !isArgoAppSynced {
