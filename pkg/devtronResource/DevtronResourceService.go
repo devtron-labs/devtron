@@ -640,11 +640,13 @@ func (impl *DevtronResourceServiceImpl) CloneResourceObject(ctx context.Context,
 	//step 1 : validate if clone source is valid
 	cloneFromDescriptorBean := &bean.DevtronResourceObjectDescriptorBean{
 		//using kind, subKind, version from request and not from cloneFrom because this should be same with where getting cloned
-		Kind:       req.Kind,
-		SubKind:    req.SubKind,
-		Version:    req.Version,
-		Id:         req.CloneFrom.Id,
-		Identifier: req.CloneFrom.Identifier,
+		Kind:    req.Kind,
+		SubKind: req.SubKind,
+		Version: req.Version,
+	}
+	if req.CloneFrom != nil {
+		cloneFromDescriptorBean.Id = req.CloneFrom.Id
+		cloneFromDescriptorBean.Identifier = req.CloneFrom.Identifier
 	}
 	schemaObj, cloneFromObj, err := impl.getResourceSchemaAndExistingObject(cloneFromDescriptorBean)
 	if err != nil {
