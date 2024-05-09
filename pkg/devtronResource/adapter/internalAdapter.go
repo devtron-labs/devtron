@@ -19,7 +19,8 @@ func GetPatchQueryForPolicyAutoAction(autoAction, stateTo *bean.ReleaseStatusDef
 		patchQueries = append(patchQueries, bean2.PatchQuery{
 			Path: bean2.ReleaseStatusQueryPath,
 			Value: &bean2.ConfigStatus{
-				Status: configStatus,
+				Status:  configStatus,
+				Comment: bean2.ReleaseConfigStatusAutoChangeComment,
 			},
 		})
 	}
