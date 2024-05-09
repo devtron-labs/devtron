@@ -353,6 +353,16 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	var manifest []byte
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	//checking if namespace exist or not
+	clusterIdToNsMap := map[int]string{
+		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
+	}
+	clusterId := make([]int, 0)
+	clusterId = append(clusterId, cdPipeline.Environment.ClusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	if err != nil {
+		return 0, "", err
+	}
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
@@ -708,16 +718,6 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 	cdPipeline := triggerOperationReq.TriggerRequest.Pipeline
 	ciArtifactId := triggerOperationReq.TriggerRequest.Artifact.Id
 	triggeredBy := triggerOperationReq.TriggerRequest.TriggeredBy
-	//checking if namespace exist or not
-	clusterIdToNsMap := map[int]string{
-		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
-	}
-	clusterId := make([]int, 0)
-	clusterId = append(clusterId, cdPipeline.Environment.ClusterId)
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
-	if err != nil {
-		return nil, 0, "", err
-	}
 	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id)
 	if err != nil {
