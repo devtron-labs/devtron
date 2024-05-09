@@ -83,6 +83,6 @@ func NewInterceptEventNotificationData(kind, name, action, clusterName, namespac
 		WatcherName:              watcherName,
 		PipelineName:             pipelineName,
 		InterceptedAt:            interceptedAt,
-		ViewResourceManifestLink: hostUrl + fmt.Sprintf("/dashboard/event-watcher/intercepted-changes?id=%d", interceptEventId),
+		ViewResourceManifestLink: hostUrl + fmt.Sprintf("/dashboard/resource-watcher/intercepted-changes?id=%d", interceptEventId),
 	}
 }
