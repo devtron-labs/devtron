@@ -439,8 +439,13 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR || err.Error() == CiPipeline.PIPELINE_TYPE_IS_NOT_VALID {
+		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		if err.Error() == CiPipeline.PIPELINE_TYPE_IS_NOT_VALID {
+			handler.Logger.Errorw("service err, pipeline type is not valid ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
