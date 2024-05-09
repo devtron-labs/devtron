@@ -766,8 +766,7 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceDependencies(ctx c
 
 func (impl *DevtronResourceServiceImpl) setDefaultDataAndValidateDependencies(req *bean.DtResourceObjectDependenciesReqBean) error {
 	if len(req.Dependencies) == 0 {
-		impl.logger.Errorw("invalid request, no dependency in request", "req", req)
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.BadRequestDependenciesErrorMessage, bean.InvalidNoDependencyRequest)
+		impl.logger.Warnw("no dependency in request, setDefaultDataAndValidateDependencies", "req", req)
 	}
 	allDependenciesToBeValidated := make([]*bean.DevtronResourceDependencyBean, 0, len(req.Dependencies)+2*len(req.ChildDependencies))
 	for i := range req.Dependencies {
