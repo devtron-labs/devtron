@@ -234,6 +234,21 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 	return nil
 }
 
+func (impl *DevtronResourceServiceImpl) updateOverviewAndConfigStatusDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
+	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
+	err = impl.updateReleaseOverviewDataForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	if err != nil {
+		impl.logger.Errorw("error in getting overview data", "err", err)
+		return err
+	}
+	err = impl.updateReleaseConfigStatusForGetApiResourceObj(resourceSchema, existingResourceObject, resourceObject)
+	if err != nil {
+		impl.logger.Errorw("error in getting config status data", "err", err)
+		return err
+	}
+	return nil
+}
+
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
 	if reqBean.Overview == nil {
 		err := helper.CheckIfReleaseVersionIsValid(reqBean.Overview.ReleaseVersion)
@@ -394,7 +409,7 @@ func (impl *DevtronResourceServiceImpl) listRelease(resourceObjects, childObject
 				return nil, err
 			}
 		} else {
-			err := impl.updateReleaseVersionAndParentConfigInResourceObj(resourceSchema, resourceObject, resourceData)
+			err := impl.updateOverviewAndConfigStatusDataForGetApiResourceObj(resourceSchema, resourceObject, resourceData)
 			if err != nil {
 				impl.logger.Errorw("error in getting overview data", "err", err)
 				return nil, err
