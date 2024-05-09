@@ -141,6 +141,11 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
+	if err != nil {
+		impl.logger.Errorw("request err, GetWatcherById", "err", err, "watcherId", watcherId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
@@ -155,7 +160,6 @@ func (impl WatcherRestHandlerImpl) GetWatcherById(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
@@ -167,6 +171,11 @@ func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter
 	}
 	vars := mux.Vars(r)
 	interceptedEventId, err := strconv.Atoi(vars["identifier"])
+	if err != nil {
+		impl.logger.Errorw("request err, GetInterceptedEventByID", "err", err, "interceptedEventId", interceptedEventId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	res, err := impl.watcherService.GetInterceptedEventById(interceptedEventId)
 	if err != nil {
@@ -184,7 +193,6 @@ func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter
 	}
 	// RBAC enforcer Ends
 
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
@@ -196,6 +204,11 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteWatcherById", "err", err, "watcherId", watcherId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*")
@@ -210,7 +223,6 @@ func (impl WatcherRestHandlerImpl) DeleteWatcherById(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, watcherId, http.StatusOK)
 }
 
@@ -222,6 +234,11 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 	}
 	vars := mux.Vars(r)
 	watcherId, err := strconv.Atoi(vars["identifier"])
+	if err != nil {
+		impl.logger.Errorw("request err, UpdateWatcherById", "err", err, "watcherId", watcherId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	var watcherRequest types.WatcherDto
 	err = json.NewDecoder(r.Body).Decode(&watcherRequest)
 	if err != nil {
@@ -261,7 +278,6 @@ func (impl WatcherRestHandlerImpl) UpdateWatcherById(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
@@ -383,7 +399,7 @@ func getInterceptedEventsQueryParams(queryParams url.Values) (*types.Intercepted
 	sortOrder = strings.ToLower(sortOrder)
 	if sortOrder == "" {
 		sortOrder = "desc"
-	} else if !(sortOrder == "asc" || sortOrder == "desc") {
+	} else if !(sortOrder == "asc" || sortOrder == "desc") { // As frontend's code is considering sortOrder in the sense of asc being latest
 		return nil, errors.New("sort order can only be ASC or DESC")
 	} else if sortOrder == "asc" {
 		sortOrder = "desc"

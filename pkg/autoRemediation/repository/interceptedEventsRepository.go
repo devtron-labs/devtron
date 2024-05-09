@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
@@ -62,6 +63,9 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 }
 
 func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
+	if len(interceptedEvents) == 0 {
+		return interceptedEvents, errors.New("no intercepted events to save")
+	}
 	err := tx.Insert(&interceptedEvents)
 	if err != nil {
 		return interceptedEvents, err
@@ -97,6 +101,9 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 
 func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
 	var interceptedEvents []*InterceptedEventExecution
+	if len(triggerIds) == 0 {
+		return interceptedEvents, errors.New("no trigger Ids given")
+	}
 	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()
 	if err != nil {
 		return nil, err

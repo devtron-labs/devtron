@@ -448,6 +448,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 	watcher.Gvks = gvks
 	watcher.UpdateAuditLog(userId)
 	tx, err := impl.triggerRepository.StartTx()
+	defer impl.triggerRepository.RollbackTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction for creating trigger", watcherId, "error", err)
 		return err
@@ -500,7 +501,7 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in committing transaction to create trigger", "error", err)
 		return err
 	}
-	defer impl.triggerRepository.RollbackTx(tx)
+
 	return nil
 }
 

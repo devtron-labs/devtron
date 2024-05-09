@@ -101,6 +101,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WatcherData'
+  /orchestrator/scoop/intercept-event/{identifier}:
+    parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          anyOf:
+            - type: integer
+                # integer for id
+        description: Intercepted event identifier.
+    get:
+      summary: Retrieve a intercepted event
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterceptEvent'
     put:
       summary: Update an existing watcher
       requestBody:
@@ -320,6 +339,8 @@ components:
     InterceptEvent:
       type: object
       properties:
+        interceptedEventId:
+          type: integer
         action:
           type: string
           enum:
