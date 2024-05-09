@@ -318,6 +318,13 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app detail", "err", err)
+		clientCode, clientErrMsg := util.GetClientDetailedError(err)
+		httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
+		err = &util.ApiError{
+			HttpStatusCode: httpStatusCode,
+			Code:           strconv.Itoa(httpStatusCode),
+			UserMessage:    clientErrMsg,
+		}
 		return nil, err
 	}
 

@@ -100,6 +100,14 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
+			clientCode, clientErrMsg := util.GetClientDetailedError(err)
+			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
+			err = &util.ApiError{
+				HttpStatusCode: httpStatusCode,
+				Code:           strconv.Itoa(httpStatusCode),
+				UserMessage:    clientErrMsg,
+			}
+			return err
 		}
 
 		/* helmReleaseInstallStatus is nats message sent from kubelink to orchestrator and has the following details about installation :-

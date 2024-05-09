@@ -1084,6 +1084,15 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
+			clientCode, clientErrMsg := util.GetClientDetailedError(err)
+			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
+			err = &util.ApiError{
+				HttpStatusCode:  httpStatusCode,
+				Code:            strconv.Itoa(httpStatusCode),
+				InternalMessage: clientErrMsg,
+				UserMessage:     "cluster unreachable, please try again after some time.",
+			}
+			return resourceTree, err
 		}
 		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
