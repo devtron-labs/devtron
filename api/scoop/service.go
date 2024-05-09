@@ -214,23 +214,42 @@ func (impl ServiceImpl) updateInterceptedEvents(tx *pg.Tx, interceptEventExecs [
 
 func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *repository.InterceptedEventExecution, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl, token string) *repository.InterceptedEventExecution {
 
+	ciWorkflowId := 0
+	status := repository.Progressing
+	executionMessage := ""
+	var err error
 	defer func() {
 		interceptEventExec.UpdatedOn = time.Now()
+		interceptEventExec.Status = status
+		// store the error here if something goes wrong before triggering the job
+		interceptEventExec.ExecutionMessage = executionMessage
+		interceptEventExec.TriggerExecutionId = ciWorkflowId
 	}()
 
 	request, err := impl.createTriggerRequest(trigger, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 	if err != nil {
-		interceptEventExec.Status = repository.Errored
-		interceptEventExec.ExecutionMessage = err.Error()
+		impl.logger.Errorw("error in creating trigger request", "err", err)
+		status = repository.Errored
+		executionMessage = err.Error()
 		return interceptEventExec
 	}
 
-	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, hostUrl, token, interceptEventExec.Id)
-	request.RuntimeParams = &runtimeParams
+	cluster, err := impl.clusterService.FindById(interceptedEvent.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster using cluster id", "clusterId", interceptedEvent.ClusterId, "err", err)
+		status = repository.Errored
+		executionMessage = err.Error()
+		return interceptEventExec
+	}
 
-	ciWorkflowId := 0
-	status := repository.Progressing
-	executionMessage := ""
+	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, cluster.ClusterName, hostUrl, token, interceptEventExec.Id)
+	if err != nil {
+		impl.logger.Errorw("error in extracting runtime params for intercepted event trigger", "err", err)
+		status = repository.Errored
+		executionMessage = err.Error()
+		return interceptEventExec
+	}
+	request.RuntimeParams = &runtimeParams
 
 	// get the commit for this pipeline as we need it during trigger
 	// this call internally fetches the commits from git-sensor.
@@ -265,10 +284,6 @@ func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *
 
 	}
 
-	interceptEventExec.TriggerExecutionId = ciWorkflowId
-	interceptEventExec.Status = status
-	// store the error here if something goes wrong before triggering the job
-	interceptEventExec.ExecutionMessage = executionMessage
 	return interceptEventExec
 }
 
@@ -329,16 +344,11 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 	return err
 }
 
-func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl string, token string, interceptEventId int) (bean.RuntimeParameters, error) {
+func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, clusterName, hostUrl, token string, interceptEventId int) (bean.RuntimeParameters, error) {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
 	}
-
-	cluster, err := impl.clusterService.FindById(interceptedEvent.ClusterId)
-	if err != nil {
-		return runtimeParams, err
-	}
-
+	var err error
 	for _, param := range trigger.Data.RuntimeParameters {
 		runtimeParams.EnvVariables[param.Key] = param.Value
 	}
@@ -346,24 +356,27 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMa
 	// involvedObjJsonStr is a json string which contain old and new resources.
 	involvedObjects := interceptedEvent.InvolvedObjects
 	var finalResource, initialResource []byte
-	if _, ok := involvedObjects[types.NewResourceKey]; ok {
-		finalResource, err = json.Marshal(involvedObjects[types.NewResourceKey])
+	if finalResourceObj, ok := involvedObjects[types.NewResourceKey]; ok {
+		finalResource, err = json.Marshal(&finalResourceObj)
+		if err != nil {
+			impl.logger.Errorw("error in marshalling final resource spec", "finalResourceObj", finalResourceObj, "err", err)
+			return runtimeParams, err
+		}
 	}
-	if err != nil {
-		return runtimeParams, err
-	}
-	if _, ok := involvedObjects[types.OldResourceKey]; ok {
-		initialResource, err = json.Marshal(involvedObjects[types.OldResourceKey])
-	}
-	if err != nil {
-		return runtimeParams, err
+
+	if initialResourceObj, ok := involvedObjects[types.OldResourceKey]; ok {
+		initialResource, err = json.Marshal(initialResourceObj)
+		if err != nil {
+			impl.logger.Errorw("error in marshalling initial resource spec", "initialResourceObj", initialResourceObj, "err", err)
+			return runtimeParams, err
+		}
 	}
 
 	watcherName := watchersMap[trigger.WatcherId].Name
 	action := strings.ToLower(string(interceptedEvent.Action))
 	notificationData := client2.NewInterceptEventNotificationData(
 		interceptedEvent.ObjectMeta.Kind, interceptedEvent.ObjectMeta.Name,
-		action, cluster.ClusterName, interceptedEvent.ObjectMeta.Namespace,
+		action, clusterName, interceptedEvent.ObjectMeta.Namespace,
 		watcherName, hostUrl, trigger.Data.PipelineName,
 		interceptedEvent.InterceptedAt, interceptEventId)
 
