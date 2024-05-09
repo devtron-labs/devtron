@@ -25,9 +25,11 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/exp/slices"
+	"golang.org/x/mod/semver"
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -235,8 +237,14 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil || len(reqBean.Overview.ReleaseVersion) == 0 {
-		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotFound, bean.ReleaseVersionNotFound)
+	if reqBean.Overview == nil {
+		releaseVersionForValidation := reqBean.Overview.ReleaseVersion
+		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
+			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
+		}
+		if !semver.IsValid(releaseVersionForValidation) {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
+		}
 	} else if reqBean.ParentConfig == nil {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceParentConfigNotFound, bean.ResourceParentConfigNotFound)
 	} else if reqBean.ParentConfig.Id == 0 && len(reqBean.ParentConfig.Identifier) == 0 {
@@ -730,14 +738,41 @@ func (impl *DevtronResourceServiceImpl) checkIfReleaseResourcePatchValid(objectD
 	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(objectData string) error {
-	isValid, err := impl.checkIfReleaseResourceOperationValid(objectData, bean4.PolicyReleaseOperationTypeDeploymentTrigger, nil)
+func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(req *bean.DevtronResourceTaskExecutionBean, existingResourceObject *repository.DevtronResourceObject) error {
+	isValid, err := impl.checkIfReleaseResourceOperationValid(existingResourceObject.ObjectData, bean4.PolicyReleaseOperationTypeDeploymentTrigger, nil)
 	if err != nil {
-		impl.logger.Errorw("err, checkIfReleaseResourceTaskRunValid", "err", err, "objectData", objectData)
+		impl.logger.Errorw("err, checkIfReleaseResourceTaskRunValid", "err", err, "objectData", existingResourceObject.ObjectData)
 		return err
 	}
 	if !isValid {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ActionPolicyInValidDueToStatusErrMessage, bean.ActionPolicyInValidDueToStatusErrMessage)
+	}
+
+	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(req.DevtronResourceObjectDescriptorBean, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
+	if err != nil {
+		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "descriptorBean", req.DevtronResourceObjectDescriptorBean, "err", err)
+		return err
+	}
+	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo)
+	if err != nil {
+		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "taskRunInfo", taskRunInfo, "err", err)
+		return err
+	}
+
+	return nil
+}
+
+func checkIfTaskExecutionAllowed(tasks []*bean.Task, taskInfo []bean.DtReleaseTaskRunInfo) error {
+	levelIndexVsDeploymentAllowedMap := make(map[int]*bool, len(taskInfo))
+	for _, info := range taskInfo {
+		levelIndexVsDeploymentAllowedMap[info.Level] = info.TaskRunAllowed
+	}
+	for _, task := range tasks {
+		if val, ok := levelIndexVsDeploymentAllowedMap[task.LevelIndex]; !ok {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidLevelIndexOrLevelIndexChangedMessage, bean.InvalidLevelIndexOrLevelIndexChangedMessage)
+		} else if ok && !*val {
+			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.StageTaskExecutionNotAllowedMessage, bean.StageTaskExecutionNotAllowedMessage)
+		}
 	}
 	return nil
 }
@@ -1109,10 +1144,12 @@ func (impl *DevtronResourceServiceImpl) getAppAndCdWfrIdsForDependencies(release
 			return nil, nil, fmt.Errorf("invalid childInheritance selector! Implementation not supported")
 		}
 	}
-	cdWfrIds, err = impl.getExecutedCdWfrIdsFromTaskRun(releaseRunSourceIdentifier, appDependencyIdentifiers)
-	if err != nil {
-		impl.logger.Errorw("invalid childInheritance selector data", "err", err, "appDependencyIdentifiers", appDependencyIdentifiers)
-		return nil, nil, err
+	if len(appDependencyIdentifiers) != 0 {
+		cdWfrIds, err = impl.getExecutedCdWfrIdsFromTaskRun(releaseRunSourceIdentifier, appDependencyIdentifiers)
+		if err != nil {
+			impl.logger.Errorw("invalid childInheritance selector data", "err", err, "appDependencyIdentifiers", appDependencyIdentifiers)
+			return nil, nil, err
+		}
 	}
 	return appIds, cdWfrIds, nil
 }
@@ -1220,18 +1257,23 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 						WithFilterByDependentOnIndex(previousLevelIndex).
 						WithChildInheritance()
 					previousLevelAppDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, previousAppFilterCondition)
-					appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, previousLevelAppDependencies)
-					if err != nil {
-						impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "previousLevelIndex", previousLevelIndex, "err", err)
-						return nil, err
-					}
-					if len(cdWfrIds) == 0 {
+					if len(previousLevelAppDependencies) != 0 {
+						appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, previousLevelAppDependencies)
+						if err != nil {
+							impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "previousLevelIndex", previousLevelIndex, "err", err)
+							return nil, err
+						}
+						if len(cdWfrIds) == 0 {
+							taskRunAllowed = false
+						} else {
+							taskRunAllowed, err = impl.ciCdPipelineOrchestrator.IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds)
+							if err != nil {
+								impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
+								return nil, err
+							}
+						}
+					} else {
 						taskRunAllowed = false
-					}
-					taskRunAllowed, err = impl.ciCdPipelineOrchestrator.IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds)
-					if err != nil {
-						impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
-						return nil, err
 					}
 				}
 				dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
@@ -1267,10 +1309,13 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
 					return nil, err
 				}
-				isReleaseCompleted, err := impl.ciCdPipelineOrchestrator.IsAppsDeployedOnAllEnvWithRunnerIds(appIds, cdWfrIds)
-				if err != nil {
-					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
-					return nil, err
+				isReleaseCompleted := false
+				if len(cdWfrIds) != 0 {
+					isReleaseCompleted, err = impl.ciCdPipelineOrchestrator.IsAppsDeployedOnAllEnvWithRunnerIds(appIds, cdWfrIds)
+					if err != nil {
+						impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
+						return nil, err
+					}
 				}
 				if isReleaseCompleted {
 					existingResourceObject.ObjectData, err = sjson.Set(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath, bean.CompletelyDeployedReleaseRolloutStatus)

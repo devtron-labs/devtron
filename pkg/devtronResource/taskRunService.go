@@ -64,6 +64,13 @@ func (impl *DevtronResourceServiceImpl) bulkCreateDevtronResourceTaskRunObjects(
 	//	return err
 	//}
 
+	// finding task target identifier resource and schema id assuming it tobe cd -pipeline here
+	cdPipelineSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean.DevtronResourceCdPipeline.ToString(), "", bean.DevtronResourceVersion1.ToString())
+	if err != nil {
+		impl.logger.Errorw("error encountered in bulkCreateDevtronResourceTaskRunObjects", "err", err)
+		return nil, err
+	}
+
 	for _, task := range tasks {
 		//fetching  cd workflow runner id from logic -
 		// STEP 1: get artifact id from task app id
@@ -96,13 +103,14 @@ func (impl *DevtronResourceServiceImpl) bulkCreateDevtronResourceTaskRunObjects(
 			TaskJson:                      taskJson,
 			RunSourceIdentifier:           helper.GetTaskRunSourceIdentifier(req.Id, req.IdType, existingObject.DevtronResourceId, existingObject.DevtronResourceSchemaId),
 			RunSourceDependencyIdentifier: helper.GetTaskRunSourceDependencyIdentifier(dependencyDetail.Id, dependencyDetail.IdType, dependencyDetail.DevtronResourceId, dependencyDetail.DevtronResourceSchemaId),
+			RunTargetIdentifier:           helper.GetTaskRunIdentifier(task.PipelineId, bean.OldObjectId, cdPipelineSchema.DevtronResourceId, cdPipelineSchema.Id),
 			TaskType:                      helper.GetTaskTypeBasedOnWorkflowType(task.CdWorkflowType),
 			TaskTypeIdentifier:            cdWorkflowRunnerId,
 			//DevtronResourceSchemaId:       taskRunSchema.Id,
 			AuditLog: sql.AuditLog{CreatedOn: req.TriggeredTime, UpdatedOn: req.TriggeredTime, CreatedBy: req.UserId, UpdatedBy: req.UserId},
 		})
 	}
-	err := impl.dtResourceTaskRunRepository.BulkCreate(tx, taskRuns)
+	err = impl.dtResourceTaskRunRepository.BulkCreate(tx, taskRuns)
 	if err != nil {
 		impl.logger.Errorw("error encountered in bulkCreateDevtronResourceTaskRunObjects", "taskRuns", taskRuns, "err", err)
 		return nil, err

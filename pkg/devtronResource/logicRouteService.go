@@ -288,7 +288,7 @@ var checkPatchOperationValidityFuncMap = map[string]func(impl *DevtronResourceSe
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).checkIfReleaseResourcePatchValid,
 }
 
-func getFuncToCheckTaskRunOperationValidity(kind, subKind, version string) func(impl *DevtronResourceServiceImpl, objectData string) error {
+func getFuncToCheckTaskRunOperationValidity(kind, subKind, version string) func(impl *DevtronResourceServiceImpl, req *bean.DevtronResourceTaskExecutionBean, existingResourceObject *repository.DevtronResourceObject) error {
 	if f, ok := checkTaskRunOperationValidityFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
 		return f
 	} else {
@@ -296,7 +296,7 @@ func getFuncToCheckTaskRunOperationValidity(kind, subKind, version string) func(
 	}
 }
 
-var checkTaskRunOperationValidityFuncMap = map[string]func(impl *DevtronResourceServiceImpl, objectData string) error{
+var checkTaskRunOperationValidityFuncMap = map[string]func(impl *DevtronResourceServiceImpl, req *bean.DevtronResourceTaskExecutionBean, existingResourceObject *repository.DevtronResourceObject) error{
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).checkIfReleaseResourceTaskRunValid,
 }
