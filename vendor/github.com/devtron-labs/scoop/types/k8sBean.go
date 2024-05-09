@@ -34,8 +34,8 @@ type Config struct {
 	ClusterCacheListPageBufferSize  int32                     `env:"CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE" envDefault:"10"`
 	ClusterCacheAttemptLimit        int32                     `env:"CLUSTER_CACHE_ATTEMPT_LIMIT" envDefault:"1"`
 	ClusterCacheRetryUseBackoff     bool                      `env:"CLUSTER_CACHE_RETRY_USE_BACKOFF"`
-	NamespacesToCache               []string                  `json:"namespacesToCache" env:"CACHED_NAMESPACES" envDefault:"gireesh-ns" envSeparator:","` // empty means all
-	GVKToCacheJson                  string                    `env:"CACHED_GVKs" envDefault:"[]"`                                                         // empty means all, in case no gvk then pass anything
+	NamespacesToCache               []string                  `json:"namespacesToCache" env:"CACHED_NAMESPACES" envDefault:"" envSeparator:","` // empty means all
+	GVKToCacheJson                  string                    `env:"CACHED_GVKs" envDefault:"[]"`                                               // empty means all, in case no gvk then pass anything
 	GVKToCache                      []schema.GroupVersionKind `json:"gvkToCacheJson"`
 }
 

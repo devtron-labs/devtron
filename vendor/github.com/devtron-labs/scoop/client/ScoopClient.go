@@ -17,6 +17,7 @@ type ScoopClient interface {
 	GetResourceList(ctx context.Context, resourceIdentifier *types2.K8sRequestBean) (*k8s.ClusterResourceListMap, error)
 	UpdateK8sCacheConfig(ctx context.Context, config *types2.Config) error
 	UpdateWatcherConfig(ctx context.Context, action types2.Action, watcher *types2.Watcher) error
+	UpdateNamespaceConfig(ctx context.Context, action types2.Action, namespace string, isProd bool) error
 }
 
 type ScoopClientImpl struct {
@@ -131,5 +132,28 @@ func (impl *ScoopClientImpl) UpdateWatcherConfig(ctx context.Context, action typ
 	resp := &utils.Response{}
 
 	err := utils.CallPostApi(impl.serverUrlWithPort+types2.WATCHER_CUD_URL, nil, headers, payload, resp)
+	return err
+}
+
+func (impl *ScoopClientImpl) UpdateNamespaceConfig(ctx context.Context, action types2.Action, namespace string, isProd bool) error {
+	if namespace == "" {
+		return fmt.Errorf("namespace cannot be emepty")
+	}
+	headers := map[string]string{
+		"X-PASS-KEY": impl.passKey,
+	}
+
+	isProdStr := "false"
+	if isProd {
+		isProdStr = "true"
+	}
+	queryParams := map[string]string{
+		types2.NamespaceKey: namespace,
+		types2.ActionKey:    string(action),
+		types2.IsProdKey:    isProdStr,
+	}
+
+	resp := &utils.Response{}
+	err := utils.CallPostApi(impl.serverUrlWithPort+types2.NAMESPACE_CUD_URL, queryParams, headers, map[string]string{}, resp)
 	return err
 }

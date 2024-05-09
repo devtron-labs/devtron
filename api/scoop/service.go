@@ -91,7 +91,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 		return err
 	}
 	hostUrl := hostUrlObj.Value
-	involvedObj, metadata, triggers, err := impl.getTriggersAndEventData(interceptedEvent)
+	involvedObj, metadata, triggers, watchersMap, err := impl.getTriggersAndEventData(interceptedEvent)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers and intercepted event data", "interceptedEvent", interceptedEvent, "err", err)
 		return err
@@ -106,7 +106,7 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	for _, trigger := range triggers {
 		switch trigger.IdentifierType {
 		case types2.DEVTRON_JOB:
-			interceptEventExec := impl.triggerJob(trigger, involvedObj, hostUrl, token, interceptedEvent.Namespace, interceptedEvent.ClusterId)
+			interceptEventExec := impl.triggerJob(trigger, watchersMap, interceptedEvent, hostUrl, token)
 			interceptEventExec.ClusterId = interceptedEvent.ClusterId
 			interceptEventExec.Metadata = metadata
 			interceptEventExec.InvolvedObjects = involvedObj
@@ -125,18 +125,18 @@ func (impl ServiceImpl) HandleInterceptedEvent(ctx context.Context, interceptedE
 	return err
 }
 
-func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, metadata string, triggers []*types2.Trigger, err error) {
+func (impl ServiceImpl) getTriggersAndEventData(interceptedEvent *types.InterceptedEvent) (involvedObj string, metadata string, triggers []*types2.Trigger, watchersMap map[int]*types.Watcher, err error) {
+	watchersMap = make(map[int]*types.Watcher)
 	involvedObjectBytes, err := json.Marshal(&interceptedEvent.InvolvedObjects)
 	if err != nil {
-		return involvedObj, metadata, triggers, err
+		return involvedObj, metadata, triggers, watchersMap, err
 	}
 	involvedObj = string(involvedObjectBytes)
 	metadataBytes, err := json.Marshal(interceptedEvent.ObjectMeta)
 	if err != nil {
-		return involvedObj, metadata, triggers, err
+		return involvedObj, metadata, triggers, watchersMap, err
 	}
 	metadata = string(metadataBytes)
-	watchersMap := make(map[int]*types.Watcher)
 	for _, watcher := range interceptedEvent.Watchers {
 		watchersMap[watcher.Id] = watcher
 	}
@@ -179,19 +179,20 @@ func (impl ServiceImpl) saveInterceptedEvents(interceptEventExecs []*repository.
 	return nil
 }
 
-func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, involvedObjJsonStr, hostUrl, token, namespace string, clusterId int) *repository.InterceptedEventExecution {
+func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl, token string) *repository.InterceptedEventExecution {
 
 	interceptEventExec := &repository.InterceptedEventExecution{
 		TriggerId: trigger.Id,
 	}
 
-	request, err := impl.createTriggerRequest(trigger, namespace, clusterId)
+	request, err := impl.createTriggerRequest(trigger, interceptedEvent.Namespace, interceptedEvent.ClusterId)
 	if err != nil {
 		interceptEventExec.Status = repository.Errored
 		interceptEventExec.ExecutionMessage = err.Error()
 		return interceptEventExec
 	}
-	runtimeParams := impl.extractRuntimeParams(trigger, involvedObjJsonStr, hostUrl, token)
+
+	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, hostUrl, token)
 	request.RuntimeParams = &runtimeParams
 
 	ciWorkflowId := 0
@@ -262,6 +263,17 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 		}
 	}
 
+	notificationData := client2.InterceptEventNotificationData{}
+	dataString := ""
+	if dataString, ok = notification["data"].(string); !ok {
+		return errors.New("invalid notification data")
+	}
+
+	err := json.Unmarshal([]byte(dataString), &notificationData)
+	if err != nil {
+		return errors.New("invalid notification data, err : " + err.Error())
+	}
+
 	notification["eventTypeId"] = util5.ScoopNotification
 	notification["eventTime"] = time.Now()
 	notification["correlationId"] = fmt.Sprintf("%s", uuid.NewV4())
@@ -270,7 +282,7 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 		emailIds = strings.Split(emailsStr, ",")
 	}
 
-	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emailIds)
+	payload, err := impl.eventFactory.BuildScoopNotificationEventProviders(util5.Channel(configType), configName, emailIds, notificationData)
 	if err != nil {
 		impl.logger.Errorw("error in constructing event payload ", "notification", notification, "err", err)
 		return err
@@ -284,9 +296,14 @@ func (impl ServiceImpl) HandleNotificationEvent(ctx context.Context, notificatio
 	return err
 }
 
-func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, involvedObjJsonStr string, hostUrl string, token string) bean.RuntimeParameters {
+func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMap map[int]*types.Watcher, interceptedEvent *types.InterceptedEvent, hostUrl string, token string) (bean.RuntimeParameters, error) {
 	runtimeParams := bean.RuntimeParameters{
 		EnvVariables: make(map[string]string),
+	}
+
+	cluster, err := impl.clusterService.FindById(interceptedEvent.ClusterId)
+	if err != nil {
+		return runtimeParams, err
 	}
 
 	for _, param := range trigger.Data.RuntimeParameters {
@@ -294,10 +311,39 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, involvedOb
 	}
 
 	// involvedObjJsonStr is a json string which contain old and new resources.
-	runtimeParams.EnvVariables["INVOLVED_OBJECTS"] = involvedObjJsonStr
+	involvedObjects := interceptedEvent.InvolvedObjects
+	var finalResource, initialResource []byte
+	if _, ok := involvedObjects[types.NewResourceKey]; ok {
+		finalResource, err = json.Marshal(involvedObjects[types.NewResourceKey])
+	}
+	if err != nil {
+		return runtimeParams, err
+	}
+	if _, ok := involvedObjects[types.OldResourceKey]; ok {
+		initialResource, err = json.Marshal(involvedObjects[types.OldResourceKey])
+	}
+	if err != nil {
+		return runtimeParams, err
+	}
+
+	watcherName := watchersMap[trigger.WatcherId].Name
+	action := strings.ToLower(string(interceptedEvent.Action))
+	notificationData := client2.NewInterceptEventNotificationData(
+		interceptedEvent.ObjectMeta.Kind, interceptedEvent.ObjectMeta.Name,
+		action, cluster.ClusterName, interceptedEvent.ObjectMeta.Namespace,
+		watcherName, hostUrl, trigger.Data.PipelineName,
+		interceptedEvent.InterceptedAt, 0)
+
+	notificationDataBytes, err := json.Marshal(notificationData)
+	if err != nil {
+		return runtimeParams, err
+	}
+	runtimeParams.EnvVariables["DEVTRON_FINAL_MANIFEST"] = string(finalResource)
+	runtimeParams.EnvVariables["DEVTRON_INITIAL_MANIFEST"] = string(initialResource)
+	runtimeParams.EnvVariables["NOTIFICATION_DATA"] = string(notificationDataBytes)
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
 	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
-	return runtimeParams
+	return runtimeParams, nil
 }
 
 func (impl ServiceImpl) createTriggerRequest(trigger *types2.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {

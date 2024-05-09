@@ -54,7 +54,7 @@ type EventFactory interface {
 	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
 	SetAdditionalImageScanData(event *Event, ciPipelineId int, artifactId int)
 	BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event
-	BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string) (*Payload, error)
+	BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string, data InterceptEventNotificationData) (*Payload, error)
 }
 
 type EventSimpleFactoryImpl struct {
@@ -745,7 +745,7 @@ func (impl *EventSimpleFactoryImpl) getDeploymentWindowAuditMessage(artifactId i
 	return auditData.TriggerMessage, nil
 }
 
-func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string) (*Payload, error) {
+func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configType util.Channel, configName string, emailIds []string, data InterceptEventNotificationData) (*Payload, error) {
 
 	if configType == util.SES || configType == util.SMTP {
 		if len(emailIds) == 0 {
@@ -776,12 +776,15 @@ func (impl *EventSimpleFactoryImpl) BuildScoopNotificationEventProviders(configT
 
 		return &Payload{
 			Providers: providers,
+			ScoopNotificationConfig: map[string]interface{}{
+				"data": data,
+			},
 		}, nil
 	}
-	return impl.buildWebhookOrSlackNotification(configType, configName)
+	return impl.buildWebhookOrSlackNotification(configType, configName, data)
 }
 
-func (impl *EventSimpleFactoryImpl) buildWebhookOrSlackNotification(configType util.Channel, configName string) (*Payload, error) {
+func (impl *EventSimpleFactoryImpl) buildWebhookOrSlackNotification(configType util.Channel, configName string, data InterceptEventNotificationData) (*Payload, error) {
 	var scoopNotifyConfig = make(map[string]interface{})
 	if configType == util.Webhook {
 		webhookConfig, err := impl.webhookConfigRepo.FindOneByName(configName)
@@ -818,6 +821,7 @@ func (impl *EventSimpleFactoryImpl) buildWebhookOrSlackNotification(configType u
 
 	}
 
+	scoopNotifyConfig["data"] = data
 	return &Payload{
 		ScoopNotificationConfig: scoopNotifyConfig,
 	}, nil

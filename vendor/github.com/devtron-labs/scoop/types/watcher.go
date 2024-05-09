@@ -66,6 +66,7 @@ const WATCHER_CUD_URL = "/k8s/watcher"
 const API_RESOURCES_URL = "/k8s/api-resources"
 const RESOURCE_LIST_URL = "/k8s/resources"
 const K8S_CACHE_CONFIG_URL = "/k8s/cache/config"
+const NAMESPACE_CUD_URL = "/k8s/namespace"
 
 type EventType string
 
@@ -73,4 +74,12 @@ const (
 	DELETED EventType = "DELETED"
 	CREATED EventType = "CREATED"
 	UPDATED EventType = "UPDATED"
+)
+
+const (
+	NamespaceKey   = "namespace"
+	IsProdKey      = "isProd"
+	ActionKey      = "action"
+	NewResourceKey = "newResource"
+	OldResourceKey = "oldResource"
 )
