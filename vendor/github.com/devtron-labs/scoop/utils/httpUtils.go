@@ -39,3 +39,10 @@ func CallPostApi[T, R any](api string, query, headers map[string]string, request
 	}
 	return err
 }
+
+type Response struct {
+	Code   int         `json:"code,omitempty"`
+	Status string      `json:"status,omitempty"`
+	Result interface{} `json:"result,omitempty"`
+	Errors interface{} `json:"errors,omitempty"`
+}

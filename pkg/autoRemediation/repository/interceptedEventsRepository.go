@@ -30,6 +30,7 @@ type InterceptedEventExecution struct {
 type Status string
 
 const (
+	Initiated   Status = "Initiated"
 	Failure     Status = "Failure"
 	Success     Status = "Success"
 	Progressing Status = "Progressing"
@@ -38,6 +39,7 @@ const (
 
 type InterceptedEventsRepository interface {
 	Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
+	Update(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error)
 	FindAllInterceptedEvents(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) ([]*types2.InterceptedEventData, int, error)
 	GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error)
 	GetInterceptedEventById(id int) (*types2.InterceptedEventData, error)
@@ -64,6 +66,14 @@ func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*Intercepte
 		return nil, nil
 	}
 	err := tx.Insert(&interceptedEvents)
+	if err != nil {
+		return interceptedEvents, err
+	}
+	return interceptedEvents, nil
+}
+
+func (impl InterceptedEventsRepositoryImpl) Update(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
+	err := tx.Update(&interceptedEvents)
 	if err != nil {
 		return interceptedEvents, err
 	}
@@ -130,7 +140,8 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.metadata ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
+
+		query = query.Where("concat(intercepted_event_execution.metadata::json->>'group', '/', intercepted_event_execution.metadata::json->>'kind', '/', intercepted_event_execution.metadata::json->>'name') ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 || len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {

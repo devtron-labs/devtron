@@ -79,6 +79,7 @@ type Trigger struct {
 	Id             int         `json:"-"`
 	IdentifierType TriggerType `json:"identifierType" validate:"required,oneof=DEVTRON_JOB"`
 	Data           TriggerData `json:"data" validate:"dive"`
+	WatcherId      int         `json:"-"`
 }
 type TriggerType string
 

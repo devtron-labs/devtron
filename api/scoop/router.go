@@ -60,7 +60,6 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.DeleteWatcherById).Methods("DELETE")
 
-	// k8sAppRouter.Path("/watcher/events").HandlerFunc(impl.watcherRestHandler.RetrieveInterceptedEvents).Methods("GET")
 	router.Path("/k8s/watcher/{identifier}").HandlerFunc(impl.watcherRestHandler.UpdateWatcherById).Methods("PUT")
 
 }
