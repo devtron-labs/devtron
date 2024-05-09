@@ -562,10 +562,6 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
-	// handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
-	// that case DeleteApplication returned with grpc error and the user was not able to delete the
-	// cd-pipeline after helm app is created in that namespace.
-	exists, err := impl.checkIfNsExists(app)
 	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
 	//that case DeleteApplication returned with grpc error and the user was not able to delete the
 	//cd-pipeline after helm app is created in that namespace.
