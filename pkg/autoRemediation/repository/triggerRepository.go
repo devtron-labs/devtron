@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -57,6 +58,9 @@ func (impl TriggerRepositoryImpl) Save(trigger *AutoRemediationTrigger, tx *pg.T
 	return trigger, nil
 }
 func (impl TriggerRepositoryImpl) SaveInBulk(triggers []*AutoRemediationTrigger, tx *pg.Tx) ([]*AutoRemediationTrigger, error) {
+	if len(triggers) == 0 {
+		return triggers, errors.New("no triggers given to save in bulk")
+	}
 	_, err := tx.Model(&triggers).Insert()
 	if err != nil {
 		return nil, err
@@ -85,6 +89,9 @@ func (impl TriggerRepositoryImpl) GetTriggerByWatcherId(watcherId int) ([]*AutoR
 
 func (impl TriggerRepositoryImpl) GetTriggerByWatcherIds(watcherIds []int) ([]*AutoRemediationTrigger, error) {
 	var trigger []*AutoRemediationTrigger
+	if len(watcherIds) == 0 {
+		return trigger, errors.New("no watcherIds given to get triggers")
+	}
 	err := impl.dbConnection.Model(&trigger).
 		Where(" watcher_id IN (?) ", pg.In(watcherIds)).
 		Where(" active = ? ", true).

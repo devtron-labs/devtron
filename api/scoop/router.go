@@ -36,6 +36,7 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 	router.Path("/k8s/watcher").HandlerFunc(impl.watcherRestHandler.SaveWatcher).Methods("POST")
 
 	router.Path("/k8s/watcher").
+		// below are the supported params
 		// Queries("search", "{search}").
 		// Queries("orderBy", "{orderBy}").
 		// Queries("order", "{order}").
@@ -43,6 +44,7 @@ func (impl RouterImpl) InitScoopRouter(router *mux.Router) {
 		// Queries("size", "{size}").
 		HandlerFunc(impl.watcherRestHandler.RetrieveWatchers).Methods("GET")
 	router.Path("/k8s/intercept-events").
+		// below are the supported params
 		// Queries("watchers", "{watchers}").
 		// Queries("clusters", "{clusters}").
 		// Queries("namespaces", "{namespaces}").
