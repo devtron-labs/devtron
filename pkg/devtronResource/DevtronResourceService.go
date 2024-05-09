@@ -1363,6 +1363,8 @@ func (impl *DevtronResourceServiceImpl) getUpdatedDependenciesRemovingParticular
 			}
 			finalDependencies = append(finalDependencies, dependency)
 		}
+	} else {
+		finalDependencies = dependencies
 	}
 
 	return finalDependencies, indexOfDependencyRemoved, nil
