@@ -75,3 +75,5 @@ type InterceptedEventData struct {
 	TriggerData        string      `sql:"trigger_data" json:"triggerData"`
 	TotalCount         int         `sql:"total_count" json:"totalCount"`
 }
+
+const SourceEnvironment = "Source environment"

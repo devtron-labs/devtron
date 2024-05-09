@@ -380,16 +380,19 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMa
 }
 
 func (impl ServiceImpl) createTriggerRequest(trigger *types2.Trigger, namespace string, clusterId int) (*bean.CiTriggerRequest, error) {
-	env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
+	if trigger.Data.ExecutionEnvironment == types2.SourceEnvironment {
+		env, err := impl.environmentService.FindOneByNamespaceAndClusterId(namespace, clusterId)
 
-	// if env is not found for the namespace in given cluster ,
-	// then set the trigger env to 0. so that the trigger will happen in default env
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		return nil, err
+		// if env is not found for the namespace in given cluster ,
+		// then set the trigger env to 0. so that the trigger will happen in default env
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			return nil, err
+		}
+		if env != nil {
+			trigger.Data.ExecutionEnvironmentId = env.Id
+		}
 	}
-	if env != nil {
-		trigger.Data.ExecutionEnvironmentId = env.Id
-	}
+
 	return &bean.CiTriggerRequest{
 		PipelineId: trigger.Data.PipelineId,
 		// system user
