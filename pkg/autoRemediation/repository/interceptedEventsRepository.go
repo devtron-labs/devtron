@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
@@ -62,7 +61,7 @@ func NewInterceptedEventsRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 
 func (impl InterceptedEventsRepositoryImpl) Save(interceptedEvents []*InterceptedEventExecution, tx *pg.Tx) ([]*InterceptedEventExecution, error) {
 	if len(interceptedEvents) == 0 {
-		return interceptedEvents, errors.New("no intercepted events to save")
+		return nil, nil
 	}
 	err := tx.Insert(&interceptedEvents)
 	if err != nil {
@@ -92,7 +91,7 @@ func (impl InterceptedEventsRepositoryImpl) FindAllInterceptedEvents(intercepted
 func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(triggerIds []int) ([]*InterceptedEventExecution, error) {
 	var interceptedEvents []*InterceptedEventExecution
 	if len(triggerIds) == 0 {
-		return interceptedEvents, errors.New("no trigger Ids given")
+		return nil, nil
 	}
 	err := impl.dbConnection.Model(&interceptedEvents).Where("trigger_id IN (?)", pg.In(triggerIds)).Select()
 	if err != nil {
@@ -104,17 +103,17 @@ func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventsByTriggerIds(tri
 func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(interceptedEventsQueryParams *types2.InterceptedEventQueryParams) *orm.Query {
 	query := impl.dbConnection.Model().
 		Table("intercepted_event_execution").
+		Column("intercepted_event_execution.cluster_id").
+		Column("intercepted_event_execution.namespace").
+		Column("intercepted_event_execution.action").
+		Column("intercepted_event_execution.metadata").
+		Column("intercepted_event_execution.involved_objects").
+		Column("intercepted_event_execution.intercepted_at").
+		Column("intercepted_event_execution.trigger_execution_id").
+		Column("intercepted_event_execution.status").
+		Column("intercepted_event_execution.execution_message").
 		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
-		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
-		ColumnExpr("intercepted_event_execution.namespace as namespace").
 		// ColumnExpr("intercepted_event_execution.message as message").
-		ColumnExpr("intercepted_event_execution.action as action").
-		ColumnExpr("intercepted_event_execution.metadata as metadata").
-		ColumnExpr("intercepted_event_execution.involved_objects as involved_objects").
-		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
-		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
-		ColumnExpr("intercepted_event_execution.status as status").
-		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
 		ColumnExpr("environment.environment_name as environment").
 		ColumnExpr("k8s_event_watcher.name as watcher_name").
 		ColumnExpr("auto_remediation_trigger.id as trigger_id").
@@ -171,18 +170,18 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 func (impl InterceptedEventsRepositoryImpl) GetInterceptedEventById(id int) (*types2.InterceptedEventData, error) {
 	var interceptedEvents = types2.InterceptedEventData{}
 	err := impl.dbConnection.Model().Table("intercepted_event_execution").
-		ColumnExpr("intercepted_event_execution.cluster_id as cluster_id").
-		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
-		ColumnExpr("intercepted_event_execution.namespace as namespace").
-		ColumnExpr("intercepted_event_execution.action as action").
-		ColumnExpr("intercepted_event_execution.metadata as metadata").
-		ColumnExpr("intercepted_event_execution.involved_objects as involved_objects").
-		ColumnExpr("intercepted_event_execution.intercepted_at as intercepted_at").
-		ColumnExpr("intercepted_event_execution.trigger_execution_id as trigger_execution_id").
-		ColumnExpr("auto_remediation_trigger.id as trigger_id").
-		ColumnExpr("intercepted_event_execution.status as status").
-		ColumnExpr("intercepted_event_execution.execution_message as execution_message").
+		Column("intercepted_event_execution.cluster_id").
+		Column("intercepted_event_execution.namespace").
+		Column("intercepted_event_execution.action").
+		Column("intercepted_event_execution.metadata").
+		Column("intercepted_event_execution.involved_objects").
+		Column("intercepted_event_execution.intercepted_at").
+		Column("intercepted_event_execution.trigger_execution_id").
+		Column("intercepted_event_execution.status").
+		Column("intercepted_event_execution.execution_message").
 		ColumnExpr("cluster.cluster_name as cluster_name").
+		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
+		ColumnExpr("auto_remediation_trigger.id as trigger_id").
 		Join("INNER JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
 		Join("INNER JOIN cluster ON cluster.id = intercepted_event_execution.cluster_id").
 		Where("intercepted_event_execution.id = ?", id).
