@@ -124,7 +124,8 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 	}
 
 	if interceptedEventsQueryParams.SearchString != "" {
-		query = query.Where("intercepted_event_execution.metadata ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
+
+		query = query.Where("concat(intercepted_event_execution.metadata::json->>'group', '/', intercepted_event_execution.metadata::json->>'kind', '/', intercepted_event_execution.metadata::json->>'name') ILIKE ?", "%"+interceptedEventsQueryParams.SearchString+"%")
 	}
 
 	if len(interceptedEventsQueryParams.ClusterIds) > 0 || len(interceptedEventsQueryParams.ClusterIdNamespacePairs) > 0 {
