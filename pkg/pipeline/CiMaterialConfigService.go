@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -52,6 +53,7 @@ type CiMaterialConfigServiceImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	transactionManager           sql.TransactionWrapper
 }
 
 func NewCiMaterialConfigServiceImpl(
@@ -62,7 +64,7 @@ func NewCiMaterialConfigServiceImpl(
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *CiMaterialConfigServiceImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
 
 	return &CiMaterialConfigServiceImpl{
 		logger:                       logger,
@@ -73,6 +75,7 @@ func NewCiMaterialConfigServiceImpl(
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		pipelineRepository:           pipelineRepository,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		transactionManager:           transactionManager,
 	}
 }
 
@@ -122,21 +125,21 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 	existingMaterial.UpdatedOn = time.Now()
 	existingMaterial.UpdatedBy = request.UserId
 
-	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	err = impl.materialRepo.MarkMaterialDeleted(tx, existingMaterial)
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
 
-	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(tx, existingMaterial)
 
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
 	var materials []*pipelineConfig.CiPipelineMaterial
 	for _, pipeline := range pipelines {
 		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
