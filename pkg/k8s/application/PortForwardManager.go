@@ -36,6 +36,7 @@ type PortForwardManagerImpl struct {
 	logger           *zap.SugaredLogger
 	k8sCommonService k8s.K8sCommonService
 	stopChannels     map[int]chan struct{}
+	inactivityMap    map[int]int
 }
 
 func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K8sCommonService) (*PortForwardManagerImpl, error) {
@@ -43,6 +44,7 @@ func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K
 		logger:           logger,
 		k8sCommonService: k8sCommonService,
 		stopChannels:     make(map[int]chan struct{}),
+		inactivityMap:    make(map[int]int),
 	}, nil
 }
 
@@ -79,22 +81,21 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 	impl.logger.Infow("Starting to serve k8s api proxy server", "addr", listener.Addr().String())
 	stopChannel := make(chan struct{})
 	impl.stopChannels[unUsedPort] = stopChannel
-	inactivity := false
-	stoppingDueToInactivity := &inactivity
 	go func() {
 		err = apiProxyServer.ServeOnListener(listener)
 		if err != nil {
 			handleK8sApiProxyError(clusterId)
-			if *stoppingDueToInactivity == false {
+			if _, ok := impl.inactivityMap[unUsedPort]; ok == false {
 				impl.logger.Errorw("An error occurred while listening to k8s api proxy server", "err", err)
 			}
+			delete(impl.inactivityMap, unUsedPort)
 			return
 		}
 	}()
 	go func() {
 		select {
 		case <-stopChannel:
-			*stoppingDueToInactivity = true
+			impl.inactivityMap[unUsedPort] = unUsedPort
 			err := listener.Close()
 			if err != nil {
 				impl.logger.Errorw("An error occurred while closing k8s api server", "err", err)

@@ -1268,6 +1268,18 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 	// Devtron login token
 	token := strings.TrimPrefix(r.Header.Get(bean2.Authorization), "Bearer ")
 
+	userEmail, _, authError := handler.userService.GetEmailAndGroupClaimsFromToken(token)
+	if authError != nil {
+		errorResponse := bean.ErrorResponse{
+			Kind:    "Status",
+			Code:    400,
+			Message: "Wrong or expired token.",
+			Reason:  "Bad Request",
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(errorResponse)
+		return
+	}
 	// Authorization header is deleted as it is sent by Kubectl and K8s understands it as Auth-Token for the Cluster/Node
 	r.Header.Del(bean2.Authorization)
 
@@ -1308,7 +1320,6 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(errorResponse)
 		return
-
 	}
 
 	namespace, gvk, resourceName := util3.ParseK8sProxyURL(r.URL.Path)
@@ -1348,10 +1359,9 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 		_ = json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
-	userEmail, _, err := handler.userService.GetEmailAndGroupClaimsFromToken(token)
-	if err == nil {
-		handler.logger.Infow("K8sProxyRequest", "Method:", r.Method, "Path:", r.URL.Path, "Email:", userEmail)
-	}
+
+	handler.logger.Infow("K8sProxyRequest", "Method:", r.Method, "Path:", r.URL.Path, "Email:", userEmail)
+
 	r.Header.Set("Cluster-Id", strconv.Itoa(clusterRequested.Id))
 	proxyServer.ServeHTTP(w, r)
 }
