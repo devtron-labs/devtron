@@ -105,7 +105,8 @@ func NewFullModeDeploymentServiceImpl(
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
+	environmentRepository repository5.EnvironmentRepository,
+) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -415,6 +416,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
+
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
 

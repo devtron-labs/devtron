@@ -18,11 +18,15 @@
 package util
 
 import (
+	"context"
+	errors2 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/errors"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"net/http"
 )
 
 type ApiError struct {
@@ -92,4 +96,13 @@ func GetClientDetailedError(err error) (*errors.ClientStatusCode, string) {
 		return grpcCode, errStatus.Message()
 	}
 	return grpcCode, err.Error()
+}
+
+func IsErrorContextCancelledOrDeadlineExceeded(err error) (int, bool) {
+	if errors2.Is(err, context.Canceled) {
+		return constants.HttpClientSideTimeout, true
+	} else if errors2.Is(err, context.DeadlineExceeded) {
+		return http.StatusRequestTimeout, true
+	}
+	return 0, false
 }

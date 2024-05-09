@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const TokenHeaderKey = "token"
+
 func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
 	vars := mux.Vars(r)
 	paramValue := vars[paramName]

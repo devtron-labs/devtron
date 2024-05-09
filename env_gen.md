@@ -138,6 +138,8 @@
  | EXTERNAL_CI_API_SECRET | devtroncd-secret |  | 
  | EXTERNAL_CI_PAYLOAD | {"ciProjectDetails":[{"gitRepository":"https://github.com/vikram1601/getting-started-nodejs.git","checkoutPath":"./abc","commitHash":"239077135f8cdeeccb7857e2851348f558cb53d3","commitTime":"2022-10-30T20:00:00","branch":"master","message":"Update README.md","author":"User Name "}],"dockerImage":"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2"} |  | 
  | EXTERNAL_CI_WEB_HOOK_URL |  |  | 
+ | FEATURE_RESTART_WORKLOAD_BATCH_SIZE | 1 |  | 
+ | FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE | 5 |  | 
  | FORCE_SECURITY_SCANNING | false |  | 
  | GITOPS_REPO_PREFIX |  |  | 
  | GITOPS_SECRET_NAME | devtron-gitops-secret |  | 
@@ -170,7 +172,6 @@
  | IS_AIR_GAP_ENVIRONMENT | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
- | K8s_CLIENT_TIMEOUT_SEC | 0 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -206,7 +207,7 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
- | PROXY_SERVICE_CONFIG |  |  | 
+ | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -216,6 +217,8 @@
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
  | RUNTIME_CONFIG_LOCAL_DEV | false |  | 
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
+ | SCAN_V2_ENABLED | false |  | 
+ | SCOOP_CLUSTER_CONFIG | {} |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 

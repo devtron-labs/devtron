@@ -40,4 +40,10 @@ var K8sApplicationWireSet = wire.NewSet(
 
 	cluster.NewClusterCronServiceImpl,
 	wire.Bind(new(cluster.ClusterCronService), new(*cluster.ClusterCronServiceImpl)),
+
+	application2.NewInterClusterServiceCommunicationHandlerImpl,
+	wire.Bind(new(application2.InterClusterServiceCommunicationHandler), new(*application2.InterClusterServiceCommunicationHandlerImpl)),
+
+	application2.NewPortForwardManagerImpl,
+	wire.Bind(new(application2.PortForwardManager), new(*application2.PortForwardManagerImpl)),
 )
