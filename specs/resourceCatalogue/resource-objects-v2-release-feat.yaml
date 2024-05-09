@@ -613,6 +613,13 @@ paths:
             example: 1
           in: query
           required: false
+        - name: filterCriteria
+          in: query
+          required: false
+          schema:
+            type: string
+          description: this will contain the task-info identifiers. For applications  `application/devtron-application|identifier|value`, `environment|id|{id}`, `deploymentStatus|stageType|value`, `rolloutStatus|value`
+            if filterCriteria is not given the response will fetch all the task info.
       responses:
         '200':
           description: list response
@@ -837,7 +844,7 @@ components:
             enum:
               - applications/devtron-application|identifier|demo-app
               - environment|identifier|devtron-demo
-              - deploymentStatus|value
+              - deploymentStatus|stageType|value
               - rolloutStatus|value
             description: denotes filtering criteria resource|id orIdentiifer| value
 
