@@ -619,7 +619,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		if !isEnvironmentOverriden {
 			// In this case , the environment is not overridden but the chart exists in charts table for this particular app_id.
 			if envConfigPropertiesOld.Chart == nil {
-				handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+				handler.Logger.Errorw("service err, FetchEnvProperties", "err", err, "payload", envConfigProperties)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
@@ -641,7 +641,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		// In this case the environment is not overridden and this particular chart does not exist in chart_ref table
 		_, appOverride, err1 := handler.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
 		if err1 != nil {
-			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+			handler.Logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
 			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
 			return
 		}
