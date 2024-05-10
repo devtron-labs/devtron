@@ -2,8 +2,8 @@ INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,cr
 VALUES (nextval('id_seq_plugin_metadata'),'Devtron Hibernate/Restart Workload v1.0.0' , 'The plugin enables users to hibernate/unhibernate and restart workload. It helps users restart/hibernate/unhibernate the applications that contains dependencies for their current workload.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png',false,'now()',1,'now()',1);
 
 
-INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)VALUES (nextval('id_seq_plugin_stage_mapping'),
-(SELECT id from plugin_metadata where name='Devtron Hibernate/Restart Workload v1.0.0'), 0,'now()',1,'now()',1);
+INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
+VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='Devtron Hibernate/Restart Workload v1.0.0'), 0,'now()',1,'now()',1);
 
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
@@ -329,11 +329,11 @@ fi',
 
 
 
-INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Devtron Hibernate/Restart Workload v1.0.0'),'Step 1','Devtron Hibernate/Restart Workload v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
+INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") 
+VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Devtron Hibernate/Restart Workload v1.0.0'),'Step 1','Devtron Hibernate/Restart Workload v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES 
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Enter Devtron API Token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Enter Devtron API Token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEndpoint','STRING','Enter URL of Devtron','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApp','STRING','Enter the Devtron Application name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEnv','STRING','Enter the Environment name/Id','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
