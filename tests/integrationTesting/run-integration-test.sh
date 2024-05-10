@@ -3,7 +3,7 @@ rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.1.tar.gz
 export GOPATH='/usr/local/go'
 export PATH=$PATH:$GOPATH/bin
 #go test ./pkg/pipeline
-#go test -v ./pkg/pipeline -run TestExecuteWorkflow
+go test -v ./pkg/pipeline -run TestExecuteWorkflow
 exit #to get out of container
 
 
