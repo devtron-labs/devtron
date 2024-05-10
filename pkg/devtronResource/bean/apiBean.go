@@ -143,4 +143,5 @@ const (
 	ReleaseStatusPatchErrMessage                           = "Cannot change status"
 	ReleaseStatusReadyForReleaseNoAppErrMessage            = "Please add applications and images first."
 	ReleaseStatusReadyForReleaseNoOrPartialImageErrMessage = "To mark it ready for release, all apps should have respective images added."
+	ReleaseStatusHoldOrRescindPatchNoCommentErrMessage     = "Comment is required for updating this status."
 )

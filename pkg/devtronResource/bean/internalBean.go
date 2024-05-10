@@ -108,6 +108,10 @@ const (
 )
 
 const (
+	ReleaseConfigStatusAutoChangeComment = "Automatic status change in line with compliance."
+)
+
+const (
 	ResourceSchemaMetadataPath      = "properties.overview.properties.metadata"
 	ResourceObjectMetadataPath      = "overview.metadata"
 	ResourceObjectOverviewPath      = "overview"
