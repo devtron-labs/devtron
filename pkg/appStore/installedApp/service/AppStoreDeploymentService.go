@@ -137,6 +137,17 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
+
+	//checking if namespace exists or not
+	clusterIdToNsMap := map[int]string{
+		installAppVersionRequest.ClusterId: installAppVersionRequest.Namespace,
+	}
+	clusterId := make([]int, 0)
+	clusterId = append(clusterId, installAppVersionRequest.ClusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	if err != nil {
+		return nil, err
+	}
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installAppVersionRequest.DeploymentAppType)
 
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
@@ -565,6 +576,16 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	defer tx.Rollback()
 
 	installedApp, err := impl.installedAppService.GetInstalledAppById(upgradeAppRequest.InstalledAppId)
+	if err != nil {
+		return nil, err
+	}
+	//checking if ns exists or not
+	clusterIdToNsMap := map[int]string{
+		installedApp.Environment.ClusterId: installedApp.Environment.Namespace,
+	}
+	clusterId := make([]int, 0)
+	clusterId = append(clusterId, installedApp.Environment.ClusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
 	if err != nil {
 		return nil, err
 	}
