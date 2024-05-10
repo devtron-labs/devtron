@@ -228,8 +228,8 @@ github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15/go.mod h1:geXjSWHrhRO8/AxFIvONeTgc1rZiFiGA8arGekL6JCE=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
-github.com/devtron-labs/scoop v0.0.0-20240509104238-ef75e7d009c8 h1:fbRwxmqHjTLjyKrl+dyuzImIUY4BdROgjRSr7Kp/sRs=
-github.com/devtron-labs/scoop v0.0.0-20240509104238-ef75e7d009c8/go.mod h1:BfqaigdElUvK0NPzLx9Xz3o9w+Pa90l5Z2VkTPqD2Ik=
+github.com/devtron-labs/scoop v0.0.0-20240510065905-d199d9feefd6 h1:/+0TsUL1AK69tzLG7MqYmohrT1BBVDDivBDcEeiOknc=
+github.com/devtron-labs/scoop v0.0.0-20240510065905-d199d9feefd6/go.mod h1:BfqaigdElUvK0NPzLx9Xz3o9w+Pa90l5Z2VkTPqD2Ik=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=

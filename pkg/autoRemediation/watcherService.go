@@ -965,6 +965,11 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 		clusterEnvMap[env.ClusterId] = namespaces
 	}
 
+	triggerConfigured := false
+	if len(watcherRequest.Triggers) > 0 {
+		triggerConfigured = true
+	}
+
 	for clusterId, envDetails := range clusterEnvMap {
 		nsMap := make(map[string]bool)
 		for _, env := range envDetails {
@@ -978,6 +983,7 @@ func (impl *WatcherServiceImpl) informScoops(envsMap map[string]*repository2.Env
 			EventFilterExpression: watcherRequest.EventConfiguration.EventExpression,
 			Namespaces:            nsMap,
 			SelectedActions:       watcherRequest.EventConfiguration.SelectedActions,
+			JobConfigured:         triggerConfigured,
 		}
 
 		port, scoopConfig, err := impl.k8sApplicationService.GetScoopPort(context.Background(), clusterId)

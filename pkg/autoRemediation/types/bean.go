@@ -49,11 +49,15 @@ func GetEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment
 type SelectorType string
 
 const EnvironmentSelector SelectorType = "environment"
+const AllClusterGroup = "ALL"
 
 type Selector struct {
-	Type      SelectorType `json:"type" validate:"oneof= environment"`
-	Names     []string     `json:"names"`
-	GroupName string       `json:"groupName"`
+	Type SelectorType `json:"type" validate:"oneof= environment"`
+	// SubGroup is INCLUDED,EXCLUDED,ALL_PROD,ALL_NON_PROD
+	SubGroup types.InterestCriteria `json:"subGroup"`
+	Names    []string               `json:"names"`
+	// GroupName "ALL CLUSTER" or selected env name
+	GroupName string `json:"groupName"`
 }
 
 type K8sResource struct {

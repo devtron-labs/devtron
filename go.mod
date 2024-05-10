@@ -28,7 +28,7 @@ require (
 	github.com/devtron-labs/common-lib v0.0.16-0.20240507152853-f4e0998357d1
 	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
-	github.com/devtron-labs/scoop v0.0.0-20240509104238-ef75e7d009c8
+	github.com/devtron-labs/scoop v0.0.0-20240510065905-d199d9feefd6
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32

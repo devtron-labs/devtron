@@ -47,6 +47,32 @@ type Watcher struct {
 	GVKs                  []schema.GroupVersionKind `json:"groupVersionKinds"`
 	EventFilterExpression string                    `json:"eventFilterExpression"`
 	ClusterId             int                       `json:"clusterId"`
+	JobConfigured         bool                      `json:"jobConfigured"`
+	Selectors             NamespaceSelector         `json:"namespaceSelector"`
+}
+
+type InterestCriteria string
+
+const (
+	// Included is to only include selected namespace
+	Included InterestCriteria = "INCLUDED"
+
+	// Excluded is to exclude selected namespace
+	Excluded InterestCriteria = "EXCLUDED"
+
+	// AllProd is to only show interest in all prod namespaces
+	AllProd InterestCriteria = "ALL_PROD"
+
+	// AllNonProd is to only show interest in all non-prod namespaces
+	AllNonProd InterestCriteria = "ALL_NON_PROD"
+
+	// All is to show interest in any namespace
+	All InterestCriteria = "ALL"
+)
+
+type NamespaceSelector struct {
+	InerestGroup InterestCriteria `json:"subGroup"`
+	Namespaces   []string         `json:"names"`
 }
 
 type Action string
