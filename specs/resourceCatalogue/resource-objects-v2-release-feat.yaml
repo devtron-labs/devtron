@@ -613,6 +613,12 @@ paths:
             example: 1
           in: query
           required: false
+        - name: showAll
+          description: if set to true gives all dependencies at once without any relevance of stage or level
+          schema:
+            type: boolean
+            example: false
+          in: query
       requestBody:
         description: json
         required: true
@@ -800,10 +806,6 @@ components:
     TaskInfoObjectDto:
       type: object
       properties:
-        showAll:
-          type: boolean
-          description: if set to true gives all dependencies at once without any relevance of stage or level
-          example: false
         filterCriteria:
           type: array
           items:
