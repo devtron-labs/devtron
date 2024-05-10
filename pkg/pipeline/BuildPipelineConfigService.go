@@ -282,7 +282,8 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 	}
 	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
 		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
-		return nil, errors.New(fmt.Sprintf("%s for name %s", CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name))
+		errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
 	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
