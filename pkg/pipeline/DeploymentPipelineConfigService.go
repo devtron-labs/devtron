@@ -451,12 +451,14 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// Validation for checking deployment App type
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-
+	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
 		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
+		//making environment array for fetching the clusterIds
+		envIds = append(envIds, &pipeline.EnvironmentId)
 		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfigured, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -464,7 +466,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
-
+	err = impl.checkIfNsExistsForEnvIds(envIds)
+	if err != nil {
+		return nil, err
+	}
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
@@ -2567,4 +2572,23 @@ func (impl *CdPipelineConfigServiceImpl) GetPipelineEnvironmentsForApplication(a
 		envIds = append(envIds, pipeline.EnvironmentId)
 	}
 	return envIds, nil
+}
+func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
+	//fetching environments for the given environment Ids
+	environmentList, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return fmt.Errorf("error in fetching environment err:", err)
+	}
+	clusterIdToNsMap := make(map[int]string, 0)
+	clusterIds := make([]int, 0)
+	for _, environment := range environmentList {
+		clusterIds = append(clusterIds, environment.ClusterId)
+		clusterIdToNsMap[environment.ClusterId] = environment.Namespace
+	}
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterIds)
+	if err != nil {
+		return err
+	}
+	return nil
 }
