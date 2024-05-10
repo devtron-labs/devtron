@@ -1487,6 +1487,11 @@ func (impl *DevtronResourceServiceImpl) patchConfigStatus(objectData string, val
 		impl.logger.Errorw("error encountered in patchConfigStatus", "value ", value, "err", err)
 		return objectData, err
 	}
+	if (configStatus.Status == bean.HoldReleaseConfigStatus || configStatus.Status == bean.RescindReleaseConfigStatus) &&
+		len(configStatus.Comment) == 0 {
+		return objectData, util.GetApiErrorAdapter(http.StatusBadRequest, "400",
+			bean.ReleaseStatusHoldOrRescindPatchNoCommentErrMessage, bean.ReleaseStatusHoldOrRescindPatchNoCommentErrMessage)
+	}
 	objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusCommentPath, configStatus.Comment)
 	if err != nil {
 		return objectData, err
