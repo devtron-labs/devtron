@@ -136,7 +136,7 @@ spec:
       terminationGracePeriodSeconds: 120
       containers:
         - name: nats
-          image: nats:2.9.3-alpine
+          image: quay.io/devtron/nats:2.9.3-alpine
           imagePullPolicy: IfNotPresent
           resources:
             {}
