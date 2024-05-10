@@ -294,9 +294,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	clusterIdToNsMap := map[int]string{
 		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
 	}
-	clusterId := make([]int, 0)
-	clusterId = append(clusterId, cdPipeline.Environment.ClusterId)
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return 0, err
 	}
