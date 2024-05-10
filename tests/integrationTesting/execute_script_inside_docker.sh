@@ -1,5 +1,3 @@
-mkdir test
-cp -r wirenil/* test/
 cd test
 ./tests/integrationTesting/create-test-env.sh
 ./tests/integrationTesting/run-integration-test.sh
