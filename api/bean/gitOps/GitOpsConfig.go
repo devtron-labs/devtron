@@ -4,7 +4,7 @@ import "time"
 
 type GitOpsConfigDto struct {
 	Id                    int    `json:"id,omitempty"`
-	Provider              string `json:"provider"`
+	Provider              string `json:"provider" validate:"oneof=GITLAB GITHUB AZURE_DEVOPS BITBUCKET_CLOUD"`
 	Username              string `json:"username"`
 	Token                 string `json:"token"`
 	GitLabGroupId         string `json:"gitLabGroupId"`
