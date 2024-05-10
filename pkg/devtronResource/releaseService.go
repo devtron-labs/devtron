@@ -237,7 +237,7 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil {
+	if reqBean.Overview != nil {
 		releaseVersionForValidation := reqBean.Overview.ReleaseVersion
 		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
 			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
