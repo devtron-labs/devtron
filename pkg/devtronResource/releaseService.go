@@ -242,7 +242,7 @@ func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) e
 		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
 			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
 		}
-		if !semver.IsValid(releaseVersionForValidation) {
+		if !semver.IsValid(releaseVersionForValidation) || len(strings.Split(releaseVersionForValidation, ".")) != 3 {
 			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
 		}
 	} else if reqBean.ParentConfig == nil {
