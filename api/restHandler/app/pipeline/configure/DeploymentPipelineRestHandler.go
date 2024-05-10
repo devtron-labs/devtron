@@ -542,7 +542,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	if envConfigProperties == nil {
 		isEnvironmentOverriden = false
 		if !request.AllowEnvOverride {
-			handler.Logger.Errorw("env properties not found, ChangeChartRef, to ovverride environment add flag allowEnvOverride = true", "err", err, "payload", request)
+			handler.Logger.Errorw("env properties not found, ChangeChartRef, to override environment add flag allowEnvOverride = true", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, "env properties not found", http.StatusNotFound)
 			return
 		} else {
@@ -617,11 +617,13 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
 	if err == nil {
 		if !isEnvironmentOverriden {
+			// In this case , the environment is not overridden but the chart exists in charts table for this particular app_id.
 			if envConfigPropertiesOld.Chart == nil {
 				handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
+			//
 			envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
 			envConfigProperties.Active = true
 		}
@@ -636,12 +638,14 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	if !isEnvironmentOverriden {
+		// In this case the environment is not overridden and this particular chart does not exist in chart_ref table
 		_, appOverride, err1 := handler.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
 		if err1 != nil {
 			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
 			return
 		}
+		// we are getting the default value for this chart and adding it to chart ref table
 		envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
 	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
