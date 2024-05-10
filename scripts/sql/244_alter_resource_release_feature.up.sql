@@ -1935,9 +1935,7 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
                 "overview.name",
                 "overview.metadata",
                 "status.config.lock",
-                "status.config",
-                "dependency.applications.instruction"
-            ],
+                "status.config"            ],
             "possibleFromStates":
             [
                 {
@@ -1965,7 +1963,8 @@ VALUES('ReleaseStatusPolicy', 'RELEASE_STATUS', 'V1', 'Policy used for validatio
             "operationPaths":
             [
                 "dependency.applications",
-                "dependency.applications.image"
+                "dependency.applications.image",
+                "dependency.applications.instruction"
             ],
             "possibleFromStates":
             [
