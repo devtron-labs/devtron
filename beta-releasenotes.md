@@ -1,4 +1,5 @@
 ## Bugs
+- fix:handled namespace case if deleted by kubectl (#5081)
 - fix: oci chart were getting deployed through gitops (#5088)
 - fix: argocd config update fix (#5074)
 - fix: handle 5xx in fetch resource tree api and cd-trigger (#5050)
