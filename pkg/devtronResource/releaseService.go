@@ -1572,17 +1572,18 @@ func (impl *DevtronResourceServiceImpl) getPathUpdateMapForReleaseClone(req *bea
 		return nil, err
 	}
 	replaceDataMap := map[string]interface{}{
-		bean.ResourceObjectIdPath:                 req.Id,                   //reset Id
-		bean.ResourceObjectTagsPath:               req.Overview.Tags,        //reset tags
-		bean.ResourceObjectIdentifierPath:         req.Identifier,           //reset identifier
-		bean.ResourceObjectNamePath:               req.Name,                 //reset name
-		bean.ResourceObjectDescriptionPath:        req.Overview.Description, //reset description
-		bean.ReleaseResourceObjectReleaseNotePath: "",                       //reset note
-		bean.ResourceObjectCreatedByIdPath:        userObj.Id,               //reset created by
-		bean.ResourceObjectCreatedByNamePath:      userObj.EmailId,
-		bean.ResourceObjectCreatedOnPath:          createdOn,                 //reset created on
-		bean.ReleaseResourceConfigStatusPath:      bean.DefaultConfigStatus,  //reset config status
-		bean.ReleaseResourceRolloutStatusPath:     bean.DefaultRolloutStatus, //reset rollout status
+		bean.ResourceObjectIdPath:                    req.Id,                      //reset Id
+		bean.ResourceObjectIdentifierPath:            req.Identifier,              //reset identifier
+		bean.ResourceObjectNamePath:                  req.Name,                    //reset name
+		bean.ResourceObjectTagsPath:                  req.Overview.Tags,           //reset tags
+		bean.ReleaseResourceObjectReleaseVersionPath: req.Overview.ReleaseVersion, //reset releaseVersion
+		bean.ResourceObjectDescriptionPath:           req.Overview.Description,    //reset description
+		bean.ReleaseResourceObjectReleaseNotePath:    "",                          //reset note
+		bean.ResourceObjectCreatedByIdPath:           userObj.Id,                  //reset created by
+		bean.ResourceObjectCreatedByNamePath:         userObj.EmailId,
+		bean.ResourceObjectCreatedOnPath:             createdOn,                 //reset created on
+		bean.ReleaseResourceConfigStatusPath:         bean.DefaultConfigStatus,  //reset config status
+		bean.ReleaseResourceRolloutStatusPath:        bean.DefaultRolloutStatus, //reset rollout status
 	}
 	return replaceDataMap, nil
 }
