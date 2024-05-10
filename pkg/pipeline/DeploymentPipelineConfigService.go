@@ -2077,12 +2077,11 @@ func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int)
 		return fmt.Errorf("error in fetching environment err:", err)
 	}
 	clusterIdToNsMap := make(map[int]string, 0)
-	clusterIds := make([]int, 0)
 	for _, environment := range environmentList {
-		clusterIds = append(clusterIds, environment.ClusterId)
+
 		clusterIdToNsMap[environment.ClusterId] = environment.Namespace
 	}
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterIds)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return err
 	}
