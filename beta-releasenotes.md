@@ -1,4 +1,5 @@
 ## Bugs
+- fix:resolved PR review comments also remove check for virtual cluster (#5095)
 - fix:handled namespace case if deleted by kubectl (#5081)
 - fix: oci chart were getting deployed through gitops (#5088)
 - fix: argocd config update fix (#5074)
