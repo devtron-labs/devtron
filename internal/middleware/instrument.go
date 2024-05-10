@@ -127,61 +127,21 @@ var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help: "duration of each terminal session",
 }, []string{"podName", "namespace", "clusterId"})
 
-// Define PrometheusMiddleware function which takes an http.Handler as input and returns an http.Handler.
-// In this function, both request duration and count are being calculated.
-// The duration of each request is calculated using
-// the difference in time between the start and end of
-// request processing, while the count of requests is
-// incremented for each request handled by the server.
-
-// The role of labels in this function is to provide additional
-// dimensions or metadata to the Prometheus metrics being collected.
-
-// Labels help differentiate metrics based on different attributes of the HTTP requests,
-// such as the request path, HTTP method, and response status code. By including labels,
-// the collected metrics can be more finely categorized and analyzed, providing deeper insights
-// into the behavior of the server and its handling of various types of requests.
-
-// Path: The path label represents the URI path of the incoming HTTP request. For example, "/api/users" or "/products/123".
-// Method: The method label represents the HTTP method used in the request, such as GET, POST, PUT, DELETE, etc.
-// Status Code: The status code label represents the HTTP status code returned in the response to the request.
-// Examples include 200 for OK, 404 for Not Found, 500 for Internal Server Error, etc.
-// These labels are used to differentiate metrics based on different attributes of the HTTP requests,
-// allowing for more granular monitoring and analysis.
-//func PrometheusMiddleware(next http.Handler) http.Handler {
-//	//	prometheus.MustRegister(requestCounter)
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		start := time.Now()
-//		route := mux.CurrentRoute(r)
-//		path, _ := route.GetPathTemplate()
-//		method := r.Method
-//		g := currentRequestGauge.WithLabelValues(path, method)
-//		g.Inc()
-//		defer g.Dec()
-//		d := NewDelegator(w, nil)
-//		next.ServeHTTP(d, r)
-//		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
-//		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
-//	})
-//}
-
+// prometheusMiddleware implements mux.MiddlewareFunc.
 func PrometheusMiddleware(next http.Handler) http.Handler {
+	//	prometheus.MustRegister(requestCounter)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		route := mux.CurrentRoute(r)
 		path, _ := route.GetPathTemplate()
 		method := r.Method
-		contentType := r.Header.Get("Content-Type")
-		accept := r.Header.Get("Accept")
-		userAgent := r.Header.Get("User-Agent")
-		clientIP := r.RemoteAddr
-		g := currentRequestGauge.WithLabelValues(path, method, contentType, accept, userAgent, clientIP)
+		g := currentRequestGauge.WithLabelValues(path, method)
 		g.Inc()
 		defer g.Dec()
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
-		httpDuration.WithLabelValues(path, method, contentType, accept, userAgent, clientIP, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
-		requestCounter.WithLabelValues(path, method, contentType, accept, userAgent, clientIP, strconv.Itoa(d.Status())).Inc()
+		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
+		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
 	})
 }
 
