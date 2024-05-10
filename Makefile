@@ -41,10 +41,7 @@ test-unit:
 
 test-integration:
 	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
-	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/"
-	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/create-test-env.sh"
-	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/run-integration-test.sh"
-	docker exec dind-test sh -c "cd test && touch output.env"
+	docker exec dind-test sh -c "./tests/integrationTesting/execute_script_inside_docker.sh"
 run: build
 	./devtron
 .PHONY: build
