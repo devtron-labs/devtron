@@ -28,6 +28,7 @@ import (
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"golang.org/x/exp/slices"
+	"net/http"
 	"path"
 	"regexp"
 	"strconv"
@@ -832,7 +833,8 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		defer tx.Rollback()
 		if !ciPipeline.PipelineType.IsValidPipelineType() {
 			impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", ciPipeline.PipelineType)
-			return nil, errors.New(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID)
+			errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, ciPipeline.PipelineType)
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
 		}
 		ciPipelineObject := &pipelineConfig.CiPipeline{
 			AppId:                    createRequest.AppId,
