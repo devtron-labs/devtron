@@ -37,6 +37,7 @@ fi
 
 #funciton to verify the auth
 verify(){
+    echo "Verifying token..."
     local response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/devtron/auth/verify")
     echo $response
 }
@@ -55,6 +56,7 @@ elif [[ -z "$verify_status" ]]; then
 fi
 
 fetch_app_id() {
+    echo "Fetching app..."
     # Check if DevtronApp is numeric, if yes, use it directly as App ID
     if [[ "$DevtronApp" =~ ^[0-9]+$ ]]; then
         echo "$DevtronApp"
@@ -80,6 +82,7 @@ fi
 
 
 fetch_env_id() {
+    echo "Fetching env..."
     # Check if DevtronEnv is numeric, if yes, use it directly as Env ID
     if [[ "$DevtronEnv" =~ ^[0-9]+$ ]]; then
         echo "$DevtronEnv"
@@ -103,6 +106,7 @@ if [ $? -ne 0 ]; then
 fi
 
 app_detail_v2() {
+    echo "Fetching app details..."
     detail=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/detail/v2?app-id=$app_id&env-id=$env_id")
     echo "$detail"  # Add this line for debugging
 }
@@ -111,6 +115,7 @@ app_detail_v2() {
 Deployment_Type=$(app_detail_v2 | jq -r \'.result.deploymentAppType\')
 
 resource_tree() {
+    "Fetching resource data..."
     # fetch the details from the resource-tree api and save into the variables
     api_response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/detail/resource-tree?app-id=$app_id&env-id=$env_id")       
     echo "$api_response"
