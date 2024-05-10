@@ -250,7 +250,7 @@ func (impl *DevtronResourceServiceImpl) updateOverviewAndConfigStatusDataForGetA
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil {
+	if reqBean.Overview != nil {
 		err := helper.CheckIfReleaseVersionIsValid(reqBean.Overview.ReleaseVersion)
 		if err != nil {
 			return err
