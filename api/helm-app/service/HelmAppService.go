@@ -74,7 +74,7 @@ type HelmAppService interface {
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
-	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string, clusterIds []int) error
+	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
 }
 
 type HelmAppServiceImpl struct {
@@ -568,9 +568,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	clusterIdToNsMap := map[int]string{
 		app.ClusterId: app.Namespace,
 	}
-	clusterId := make([]int, 0)
-	clusterId = append(clusterId, app.ClusterId)
-	err = impl.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	err = impl.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -1146,8 +1144,11 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 		return 0
 	}
 }
-func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string, clusterIds []int) error {
-
+func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error {
+	clusterIds:=make([]int,0)
+	for clusterId,_:=range clusterIdToNsMap{
+		clusterIds=append(clusterIds,clusterId)
+	}
 	clusterBeans, err := impl.clusterService.FindByIds(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterIds", clusterIds)
