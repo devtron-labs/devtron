@@ -299,12 +299,11 @@ func (impl *DevtronResourceServiceImpl) getIdentifierForCreateReleaseRequest(des
 
 func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
-	if reqBean.ConfigStatus == nil {
+	isConfigStatusPresentInExistingObj := len(gjson.Get(objectData, bean.ReleaseResourceConfigStatusStatusPath).String()) > 0
+	if reqBean.ConfigStatus == nil && !isConfigStatusPresentInExistingObj {
 		reqBean.ConfigStatus = &bean.ConfigStatus{
 			Status: bean.DraftReleaseConfigStatus,
 		}
-	}
-	if reqBean.ConfigStatus != nil {
 		objectData, err = sjson.Set(objectData, bean.ReleaseResourceConfigStatusPath, adapter.BuildConfigStatusSchemaData(reqBean.ConfigStatus))
 		if err != nil {
 			impl.logger.Errorw("error in setting id in schema", "err", err, "request", reqBean)
