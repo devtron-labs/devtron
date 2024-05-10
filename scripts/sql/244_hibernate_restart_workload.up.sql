@@ -47,10 +47,10 @@ verify_status=$( echo "$verify_response" | jq \'.code\')
 
 #If it doesnot verify successfully, then 
 if [[ "$verify_status" == "401" ]]; then
-    echo "Enter the valid DevtronApiToken. Exiting..."
+    echo "Unauthorized: Enter valid DevtronApiToken. Exiting..."
     exit 1
 elif [[ -z "$verify_status" ]]; then
-    echo "Enter the valid DevtronEndpoint. Exiting..."
+    echo "Enter valid DevtronEndpoint. Exiting..."
     exit 1 
 fi
 
