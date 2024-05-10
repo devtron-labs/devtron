@@ -638,3 +638,8 @@ type ExistingStage struct {
 	Deploy bool `json:"deploy"`
 	Post   bool `json:"post"`
 }
+
+type TaskInfoPostApiBean struct {
+	*DevtronResourceObjectDescriptorBean
+	FilterCriteria []string `json:"filterCriteria"`
+}

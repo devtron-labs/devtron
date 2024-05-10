@@ -469,6 +469,22 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfo(w http.ResponseWri
 	if caughtError {
 		return
 	}
+	decoder := json.NewDecoder(r.Body)
+	var req serviceBean.TaskInfoPostApiBean
+	err := decoder.Decode(&req)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// struct tags validation
+	err = handler.validator.Struct(req)
+	if err != nil {
+		handler.logger.Errorw("validation err, GetTaskRunRolloutStatusInfo", "err", err, "payload", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, reqBean.Kind, reqBean.SubKind)
@@ -478,7 +494,8 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfo(w http.ResponseWri
 	}
 	// RBAC enforcer Ends
 	reqBean.UserId = ctx.GetUserId()
-	resp, err := handler.devtronResourceService.GetTaskRunInfo(reqBean, queryParams)
+	req.DevtronResourceObjectDescriptorBean = reqBean
+	resp, err := handler.devtronResourceService.GetTaskRunInfo(&req, queryParams)
 	if err != nil {
 		handler.logger.Errorw("service error, GetTaskRunInfo", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -26,6 +26,7 @@ type GetTaskRunInfoQueryParams struct {
 	GetQueryParams
 	IsLite     bool `schema:"lite"`
 	LevelIndex int  `schema:"levelIndex"`
+	ShowAll    bool `schema:"showAll"`
 }
 
 type ConfigOptionType = string
