@@ -7,4 +7,4 @@ export PG_ADDR=$NODE_IP_ADDRESS
 export NATS_SERVER_HOST=nats://$NODE_IP_ADDRESS:30236
 go mod tidy
 go run .
-cp ./output.env ./tempfile
+cp output.env ../tempfile
