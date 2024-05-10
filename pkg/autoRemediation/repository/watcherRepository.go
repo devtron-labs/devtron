@@ -16,6 +16,7 @@ type K8sEventWatcher struct {
 	FilterExpression string            `sql:"filter_expression,notnull"`
 	Gvks             string            `sql:"gvks"`
 	SelectedActions  []types.EventType `sql:"selected_actions" pg:",array"`
+	Selectors        string            `sql:"selectors"`
 	Active           bool              `sql:"active,notnull"`
 	sql.AuditLog
 }

@@ -58,6 +58,14 @@ type Selector struct {
 	Names    []string               `json:"names"`
 	// GroupName "ALL CLUSTER" or selected env name
 	GroupName string `json:"groupName"`
+	GroupId   string `json:"groupId"`
+}
+
+func GetNamespaceSelector(selector Selector) types.NamespaceSelector {
+	return types.NamespaceSelector{
+		InerestGroup: selector.SubGroup,
+		Namespaces:   selector.Names,
+	}
 }
 
 type K8sResource struct {

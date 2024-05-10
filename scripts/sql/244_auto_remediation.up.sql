@@ -6,6 +6,7 @@ CREATE TABLE "public"."k8s_event_watcher" (
                                     "filter_expression" text NOT NULL,
                                     "gvks" text,
                                     "selected_actions" []varchar(15),
+                                    "selectors" text,
                                     "active" bool NOT NULL,
                                     "created_on"                timestamptz NOT NULL,
                                     "created_by"                int4        NOT NULL,
