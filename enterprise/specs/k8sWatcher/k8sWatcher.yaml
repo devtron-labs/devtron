@@ -273,13 +273,21 @@ components:
           type: string
           enum:
             - 'environment'
+        subGroup:
+          type: string
+          enum:
+            - 'ALL'
+            - 'ALL_NON_PROD'
+            - 'ALL_PROD'
+            - 'INCLUDED'
+            - 'EXCLUDED'
         names:
           type: array
           description: 'list of names. (example: list of env names)'
           items:
             type: string
         groupName:
-          description: 'group name. (example: for envs , the groupName is cluster name)'
+          description: 'group name. (example: for envs , the groupName is cluster name, for all clusters case this should be set to ALL)'
           type: string
     GroupVersionKind:
       type: object
