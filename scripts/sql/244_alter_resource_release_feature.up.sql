@@ -210,7 +210,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 "firstReleasedOn":
                 {
                     "type": "string",
-                    "format": "date"
+                    "format": "date-time"
                 },
                 "releaseVersion":
                 {
@@ -436,7 +436,7 @@ VALUES ((select id from devtron_resource where kind = 'release-track'), 'alpha1'
                 "firstReleasedOn":
                 {
                     "type": "string",
-                    "format": "date"
+                    "format": "date-time"
                 },
                 "releaseVersion":
                 {
