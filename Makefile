@@ -44,15 +44,14 @@ test-integration:
 	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/"
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/create-test-env.sh"
 	docker exec dind-test sh -c "cd test && ./tests/integrationTesting/run-integration-test.sh"
+	docker exec dind-test sh -c "cd test && touch output.env"
 	docker exec dind-test sh -c 'NODE_IP_ADDRESS=$$(kubectl get node  --no-headers  -o custom-columns=INTERNAL-IP:status.addresses[0].address) PG_ADDR=$$NODE_IP_ADDRESS NATS_SERVER_HOST=nats://$$NODE_IP_ADDRESS:30236 sh -c "cd test && go run ."'
 	docker exec dind-test sh -c "cp ./test/output.env ./tempfile"
 run: build
 	./devtron
-
 .PHONY: build
 docker-build-image:  build
 	 docker build -t devtron:$(TAG) .
-
 .PHONY: build, all, wire, clean, run, set-docker-build-env, docker-build-push, devtron,
 docker-build-push: docker-build-image
 	docker tag devtron:${TAG}  ${REGISTRY}/devtron:${TAG}

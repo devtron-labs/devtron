@@ -17,7 +17,7 @@ func CheckIfNilInWire() {
 	nilFieldsMap := make(map[string]bool)
 	checkNilFields(app, nilFieldsMap)
 	fmt.Println("NIL Fields present in impls are: ", nilFieldsMap)
-	//writing length of nilFieldsMap in a file (eg. output.env) so that we can export this data in pre ci pipeline bash and can failed the pre ci pipeline if nil nilFieldsMap's length is greater than zero
+	//Writes the length of nilFieldsMap to a file (e.g., output.env) so that we can export this file's data in a pre-CI pipeline bash script and fail the pre-CI pipeline if the length of nilFieldsMap is greater than zero.
 	err = writeResultToFile(len(nilFieldsMap))
 	if err != nil {
 		return
@@ -41,7 +41,7 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 			//package not from this repo, ignoring
 			continue
 		}
-		if skipUnnecessaryFiledsForCheck(fieldName, valName) { // skip unnecessary fileds and values
+		if skipUnnecessaryFieldsForCheck(fieldName, valName) { // skip unnecessary fileds and values
 			continue
 		}
 		if !canFieldTypeBeNil(field) { // field can not be nil, skip
@@ -89,7 +89,7 @@ func canSkipFieldStructCheck(fieldName, valName string) bool {
 	return false
 }
 
-func skipUnnecessaryFiledsForCheck(fieldName, valName string) bool {
+func skipUnnecessaryFieldsForCheck(fieldName, valName string) bool {
 	fieldName = strings.ToLower(fieldName)
 	valName = strings.ToLower(valName)
 	if valName == "cicdconfig" {
