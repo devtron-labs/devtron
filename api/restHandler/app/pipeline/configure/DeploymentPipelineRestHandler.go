@@ -603,7 +603,6 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 
 	if !isEnvironmentOverriden {
 		envConfigProperties.IsOverride = true
-		envConfigProperties.Active = true
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", request)
