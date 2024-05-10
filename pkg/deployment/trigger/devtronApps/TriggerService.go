@@ -290,6 +290,16 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	//checking if namespace exist or not
+	clusterIdToNsMap := map[int]string{
+		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
+	}
+	clusterId := make([]int, 0)
+	clusterId = append(clusterId, cdPipeline.Environment.ClusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	if err != nil {
+		return 0, err
+	}
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
