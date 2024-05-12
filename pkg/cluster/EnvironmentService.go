@@ -21,10 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/scoop"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	scoopClient "github.com/devtron-labs/scoop/client"
 	"github.com/devtron-labs/scoop/types"
 	"strconv"
 	"strings"
@@ -73,6 +73,7 @@ type EnvironmentService interface {
 	FindByNames(names []string) ([]*bean2.EnvironmentBean, error)
 	IsVirtualEnvironmentById(id int) (bool, error)
 	GetDetailsById(envId int) (*repository.Environment, error)
+	SetScoopClientGetter(scoopGetter *func(clusterId int) (scoopClient.ScoopClient, error))
 }
 
 type EnvironmentServiceImpl struct {
@@ -82,17 +83,16 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util2.K8sUtilExtended
 	k8sInformerFactory    informer.K8sInformerFactory
 	// propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService      user.UserAuthService
-	attributesRepository repository2.AttributesRepository
-	scoopClientGetter    scoop.ScoopClientGetter
+	userAuthService           user.UserAuthService
+	attributesRepository      repository2.AttributesRepository
+	getScoopClientByCLusterId func(clusterId int) scoopClient.ScoopClient
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util2.K8sUtilExtended, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository,
-	scoopClientGetter scoop.ScoopClientGetter) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -102,7 +102,6 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		// propertiesConfigService: propertiesConfigService,
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
-		scoopClientGetter:    scoopClientGetter,
 	}
 }
 
@@ -878,18 +877,20 @@ func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Enviro
 	return envDetails, nil
 }
 
+func (impl *EnvironmentServiceImpl) SetScoopClientGetter(scoopGetter func(clusterId int) scoopClient.ScoopClient) {
+	impl.getScoopClientByCLusterId = scoopGetter
+}
+
 func (impl EnvironmentServiceImpl) informScoop(namespace string, isProd bool, action types.Action, clusterId int) error {
-	if impl.scoopClientGetter != nil {
-		scoopClient, err := impl.scoopClientGetter.GetScoopClientByClusterId(clusterId)
-		if err != nil {
-			impl.logger.Errorw("error in getting scoop client", "clusterId", clusterId, "err", err)
-			return err
-		}
-		err = scoopClient.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
-		if err != nil {
-			impl.logger.Errorw("error in updating scoop about namespace creation", "namespace", namespace, "clusterId", clusterId, "err", err)
-			return err
-		}
+
+	if impl.getScoopClientByCLusterId == nil {
+		return nil
 	}
-	return nil
+
+	client := impl.getScoopClientByCLusterId(clusterId)
+	err := client.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
+	if err != nil {
+		impl.logger.Errorw("error in updating scoop about namespace creation", "namespace", namespace, "clusterId", clusterId, "err", err)
+	}
+	return err
 }
