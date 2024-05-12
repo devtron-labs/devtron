@@ -242,8 +242,8 @@ func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *
 		return interceptEventExec
 	}
 
-	isDefaultCluster := cluster.Id == 1
-	if !isDefaultCluster && cluster.IsCdArgoSetup {
+	// todo: confirm this
+	if cluster.IsCdArgoSetup {
 		err = errors.New("inactive cluster cd for non default cluster")
 		status = repository.Errored
 		executionMessage = err.Error()
