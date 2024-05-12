@@ -1,8 +1,7 @@
 package types
 
 import (
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"encoding/json"
 	"github.com/devtron-labs/scoop/types"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,20 +29,6 @@ func (ec *EventConfiguration) GetK8sResources() []schema.GroupVersionKind {
 		gvks = append(gvks, gvk.GetGVK())
 	}
 	return gvks
-}
-
-func GetEnvSelectionIdentifiers(envNameIdMap map[string]*repository2.Environment) []*resourceQualifiers.SelectionIdentifier {
-	selectionIdentifiers := make([]*resourceQualifiers.SelectionIdentifier, 0)
-	envs := maps.Keys(envNameIdMap)
-	for _, envName := range envs {
-		selectionIdentifiers = append(selectionIdentifiers, &resourceQualifiers.SelectionIdentifier{
-			EnvId: envNameIdMap[envName].Id,
-			SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
-				EnvironmentName: envName,
-			},
-		})
-	}
-	return selectionIdentifiers
 }
 
 type SelectorType string
@@ -143,20 +128,6 @@ type InterceptedResponse struct {
 	List   []InterceptedEventsDto `json:"list"`
 }
 
-//	type InterceptedEventResponseById struct {
-//		InterceptedEventId int             `json:"interceptedEventId" sql:"intercepted_event_id"`
-//		ClusterId          int             `json:"clusterId" sql:"cluster_id"`
-//		ClusterName        string          `json:"clusterName" sql:"cluster_name"`
-//		Namespace          string          `json:"namespace" sql:"namespace"`
-//		Action             types.EventType `json:"action" sql:"action"`
-//		InvolvedObjects    string          `json:"involvedObjects" sql:"involved_objects"`
-//		Metadata           string          `json:"metadata" sql:"metadata"`
-//		InterceptedAt      time.Time       `json:"interceptedAt" sql:"intercepted_at"`
-//		TriggerId          int             `json:"triggerId" sql:"trigger_id"`
-//		TriggerExecutionId int             `json:"triggerExecutionId" sql:"trigger_execution_id"`
-//		Status             Status          `json:"status" sql:"status"`
-//		ExecutionMessage   string          `json:"executionMessage" sql:"execution_message"`
-//	}
 type InterceptedEventsDto struct {
 	// Message        string `json:"message"`
 	InterceptedEventId int    `json:"interceptedEventId"`
@@ -186,3 +157,63 @@ const (
 	Progressing Status = "Progressing"
 	Errored     Status = "Error"
 )
+
+func FetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
+	gvks, err := json.Marshal(resources)
+	if err != nil {
+		return "", err
+	}
+	return string(gvks), nil
+}
+
+func GetSelectorJson(selectors []Selector) (string, error) {
+	selectorBytes, err := json.Marshal(&selectors)
+	return string(selectorBytes), err
+}
+
+func GetSelectorsFromJson(selectorsJson string) ([]Selector, error) {
+	selectors := make([]Selector, 0)
+	err := json.Unmarshal([]byte(selectorsJson), &selectors)
+	return selectors, err
+}
+
+func GetClusterSelector(clusterName string, selectors []Selector) *Selector {
+	for _, selector := range selectors {
+		if selector.GroupName == AllClusterGroup || selector.GroupName == clusterName {
+			return &selector
+		}
+	}
+
+	return nil
+}
+
+// ComputeImpactedClusterNames
+// since watchers are created with atleast one cluster, return empty list if all clusters are impacted
+func ComputeImpactedClusterNames(oldWatcherSelectors, newWatcherSelectors []Selector) []string {
+	clusterNamesMap := make(map[string]bool)
+
+	// newWatcherSelectors can be null for delete case
+	if newWatcherSelectors != nil {
+		for _, selector := range newWatcherSelectors {
+			if selector.GroupName == AllClusterGroup {
+				// return empty list if all clusters are impacted
+				return []string{}
+			}
+			clusterNamesMap[selector.GroupName] = true
+		}
+	}
+
+	// oldWatcher can be null for create
+	if oldWatcherSelectors != nil {
+		for _, selector := range oldWatcherSelectors {
+			if selector.GroupName == AllClusterGroup {
+				// return empty list if all clusters are impacted
+				return []string{}
+			}
+			clusterNamesMap[selector.GroupName] = true
+		}
+	}
+
+	return maps.Keys(clusterNamesMap)
+
+}

@@ -14,7 +14,6 @@ const (
 	InfraProfile          ResourceType = 3
 	DeploymentWindow      ResourceType = 4
 	ImagePromotionPolicy  ResourceType = 5
-	K8sEventWatcher       ResourceType = 6
 )
 
 const (

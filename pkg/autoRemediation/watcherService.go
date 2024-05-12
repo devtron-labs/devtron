@@ -18,7 +18,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 	"gopkg.in/square/go-jose.v2/json"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sort"
@@ -84,13 +83,13 @@ func NewWatcherServiceImpl(watcherRepository repository.K8sEventWatcherRepositor
 
 func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *types2.WatcherDto, userId int32) (int, error) {
 
-	gvks, err := fetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
+	gvks, err := types2.FetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
 	if err != nil {
 		impl.logger.Errorw("error in fetching gvks", "error", err)
 		return 0, err
 	}
 
-	selectors, err := getSelectorJson(watcherRequest.EventConfiguration.Selectors)
+	selectors, err := types2.GetSelectorJson(watcherRequest.EventConfiguration.Selectors)
 	watcher := &repository.K8sEventWatcher{
 		Name:             watcherRequest.Name,
 		Description:      watcherRequest.Description,
@@ -135,35 +134,6 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *types2.WatcherDto,
 		return 0, err
 	}
 	return watcher.Id, nil
-}
-
-func fetchGvksFromK8sResources(resources []*types2.K8sResource) (string, error) {
-	gvks, err := json.Marshal(resources)
-	if err != nil {
-		return "", err
-	}
-	return string(gvks), nil
-}
-
-func getSelectorJson(selectors []types2.Selector) (string, error) {
-	selectorBytes, err := json.Marshal(&selectors)
-	return string(selectorBytes), err
-}
-
-func getSelectorsFromJson(selectorsJson string) ([]types2.Selector, error) {
-	selectors := make([]types2.Selector, 0)
-	err := json.Unmarshal([]byte(selectorsJson), &selectors)
-	return selectors, err
-}
-
-func getClusterSelector(clusterName string, selectors []types2.Selector) *types2.Selector {
-	for _, selector := range selectors {
-		if selector.GroupName == types2.AllClusterGroup || selector.GroupName == clusterName {
-			return &selector
-		}
-	}
-
-	return nil
 }
 
 func (impl *WatcherServiceImpl) createTriggerForWatcher(watcherRequest *types2.WatcherDto, watcherId int, userId int32, tx *pg.Tx) error {
@@ -330,7 +300,7 @@ func (impl *WatcherServiceImpl) GetWatcherById(watcherId int) (*types2.WatcherDt
 		return nil, err
 	}
 
-	selectors, err := getSelectorsFromJson(watcher.Selectors)
+	selectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
 	if err != nil {
 		impl.logger.Errorw("error in getting selectors from selectors json", "error", err)
 		return nil, err
@@ -427,7 +397,7 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		return err
 	}
 
-	selectors, err := getSelectorsFromJson(watcher.Selectors)
+	selectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving selectors from watcher", "watcherId", watcherId, "error", err)
 		return err
@@ -475,20 +445,20 @@ func (impl *WatcherServiceImpl) UpdateWatcherById(watcherId int, watcherRequest 
 		impl.logger.Errorw("error in retrieving watcher by id", "watcherId", watcherId, "error", err)
 		return err
 	}
-	gvks, err := fetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
+	gvks, err := types2.FetchGvksFromK8sResources(watcherRequest.EventConfiguration.K8sResources)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving gvks", "gvks", watcherRequest.EventConfiguration.K8sResources, "error", err)
 		return err
 	}
 
 	// this logic should be here as we are updating the watcher below with new update request data
-	oldSelectors, err := getSelectorsFromJson(watcher.Selectors)
+	oldSelectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving selectors from watcher", "watcherId", watcherId, "error", err)
 		return err
 	}
 
-	newSelectorsJson, err := getSelectorJson(watcherRequest.EventConfiguration.Selectors)
+	newSelectorsJson, err := types2.GetSelectorJson(watcherRequest.EventConfiguration.Selectors)
 	if err != nil {
 		impl.logger.Errorw("error in retrieving watcher by id", watcherId, "error", err)
 		return err
@@ -759,48 +729,6 @@ func (impl *WatcherServiceImpl) getEnvsMap(envs []string) (map[string]*repositor
 	return envsMap, nil
 }
 
-func (impl *WatcherServiceImpl) getEnvSelectors(watcherId int) ([]types2.Selector, map[string]*repository2.Environment, error) {
-	mappings, err := impl.resourceQualifierMappingService.GetQualifierMappingsByResourceId(watcherId, resourceQualifiers.K8sEventWatcher)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	envNames := make([]string, 0, len(mappings))
-	for _, mapping := range mappings {
-		// currently assuming all the mappings are of identifier type environment
-		envNames = append(envNames, mapping.IdentifierValueString)
-	}
-	var envs []*repository2.Environment
-	envsMap := make(map[string]*repository2.Environment)
-	if len(envNames) != 0 {
-		envs, err = impl.environmentRepository.GetWithClusterByNames(envNames)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, envObj := range envs {
-			envsMap[envObj.Name] = envObj
-		}
-	}
-	clusterWiseEnvs := make(map[string][]string)
-	for _, env := range envs {
-		list, ok := clusterWiseEnvs[env.Cluster.ClusterName]
-		if !ok {
-			list = make([]string, 0)
-		}
-		list = append(list, env.Name)
-		clusterWiseEnvs[env.Cluster.ClusterName] = list
-	}
-
-	selectors := make([]types2.Selector, 0, len(clusterWiseEnvs))
-	for clusterName, _ := range clusterWiseEnvs {
-		selectors = append(selectors, types2.Selector{
-			Type:      types2.EnvironmentSelector,
-			GroupName: clusterName,
-			Names:     clusterWiseEnvs[clusterName],
-		})
-	}
-	return selectors, envsMap, nil
-}
 func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.InterceptedEventQueryParams) (*types2.InterceptedResponse, error) {
 
 	interceptedEventData, total, err := impl.interceptedEventsRepository.FindAllInterceptedEvents(params)
@@ -946,13 +874,13 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 
 	watchersResponse := make([]*types.Watcher, 0, len(watchers))
 	for _, watcher := range watchers {
-		selectors, err := getSelectorsFromJson(watcher.Selectors)
+		selectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling selectors string ", "gvk", watcher.Gvks, "err", err)
 			continue
 		}
 
-		selector := getClusterSelector(cluster.ClusterName, selectors)
+		selector := types2.GetClusterSelector(cluster.ClusterName, selectors)
 		if selector == nil {
 			continue
 		}
@@ -981,40 +909,9 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 	return watchersResponse, nil
 }
 
-// computeImpactedClusterNames,
-// since watchers are created with atleast one cluster, return empty list if all clusters are impacted
-func computeImpactedClusterNames(oldWatcherSelectors, newWatcherSelectors []types2.Selector) []string {
-	clusterNamesMap := make(map[string]bool)
-
-	// newWatcherSelectors can be null for delete case
-	if newWatcherSelectors != nil {
-		for _, selector := range newWatcherSelectors {
-			if selector.GroupName == types2.AllClusterGroup {
-				// return empty list if all clusters are impacted
-				return []string{}
-			}
-			clusterNamesMap[selector.GroupName] = true
-		}
-	}
-
-	// oldWatcher can be null for create
-	if oldWatcherSelectors != nil {
-		for _, selector := range oldWatcherSelectors {
-			if selector.GroupName == types2.AllClusterGroup {
-				// return empty list if all clusters are impacted
-				return []string{}
-			}
-			clusterNamesMap[selector.GroupName] = true
-		}
-	}
-
-	return maps.Keys(clusterNamesMap)
-
-}
-
 // getImpactedClusterDetails get the cluster details map for impacted clusters
 func (impl *WatcherServiceImpl) getImpactedClusterDetails(oldWatcherSelectors, newWatcherSelectors []types2.Selector) (map[string]*repository2.Cluster, error) {
-	clusterNames := computeImpactedClusterNames(oldWatcherSelectors, newWatcherSelectors)
+	clusterNames := types2.ComputeImpactedClusterNames(oldWatcherSelectors, newWatcherSelectors)
 	allClusters := len(clusterNames) == 0
 
 	clusterMap := make(map[string]*repository2.Cluster)
@@ -1054,7 +951,7 @@ func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest
 
 	for clusterName, cluster := range clusterMap {
 
-		selector := getClusterSelector(clusterName, watcherRequest.EventConfiguration.Selectors)
+		selector := types2.GetClusterSelector(clusterName, watcherRequest.EventConfiguration.Selectors)
 		// this case should never happen, just a safety check
 		if selector == nil {
 			continue
