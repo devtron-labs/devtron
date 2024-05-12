@@ -40,9 +40,9 @@ func CallPostApi[T, R any](api string, query, headers map[string]string, request
 	return err
 }
 
-type Response struct {
+type Response[T any] struct {
 	Code   int         `json:"code,omitempty"`
 	Status string      `json:"status,omitempty"`
-	Result interface{} `json:"result,omitempty"`
+	Result T           `json:"result,omitempty"`
 	Errors interface{} `json:"errors,omitempty"`
 }

@@ -129,7 +129,7 @@ func (impl *ScoopClientImpl) UpdateWatcherConfig(ctx context.Context, action typ
 		"X-PASS-KEY": impl.passKey,
 	}
 
-	resp := &utils.Response{}
+	resp := &utils.Response[interface{}]{}
 
 	err := utils.CallPostApi(impl.serverUrlWithPort+types2.WATCHER_CUD_URL, nil, headers, payload, resp)
 	return err
@@ -153,7 +153,7 @@ func (impl *ScoopClientImpl) UpdateNamespaceConfig(ctx context.Context, action t
 		types2.IsProdKey:    isProdStr,
 	}
 
-	resp := &utils.Response{}
+	resp := &utils.Response[interface{}]{}
 	err := utils.CallPostApi(impl.serverUrlWithPort+types2.NAMESPACE_CUD_URL, queryParams, headers, map[string]string{}, resp)
 	return err
 }
