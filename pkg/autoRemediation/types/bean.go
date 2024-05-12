@@ -63,8 +63,8 @@ type Selector struct {
 
 func GetNamespaceSelector(selector Selector) types.NamespaceSelector {
 	return types.NamespaceSelector{
-		InerestGroup: selector.SubGroup,
-		Namespaces:   selector.Names,
+		InterestGroup: selector.SubGroup,
+		Namespaces:    selector.Names,
 	}
 }
 
