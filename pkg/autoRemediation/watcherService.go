@@ -2,21 +2,18 @@ package autoRemediation
 
 import (
 	"context"
-	"fmt"
+	"github.com/devtron-labs/devtron/client/scoop"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
-	scoopClient "github.com/devtron-labs/scoop/client"
 	"github.com/devtron-labs/scoop/types"
 	"github.com/go-pg/pg"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/square/go-jose.v2/json"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -47,7 +44,7 @@ type WatcherServiceImpl struct {
 	clusterRepository               repository2.ClusterRepository
 	ciWorkflowRepository            pipelineConfig.CiWorkflowRepository
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
-	k8sApplicationService           application.K8sApplicationService
+	scoopClientGetter               scoop.ScoopClientGetter
 	logger                          *zap.SugaredLogger
 }
 
@@ -61,7 +58,7 @@ func NewWatcherServiceImpl(watcherRepository repository.K8sEventWatcherRepositor
 	clusterRepository repository2.ClusterRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
-	k8sApplicationService application.K8sApplicationService,
+	scoopClientGetter scoop.ScoopClientGetter,
 	logger *zap.SugaredLogger,
 ) *WatcherServiceImpl {
 
@@ -76,7 +73,7 @@ func NewWatcherServiceImpl(watcherRepository repository.K8sEventWatcherRepositor
 		clusterRepository:               clusterRepository,
 		ciWorkflowRepository:            ciWorkflowRepository,
 		resourceQualifierMappingService: resourceQualifierMappingService,
-		k8sApplicationService:           k8sApplicationService,
+		scoopClientGetter:               scoopClientGetter,
 		logger:                          logger,
 	}
 }
@@ -969,17 +966,16 @@ func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest
 			Selectors:             namespaceSelector,
 		}
 
-		port, scoopConfig, err := impl.k8sApplicationService.GetScoopPort(context.Background(), cluster.Id)
-		if err != nil && errors.Is(err, application.ScoopNotConfiguredErr) {
-			impl.logger.Errorw("error in informing to scoop", "clusterId", cluster.Id, "scoopConfig", scoopConfig, "err", err)
+		scoopClient, err := impl.scoopClientGetter.GetScoopClientByClusterId(cluster.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting scoop client", "clusterId", cluster.Id, "err", err)
 			// not returning the error as we have to continue updating other scoops
 			continue
 		}
-		scoopUrl := fmt.Sprintf("http://127.0.0.1:%d", port)
-		scoopClient, _ := scoopClient.NewScoopClientImpl(impl.logger, scoopUrl, scoopConfig.PassKey)
+
 		err = scoopClient.UpdateWatcherConfig(context.Background(), action, watcher)
 		if err != nil {
-			impl.logger.Errorw("error in informing to scoop by a REST call", "watcher", watcher, "action", action, "scoopUrl", scoopUrl, "err", err)
+			impl.logger.Errorw("error in informing to scoop by a REST call", "watcher", watcher, "action", action, "clusterId", cluster.Id, "err", err)
 			// not returning the error as we have to continue updating other scoops
 			continue
 		}

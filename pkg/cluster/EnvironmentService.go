@@ -18,11 +18,14 @@
 package cluster
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/scoop"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/scoop/types"
 	"strconv"
 	"strings"
 	"time"
@@ -81,13 +84,15 @@ type EnvironmentServiceImpl struct {
 	// propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
 	attributesRepository repository2.AttributesRepository
+	scoopClientGetter    scoop.ScoopClientGetter
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util2.K8sUtilExtended, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository,
+	scoopClientGetter scoop.ScoopClientGetter) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -97,6 +102,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		// propertiesConfigService: propertiesConfigService,
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
+		scoopClientGetter:    scoopClientGetter,
 	}
 }
 
@@ -154,6 +160,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userI
 
 	}
 
+	impl.informScoop(model.Namespace, model.Default, types.ADD, model.ClusterId)
 	// ignore grafana if no prometheus url found
 	if len(clusterBean.PrometheusUrl) > 0 {
 		_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
@@ -344,6 +351,8 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 			}
 		}
 	}*/
+
+	impl.informScoop(model.Namespace, model.Default, types.UPDATE, model.ClusterId)
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	// grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {
@@ -838,6 +847,8 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
 	}
+
+	impl.informScoop(existingEnv.Namespace, existingEnv.Default, types.UPDATE, existingEnv.ClusterId)
 	err = tx.Commit()
 	if err != nil {
 		return err
@@ -865,4 +876,20 @@ func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Enviro
 		return nil, err
 	}
 	return envDetails, nil
+}
+
+func (impl EnvironmentServiceImpl) informScoop(namespace string, isProd bool, action types.Action, clusterId int) error {
+	if impl.scoopClientGetter != nil {
+		scoopClient, err := impl.scoopClientGetter.GetScoopClientByClusterId(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting scoop client", "clusterId", clusterId, "err", err)
+			return err
+		}
+		err = scoopClient.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
+		if err != nil {
+			impl.logger.Errorw("error in updating scoop about namespace creation", "namespace", namespace, "clusterId", clusterId, "err", err)
+			return err
+		}
+	}
+	return nil
 }
