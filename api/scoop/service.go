@@ -242,6 +242,14 @@ func (impl ServiceImpl) triggerJob(trigger *types2.Trigger, interceptEventExec *
 		return interceptEventExec
 	}
 
+	isDefaultCluster := cluster.Id == 1
+	if !isDefaultCluster && cluster.IsCdArgoSetup {
+		err = errors.New("inactive cluster cd for non default cluster")
+		status = repository.Errored
+		executionMessage = err.Error()
+		return interceptEventExec
+	}
+
 	runtimeParams, err := impl.extractRuntimeParams(trigger, watchersMap, interceptedEvent, cluster.ClusterName, hostUrl, token, interceptEventExec.Id)
 	if err != nil {
 		impl.logger.Errorw("error in extracting runtime params for intercepted event trigger", "err", err)
