@@ -73,7 +73,7 @@ type EnvironmentService interface {
 	FindByNames(names []string) ([]*bean2.EnvironmentBean, error)
 	IsVirtualEnvironmentById(id int) (bool, error)
 	GetDetailsById(envId int) (*repository.Environment, error)
-	SetScoopClientGetter(scoopGetter *func(clusterId int) (scoopClient.ScoopClient, error))
+	SetScoopClientGetter(scoopGetter func(clusterId int) (scoopClient.ScoopClient, error))
 }
 
 type EnvironmentServiceImpl struct {
@@ -85,7 +85,7 @@ type EnvironmentServiceImpl struct {
 	// propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService           user.UserAuthService
 	attributesRepository      repository2.AttributesRepository
-	getScoopClientByCLusterId func(clusterId int) scoopClient.ScoopClient
+	getScoopClientByCLusterId func(clusterId int) (scoopClient.ScoopClient, error)
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
@@ -877,7 +877,7 @@ func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Enviro
 	return envDetails, nil
 }
 
-func (impl *EnvironmentServiceImpl) SetScoopClientGetter(scoopGetter func(clusterId int) scoopClient.ScoopClient) {
+func (impl *EnvironmentServiceImpl) SetScoopClientGetter(scoopGetter func(clusterId int) (scoopClient.ScoopClient, error)) {
 	impl.getScoopClientByCLusterId = scoopGetter
 }
 
@@ -887,10 +887,14 @@ func (impl EnvironmentServiceImpl) informScoop(namespace string, isProd bool, ac
 		return nil
 	}
 
-	client := impl.getScoopClientByCLusterId(clusterId)
-	err := client.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
+	client, err := impl.getScoopClientByCLusterId(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in updating scoop about namespace creation", "namespace", namespace, "clusterId", clusterId, "err", err)
+		impl.logger.Errorw("error in getting scoop client by cluster id", "clusterId", clusterId, "err", err)
+		return nil
+	}
+	err = client.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
+	if err != nil {
+		impl.logger.Errorw("error in updating scoop about namespace creation/updation/deletion", "namespace", namespace, "clusterId", clusterId, "err", err)
 	}
 	return err
 }

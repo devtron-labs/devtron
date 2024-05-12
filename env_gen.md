@@ -32,7 +32,7 @@
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
  | CACHED_GVKs | [] |  | 
- | CACHED_NAMESPACES | gireesh-ns |  | 
+ | CACHED_NAMESPACES |  |  | 
  | CACHE_LIMIT | 5000000000 |  | 
  | CAN_APPROVER_DEPLOY | false |  | 
  | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
@@ -82,6 +82,7 @@
  | CLUSTER_CACHE_RESYNC_DURATION | 12h |  | 
  | CLUSTER_CACHE_RETRY_USE_BACKOFF |  |  | 
  | CLUSTER_CACHE_WATCH_RESYNC_DURATION | 10m |  | 
+ | CLUSTER_ID | 1 |  | 
  | CLUSTER_STATUS_CRON_TIME | 15 |  | 
  | CLUSTER_SYNC_RETRY_TIMEOUT_DURATION | 10s |  | 
  | CONSUMER_CONFIG_JSON |  |  | 
@@ -200,6 +201,7 @@
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
+ | ORCHESTRATOR_URL | http://localhost:8080 |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -251,6 +253,7 @@
  | TEST_PG_USER | postgres |  | 
  | TIMEOUT_FOR_FAILED_CI_BUILD | 15 |  | 
  | TIMEOUT_IN_SECONDS | 5 |  | 
+ | TOKEN |  |  | 
  | USER_SESSION_DURATION_SECONDS | 86400 |  | 
  | USE_ARTIFACT_LISTING_API_V2 | true |  | 
  | USE_ARTIFACT_LISTING_QUERY_V2 | true |  | 

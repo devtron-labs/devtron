@@ -92,6 +92,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
+	scoop2 "github.com/devtron-labs/devtron/client/scoop"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
@@ -1062,6 +1063,8 @@ func InitializeApp() (*App, error) {
 
 		appStoreRestHandler.AppStoreWireSet,
 
+		scoop2.NewScoopClientGetter,
+		wire.Bind(new(scoop2.ScoopClientGetter), new(*scoop2.ScoopClientGetterImpl)),
 		scoop.ScoopWireSet,
 	)
 	return &App{}, nil
