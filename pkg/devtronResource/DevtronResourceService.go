@@ -1873,7 +1873,7 @@ func (impl *DevtronResourceServiceImpl) ExecuteTask(ctx context.Context, req *be
 // GetTaskRunInfo method fetch the task run information for the devtron resource.
 //
 //   - Request Type:
-//     bean.TaskInfoPostApiBean - supporting filters and showAll flag which will fetch all data irrespective of levels
+//     bean.DevtronResourceObjectDescriptorBean
 //   - Query Type:
 //     bean.GetTaskRunInfoQueryParams
 //   - Return Type:
@@ -1900,6 +1900,21 @@ func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.DevtronResource
 	}
 }
 
+// GetTaskRunInfoWithFilters method fetch the task run information for the devtron resource.
+//
+//   - Request Type:
+//     bean.TaskInfoPostApiBean - supporting filters and showAll flag which will fetch all data irrespective of levels
+//   - Query Type:
+//     bean.GetTaskRunInfoQueryParams
+//   - Return Type:
+//     []bean.DtReleaseTaskRunInfo and error
+//   - Query Operations:
+//     1. IsLite
+//   - true : fetch level data with allowedDeployment flag, excluding application's release status
+//   - false : fetch level data without allowedDeployment flag and includes application's release status
+//     2. LevelIndex
+//   - Equal To 0 : fetch all level data.
+//   - Greater Than 1 : fetch the specified level data.
 func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
