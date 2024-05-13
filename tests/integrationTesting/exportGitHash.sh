@@ -2,7 +2,7 @@ GITHASH=123
 GITHASH=$GIT_HASH
 if [ -z "$GITHASH" ]; then
     echo "-------laeeeeeeeeeeeeq-------------"
-    GITHASH=$(git log --pretty=format:'%h' -n 1)
+    export GITHASH=$(git log --pretty=format:'%h' -n 1)
     echo "------laeeqenccddddd----------------"
 fi;
 echo "GIT_HASH is" $GITHASH
