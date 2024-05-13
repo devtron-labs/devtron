@@ -2089,6 +2089,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentPipelineStrate
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
+	fmt.Println("Hello")
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
