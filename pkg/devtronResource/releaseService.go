@@ -237,12 +237,12 @@ func (impl *DevtronResourceServiceImpl) updateCompleteReleaseDataForGetApiResour
 }
 
 func validateCreateReleaseRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
-	if reqBean.Overview == nil {
+	if reqBean.Overview != nil {
 		releaseVersionForValidation := reqBean.Overview.ReleaseVersion
 		if !strings.HasPrefix(reqBean.Overview.ReleaseVersion, "v") { //checking this because FE only sends version
 			releaseVersionForValidation = fmt.Sprintf("v%s", releaseVersionForValidation)
 		}
-		if !semver.IsValid(releaseVersionForValidation) {
+		if !semver.IsValid(releaseVersionForValidation) || len(strings.Split(releaseVersionForValidation, ".")) != 3 {
 			return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ReleaseVersionNotValid, bean.ReleaseVersionNotValid)
 		}
 	} else if reqBean.ParentConfig == nil {
@@ -299,12 +299,11 @@ func (impl *DevtronResourceServiceImpl) getIdentifierForCreateReleaseRequest(des
 
 func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
 	var err error
-	if reqBean.ConfigStatus == nil {
+	isConfigStatusPresentInExistingObj := len(gjson.Get(objectData, bean.ReleaseResourceConfigStatusStatusPath).String()) > 0
+	if reqBean.ConfigStatus == nil && !isConfigStatusPresentInExistingObj {
 		reqBean.ConfigStatus = &bean.ConfigStatus{
 			Status: bean.DraftReleaseConfigStatus,
 		}
-	}
-	if reqBean.ConfigStatus != nil {
 		objectData, err = sjson.Set(objectData, bean.ReleaseResourceConfigStatusPath, adapter.BuildConfigStatusSchemaData(reqBean.ConfigStatus))
 		if err != nil {
 			impl.logger.Errorw("error in setting id in schema", "err", err, "request", reqBean)
