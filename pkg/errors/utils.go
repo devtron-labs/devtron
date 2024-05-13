@@ -27,22 +27,23 @@ var errorHttpStatusCodeMap = map[string]int{
 	InvalidValueErrorMsg:        http.StatusFailedDependency,
 	OperationInProgressErrorMsg: http.StatusConflict,
 	//forbidden error from kubernetes would not be a parameter for us to mark a user forbidden to that resource or not,
-	//since this is not rbac from devtron, hence mark map them to StatusUnprocessableEntity
+	//since this is not rbac from devtron, hence map it to StatusUnprocessableEntity
 	ForbiddenErrMsg: http.StatusUnprocessableEntity,
 }
 
 func ConvertToApiError(err error) *util2.ApiError {
 	var apiError *util2.ApiError
 	if _, ok := status.FromError(err); ok {
-		clientCode, errMsg := util2.GetClientDetailedError(err)
+		clientCode, _ := util2.GetClientDetailedError(err)
 		httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
 		apiError = &util2.ApiError{
 			HttpStatusCode:  httpStatusCode,
 			Code:            strconv.Itoa(httpStatusCode),
-			InternalMessage: errMsg,
-			UserMessage:     errMsg,
+			InternalMessage: err.Error(),
+			UserMessage:     err.Error(),
 		}
 	} else {
+		// instead of iterating or making a map, think of a better implementations
 		for errMsg, statusCode := range errorHttpStatusCodeMap {
 			if strings.Contains(err.Error(), errMsg) {
 				apiError = &util2.ApiError{
