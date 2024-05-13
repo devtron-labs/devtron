@@ -41,7 +41,7 @@ test-unit:
 
 test-integration:
 	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
-	./tests/integrationTesting/exportGitHash.sh
+	./tests/integrationTesting/exportGitHashRunDockerExec.sh
 run: build
 	./devtron
 .PHONY: build
