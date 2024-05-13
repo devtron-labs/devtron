@@ -281,3 +281,19 @@ func getReleaseLockStatusSuccessChangeMessage(isLocked bool) string {
 	}
 	return statusMessage
 }
+
+func BuildRolloutStatusCount(ongoing, yetToTrigger, failed, completed int) *bean.RolloutStatusCount {
+	return &bean.RolloutStatusCount{
+		AllDeployment: yetToTrigger + failed + completed + ongoing,
+		YetToTrigger:  yetToTrigger,
+		Failed:        failed,
+		Completed:     completed,
+		Ongoing:       ongoing,
+	}
+}
+
+func BuildTaskInfoCount(rolloutStatusCount *bean.RolloutStatusCount) *bean.TaskInfoCount {
+	return &bean.TaskInfoCount{
+		RolloutStatusCount: rolloutStatusCount,
+	}
+}

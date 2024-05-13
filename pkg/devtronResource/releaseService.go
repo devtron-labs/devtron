@@ -1168,18 +1168,18 @@ func (impl *DevtronResourceServiceImpl) getExecutedCdWfrIdsFromTaskRun(releaseRu
 	return cdWfrIds, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, error) {
+func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, map[bean.RolloutStatus]int, error) {
 	appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(releaseRunSourceIdentifier, dependencies)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
-	pipelinesInfo, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds)
+	pipelinesInfo, rolloutStatusVsCountMap, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
-	return pipelinesInfo, nil
+	return pipelinesInfo, rolloutStatusVsCountMap, nil
 }
 
 func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(childInheritance []*bean.ChildInheritance, appId int) ([]*bean.Environment, error) {
@@ -1281,7 +1281,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 		} else {
 			dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 			if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+				dependencyBean, _, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
 				if err != nil {
 					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 					return nil, err
@@ -1406,7 +1406,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 		} else {
 			dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 			if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+				dependencyBean, _, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
 				if err != nil {
 					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 					return nil, err
@@ -1435,14 +1435,17 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(req *bean.TaskInfoPostApiBean, existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) (*bean.DeploymentTaskInfoResponse, error) {
 	var dependencyBean []*bean.CdPipelineReleaseInfo
 	var err error
-
+	var rollStatusCount *bean.RolloutStatusCount
 	allApplicationDependencies := getAllApplicationDependenciesFromObjectData(existingResourceObject.ObjectData)
 	if len(allApplicationDependencies) != 0 {
-		dependencyBean, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, allApplicationDependencies)
+		var rolloutStatusVsCountMap map[bean.RolloutStatus]int
+		dependencyBean, rolloutStatusVsCountMap, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, allApplicationDependencies)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
 		}
+
+		rollStatusCount = processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap)
 		if req.RequestWithoutFilters {
 			err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
 			if err != nil {
@@ -1451,7 +1454,29 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 			}
 		}
 	}
-	return &bean.DeploymentTaskInfoResponse{Data: []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}}, nil
+	taskInfoCount := adapter.BuildTaskInfoCount(rollStatusCount)
+	return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}}, nil
+}
+
+func processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap map[bean.RolloutStatus]int) *bean.RolloutStatusCount {
+	completedCount := 0
+	yetToTriggerCount := 0
+	failedCount := 0
+	ongoingCount := 0
+
+	if val, ok := rolloutStatusVsCountMap[bean.Completed]; ok {
+		completedCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.YetToTrigger]; ok {
+		yetToTriggerCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.Failed]; ok {
+		failedCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.Ongoing]; ok {
+		ongoingCount = val
+	}
+	return adapter.BuildRolloutStatusCount(ongoingCount, yetToTriggerCount, failedCount, completedCount)
 }
 
 // markRolloutStatusIfAllDependenciesGotSucceed get allApplicationDependencies if not provided.
