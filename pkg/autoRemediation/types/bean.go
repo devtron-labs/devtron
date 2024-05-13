@@ -39,7 +39,7 @@ const AllClusterGroup = "ALL"
 type Selector struct {
 	Type SelectorType `json:"type" validate:"oneof= environment"`
 	// SubGroup is INCLUDED,EXCLUDED,ALL_PROD,ALL_NON_PROD
-	SubGroup types.InterestCriteria `json:"subGroup"`
+	SubGroup types.InterestCriteria `json:"subGroup" validate:"oneof= INCLUDED EXCLUDED ALL_PROD ALL_NON_PROD"`
 	Names    []string               `json:"names"`
 	// GroupName "ALL CLUSTER" or selected env name
 	GroupName string `json:"groupName"`
