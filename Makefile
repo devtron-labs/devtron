@@ -41,7 +41,12 @@ test-unit:
 
 test-integration:
 	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
-	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
+	GIT_HASH=$(GIT_HASH)
+	@echo "GIT_HASH is $(GIT_HASH)"
+	ifndef GIT_HASH
+        GIT_HASH := $(shell git log --pretty=format:'%h' -n 1)
+	@echo "My GIT_HASH is $(GIT_HASH)"
+	docker exec dind-test sh -c "export GIT_HASH=$$GIT_HASH && mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
 run: build
 	./devtron
 .PHONY: build
