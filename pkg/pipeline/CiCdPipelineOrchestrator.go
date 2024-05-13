@@ -1851,6 +1851,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 	pipelineIdToDeploymentStatus := make(map[int]string)
 	pipelineIdToPreDeploymentStatus := make(map[int]string)
 	pipelineIdToPostDeploymentStatus := make(map[int]string)
+	pipelineIdToCdWorkflowRunnerId := make(map[int]int)
 	cdWfRunners, err := impl.cdWorkflowRepository.FindWorkflowRunnerByIds(cdWfrIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching cdWfRunners", "cdWfrIds", cdWfrIds, "err", err)
@@ -1864,6 +1865,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		} else if cdWfRunner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			pipelineIdToPostDeploymentStatus[cdWfRunner.CdWorkflow.PipelineId] = cdWfRunner.Status
 		}
+		pipelineIdToCdWorkflowRunnerId[cdWfRunner.CdWorkflow.PipelineId] = cdWfRunner.Id
 	}
 	pipelineStageMapping, err := impl.getExistingStagesForCdPipelineIds(dbPipelines)
 	if err != nil {
@@ -1896,6 +1898,9 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		}
 		if value, ok := pipelineIdToPostDeploymentStatus[dbPipeline.Id]; ok {
 			cdPipelineMinInfo.PostStatus = value
+		}
+		if value, ok := pipelineIdToCdWorkflowRunnerId[dbPipeline.Id]; ok {
+			cdPipelineMinInfo.CdWorkflowRunnerId = value
 		}
 		rolloutStatus := helper2.CalculateRolloutStatus(cdPipelineMinInfo)
 		//increasing count +1 for getting count of different rollout status
