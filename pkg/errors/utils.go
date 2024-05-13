@@ -26,7 +26,9 @@ var errorHttpStatusCodeMap = map[string]int{
 	ArrayStringMismatchErrorMsg: http.StatusFailedDependency,
 	InvalidValueErrorMsg:        http.StatusFailedDependency,
 	OperationInProgressErrorMsg: http.StatusConflict,
-	ForbiddenErrMsg:             http.StatusForbidden,
+	//forbidden error from kubernetes would not be a parameter for us to mark a user forbidden to that resource or not,
+	//since this is not rbac from devtron, hence mark map them to StatusUnprocessableEntity
+	ForbiddenErrMsg: http.StatusUnprocessableEntity,
 }
 
 func ConvertToApiError(err error) *util2.ApiError {

@@ -8,6 +8,7 @@ import (
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -119,6 +120,10 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	//RBAC enforcer Ends
 	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -221,6 +226,10 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 	//RBAC enforcer Ends
 	releaseInfo, err := handler.helmAppService.GetValuesYaml(r.Context(), appIdentifier)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -264,6 +273,10 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 	//RBAC enforcer Ends
 	res, err := handler.helmAppService.GetDesiredManifest(r.Context(), appIdentifier, desiredManifestRequest.Resource)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -321,6 +334,10 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		res, err = handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
 	}
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
