@@ -16,6 +16,7 @@ install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 kubectl create ns devtroncd
 kubectl create ns devtron-cd
 kubectl create ns devtron-ci
+kubectl -n devtroncd create cm git-hash-cm --from-literal=GIT_HASH=$GIT_HASH
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-secret.yaml
