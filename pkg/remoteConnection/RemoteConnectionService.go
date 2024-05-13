@@ -13,7 +13,7 @@ type RemoteConnectionService interface {
 	// methods
 	CreateOrUpdateRemoteConnectionConfig(reqBean *bean.RemoteConnectionConfigBean, userId int32, tx *pg.Tx) error
 	GetRemoteConnectionConfigById(id int) (*bean.RemoteConnectionConfigBean, error)
-	ObfuscatePlaceholder(model *repository.RemoteConnectionConfig)
+	ObfuscatePlaceholder(model *bean.RemoteConnectionConfigBean)
 }
 
 type RemoteConnectionServiceImpl struct {
@@ -75,13 +75,13 @@ func (impl *RemoteConnectionServiceImpl) GetRemoteConnectionConfigById(id int) (
 	return remoteConnectionConfig, nil
 }
 
-func (impl *RemoteConnectionServiceImpl) ObfuscatePlaceholder(model *repository.RemoteConnectionConfig) {
-	if model != nil && model.ConnectionMethod == bean.RemoteConnectionMethodSSH {
-		if len(model.SSHPassword) > 0 {
-			model.SSHPassword = bean.SecretDataObfuscatePlaceholder
+func (impl *RemoteConnectionServiceImpl) ObfuscatePlaceholder(remoteConnectionBean *bean.RemoteConnectionConfigBean) {
+	if remoteConnectionBean != nil && remoteConnectionBean.SSHTunnelConfig != nil {
+		if len(remoteConnectionBean.SSHTunnelConfig.SSHPassword) > 0 {
+			remoteConnectionBean.SSHTunnelConfig.SSHPassword = bean.SecretDataObfuscatePlaceholder
 		}
-		if len(model.SSHAuthKey) > 0 {
-			model.SSHAuthKey = bean.SecretDataObfuscatePlaceholder
+		if len(remoteConnectionBean.SSHTunnelConfig.SSHAuthKey) > 0 {
+			remoteConnectionBean.SSHTunnelConfig.SSHAuthKey = bean.SecretDataObfuscatePlaceholder
 		}
 	}
 }

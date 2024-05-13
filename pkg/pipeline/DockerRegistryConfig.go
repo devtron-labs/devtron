@@ -447,7 +447,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]types.DockerArt
 		}
 		if store.RemoteConnectionConfigId > 0 {
 			storeBean.RemoteConnectionConfig = adapter.GetRemoteConnectionConfigBean(store.RemoteConnectionConfig)
-			impl.remoteConnectionService.ObfuscatePlaceholder(store.RemoteConnectionConfig)
+			impl.remoteConnectionService.ObfuscatePlaceholder(storeBean.RemoteConnectionConfig)
 		}
 
 		storeBeans = append(storeBeans, storeBean)
@@ -511,7 +511,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*typ
 	}
 	if store.RemoteConnectionConfigId > 0 {
 		storeBean.RemoteConnectionConfig = adapter.GetRemoteConnectionConfigBean(store.RemoteConnectionConfig)
-		impl.remoteConnectionService.ObfuscatePlaceholder(store.RemoteConnectionConfig)
+		impl.remoteConnectionService.ObfuscatePlaceholder(storeBean.RemoteConnectionConfig)
 	}
 	return storeBean, err
 }
