@@ -1,6 +1,9 @@
 GITHASH=$GIT_HASH
 if [ -z "$GITHASH" ]; then
-		GIT_HASH=$(git log --pretty=format:'%h' -n 1);
+    echo "-------laeeeeeeeeeeeeq-------------"
+    git log
+    echo "------laeeqenccddddd----------------"
+		GIT_HASH=$$(git log --pretty=format:'%h' -n 1);
 		echo "laeeq" $GITHASH
 fi;
 echo "GIT_HASH is" $GITHASH
