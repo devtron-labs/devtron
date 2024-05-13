@@ -35,6 +35,7 @@ import (
 	constants1 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"strings"
 	"time"
 )
@@ -176,6 +177,26 @@ type CiPipelineMin struct {
 	PipelineType     constants1.PipelineType `json:"pipelineType,omitempty"`
 	ScanEnabled      bool                    `json:"scanEnabled,notnull"`
 }
+
+type CiComponentDetails struct {
+	Name         string                  `json:"name,omitempty"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id           int                     `json:"id"`
+	PipelineType constants.SourceTypeStr `json:"pipelineType,omitempty"`
+	ScanEnabled  bool                    `json:"scanEnabled,notnull"`
+	CiMaterial   []*CiMaterial           `json:"ciMaterial,omitempty"`
+}
+
+type CdComponentDetails struct {
+	Name              string `json:"name,omitempty"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                int    `json:"id"`
+	DeploymentAppType string `json:"deploymentAppType"`
+	EnvironmentId     int    `json:"environmentId"`
+	EnvironmentName   string `json:"environmentName"`
+}
+
+const (
+	CiComponentNotFound = "no CI components found"
+)
 
 type CiScript struct {
 	Id             int    `json:"id"`

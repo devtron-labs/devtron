@@ -5,6 +5,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -80,9 +81,13 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PostDeploy, models.DEPLOYMENTTYPE_POST)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, cdWf.CiArtifact.Id, pipelineStageType, stageId)
 	if err != nil {
+		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(request.CdWorkflowRunnerId, triggeredBy, err)
+		if err2 != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerPostStage", "cdWfr", request.CdWorkflowRunnerId, "err2", err2)
+		}
 		impl.logger.Errorw("error encountered in TriggerPostStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
@@ -94,7 +99,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
-
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
 	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
 	if filterEvaluationAudit != nil {

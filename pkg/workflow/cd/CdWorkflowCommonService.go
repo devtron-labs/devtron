@@ -27,6 +27,7 @@ type CdWorkflowCommonService interface {
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
+	GetRunnerStatusBasedInWorkflowType(workflowType bean.WorkflowType) string
 }
 
 type CdWorkflowCommonServiceImpl struct {
@@ -287,4 +288,17 @@ func (impl *CdWorkflowCommonServiceImpl) canInitiateTrigger(natsMsgId string) (b
 
 func (impl *CdWorkflowCommonServiceImpl) IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error) {
 	return impl.cdWorkflowRepository.IsArtifactDeployedOnStage(ciArtifactId, pipelineId, runnerType)
+}
+
+func (impl *CdWorkflowCommonServiceImpl) GetRunnerStatusBasedInWorkflowType(workflowType bean.WorkflowType) string {
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+		return pipelineConfig.WorkflowStarting
+	case pipelineConfig.WorkflowTypePost:
+		return pipelineConfig.WorkflowStarting
+	case pipelineConfig.WorkflowTypeDeploy:
+		return pipelineConfig.WorkflowInitiated
+	}
+	// default assuming to be Initiated
+	return pipelineConfig.WorkflowInitiated
 }
