@@ -1,40 +1,77 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: postgresql-migrate-devtron
+  name: postgresql-migrate-orchestrator
+  namespace: devtroncd
 spec:
+  activeDeadlineSeconds: 1500
+  backoffLimit: 20
+  completions: 1
+  parallelism: 1
+  selector:
+  suspend: false
   template:
+    metadata:
+      labels:
+        job-name: postgresql-migrate-orchestrator
     spec:
       containers:
-        - name: postgresql-migrate-devtron
-          image: quay.io/devtron/migrator:71748de9-149-11112
+        - command:
+            - /bin/sh
+            - -c
+            - if [ $(MIGRATE_TO_VERSION) -eq "0" ]; then migrate -path $(SCRIPT_LOCATION) -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable up;  else   echo $(MIGRATE_TO_VERSION); migrate -path $(SCRIPT_LOCATION)  -database postgres://$(DB_USER_NAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable goto $(MIGRATE_TO_VERSION);    fi
           env:
-            - name: GIT_BRANCH
-              value: main
             - name: SCRIPT_LOCATION
-              value: scripts/sql/
-            - name: GIT_REPO_URL
-              value: https://github.com/devtron-labs/devtron.git
+              value: /shared/sql/
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
               value: postgres
             - name: DB_HOST
-              value: postgresql-postgresql
+              value: prod-cd-postgres-14.devtroncd
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
               value: orchestrator
             - name: MIGRATE_TO_VERSION
               value: "0"
-            - name: GIT_HASH
-              value: 606a33bc5e9b15d8b1c404f0dfbd1c70b21b4063
           envFrom:
             - secretRef:
-                name: postgresql-migrator
+                name: postgres-creds-3
+          image: migrate/migrate:v4.16.1
+          imagePullPolicy: IfNotPresent
+          name: postgresql-migrate-devtron
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: devtron-image-pull
+      initContainers:
+        - command:
+            - /bin/sh
+            - -c
+            - cp -r scripts/sql /shared/
+          image: devtroninc.azurecr.io/devtron:bb92488a-4-22580
+          imagePullPolicy: IfNotPresent
+          name: init-devtron
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /shared
+              name: shared-volume
       restartPolicy: OnFailure
-  backoffLimit: 20
-  activeDeadlineSeconds: 1500
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - emptyDir: {}
+          name: shared-volume
+  ttlSecondsAfterFinished: 600
 ---
 apiVersion: batch/v1
 kind: Job
