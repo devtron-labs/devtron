@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
@@ -319,6 +320,10 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app detail", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			return nil, apiError
+		}
 		return nil, err
 	}
 
