@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -25,6 +26,7 @@ type PipelineStageService interface {
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
 	GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int) (map[int][]*bean.PipelineStageDto, error)
+	GetExistingStagesForCdPipelineIds(cdPipelineIds []int) (map[int]*devtronResourceBean.ExistingStage, error)
 	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType) (*repository.PipelineStage, error)
 	// DeletePipelineStageIfReq function is used to delete corrupted pipelineStage data
 	// , there was a bug(https://github.com/devtron-labs/devtron/issues/3826) where we were not deleting pipeline stage entry even after deleting all the pipelineStageSteps
@@ -171,6 +173,30 @@ func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopyForPipelineI
 
 	}
 	return pipelinePrePostStageMappingResp, nil
+}
+
+func (impl *PipelineStageServiceImpl) GetExistingStagesForCdPipelineIds(cdPipelineIds []int) (map[int]*devtronResourceBean.ExistingStage, error) {
+	pipelineStageMapping := make(map[int]*devtronResourceBean.ExistingStage)
+	pipelineStages, err := impl.pipelineStageRepository.GetExistingCdStageTypesForCdPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineStages from cdPipelineIds", "err", err, "cdPipelineIds", cdPipelineIds)
+		return pipelineStageMapping, err
+	}
+	for _, pipelineStage := range pipelineStages {
+		if _, ok := pipelineStageMapping[pipelineStage.CdPipelineId]; !ok {
+			pipelineStageMapping[pipelineStage.CdPipelineId] = &devtronResourceBean.ExistingStage{
+				Deploy: true,
+			}
+		}
+		if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CD {
+			pipelineStageMapping[pipelineStage.CdPipelineId].Pre = true
+		} else if pipelineStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CD {
+			pipelineStageMapping[pipelineStage.CdPipelineId].Post = true
+		} else {
+			impl.logger.Errorw("found improper stage mapped with cdPipeline", "cdPipelineId", pipelineStage.CdPipelineId, "stage", bean.CdStage)
+		}
+	}
+	return pipelineStageMapping, nil
 }
 
 func (impl *PipelineStageServiceImpl) BuildPipelineStageDataDeepCopy(pipelineStage *repository.PipelineStage) (*bean.PipelineStageDto, error) {

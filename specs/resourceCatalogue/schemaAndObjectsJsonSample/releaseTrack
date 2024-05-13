@@ -1,0 +1,115 @@
+SCHEMA -
+
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Release track Schema",
+    "type": "object",
+    "properties":
+    {
+        "version":
+        {
+            "type": "string"
+        },
+        "kind":
+        {
+            "type": "string"
+        },
+        "overview":
+        {
+            "type": "object",
+            "properties":
+            {
+                "id":
+                {
+                    "type": "number"
+                },
+                "name":
+                {
+                    "type": "string"
+                },
+                "icon":
+                {
+                    "type": "string",
+                    "contentEncoding": "base64"
+                },
+                "description":
+                {
+                    "type": "string"
+                },
+                "createdOn":
+                {
+                    "type": "string"
+                },
+                "createdBy":
+                {
+                    "type": "object",
+                    "refType": "#/references/users"
+                },
+                "tags":
+                {
+                    "additionalProperties":
+                    {
+                        "type": "string"
+                    }
+                },
+                "metadata":
+                {}
+            },
+            "required":
+            [
+                "id",
+                "metadata"
+            ]
+        },
+        "actions":
+        {
+            "type": "array"
+        },
+        "dependencies":
+        {
+            "type": "array"
+        }
+    },
+    "required":
+    [
+        "version",
+        "kind",
+        "overview"
+    ]
+}
+
+OBJECT -
+
+{
+    "kind": "release-track",
+    "version": "v1",
+    "overview":
+    {
+        "id": 1,
+        "description":"release-track"
+        "metadata":
+        {}
+    },
+    "dependencies":
+    [
+        {
+            "id": 12,
+            "name": "releaseabcd",
+            "index": 1,
+            "dependentOnIndex": [],
+            "typeOfDependency": "child",
+            "devtronResourceId": 9,
+            "devtronResourceSchemaId": 9
+        },
+        {
+            "id": 13,
+            "name": "releasexyz",
+            "index": 2,
+            "dependentOnIndex": [],
+            "typeOfDependency": "child",
+            "devtronResourceId": 9,
+            "dependentOnParentIndex": 0,
+            "devtronResourceSchemaId": 9
+        }
+    ]
+}

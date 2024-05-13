@@ -113,8 +113,10 @@ type CiPipelineRepository interface {
 	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
-	// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
-	FindOneWithAppData(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithMinData is to be used for fetching minimum data (including app.App and CiTemplate) for CiPipeline for the given CiPipeline.Id
+	FindOneWithMinData(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithMinDataIncludingInactive is to be used for fetching minimum data (including app.App and CiTemplate) for CiPipeline for the given CiPipeline.Id
+	FindOneWithMinDataIncludingInactive(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -352,13 +354,22 @@ func (impl *CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, er
 	return pipeline, err
 }
 
-// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
-func (impl *CiPipelineRepositoryImpl) FindOneWithAppData(id int) (pipeline *CiPipeline, err error) {
+func (impl *CiPipelineRepositoryImpl) FindOneWithMinData(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App").
+		Column("ci_pipeline.*", "App", "CiTemplate").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+func (impl *CiPipelineRepositoryImpl) FindOneWithMinDataIncludingInactive(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "App", "CiTemplate").
+		Where("ci_pipeline.id= ?", id).
 		Select()
 
 	return pipeline, err

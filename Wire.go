@@ -166,6 +166,7 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -218,7 +219,10 @@ func InitializeApp() (*App, error) {
 		globalPolicy.GlobalPolicyWireSet,
 		drafts.DraftsWireSet,
 		protect.ProtectWireSet,
+
 		devtronResource.DevtronResourceWireSet,
+		devtronResource2.PolicyWireSet,
+
 		globalConfig.GlobalConfigWireSet,
 		lockConfiguation.LockConfigWireSet,
 		build.BuildWireSet,
@@ -232,6 +236,7 @@ func InitializeApp() (*App, error) {
 
 		artifactApproval.ArtifactApprovalWireSet,
 		artifactPromotion2.ArtifactPromotionWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,

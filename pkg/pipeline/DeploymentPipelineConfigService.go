@@ -51,8 +51,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	devtronResourceBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -84,6 +85,10 @@ type CdPipelineConfigService interface {
 	// converting above data in proper bean object and then assigning to CDPipelineConfigObject
 	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
+	// GetCdComponentDetails : Retrieve cdPipeline basic details in bean.CdComponentDetails for given appId.
+	// if any error occur, will get nil
+	// if no cd pipelines found, will get empty object
+	GetCdComponentDetails(appId int) (map[int]*bean.CdComponentDetails, error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
@@ -141,44 +146,44 @@ type CdPipelineConfigService interface {
 }
 
 type CdPipelineConfigServiceImpl struct {
-	logger                            *zap.SugaredLogger
-	pipelineRepository                pipelineConfig.PipelineRepository
-	environmentRepository             repository2.EnvironmentRepository
-	pipelineConfigRepository          chartConfig.PipelineConfigRepository
-	appWorkflowRepository             appWorkflow.AppWorkflowRepository
-	pipelineStageService              PipelineStageService
-	appRepo                           app.AppRepository
-	appService                        app2.AppService
-	deploymentGroupRepository         repository.DeploymentGroupRepository
-	ciCdPipelineOrchestrator          CiCdPipelineOrchestrator
-	appStatusRepository               appStatus.AppStatusRepository
-	ciPipelineRepository              pipelineConfig.CiPipelineRepository
-	prePostCdScriptHistoryService     history.PrePostCdScriptHistoryService
-	clusterRepository                 repository2.ClusterRepository
-	helmAppService                    client.HelmAppService
-	enforcerUtil                      rbac.EnforcerUtil
-	pipelineStrategyHistoryService    history.PipelineStrategyHistoryService
-	chartRepository                   chartRepoRepository.ChartRepository
-	resourceGroupService              resourceGroup2.ResourceGroupService
-	propertiesConfigService           PropertiesConfigService
-	deploymentTemplateHistoryService  history.DeploymentTemplateHistoryService
-	scopedVariableManager             variables.ScopedVariableManager
-	deploymentConfig                  *util2.DeploymentServiceTypeConfig
-	application                       application.ServiceClient
-	manifestPushConfigRepository      repository5.ManifestPushConfigRepository
-	customTagService                  CustomTagService
-	ciPipelineConfigService           CiPipelineConfigService
-	buildPipelineSwitchService        BuildPipelineSwitchService
-	devtronResourceService            devtronResource.DevtronResourceService
-	argoClientWrapperService          argocdServer.ArgoClientWrapperService
-	deployedAppMetricsService         deployedAppMetrics.DeployedAppMetricsService
-	gitOpsConfigReadService           config.GitOpsConfigReadService
-	gitOperationService               git.GitOperationService
-	chartService                      chart.ChartService
-	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
-	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
-	deploymentWindowService           deploymentWindow.DeploymentWindowService
-	deploymentTypeOverrideService     config2.DeploymentTypeOverrideService
+	logger                              *zap.SugaredLogger
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	environmentRepository               repository2.EnvironmentRepository
+	pipelineConfigRepository            chartConfig.PipelineConfigRepository
+	appWorkflowRepository               appWorkflow.AppWorkflowRepository
+	pipelineStageService                PipelineStageService
+	appRepo                             app.AppRepository
+	appService                          app2.AppService
+	deploymentGroupRepository           repository.DeploymentGroupRepository
+	ciCdPipelineOrchestrator            CiCdPipelineOrchestrator
+	appStatusRepository                 appStatus.AppStatusRepository
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	prePostCdScriptHistoryService       history.PrePostCdScriptHistoryService
+	clusterRepository                   repository2.ClusterRepository
+	helmAppService                      client.HelmAppService
+	enforcerUtil                        rbac.EnforcerUtil
+	pipelineStrategyHistoryService      history.PipelineStrategyHistoryService
+	chartRepository                     chartRepoRepository.ChartRepository
+	resourceGroupService                resourceGroup2.ResourceGroupService
+	propertiesConfigService             PropertiesConfigService
+	deploymentTemplateHistoryService    history.DeploymentTemplateHistoryService
+	scopedVariableManager               variables.ScopedVariableManager
+	deploymentConfig                    *util2.DeploymentServiceTypeConfig
+	application                         application.ServiceClient
+	manifestPushConfigRepository        repository5.ManifestPushConfigRepository
+	customTagService                    CustomTagService
+	ciPipelineConfigService             CiPipelineConfigService
+	buildPipelineSwitchService          BuildPipelineSwitchService
+	dtResourceInternalProcessingService in.InternalProcessingService
+	argoClientWrapperService            argocdServer.ArgoClientWrapperService
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	gitOpsConfigReadService             config.GitOpsConfigReadService
+	gitOperationService                 git.GitOperationService
+	chartService                        chart.ChartService
+	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
+	pipelineConfigEventPublishService   out.PipelineConfigEventPublishService
+	deploymentWindowService             deploymentWindow.DeploymentWindowService
+	deploymentTypeOverrideService       config2.DeploymentTypeOverrideService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -209,7 +214,7 @@ func NewCdPipelineConfigServiceImpl(
 	customTagService CustomTagService,
 	ciPipelineConfigService CiPipelineConfigService,
 	buildPipelineSwitchService BuildPipelineSwitchService,
-	devtronResourceService devtronResource.DevtronResourceService,
+	dtResourceInternalProcessingService in.InternalProcessingService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
@@ -220,44 +225,44 @@ func NewCdPipelineConfigServiceImpl(
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
 	deploymentTypeOverrideService config2.DeploymentTypeOverrideService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
-		logger:                            logger,
-		pipelineRepository:                pipelineRepository,
-		environmentRepository:             environmentRepository,
-		pipelineConfigRepository:          pipelineConfigRepository,
-		appWorkflowRepository:             appWorkflowRepository,
-		pipelineStageService:              pipelineStageService,
-		appRepo:                           appRepo,
-		appService:                        appService,
-		deploymentGroupRepository:         deploymentGroupRepository,
-		ciCdPipelineOrchestrator:          ciCdPipelineOrchestrator,
-		appStatusRepository:               appStatusRepository,
-		ciPipelineRepository:              ciPipelineRepository,
-		prePostCdScriptHistoryService:     prePostCdScriptHistoryService,
-		clusterRepository:                 clusterRepository,
-		helmAppService:                    helmAppService,
-		enforcerUtil:                      enforcerUtil,
-		pipelineStrategyHistoryService:    pipelineStrategyHistoryService,
-		chartRepository:                   chartRepository,
-		resourceGroupService:              resourceGroupService,
-		propertiesConfigService:           propertiesConfigService,
-		deploymentTemplateHistoryService:  deploymentTemplateHistoryService,
-		scopedVariableManager:             scopedVariableManager,
-		deploymentConfig:                  envVariables.DeploymentServiceTypeConfig,
-		application:                       application,
-		manifestPushConfigRepository:      manifestPushConfigRepository,
-		chartService:                      chartService,
-		ciPipelineConfigService:           ciPipelineConfigService,
-		customTagService:                  customTagService,
-		buildPipelineSwitchService:        buildPipelineSwitchService,
-		devtronResourceService:            devtronResourceService,
-		argoClientWrapperService:          argoClientWrapperService,
-		deployedAppMetricsService:         deployedAppMetricsService,
-		gitOpsConfigReadService:           gitOpsConfigReadService,
-		gitOperationService:               gitOperationService,
-		imageDigestPolicyService:          imageDigestPolicyService,
-		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
-		deploymentWindowService:           deploymentWindowService,
-		deploymentTypeOverrideService:     deploymentTypeOverrideService,
+		logger:                              logger,
+		pipelineRepository:                  pipelineRepository,
+		environmentRepository:               environmentRepository,
+		pipelineConfigRepository:            pipelineConfigRepository,
+		appWorkflowRepository:               appWorkflowRepository,
+		pipelineStageService:                pipelineStageService,
+		appRepo:                             appRepo,
+		appService:                          appService,
+		deploymentGroupRepository:           deploymentGroupRepository,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		appStatusRepository:                 appStatusRepository,
+		ciPipelineRepository:                ciPipelineRepository,
+		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
+		clusterRepository:                   clusterRepository,
+		helmAppService:                      helmAppService,
+		enforcerUtil:                        enforcerUtil,
+		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
+		chartRepository:                     chartRepository,
+		resourceGroupService:                resourceGroupService,
+		propertiesConfigService:             propertiesConfigService,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		scopedVariableManager:               scopedVariableManager,
+		deploymentConfig:                    envVariables.DeploymentServiceTypeConfig,
+		application:                         application,
+		manifestPushConfigRepository:        manifestPushConfigRepository,
+		chartService:                        chartService,
+		ciPipelineConfigService:             ciPipelineConfigService,
+		customTagService:                    customTagService,
+		buildPipelineSwitchService:          buildPipelineSwitchService,
+		dtResourceInternalProcessingService: dtResourceInternalProcessingService,
+		argoClientWrapperService:            argoClientWrapperService,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		gitOpsConfigReadService:             gitOpsConfigReadService,
+		gitOperationService:                 gitOperationService,
+		imageDigestPolicyService:            imageDigestPolicyService,
+		pipelineConfigEventPublishService:   pipelineConfigEventPublishService,
+		deploymentWindowService:             deploymentWindowService,
+		deploymentTypeOverrideService:       deploymentTypeOverrideService,
 	}
 }
 
@@ -445,6 +450,20 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	cdPipeline.PostDeployStage = postDeployStage
 
 	return cdPipeline, err
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetCdComponentDetails(appId int) (map[int]*bean.CdComponentDetails, error) {
+	cbPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching cd pipelines", "err", err)
+		return nil, err
+	}
+	cdPipelineMap := make(map[int]*bean.CdComponentDetails, len(cbPipelines))
+	for _, pipeline := range cbPipelines {
+		cdPipelineComponent := bean.NewCdPipelineBeanFromModel(pipeline)
+		cdPipelineMap[pipeline.Id] = cdPipelineComponent
+	}
+	return cdPipelineMap, err
 }
 
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
@@ -1018,7 +1037,9 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	impl.pipelineConfigEventPublishService.PublishCDPipelineDelete(pipeline.Id, userId)
 
 	go func() {
-		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(pipeline.Id, bean5.DevtronResourceCdPipeline, "", bean5.DevtronResourceVersion1, userId)
+		deleteReq := adapter.BuildDevtronResourceObjectDescriptorBean(pipeline.Id, devtronResourceBean.DevtronResourceCdPipeline,
+			"", devtronResourceBean.DevtronResourceVersion1, userId)
+		errInResourceDelete := impl.dtResourceInternalProcessingService.DeleteObjectAndItsDependency(deleteReq)
 		if errInResourceDelete != nil {
 			impl.logger.Errorw("error in deleting cd pipeline resource and dependency data", "err", err, "pipelineId", pipeline.Id)
 		}

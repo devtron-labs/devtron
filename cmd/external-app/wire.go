@@ -45,9 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -107,6 +105,7 @@ func InitializeApp() (*App, error) {
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
 		argoApplication.ArgoApplicationWireSet,
+
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,
@@ -115,11 +114,11 @@ func InitializeApp() (*App, error) {
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
-		devtronResource.DevtronResourceWireSetEA,
-		helper.NewAppListingRepositoryQueryBuilder,
-		repository.NewAppListingRepositoryImpl,
 
-		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+		//TODO: check why policy is giving error of unused provider
+		//globalPolicy.GlobalPolicyWireSetEA,
+		//devtronResource2.PolicyWireSet,
+		devtronResource.DevtronResourceWireSetEA,
 
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
@@ -248,9 +247,6 @@ func InitializeApp() (*App, error) {
 
 		deploymentWindow.NewDeploymentWindowServiceImplEA,
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
-
-		appWorkflow.NewAppWorkflowRepositoryImpl,
-		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
 
 		appStore.AppStoreWireSet,
 		security.NewImageScanServiceImplEA,
