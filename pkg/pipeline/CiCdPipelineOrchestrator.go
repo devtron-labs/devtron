@@ -1900,6 +1900,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 			cdPipelineMinInfo.PostStatus = value
 		}
 		if value, ok := pipelineIdToCdWorkflowRunnerId[dbPipeline.Id]; ok {
+			//TODO: correct this sent for all three stages
 			cdPipelineMinInfo.CdWorkflowRunnerId = value
 		}
 		rolloutStatus := helper2.CalculateRolloutStatus(cdPipelineMinInfo)
