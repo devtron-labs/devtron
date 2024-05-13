@@ -10,6 +10,12 @@ import (
 func GetRemoteConnectionConfigBean(model *repository.RemoteConnectionConfig) *bean.RemoteConnectionConfigBean {
 	var configBean *bean.RemoteConnectionConfigBean
 	if model != nil {
+		if len(model.SSHPassword) > 0 {
+			model.SSHPassword = bean.SecretDataObfuscatePlaceholder
+		}
+		if len(model.SSHAuthKey) > 0 {
+			model.SSHAuthKey = bean.SecretDataObfuscatePlaceholder
+		}
 		configBean = &bean.RemoteConnectionConfigBean{
 			RemoteConnectionConfigId: model.Id,
 			ConnectionMethod:         model.ConnectionMethod,
