@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -166,6 +167,8 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -1021,8 +1024,8 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 
 		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
 		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
@@ -1072,6 +1075,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 
 		appStoreRestHandler.AppStoreWireSet,
+
+		remoteConnectionRepository.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(remoteConnectionRepository.RemoteConnectionRepository), new(*remoteConnectionRepository.RemoteConnectionRepositoryImpl)),
+
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

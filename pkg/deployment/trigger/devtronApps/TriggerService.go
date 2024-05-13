@@ -37,6 +37,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clusterAdapter "github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -1433,24 +1434,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &gRPC.ClusterConfig{
-			ClusterId:              int32(cluster.Id),
-			ClusterName:            cluster.ClusterName,
-			Token:                  bearerToken,
-			ApiServerUrl:           cluster.ServerUrl,
-			InsecureSkipTLSVerify:  cluster.InsecureSkipTlsVerify,
-			ProxyUrl:               cluster.ProxyUrl,
-			ToConnectWithSSHTunnel: cluster.ToConnectWithSSHTunnel,
-			SshTunnelAuthKey:       cluster.SSHTunnelAuthKey,
-			SshTunnelUser:          cluster.SSHTunnelUser,
-			SshTunnelPassword:      cluster.SSHTunnelPassword,
-			SshTunnelServerAddress: cluster.SSHTunnelServerAddress,
-		}
-		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
-		}
+		clusterBean := clusterAdapter.GetClusterBean(*cluster)
+		clusterConfig := client2.ConvertClusterBeanToClusterConfig(&clusterBean)
+		clusterConfig.Token = bearerToken
+
 		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,

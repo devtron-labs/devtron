@@ -11,6 +11,8 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
@@ -134,6 +136,48 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
+func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gRPC.ClusterConfig {
+	config := &gRPC.ClusterConfig{
+		ApiServerUrl:          clusterBean.ServerUrl,
+		Token:                 clusterBean.Config[k8s2.BearerToken],
+		ClusterId:             int32(clusterBean.Id),
+		ClusterName:           clusterBean.ClusterName,
+		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
+	}
+
+	if clusterBean.RemoteConnectionConfig != nil {
+		connectionMethod := 0
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			connectionMethod = 1
+		}
+		clusterConnectionConfig := &gRPC.RemoteConnectionConfig{
+			RemoteConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
+		}
+		if clusterBean.RemoteConnectionConfig.ProxyConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
+			proxyConfig := clusterBean.RemoteConnectionConfig.ProxyConfig
+			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
+				ProxyUrl: proxyConfig.ProxyUrl,
+			}
+		}
+		if clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			sshTunnelConfig := clusterBean.RemoteConnectionConfig.SSHTunnelConfig
+			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
+				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
+				SSHUsername:      sshTunnelConfig.SSHUsername,
+				SSHPassword:      sshTunnelConfig.SSHPassword,
+				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
+			}
+		}
+		config.RemoteConnectionConfig = clusterConnectionConfig
+	}
+	if clusterBean.InsecureSkipTLSVerify == false {
+		config.KeyData = clusterBean.Config[k8s2.TlsKey]
+		config.CertData = clusterBean.Config[k8s2.CertData]
+		config.CaData = clusterBean.Config[k8s2.CertificateAuthorityData]
+	}
+	return config
+}
+
 func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
@@ -147,26 +191,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	}
 	req := &gRPC.AppListRequest{}
 	for _, clusterDetail := range clusters {
-		config := &gRPC.ClusterConfig{
-			ApiServerUrl:           clusterDetail.ServerUrl,
-			Token:                  clusterDetail.Config[k8s2.BearerToken],
-			ClusterId:              int32(clusterDetail.Id),
-			ClusterName:            clusterDetail.ClusterName,
-			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
-			ProxyUrl:               clusterDetail.ProxyUrl,
-			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
-		}
-		if clusterDetail.SSHTunnelConfig != nil {
-			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
-			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
-			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
-			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
-		}
-		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
-			config.CertData = clusterDetail.Config[k8s2.CertData]
-			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
-		}
+		config := ConvertClusterBeanToClusterConfig(&clusterDetail)
 		req.Clusters = append(req.Clusters, config)
 	}
 	applicatonStream, err := impl.helmAppClient.ListApplication(ctx, req)
@@ -295,26 +320,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConf
 			Token:       "",
 		}
 	} else {
-		config = gRPC.ClusterConfig{
-			ApiServerUrl:           clusterObj.ServerUrl,
-			Token:                  clusterObj.Config[k8s2.BearerToken],
-			ClusterId:              int32(clusterObj.Id),
-			ClusterName:            clusterObj.ClusterName,
-			ProxyUrl:               clusterObj.ProxyUrl,
-			ToConnectWithSSHTunnel: clusterObj.ToConnectWithSSHTunnel,
-			InsecureSkipTLSVerify:  clusterObj.InsecureSkipTLSVerify,
-		}
-		if clusterObj.SSHTunnelConfig != nil {
-			config.SshTunnelAuthKey = clusterObj.SSHTunnelConfig.AuthKey
-			config.SshTunnelUser = clusterObj.SSHTunnelConfig.User
-			config.SshTunnelPassword = clusterObj.SSHTunnelConfig.Password
-			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
-		}
-		if clusterObj.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterObj.Config[k8s2.TlsKey]
-			config.CertData = clusterObj.Config[k8s2.CertData]
-			config.CaData = clusterObj.Config[k8s2.CertificateAuthorityData]
-		}
+		config = *ConvertClusterBeanToClusterConfig(clusterObj)
 	}
 
 	return &config, nil
