@@ -28,6 +28,7 @@ import (
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	devtronResourceAdapter "github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -1895,6 +1896,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		if value, ok := pipelineIdToPostDeploymentStatus[dbPipeline.Id]; ok {
 			cdPipelineMinInfo.PostStatus = value
 		}
+		cdPipelineMinInfo.RolloutStatus = helper2.CalculateRolloutStatus(cdPipelineMinInfo)
 		cdPipelines = append(cdPipelines, cdPipelineMinInfo)
 	}
 	return cdPipelines, nil

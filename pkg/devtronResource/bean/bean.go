@@ -655,6 +655,13 @@ type CdPipelineReleaseInfo struct {
 
 type RolloutStatus string
 
+const (
+	YetToTrigger RolloutStatus = "yetToTrigger"
+	Ongoing      RolloutStatus = "onGoing"
+	Failed       RolloutStatus = "failed"
+	Completed    RolloutStatus = "completed"
+)
+
 type ExistingStage struct {
 	Pre    bool `json:"pre"`
 	Deploy bool `json:"deploy"`
@@ -681,3 +688,17 @@ const (
 func (f FilterResource) ToString() string {
 	return string(f)
 }
+
+const (
+	FailedStatus        = "Failed"
+	NotTriggeredStatus  = "Not Triggered"
+	SucceededStatus     = "Succeeded"
+	StartingStatus      = "Starting"
+	RunningStatus       = "Running"
+	InitiatingStatus    = "Initiating"
+	ProgressingStatus   = "Progressing"
+	QueuedStatus        = "Queued"
+	AbortedStatus       = "Aborted"
+	TimedOutStatus      = "TimedOut"
+	UnableToFetchStatus = "UnableToFetch"
+)

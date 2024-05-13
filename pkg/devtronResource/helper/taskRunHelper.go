@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	slices2 "golang.org/x/exp/slices"
 )
 
 func GetTaskTypeBasedOnWorkflowType(workflowType bean3.WorkflowType) bean.TaskType {
@@ -55,4 +56,50 @@ func GetTaskRunSourceDependencyIdentifier(id int, idType bean.IdType, resourceId
 
 func GetTaskRunIdentifier(id int, idType bean.IdType, resourceId, resourceSchemaId int) string {
 	return fmt.Sprintf("%d|%s|%d|%d", id, idType, resourceId, resourceSchemaId)
+}
+
+var StatusVsRolloutStatusMap = map[string]bean.RolloutStatus{
+	bean.StartingStatus:      bean.Ongoing,
+	bean.RunningStatus:       bean.Ongoing,
+	bean.InitiatingStatus:    bean.Ongoing,
+	bean.ProgressingStatus:   bean.Ongoing,
+	bean.QueuedStatus:        bean.Ongoing,
+	bean.AbortedStatus:       bean.Failed,
+	bean.FailedStatus:        bean.Failed,
+	bean.TimedOutStatus:      bean.Failed,
+	bean.UnableToFetchStatus: bean.Failed,
+	bean.NotTriggeredStatus:  bean.YetToTrigger,
+	bean.SucceededStatus:     bean.Completed,
+}
+
+func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.RolloutStatus {
+	finalRolloutStatus := make([]bean.RolloutStatus, 0, 3)
+	// appending deployment status first
+	finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.DeployStatus])
+	if releaseInfo.ExistingStages.Pre && releaseInfo.ExistingStages.Post {
+		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PreStatus], StatusVsRolloutStatusMap[releaseInfo.PostStatus])
+	} else if releaseInfo.ExistingStages.Pre {
+		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PreStatus])
+	} else if releaseInfo.ExistingStages.Post {
+		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PostStatus])
+	}
+	if slices2.Contains(finalRolloutStatus, bean.Failed) {
+		return bean.Failed
+	}
+	if checkIfEveryElementIsGivenValue(finalRolloutStatus, bean.Completed) {
+		return bean.Completed
+	}
+	if checkIfEveryElementIsGivenValue(finalRolloutStatus, bean.YetToTrigger) {
+		return bean.YetToTrigger
+	}
+	return bean.Ongoing
+}
+
+func checkIfEveryElementIsGivenValue(slice []bean.RolloutStatus, value bean.RolloutStatus) bool {
+	for _, v := range slice {
+		if v != value {
+			return false
+		}
+	}
+	return true
 }
