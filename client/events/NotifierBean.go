@@ -64,7 +64,6 @@ const Orange Color = "#FFF5E5"
 const Red Color = "#FDE7E7"
 
 func NewInterceptEventNotificationData(kind, name, action, clusterName, namespace, watcherName, hostUrl, pipelineName string, interceptedAt time.Time, interceptEventId int) *InterceptEventNotificationData {
-	heading := fmt.Sprintf("Change: Resource %s", action)
 	color := Green
 	if action == "updated" {
 		color = Orange
@@ -72,8 +71,10 @@ func NewInterceptEventNotificationData(kind, name, action, clusterName, namespac
 		color = Red
 	}
 
+	// heading := fmt.Sprintf("Change: Resource %s", action)
 	return &InterceptEventNotificationData{
-		Heading:                  heading,
+		// not setting heading here as this is causing some parsing error in curl request in plugin because of :(colon)
+		// Heading:                  heading,
 		Color:                    color,
 		Kind:                     kind,
 		Name:                     name,
