@@ -1211,7 +1211,7 @@ components:
               type: object
               description: Rollout status counts.
               properties:
-                allDeployment:
+                allDeployments:
                   type: integer
                   description: Total number of deployments.
                 yetToTrigger:
