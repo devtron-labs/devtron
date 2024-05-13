@@ -14,7 +14,7 @@ spec:
             - name: SCRIPT_LOCATION
               value: scripts/sql/
             - name: GIT_REPO_URL
-              value: https://github.com/devtron-labs/devtron.git
+              value: https://github.com/devtron-labs/devtron-enterprise.git
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
