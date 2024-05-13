@@ -1307,7 +1307,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 }
 
 func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams,
-	existingResourceObject *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error) {
+	existingResourceObject *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error) {
 	if existingResourceObject == nil || existingResourceObject.Id == 0 {
 		impl.logger.Warnw("invalid get request, object not found", "req", req)
 		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
@@ -1428,11 +1428,11 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 			return nil, err
 		}
 	}
-	return response, nil
+	return &bean.DeploymentTaskInfoResponse{Data: response}, nil
 }
 
 // fetchAllReleaseTaskRunInfoWithoutStage will all the application status data with env irrespective of any levels or stages for rollout status
-func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(req *bean.TaskInfoPostApiBean, existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(req *bean.TaskInfoPostApiBean, existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) (*bean.DeploymentTaskInfoResponse, error) {
 	var dependencyBean []*bean.CdPipelineReleaseInfo
 	var err error
 
@@ -1451,7 +1451,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 			}
 		}
 	}
-	return []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}, nil
+	return &bean.DeploymentTaskInfoResponse{Data: []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}}, nil
 }
 
 // markRolloutStatusIfAllDependenciesGotSucceed get allApplicationDependencies if not provided.
