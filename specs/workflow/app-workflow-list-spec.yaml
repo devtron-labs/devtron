@@ -1,0 +1,158 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/app/app-wf/list-components/{appName}:
+    get:
+      description: Get the workflows list with it's component details for a particular application
+      parameters:
+        - name: appName
+          description: application name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully fetched commit info. if CommitInfo is null, then commit is not found.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowsListResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the application.
+
+# Components
+components:
+  schemas:
+    WorkflowsListResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowInfo"
+
+    WorkflowInfo:
+      type: object
+      properties:
+        id:
+          type: number
+          description: workflow id
+          example: 1
+        workflowName:
+          type: string
+          description: workflow name
+          example: "wf-90-5huy"
+        ciPipeline:
+          $ref: "#/components/schemas/CiPipelineInfo"
+        cdPipelines:
+          $ref: "#/components/schemas/CdPipelinesInfo"
+
+    CiPipelineInfo:
+      type: object
+      properties:
+        id:
+          type: number
+          description: ci pipeline id
+          example: 1
+        name:
+          type: string
+          description: ci pipeline name
+          example: "ci-72-y5z3"
+        pipelineType:
+          type: string
+          description: ci pipeline type
+          example: "CI"
+          enum:
+            - "CI"
+            - "WEBHOOK"
+            - "LINKED-CI"
+            - "CI-JOB"
+            - "LINKED-CD"
+        ciMaterial:
+          type: array
+          description: git materials configured for CI
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                description: cd pipeline id
+                example: 1
+              gitMaterialId:
+                type: number
+                description: git material id
+                example: 1
+              gitMaterialName:
+                type: string
+                description: git material name
+                example: "test-repository"
+              isRegex:
+                type: boolean
+                description: if regular expression is present
+                example: true
+              source:
+                type: object
+                description: git source info
+                properties:
+                  regex:
+                    type: string
+                    description: git regex pattern
+                    example: ".*"
+                  type:
+                    type: string
+                    description: git source type
+                    example: "SOURCE_TYPE_BRANCH_FIXED"
+                    enum:
+                      - "SOURCE_TYPE_BRANCH_FIXED"
+                      - "SOURCE_TYPE_BRANCH_REGEX"
+                      - "WEBHOOK"
+                  value:
+                    type: string
+                    description: git source branch
+                    example: "main"
+
+    CdPipelinesInfo:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: number
+            description: cd pipeline id
+            example: 1
+          name:
+            type: string
+            description: cd pipeline name
+            example: "cd-72-wq40"
+          deploymentAppType:
+            type: string
+            description: cd pipeline deployment type
+            example: "helm"
+            enum:
+              - "helm"
+              - "argo_cd"
+              - "manifest_download"
+              - "manifest_push"
+          environmentId:
+            type: number
+            description: environment id
+            example: 1
+          environmentName:
+            type: string
+            description: environment name
+            example: "devtron-demo"

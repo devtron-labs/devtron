@@ -7,8 +7,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	bean2 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/history"
 	bean3 "github.com/devtron-labs/devtron/pkg/globalPolicy/history/bean"
@@ -39,7 +39,7 @@ type GlobalPolicyServiceImpl struct {
 	logger                                *zap.SugaredLogger
 	globalPolicyRepository                repository.GlobalPolicyRepository
 	globalPolicySearchableFieldRepository repository.GlobalPolicySearchableFieldRepository
-	devtronResourceSearchableKeyService   devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService   read.DevtronResourceSearchableKeyService
 	ciPipelineRepository                  pipelineConfig.CiPipelineRepository
 	pipelineRepository                    pipelineConfig.PipelineRepository
 	appWorkflowRepository                 appWorkflow.AppWorkflowRepository
@@ -53,7 +53,7 @@ type GlobalPolicyServiceImpl struct {
 func NewGlobalPolicyServiceImpl(logger *zap.SugaredLogger,
 	globalPolicyRepository repository.GlobalPolicyRepository,
 	globalPolicySearchableFieldRepository repository.GlobalPolicySearchableFieldRepository,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
