@@ -51,6 +51,8 @@ type ServiceClient interface {
 
 	// Delete deletes an application
 	Delete(ctx context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error)
+
+	TerminateOperation(ctx context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error)
 }
 
 type ServiceClientImpl struct {
@@ -348,4 +350,18 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		}
 	}
 	return
+}
+
+func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
+	defer cancel()
+	token, ok := ctxt.Value("token").(string)
+	if !ok {
+		return nil, argoApplication.NewErrUnauthorized("Unauthorized")
+	}
+	conn := c.argoCDConnectionManager.GetConnection(token)
+	defer util.Close(conn, c.logger)
+	asc := application.NewApplicationServiceClient(conn)
+	resp, err := asc.TerminateOperation(ctx, query)
+	return resp, err
 }
