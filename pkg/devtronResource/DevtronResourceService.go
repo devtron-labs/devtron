@@ -96,7 +96,8 @@ type TaskRunService interface {
 	// 2. LevelIndex
 	// 		- Equal To 0 : fetch all level data.
 	// 		- Greater Than 1 : fetch the specified level data.
-	GetTaskRunInfo(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
+	GetTaskRunInfo(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
+	GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
 	// ExecuteTask method executes a task for the devtron resource and performs dry run if set to true in request , starts.
 	ExecuteTask(ctx context.Context, req *bean.DevtronResourceTaskExecutionBean) ([]*bean.TaskExecutionResponseBean, error)
 }
@@ -1884,14 +1885,29 @@ func (impl *DevtronResourceServiceImpl) ExecuteTask(ctx context.Context, req *be
 //     2. LevelIndex
 //   - Equal To 0 : fetch all level data.
 //   - Greater Than 1 : fetch the specified level data.
-func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error) {
+	adapter.SetIdTypeAndResourceIdBasedOnKind(req, req.OldObjectId)
+	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req)
+	if err != nil {
+		impl.logger.Errorw("error in getting existing resource object", "err", err, "req", req)
+		return nil, err
+	}
+	f := getFuncToFetchTaskRunInfo(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		return f(impl, req, query, existingResourceObject)
+	} else {
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+}
+
+func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting existing resource object", "err", err, "req", req)
 		return nil, err
 	}
-	f := getFuncToFetchTaskRunInfo(req.Kind, req.SubKind, req.Version)
+	f := getFuncToFetchTaskRunInfoWithFilters(req.Kind, req.SubKind, req.Version)
 	if f != nil {
 		return f(impl, req, query, existingResourceObject)
 	} else {

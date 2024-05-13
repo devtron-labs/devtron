@@ -747,9 +747,8 @@ func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(req *
 	if !isValid {
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ActionPolicyInValidDueToStatusErrMessage, bean.ActionPolicyInValidDueToStatusErrMessage)
 	}
-	taskRunIfoReq := &bean.TaskInfoPostApiBean{DevtronResourceObjectDescriptorBean: req.DevtronResourceObjectDescriptorBean}
-	query := &apiBean.GetTaskRunInfoQueryParams{IsLite: true}
-	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(taskRunIfoReq, query, existingResourceObject)
+
+	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(req.DevtronResourceObjectDescriptorBean, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
 	if err != nil {
 		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "descriptorBean", req.DevtronResourceObjectDescriptorBean, "err", err)
 		return err
@@ -1209,7 +1208,105 @@ func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(
 	return envs, nil
 }
 
-func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams,
+func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetTaskRunInfoQueryParams,
+	existingResourceObject *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error) {
+	if existingResourceObject == nil || existingResourceObject.Id == 0 {
+		impl.logger.Warnw("invalid get request, object not found", "req", req)
+		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	response := make([]bean.DtReleaseTaskRunInfo, 0)
+
+	req.Id = existingResourceObject.Id
+	req.OldObjectId = existingResourceObject.OldObjectId
+	resourceId := req.GetResourceIdByIdType()
+	rsIdentifier := helper.GetTaskRunSourceIdentifier(resourceId, req.IdType, existingResourceObject.DevtronResourceId, existingResourceObject.DevtronResourceSchemaId)
+
+	levelFilterCondition := bean.NewDependencyFilterCondition().
+		WithFilterByTypes(bean.DevtronResourceDependencyTypeLevel)
+	if query.LevelIndex != 0 {
+		levelFilterCondition = levelFilterCondition.WithFilterByIndexes(query.LevelIndex)
+	}
+	levelDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, levelFilterCondition)
+	var levelToAppDependenciesMap map[int][]*bean.DevtronResourceDependencyBean
+	if !query.IsLite {
+		applicationFilterCondition := bean.NewDependencyFilterCondition().
+			WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
+			WithFilterByDependentOnIndex(query.LevelIndex).
+			WithChildInheritance()
+		if query.LevelIndex != 0 {
+			applicationFilterCondition = applicationFilterCondition.WithFilterByDependentOnIndex(query.LevelIndex)
+		}
+		applicationDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, applicationFilterCondition)
+		levelToAppDependenciesMap = adapter.MapDependenciesByDependentOnIndex(applicationDependencies)
+	}
+	for _, levelDependency := range levelDependencies {
+		dtReleaseTaskRunInfo := bean.DtReleaseTaskRunInfo{
+			Level: levelDependency.Index,
+		}
+		if query.IsLite {
+			taskRunAllowed := true
+			lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
+			if lastStageResponse != nil && !lastStageResponse.IsTaskRunAllowed() {
+				taskRunAllowed = false
+				dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
+			} else {
+				previousLevelIndex := getPreviousLevelDependency(levelDependencies, levelDependency.Index)
+				if previousLevelIndex != 0 {
+					previousAppFilterCondition := bean.NewDependencyFilterCondition().
+						WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
+						WithFilterByDependentOnIndex(previousLevelIndex).
+						WithChildInheritance()
+					previousLevelAppDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, previousAppFilterCondition)
+					if len(previousLevelAppDependencies) != 0 {
+						appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, previousLevelAppDependencies)
+						if err != nil {
+							impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "previousLevelIndex", previousLevelIndex, "err", err)
+							return nil, err
+						}
+						if len(cdWfrIds) == 0 {
+							taskRunAllowed = false
+						} else {
+							taskRunAllowed, err = impl.ciCdPipelineOrchestrator.IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds)
+							if err != nil {
+								impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
+								return nil, err
+							}
+						}
+					} else {
+						taskRunAllowed = false
+					}
+				}
+				dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
+			}
+		} else {
+			dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
+			if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
+				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+				if err != nil {
+					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
+					return nil, err
+				}
+				dependencies = append(dependencies, dependencyBean...)
+			}
+			dtReleaseTaskRunInfo.Dependencies = dependencies
+		}
+		response = append(response, dtReleaseTaskRunInfo)
+	}
+	// If the last stage of the release has TaskRunAllowed; then verify the release rollout status
+	// If all the applications in all stages are deployed to their respective environments,
+	// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+	lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
+	if query.IsLite && lastStageResponse != nil && lastStageResponse.IsTaskRunAllowed() {
+		err := impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, nil)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
+			return nil, err
+		}
+	}
+	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams,
 	existingResourceObject *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error) {
 	if existingResourceObject == nil || existingResourceObject.Id == 0 {
 		impl.logger.Warnw("invalid get request, object not found", "req", req)

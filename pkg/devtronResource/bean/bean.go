@@ -650,7 +650,10 @@ type CdPipelineReleaseInfo struct {
 	DeployStatus               string         `json:"deployStatus"`
 	PreStatus                  string         `json:"preStatus"`
 	PostStatus                 string         `json:"postStatus"`
+	RolloutStatus              RolloutStatus  `json:"rolloutStatus,omitempty"`
 }
+
+type RolloutStatus string
 
 type ExistingStage struct {
 	Pre    bool `json:"pre"`

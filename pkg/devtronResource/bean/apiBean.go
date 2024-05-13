@@ -128,6 +128,47 @@ func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
 	return *res.TaskRunAllowed
 }
 
+type DeploymentTaskInfoResponse struct {
+	TaskInfoCount *TaskInfoCount         `json:"count,omitempty"`
+	Data          []DtReleaseTaskRunInfo `json:"data,omitempty"`
+}
+
+type TaskInfoCount struct {
+	RolloutStatusCount    *RolloutStatusCount    `json:"rolloutStatus,omitempty"`
+	DeploymentStatusCount *DeploymentStatusCount `json:"deploymentStatus,omitempty"`
+}
+
+type DeploymentStatusCount struct {
+	PreStatusCount  *PrePostStatusCount `json:"pre,omitempty"`
+	DeploymentCount *DeploymentCount    `json:"deploy,omitempty"`
+	PostStatusCount *PrePostStatusCount `json:"post,omitempty"`
+}
+
+type RolloutStatusCount struct {
+	AllDeployment int `json:"allDeployments"`
+	YetToTrigger  int `json:"yetToTrigger"`
+	Ongoing       int `json:"onGoing"`
+	Failed        int `json:"failed"`
+	Completed     int `json:"completed"`
+}
+
+type PrePostStatusCount struct {
+	NotTriggered int `json:"notTriggered"`
+	Failed       int `json:"failed"`
+	InProgress   int `json:"inProgress"`
+	Succeeded    int `json:"succeeded"`
+}
+
+type DeploymentCount struct {
+	NotTriggered  int `json:"notTriggered"`
+	Failed        int `json:"failed"`
+	TimedOut      int `json:"timedOut"`
+	UnableToFetch int `json:"unableToFetch"`
+	InProgress    int `json:"inProgress"`
+	Queued        int `json:"queued"`
+	Succeeded     int `json:"succeeded"`
+}
+
 const (
 	ReleaseLockStatusChangeSuccessMessage          = "Requirement is locked."
 	ReleaseUnLockStatusChangeSuccessMessage        = "Requirement is unlocked."

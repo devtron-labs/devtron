@@ -36,6 +36,7 @@ type DevtronResourceRestHandler interface {
 	UpdateSchema(w http.ResponseWriter, r *http.Request)
 	ExecuteTask(w http.ResponseWriter, r *http.Request)
 	GetTaskRunInfo(w http.ResponseWriter, r *http.Request)
+	GetTaskRunInfoWithFilters(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronResourceRestHandlerImpl struct {
@@ -469,6 +470,31 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfo(w http.ResponseWri
 	if caughtError {
 		return
 	}
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, reqBean.Kind, reqBean.SubKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	reqBean.UserId = ctx.GetUserId()
+	resp, err := handler.devtronResourceService.GetTaskRunInfo(reqBean, queryParams)
+	if err != nil {
+		handler.logger.Errorw("service error, GetTaskRunInfo", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfoWithFilters(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	reqBean, queryParams, caughtError := getReqBeanObjAndQueryParamsForTaskRunInfo(w, r)
+	if caughtError {
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var req serviceBean.TaskInfoPostApiBean
 	err := decoder.Decode(&req)
@@ -495,7 +521,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfo(w http.ResponseWri
 	// RBAC enforcer Ends
 	reqBean.UserId = ctx.GetUserId()
 	req.DevtronResourceObjectDescriptorBean = reqBean
-	resp, err := handler.devtronResourceService.GetTaskRunInfo(&req, queryParams)
+	resp, err := handler.devtronResourceService.GetTaskRunInfoWithFilters(&req, queryParams)
 	if err != nil {
 		handler.logger.Errorw("service error, GetTaskRunInfo", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
