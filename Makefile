@@ -45,6 +45,7 @@ test-integration:
 	@echo "GIT_HASH is $(GIT_HASH)"
 	ifndef GIT_HASH
         GIT_HASH = $(shell git log --pretty=format:'%h' -n 1)
+	endif
 	docker exec dind-test sh -c "export GIT_HASH=$$GIT_HASH && mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
 run: build
 	./devtron
