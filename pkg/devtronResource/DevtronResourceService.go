@@ -7,6 +7,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	read2 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
@@ -127,6 +128,7 @@ type DevtronResourceServiceImpl struct {
 	cdPipelineEventPublishService        out.CDPipelineEventPublishService
 	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
 	cdWorkflowService                    cd.CdWorkflowService
+	envService                           cluster.EnvironmentService
 }
 
 func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
@@ -151,7 +153,8 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	triggerService devtronApps.TriggerService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	cdWorkflowService cd.CdWorkflowService) (*DevtronResourceServiceImpl, error) {
+	cdWorkflowService cd.CdWorkflowService,
+	envService cluster.EnvironmentService) (*DevtronResourceServiceImpl, error) {
 	impl := &DevtronResourceServiceImpl{
 		logger:                               logger,
 		devtronResourceRepository:            devtronResourceRepository,
@@ -176,6 +179,7 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 		cdPipelineEventPublishService:        cdPipelineEventPublishService,
 		cdWorkflowRunnerService:              cdWorkflowRunnerService,
 		cdWorkflowService:                    cdWorkflowService,
+		envService:                           envService,
 	}
 	err := impl.SetDevtronResourcesAndSchemaMap()
 	if err != nil {

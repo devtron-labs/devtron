@@ -8,6 +8,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
@@ -1221,6 +1222,30 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.TaskIn
 	req.OldObjectId = existingResourceObject.OldObjectId
 	resourceId := req.GetResourceIdByIdType()
 	rsIdentifier := helper.GetTaskRunSourceIdentifier(resourceId, req.IdType, existingResourceObject.DevtronResourceId, existingResourceObject.DevtronResourceSchemaId)
+	var appDevtronResourceSchemaId int
+	if len(req.FilterCriteria) > 0 {
+		// get filter values from filters
+		appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err := impl.getAppIdsAndEnvIdsFromFilterCriteria(req.FilterCriteria)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "id", req.Id, "err", err)
+			return nil, err
+		}
+		//setting this in request for processing
+		req.AppIds = appIdsFilters
+		req.EnvIds = envIdsFilters
+		//TODO: remove this
+		fmt.Println("deploymentStatus", "rolloutStatus", deploymentStatus, rolloutStatus)
+		// finding application/devtron-application schema id for filters check in dependency
+		applicationSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean.DevtronResourceApplication.ToString(), bean.DevtronResourceDevtronApplication.ToString(), bean.DevtronResourceVersion1.ToString())
+		if err != nil {
+			impl.logger.Errorw("error encountered in bulkCreateDevtronResourceTaskRunObjects", "err", err)
+			return nil, err
+		}
+		appDevtronResourceSchemaId = applicationSchema.Id
+	} else {
+		req.RequestWithoutFilters = true
+	}
+
 	if query.ShowAll {
 		return impl.fetchAllReleaseTaskRunInfoWithoutStage(req, existingResourceObject, rsIdentifier)
 	}
@@ -1235,6 +1260,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.TaskIn
 		applicationFilterCondition := bean.NewDependencyFilterCondition().
 			WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
 			WithFilterByDependentOnIndex(query.LevelIndex).
+			WithFilterByIdAndSchemaId(req.AppIds, appDevtronResourceSchemaId).
 			WithChildInheritance()
 		if query.LevelIndex != 0 {
 			applicationFilterCondition = applicationFilterCondition.WithFilterByDependentOnIndex(query.LevelIndex)
@@ -1299,7 +1325,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.TaskIn
 	// If all the applications in all stages are deployed to their respective environments,
 	// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
 	lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
-	if query.IsLite && lastStageResponse != nil && lastStageResponse.IsTaskRunAllowed() {
+	if query.IsLite && lastStageResponse != nil && lastStageResponse.IsTaskRunAllowed() && req.RequestWithoutFilters {
 		err := impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, nil)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
@@ -1321,10 +1347,12 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
 		}
-		err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
-		if err != nil {
-			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
-			return nil, err
+		if req.RequestWithoutFilters {
+			err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
+			if err != nil {
+				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
+				return nil, err
+			}
 		}
 	}
 	return []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}, nil
@@ -1379,6 +1407,34 @@ func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSuc
 		}
 	}
 	return nil
+}
+
+// getAppIdsAndEnvIdsFromFilterCriteria decodes filters and return app ids ,envIds, deployment status with stage, rollout Status, gets ids for identifiers if identifiers are given
+func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(filters []string) ([]int, []int, map[bean3.WorkflowType][]string, []string, error) {
+	// filters decoding
+	appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err := helper.DecodeFiltersForDeployAndRolloutStatus(filters)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "filters", filters)
+		return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+	}
+	// evaluating app ids from app identifiers as we are maintaining and processing everything in ids
+	if len(appIdentifierFilters) > 0 {
+		appIds, err := impl.appRepository.FindIdsByNamesAndAppType(appIdentifierFilters, helper2.CustomApp)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "appIdentifierFilters", appIdentifierFilters)
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+		}
+		appIdsFilters = append(appIdsFilters, appIds...)
+	}
+	if len(envIdentifierFilters) > 0 {
+		envIds, err := impl.envService.FindIdsByNames(envIdentifierFilters)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "envIdentifierFilters", envIdentifierFilters)
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+		}
+		envIdsFilters = append(envIdsFilters, envIds...)
+	}
+	return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
 }
 
 // getAllApplicationDependenciesFromObjectData gets all upstream dependencies from object data json

@@ -219,7 +219,13 @@ type DependencyFilterCondition struct {
 	filterByTypes            []DevtronResourceDependencyType
 	filterByIndexes          []int
 	filterByDependentOnIndex int
+	filterByIdAndSchemaId    []IdAndSchemaIdFilter
 	fetchChildInheritance    bool
+}
+
+type IdAndSchemaIdFilter struct {
+	Id                      int
+	DevtronResourceSchemaId int
 }
 
 func (c *DependencyFilterCondition) GetFilterByTypes() []DevtronResourceDependencyType {
@@ -271,6 +277,15 @@ func (c *DependencyFilterCondition) WithFilterByDependentOnIndex(dependentOnInde
 
 func (c *DependencyFilterCondition) WithChildInheritance() *DependencyFilterCondition {
 	c.fetchChildInheritance = true
+	return c
+}
+
+func (c *DependencyFilterCondition) WithFilterByIdAndSchemaId(ids []int, schemaId int) *DependencyFilterCondition {
+	idAndSchemaIdFilters := make([]IdAndSchemaIdFilter, len(ids))
+	for _, id := range ids {
+		idAndSchemaIdFilters = append(idAndSchemaIdFilters, IdAndSchemaIdFilter{Id: id, DevtronResourceSchemaId: schemaId})
+	}
+	c.filterByIdAndSchemaId = idAndSchemaIdFilters
 	return c
 }
 
@@ -406,6 +421,10 @@ const (
 	Identifier FilterCriteriaIdentifier = "identifier"
 	Id         FilterCriteriaIdentifier = "id"
 )
+
+func (i FilterCriteriaIdentifier) ToString() string {
+	return string(i)
+}
 
 // IdType is used for identifying nature of id stored in object json or to implement logics. As we are using devtron_resource_object for storing all resource types across
 // devtron we also faced a problem where id of resource object will be unique across all resource types, but old resources are stored in different tables and their id value
@@ -641,5 +660,21 @@ type ExistingStage struct {
 
 type TaskInfoPostApiBean struct {
 	*DevtronResourceObjectDescriptorBean
-	FilterCriteria []string `json:"filterCriteria"`
+	FilterCriteria        []string `json:"filterCriteria"`
+	AppIds                []int    `json:"-"` // Internal use
+	EnvIds                []int    `json:"-"` // Internal use
+	RequestWithoutFilters bool     `json:"-"` // Internal Use
+}
+
+type FilterResource string
+
+const (
+	DevtronApplicationFilter FilterResource = "application/devtron-application"
+	EnvironmentFilter        FilterResource = "environment"
+	DeploymentStatusFilter   FilterResource = "deploymentStatus"
+	RolloutStatusFilter      FilterResource = "rolloutStatus"
+)
+
+func (f FilterResource) ToString() string {
+	return string(f)
 }
