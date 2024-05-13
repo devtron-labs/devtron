@@ -519,8 +519,19 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 	if configData.DevtronAppDependencyConfig == nil {
 		configData.DevtronAppDependencyConfig = &bean.DevtronAppDependencyConfig{}
 	}
+	sourceReleaseConfig := gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceReleaseConfigPath).String()
+	sourceReleaseConfigObj := &bean.DtResourceObjectInternalDescriptorBean{}
+	err := json.Unmarshal([]byte(sourceReleaseConfig), sourceReleaseConfigObj)
+	if err != nil {
+		impl.logger.Errorw("error encountered in un-marshaling sourceReleaseConfig", "sourceReleaseConfig", sourceReleaseConfig, "err", err)
+		return err
+	}
+	obj, err := impl.getExistingDevtronObject(sourceReleaseConfigObj.Id, 0, sourceReleaseConfigObj.DevtronResourceSchemaId, sourceReleaseConfigObj.Identifier)
+	sourceReleaseConfigObj.ReleaseVersion = gjson.Get(obj.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
+	sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 	if !isLite {
 		artifactId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigArtifactIdKey).Int())
+		sourceAppWfId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceAppWfIdPath).Int())
 		// getting artifact git commit data and image at runtime by artifact id instead of setting this schema, this has to be modified when commit source is also kept in schema (eg ci trigger is introduced)
 		artifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil && err != pg.ErrNoRows {
@@ -544,11 +555,17 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 			}
 		}
 		configData.ArtifactConfig = &bean.ArtifactConfig{
-			ArtifactId:   artifactId,
-			Image:        artifact.Image,
-			RegistryType: gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryTypeKey).String(),
-			RegistryName: gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryNameKey).String(),
-			CommitSource: gitCommitData,
+			ArtifactId:          artifactId,
+			Image:               artifact.Image,
+			RegistryType:        gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryTypeKey).String(),
+			RegistryName:        gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigRegistryNameKey).String(),
+			SourceAppWorkflowId: sourceAppWfId,
+			CommitSource:        gitCommitData,
+			SourceReleaseConfig: sourceReleaseConfigObj,
+		}
+	} else {
+		configData.ArtifactConfig = &bean.ArtifactConfig{
+			SourceReleaseConfig: sourceReleaseConfigObj,
 		}
 	}
 	return nil
@@ -598,8 +615,9 @@ func (impl *DevtronResourceServiceImpl) getFilterKeysFromDependenciesInfo(depend
 	return dependencyFilterKeys, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(dependency *bean.DevtronResourceDependencyBean, appWorkflowId int,
-	searchArtifactTag, searchImageTag string, limit, offset int, userId int32) (bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
+func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(dependency *bean.DevtronResourceDependencyBean,
+	mapOfArtifactIdAndReleases map[int][]*bean.DtResourceObjectOverviewDescriptorBean, appWorkflowId int, searchArtifactTag,
+	searchImageTag string, artifactIds []int, limit, offset int, userId int32) (bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
 	artifactResponse := bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse]{
 		Id:              dependency.OldObjectId,
 		Identifier:      dependency.Identifier,
@@ -636,6 +654,7 @@ func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(depende
 		CdPipelineIds:         cdPipelineIds,
 		SearchArtifactTag:     searchArtifactTag,
 		SearchImageTag:        searchImageTag,
+		ArtifactIds:           artifactIds,
 		Limit:                 limit,
 		Offset:                offset,
 		UserId:                userId,
@@ -649,24 +668,50 @@ func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(depende
 	// TODO: to be removed when supported in UI
 	data.TagsEditable = false
 	if len(data.CiArtifacts) > 0 {
+		for i := range data.CiArtifacts {
+			ciArtifact := data.CiArtifacts[i]
+			if releases, ok := mapOfArtifactIdAndReleases[ciArtifact.Id]; ok {
+				ciArtifact.ConfiguredInReleases = releases
+			}
+			data.CiArtifacts[i] = ciArtifact
+		}
 		artifactResponse.Data = &data
 	}
 	return artifactResponse, nil
 }
 
-func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowId int, err error) {
-	criteriaDecoder, err := helper.DecodeFilterCriteriaString(query.FilterCriteria)
-	if err != nil {
-		return appWorkflowId, err
+func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowFilter, releaseTrackFilter *bean.FilterCriteriaDecoder, err error) {
+	for _, filterCriteria := range query.FilterCriteria {
+		criteriaDecoder, err := helper.DecodeFilterCriteriaString(filterCriteria)
+		if err != nil {
+			return nil, nil, err
+		}
+		switch criteriaDecoder.Resource {
+		case bean.DevtronResourceAppWorkflow:
+			if criteriaDecoder.Type != bean.IdQueryString {
+				return nil, nil, fmt.Errorf("invalid filterCriteria: AppWorkflow")
+			}
+			appWorkflowId, err := strconv.Atoi(criteriaDecoder.Value)
+			if err != nil {
+				return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+			}
+			criteriaDecoder.ValueInt = appWorkflowId
+			appWorkflowFilter = criteriaDecoder
+		case bean.DevtronResourceReleaseTrack:
+			if criteriaDecoder.Type == bean.IdQueryString {
+				releaseTrackId, err := strconv.Atoi(criteriaDecoder.Value)
+				if err != nil {
+					return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+				}
+				criteriaDecoder.ValueInt = releaseTrackId
+			}
+			releaseTrackFilter = criteriaDecoder
+
+		default:
+			return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+		}
 	}
-	if criteriaDecoder.Resource != bean.DevtronResourceAppWorkflow || criteriaDecoder.Type != bean.Id {
-		return 0, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
-	}
-	appWorkflowId, err = strconv.Atoi(criteriaDecoder.Value)
-	if err != nil {
-		return appWorkflowId, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
-	}
-	return appWorkflowId, nil
+	return appWorkflowFilter, releaseTrackFilter, nil
 }
 
 func getReleaseConfigOptionsSearchKeyData(query *apiBean.GetConfigOptionsQueryParams) (searchArtifactTag, searchImageTag string, err error) {
@@ -684,7 +729,8 @@ func getReleaseConfigOptionsSearchKeyData(query *apiBean.GetConfigOptionsQueryPa
 	return searchArtifactTag, searchImageTag, nil
 }
 
-func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObject(reqBean *bean.DevtronResourceObjectDescriptorBean, resourceObject *repository.DevtronResourceObject, query *apiBean.GetConfigOptionsQueryParams) ([]bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
+func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObject(reqBean *bean.DevtronResourceObjectDescriptorBean,
+	resourceObject *repository.DevtronResourceObject, query *apiBean.GetConfigOptionsQueryParams) ([]bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
 	response := make([]bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], 0)
 	filterDependencyTypes := []bean.DevtronResourceDependencyType{
 		bean.DevtronResourceDependencyTypeUpstream,
@@ -693,12 +739,49 @@ func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObjec
 	if err != nil {
 		return nil, err
 	}
-	var appWorkflowId int
-	if len(query.FilterCriteria) > 0 {
-		appWorkflowId, err = getReleaseConfigOptionsFilterCriteriaData(query)
+	appWorkflowFilter, releaseTrackFilter, err := getReleaseConfigOptionsFilterCriteriaData(query)
+	if err != nil {
+		impl.logger.Errorw("error encountered in decodeFilterCriteriaForConfigOptions", "filterCriteria", query.FilterCriteria, "err", bean.InvalidFilterCriteria)
+		return nil, err
+	}
+	mapOfArtifactIdAndReleases := make(map[int][]*bean.DtResourceObjectOverviewDescriptorBean)
+	var artifactIds []int
+	if releaseTrackFilter != nil {
+		//this filter enables user to get configured images in releases of this release track where same workflow is present
+		releaseTrackDescriptorBean := &bean.DevtronResourceObjectDescriptorBean{
+			Kind:       bean.DevtronResourceReleaseTrack.ToString(),
+			Version:    bean.DevtronResourceVersionAlpha1.ToString(),
+			Id:         releaseTrackFilter.ValueInt,
+			Identifier: releaseTrackFilter.Value, //todo: make conditional on basis of filter criteria type
+		}
+		_, releaseTrack, err := impl.getResourceSchemaAndExistingObject(releaseTrackDescriptorBean)
 		if err != nil {
-			impl.logger.Errorw("error encountered in decodeFilterCriteriaForConfigOptions", "filterCriteria", query.FilterCriteria, "err", bean.InvalidFilterCriteria)
+			impl.logger.Errorw("error, getResourceSchemaAndExistingObject", "err", err, "descriptorBean", releaseTrackDescriptorBean)
 			return nil, err
+		}
+		releases, err := impl.devtronResourceObjectRepository.GetChildObjectsByParentArgAndSchemaId(releaseTrack.Id, bean.IdDbColumnKey, releaseTrack.DevtronResourceSchemaId)
+		if err != nil {
+			impl.logger.Errorw("error, GetChildObjectsByParentArgAndSchemaId", "err", err, "descriptorBean", err)
+			return nil, err
+		}
+		for _, release := range releases {
+			rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(release.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
+			if rolloutStatus == bean.PartiallyDeployedReleaseRolloutStatus || rolloutStatus == bean.CompletelyDeployedReleaseRolloutStatus {
+				//getting dependencies
+				dependencies, err := impl.getDependenciesInObjectDataFromJsonString(release.DevtronResourceSchemaId, release.ObjectData, true)
+				if err != nil {
+					impl.logger.Errorw("error, getDependenciesInObjectDataFromJsonString", "err", err, "objectData", release.ObjectData)
+					return nil, err
+				}
+				for _, dependency := range dependencies {
+					artifactConfig := dependency.Config.ArtifactConfig
+					if artifactConfig.SourceAppWorkflowId == appWorkflowFilter.ValueInt {
+						overviewDescBean := impl.getReleaseOverviewDescriptorBeanFromObject(release)
+						mapOfArtifactIdAndReleases[artifactConfig.ArtifactId] = append(mapOfArtifactIdAndReleases[artifactConfig.ArtifactId], overviewDescBean)
+						artifactIds = append(artifactIds, artifactConfig.ArtifactId)
+					}
+				}
+			}
 		}
 	}
 	var searchArtifactTag, searchImageTag string
@@ -710,8 +793,8 @@ func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObjec
 		}
 	}
 	for _, dependency := range dependenciesWithMetaData {
-		artifactResponse, err := impl.getArtifactResponseForDependency(dependency, appWorkflowId, searchArtifactTag,
-			searchImageTag, query.Limit, query.Offset, reqBean.UserId)
+		artifactResponse, err := impl.getArtifactResponseForDependency(dependency, mapOfArtifactIdAndReleases, appWorkflowFilter.ValueInt, searchArtifactTag,
+			searchImageTag, artifactIds, query.Limit, query.Offset, reqBean.UserId)
 		if err != nil {
 			return nil, err
 		}
@@ -1591,4 +1674,22 @@ func (impl *DevtronResourceServiceImpl) getPathUpdateMapForReleaseClone(req *bea
 		bean.ReleaseResourceObjectFirstReleasedOnPath: time.Time{},               //reset first release on time
 	}
 	return replaceDataMap, nil
+}
+
+func (impl *DevtronResourceServiceImpl) getReleaseOverviewDescriptorBeanFromObject(object *repository.DevtronResourceObject) *bean.DtResourceObjectOverviewDescriptorBean {
+	resp := &bean.DtResourceObjectOverviewDescriptorBean{
+		DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{
+			Kind:        bean.DevtronResourceRelease.ToString(),
+			Version:     bean.DevtronResourceVersionAlpha1.ToString(),
+			OldObjectId: object.Id,
+			Identifier:  object.Identifier,
+			Name:        gjson.Get(object.ObjectData, bean.ResourceObjectNamePath).String(),
+		},
+	}
+	if gjson.Get(object.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
+		resp.ResourceOverview = &bean.ResourceOverview{
+			ReleaseVersion: gjson.Get(object.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String(),
+		}
+	}
+	return resp
 }

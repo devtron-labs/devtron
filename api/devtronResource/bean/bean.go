@@ -34,7 +34,7 @@ type GetConfigOptionsQueryParams struct {
 	GetQueryParams
 	DependenciesInfo []string         `schema:"dependencyInfo,required"`
 	ConfigOption     ConfigOptionType `schema:"configOption"`
-	FilterCriteria   string           `schema:"filterCriteria"`
+	FilterCriteria   []string         `schema:"filterCriteria"`
 	SearchKey        string           `schema:"searchKey"`
 	Limit            int              `schema:"limit"`
 	Offset           int              `schema:"offset"`

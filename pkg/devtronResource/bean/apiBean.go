@@ -48,6 +48,11 @@ type DtResourceObjectPatchReqBean struct {
 	PatchQuery []PatchQuery `json:"query,omitempty"`
 }
 
+type DtResourceObjectOverviewDescriptorBean struct {
+	*DevtronResourceObjectDescriptorBean
+	*ResourceOverview
+}
+
 type ReleaseStatus string
 
 func (s ReleaseStatus) ToString() string {
