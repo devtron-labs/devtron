@@ -1217,7 +1217,7 @@ components:
                 yetToTrigger:
                   type: integer
                   description: Deployments not yet triggered.
-                ongoing:
+                onGoing:
                   type: integer
                   description: Deployments in progress.
                 failed:
