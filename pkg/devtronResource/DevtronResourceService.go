@@ -97,7 +97,7 @@ type TaskRunService interface {
 	// 		- Equal To 0 : fetch all level data.
 	// 		- Greater Than 1 : fetch the specified level data.
 	GetTaskRunInfo(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
-	GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
+	GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) (*bean.DeploymentTaskInfoResponse, error)
 	// ExecuteTask method executes a task for the devtron resource and performs dry run if set to true in request , starts.
 	ExecuteTask(ctx context.Context, req *bean.DevtronResourceTaskExecutionBean) ([]*bean.TaskExecutionResponseBean, error)
 }
@@ -1915,7 +1915,7 @@ func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.DevtronResource
 //     2. LevelIndex
 //   - Equal To 0 : fetch all level data.
 //   - Greater Than 1 : fetch the specified level data.
-func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) (*bean.DeploymentTaskInfoResponse, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
 	if err != nil {
