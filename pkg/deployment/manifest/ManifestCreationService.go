@@ -38,6 +38,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -226,13 +227,12 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			configMapJson = nil
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
-		appLabelJsonByte, err = impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+		appLabelJsonByte, err = impl.appCrudOperationService.GetAppLabelsForDeployment(overrideRequest.AppId, overrideRequest.AppName, overrideRequest.EnvName)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -680,7 +680,6 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 	if digestPolicyConfigurations.UseDigestForTrigger() {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
-
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
@@ -691,9 +690,10 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 		Env:            envId,
 		AppMetrics:     appMetrics,
 	}
+
 	override, err := util4.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
 	if err != nil {
-		return "", &util.ApiError{InternalMessage: "unable to render ImageDescriptorTemplate"}
+		return "", &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to render ImageDescriptorTemplate"}
 	}
 	if overrideRequest.AdditionalOverride != nil {
 		userOverride, err := overrideRequest.AdditionalOverride.MarshalJSON()
