@@ -9,7 +9,7 @@ import (
 )
 
 type EventConfiguration struct {
-	Selectors       []Selector        `json:"selectors" validate:"dive,required"`
+	Selectors       []Selector        `json:"selectors" validate:"dive,min=1"`
 	K8sResources    []*K8sResource    `json:"k8sResources" validate:"required"`
 	EventExpression string            `json:"eventExpression"`
 	SelectedActions []types.EventType `json:"selectedActions" validate:"required"`
@@ -38,12 +38,11 @@ const AllClusterGroup = "ALL"
 
 type Selector struct {
 	Type SelectorType `json:"type" validate:"oneof= environment"`
-	// SubGroup is INCLUDED,EXCLUDED,ALL_PROD,ALL_NON_PROD
-	SubGroup types.InterestCriteria `json:"subGroup"`
+	// SubGroup is INCLUDED,EXCLUDED,ALL_PROD,ALL_NON_PROD,ALL
+	SubGroup types.InterestCriteria `json:"subGroup" validate:"oneof= INCLUDED EXCLUDED ALL_PROD ALL_NON_PROD ALL"`
 	Names    []string               `json:"names"`
 	// GroupName "ALL CLUSTER" or selected env name
 	GroupName string `json:"groupName"`
-	GroupId   string `json:"groupId"`
 }
 
 func GetNamespaceSelector(selector Selector) types.NamespaceSelector {
