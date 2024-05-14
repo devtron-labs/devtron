@@ -1096,8 +1096,8 @@ type ReleaseAttributes struct {
 	PipelineName   string
 	ReleaseVersion string
 	DeploymentType string
-	App            string
-	Env            string
+	App            string // App here corresponds to appId
+	Env            string // Env here corresponds to envId
 	AppMetrics     *bool
 }
 
