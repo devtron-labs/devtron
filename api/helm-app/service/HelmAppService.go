@@ -605,7 +605,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
+func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *clusterBean.ClusterBean) (bool, error) {
 	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
@@ -1151,9 +1151,9 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 	}
 }
 func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error {
-	clusterIds:=make([]int,0)
-	for clusterId,_:=range clusterIdToNsMap{
-		clusterIds=append(clusterIds,clusterId)
+	clusterIds := make([]int, 0)
+	for clusterId, _ := range clusterIdToNsMap {
+		clusterIds = append(clusterIds, clusterId)
 	}
 	clusterBeans, err := impl.clusterService.FindByIds(clusterIds)
 	if err != nil {
