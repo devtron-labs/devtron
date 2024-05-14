@@ -170,18 +170,27 @@ func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]stri
 }
 
 // IsLinkedCD will return if the pipelineConfig.CiPipeline is a Linked CD
-func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
+func IsLinkedCD(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
 	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(constants.LINKED_CD)
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
+func IsLinkedCI(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
 	return ci.ParentCiPipeline != 0 &&
 		ci.PipelineType == string(constants.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
-func IsCIJob(ci pipelineConfig.CiPipeline) bool {
+func IsCIJob(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
 	return ci.PipelineType == string(constants.CI_JOB)
 }
 

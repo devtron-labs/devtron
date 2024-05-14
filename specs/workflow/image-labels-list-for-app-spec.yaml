@@ -1,0 +1,52 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/app/image-tagging/list:
+    get:
+      description: Get the image labels list (unique) for the selected applications
+      parameters:
+        - name: appName
+          description: application name
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: Successfully fetched image labels. if result is empty array, then commit is not found.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImageLabelListResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the application.
+
+# Components
+components:
+  schemas:
+    ImageLabelListResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          type: array
+          example:
+            - "beta-1.0.1"
+            - "hotfix-3.0"
+          items:
+            type: string

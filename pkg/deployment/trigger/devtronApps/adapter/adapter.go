@@ -1,8 +1,11 @@
 package adapter
 
 import (
+	"context"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -24,11 +27,12 @@ func SetPipelineFieldsInOverrideRequest(overrideRequest *bean3.ValuesOverrideReq
 	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
 }
 
-func GetTriggerRequirementRequest(scope resourceQualifiers.Scope, triggerRequest bean2.TriggerRequest, stage resourceFilter.ReferenceType) *bean2.TriggerRequirementRequestDto {
+func GetTriggerRequirementRequest(scope resourceQualifiers.Scope, triggerRequest bean2.TriggerRequest, stage resourceFilter.ReferenceType, deploymentType models.DeploymentType) *bean2.TriggerRequirementRequestDto {
 	return &bean2.TriggerRequirementRequestDto{
 		TriggerRequest: triggerRequest,
 		Scope:          scope,
 		Stage:          stage,
+		DeploymentType: deploymentType,
 	}
 }
 
@@ -56,5 +60,21 @@ func GetTriggerOperationDto(triggerRequest bean.TriggerRequest, executorType pip
 		Scope:           scope,
 		OverrideCdWrfId: overrideCdWrfId,
 		TriggeredAt:     triggeredAt,
+	}
+}
+
+func GetTriggerRequest(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, triggeredBy int32, triggerContext bean2.TriggerContext, cdWorkflowType bean3.WorkflowType) bean2.TriggerRequest {
+	return bean2.TriggerRequest{
+		Pipeline:       pipeline,
+		Artifact:       artifact,
+		TriggeredBy:    triggeredBy,
+		TriggerContext: triggerContext,
+		WorkflowType:   cdWorkflowType,
+	}
+}
+
+func GetTriggerContext(ctx context.Context) bean2.TriggerContext {
+	return bean2.TriggerContext{
+		Context: ctx,
 	}
 }

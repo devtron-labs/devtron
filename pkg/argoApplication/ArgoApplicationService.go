@@ -6,12 +6,11 @@ import (
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-
-	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
@@ -78,7 +77,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(clusterObj)
+		clusterBean := adapter.GetClusterBean(clusterObj)
 		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
@@ -132,7 +131,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	} else if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
@@ -407,7 +406,7 @@ func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterI
 	if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }

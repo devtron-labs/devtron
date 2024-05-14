@@ -361,3 +361,16 @@ func GetReverseSortedImageDetails(imageDetails []types.ImageDetail) []types.Imag
 	})
 	return imageDetails
 }
+
+func ConvertStringSliceToIntSlice(s string) ([]int, error) {
+	idsString := strings.Split(s, ",")
+	ids := make([]int, len(idsString))
+	for idx, val := range idsString {
+		id, err := strconv.Atoi(val)
+		if err != nil {
+			return nil, err
+		}
+		ids[idx] = id
+	}
+	return ids, nil
+}

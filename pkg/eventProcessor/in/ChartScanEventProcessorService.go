@@ -135,11 +135,7 @@ func (impl *ChartScanEventProcessorImpl) processScanEventForChartInstall(request
 		historyId = devtronAppDto.CdWorkflowId
 		valuesYaml = devtronAppDto.ValuesYaml
 	}
-	dockerImages, err := k8sObjectsUtil.ExtractImageFromManifestYaml(manifest)
-	if err != nil {
-		impl.logger.Error("Error on fetching docker images from generated manifest", "error", err, "manifest", manifest)
-		return
-	}
+	dockerImages := k8sObjectsUtil.ExtractImageFromManifestYaml(manifest)
 
 	for _, image := range dockerImages {
 		impl.sendForScan(historyId, image, nil, "", isHelmApp)
@@ -264,7 +260,7 @@ func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi
 		impl.logger.Errorw("error in generating manifest", "err", err, "request", manifestRequest)
 		return nil, nil, err
 	}
-	images, err := k8sObjectsUtil.ExtractImageFromManifestYaml(resp.GetManifest())
+	images := k8sObjectsUtil.ExtractImageFromManifestYaml(resp.GetManifest())
 	return images, resp, err
 }
 

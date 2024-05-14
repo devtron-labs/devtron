@@ -1,0 +1,104 @@
+SCHEMA -
+
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TaskRun Schema",
+    "type": "object",
+    "properties":
+    {
+        "version":
+        {
+            "type": "string"
+        },
+        "kind":
+        {
+            "type": "string"
+        },
+        "overview":
+        {
+            "type": "object",
+            "properties":
+            {
+                "id":
+                {
+                    "type": "number"
+                },
+                "createdOn":
+                {
+                    "type": "string"
+                },
+                "createdBy":
+                {
+                    "type": "object",
+                    "refType": "#/references/users"
+                },
+                "runSource": {
+                    "type": "object",
+                    "properties":
+                    {
+                        "devtronResourceId":
+                        {
+                            "type": "number"
+                        },
+                        "devtronResourceSchemaId":
+                        {
+                            "type": "string"
+                        },
+                    }
+                }
+            },
+            "required":
+            [
+                "id",
+                "releaseVersion",
+                "metadata"
+            ]
+        },
+        "actions":
+        {
+            "type": "array"
+        }
+    },
+    "required":
+    [
+        "version",
+        "kind",
+        "overview"
+    ]
+}
+
+
+OBJECT -
+
+{
+    "kind": "task-run",
+    "version": "v1",
+    "overview":
+    {
+        "id": 17,
+        "createdOn" : "01/04/2024",
+        "createdBy" : {
+            //user details as used today
+        },
+        "runSource":{
+            "devtronResourceId": 1,
+            "devtronResourceSchemaId":2
+        }
+    },
+    "actions":
+    [   {
+            "taskId": 1,
+            "task":{
+                "actionId": 1, //for ex - deployment,
+                "actionOnResource": [0], //for bulk
+                "payload" : {}
+            }, //config of task if taskId not present
+            "index": 1,
+            "status":
+                {
+                            //currently will include details
+                }
+        }
+    ]
+}
+
