@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
-	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"io"
 	"net/http"
 	"strconv"
@@ -532,78 +531,12 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	var envMetrics bool
-	isEnvironmentOverriden := true
-	envConfigProperties, err := handler.propertiesConfigService.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
+	envConfigProperties, err, isEnvironmentOverridden, envMetrics, updateOverride := handler.propertiesConfigService.ProcessEnvConfigProperties(r.Context(), request, envMetrics, userId)
 	if err != nil {
-		handler.Logger.Errorw("error in finding env properties ChangeChartRef", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, "env properties not found", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, request, http.StatusBadRequest)
 		return
 	}
-	if envConfigProperties == nil {
-		isEnvironmentOverriden = false
-		if !request.AllowEnvOverride {
-			handler.Logger.Errorw("env properties not found, ChangeChartRef, to override environment add flag allowEnvOverride = true", "err", err, "payload", request)
-			common.WriteJsonResp(w, err, "env properties not found", http.StatusNotFound)
-			return
-		} else {
-			envConfigProperties = &pipelineBean.EnvironmentProperties{}
-		}
-	} else {
-		if !envConfigProperties.IsOverride {
-			handler.Logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
-			common.WriteJsonResp(w, err, "specific environment is not overriden", http.StatusUnprocessableEntity)
-			return
-		}
-		compatible, oldChartType, newChartType := handler.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
-		if !compatible {
-			common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), "chart not compatible", http.StatusUnprocessableEntity)
-			return
-		}
 
-		envConfigProperties.EnvOverrideValues, err = handler.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
-		if err != nil {
-			common.WriteJsonResp(w, err, "error in patching env override", http.StatusInternalServerError)
-			return
-		}
-
-		if newChartType == chartRefBean.RolloutChartType {
-			enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
-			if err != nil || enabled {
-				handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
-				common.WriteJsonResp(w, err, "rollout charts do not support flaggerCanary, ChangeChartRef", http.StatusBadRequest)
-				return
-			}
-		}
-
-		envMetrics, err = handler.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
-		if err != nil {
-			handler.Logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
-			common.WriteJsonResp(w, err, "env metric could not be fetched", http.StatusBadRequest)
-			return
-		}
-		envConfigProperties.AppMetrics = &envMetrics
-
-		// VARIABLE_RESOLVE
-		scope := resourceQualifiers.Scope{
-			AppId:     request.AppId,
-			EnvId:     request.EnvId,
-			ClusterId: envConfigProperties.ClusterId,
-		}
-		validate, err2 := handler.deploymentTemplateValidationService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
-		if !validate {
-			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", request)
-			common.WriteJsonResp(w, err2, "validation err, UpdateAppOverrid", http.StatusBadRequest)
-			return
-		}
-	}
-
-	envConfigProperties.ChartRefId = request.TargetChartRefId
-	envConfigProperties.UserId = userId
-	envConfigProperties.EnvironmentId = request.EnvId
-
-	if !isEnvironmentOverriden {
-		envConfigProperties.IsOverride = true
-	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", request)
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
@@ -617,20 +550,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 
-	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
-	if err == nil {
-		if !isEnvironmentOverriden {
-			// In this case , the environment is not overridden but the chart exists in charts table for this particular app_id.
-			if envConfigPropertiesOld.Chart == nil {
-				handler.Logger.Errorw("service err, FetchEnvProperties", "err", err, "payload", envConfigProperties)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			//
-			envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
-			envConfigProperties.Active = true
-		}
-		envConfigProperties.Id = envConfigPropertiesOld.Id
+	if updateOverride {
 		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId, false)
 		if err != nil {
 			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -639,17 +559,6 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		}
 		common.WriteJsonResp(w, err, createResp, http.StatusOK)
 		return
-	}
-	if !isEnvironmentOverriden {
-		// In this case the environment is not overridden and this particular chart does not exist in chart_ref table
-		_, appOverride, err1 := handler.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
-		if err1 != nil {
-			handler.Logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
-			common.WriteJsonResp(w, err1, nil, http.StatusInternalServerError)
-			return
-		}
-		// we are getting the default value for this chart and adding it to chart ref table
-		envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
 	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
 
@@ -673,7 +582,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 			}
 			ctx = context.WithValue(r.Context(), "token", acdToken)
 			appMetrics := false
-			if envConfigProperties.AppMetrics != nil && isEnvironmentOverriden {
+			if envConfigProperties.AppMetrics != nil && isEnvironmentOverridden {
 				appMetrics = envMetrics
 			}
 			templateRequest := chart.TemplateRequest{
