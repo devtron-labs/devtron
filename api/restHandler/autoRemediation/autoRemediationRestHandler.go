@@ -177,6 +177,13 @@ func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter
 		return
 	}
 
+	res, err := impl.watcherService.GetInterceptedEventById(interceptedEventId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetInterceptedEventById", "err", err, "interceptedEventId", interceptedEventId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, res.ClusterName)
@@ -185,13 +192,6 @@ func (impl WatcherRestHandlerImpl) GetInterceptedEventById(w http.ResponseWriter
 		return
 	}
 	// RBAC enforcer Ends
-
-	res, err := impl.watcherService.GetInterceptedEventById(interceptedEventId)
-	if err != nil {
-		impl.logger.Errorw("service err, GetInterceptedEventById", "err", err, "interceptedEventId", interceptedEventId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
