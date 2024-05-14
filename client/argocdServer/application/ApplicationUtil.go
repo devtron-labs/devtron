@@ -52,11 +52,11 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 	}
 	needPods := false
 	queryNodes := make([]v1alpha1.ResourceNode, 0)
-	podParents := make([]string, 0)
+	podParents := make(map[string]v1alpha1.ResourceNode)
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			for _, pr := range node.ParentRefs {
-				podParents = append(podParents, pr.Name)
+				podParents[pr.Name] = node
 			}
 		}
 	}
@@ -65,11 +65,8 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			queryNodes = append(queryNodes, node)
 		}
 		if node.Kind == "ReplicaSet" {
-			for _, pr := range podParents {
-				if pr == node.Name {
-					queryNodes = append(queryNodes, node)
-					break
-				}
+			if _, ok := podParents[node.Name]; ok {
+				queryNodes = append(queryNodes, node)
 			}
 		}
 		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
@@ -83,6 +80,10 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 	}
 
 	c.logger.Debugw("needPods", "pods", needPods)
+
+	for _, node := range podParents {
+		queryNodes = append(queryNodes, node)
+	}
 
 	if needPods {
 		for _, node := range resp.Nodes {
@@ -398,8 +399,10 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 	return containers
 }
 
-func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*argoApplication.PodMetadata) {
+func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) ([]*argoApplication.PodMetadata, map[string]string) {
 	replicaSets := make(map[string]map[string]interface{})
+	podToReplicasetMapping := make(map[string]string)
+	var podMetadata []*argoApplication.PodMetadata
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
 	}
@@ -421,12 +424,13 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 				}
 				replicaSet := replicaSets[parentName]
 				containers, intContainers := getReplicaSetContainers(replicaSet)
+				podToReplicasetMapping[node.Name] = parentName
 				metadata := argoApplication.PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
 				podMetadata = append(podMetadata, &metadata)
 			}
 		}
 	}
-	return
+	return podMetadata, podToReplicasetMapping
 }
 
 func getReplicaSetContainers(resource map[string]interface{}) (containers []*string, intContainers []*string) {
@@ -510,4 +514,58 @@ func getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[strin
 
 	//TODO - new or old logic
 	return
+}
+
+func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMetadata, duplicatePodToReplicasetMapping map[string]string, podMetaData []*argoApplication.PodMetadata) []*argoApplication.PodMetadata {
+	// Initialize mappings for containers
+	containersPodMapping := make(map[string][]*string) // Mapping from pod name to container names
+	initContainersPodMapping := make(map[string][]*string)
+	// iterate over pod metadata extracted from pods' manifests
+	for _, podMetadataFromPod := range podsMetadataFromPods {
+		// If pod is not a duplicate
+		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]; !ok {
+			// if pod is not a duplicate append pod metadata to the final result
+			podMetaData = append(podMetaData, podMetadataFromPod)
+		} else {
+			// update init and sidecar container data into podsMetadataFromPods array's pods obj. if pod is a duplicate found in duplicatePodToReplicasetMapping,
+			for _, podMetadataFromReplicaSet := range podMetaData {
+				if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
+					// Update containers mapping
+					if podMetadataFromPod.Containers != nil {
+						containersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.Containers
+						// Update containers mapping for other duplicate pods with the same replicaset
+						// because we are only fetching manifest for one pod
+						// and propagate to other pods having same parent
+						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+						for podName, podParentName := range duplicatePodToReplicasetMapping {
+							if podParentName == currentPodParentName {
+								containersPodMapping[podName] = podMetadataFromPod.Containers
+							}
+						}
+					}
+					if podMetadataFromPod.InitContainers != nil {
+						initContainersPodMapping[podMetadataFromPod.Name] = podMetadataFromPod.InitContainers
+						currentPodParentName := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]
+						for podName, podParentName := range duplicatePodToReplicasetMapping {
+							if podParentName == currentPodParentName {
+								initContainersPodMapping[podName] = podMetadataFromPod.InitContainers
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Update pod metadata with containers mapping
+	for _, metadata := range podMetaData {
+		if containers, ok := containersPodMapping[metadata.Name]; ok {
+			metadata.Containers = containers
+		}
+		if initContainers, ok := initContainersPodMapping[metadata.Name]; ok {
+			metadata.InitContainers = initContainers
+		}
+	}
+	// Return updated pod metadata
+	return podMetaData
 }
