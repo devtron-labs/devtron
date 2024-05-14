@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -68,6 +69,8 @@ type AppWorkflowRepository interface {
 	FindByComponentIdForCiPipelineType(componentId int) ([]*AppWorkflowMapping, error)
 	FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error)
 	FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error)
+
+	FindByComponentTypeAndIds(componentTypeIdsMap map[string][]int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -553,4 +556,21 @@ func (impl AppWorkflowRepositoryImpl) FindAllMappingsInCdPipelineWorkflow(cdPipe
 		return nil, err
 	}
 	return appWorkflowsMapping, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByComponentTypeAndIds(componentTypeIdsMap map[string][]int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	query := impl.dbConnection.Model(&appWorkflowsMapping)
+	query = query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+		for componentType, componentIds := range componentTypeIdsMap {
+			q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("component_type = ? ", componentType).
+					Where("component_id in (?)?", pg.In(componentIds))
+				return q, nil
+			})
+		}
+		return q, nil
+	}).Where("active = ?", true)
+	err := query.Select()
+	return appWorkflowsMapping, err
 }

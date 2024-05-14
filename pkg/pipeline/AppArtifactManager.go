@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -756,7 +757,13 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 	if workflowComponents.Limit == 0 {
 		workflowComponents.Limit = 20
 	}
-	if len(workflowComponents.SearchImageTag) == 0 {
+	if len(workflowComponents.ArtifactIds) > 0 {
+		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetByIdsLimit(workflowComponents.ArtifactIds, workflowComponents.Limit, workflowComponents.Offset)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts by ids", "err", err, "artifactIds", workflowComponents.ArtifactIds)
+			return bean2.CiArtifactResponse{}, err
+		}
+	} else if len(workflowComponents.SearchImageTag) == 0 {
 		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
 			workflowComponents.CiPipelineIds,
 			workflowComponents.ExternalCiPipelineIds,
@@ -783,6 +790,34 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 	artifactResponse := bean2.CiArtifactResponse{
 		CiArtifacts: bean2.ConvertArtifactEntityToModel(artifactEntities),
 		TotalCount:  totalCount,
+	}
+
+	//getting parentCiPipelineIds for all artifacts
+	workflowComponentTypeIdsMap := make(map[string][]int)
+	for _, artifactEntity := range artifactEntities {
+		if artifactEntity.PipelineId > 0 {
+			workflowComponentTypeIdsMap[appWorkflow.CIPIPELINE] = append(workflowComponentTypeIdsMap[appWorkflow.CIPIPELINE], artifactEntity.PipelineId)
+		} else if artifactEntity.ExternalCiPipelineId > 0 {
+			workflowComponentTypeIdsMap[appWorkflow.WEBHOOK] = append(workflowComponentTypeIdsMap[appWorkflow.WEBHOOK], artifactEntity.ExternalCiPipelineId)
+		} else if artifactEntity.DataSource == repository.PRE_CD || artifactEntity.DataSource == repository.POST_CD {
+			workflowComponentTypeIdsMap[appWorkflow.CDPIPELINE] = append(workflowComponentTypeIdsMap[appWorkflow.CDPIPELINE], artifactEntity.ComponentId)
+		}
+	}
+	workflowMappings, err := impl.appWorkflowRepository.FindByComponentTypeAndIds(workflowComponentTypeIdsMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting workflowMappings by componentType and componentIds", "err", err, "workflowComponentTypeIdsMap", workflowComponentTypeIdsMap)
+		return bean2.CiArtifactResponse{}, err
+	}
+	uniqueWorkflowIds := make(map[int]bool)
+	for _, wfMapping := range workflowMappings {
+		uniqueWorkflowIds[wfMapping.AppWorkflowId] = true
+	}
+	if len(uniqueWorkflowIds) != 1 { //currently this method should send artifacts belonging to one app workflow, change if needed in future
+		return bean2.CiArtifactResponse{}, fmt.Errorf("cannot group artifacts of different workflows together")
+	} else {
+		for workflowId := range uniqueWorkflowIds {
+			artifactResponse.AppWorkflowId = workflowId
+		}
 	}
 	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(workflowComponents.CdPipelineIds)
 	if err != nil {
