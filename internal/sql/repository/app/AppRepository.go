@@ -491,6 +491,9 @@ type AppDto struct {
 func (repo AppRepositoryImpl) FetchAppByDisplayNamesForJobs(names []string) ([]*AppDto, error) {
 
 	var jobIdName []*AppDto
+	if len(names) == 0 {
+		return nil, nil
+	}
 	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
 	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
 	query := "select id, display_name from app " + whereCondition

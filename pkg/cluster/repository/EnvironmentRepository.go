@@ -439,6 +439,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ext
 
 func (repo EnvironmentRepositoryImpl) FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error) {
 	var mappings []*Environment
+	if len(envIds) == 0 {
+		return nil, nil
+	}
 	err := repo.dbConnection.Model(&mappings).
 		Where("environment.active = true").
 		Where("environment.cluster_id = ?", clusterId).
