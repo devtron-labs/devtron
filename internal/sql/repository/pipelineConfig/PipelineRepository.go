@@ -179,6 +179,7 @@ type PipelineRepository interface {
 	FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error)
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
+	FindEnvNameAndIdByAppId(appId int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -388,6 +389,15 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
+		Where("app_id = ?", appId).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindEnvNameAndIdByAppId(appId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.environment_id", "Environment.environment_name").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()

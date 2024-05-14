@@ -37,16 +37,16 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clusterAdapter "github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	constants2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/constants"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
-	bean10 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	bean11 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -64,6 +64,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	adapter3 "github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
+	bean10 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util2 "github.com/devtron-labs/devtron/util/event"
@@ -100,6 +102,9 @@ type TriggerService interface {
 
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
+
+	CheckFeasibility(triggerRequirementRequest *bean.TriggerRequirementRequestDto) (*bean.TriggerFeasibilityResponse, bool, bool, error)
+	GetCdWorkflowRunnerWithEnvConfig(cdWorkflowType bean3.WorkflowType, pipeline *pipelineConfig.Pipeline, envNameSpace string, cdWorkflowId int, triggeredBy int32, triggeredTime time.Time) *bean10.CdWorkflowRunnerDto
 }
 
 type TriggerServiceImpl struct {
@@ -167,6 +172,7 @@ type TriggerServiceImpl struct {
 	deploymentWindowService       deploymentWindow.DeploymentWindowService
 	K8sUtil                       *k8s.K8sUtilExtended
 	chartScanPublishService       out.ChartScanPublishService
+	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -229,7 +235,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
 	imageScanService security2.ImageScanService,
 	K8sUtil *k8s.K8sUtilExtended,
-	chartScanPublishService out.ChartScanPublishService) (*TriggerServiceImpl, error) {
+	chartScanPublishService out.ChartScanPublishService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -292,6 +299,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
 		chartScanPublishService:             chartScanPublishService,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -363,6 +371,15 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	var manifest []byte
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
+	//checking if namespace exist or not
+	clusterIdToNsMap := map[int]string{
+		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
+	}
+
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	if err != nil {
+		return 0, "", err
+	}
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
@@ -380,22 +397,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("err", "err", err)
 		return 0, "", err
 	}
-	if overrideRequest.IsDeployDeploymentType() || overrideRequest.IsUnknownDeploymentType() {
-		isArtifactAvailable, err := impl.isArtifactDeploymentAllowed(cdPipeline, artifact, overrideRequest.CdWorkflowType)
-		if err != nil {
-			impl.logger.Errorw("error in checking artifact availability on cdPipeline", "artifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-			return 0, "", err
-		}
-		if !isArtifactAvailable {
-			return 0, "", util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE)
-		}
-
-		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
-			return 0, "", err
-		}
-	}
 
 	if artifact.IsMigrationRequired() {
 		// Migration of deprecated DataSource Type
@@ -412,14 +413,23 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
-		cdWf := &pipelineConfig.CdWorkflow{
-			CiArtifactId: artifact.Id,
-			PipelineId:   cdPipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-		}
-		err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
-		if err != nil {
-			return 0, "", err
+		var cdWf *pipelineConfig.CdWorkflow
+		if overrideRequest.CdWorkflowId == 0 {
+			cdWf = &pipelineConfig.CdWorkflow{
+				CiArtifactId: artifact.Id,
+				PipelineId:   cdPipeline.Id,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			}
+			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
+			if err != nil {
+				return 0, "", err
+			}
+		} else {
+			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in TriggerPreStage, ManualCdTrigger", "err", err)
+				return 0, "", err
+			}
 		}
 		overrideRequest.CdWorkflowId = cdWf.Id
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
@@ -431,6 +441,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			ApplyAuth:             false,
 			TriggerContext:        triggerContext,
 			RefCdWorkflowRunnerId: 0,
+			CdWorkflowRunnerId:    overrideRequest.CdWorkflowRunnerId,
 		}
 		err = impl.TriggerPreStage(triggerRequest)
 		span.End()
@@ -447,15 +458,21 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		scope := resourceQualifiers.Scope{AppId: overrideRequest.AppId, EnvId: overrideRequest.EnvId, ClusterId: overrideRequest.ClusterId, ProjectId: overrideRequest.ProjectId, IsProdEnv: overrideRequest.IsProdEnv}
 		impl.logger.Debug("scope for manual trigger ", "scope", scope, "pipelineId", overrideRequest.PipelineId)
 		triggerRequest := bean.TriggerRequest{
-			Pipeline:       cdPipeline,
-			Artifact:       artifact,
-			TriggeredBy:    overrideRequest.UserId,
-			TriggerContext: triggerContext,
+			Pipeline:           cdPipeline,
+			Artifact:           artifact,
+			TriggeredBy:        overrideRequest.UserId,
+			TriggerContext:     triggerContext,
+			WorkflowType:       overrideRequest.CdWorkflowType,
+			CdWorkflowRunnerId: overrideRequest.CdWorkflowRunnerId,
 		}
 
 		triggerOperationRequest := adapter.GetTriggerOperationDto(triggerRequest, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF, overrideRequest.PipelineId, scope, triggeredAt, overrideRequest.CdWorkflowId)
-		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
+		runner, cdWfId, triggerMessage, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest, overrideRequest.DeploymentType)
 		if err != nil {
+			err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(overrideRequest.CdWorkflowRunnerId, overrideRequest.UserId, err)
+			if err2 != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err2", err2)
+			}
 			impl.logger.Errorw("error encountered in ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
 			return 0, "", err
 		}
@@ -463,6 +480,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		overrideRequest.TriggerMetadata = triggerMessage
 		overrideRequest.CdWorkflowId = cdWfId
 		overrideRequest.WfrId = runner.Id
+		// setting this for release , as runners are already created at that times, so histories will have consistent time, for normal operations it will remain the same as triggered at as runner is created with time.Now()
+		triggeredAt = runner.StartedOn
 
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(runner.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
@@ -585,6 +604,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			TriggeredBy:           overrideRequest.UserId,
 			RefCdWorkflowRunnerId: 0,
 			TriggerContext:        triggerContext,
+			CdWorkflowRunnerId:    overrideRequest.CdWorkflowRunnerId,
 		}
 		err = impl.TriggerPostStage(triggerRequest)
 		span.End()
@@ -666,33 +686,11 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 
 }
 
-func (impl *TriggerServiceImpl) isImagePromotionPolicyViolated(cdPipeline *pipelineConfig.Pipeline, artifactId int, userId int32) (bool, error) {
-	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipeline.Id, "err", err)
-		return false, err
-	}
-	if promotionPolicy != nil && promotionPolicy.Id > 0 {
-		if promotionPolicy.BlockApproverFromDeploy() {
-			isUserApprover, err := impl.artifactPromotionDataReadService.IsUserApprover(artifactId, cdPipeline.Id, userId)
-			if err != nil {
-				impl.logger.Errorw("error in checking if user is approver or not", "artifactId", artifactId, "cdPipelineId", cdPipeline.Id, "err", err)
-				return false, err
-			}
-			if isUserApprover {
-				impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
-				return true, util.NewApiError().WithHttpStatusCode(http.StatusForbidden).WithUserMessage(bean.ImagePromotionPolicyValidationErr).WithInternalMessage(bean.ImagePromotionPolicyValidationErr)
-			}
-		}
-	}
-	return false, nil
-}
-
 // checkFeasibilityAndCreateAudit first checks feasibility and creates audit if createAudit flag comes to true
 func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequirementRequest *bean.TriggerRequirementRequestDto, subjectId int, refType resourceFilter.ReferenceType, refId int) (*bean.TriggerFeasibilityResponse, *resourceFilter.ResourceFilterEvaluationAudit, error) {
 	var filters []*resourceFilter.FilterMetaDataBean
 	var filterIdVsState map[int]resourceFilter.FilterState
-	feasibilityResponse, createAudit, err := impl.CheckFeasibility(triggerRequirementRequest)
+	feasibilityResponse, createAudit, _, err := impl.CheckFeasibility(triggerRequirementRequest)
 	if feasibilityResponse != nil {
 		filterIdVsState, filters = feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters
 	}
@@ -714,87 +712,105 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequiremen
 // step5: createAuditDataForDeploymentWindowBypass
 // step6: UpdateFilterEvaluationAuditRef if applicable
 // step7: ConsumeApprovalRequest if applicable
-func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOperationReq *bean.TriggerOperationDto) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
+func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOperationReq *bean.TriggerOperationDto, deploymentType models.DeploymentType) (runner *pipelineConfig.CdWorkflowRunner, cdWfId int, triggerMessage string, err error) {
 	cdPipeline := triggerOperationReq.TriggerRequest.Pipeline
 	ciArtifactId := triggerOperationReq.TriggerRequest.Artifact.Id
 	triggeredBy := triggerOperationReq.TriggerRequest.TriggeredBy
-	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy)
+	triggerRequirementRequest := adapter.GetTriggerRequirementRequest(triggerOperationReq.Scope, triggerOperationReq.TriggerRequest, resourceFilter.Deploy, deploymentType)
 	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, ciArtifactId, resourceFilter.Pipeline, cdPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error encountered in performOperationsForAutoOrManualTrigger", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return nil, 0, "", err
 	}
-
 	//overriding the request from feasibility response
 	triggerOperationReq.TriggerRequest = feasibilityResponse.TriggerRequest
 
 	var cdWorkflowId int
-	switch triggerOperationReq.TriggerRequest.TriggerContext.TriggerType {
-	case bean.Manual:
-		{
-			cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(triggerOperationReq.TriggerRequest.TriggerContext.Context, triggerOperationReq.OverrideCdWrfId, bean3.CD_WORKFLOW_TYPE_PRE)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("error in getting cdWorkflow, ManualCdTrigger", "CdWorkflowId", triggerOperationReq.OverrideCdWrfId, "err", err)
-				return nil, 0, "", err
-			}
-
-			cdWorkflowId = cdWf.CdWorkflowId
-			if cdWorkflowId == 0 {
-				cdWf := &pipelineConfig.CdWorkflow{
-					CiArtifactId: ciArtifactId,
-					PipelineId:   triggerOperationReq.PipelineId,
-					AuditLog:     sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: triggeredBy},
-				}
-				err := impl.cdWorkflowRepository.SaveWorkFlow(triggerOperationReq.TriggerRequest.TriggerContext.Context, cdWf)
-				if err != nil {
-					impl.logger.Errorw("error in creating cdWorkflow, ManualCdTrigger", "PipelineId", triggerOperationReq.PipelineId, "err", err)
+	runnerIdFromRequest := triggerOperationReq.TriggerRequest.CdWorkflowRunnerId
+	approvalRequestId := feasibilityResponse.ApprovalRequestId
+	if runnerIdFromRequest == 0 {
+		switch triggerOperationReq.TriggerRequest.TriggerContext.TriggerType {
+		case bean.Manual:
+			{
+				cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(triggerOperationReq.TriggerRequest.TriggerContext.Context, triggerOperationReq.OverrideCdWrfId, bean3.CD_WORKFLOW_TYPE_PRE)
+				if err != nil && !util.IsErrNoRows(err) {
+					impl.logger.Errorw("error in getting cdWorkflow, ManualCdTrigger", "CdWorkflowId", triggerOperationReq.OverrideCdWrfId, "err", err)
 					return nil, 0, "", err
+				}
+
+				cdWorkflowId = cdWf.CdWorkflowId
+				if cdWorkflowId == 0 {
+					cdWf := &pipelineConfig.CdWorkflow{
+						CiArtifactId: ciArtifactId,
+						PipelineId:   triggerOperationReq.PipelineId,
+						AuditLog:     sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: triggeredBy},
+					}
+					err := impl.cdWorkflowRepository.SaveWorkFlow(triggerOperationReq.TriggerRequest.TriggerContext.Context, cdWf)
+					if err != nil {
+						impl.logger.Errorw("error in creating cdWorkflow, ManualCdTrigger", "PipelineId", triggerOperationReq.PipelineId, "err", err)
+						return nil, 0, "", err
+					}
+					cdWorkflowId = cdWf.Id
+				}
+			}
+		case bean.Automatic:
+			{
+				cdWf := triggerOperationReq.TriggerRequest.CdWf
+
+				if cdWf == nil || (cdWf != nil && cdWf.CiArtifactId != ciArtifactId) {
+					// cdWf != nil && cdWf.CiArtifactId != artifact.Id for auto trigger case when deployment is triggered with image generated by plugin
+					cdWf = &pipelineConfig.CdWorkflow{
+						CiArtifactId: ciArtifactId,
+						PipelineId:   triggerOperationReq.PipelineId,
+						AuditLog:     sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: 1, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: 1},
+					}
+					err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
+					if err != nil {
+						impl.logger.Errorw("error encountered in  performOperationsForAutoOrManualTrigger", "ciArtifactId", ciArtifactId, "err", err)
+						return nil, 0, "", err
+					}
 				}
 				cdWorkflowId = cdWf.Id
 			}
-		}
-	case bean.Automatic:
-		{
-			cdWf := triggerOperationReq.TriggerRequest.CdWf
 
-			if cdWf == nil || (cdWf != nil && cdWf.CiArtifactId != ciArtifactId) {
-				// cdWf != nil && cdWf.CiArtifactId != artifact.Id for auto trigger case when deployment is triggered with image generated by plugin
-				cdWf = &pipelineConfig.CdWorkflow{
-					CiArtifactId: ciArtifactId,
-					PipelineId:   triggerOperationReq.PipelineId,
-					AuditLog:     sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: 1, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: 1},
-				}
-				err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
-				if err != nil {
-					impl.logger.Errorw("error encountered in  performOperationsForAutoOrManualTrigger", "ciArtifactId", ciArtifactId, "err", err)
-					return nil, 0, "", err
-				}
+		}
+		runner = &pipelineConfig.CdWorkflowRunner{
+			Name:            cdPipeline.Name,
+			WorkflowType:    bean3.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType:    triggerOperationReq.ExecutorType,
+			Status:          pipelineConfig.WorkflowInitiated,
+			TriggeredBy:     triggeredBy,
+			StartedOn:       triggerOperationReq.TriggeredAt,
+			Namespace:       impl.config.GetDefaultNamespace(),
+			CdWorkflowId:    cdWorkflowId,
+			AuditLog:        sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: triggeredBy},
+			ReferenceId:     triggerOperationReq.TriggerRequest.TriggerContext.ReferenceId,
+			TriggerMetadata: triggerOperationReq.TriggerRequest.TriggerMessage,
+		}
+		if approvalRequestId > 0 {
+			runner.DeploymentApprovalRequestId = approvalRequestId
+		}
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("err in creating cdWorkflowRunner, performOperationsForAutoOrManualTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
+			return nil, 0, "", err
+		}
+
+	} else {
+		runner, err = impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(runnerIdFromRequest)
+		if err != nil {
+			impl.logger.Errorw("err in FindWorkflowRunnerById, performOperationsForAutoOrManualTrigger", "runnerIdFromRequest", runnerIdFromRequest, "err", err)
+			return nil, 0, "", err
+		}
+		if approvalRequestId > 0 {
+			runner.DeploymentApprovalRequestId = approvalRequestId
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunnerWithDeploymentApprovalReqId(runnerIdFromRequest, approvalRequestId)
+			if err != nil {
+				impl.logger.Errorw("err in  UpdateWorkFlowRunnerWithDeploymentApprovalReqId, performOperationsForAutoOrManualTrigger", "runnerIdFromRequest", runnerIdFromRequest, "err", err)
+				return nil, 0, "", err
 			}
-			cdWorkflowId = cdWf.Id
 		}
-
-	}
-	runner = &pipelineConfig.CdWorkflowRunner{
-		Name:            cdPipeline.Name,
-		WorkflowType:    bean3.CD_WORKFLOW_TYPE_DEPLOY,
-		ExecutorType:    triggerOperationReq.ExecutorType,
-		Status:          pipelineConfig.WorkflowInitiated,
-		TriggeredBy:     triggeredBy,
-		StartedOn:       triggerOperationReq.TriggeredAt,
-		Namespace:       impl.config.GetDefaultNamespace(),
-		CdWorkflowId:    cdWorkflowId,
-		AuditLog:        sql.AuditLog{CreatedOn: triggerOperationReq.TriggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggerOperationReq.TriggeredAt, UpdatedBy: triggeredBy},
-		ReferenceId:     triggerOperationReq.TriggerRequest.TriggerContext.ReferenceId,
-		TriggerMetadata: triggerOperationReq.TriggerRequest.TriggerMessage,
-	}
-	approvalRequestId := feasibilityResponse.ApprovalRequestId
-	if approvalRequestId > 0 {
-		runner.DeploymentApprovalRequestId = approvalRequestId
-	}
-	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-	if err != nil {
-		impl.logger.Errorw("err in creating cdWorkflowRunner, performOperationsForAutoOrManualTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
-		return nil, 0, "", err
+		cdWorkflowId = runner.CdWorkflowId
 	}
 
 	impl.createAuditDataForDeploymentWindowBypass(triggerOperationReq.TriggerRequest, runner.Id)
@@ -823,6 +839,7 @@ func (impl *TriggerServiceImpl) checkFeasibilityAndAuditStateChanges(triggerOper
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 
 	request.TriggerContext.TriggerType = bean.Automatic
+	request.WorkflowType = bean3.CD_WORKFLOW_TYPE_DEPLOY
 	// in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	triggeredBy := request.TriggeredBy
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -852,7 +869,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	impl.logger.Debug("scope for auto trigger ", "scope", scope, "pipelineId", pipeline.Id)
 
 	triggerOperationRequest := adapter.GetTriggerOperationDto(request, pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM, pipeline.Id, scope, triggeredAt, 0)
-	runner, cdWfId, _, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest)
+	runner, cdWfId, _, err := impl.checkFeasibilityAndAuditStateChanges(triggerOperationRequest, models.DEPLOYMENTTYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error encountered in TriggerAutomaticDeployment", "pipelineId", pipeline.Id, "err", err)
 		return err
@@ -1359,8 +1376,8 @@ func (impl *TriggerServiceImpl) sendResourceScanEvent(overrideRequest *bean3.Val
 			}
 			referenceChartByte = refChartByte
 		}
-		chartScanEventBean := bean10.ChartScanEventBean{
-			DevtronAppDto: &bean10.DevtronAppDto{
+		chartScanEventBean := bean11.ChartScanEventBean{
+			DevtronAppDto: &bean11.DevtronAppDto{
 				ChartContent: referenceChartByte,
 				ValuesYaml:   valuesOverrideResponse.MergedValues,
 				ChartName:    envOverride.Chart.ChartName,
@@ -1417,24 +1434,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &gRPC.ClusterConfig{
-			ClusterId:              int32(cluster.Id),
-			ClusterName:            cluster.ClusterName,
-			Token:                  bearerToken,
-			ApiServerUrl:           cluster.ServerUrl,
-			InsecureSkipTLSVerify:  cluster.InsecureSkipTlsVerify,
-			ProxyUrl:               cluster.ProxyUrl,
-			ToConnectWithSSHTunnel: cluster.ToConnectWithSSHTunnel,
-			SshTunnelAuthKey:       cluster.SSHTunnelAuthKey,
-			SshTunnelUser:          cluster.SSHTunnelUser,
-			SshTunnelPassword:      cluster.SSHTunnelPassword,
-			SshTunnelServerAddress: cluster.SSHTunnelServerAddress,
-		}
-		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
-		}
+		clusterBean := clusterAdapter.GetClusterBean(*cluster)
+		clusterConfig := client2.ConvertClusterBeanToClusterConfig(&clusterBean)
+		clusterConfig.Token = bearerToken
+
 		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
@@ -2077,6 +2080,61 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
 			}
 			return apiErr
+		}
+	}
+	return nil
+}
+
+func (impl *TriggerServiceImpl) getWorkflowExecutorTypeForPrePostOrDeploy(workflowType bean3.WorkflowType) pipelineConfig.WorkflowExecutorType {
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+	case pipelineConfig.WorkflowTypePost:
+		return impl.config.GetWorkflowExecutorType()
+	case pipelineConfig.WorkflowTypeDeploy:
+		return pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF
+	}
+	// default assuming to be AWF
+	return pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF
+}
+
+func (impl *TriggerServiceImpl) getNamespaceForWorkflowType(workflowType bean3.WorkflowType, nameSpaceFromEnvironment string, runPreStageInEnv, runPostStageInEnv bool) string {
+	namespace := impl.config.GetDefaultNamespace()
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+		if runPreStageInEnv {
+			return nameSpaceFromEnvironment
+		}
+	case pipelineConfig.WorkflowTypePost:
+		if runPostStageInEnv {
+			return nameSpaceFromEnvironment
+		}
+	case pipelineConfig.WorkflowTypeDeploy:
+		return namespace
+	}
+	// default assuming to be Deploy
+	return namespace
+}
+func (impl *TriggerServiceImpl) GetCdWorkflowRunnerWithEnvConfig(cdWorkflowType bean3.WorkflowType, pipeline *pipelineConfig.Pipeline, envNameSpace string, cdWorkflowId int, triggeredBy int32, triggeredTime time.Time) *bean10.CdWorkflowRunnerDto {
+	return adapter3.BuildCdWorkflowRunnerDto(pipeline.Name, cdWorkflowType,
+		impl.getWorkflowExecutorTypeForPrePostOrDeploy(cdWorkflowType),
+		impl.cdWorkflowCommonService.GetRunnerStatusBasedInWorkflowType(cdWorkflowType),
+		triggeredBy, triggeredTime, impl.getNamespaceForWorkflowType(cdWorkflowType, envNameSpace,
+			pipeline.RunPreStageInEnv, pipeline.RunPostStageInEnv),
+		cdWorkflowId, impl.getIfBlobStorageIsEnabled(),
+		impl.getLogLocationBasedOnWorkflowType(cdWorkflowType, pipeline.Name, cdWorkflowId))
+}
+
+func (impl *TriggerServiceImpl) markCurrentRunnerFailedIfRunnerIsFound(cdWfrId int, userId int32, errFound error) error {
+	if cdWfrId != 0 {
+		runner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(cdWfrId)
+		if err != nil {
+			impl.logger.Errorw("err in FindWorkflowRunnerById, performOperationsForAutoOrManualTrigger", "cdWfrId", cdWfrId, "err", err)
+			return err
+		}
+		err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errFound, userId)
+		if err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			return err
 		}
 	}
 	return nil

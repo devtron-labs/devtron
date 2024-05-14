@@ -1,4 +1,4 @@
-package devtronResource
+package read
 
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"

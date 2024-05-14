@@ -36,20 +36,20 @@ const (
 	Image                        = "image"
 )
 
-var commonContainerPath = []string{Spec, Template, Spec}
+var defaultContainerPath = []string{Spec, Template, Spec}
 var cronJobContainerPath = []string{Spec, JobTemplate, Spec, Template, Spec}
 var podContainerPath = []string{Spec}
 
-var KindToPath = map[string][]string{
-	DeploymentKind:                commonContainerPath,
-	JobKind:                       commonContainerPath,
-	StatefulSetKind:               commonContainerPath,
-	DaemonSetKind:                 commonContainerPath,
-	ReplicaSetKind:                commonContainerPath,
-	K8sClusterResourceRolloutKind: commonContainerPath,
-	K8sClusterResourceReplicationControllerKind: commonContainerPath,
+var kindToPath = map[string][]string{
 	PodKind:                       podContainerPath,
 	K8sClusterResourceCronJobKind: cronJobContainerPath,
+}
+
+func GetContainerSubPathForKind(kind string) []string {
+	if path, ok := kindToPath[kind]; ok {
+		return path
+	}
+	return defaultContainerPath
 }
 
 const (

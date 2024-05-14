@@ -1,0 +1,231 @@
+package devtronResource
+
+import (
+	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+)
+
+func (impl *DevtronResourceServiceImpl) updateReleaseTrackOverviewDataForGetApiResourceObj(resourceSchema *repository.DevtronResourceSchema,
+	existingResourceObject *repository.DevtronResourceObject, resourceObject *bean.DevtronResourceObjectGetAPIBean) (err error) {
+	//checking if resource object exists
+	if existingResourceObject != nil && existingResourceObject.Id > 0 {
+		//getting metadata out of this object
+		resourceObject.OldObjectId, resourceObject.IdType = helper.GetResourceObjectIdAndType(existingResourceObject)
+		resourceObject.Name = gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectNamePath).String()
+		if gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectOverviewPath).Exists() {
+			resourceObject.Overview = &bean.ResourceOverview{
+				Description: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectDescriptionPath).String(),
+				CreatedBy: &bean.UserSchema{
+					Id:   int32(gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIdPath).Int()),
+					Name: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByNamePath).String(),
+					Icon: gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectCreatedByIconPath).Bool(),
+				},
+			}
+			resourceObject.Overview.CreatedOn, err = helper.GetCreatedOnTime(existingResourceObject.ObjectData)
+			if err != nil {
+				impl.logger.Errorw("error in time conversion", "err", err)
+				return err
+			}
+			resourceObject.Overview.Tags = helper.GetOverviewTags(existingResourceObject.ObjectData)
+		}
+	}
+	return nil
+}
+
+func validateCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
+	if len(reqBean.Name) == 0 {
+		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceNameNotFound, bean.ResourceNameNotFound)
+	}
+	return nil
+}
+
+func (impl *DevtronResourceServiceImpl) populateDefaultValuesForCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) error {
+	if reqBean.Overview != nil && reqBean.Overview.CreatedBy == nil {
+		createdByDetails, err := impl.getUserSchemaDataById(reqBean.UserId)
+		// considering the user details are already verified; this error indicates to an internal db error.
+		if err != nil {
+			impl.logger.Errorw("error encountered in populateDefaultValuesForCreateReleaseTrackRequest", "userId", reqBean.UserId, "err", err)
+			return err
+		}
+		reqBean.Overview.CreatedBy = createdByDetails
+		reqBean.Overview.CreatedOn = time.Now()
+	}
+	// populating identifier value for release-track
+	populateIdentifierValueForCreateReleaseTrackRequest(reqBean)
+	return nil
+}
+
+func populateIdentifierValueForCreateReleaseTrackRequest(reqBean *bean.DtResourceObjectCreateReqBean) {
+	if len(reqBean.Identifier) == 0 {
+		reqBean.Identifier = reqBean.Name
+	}
+}
+
+func (impl *DevtronResourceServiceImpl) updateUserProvidedDataInReleaseTrackObj(objectData string, reqBean *bean.DtResourceObjectInternalBean) (string, error) {
+	var err error
+	if reqBean.Overview != nil {
+		objectData, err = impl.setReleaseTrackOverviewFieldsInObjectData(objectData, reqBean.Overview)
+		if err != nil {
+			impl.logger.Errorw("error in setting overview data in schema", "err", err, "request", reqBean)
+			return objectData, err
+		}
+	}
+	return objectData, nil
+}
+
+func (impl *DevtronResourceServiceImpl) setReleaseTrackOverviewFieldsInObjectData(objectData string, overview *bean.ResourceOverview) (string, error) {
+	var err error
+	if overview.Description != "" {
+		objectData, err = sjson.Set(objectData, bean.ResourceObjectDescriptionPath, overview.Description)
+		if err != nil {
+			impl.logger.Errorw("error in setting description in schema", "err", err, "overview", overview)
+			return objectData, err
+		}
+	}
+	if overview.CreatedBy != nil && overview.CreatedBy.Id > 0 {
+		objectData, err = sjson.Set(objectData, bean.ResourceObjectCreatedByPath, overview.CreatedBy)
+		if err != nil {
+			impl.logger.Errorw("error in setting createdBy in schema", "err", err, "overview", overview)
+			return objectData, err
+		}
+		objectData, err = sjson.Set(objectData, bean.ResourceObjectCreatedOnPath, overview.CreatedOn)
+		if err != nil {
+			impl.logger.Errorw("error in setting createdOn in schema", "err", err, "overview", overview)
+			return objectData, err
+		}
+	}
+	if overview.Tags != nil {
+		objectData, err = sjson.Set(objectData, bean.ResourceObjectTagsPath, overview.Tags)
+		if err != nil {
+			impl.logger.Errorw("error in setting description in schema", "err", err, "overview", overview)
+			return objectData, err
+		}
+	}
+	return objectData, nil
+}
+
+func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseTrackResourceObj(object *repository.DevtronResourceObject) (string, error) {
+	return gjson.Get(object.ObjectData, bean.ResourceObjectNamePath).String(), nil
+}
+
+func (impl *DevtronResourceServiceImpl) getReleaseTrackIdsFromFilterValueBasedOnType(filterCriteria *bean.FilterCriteriaDecoder) ([]int, error) {
+	var ids []int
+	var err error
+	if filterCriteria.Type == bean.Id {
+		ids, err = util2.ConvertStringSliceToIntSlice(filterCriteria.Value)
+		if err != nil {
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()))
+		}
+	} else if filterCriteria.Type == bean.Identifier {
+		identifiers := strings.Split(filterCriteria.Value, ",")
+		ids, err = impl.getDevtronResourceIdsFromIdentifiers(identifiers)
+		if err != nil {
+			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, err.Error()))
+		}
+	}
+	return ids, nil
+}
+
+func (impl *DevtronResourceServiceImpl) listReleaseTracks(resourceObjects, allChildObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
+	isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error) {
+	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
+	for i := range resourceObjects {
+		resourceData := adapter.BuildDevtronResourceObjectGetAPIBean()
+		resourceData.IdType = bean.IdType(gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectIdTypePath).String())
+		if resourceData.IdType == bean.ResourceObjectIdType {
+			resourceData.OldObjectId = resourceObjects[i].Id
+		} else {
+			resourceData.OldObjectId = resourceObjects[i].OldObjectId
+		}
+		resourceData.Overview.Description = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectDescriptionPath).String()
+		resourceData.Name = gjson.Get(resourceObjects[i].ObjectData, bean.ResourceObjectNamePath).String()
+		childIndexes := resourceObjectIndexChildMap[i]
+		childObjects := make([]*repository.DevtronResourceObject, 0, len(childIndexes))
+		for _, childIndex := range childIndexes {
+			childObjects = append(childObjects, allChildObjects[childIndex])
+		}
+		//sorting child objects on basis of created time, need to be maintained from query after sort options introduction
+		sort.Slice(childObjects, func(i, j int) bool {
+			return childObjects[i].CreatedOn.After(childObjects[j].CreatedOn)
+		})
+		for _, childObject := range childObjects {
+			childData := &bean.DevtronResourceObjectGetAPIBean{
+				DevtronResourceObjectDescriptorBean: &bean.DevtronResourceObjectDescriptorBean{},
+				DevtronResourceObjectBasicDataBean:  &bean.DevtronResourceObjectBasicDataBean{},
+			}
+			//get schema
+			resourceSchema := impl.devtronResourcesSchemaMapById[childObject.DevtronResourceSchemaId]
+			if !isLite {
+				err := impl.updateCompleteReleaseDataForGetApiResourceObj(resourceSchema, childObject, childData)
+				if err != nil {
+					impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
+					return nil, err
+				}
+			} else {
+				err := impl.updateReleaseOverviewDataForGetApiResourceObj(resourceSchema, childObject, childData)
+				if err != nil {
+					impl.logger.Errorw("error in getting overview data", "err", err)
+					return nil, err
+				}
+			}
+			resourceData.ChildObjects = append(resourceData.ChildObjects, childData)
+		}
+
+		err := impl.updateReleaseTrackOverviewDataForGetApiResourceObj(nil, resourceObjects[i], resourceData)
+		if err != nil {
+			impl.logger.Errorw("error in getting detailed resource data", "resourceObjectId", resourceObjects[i].Id, "err", err)
+			return nil, err
+		}
+		resp = append(resp, resourceData)
+	}
+	//sorting  objects on basis of name, need to be maintained from query after sort options introduction
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Name < resp[j].Name
+	})
+
+	return resp, nil
+}
+
+func (impl *DevtronResourceServiceImpl) performReleaseTrackResourcePatchOperation(objectData string,
+	queries []bean.PatchQuery) (*bean.SuccessResponse, string, []string, error) {
+	var err error
+	auditPaths := make([]string, 0, len(queries))
+	for _, query := range queries {
+		switch query.Path {
+		case bean.DescriptionQueryPath:
+			objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectDescriptionPath, query.Value)
+		default:
+			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
+		}
+		auditPaths = append(auditPaths, bean.PatchQueryPathAuditPathMap[query.Path])
+		if err != nil {
+			impl.logger.Errorw("error in patch operation, release track", "err", err, "objectData", "query", query)
+			return nil, "", nil, err
+		}
+	}
+	return adapter.GetSuccessPassResponse(), objectData, auditPaths, nil
+}
+
+func (impl *DevtronResourceServiceImpl) validateReleaseTrackDelete(object *repository.DevtronResourceObject) (bool, error) {
+	if object == nil || object.Id == 0 {
+		return false, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	//getting child dependencies
+	childDeps, err := impl.getSpecificDependenciesInObjectDataFromJsonString(object.DevtronResourceSchemaId, object.ObjectData, bean.DevtronResourceDependencyTypeChild)
+	if err != nil {
+		impl.logger.Errorw("error, getSpecificDependenciesInObjectDataFromJsonString", "err", err, "object", object)
+		return false, err
+	}
+	return len(childDeps) == 0, nil
+}

@@ -53,4 +53,7 @@ func (router AppWorkflowRouterImpl) InitAppWorkflowRouter(appRouter *mux.Router)
 
 	appRouter.Path("/all/component-names/{appId}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAllWorkflows).Methods("GET")
+
+	appRouter.Path("/list-components/{appName}").
+		HandlerFunc(router.appWorkflowRestHandler.FindAllComponentsByAppName).Methods("GET")
 }
