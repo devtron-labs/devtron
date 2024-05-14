@@ -8,7 +8,8 @@ spec:
       containers:
         - name: postgresql-migrate-devtron
           image: quay.io/devtron/migrator:71748de9-149-11112
-          command: ['sh', '-c', 'echo "Hello, Kubernetes!" && sleep 36000']
+          command: [ "/bin/sh", "-c" ]
+          args: [ "sleep 3600" ]
           env:
             - name: GIT_BRANCH
               value: main
