@@ -48,7 +48,7 @@ import (
 
 type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32, checkForNamespace bool) (*bean.EnvironmentProperties, error)
+	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
 	//create environment entry for each new environment
 	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
@@ -248,7 +248,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32, checkForNamespace bool) (*bean.EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error) {
 	//check if exists
 	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
 	if err != nil {
@@ -262,14 +262,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if err != nil {
 		return nil, err
 	}
-	if !checkForNamespace {
-		propertiesRequest.Namespace = env.Namespace
-	} else {
-		//FIXME add check for restricted NS also like (kube-system, devtron, monitoring, etc)
-		if env.Namespace != "" && env.Namespace != propertiesRequest.Namespace {
-			return nil, fmt.Errorf("enviremnt is restricted to namespace: %s only, cant deploy to: %s", env.Namespace, propertiesRequest.Namespace)
-		}
-	}
+	propertiesRequest.Namespace = env.Namespace
 
 	if !oldEnvOverride.Latest {
 		envOverrideExisting, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
