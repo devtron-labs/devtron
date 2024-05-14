@@ -21,6 +21,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat: propagate labels such as envName and projectName (#5063)
 - feat: added sql for release and release channels (#4898)
 - feat: resource scan  (#4977)
 - feat: Plugin to trigger Devtron Job (#5053)
