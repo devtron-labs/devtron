@@ -34,7 +34,7 @@ spec:
                 name: git-hash-cm
       restartPolicy: OnFailure
   backoffLimit: 20
-  activeDeadlineSeconds: 1500
+  activeDeadlineSeconds: 1500000
 ---
 apiVersion: batch/v1
 kind: Job
