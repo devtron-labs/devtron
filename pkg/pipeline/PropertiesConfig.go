@@ -616,7 +616,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 // 2. If environment properties are not found:
 //   - Set `isEnvironmentOverridden` to false.
 //   - If `allowEnvOverride` flag is not set in the request:
-//   - Log an error indicating that environment properties are not found and advise to set the `allowEnvOverride` flag to true.
+//   - Log a warning indicating that environment properties are not found and advise to set the `allowEnvOverride` flag to true.
 //   - Return nil, error, and flags indicating the absence of environment properties and updateOverride.
 //   - Otherwise, create an empty environment properties object.
 //
@@ -647,7 +647,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 //   - Set environment override values to the app override.
 //
 // 6. Return the processed environment properties, nil error, and flags indicating environment status and update behavior.
-func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (*bean.EnvironmentProperties, bool, bool, bool, int, error) {
+func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (bean.ProcessEnvConfigPropertiesBean, error) {
 	// Default values
 	isEnvironmentOverridden := true
 	updateOverride := true
@@ -656,7 +656,9 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 	envConfigProperties, err := impl.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
 	if err != nil {
 		impl.logger.Errorw("error in finding env properties ChangeChartRef", "err", err, "payload", request)
-		return nil, false, false, false, http.StatusNotFound, err
+		return bean.ProcessEnvConfigPropertiesBean{
+			StatusCode: http.StatusNotFound,
+		}, err
 	}
 
 	// Handle case when environment properties are not found
@@ -664,7 +666,9 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		isEnvironmentOverridden = false
 		if !request.AllowEnvOverride {
 			impl.logger.Errorw("env properties not found, ChangeChartRef, to override environment add flag allowEnvOverride = true", "err", err, "payload", request)
-			return nil, false, false, false, http.StatusNotFound, err
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusNotFound,
+			}, err
 		}
 		// Create empty environment properties if environment override is allowed
 		envConfigProperties = &bean.EnvironmentProperties{}
@@ -672,19 +676,25 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		// Check if environment is overridden
 		if !envConfigProperties.IsOverride {
 			impl.logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
-			return nil, false, false, false, http.StatusUnprocessableEntity, errors.New("specific environment is not overridden")
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusUnprocessableEntity,
+			}, errors.New("specific environment is not overridden")
 		}
 
 		// Check compatibility of chart references
 		compatible, oldChartType, newChartType := impl.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 		if !compatible {
-			return nil, false, false, false, http.StatusUnprocessableEntity, errors.New("chart version is not compatible")
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusUnprocessableEntity,
+			}, errors.New("chart version is not compatible")
 		}
 
 		// Patch environment overrides based on chart changes
 		envConfigProperties.EnvOverrideValues, err = impl.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
 		if err != nil {
-			return nil, false, false, false, http.StatusInternalServerError, err
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusInternalServerError,
+			}, err
 		}
 
 		// Handle rollout chart type
@@ -692,7 +702,9 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 			enabled, err := impl.deploymentTemplateValidationService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
 			if err != nil || enabled {
 				impl.logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
-				return nil, false, false, false, http.StatusBadRequest, err
+				return bean.ProcessEnvConfigPropertiesBean{
+					StatusCode: http.StatusBadRequest,
+				}, err
 			}
 		}
 
@@ -700,7 +712,9 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		envMetrics, err = impl.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
 		if err != nil {
 			impl.logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
-			return nil, false, false, false, http.StatusBadRequest, err
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusBadRequest,
+			}, err
 		}
 		envConfigProperties.AppMetrics = &envMetrics
 
@@ -713,7 +727,9 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		validate, err := impl.deploymentTemplateValidationService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
 		if !validate {
 			impl.logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", request)
-			return nil, false, false, false, http.StatusBadRequest, err
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusBadRequest,
+			}, err
 		}
 	}
 
@@ -741,12 +757,20 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 			_, appOverride, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
 			if err != nil {
 				impl.logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
-				return nil, false, false, false, http.StatusInternalServerError, err
+				return bean.ProcessEnvConfigPropertiesBean{
+					StatusCode: http.StatusInternalServerError,
+				}, err
 			}
 			// Set default chart override
 			envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
 		}
 	}
 
-	return envConfigProperties, isEnvironmentOverridden, envMetrics, updateOverride, http.StatusOK, nil
+	return bean.ProcessEnvConfigPropertiesBean{
+		EnvConfigProperties:     envConfigProperties,
+		IsEnvironmentOverridden: isEnvironmentOverridden,
+		EnvMetrics:              envMetrics,
+		UpdateOverride:          updateOverride,
+		StatusCode:              http.StatusOK,
+	}, nil
 }

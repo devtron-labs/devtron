@@ -36,3 +36,11 @@ type EnvironmentPropertiesResponse struct {
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
 }
+
+type ProcessEnvConfigPropertiesBean struct {
+	EnvConfigProperties     *EnvironmentProperties
+	IsEnvironmentOverridden bool
+	EnvMetrics              bool
+	UpdateOverride          bool
+	StatusCode              int
+}
