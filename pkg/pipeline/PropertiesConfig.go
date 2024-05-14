@@ -647,7 +647,7 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		// Check compatibility of chart references
 		compatible, oldChartType, newChartType := impl.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 		if !compatible {
-			return nil, err, false, false, false
+			return nil, errors.New("chart version is not compatible"), false, false, false
 		}
 
 		// Patch environment overrides based on chart changes
