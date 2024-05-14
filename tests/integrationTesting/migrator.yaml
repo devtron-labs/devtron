@@ -8,6 +8,7 @@ spec:
       containers:
         - name: postgresql-migrate-devtron
           image: quay.io/devtron/migrator:71748de9-149-11112
+          command: ['sh', '-c', 'echo "Hello, Kubernetes!" && sleep 36000']
           env:
             - name: GIT_BRANCH
               value: main
@@ -34,7 +35,7 @@ spec:
                 name: git-hash-cm
       restartPolicy: OnFailure
   backoffLimit: 20
-  activeDeadlineSeconds: 1500000
+  activeDeadlineSeconds: 150
 ---
 apiVersion: batch/v1
 kind: Job
