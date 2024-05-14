@@ -564,8 +564,8 @@ func (impl AppWorkflowRepositoryImpl) FindByComponentTypeAndIds(componentTypeIds
 	query = query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
 		for componentType, componentIds := range componentTypeIdsMap {
 			q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
-				q = q.Where("component_type = ? ", componentType).
-					Where("component_id in (?)?", pg.In(componentIds))
+				q = q.Where("type = ? ", componentType).
+					Where("component_id in (?)", pg.In(componentIds))
 				return q, nil
 			})
 		}
