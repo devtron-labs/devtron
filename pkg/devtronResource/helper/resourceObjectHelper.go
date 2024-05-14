@@ -68,21 +68,21 @@ func DecodeSearchKeyString(searchKey string) (*bean.SearchCriteriaDecoder, error
 
 func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, []int, []string, map[bean2.WorkflowType][]string, []string, error) {
 	filterLen := len(filters)
-	appIdsFilters := make([]int, filterLen)
-	appIdentifierFilters := make([]string, filterLen)
-	envIdsFilters := make([]int, filterLen)
-	envIdentifierFilters := make([]string, filterLen)
+	appIdsFilters := make([]int, 0, filterLen)
+	appIdentifierFilters := make([]string, 0, filterLen)
+	envIdsFilters := make([]int, 0, filterLen)
+	envIdentifierFilters := make([]string, 0, filterLen)
 	deploymentStatus := make(map[bean2.WorkflowType][]string, filterLen)
-	rolloutStatus := make([]string, filterLen)
+	rolloutStatus := make([]string, 0, filterLen)
 
 	for _, filter := range filters {
 		objs := strings.Split(filter, "|")
-		if len(objs) < 2 {
-			return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
-		}
 		switch objs[0] {
 		case bean.DevtronApplicationFilter.ToString():
 			{
+				if len(objs) != 3 {
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DevtronApplicationFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DevtronApplicationFilter))
+				}
 				ids, identifiers, err := getIdsAndIdentifierBasedOnType(objs)
 				if err != nil {
 					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err
@@ -92,6 +92,9 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 			}
 		case bean.EnvironmentFilter.ToString():
 			{
+				if len(objs) != 3 {
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.EnvironmentFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.EnvironmentFilter))
+				}
 				ids, identifiers, err := getIdsAndIdentifierBasedOnType(objs)
 				if err != nil {
 					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err
@@ -102,12 +105,18 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 
 		case bean.DeploymentStatusFilter.ToString():
 			{
+				if len(objs) != 3 {
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DeploymentStatusFilter))
+				}
 				statuses := strings.Split(objs[2], ",")
 				deploymentStatus[bean2.WorkflowType(objs[1])] = append(deploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
 			}
 		case bean.RolloutStatusFilter.ToString():
 			{
-				statuses := strings.Split(objs[2], ",")
+				if len(objs) != 2 {
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.RolloutStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.RolloutStatusFilter))
+				}
+				statuses := strings.Split(objs[1], ",")
 				rolloutStatus = append(rolloutStatus, statuses...)
 			}
 		default:

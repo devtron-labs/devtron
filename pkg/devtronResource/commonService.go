@@ -330,22 +330,27 @@ func GetDependenciesBeanFromObjectData(objectData string, filterCondition *bean.
 		if len(filterCondition.GetFilterByIndexes()) != 0 && !slices.Contains(filterCondition.GetFilterByIndexes(), index) {
 			continue
 		}
+
+		schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
+		schemaId := int(schemaIdResult.Int())
+
+		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
+		oldObjectId := int(oldObjectIdResult.Int())
+
+		if len(filterCondition.GetFilterByFilterByIdAndSchemaId()) > 0 && !slices.Contains(filterCondition.GetFilterByFilterByIdAndSchemaId(), bean.IdAndSchemaIdFilter{Id: oldObjectId, DevtronResourceSchemaId: schemaId}) {
+			continue
+		}
+
 		dependencyBean := bean.NewDevtronResourceDependencyBean().
 			WithDependentOnIndexes(dependentOnIndexArray...).
 			WithTypeOfDependency(typeOfDependency).
-			WithIndex(index)
+			WithIndex(index).
+			WithDevtronResourceSchemaId(schemaId).
+			WithOldObjectId(oldObjectId)
 
 		devtronResourceIdResult := gjson.Get(dependency, bean.DevtronResourceIdKey)
 		devtronResourceId := int(devtronResourceIdResult.Int())
 		dependencyBean = dependencyBean.WithDevtronResourceId(devtronResourceId)
-
-		schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
-		schemaId := int(schemaIdResult.Int())
-		dependencyBean = dependencyBean.WithDevtronResourceSchemaId(schemaId)
-
-		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
-		oldObjectId := int(oldObjectIdResult.Int())
-		dependencyBean = dependencyBean.WithOldObjectId(oldObjectId)
 
 		idTypeResult := gjson.Get(dependency, bean.IdTypeKey)
 		idType := bean.IdType(idTypeResult.String())

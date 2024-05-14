@@ -118,7 +118,7 @@ const (
 type DtReleaseTaskRunInfo struct {
 	Level          int                      `json:"level,omitempty"`
 	TaskRunAllowed *bool                    `json:"taskRunAllowed,omitempty"`
-	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies,omitempty"`
+	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies"`
 }
 
 func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {

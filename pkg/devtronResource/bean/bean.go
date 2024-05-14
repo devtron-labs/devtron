@@ -249,6 +249,13 @@ func (c *DependencyFilterCondition) GetFilterByDependentOnIndex() int {
 	return c.filterByDependentOnIndex
 }
 
+func (c *DependencyFilterCondition) GetFilterByFilterByIdAndSchemaId() []IdAndSchemaIdFilter {
+	if c == nil {
+		return nil
+	}
+	return c.filterByIdAndSchemaId
+}
+
 func (c *DependencyFilterCondition) GetChildInheritance() bool {
 	if c == nil {
 		return false
@@ -281,7 +288,7 @@ func (c *DependencyFilterCondition) WithChildInheritance() *DependencyFilterCond
 }
 
 func (c *DependencyFilterCondition) WithFilterByIdAndSchemaId(ids []int, schemaId int) *DependencyFilterCondition {
-	idAndSchemaIdFilters := make([]IdAndSchemaIdFilter, len(ids))
+	idAndSchemaIdFilters := make([]IdAndSchemaIdFilter, 0, len(ids))
 	for _, id := range ids {
 		idAndSchemaIdFilters = append(idAndSchemaIdFilters, IdAndSchemaIdFilter{Id: id, DevtronResourceSchemaId: schemaId})
 	}
@@ -665,6 +672,10 @@ const (
 	Completed    RolloutStatus = "completed"
 )
 
+func (r RolloutStatus) ToString() string {
+	return string(r)
+}
+
 type ExistingStage struct {
 	Pre    bool `json:"pre"`
 	Deploy bool `json:"deploy"`
@@ -673,10 +684,12 @@ type ExistingStage struct {
 
 type TaskInfoPostApiBean struct {
 	*DevtronResourceObjectDescriptorBean
-	FilterCriteria        []string `json:"filterCriteria"`
-	AppIds                []int    `json:"-"` // Internal use
-	EnvIds                []int    `json:"-"` // Internal use
-	RequestWithoutFilters bool     `json:"-"` // Internal Use
+	FilterCriteria        []string                       `json:"filterCriteria"`
+	AppIds                []int                          `json:"-"` // Internal use
+	EnvIds                []int                          `json:"-"` // Internal use
+	DeploymentStatus      map[bean.WorkflowType][]string `json:"-"` // Internal use
+	RolloutStatus         []string                       `json:"-"` // Internal use
+	RequestWithoutFilters bool                           `json:"-"` // Internal Use
 }
 
 type FilterResource string
