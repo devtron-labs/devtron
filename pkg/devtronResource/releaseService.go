@@ -521,14 +521,21 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 	}
 	sourceReleaseConfig := gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceReleaseConfigPath).String()
 	sourceReleaseConfigObj := &bean.DtResourceObjectInternalDescriptorBean{}
-	err := json.Unmarshal([]byte(sourceReleaseConfig), sourceReleaseConfigObj)
-	if err != nil {
-		impl.logger.Errorw("error encountered in un-marshaling sourceReleaseConfig", "sourceReleaseConfig", sourceReleaseConfig, "err", err)
-		return err
+	if len(sourceReleaseConfig) != 0 {
+		err := json.Unmarshal([]byte(sourceReleaseConfig), sourceReleaseConfigObj)
+		if err != nil {
+			impl.logger.Errorw("error encountered in un-marshaling sourceReleaseConfig", "sourceReleaseConfig", sourceReleaseConfig, "err", err)
+			return err
+		}
+
+		obj, err := impl.getExistingDevtronObject(sourceReleaseConfigObj.Id, 0, sourceReleaseConfigObj.DevtronResourceSchemaId, sourceReleaseConfigObj.Identifier)
+		if err != nil {
+			impl.logger.Errorw("error encountered in updateReleaseDependencyConfigDataInObj", "sourceReleaseConfigObjId", sourceReleaseConfigObj.Id, "err", err)
+			return err
+		}
+		sourceReleaseConfigObj.ReleaseVersion = gjson.Get(obj.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
+		sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 	}
-	obj, err := impl.getExistingDevtronObject(sourceReleaseConfigObj.Id, 0, sourceReleaseConfigObj.DevtronResourceSchemaId, sourceReleaseConfigObj.Identifier)
-	sourceReleaseConfigObj.ReleaseVersion = gjson.Get(obj.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
-	sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 	if !isLite {
 		artifactId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigArtifactIdKey).Int())
 		sourceAppWfId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceAppWfIdPath).Int())
