@@ -520,15 +520,14 @@ func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMe
 	// Initialize mappings for containers
 	containersPodMapping := make(map[string][]*string) // Mapping from pod name to container names
 	initContainersPodMapping := make(map[string][]*string)
-	// Iterate over pod metadata from pods
+	// iterate over pod metadata extracted from pods' manifests
 	for _, podMetadataFromPod := range podsMetadataFromPods {
 		// If pod is not a duplicate
 		if _, ok := duplicatePodToReplicasetMapping[podMetadataFromPod.Name]; !ok {
-			// Append pod metadata to the final result
+			// if pod is not a duplicate append pod metadata to the final result
 			podMetaData = append(podMetaData, podMetadataFromPod)
 		} else {
-			// If pod is a duplicate, update mappings
-			// iterate over podMetadata that was made by replicaset manifest
+			// update init and sidecar container data into podsMetadataFromPods array's pods obj. if pod is a duplicate found in duplicatePodToReplicasetMapping,
 			for _, podMetadataFromReplicaSet := range podMetaData {
 				if podMetadataFromReplicaSet.Name == podMetadataFromPod.Name {
 					// Update containers mapping

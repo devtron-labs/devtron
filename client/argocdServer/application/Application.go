@@ -332,7 +332,9 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		}
 	}
 
-	// duplicatePodToReplicasetMapping can contain following data {Pod1: RS1, Pod2: RS1, Pod3: RS1}
+	//duplicatePodToReplicasetMapping can contain following data {Pod1: RS1, Pod2: RS1, Pod4: RS2, Pod5:RS2}, it contains pod
+	//to replica set mapping, where key is podName and value is its respective replicaset name, multiple keys(podName) can have
+	//single value (replicasetName)
 	duplicatePodToReplicasetMapping := make(map[string]string)
 	if len(newReplicaSets) > 0 {
 		results, duplicateMapping := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
