@@ -18,7 +18,7 @@ Devtron supports 5 levels of access:
 3. **Admin**: Users with `admin` privileges can create, edit, delete, and view permitted applications in permitted projects.
 4. **Manager**: Users with `manager` privileges can do everything that an `admin` user can do. Additionally, they can also give and revoke access of users for the applications and environments of which they are the manager.
 5. **Super Admin**: Users with `super admin` privileges have unrestricted access to all the Devtron resources. Super Admins can create, modify, delete and view any Devtron resource without any restriction; it's like Superman without the weakness of Kryptonite. Moreover, they can add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster, and environment.
-6. **Image approver**: Users with `Image approver` privileges have the authority to approve requests for image deployment. However, the user who built the image and/or requested approval cannot self-approve, even if they have approver or super-admin privileges.
+6. **Image approver**: Users with `Image approver` privileges have the authority to approve requests for image deployment.
 7. **Configuration approver**: Users with `Configuration approver` privileges have the authority to approve changes to protected configurations of Deployment Template, ConfigMaps, and Secrets. However, the user who proposed the changes cannot self-approve, even if they have configuration approver or super-admin privileges.
 8. **Artifact promoter**: Users with this privilege have the authority to approve promotion of [artifacts](../../reference/glossary.md#artifacts) directly to the target CD pipeline.
 

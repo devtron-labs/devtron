@@ -31,8 +31,8 @@ Using filter conditions, you can control the progression of events. Here are a f
     * **Filter Name**: Give a name to the filter.
     * **Description**: (Optional) Add a description to the filter, preferably explaining what it does.
     * **Filter Condition**: You can specify either a pass condition, fail condition, or both the conditions:
-        * **Pass Condition**: Events that satisfy the pass condition will appear in your CD pipeline.
-        * **Fail Condition**: Events that satisfy the fail condition will not appear in your CD pipeline.
+        * **Pass Condition**: Events that satisfy the pass condition are eligible to trigger in your CD pipeline.
+        * **Fail Condition**: Events that satisfy the fail condition are not eligible to trigger in your CD pipeline.
     * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions with the help of following variables:
         * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39. It returns a string value in the following format: `<registry>/<repository>:<tag>`
         * **containerRepository**: Storage location for container images, e.g., kicbase
