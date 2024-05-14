@@ -86,7 +86,7 @@ Moreover, you can use filters that allow you to quickly filter your workload as 
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to edit its manifest.
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to edit its manifest.
 {% endhint %}
 
 You can edit the [manifest](../reference/glossary.md#manifest) of a Kubernetes object. This can be for fixing errors, scaling resources, or changing configuration.
@@ -95,7 +95,7 @@ You can edit the [manifest](../reference/glossary.md#manifest) of a Kubernetes o
 
 ### View Events
 
-You can monitor activities like creation, deletion, updation, scaling, or errors in the resources involved.
+You can monitor activities like creation, deletion, updation, scaling, or errors in the resources involved. Refer [Events](https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/) to learn more.
 
 ![Figure 6: Viewing All Events](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/events.gif)
 
@@ -103,7 +103,7 @@ You can monitor activities like creation, deletion, updation, scaling, or errors
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to delete it.
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to delete it.
 {% endhint %}
 
 You can delete an unwanted resource if it is orphaned and no longer required by your applications.
@@ -118,7 +118,7 @@ You can see the list of nodes available in your cluster. Typically you have seve
 
 The components on a typical node include the `kubelet`, a `container runtime`, and the `kube-proxy`.
 
-If you have multiple nodes, you can search a node by name or label in the search bar. The search result will display the following information of the node. To display a parameter of a node, use `Columns` on the right side, select the parameter to display from the drop-down list, and click **Apply**.
+If you have multiple nodes, you can search a node by name or label in the search bar. The search result will display the following information about the node. To display a parameter of a node, use `Columns` on the right side, select the parameter to display from the drop-down list, and click **Apply**.
 
 ![Figure 8: Searching and Filtering Nodes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cluster-nodes.jpg)
 
@@ -176,7 +176,7 @@ You can debug a node via [Cluster Terminal](#cluster-terminal) by selecting your
 
 ### Cordon a Node
 
-Cordoning a node means making the node unschedulable. After cordoning a node, new pods cannot be scheduled on this node.
+Cordoning a node means making the node unschedulable. After [cordoning a node](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cordon/), new pods cannot be scheduled on this node.
 
 ![Figure 11a: Visual Representation - Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon-visual.jpg)
 
@@ -194,7 +194,7 @@ Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncor
 
 ### Drain a Node
 
-Before performing maintenance on a node, draining a node evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and honour the `PodDisruptionBudgets` you have specified (if relevant).
+Before performing maintenance on a node, [draining a node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and honour the `PodDisruptionBudgets` you have specified (if relevant).
 
 ![Figure 12a: Visual Representation - Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain-visual.jpg)
 
@@ -245,19 +245,19 @@ You can also add more taints using **+ Add taint button**, or delete the existin
 
 ### Edit a Node Config
 
-`Edit node config` allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
+This allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
 
 ![Figure 14: Editing Node Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-config.gif)
 
-* You can edit or modify the parameters or values of a node by clicking **Edit node config**.
-* Click **Review Changes** to compare the changes in the YAML file.
-* Click **Update Node**.
+* Go to the `YAML` tab and click **Edit YAML**.
+* Make the changes using the editor.
+* Click **Review & Save changes** to compare the changes in the YAML file.
+* Click **Apply changes** to confirm.
 
 
 ### Delete a Node
 
-* Search a node by name or label in the search bar.
-* On the node, click the ellipsis button and then click **Delete**.
+You can also delete a node by clicking the **Delete** button present on the right-hand side.
 
 ![Figure 15a: Deleting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete-node.jpg)
 
@@ -268,7 +268,6 @@ The node will be deleted from the cluster.
 {% hint style="info" %}
 You can also access [Cluster Terminal](#cluster-terminal) from your node.
 {% endhint %}
-
 
 ---
 
@@ -281,7 +280,7 @@ Users need to have [access to the cluster](./global-configurations/authorization
 
 ### Manifest
 
-Shows you the [configuration](../reference/glossary.md#manifest) of the selected pod and allows you to edit it. Refer [Edit Manifest](#edit-manifest) to know more.
+Shows you the [configuration](../reference/glossary.md#manifest) of the selected pod and allows you to edit it. Refer [Edit Manifest](#edit-manifest) to learn more.
 
 ### Events
 
@@ -297,10 +296,10 @@ Moreover, you can download the pod logs for ease of sharing and troubleshooting 
 
 #### Pod Last Restart Snapshot
 
-Frequent pod restarts can impact your application as it might lead to an unexpected downtime. In such cases, it is important to determine the root cause and take actions (both preventive and corrective) if needed.
+Frequent pod restarts can impact your application as it might lead to unexpected downtimes. In such cases, it is important to determine the root cause and take actions (both preventive and corrective) if needed.
 
 In case any of your pod restarts, you can view its details from the pod listing screen:
-* Last pod restart event, along with timestamp and message
+* Last pod restart event, along with the timestamp and message
 * Reason behind restart
 * Container log before restart
 * Node status and events  
@@ -311,7 +310,7 @@ In case any of your pod restarts, you can view its details from the pod listing 
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to be [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to access pod terminal.
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to access pod terminal.
 {% endhint %}
 
 You can access the terminal within a running container of a pod to view its logs, troubleshoot issues, or execute commands directly. This is different from the [cluster terminal](#cluster-terminal) you get at node level. 
@@ -381,11 +380,11 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal ic
 
 ### Use Case - Debugging Pods
 
-You can also create pod for debugging which will connect to pod terminal. To find out why a particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
+You can also create a pod for debugging which will connect to the pod terminal. To find out why a particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
 
-The **Auto select** option selects a node automatically from a list of nodes, and then creates a pod.
+The **Auto select** option automatically selects a node from a list of nodes and then creates a pod. Alternatively, you can choose a node of your choice from the same dropdown for debugging.
 
-The **Debug Mode** is helpful in scenarios where you can't access your Node by using an SSH connection. When enabled, a pod is created on the selected node, which opens an interactive shell on the Node.
+The **Debug Mode** is helpful in scenarios where you can't access your node by using an SSH connection. Enabling this feature opens an interactive shell directly on the node. This shell provides unrestricted access to the node, giving you enhanced debugging capabilities.
 
 * Check the current state of the pod and recent events with the following command:
 
@@ -411,7 +410,7 @@ A container can have no shells or multiple shells running in it. If you are unab
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to be [admin of the Kubernetes resources](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to create resources.
+User needs to be an [admin of the Kubernetes resources](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to create resources.
 {% endhint %}
 
 You can create one or more [Kubernetes objects](../reference/glossary.md#objects) in your cluster using YAML. In case you wish to create multiple objects, separate each resource definition by three dashes (---).
