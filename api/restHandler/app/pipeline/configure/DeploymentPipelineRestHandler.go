@@ -531,9 +531,9 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	var envMetrics bool
-	envConfigProperties, err, isEnvironmentOverridden, envMetrics, updateOverride := handler.propertiesConfigService.ProcessEnvConfigProperties(r.Context(), request, envMetrics, userId)
+	envConfigProperties, isEnvironmentOverridden, envMetrics, updateOverride, statusCode, err := handler.propertiesConfigService.ProcessEnvConfigProperties(r.Context(), request, envMetrics, userId)
 	if err != nil {
-		common.WriteJsonResp(w, err, request, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, request, statusCode)
 		return
 	}
 
