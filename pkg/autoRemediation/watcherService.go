@@ -870,6 +870,19 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 	}
 
 	watchersResponse := make([]*types.Watcher, 0, len(watchers))
+	var watcherIds []int
+	for _, watcher := range watchers {
+		watcherIds = append(watcherIds, watcher.Id)
+	}
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherIds(watcherIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting triggers ", "err", err)
+		return nil, err
+	}
+	watcherIdToTrigger := make(map[int][]*repository.AutoRemediationTrigger)
+	for _, trigger := range triggers {
+		watcherIdToTrigger[trigger.WatcherId] = append(watcherIdToTrigger[trigger.WatcherId], trigger)
+	}
 	for _, watcher := range watchers {
 		selectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
 		if err != nil {
@@ -887,6 +900,19 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			impl.logger.Errorw("error in unmarshalling gvk string ", "gvk", watcher.Gvks, "err", err)
 			continue
 		}
+		triggerConfigured := false
+		if len(watcherIdToTrigger[watcher.Id]) != 0 {
+			for _, trigger := range watcherIdToTrigger[watcher.Id] {
+				triggerData, err := getTriggerDataFromJson(trigger.Data)
+				if err != nil {
+					impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", watcher.Id, "err", err)
+					return nil, err
+				}
+				if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
+					triggerConfigured = true
+				}
+			}
+		}
 		watcherResp := &types.Watcher{
 			Id:                    watcher.Id,
 			Name:                  watcher.Name,
@@ -898,6 +924,7 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			SelectedActions: watcher.SelectedActions,
 			Selectors:       types2.GetNamespaceSelector(*selector),
 			ClusterId:       cluster.Id,
+			JobConfigured:   triggerConfigured,
 		}
 
 		watchersResponse = append(watchersResponse, watcherResp)
@@ -942,10 +969,23 @@ func (impl *WatcherServiceImpl) getImpactedClusterDetails(oldWatcherSelectors, n
 func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest *types2.WatcherDto, clusterMap map[string]*repository2.Cluster) error {
 
 	triggerConfigured := false
-	if len(watcherRequest.Triggers) > 0 {
-		triggerConfigured = true
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting triggers ", "err", err)
+		return err
 	}
-
+	if len(triggers) != 0 {
+		for _, trigger := range triggers {
+			triggerData, err := getTriggerDataFromJson(trigger.Data)
+			if err != nil {
+				impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", watcherRequest.Id, "err", err)
+				return err
+			}
+			if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
+				triggerConfigured = true
+			}
+		}
+	}
 	for clusterName, cluster := range clusterMap {
 
 		selector := types2.GetClusterSelector(clusterName, watcherRequest.EventConfiguration.Selectors)
