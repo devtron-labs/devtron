@@ -901,18 +901,13 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			continue
 		}
 		triggerConfigured := false
-		if len(watcherIdToTrigger[watcher.Id]) != 0 {
-			for _, trigger := range watcherIdToTrigger[watcher.Id] {
-				triggerData, err := getTriggerDataFromJson(trigger.Data)
-				if err != nil {
-					impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", watcher.Id, "err", err)
-					return nil, err
-				}
-				if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
-					triggerConfigured = true
-				}
-			}
+
+		triggerConfigured, err = impl.isTriggerConfigured(watcherIdToTrigger[watcher.Id])
+		if err != nil {
+			impl.logger.Errorw("error in checking configured trigger details", "err", err)
+			continue
 		}
+
 		watcherResp := &types.Watcher{
 			Id:                    watcher.Id,
 			Name:                  watcher.Name,
@@ -968,23 +963,15 @@ func (impl *WatcherServiceImpl) getImpactedClusterDetails(oldWatcherSelectors, n
 
 func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest *types2.WatcherDto, clusterMap map[string]*repository2.Cluster) error {
 
-	triggerConfigured := false
 	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting triggers ", "err", err)
 		return err
 	}
-	if len(triggers) != 0 {
-		for _, trigger := range triggers {
-			triggerData, err := getTriggerDataFromJson(trigger.Data)
-			if err != nil {
-				impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", watcherRequest.Id, "err", err)
-				return err
-			}
-			if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
-				triggerConfigured = true
-			}
-		}
+	triggerConfigured, err := impl.isTriggerConfigured(triggers)
+	if err != nil {
+		impl.logger.Errorw("error in checking configured trigger details", "err", err)
+		return err
 	}
 	for clusterName, cluster := range clusterMap {
 
@@ -1022,4 +1009,20 @@ func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest
 	}
 
 	return nil
+}
+
+func (impl *WatcherServiceImpl) isTriggerConfigured(triggers []*repository.AutoRemediationTrigger) (bool, error) {
+	if len(triggers) != 0 {
+		for _, trigger := range triggers {
+			triggerData, err := getTriggerDataFromJson(trigger.Data)
+			if err != nil {
+				impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", trigger.WatcherId, "err", err)
+				return false, err
+			}
+			if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
