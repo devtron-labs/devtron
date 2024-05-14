@@ -527,14 +527,15 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 			impl.logger.Errorw("error encountered in un-marshaling sourceReleaseConfig", "sourceReleaseConfig", sourceReleaseConfig, "err", err)
 			return err
 		}
-
-		obj, err := impl.getExistingDevtronObject(sourceReleaseConfigObj.Id, 0, sourceReleaseConfigObj.DevtronResourceSchemaId, sourceReleaseConfigObj.Identifier)
-		if err != nil {
-			impl.logger.Errorw("error encountered in updateReleaseDependencyConfigDataInObj", "sourceReleaseConfigObjId", sourceReleaseConfigObj.Id, "err", err)
-			return err
+		if sourceReleaseConfigObj.Id > 0 { //it might be possible that the id is not present as dependencies creation will save empty values
+			obj, err := impl.getExistingDevtronObject(sourceReleaseConfigObj.Id, 0, sourceReleaseConfigObj.DevtronResourceSchemaId, sourceReleaseConfigObj.Identifier)
+			if err != nil {
+				impl.logger.Errorw("error encountered in updateReleaseDependencyConfigDataInObj", "sourceReleaseConfigObjId", sourceReleaseConfigObj.Id, "err", err)
+				return err
+			}
+			sourceReleaseConfigObj.ReleaseVersion = gjson.Get(obj.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
+			sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 		}
-		sourceReleaseConfigObj.ReleaseVersion = gjson.Get(obj.ObjectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
-		sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 	}
 	if !isLite {
 		artifactId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigArtifactIdKey).Int())
