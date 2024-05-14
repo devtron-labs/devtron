@@ -292,8 +292,37 @@ func BuildRolloutStatusCount(ongoing, yetToTrigger, failed, completed int) *bean
 	}
 }
 
-func BuildTaskInfoCount(rolloutStatusCount *bean.RolloutStatusCount) *bean.TaskInfoCount {
+func BuildTaskInfoCount(rolloutStatusCount *bean.RolloutStatusCount, deploymentStatusCount *bean.DeploymentStatusCount) *bean.TaskInfoCount {
 	return &bean.TaskInfoCount{
-		RolloutStatusCount: rolloutStatusCount,
+		RolloutStatusCount:    rolloutStatusCount,
+		DeploymentStatusCount: deploymentStatusCount,
+	}
+}
+func BuildDeploymentStatusCount(preStatusCount *bean.PrePostStatusCount, deployCount *bean.DeploymentCount, postStatusCount *bean.PrePostStatusCount) *bean.DeploymentStatusCount {
+	return &bean.DeploymentStatusCount{
+		PreStatusCount:  preStatusCount,
+		DeploymentCount: deployCount,
+		PostStatusCount: postStatusCount,
+	}
+}
+
+func BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch int) *bean.DeploymentCount {
+	return &bean.DeploymentCount{
+		NotTriggered:  notTriggered,
+		Failed:        failed,
+		Succeeded:     succeeded,
+		TimedOut:      timedOut,
+		Queued:        queued,
+		InProgress:    inProgress,
+		UnableToFetch: unableToFetch,
+	}
+}
+
+func BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress int) *bean.PrePostStatusCount {
+	return &bean.PrePostStatusCount{
+		NotTriggered: notTriggered,
+		Failed:       failed,
+		Succeeded:    succeeded,
+		InProgress:   inProgress,
 	}
 }

@@ -1912,6 +1912,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		}
 		rolloutStatus := helper2.CalculateRolloutStatus(cdPipelineMinInfo)
 		//increasing count +1 for getting count of different rollout status
+		//TODO: need to check if this should be here
 		if _, ok := rolloutStatusVsCountMap[rolloutStatus]; ok {
 			rolloutStatusVsCountMap[rolloutStatus]++
 		} else {

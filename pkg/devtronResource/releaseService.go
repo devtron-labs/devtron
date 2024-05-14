@@ -1436,6 +1436,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 	var dependencyBean []*bean.CdPipelineReleaseInfo
 	var err error
 	var rollStatusCount *bean.RolloutStatusCount
+	var deploymentStatusCount *bean.DeploymentStatusCount
 	allApplicationDependencies := getAllApplicationDependenciesFromObjectData(existingResourceObject.ObjectData)
 	if len(allApplicationDependencies) != 0 {
 		var rolloutStatusVsCountMap map[bean.RolloutStatus]int
@@ -1446,6 +1447,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 		}
 
 		rollStatusCount = processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap)
+		deploymentStatusCount = processDeploymentStatusFromPipelineInfo(dependencyBean)
 		if req.RequestWithoutFilters {
 			err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
 			if err != nil {
@@ -1454,7 +1456,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStage(r
 			}
 		}
 	}
-	taskInfoCount := adapter.BuildTaskInfoCount(rollStatusCount)
+	taskInfoCount := adapter.BuildTaskInfoCount(rollStatusCount, deploymentStatusCount)
 	return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: []bean.DtReleaseTaskRunInfo{{Dependencies: dependencyBean}}}, nil
 }
 
@@ -1477,6 +1479,93 @@ func processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap map[bean.
 		ongoingCount = val
 	}
 	return adapter.BuildRolloutStatusCount(ongoingCount, yetToTriggerCount, failedCount, completedCount)
+}
+
+func processDeploymentStatusFromPipelineInfo(pipelinesInfo []*bean.CdPipelineReleaseInfo) *bean.DeploymentStatusCount {
+	preStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	deployStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	postStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	for _, pipeline := range pipelinesInfo {
+		preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
+		deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
+		postStatusVsCountMap[pipeline.PostStatus] = postStatusVsCountMap[pipeline.PostStatus] + 1
+	}
+	preStatusCount := processPreOrPostDeploymentVsCountMapForResponse(preStatusVsCountMap)
+	deployStatusCount := processDeploymentVsCountMapForResponse(deployStatusVsCountMap)
+	postStatusCount := processPreOrPostDeploymentVsCountMapForResponse(postStatusVsCountMap)
+	return adapter.BuildDeploymentStatusCount(preStatusCount, deployStatusCount, postStatusCount)
+}
+
+func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap map[string]int) *bean.PrePostStatusCount {
+	notTriggered := 0
+	failed := 0
+	inProgress := 0
+	succeeded := 0
+	if val, ok := preOrPostStatusVsCountMap[bean.NotTriggeredStatus]; ok {
+		notTriggered = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.FailedStatus]; ok {
+		failed = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.AbortedStatus]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.ProgressingStatus]; ok {
+		inProgress = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.StartingStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.RunningStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.SucceededStatus]; ok {
+		succeeded = val
+	}
+	return adapter.BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress)
+
+}
+
+func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]int) *bean.DeploymentCount {
+	notTriggered := 0
+	failed := 0
+	inProgress := 0
+	succeeded := 0
+	timedOut := 0
+	unableToFetch := 0
+	queued := 0
+	if val, ok := deployStatusVsCountMap[bean.NotTriggeredStatus]; ok {
+		notTriggered = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.FailedStatus]; ok {
+		failed = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.AbortedStatus]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.ProgressingStatus]; ok {
+		inProgress = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.InitiatingStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.RunningStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.SucceededStatus]; ok {
+		succeeded = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.TimedOutStatus]; ok {
+		timedOut = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.UnableToFetchStatus]; ok {
+		unableToFetch = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.QueuedStatus]; ok {
+		queued = val
+	}
+	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch)
+
 }
 
 // markRolloutStatusIfAllDependenciesGotSucceed get allApplicationDependencies if not provided.
