@@ -616,6 +616,44 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 	return environmentProperties, nil
 }
 
+// ProcessEnvConfigProperties processes the environment configuration properties based on the provided parameters.
+// Steps performed:
+// 1. Fetch the latest environment properties for the given `appId` and `envId`.
+// 2. Handle error if fetching environment properties fails.
+// 3. If environment properties are not found:
+//   - Set `isEnvironmentOverridden` to false.
+//   - If `allowEnvOverride` flag is not set in the request:
+//   - Log an error indicating that environment properties are not found and advise to set the `allowEnvOverride` flag to true.
+//   - Return nil, error, and flags indicating the absence of environment properties and updateOverride.
+//   - Otherwise, create an empty environment properties object.
+//
+// 4. If environment properties are found:
+//   - Check if the environment is overridden.
+//   - Handle error if `isOverride` is not true.
+//   - Check compatibility between old and new chart versions.
+//   - Patch environment overrides based on old and new chart types.
+//   - If the new chart type is rollout:
+//   - Check if Flagger canary is enabled; if so, log an error and return.
+//   - Fetch environment metrics for the given `appId` and `envId`.
+//   - Handle error if fetching environment metrics fails.
+//   - Set environment metrics in the environment properties.
+//   - Define scope for validation including `appId`, `envId`, and `clusterId`.
+//   - Validate deployment template with the provided environment override values, chart reference ID, and scope.
+//   - Handle error if validation fails.
+//
+// 5. Set `userId`, `chartRefId`, and `environmentId` in the environment properties.
+// 6. If environment is not overridden:
+//   - Set `isOverride` to true.
+//   - Fetch previous environment properties with the default chart reference ID.
+//   - If no error occurs and previous environment properties are found:
+//   - Set environment override values and activate the environment.
+//   - Set ID of the previous environment properties.
+//   - Otherwise, set `updateOverride` flag to false.
+//   - Fetch app override for the default template with the target chart reference ID.
+//   - Handle error if fetching app override fails.
+//   - Set environment override values to the app override.
+//
+// 7. Return the processed environment properties, nil error, and flags indicating environment status and update behavior.
 func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (*bean.EnvironmentProperties, error, bool, bool, bool) {
 	// Default values
 	isEnvironmentOverridden := true
