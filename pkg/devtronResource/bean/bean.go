@@ -681,30 +681,3 @@ type TaskInfoPostApiBean struct {
 	*DevtronResourceObjectDescriptorBean
 	FilterCriteria []string `json:"filterCriteria"`
 }
-
-type FilterResource string
-
-const (
-	DevtronApplicationFilter      FilterResource = "application/devtron-application"
-	EnvironmentFilter             FilterResource = "environment"
-	DeploymentStatusFilter        FilterResource = "deploymentStatus"
-	ReleaseDeploymentStatusFilter FilterResource = "rolloutStatus"
-)
-
-func (f FilterResource) ToString() string {
-	return string(f)
-}
-
-const (
-	FailedStatus        = "Failed"
-	NotTriggeredStatus  = "Not Triggered"
-	SucceededStatus     = "Succeeded"
-	StartingStatus      = "Starting"
-	RunningStatus       = "Running"
-	InitiatingStatus    = "Initiating"
-	ProgressingStatus   = "Progressing"
-	QueuedStatus        = "Queued"
-	AbortedStatus       = "Aborted"
-	TimedOutStatus      = "TimedOut"
-	UnableToFetchStatus = "UnableToFetch"
-)
