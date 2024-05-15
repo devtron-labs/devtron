@@ -28,6 +28,7 @@ import (
 	"golang.org/x/exp/slices"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -397,6 +398,10 @@ func (impl *DevtronResourceServiceImpl) buildIdentifierForReleaseResourceObj(obj
 
 func (impl *DevtronResourceServiceImpl) listRelease(resourceObjects, childObjects []*repository.DevtronResourceObject, resourceObjectIndexChildMap map[int][]int,
 	isLite bool) ([]*bean.DevtronResourceObjectGetAPIBean, error) {
+	//sorting release objects on basis of created time, need to be maintained from query after sort options introduction
+	sort.Slice(resourceObjects, func(i, j int) bool {
+		return resourceObjects[i].CreatedOn.After(resourceObjects[j].CreatedOn)
+	})
 	resp := make([]*bean.DevtronResourceObjectGetAPIBean, 0, len(resourceObjects))
 	for i := range resourceObjects {
 		resourceData := adapter.BuildDevtronResourceObjectGetAPIBean()
