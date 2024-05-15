@@ -1211,13 +1211,13 @@ components:
               type: object
               description: Rollout status counts.
               properties:
-                allDeployment:
+                allDeployments:
                   type: integer
                   description: Total number of deployments.
                 yetToTrigger:
                   type: integer
                   description: Deployments not yet triggered.
-                ongoing:
+                onGoing:
                   type: integer
                   description: Deployments in progress.
                 failed:

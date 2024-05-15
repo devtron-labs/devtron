@@ -6,6 +6,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
@@ -62,6 +63,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository3 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
@@ -232,8 +235,8 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 		cron.NewCronLoggerImpl,
 
 		timeoutWindow.NewTimeWindowServiceImpl,
@@ -249,6 +252,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
 
 		appStore.AppStoreWireSet,
+
 		security.NewImageScanServiceImplEA,
 		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
 
@@ -257,6 +261,12 @@ func InitializeApp() (*App, error) {
 
 		out.NewChartScanPublishServiceImplEA,
 		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
+
+		repository3.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(repository3.RemoteConnectionRepository), new(*repository3.RemoteConnectionRepositoryImpl)),
+
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

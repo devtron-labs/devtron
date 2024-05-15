@@ -271,15 +271,15 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
 			return nil, err
 		}
-		for _, cluster := range clusters {
+		for _, clusterItem := range clusters {
 			//if cluster is configured with proxy or with ssh tunnel then gitOps is not supported so skipping such clusters
-			if len(cluster.ProxyUrl) > 0 || cluster.ToConnectWithSSHTunnel {
+			if cluster.IsProxyOrSSHConfigured(&clusterItem) {
 				continue
 			}
-			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&clusterItem)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
-				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
+				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", clusterItem.ClusterName, "err", err)
 				return nil, err
 			}
 		}

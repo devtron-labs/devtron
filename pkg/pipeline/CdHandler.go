@@ -21,6 +21,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
@@ -172,9 +174,9 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 
-	var clusterBean cluster.ClusterBean
+	var clusterBean clusterBean.ClusterBean
 	if env != nil && env.Cluster != nil {
-		clusterBean = cluster.GetClusterBean(*env.Cluster)
+		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}
 	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
@@ -502,9 +504,9 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-	var clusterBean cluster.ClusterBean
+	var clusterBean clusterBean.ClusterBean
 	if env != nil && env.Cluster != nil {
-		clusterBean = cluster.GetClusterBean(*env.Cluster)
+		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}
 	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
