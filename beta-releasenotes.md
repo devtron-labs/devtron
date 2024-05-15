@@ -1,4 +1,5 @@
 ## Bugs
+- fix: dependabot version upgrade (#5089)
 - fix: containers are missing from app-details page in argocd app  (#4973)
 - fix:resolved PR review comments also remove check for virtual cluster (#5095)
 - fix:handled namespace case if deleted by kubectl (#5081)
