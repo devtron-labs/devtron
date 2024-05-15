@@ -127,16 +127,13 @@ func (impl InterceptedEventsRepositoryImpl) buildInterceptEventsListingQuery(int
 		Column("intercepted_event_execution.status").
 		Column("intercepted_event_execution.execution_message").
 		ColumnExpr("intercepted_event_execution.id as intercepted_event_id").
-		ColumnExpr("environment.environment_name as environment").
 		ColumnExpr("k8s_event_watcher.name as watcher_name").
 		ColumnExpr("auto_remediation_trigger.id as trigger_id").
 		ColumnExpr("auto_remediation_trigger.type as trigger_type").
 		ColumnExpr("auto_remediation_trigger.data as trigger_data").
 		ColumnExpr("COUNT(*) OVER() as total_count").
 		Join("INNER JOIN auto_remediation_trigger ON intercepted_event_execution.trigger_id = auto_remediation_trigger.id").
-		Join("INNER JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id").
-		Join("INNER JOIN environment ON environment.cluster_id = intercepted_event_execution.cluster_id").
-		Where("environment.cluster_id=intercepted_event_execution.cluster_id and environment.namespace = intercepted_event_execution.namespace")
+		Join("INNER JOIN k8s_event_watcher ON auto_remediation_trigger.watcher_id = k8s_event_watcher.id")
 
 	if !interceptedEventsQueryParams.From.IsZero() && !interceptedEventsQueryParams.To.IsZero() {
 		query = query.Where("intercepted_event_execution.intercepted_at BETWEEN ? AND ?", interceptedEventsQueryParams.From, interceptedEventsQueryParams.To)
