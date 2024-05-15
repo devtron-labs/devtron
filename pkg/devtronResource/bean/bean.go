@@ -300,7 +300,7 @@ type ArtifactConfig struct {
 	RegistryType        string                                  `json:"registryType"`
 	RegistryName        string                                  `json:"registryName"`
 	CommitSource        []GitCommitData                         `json:"commitSource,omitempty"`
-	SourceAppWorkflowId int                                     `json:"sourceAppWorkflowId,omitempty"`
+	SourceAppWorkflowId int                                     `json:"artifactSourceAppWorkflowId,omitempty"`
 	SourceReleaseConfig *DtResourceObjectInternalDescriptorBean `json:"sourceReleaseConfig,omitempty"`
 }
 

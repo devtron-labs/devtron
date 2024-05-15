@@ -159,7 +159,7 @@ const (
 	ReleaseResourceDependencyConfigArtifactIdKey         = "artifactConfig.artifactId"
 	ReleaseResourceDependencyConfigRegistryNameKey       = "artifactConfig.registryName"
 	ReleaseResourceDependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
-	ReleaseResourceArtifactSourceAppWfIdPath             = "artifactConfig.sourceAppWorkflowId"
+	ReleaseResourceArtifactSourceAppWfIdPath             = "artifactConfig.artifactSourceAppWorkflowId"
 	ReleaseResourceArtifactSourceReleaseConfigPath       = "artifactConfig.sourceReleaseConfig"
 	ReleaseResourceDependencyConfigCiWorkflowKey         = "ciWorkflowId"
 	ReleaseResourceDependencyConfigCommitSourceKey       = "commitSource"

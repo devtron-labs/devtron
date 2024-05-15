@@ -1419,28 +1419,31 @@ func (impl *DevtronResourceServiceImpl) getArtifactConfigFromQueryValueForPatch(
 	if err != nil {
 		return nil, err
 	}
-	_, schema, err := impl.getResourceAndSchemaFromResourceType(&bean.DevtronResourceTypeReq{
-		ResourceKind:    bean.DevtronResourceKind(artifactConfig.SourceReleaseConfig.Kind),
-		ResourceSubKind: bean.DevtronResourceKind(artifactConfig.SourceReleaseConfig.SubKind),
-		ResourceVersion: bean.DevtronResourceVersion(artifactConfig.SourceReleaseConfig.Version),
-	})
-	if err != nil {
-		impl.logger.Errorw("error in getArtifactConfigFromQueryValueForPatch", "err", err, "artifactConfig", artifactConfig)
-		return nil, err
-	}
-	artifactConfig.SourceReleaseConfig.Kind = ""
-	artifactConfig.SourceReleaseConfig.SubKind = ""
-	artifactConfig.SourceReleaseConfig.Version = ""
-	artifactConfig.SourceReleaseConfig.DevtronResourceSchemaId = schema.Id
-	if artifactConfig.SourceReleaseConfig.Id == 0 {
-		releaseObj, err := impl.getExistingDevtronObject(artifactConfig.SourceReleaseConfig.Id, 0, artifactConfig.SourceReleaseConfig.DevtronResourceSchemaId, artifactConfig.SourceReleaseConfig.Identifier)
+	sourceReleaseConfig := artifactConfig.SourceReleaseConfig
+	if sourceReleaseConfig != nil && (sourceReleaseConfig.Id != 0 || len(sourceReleaseConfig.Identifier) > 0) {
+		_, schema, err := impl.getResourceAndSchemaFromResourceType(&bean.DevtronResourceTypeReq{
+			ResourceKind:    bean.DevtronResourceKind(sourceReleaseConfig.Kind),
+			ResourceSubKind: bean.DevtronResourceKind(sourceReleaseConfig.SubKind),
+			ResourceVersion: bean.DevtronResourceVersion(sourceReleaseConfig.Version),
+		})
 		if err != nil {
-			impl.logger.Errorw("error in getExistingDevtronObject", "err", err)
+			impl.logger.Errorw("error in getArtifactConfigFromQueryValueForPatch", "err", err, "artifactConfig", artifactConfig)
 			return nil, err
 		}
-		artifactConfig.SourceReleaseConfig.Id = releaseObj.Id
-		artifactConfig.SourceReleaseConfig.IdType = bean.ResourceObjectIdType
-		artifactConfig.SourceReleaseConfig.Identifier = ""
+		sourceReleaseConfig.Kind = ""
+		sourceReleaseConfig.SubKind = ""
+		sourceReleaseConfig.Version = ""
+		sourceReleaseConfig.DevtronResourceSchemaId = schema.Id
+		if sourceReleaseConfig.Id == 0 {
+			releaseObj, err := impl.getExistingDevtronObject(sourceReleaseConfig.Id, 0, sourceReleaseConfig.DevtronResourceSchemaId, sourceReleaseConfig.Identifier)
+			if err != nil {
+				impl.logger.Errorw("error in getExistingDevtronObject", "err", err)
+				return nil, err
+			}
+			sourceReleaseConfig.Id = releaseObj.Id
+			sourceReleaseConfig.IdType = bean.ResourceObjectIdType
+			sourceReleaseConfig.Identifier = ""
+		}
 	}
 	return &artifactConfig, nil
 }
