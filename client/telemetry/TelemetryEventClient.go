@@ -7,6 +7,8 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -184,7 +185,7 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo,
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []clusterBean.ClusterBean, user []bean.UserInfo,
 	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
 	SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
 
@@ -244,26 +245,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 	for _, clusterDetail := range clusters {
 		req := &gRPC.AppListRequest{}
-		config := &gRPC.ClusterConfig{
-			ApiServerUrl:           clusterDetail.ServerUrl,
-			Token:                  clusterDetail.Config[k8s2.BearerToken],
-			ClusterId:              int32(clusterDetail.Id),
-			ClusterName:            clusterDetail.ClusterName,
-			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
-			ProxyUrl:               clusterDetail.ProxyUrl,
-			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
-		}
-		if clusterDetail.SSHTunnelConfig != nil {
-			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
-			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
-			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
-			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
-		}
-		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
-			config.CertData = clusterDetail.Config[k8s2.CertData]
-			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
-		}
+		config := service.ConvertClusterBeanToClusterConfig(&clusterDetail)
 		req.Clusters = append(req.Clusters, config)
 		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
 		if err == nil {

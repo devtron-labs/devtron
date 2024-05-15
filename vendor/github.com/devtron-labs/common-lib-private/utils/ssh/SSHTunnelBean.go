@@ -1,4 +1,4 @@
-package k8s
+package ssh
 
 const (
 	StartingDynamicPort    = 49152
