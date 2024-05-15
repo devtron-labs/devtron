@@ -1864,8 +1864,8 @@ func (impl CiCdPipelineOrchestratorImpl) GetPrePostDeployStatusForReleaseInfo(ap
 		impl.logger.Errorw("error in fetching cdPipeline", "appIds", appIds, "err", err)
 		return nil, err
 	}
-	cdWfRunners, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerWithPipelineIdByIds(cdWfrIds)
-	if err != nil && !util.IsErrNoRows(err) {
+	cdWfRunners, err := impl.cdWorkflowRepository.FindPartialWorkflowRunnerWithPipelineIdByIds(cdWfrIds)
+	if err != nil && !errors.Is(err, util.GetNotFoundError()) {
 		impl.logger.Errorw("error in fetching cdWfRunners", "cdWfrIds", cdWfrIds, "err", err)
 		return nil, err
 	}

@@ -55,7 +55,7 @@ type CdWorkflowRepository interface {
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerByIdsAndStatusesIfPresent(wfrIds []int, statuses map[bean.WorkflowType][]string) ([]*CdWorkflowRunner, error)
-	FindBasicWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
+	FindPartialWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
@@ -668,9 +668,10 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByIdsAndStatusesIfPresen
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindBasicWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error) {
+// FindPartialWorkflowRunnerWithPipelineIdByIds find basic details for cd workflow runner like status, id and workflow_type with pipeline id
+func (impl *CdWorkflowRepositoryImpl) FindPartialWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error) {
 	if len(wfrIds) == 0 {
-		return nil, pg.ErrNoRows
+		return nil, util.GetNotFoundError()
 	}
 	var wfr []*CdWorkflowRunner
 	err := impl.dbConnection.
