@@ -54,7 +54,7 @@ type CdWorkflowRepository interface {
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
-	FindWorkflowRunnerStatusAndPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
+	FindBasicWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
@@ -638,7 +638,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByIds(wfrIds []int) ([]*
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerStatusAndPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindBasicWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error) {
 	if len(wfrIds) == 0 {
 		return nil, pg.ErrNoRows
 	}

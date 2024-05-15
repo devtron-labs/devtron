@@ -1915,6 +1915,8 @@ func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.DevtronResource
 //     2. LevelIndex
 //   - Equal To 0 : fetch all level data.
 //   - Greater Than 1 : fetch the specified level data.
+//     3. showAll
+//   - default false , if set to true fetch all dependencies data without stage/level for eg rollout Status
 func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) (*bean.DeploymentTaskInfoResponse, error) {
 	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
 	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
