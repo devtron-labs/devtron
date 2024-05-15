@@ -741,7 +741,18 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 			List:   []types2.InterceptedEventsDto{},
 		}, nil
 	}
-
+	clusterIdNamespaceEnv := make(map[int]map[string]string)
+	var namespaceClusterIdPair []*repository2.ClusterNamespacePair
+	for _, interceptedEvent := range interceptedEventData {
+		namespaceClusterIdPair = append(namespaceClusterIdPair, &repository2.ClusterNamespacePair{
+			ClusterId:     interceptedEvent.ClusterId,
+			NamespaceName: interceptedEvent.Namespace,
+		})
+	}
+	environments, err := impl.environmentRepository.FindByClusterIdAndNamespace(namespaceClusterIdPair)
+	for _, environment := range environments {
+		clusterIdNamespaceEnv[environment.ClusterId][environment.Namespace] = environment.Name
+	}
 	clusterIds := util.Map(interceptedEventData, func(event *types2.InterceptedEventData) int {
 		return event.ClusterId
 	})
@@ -752,7 +763,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 		return &types2.InterceptedResponse{}, err
 	}
 
-	interceptedEvents, triggerExecutionIds, err := populateInterceptedEventsAndFetchExecutionIds(interceptedEventData, clusterIdToClusterNameMap)
+	interceptedEvents, triggerExecutionIds, err := populateInterceptedEventsAndFetchExecutionIds(interceptedEventData, clusterIdToClusterNameMap, clusterIdNamespaceEnv)
 	if err != nil {
 		impl.logger.Errorw("error in populating intercepted events and fetching execution ids ", "err", err)
 		return nil, err
@@ -771,7 +782,7 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 	return &interceptedResponse, nil
 }
 
-func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types2.InterceptedEventData, clusterIdToClusterName map[int]string) ([]types2.InterceptedEventsDto, []int, error) {
+func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types2.InterceptedEventData, clusterIdToClusterName map[int]string, clusterIdNamespaceEnv map[int]map[string]string) ([]types2.InterceptedEventsDto, []int, error) {
 	var interceptedEvents []types2.InterceptedEventsDto
 	var triggerExecutionIds []int
 	for _, event := range interceptedEventData {
@@ -783,10 +794,10 @@ func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types
 			ClusterName:        clusterIdToClusterName[event.ClusterId],
 			ClusterId:          event.ClusterId,
 			Namespace:          event.Namespace,
-			EnvironmentName:    event.Environment,
+			EnvironmentName:    clusterIdNamespaceEnv[event.ClusterId][event.Namespace],
 			WatcherName:        event.WatcherName,
 			InterceptedTime:    (event.InterceptedAt).String(),
-			ExecutionStatus:    types2.Status(event.Status),
+			ExecutionStatus:    event.Status,
 			TriggerId:          event.TriggerId,
 			TriggerExecutionId: event.TriggerExecutionId,
 			ExecutionMessage:   event.ExecutionMessage,
@@ -797,7 +808,7 @@ func populateInterceptedEventsAndFetchExecutionIds(interceptedEventData []*types
 		}
 		interceptedEvent.Trigger = types2.Trigger{
 			Id:             event.TriggerId,
-			IdentifierType: types2.TriggerType(event.TriggerType),
+			IdentifierType: event.TriggerType,
 			Data:           triggerData,
 		}
 		if interceptedEvent.Trigger.IdentifierType == types2.DEVTRON_JOB {
