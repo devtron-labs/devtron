@@ -13,7 +13,7 @@ func GetApiErrorAdapter(httpStatusCode int, code, userMessage, internalMessage s
 func GetNotFoundError() *ApiError {
 	return &ApiError{
 		HttpStatusCode:  http.StatusNotFound,
-		Code:            "400",
+		Code:            "404",
 		UserMessage:     "Not Found",
 		InternalMessage: "Not Found",
 	}
