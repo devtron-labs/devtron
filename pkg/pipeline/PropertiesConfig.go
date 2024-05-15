@@ -60,7 +60,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
-	ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (*bean.EnvironmentProperties, bool, bool, bool, int, error)
+	ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (bean.ProcessEnvConfigPropertiesBean, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                              *zap.SugaredLogger

@@ -531,9 +531,9 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	var envMetrics bool
-	envConfigProperties, isEnvironmentOverridden, envMetrics, updateOverride, statusCode, err := handler.propertiesConfigService.ProcessEnvConfigProperties(r.Context(), request, envMetrics, userId)
+	EnvConfigPropertiesBean, err := handler.propertiesConfigService.ProcessEnvConfigProperties(r.Context(), request, envMetrics, userId)
 	if err != nil {
-		common.WriteJsonResp(w, err, request, statusCode)
+		common.WriteJsonResp(w, err, request, EnvConfigPropertiesBean.StatusCode)
 		return
 	}
 
@@ -550,17 +550,17 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 
-	if updateOverride {
-		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId)
+	if EnvConfigPropertiesBean.UpdateOverride {
+		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, EnvConfigPropertiesBean.EnvConfigProperties, userId)
 		if err != nil {
-			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", EnvConfigPropertiesBean.EnvConfigProperties)
 			common.WriteJsonResp(w, err, createResp, http.StatusInternalServerError)
 			return
 		}
 		common.WriteJsonResp(w, err, createResp, http.StatusOK)
 		return
 	}
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, EnvConfigPropertiesBean.EnvConfigProperties)
 
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -582,7 +582,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 			}
 			ctx = context.WithValue(r.Context(), "token", acdToken)
 			appMetrics := false
-			if envConfigProperties.AppMetrics != nil && isEnvironmentOverridden {
+			if EnvConfigPropertiesBean.EnvConfigProperties.AppMetrics != nil && EnvConfigPropertiesBean.IsEnvironmentOverridden {
 				appMetrics = envMetrics
 			}
 			templateRequest := chart.TemplateRequest{
@@ -599,7 +599,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 				common.WriteJsonResp(w, err, "could not create chart from env override", http.StatusInternalServerError)
 				return
 			}
-			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, envConfigProperties)
+			createResp, err = handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, EnvConfigPropertiesBean.EnvConfigProperties)
 			if err != nil {
 				handler.Logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "payload", request)
 				common.WriteJsonResp(w, err, "could not create env properties", http.StatusInternalServerError)
