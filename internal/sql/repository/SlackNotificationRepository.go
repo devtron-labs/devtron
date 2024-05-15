@@ -29,7 +29,7 @@ type SlackNotificationRepository interface {
 	FindAll() ([]SlackConfig, error)
 	FindByIdsIn(ids []int) ([]*SlackConfig, error)
 	FindByTeamIdOrOwnerId(ownerId int32, teamIds []int) ([]SlackConfig, error)
-	FindLikeByName(value string) ([]SlackConfig, error)
+	FindNameByRegex(value string) ([]SlackConfig, error)
 	FindByIds(ids []*int) ([]*SlackConfig, error)
 	MarkSlackConfigDeleted(slackConfig *SlackConfig) error
 	FindOneByName(value string) (*SlackConfig, error)
@@ -100,7 +100,7 @@ func (impl *SlackNotificationRepositoryImpl) SaveSlackConfig(slackConfig *SlackC
 	return slackConfig, impl.dbConnection.Insert(slackConfig)
 }
 
-func (impl *SlackNotificationRepositoryImpl) FindLikeByName(value string) ([]SlackConfig, error) {
+func (impl *SlackNotificationRepositoryImpl) FindNameByRegex(value string) ([]SlackConfig, error) {
 	var slackConfigs []SlackConfig
 	err := impl.dbConnection.Model(&slackConfigs).Where(`config_name like ?`, "%"+value+"%").
 		Where("deleted = ?", false).Select()
