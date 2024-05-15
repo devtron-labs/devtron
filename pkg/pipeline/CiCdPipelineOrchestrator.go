@@ -28,6 +28,7 @@ import (
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"golang.org/x/exp/slices"
+	"net/http"
 	"path"
 	"regexp"
 	"strconv"
@@ -816,7 +817,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 		// Rollback tx on error.
 		defer tx.Rollback()
-
 		ciPipelineObject := &pipelineConfig.CiPipeline{
 			AppId:                    createRequest.AppId,
 			IsManual:                 ciPipeline.IsManual,
@@ -2087,7 +2087,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 }
 
 func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error) {
-
+	for _, ciPipeline := range createRequest.CiPipelines {
+		if !ciPipeline.PipelineType.IsValidPipelineType() {
+			impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", ciPipeline.PipelineType)
+			errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, ciPipeline.PipelineType)
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+		}
+	}
 	if createRequest.AppWorkflowId == 0 {
 		// create workflow
 		wf := &appWorkflow.AppWorkflow{
