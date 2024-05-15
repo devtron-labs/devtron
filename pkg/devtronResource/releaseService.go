@@ -1187,12 +1187,12 @@ func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(
 func (impl *DevtronResourceServiceImpl) getOnlyStatusReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, error) {
 	appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(releaseRunSourceIdentifier, dependencies)
 	if err != nil {
-		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
+		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "releaseRunSourceIdentifier", releaseRunSourceIdentifier, "err", err)
 		return nil, err
 	}
 	pipelinesInfo, err := impl.ciCdPipelineOrchestrator.GetPrePostDeployStatusForReleaseInfo(appIds, cdWfrIds)
 	if err != nil {
-		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
+		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
 		return nil, err
 	}
 	return pipelinesInfo, nil
@@ -1557,7 +1557,7 @@ func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.Tas
 			continue
 		}
 		if len(req.RolloutStatus) != 0 && !slices.Contains(req.RolloutStatus, info.RolloutStatus.ToString()) {
-			//continue in case RolloutStatus filters len is greater than 0 and does not contain RolloutStatus.
+			//continue in case ReleaseDeploymentStatus filters len is greater than 0 and does not contain ReleaseDeploymentStatus.
 			continue
 		}
 		//pre
@@ -1598,7 +1598,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDependenciesFromObjectData(objec
 	return GetDependenciesBeanFromObjectData(objectData, levelFilterCondition)
 }
 
-func processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap map[bean.RolloutStatus]int) *bean.RolloutStatusCount {
+func processRolloutStatusVsCountMapForResponse(rolloutStatusVsCountMap map[bean.ReleaseDeploymentStatus]int) *bean.RolloutStatusCount {
 	completedCount := 0
 	yetToTriggerCount := 0
 	failedCount := 0
@@ -1623,7 +1623,7 @@ func getDeploymentAndRolloutStatusCountFromPipelineInfo(pipelinesInfo []*bean.Cd
 	preStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
 	deployStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
 	postStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
-	rolloutStatusVsCountMap := make(map[bean.RolloutStatus]int, len(pipelinesInfo))
+	rolloutStatusVsCountMap := make(map[bean.ReleaseDeploymentStatus]int, len(pipelinesInfo))
 	for _, pipeline := range pipelinesInfo {
 		preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
 		deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1

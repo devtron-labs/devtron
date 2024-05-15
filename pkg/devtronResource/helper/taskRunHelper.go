@@ -58,7 +58,7 @@ func GetTaskRunIdentifier(id int, idType bean.IdType, resourceId, resourceSchema
 	return fmt.Sprintf("%d|%s|%d|%d", id, idType, resourceId, resourceSchemaId)
 }
 
-var StatusVsRolloutStatusMap = map[string]bean.RolloutStatus{
+var DeploymentStatusVsRolloutStatusMap = map[string]bean.ReleaseDeploymentStatus{
 	bean.StartingStatus:      bean.Ongoing,
 	bean.RunningStatus:       bean.Ongoing,
 	bean.InitiatingStatus:    bean.Ongoing,
@@ -72,16 +72,15 @@ var StatusVsRolloutStatusMap = map[string]bean.RolloutStatus{
 	bean.SucceededStatus:     bean.Completed,
 }
 
-func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.RolloutStatus {
-	finalRolloutStatus := make([]bean.RolloutStatus, 0, 3)
+func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.ReleaseDeploymentStatus {
+	finalRolloutStatus := make([]bean.ReleaseDeploymentStatus, 0, 3)
 	// appending deployment status first
-	finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.DeployStatus])
-	if releaseInfo.ExistingStages.Pre && releaseInfo.ExistingStages.Post {
-		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PreStatus], StatusVsRolloutStatusMap[releaseInfo.PostStatus])
-	} else if releaseInfo.ExistingStages.Pre {
-		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PreStatus])
-	} else if releaseInfo.ExistingStages.Post {
-		finalRolloutStatus = append(finalRolloutStatus, StatusVsRolloutStatusMap[releaseInfo.PostStatus])
+	finalRolloutStatus = append(finalRolloutStatus, DeploymentStatusVsRolloutStatusMap[releaseInfo.DeployStatus])
+	if releaseInfo.ExistingStages.Pre {
+		finalRolloutStatus = append(finalRolloutStatus, DeploymentStatusVsRolloutStatusMap[releaseInfo.PreStatus])
+	}
+	if releaseInfo.ExistingStages.Post {
+		finalRolloutStatus = append(finalRolloutStatus, DeploymentStatusVsRolloutStatusMap[releaseInfo.PostStatus])
 	}
 	if slices2.Contains(finalRolloutStatus, bean.Failed) {
 		return bean.Failed
@@ -95,7 +94,7 @@ func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.Rollou
 	return bean.Ongoing
 }
 
-func checkIfEveryElementIsGivenValue(slice []bean.RolloutStatus, value bean.RolloutStatus) bool {
+func checkIfEveryElementIsGivenValue(slice []bean.ReleaseDeploymentStatus, value bean.ReleaseDeploymentStatus) bool {
 	for _, v := range slice {
 		if v != value {
 			return false

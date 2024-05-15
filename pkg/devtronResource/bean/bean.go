@@ -647,32 +647,32 @@ const (
 )
 
 type CdPipelineReleaseInfo struct {
-	AppId                      int            `json:"appId"`
-	AppName                    string         `json:"appName"`
-	EnvId                      int            `json:"envId"`
-	EnvName                    string         `json:"envName"`
-	PipelineId                 int            `json:"pipelineId"`
-	DeploymentAppDeleteRequest bool           `json:"deploymentAppDeleteRequest"`
-	ExistingStages             *ExistingStage `json:"existingStages"`
-	DeployStatus               string         `json:"deployStatus"`
-	PreStatus                  string         `json:"preStatus"`
-	PostStatus                 string         `json:"postStatus"`
-	PreCdWorkflowRunnerId      int            `json:"preCdWorkflowRunnerId,omitempty"`
-	CdWorkflowRunnerId         int            `json:"cdWorkflowRunnerId,omitempty"`
-	PostCdWorkflowRunnerId     int            `json:"postCdWorkflowRunnerId,omitempty"`
-	RolloutStatus              RolloutStatus  `json:"rolloutStatus,omitempty"`
+	AppId                      int                     `json:"appId"`
+	AppName                    string                  `json:"appName"`
+	EnvId                      int                     `json:"envId"`
+	EnvName                    string                  `json:"envName"`
+	PipelineId                 int                     `json:"pipelineId"`
+	DeploymentAppDeleteRequest bool                    `json:"deploymentAppDeleteRequest"`
+	ExistingStages             *ExistingStage          `json:"existingStages"`
+	DeployStatus               string                  `json:"deployStatus"`
+	PreStatus                  string                  `json:"preStatus"`
+	PostStatus                 string                  `json:"postStatus"`
+	PreCdWorkflowRunnerId      int                     `json:"preCdWorkflowRunnerId,omitempty"`
+	CdWorkflowRunnerId         int                     `json:"cdWorkflowRunnerId,omitempty"`
+	PostCdWorkflowRunnerId     int                     `json:"postCdWorkflowRunnerId,omitempty"`
+	RolloutStatus              ReleaseDeploymentStatus `json:"rolloutStatus,omitempty"`
 }
 
-type RolloutStatus string
+type ReleaseDeploymentStatus string
 
 const (
-	YetToTrigger RolloutStatus = "yetToTrigger"
-	Ongoing      RolloutStatus = "onGoing"
-	Failed       RolloutStatus = "failed"
-	Completed    RolloutStatus = "completed"
+	YetToTrigger ReleaseDeploymentStatus = "yetToTrigger"
+	Ongoing      ReleaseDeploymentStatus = "onGoing"
+	Failed       ReleaseDeploymentStatus = "failed"
+	Completed    ReleaseDeploymentStatus = "completed"
 )
 
-func (r RolloutStatus) ToString() string {
+func (r ReleaseDeploymentStatus) ToString() string {
 	return string(r)
 }
 
@@ -695,10 +695,10 @@ type TaskInfoPostApiBean struct {
 type FilterResource string
 
 const (
-	DevtronApplicationFilter FilterResource = "application/devtron-application"
-	EnvironmentFilter        FilterResource = "environment"
-	DeploymentStatusFilter   FilterResource = "deploymentStatus"
-	RolloutStatusFilter      FilterResource = "rolloutStatus"
+	DevtronApplicationFilter      FilterResource = "application/devtron-application"
+	EnvironmentFilter             FilterResource = "environment"
+	DeploymentStatusFilter        FilterResource = "deploymentStatus"
+	ReleaseDeploymentStatusFilter FilterResource = "rolloutStatus"
 )
 
 func (f FilterResource) ToString() string {

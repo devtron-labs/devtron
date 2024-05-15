@@ -336,7 +336,7 @@ func GetDependenciesBeanFromObjectData(objectData string, filterCondition *bean.
 
 		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
 		oldObjectId := int(oldObjectIdResult.Int())
-
+		// if filter condition has filter by id and schema and filter condition does not contains current dependency continue with next ones.
 		if len(filterCondition.GetFilterByFilterByIdAndSchemaId()) > 0 && !slices.Contains(filterCondition.GetFilterByFilterByIdAndSchemaId(), bean.IdAndSchemaIdFilter{Id: oldObjectId, DevtronResourceSchemaId: schemaId}) {
 			continue
 		}
