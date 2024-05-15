@@ -136,7 +136,7 @@ type CiArtifactRepository interface {
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByImageAndDigestAndPipelineId(ctx context.Context, image string, imageDigest string, ciPipelineId int) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
-	GetByIdsLimit(ids []int, limit, offset int) ([]CiArtifact, int, error)
+	GetByIdsAndArtifactTag(ids []int, searchArtifactTag string, limit, offset int) ([]CiArtifact, int, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
@@ -839,7 +839,7 @@ func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) 
 	return artifact, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetByIdsLimit(ids []int, limit, offset int) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) GetByIdsAndArtifactTag(ids []int, searchArtifactTag string, limit, offset int) ([]CiArtifact, int, error) {
 	if len(ids) == 0 {
 		return nil, 0, pg.ErrNoRows
 	}
@@ -847,6 +847,9 @@ func (impl CiArtifactRepositoryImpl) GetByIdsLimit(ids []int, limit, offset int)
 	query := impl.dbConnection.Model(&artifacts).
 		Column("ci_artifact.*").
 		Where("ci_artifact.id in (?) ", pg.In(ids))
+	if len(searchArtifactTag) > 0 {
+		query = query.Where("ci_artifact.image LIKE ?", fmt.Sprint("%:%", searchArtifactTag, "%"))
+	}
 	totalCount, err := query.Count()
 	if err != nil {
 		return nil, 0, err

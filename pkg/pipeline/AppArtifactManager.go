@@ -58,8 +58,9 @@ type AppArtifactManager interface {
 	// RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 	// RetrieveArtifactsForAppWorkflows - List all the artifacts available for the given combination of bean.WorkflowComponentsBean
+	// and filtered by workflow component filter map (map of "componentType-componentId" and appWorkflowId, ex - {"CIPIPELINE-8": 8})
 	// returns - bean2.CiArtifactResponse and error
-	RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error)
+	RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean, workflowComponentFilterMap map[string]int) (bean2.CiArtifactResponse, error)
 
 	RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
@@ -750,20 +751,31 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean,
+	workflowComponentFilterMap map[string]int) (bean2.CiArtifactResponse, error) {
 	var artifactEntities []repository.CiArtifact
 	var totalCount int
 	var err error
 	if workflowComponents.Limit == 0 {
 		workflowComponents.Limit = 20
 	}
-	if len(workflowComponents.ArtifactIds) > 0 {
-		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetByIdsLimit(workflowComponents.ArtifactIds, workflowComponents.Limit, workflowComponents.Offset)
+	if len(workflowComponents.SearchImageTag) != 0 {
+		artifactEntity, err := impl.ciArtifactRepository.GetArtifactByImageTagAndAppId(workflowComponents.SearchImageTag, workflowComponents.AppId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching artifacts by ids", "err", err, "artifactIds", workflowComponents.ArtifactIds)
+			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
 			return bean2.CiArtifactResponse{}, err
 		}
-	} else if len(workflowComponents.SearchImageTag) == 0 {
+		if artifactEntity.Id != 0 {
+			artifactEntities = []repository.CiArtifact{artifactEntity}
+			totalCount = 1
+		}
+	} else if len(workflowComponents.ArtifactIds) > 0 {
+		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetByIdsAndArtifactTag(workflowComponents.ArtifactIds, workflowComponents.SearchArtifactTag, workflowComponents.Limit, workflowComponents.Offset)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts by ids and artifact tag", "err", err, "artifactIds", workflowComponents.ArtifactIds)
+			return bean2.CiArtifactResponse{}, err
+		}
+	} else { //get by wf components
 		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
 			workflowComponents.CiPipelineIds,
 			workflowComponents.ExternalCiPipelineIds,
@@ -776,48 +788,25 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
 			return bean2.CiArtifactResponse{}, err
 		}
-	} else {
-		artifactEntity, err := impl.ciArtifactRepository.GetArtifactByImageTagAndAppId(workflowComponents.SearchImageTag, workflowComponents.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
-			return bean2.CiArtifactResponse{}, err
+	}
+	filteredArtifactBeans := make([]bean2.CiArtifactBean, 0, len(artifactEntities))
+	for i := range artifactEntities {
+		artifactEntity := artifactEntities[i]
+		keyForFilterCheck := ""
+		if artifactEntity.PipelineId > 0 {
+			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.CIPIPELINE, artifactEntity.PipelineId)
+		} else if artifactEntity.ExternalCiPipelineId > 0 {
+			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.WEBHOOK, artifactEntity.ExternalCiPipelineId)
+		} else if artifactEntity.DataSource == repository.PRE_CD || artifactEntity.DataSource == repository.POST_CD {
+			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.CDPIPELINE, artifactEntity.ComponentId)
 		}
-		if artifactEntity.Id != 0 {
-			artifactEntities = []repository.CiArtifact{artifactEntity}
-			totalCount = 1
+		if appWorkflowId, ok := workflowComponentFilterMap[keyForFilterCheck]; ok { //if present in filter map then add to response beans
+			filteredArtifactBeans = append(filteredArtifactBeans, bean2.ConvertArtifactEntityToBean(artifactEntity, appWorkflowId))
 		}
 	}
 	artifactResponse := bean2.CiArtifactResponse{
-		CiArtifacts: bean2.ConvertArtifactEntityToModel(artifactEntities),
+		CiArtifacts: filteredArtifactBeans,
 		TotalCount:  totalCount,
-	}
-
-	//getting parentCiPipelineIds for all artifacts
-	workflowComponentTypeIdsMap := make(map[string][]int)
-	for _, artifactEntity := range artifactEntities {
-		if artifactEntity.PipelineId > 0 {
-			workflowComponentTypeIdsMap[appWorkflow.CIPIPELINE] = append(workflowComponentTypeIdsMap[appWorkflow.CIPIPELINE], artifactEntity.PipelineId)
-		} else if artifactEntity.ExternalCiPipelineId > 0 {
-			workflowComponentTypeIdsMap[appWorkflow.WEBHOOK] = append(workflowComponentTypeIdsMap[appWorkflow.WEBHOOK], artifactEntity.ExternalCiPipelineId)
-		} else if artifactEntity.DataSource == repository.PRE_CD || artifactEntity.DataSource == repository.POST_CD {
-			workflowComponentTypeIdsMap[appWorkflow.CDPIPELINE] = append(workflowComponentTypeIdsMap[appWorkflow.CDPIPELINE], artifactEntity.ComponentId)
-		}
-	}
-	workflowMappings, err := impl.appWorkflowRepository.FindByComponentTypeAndIds(workflowComponentTypeIdsMap)
-	if err != nil {
-		impl.logger.Errorw("error in getting workflowMappings by componentType and componentIds", "err", err, "workflowComponentTypeIdsMap", workflowComponentTypeIdsMap)
-		return bean2.CiArtifactResponse{}, err
-	}
-	uniqueWorkflowIds := make(map[int]bool)
-	for _, wfMapping := range workflowMappings {
-		uniqueWorkflowIds[wfMapping.AppWorkflowId] = true
-	}
-	if len(uniqueWorkflowIds) != 1 { //currently this method should send artifacts belonging to one app workflow, change if needed in future
-		return bean2.CiArtifactResponse{}, fmt.Errorf("cannot group artifacts of different workflows together")
-	} else {
-		for workflowId := range uniqueWorkflowIds {
-			artifactResponse.AppWorkflowId = workflowId
-		}
 	}
 	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(workflowComponents.CdPipelineIds)
 	if err != nil {

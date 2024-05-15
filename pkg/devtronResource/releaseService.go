@@ -8,6 +8,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
@@ -626,103 +627,109 @@ func (impl *DevtronResourceServiceImpl) getFilterKeysFromDependenciesInfo(depend
 	return dependencyFilterKeys, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(dependency *bean.DevtronResourceDependencyBean,
+func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(dependency *bean.DevtronResourceDependencyBean, toFetchArtifactData bool,
 	mapOfArtifactIdAndReleases map[int][]*bean.DtResourceObjectOverviewDescriptorBean, appWorkflowId int, searchArtifactTag,
-	searchImageTag string, artifactIds []int, limit, offset int, userId int32) (bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
+	searchImageTag string, artifactIdsForReleaseTrackFilter []int, limit, offset int, userId int32) (bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse], error) {
 	artifactResponse := bean.DependencyConfigOptions[*serviceBean.CiArtifactResponse]{
 		Id:              dependency.OldObjectId,
 		Identifier:      dependency.Identifier,
 		ResourceKind:    dependency.ResourceKind,
 		ResourceVersion: dependency.ResourceVersion,
 	}
-	var appWorkflowIds []int
-	if appWorkflowId > 0 {
-		appWorkflowIds = append(appWorkflowIds, appWorkflowId)
-	}
-	workflowComponentsMap, err := impl.appWorkflowDataReadService.FindWorkflowComponentsToAppIdMapping(dependency.OldObjectId, appWorkflowIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting workflowComponentsMap", "err", err,
-			"appId", dependency.OldObjectId, "appWorkflowId", appWorkflowId)
-		return artifactResponse, err
-	}
-	if workflowComponentsMap == nil || len(workflowComponentsMap) == 0 {
-		return artifactResponse, nil
-	}
-	var ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int
-	for _, workflowComponents := range workflowComponentsMap {
-		if workflowComponents.CiPipelineId != 0 {
-			ciPipelineIds = append(ciPipelineIds, workflowComponents.CiPipelineId)
+	if toFetchArtifactData {
+		var appWorkflowIds []int
+		if appWorkflowId > 0 {
+			appWorkflowIds = append(appWorkflowIds, appWorkflowId)
 		}
-		if workflowComponents.ExternalCiPipelineId != 0 {
-			externalCiPipelineIds = append(externalCiPipelineIds, workflowComponents.ExternalCiPipelineId)
+		workflowComponentsMap, err := impl.appWorkflowDataReadService.FindWorkflowComponentsToAppIdMapping(dependency.OldObjectId, appWorkflowIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting workflowComponentsMap", "err", err,
+				"appId", dependency.OldObjectId, "appWorkflowId", appWorkflowId)
+			return artifactResponse, err
 		}
-		cdPipelineIds = append(cdPipelineIds, workflowComponents.CdPipelineIds...)
-	}
-	request := &bean3.WorkflowComponentsBean{
-		AppId:                 dependency.OldObjectId,
-		CiPipelineIds:         ciPipelineIds,
-		ExternalCiPipelineIds: externalCiPipelineIds,
-		CdPipelineIds:         cdPipelineIds,
-		SearchArtifactTag:     searchArtifactTag,
-		SearchImageTag:        searchImageTag,
-		ArtifactIds:           artifactIds,
-		Limit:                 limit,
-		Offset:                offset,
-		UserId:                userId,
-	}
-	data, err := impl.appArtifactManager.RetrieveArtifactsForAppWorkflows(request)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in getting artifact list for", "request", request, "err", err)
-		return artifactResponse, err
-	}
-	// Note: Overriding bean.CiArtifactResponse.TagsEditable as we are not supporting Image Tags edit from UI in V1
-	// TODO: to be removed when supported in UI
-	data.TagsEditable = false
-	if len(data.CiArtifacts) > 0 {
-		for i := range data.CiArtifacts {
-			ciArtifact := data.CiArtifacts[i]
-			if releases, ok := mapOfArtifactIdAndReleases[ciArtifact.Id]; ok {
-				ciArtifact.ConfiguredInReleases = releases
+		if workflowComponentsMap == nil || len(workflowComponentsMap) == 0 {
+			//no workflow components, not looking for artifact further
+			return artifactResponse, nil
+		}
+		workflowFilterMap := make(map[string]int) //map of "componentType-componentId" and appWorkflowId
+		var ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int
+		for appWfId, workflowComponents := range workflowComponentsMap {
+			if workflowComponents.CiPipelineId != 0 {
+				ciPipelineIds = append(ciPipelineIds, workflowComponents.CiPipelineId)
+				workflowFilterMap[fmt.Sprintf("%s-%d", appWorkflow.CIPIPELINE, workflowComponents.CiPipelineId)] = appWfId
 			}
-			data.CiArtifacts[i] = ciArtifact
+			if workflowComponents.ExternalCiPipelineId != 0 {
+				externalCiPipelineIds = append(externalCiPipelineIds, workflowComponents.ExternalCiPipelineId)
+				workflowFilterMap[fmt.Sprintf("%s-%d", appWorkflow.WEBHOOK, workflowComponents.ExternalCiPipelineId)] = appWfId
+			}
+			for _, cdPipelineId := range workflowComponents.CdPipelineIds {
+				workflowFilterMap[fmt.Sprintf("%s-%d", appWorkflow.CDPIPELINE, cdPipelineId)] = appWfId
+				cdPipelineIds = append(cdPipelineIds, cdPipelineId)
+			}
 		}
-		artifactResponse.Data = &data
+		request := &bean3.WorkflowComponentsBean{
+			AppId:                 dependency.OldObjectId,
+			CiPipelineIds:         ciPipelineIds,
+			ExternalCiPipelineIds: externalCiPipelineIds,
+			CdPipelineIds:         cdPipelineIds,
+			SearchArtifactTag:     searchArtifactTag,
+			SearchImageTag:        searchImageTag,
+			ArtifactIds:           artifactIdsForReleaseTrackFilter,
+			Limit:                 limit,
+			Offset:                offset,
+			UserId:                userId,
+		}
+		data, err := impl.appArtifactManager.RetrieveArtifactsForAppWorkflows(request, workflowFilterMap)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in getting artifact list for", "request", request, "err", err)
+			return artifactResponse, err
+		}
+		// Note: Overriding bean.CiArtifactResponse.TagsEditable as we are not supporting Image Tags edit from UI in V1
+		// TODO: to be removed when supported in UI
+		data.TagsEditable = false
+		if len(data.CiArtifacts) > 0 {
+			for i := range data.CiArtifacts {
+				ciArtifact := data.CiArtifacts[i]
+				if releases, ok := mapOfArtifactIdAndReleases[ciArtifact.Id]; ok {
+					ciArtifact.ConfiguredInReleases = releases
+				}
+				data.CiArtifacts[i] = ciArtifact
+			}
+			artifactResponse.Data = &data
+		}
 	}
 	return artifactResponse, nil
 }
 
-func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowFilter, releaseTrackFilter *bean.FilterCriteriaDecoder, err error) {
+func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowId int, releaseTrackFilter *bean.FilterCriteriaDecoder, err error) {
 	for _, filterCriteria := range query.FilterCriteria {
 		criteriaDecoder, err := helper.DecodeFilterCriteriaString(filterCriteria)
 		if err != nil {
-			return nil, nil, err
+			return appWorkflowId, nil, err
 		}
 		switch criteriaDecoder.Resource {
 		case bean.DevtronResourceAppWorkflow:
 			if criteriaDecoder.Type != bean.IdQueryString {
-				return nil, nil, fmt.Errorf("invalid filterCriteria: AppWorkflow")
+				return appWorkflowId, nil, fmt.Errorf("invalid filterCriteria: AppWorkflow")
 			}
-			appWorkflowId, err := strconv.Atoi(criteriaDecoder.Value)
+			appWorkflowId, err = strconv.Atoi(criteriaDecoder.Value)
 			if err != nil {
-				return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+				return appWorkflowId, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
 			}
-			criteriaDecoder.ValueInt = appWorkflowId
-			appWorkflowFilter = criteriaDecoder
 		case bean.DevtronResourceReleaseTrack:
 			if criteriaDecoder.Type == bean.IdQueryString {
 				releaseTrackId, err := strconv.Atoi(criteriaDecoder.Value)
 				if err != nil {
-					return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+					return appWorkflowId, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
 				}
 				criteriaDecoder.ValueInt = releaseTrackId
 			}
 			releaseTrackFilter = criteriaDecoder
-
 		default:
-			return nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+			return appWorkflowId, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
 		}
 	}
-	return appWorkflowFilter, releaseTrackFilter, nil
+	return appWorkflowId, releaseTrackFilter, nil
 }
 
 func getReleaseConfigOptionsSearchKeyData(query *apiBean.GetConfigOptionsQueryParams) (searchArtifactTag, searchImageTag string, err error) {
@@ -750,13 +757,14 @@ func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObjec
 	if err != nil {
 		return nil, err
 	}
-	appWorkflowFilter, releaseTrackFilter, err := getReleaseConfigOptionsFilterCriteriaData(query)
+	appWorkflowId, releaseTrackFilter, err := getReleaseConfigOptionsFilterCriteriaData(query)
 	if err != nil {
 		impl.logger.Errorw("error encountered in decodeFilterCriteriaForConfigOptions", "filterCriteria", query.FilterCriteria, "err", bean.InvalidFilterCriteria)
 		return nil, err
 	}
+	toFetchArtifactData := true
 	mapOfArtifactIdAndReleases := make(map[int][]*bean.DtResourceObjectOverviewDescriptorBean)
-	var artifactIds []int
+	var artifactIdsForReleaseTrackFilter []int
 	if releaseTrackFilter != nil {
 		//this filter enables user to get configured images in releases of this release track where same workflow is present
 		releaseTrackDescriptorBean := &bean.DevtronResourceObjectDescriptorBean{
@@ -784,16 +792,20 @@ func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObjec
 					impl.logger.Errorw("error, getDependenciesInObjectDataFromJsonString", "err", err, "objectData", release.ObjectData)
 					return nil, err
 				}
+				overviewDescBean := impl.getReleaseOverviewDescriptorBeanFromObject(release)
 				for _, dependency := range dependencies {
-					artifactConfig := dependency.Config.ArtifactConfig
-					if artifactConfig.SourceAppWorkflowId == appWorkflowFilter.ValueInt {
-						overviewDescBean := impl.getReleaseOverviewDescriptorBeanFromObject(release)
-						mapOfArtifactIdAndReleases[artifactConfig.ArtifactId] = append(mapOfArtifactIdAndReleases[artifactConfig.ArtifactId], overviewDescBean)
-						artifactIds = append(artifactIds, artifactConfig.ArtifactId)
+					artifactId := 0
+					if dependency.Config != nil && dependency.Config.ArtifactConfig != nil {
+						artifactId = dependency.Config.ArtifactConfig.ArtifactId
+					}
+					if artifactId > 0 { //just appending all selected artifacts and app workflow filter will be added later as old artifacts configured do not have appWorkflowId saved with them
+						mapOfArtifactIdAndReleases[artifactId] = append(mapOfArtifactIdAndReleases[artifactId], overviewDescBean)
+						artifactIdsForReleaseTrackFilter = append(artifactIdsForReleaseTrackFilter, artifactId)
 					}
 				}
 			}
 		}
+		toFetchArtifactData = len(artifactIdsForReleaseTrackFilter) != 0
 	}
 	var searchArtifactTag, searchImageTag string
 	if len(query.SearchKey) > 0 {
@@ -804,8 +816,8 @@ func (impl *DevtronResourceServiceImpl) updateReleaseArtifactListInResponseObjec
 		}
 	}
 	for _, dependency := range dependenciesWithMetaData {
-		artifactResponse, err := impl.getArtifactResponseForDependency(dependency, mapOfArtifactIdAndReleases, appWorkflowFilter.ValueInt, searchArtifactTag,
-			searchImageTag, artifactIds, query.Limit, query.Offset, reqBean.UserId)
+		artifactResponse, err := impl.getArtifactResponseForDependency(dependency, toFetchArtifactData, mapOfArtifactIdAndReleases, appWorkflowId, searchArtifactTag,
+			searchImageTag, artifactIdsForReleaseTrackFilter, query.Limit, query.Offset, reqBean.UserId)
 		if err != nil {
 			return nil, err
 		}

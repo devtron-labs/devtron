@@ -160,7 +160,7 @@ const (
 	ReleaseResourceDependencyConfigRegistryNameKey       = "artifactConfig.registryName"
 	ReleaseResourceDependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
 	ReleaseResourceArtifactSourceAppWfIdPath             = "artifactConfig.artifactSourceAppWorkflowId"
-	ReleaseResourceArtifactSourceReleaseConfigPath       = "artifactConfig.sourceReleaseConfig"
+	ReleaseResourceArtifactSourceReleaseConfigPath       = "artifactConfig.sourceReleaseConfiguration"
 	ReleaseResourceDependencyConfigCiWorkflowKey         = "ciWorkflowId"
 	ReleaseResourceDependencyConfigCommitSourceKey       = "commitSource"
 	ReleaseResourceDependencyConfigReleaseInstructionKey = "releaseInstruction"
