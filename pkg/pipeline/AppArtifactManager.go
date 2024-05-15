@@ -769,21 +769,11 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 			artifactEntities = []repository.CiArtifact{artifactEntity}
 			totalCount = 1
 		}
-	} else if len(workflowComponents.ArtifactIds) > 0 {
-		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetByIdsAndArtifactTag(workflowComponents.ArtifactIds, workflowComponents.SearchArtifactTag, workflowComponents.Limit, workflowComponents.Offset)
-		if err != nil {
-			impl.logger.Errorw("error in fetching artifacts by ids and artifact tag", "err", err, "artifactIds", workflowComponents.ArtifactIds)
-			return bean2.CiArtifactResponse{}, err
-		}
 	} else { //get by wf components
 		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
-			workflowComponents.CiPipelineIds,
-			workflowComponents.ExternalCiPipelineIds,
-			workflowComponents.CdPipelineIds,
-			workflowComponents.SearchArtifactTag,
-			workflowComponents.Offset,
-			workflowComponents.Limit,
-		)
+			workflowComponents.ArtifactIds, workflowComponents.CiPipelineIds,
+			workflowComponents.ExternalCiPipelineIds, workflowComponents.CdPipelineIds,
+			workflowComponents.SearchArtifactTag, workflowComponents.Offset, workflowComponents.Limit)
 		if err != nil {
 			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
 			return bean2.CiArtifactResponse{}, err
