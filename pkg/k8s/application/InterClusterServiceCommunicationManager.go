@@ -120,6 +120,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) handleErrorBeforeRespon
 		Message: "An error occurred. Please try again.",
 		Reason:  "Internal Server Error",
 	}
+	impl.logger.Errorw("Error in connecting proxy server", "Error", err)
 	w.WriteHeader(http.StatusForbidden)
 	_ = json.NewEncoder(w).Encode(errorResponse)
 }
