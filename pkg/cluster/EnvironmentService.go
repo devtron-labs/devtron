@@ -847,7 +847,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 		return err
 	}
 
-	impl.informScoop(existingEnv.Namespace, existingEnv.Default, types.UPDATE, existingEnv.ClusterId)
+	impl.informScoop(existingEnv.Namespace, existingEnv.Default, types.DELETE, existingEnv.ClusterId)
 	err = tx.Commit()
 	if err != nil {
 		return err

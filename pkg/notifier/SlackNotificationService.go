@@ -207,7 +207,7 @@ func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *re
 func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
 	var results []*NotificationRecipientListingResponse
 
-	slackConfigs, err := impl.slackRepository.FindLikeByName(value)
+	slackConfigs, err := impl.slackRepository.FindNameByRegex(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err
@@ -219,7 +219,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 			Dest:      util2.Slack}
 		results = append(results, result)
 	}
-	webhookConfigs, err := impl.webhookRepository.FindLikeByName(value)
+	webhookConfigs, err := impl.webhookRepository.FindNameByRegex(value)
 
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all webhook config", "err", err)
