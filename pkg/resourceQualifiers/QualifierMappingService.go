@@ -3,8 +3,8 @@ package resourceQualifiers
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -272,10 +272,10 @@ func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceTyp
 type QualifierMappingServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	qualifierMappingRepository          QualifiersMappingRepository
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService
 }
 
-func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
+func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
 	return &QualifierMappingServiceImpl{
 		logger:                              logger,
 		qualifierMappingRepository:          qualifierMappingRepository,

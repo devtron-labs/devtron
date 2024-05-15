@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/mock"
@@ -45,44 +45,44 @@ type ClusterServiceImplMock struct {
 //	panic("implement me")
 //}
 
-func (impl ClusterServiceImplMock) Save(parent context.Context, bean *cluster2.ClusterBean, userId int32) (*cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) Save(parent context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) FindOne(clusterName string) (*cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) FindOne(clusterName string) (*bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) FindOneActive(clusterName string) (*cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) FindOneActive(clusterName string) (*bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) FindAll() ([]*cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) FindAll() ([]*bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) FindAllActive() ([]cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) FindAllActive() ([]bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) DeleteFromDb(bean *cluster2.ClusterBean, userId int32) error {
-	panic("implement me")
-}
-
-func (impl ClusterServiceImplMock) FindById(id int) (*cluster2.ClusterBean, error) {
-	panic("implement me")
-}
-func (impl ClusterServiceImplMock) FindByIds(id []int) ([]cluster2.ClusterBean, error) {
-	panic("implement me")
-}
-func (impl ClusterServiceImplMock) Update(ctx context.Context, bean *cluster2.ClusterBean, userId int32) (*cluster2.ClusterBean, error) {
-	panic("implement me")
-}
-func (impl ClusterServiceImplMock) Delete(bean *cluster2.ClusterBean, userId int32) error {
+func (impl ClusterServiceImplMock) DeleteFromDb(bean *bean.ClusterBean, userId int32) error {
 	panic("implement me")
 }
 
-func (impl ClusterServiceImplMock) FindAllForAutoComplete() ([]cluster2.ClusterBean, error) {
+func (impl ClusterServiceImplMock) FindById(id int) (*bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) CreateGrafanaDataSource(clusterBean *cluster2.ClusterBean, env *repository.Environment) (int, error) {
+func (impl ClusterServiceImplMock) FindByIds(id []int) ([]bean.ClusterBean, error) {
 	panic("implement me")
 }
-func (impl ClusterServiceImplMock) GetClusterConfig(cluster *cluster2.ClusterBean) (*k8s.ClusterConfig, error) {
+func (impl ClusterServiceImplMock) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
+	panic("implement me")
+}
+func (impl ClusterServiceImplMock) Delete(bean *bean.ClusterBean, userId int32) error {
+	panic("implement me")
+}
+
+func (impl ClusterServiceImplMock) FindAllForAutoComplete() ([]bean.ClusterBean, error) {
+	panic("implement me")
+}
+func (impl ClusterServiceImplMock) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
+	panic("implement me")
+}
+func (impl ClusterServiceImplMock) GetClusterConfig(cluster *bean.ClusterBean) (*k8s.ClusterConfig, error) {
 	panic("implement me")
 }

@@ -261,7 +261,7 @@ func (impl *ChartScanEventProcessorImpl) getDockerImages(manifestRequest openapi
 		return nil, nil, err
 	}
 	images := k8sObjectsUtil.ExtractImageFromManifestYaml(resp.GetManifest())
-	return images, resp, nil
+	return images, resp, err
 }
 
 func (impl *ChartScanEventProcessorImpl) sendForScan(historyId int, image string, chartBytes []byte, valuesYaml string, isHelmApp bool) {

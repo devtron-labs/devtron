@@ -26,6 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -96,6 +98,8 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	remoteConnectionService       remoteConnection.RemoteConnectionService
+	dockerRegistryConfig          *DockerRegistryConfigImpl
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -115,6 +119,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	remoteConnectionService remoteConnection.RemoteConnectionService,
+	dockerRegistryConfig *DockerRegistryConfigImpl,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -136,6 +142,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		remoteConnectionService:       remoteConnectionService,
+		dockerRegistryConfig:          dockerRegistryConfig,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -753,11 +761,18 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	if dockerRegistry != nil {
+		var registryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean
+		registryConnectionConfig, err = impl.dockerRegistryConfig.GetRemoteConnectionConfigByDockerId(dockerRegistry.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
+			return nil, err
+		}
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
 		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRegistryConnectionConfig = registryConnectionConfig
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username

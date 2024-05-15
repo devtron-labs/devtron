@@ -127,6 +127,9 @@ type CiArtifactRepository interface {
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
+	GetAllArtifactsForWfComponents(ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
+		searchArtifactTag string, offset, limit int) ([]CiArtifact, int, error)
+	GetArtifactByImageTagAndAppId(imageTag string, appId int) (CiArtifact, error)
 	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
@@ -681,6 +684,72 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 	return artifacts, err
 }
 
+func (impl CiArtifactRepositoryImpl) GetAllArtifactsForWfComponents(ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
+	searchArtifactTag string, offset, limit int) ([]CiArtifact, int, error) {
+	var artifacts []CiArtifact
+	query := impl.dbConnection.Model(&artifacts).Column("ci_artifact.*")
+	query = query.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+		if len(ciPipelineIds) > 0 {
+			query = query.Where("ci_artifact.pipeline_id IN (?)", pg.In(ciPipelineIds))
+		} else if len(externalCiPipelineIds) > 0 {
+			query = query.Where("ci_artifact.external_ci_pipeline_id IN (?)", pg.In(externalCiPipelineIds))
+		}
+		if len(cdPipelineIds) > 0 {
+			query = query.
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					query = query.
+						Where("ci_artifact.component_id in (?)", pg.In(cdPipelineIds)).
+						WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+							query = query.
+								WhereOr("ci_artifact.data_source = ?", PRE_CD).
+								WhereOr("ci_artifact.data_source = ?", POST_CD)
+							return query, nil
+						})
+					return query, nil
+				}).
+				WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
+					subQuery := impl.dbConnection.
+						Model().
+						Table("cd_workflow").
+						ColumnExpr("DISTINCT cd_workflow.ci_artifact_id").
+						Where("cd_workflow.pipeline_id IN (?)", pg.In(cdPipelineIds))
+					query = query.
+						Where("ci_artifact.id in (?)", subQuery)
+					return query, nil
+				})
+		}
+		return query, nil
+	})
+	if len(searchArtifactTag) > 0 {
+		query = query.Where("ci_artifact.image LIKE ?", fmt.Sprint("%:%", searchArtifactTag, "%"))
+	}
+	totalQuery, err := query.Count()
+	if err != nil {
+		return nil, 0, err
+	}
+	err = query.
+		Order("ci_artifact.id DESC").
+		Offset(offset).
+		Limit(limit).
+		Select()
+
+	return artifacts, totalQuery, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactByImageTagAndAppId(imageTag string, appId int) (CiArtifact, error) {
+	var artifact CiArtifact
+	err := impl.dbConnection.Model(&artifact).
+		Column("ci_artifact.*").
+		Join("INNER JOIN release_tags rt").
+		JoinOn("rt.artifact_id = ci_artifact.id").
+		Where("rt.app_id IN (?)", appId).
+		Where("rt.tag_name = ?", imageTag).
+		Order("ci_artifact.id DESC").
+		Limit(1).
+		Select()
+	return artifact, err
+}
+
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error) {
 	var artifacts []CiArtifact
 	if len(ciPipelineIds) == 0 {
@@ -758,6 +827,9 @@ func (impl CiArtifactRepositoryImpl) GetByImageAndDigestAndPipelineId(ctx contex
 }
 
 func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) {
+	if len(ids) == 0 {
+		return nil, pg.ErrNoRows
+	}
 	var artifact []*CiArtifact
 	err := impl.dbConnection.Model(&artifact).
 		Column("ci_artifact.*").

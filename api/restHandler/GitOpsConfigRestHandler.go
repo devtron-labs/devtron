@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/api/util"
 	"net/http"
 	"strconv"
 
@@ -93,7 +94,7 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, createGitOpsConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, util.CustomizeValidationError(err), nil, http.StatusBadRequest)
 		return
 	}
 	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
@@ -141,7 +142,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, updateGitOpsConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, util.CustomizeValidationError(err), nil, http.StatusBadRequest)
 		return
 	}
 	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)

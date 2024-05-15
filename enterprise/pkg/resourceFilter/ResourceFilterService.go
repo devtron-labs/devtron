@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -46,7 +46,7 @@ type ResourceFilterServiceImpl struct {
 	clusterRepository                    clusterRepository.ClusterRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	ceLEvaluatorService                  CELEvaluatorService
-	devtronResourceSearchableKeyService  devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService  read.DevtronResourceSearchableKeyService
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService
 	filterAuditRepo                      FilterAuditRepository
 }
@@ -60,7 +60,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
 	ceLEvaluatorService CELEvaluatorService,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService,
 	filterAuditRepo FilterAuditRepository,
 ) *ResourceFilterServiceImpl {
