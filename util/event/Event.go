@@ -50,6 +50,7 @@ const (
 	SMTP    Channel = "smtp"
 	Webhook Channel = "webhook"
 )
+const PANIC = "panic"
 
 type UpdateType string
 
