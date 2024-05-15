@@ -12,6 +12,8 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/go-pg/pg"
 	client2 "github.com/devtron-labs/scoop/client"
 	types2 "github.com/devtron-labs/scoop/types"
@@ -109,7 +111,7 @@ type K8sApplicationService interface {
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
 	StartProxyServer(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error)
-	GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*cluster.ClusterBean, error)
+	GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*bean.ClusterBean, error)
 	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
@@ -1695,7 +1697,7 @@ func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clu
 	return proxyHandler, err
 }
 
-func (impl *K8sApplicationServiceImpl) GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*cluster.ClusterBean, error) {
+func (impl *K8sApplicationServiceImpl) GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*bean.ClusterBean, error) {
 	clusterID, err := impl.getClusterIDFromIdentifier(request)
 	if err != nil {
 		impl.logger.Errorw("Error getting clusterId from identifier", "Error:", err)
@@ -1706,7 +1708,7 @@ func (impl *K8sApplicationServiceImpl) GetClusterForK8sProxy(request *bean3.K8sP
 		impl.logger.Errorw("Error finding cluster from clusterId.", "clusterId", clusterID)
 		return nil, err
 	}
-	clusterBean := cluster.GetClusterBean(*clusterFound)
+	clusterBean := adapter.GetClusterBean(*clusterFound)
 	return &clusterBean, nil
 }
 
