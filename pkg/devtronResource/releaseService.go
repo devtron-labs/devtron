@@ -1169,13 +1169,13 @@ func (impl *DevtronResourceServiceImpl) getExecutedCdWfrIdsFromTaskRun(releaseRu
 }
 
 // getReleaseDeploymentInfoForDependencies gets every data point for dependencies in CdPipelineReleaseInfo object
-func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, error) {
+func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean, envIds []int, statuses map[bean3.WorkflowType][]string) ([]*bean.CdPipelineReleaseInfo, error) {
 	appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(releaseRunSourceIdentifier, dependencies)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
 		return nil, err
 	}
-	pipelinesInfo, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds)
+	pipelinesInfo, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds, envIds, statuses)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
 		return nil, err
@@ -1297,7 +1297,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 		} else {
 			dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 			if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index], nil, nil)
 				if err != nil {
 					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 					return nil, err
@@ -1483,7 +1483,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(
 		}
 		dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 		if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-			dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+			dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index], req.EnvIds, req.DeploymentStatus)
 			if err != nil {
 				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 				return nil, err
@@ -1512,7 +1512,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStageWi
 	applicationDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, applicationFilterCondition)
 
 	if len(applicationDependencies) != 0 {
-		dependencyBean, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, applicationDependencies)
+		dependencyBean, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, applicationDependencies, req.EnvIds, req.DeploymentStatus)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
