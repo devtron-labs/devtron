@@ -506,7 +506,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfoWithFilters(w http.
 	// struct tags validation
 	err = handler.validator.Struct(req)
 	if err != nil {
-		handler.logger.Errorw("validation err, GetTaskRunRolloutStatusInfo", "err", err, "payload", reqBean)
+		handler.logger.Errorw("validation err, GetTaskRunInfoWithFilters", "err", err, "payload", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -523,7 +523,7 @@ func (handler *DevtronResourceRestHandlerImpl) GetTaskRunInfoWithFilters(w http.
 	req.DevtronResourceObjectDescriptorBean = reqBean
 	resp, err := handler.devtronResourceService.GetTaskRunInfoWithFilters(&req, queryParams)
 	if err != nil {
-		handler.logger.Errorw("service error, GetTaskRunInfo", "err", err, "request", reqBean)
+		handler.logger.Errorw("service error, GetTaskRunInfoWithFilters", "err", err, "request", reqBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
