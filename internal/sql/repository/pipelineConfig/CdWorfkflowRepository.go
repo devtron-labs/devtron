@@ -641,7 +641,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByIds(wfrIds []int) ([]*
 
 func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByIdsAndStatusesIfPresent(wfrIds []int, statuses map[bean.WorkflowType][]string) ([]*CdWorkflowRunner, error) {
 	if len(wfrIds) == 0 {
-		return nil, pg.ErrNoRows
+		return nil, util.GetNotFoundError()
 	}
 	var wfr []*CdWorkflowRunner
 	query := impl.dbConnection.
