@@ -37,10 +37,10 @@ fi
 
 #funciton to verify the auth
 verify(){
-    echo "Verifying token..."
     local response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/devtron/auth/verify")
     echo $response
 }
+
 verify_response=$(verify)
 
 #extract the status code of the verify api
@@ -56,7 +56,6 @@ elif [[ -z "$verify_status" ]]; then
 fi
 
 fetch_app_id() {
-    echo "Fetching app..."
     # Check if DevtronApp is numeric, if yes, use it directly as App ID
     if [[ "$DevtronApp" =~ ^[0-9]+$ ]]; then
         echo "$DevtronApp"
@@ -72,6 +71,7 @@ fetch_app_id() {
 }
 
 # Fetch the app ID. Exit the script if the app name is incorrect.
+echo "Fetching app..."
 app_id=$(fetch_app_id)
 if [ $? -ne 0 ]; then
     echo "Error: either application \'$DevtronApp\' doesn\'t exist or token doesn\'t have required previleges. Exiting...."
@@ -82,7 +82,6 @@ fi
 
 
 fetch_env_id() {
-    echo "Fetching env..."
     # Check if DevtronEnv is numeric, if yes, use it directly as Env ID
     if [[ "$DevtronEnv" =~ ^[0-9]+$ ]]; then
         echo "$DevtronEnv"
@@ -99,6 +98,7 @@ fetch_env_id() {
 
 
 # Fetch the env ID. Exit the script if the environment name or ID is incorrect.
+echo "Fetching env..."
 env_id=$(fetch_env_id)
 if [ $? -ne 0 ]; then
     echo "Error: either environment \'$DevtronEnv\' doesn\'t exist or token doesn\'t have required previleges. Exiting...."
@@ -106,16 +106,15 @@ if [ $? -ne 0 ]; then
 fi
 
 app_detail_v2() {
-    echo "Fetching app details..."
     detail=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/detail/v2?app-id=$app_id&env-id=$env_id")
     echo "$detail"  # Add this line for debugging
 }
 
 #Fetch the deployement type 
+echo "Fetching app details..."
 Deployment_Type=$(app_detail_v2 | jq -r \'.result.deploymentAppType\')
 
 resource_tree() {
-    "Fetching resource data..."
     # fetch the details from the resource-tree api and save into the variables
     api_response=$(curl -s -H "token: $DevtronApiToken" "$DevtronEndpoint/orchestrator/app/detail/resource-tree?app-id=$app_id&env-id=$env_id")       
     echo "$api_response"
@@ -345,5 +344,38 @@ VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadat
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'PluginAction','STRING','Options: Hibernate/Unhibernate/Restart','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'StatusTimeOutSeconds','STRING','Enter the maximum time (in seconds) a user can wait for the application to deploy.Enter a postive integer value','t','t',0,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload v1.0.0' and ps."index"=1 and ps.deleted=false),'ExitIfInState','STRING','If set true, the plugin exits if the present state is same as action state. Default is false.','t','t',false,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
