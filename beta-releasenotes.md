@@ -22,6 +22,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat:validation for pipeline Type (#4670)
 - feat: migration update for remote connection config (#5113)
 - feat: propagate labels such as envName and projectName (#5063)
 - feat: added sql for release and release channels (#4898)
