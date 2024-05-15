@@ -74,7 +74,7 @@ fetch_app_id() {
 # Fetch the app ID. Exit the script if the app name is incorrect.
 app_id=$(fetch_app_id)
 if [ $? -ne 0 ]; then
-    echo "Error: either application \'$DevtronApp\' doesn't exist or token doesn't have required previleges. Exiting...."
+    echo "Error: either application \'$DevtronApp\' doesn\'t exist or token doesn\'t have required previleges. Exiting...."
     exit 1
 fi
 
@@ -101,7 +101,7 @@ fetch_env_id() {
 # Fetch the env ID. Exit the script if the environment name or ID is incorrect.
 env_id=$(fetch_env_id)
 if [ $? -ne 0 ]; then
-    echo "Error: either environment \'$DevtronEnv\' doesn't exist or token doesn't have required previleges. Exiting...."
+    echo "Error: either environment \'$DevtronEnv\' doesn\'t exist or token doesn\'t have required previleges. Exiting...."
     exit 1
 fi
 
