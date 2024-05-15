@@ -172,3 +172,8 @@ func NewFilterConditionInternalBean() *FilterConditionInternalBean {
 	return &FilterConditionInternalBean{}
 
 }
+
+type IdAndSchemaIdFilter struct {
+	Id                      int
+	DevtronResourceSchemaId int
+}

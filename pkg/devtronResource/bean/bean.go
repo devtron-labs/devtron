@@ -223,11 +223,6 @@ type DependencyFilterCondition struct {
 	fetchChildInheritance    bool
 }
 
-type IdAndSchemaIdFilter struct {
-	Id                      int
-	DevtronResourceSchemaId int
-}
-
 func (c *DependencyFilterCondition) GetFilterByTypes() []DevtronResourceDependencyType {
 	if c == nil {
 		return []DevtronResourceDependencyType{}
