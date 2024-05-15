@@ -3,6 +3,7 @@ package k8s
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,13 +36,8 @@ type ClusterConfig struct {
 	CertData                        string
 	CAData                          string
 	ClusterId                       int
-	ProxyUrl                        string
 	ToConnectForClusterVerification bool
-	ToConnectWithSSHTunnel          bool
-	SSHTunnelUser                   string
-	SSHTunnelPassword               string
-	SSHTunnelAuthKey                string
-	SSHTunnelServerAddress          string
+	RemoteConnectionConfig          *bean.RemoteConnectionConfigBean
 }
 
 type ClusterResourceListMap struct {

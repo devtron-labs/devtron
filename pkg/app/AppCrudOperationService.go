@@ -20,6 +20,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,7 +50,7 @@ type AppCrudOperationService interface {
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
-	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
+	GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
@@ -494,14 +495,13 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	return info, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
-	appLabelJson := &bean.AppLabelsJsonForDeployment{}
+func (impl AppCrudOperationServiceImpl) getLabelsByAppIdForDeployment(appId int) (map[string]string, error) {
+	labelsDto := make(map[string]string)
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting app labels by appId", "err", err, "appId", appId)
-		return nil, err
+		return labelsDto, err
 	}
-	labelsDto := make(map[string]string)
 	for _, label := range labels {
 		labelKey := strings.TrimSpace(label.Key)
 		labelValue := strings.TrimSpace(label.Value)
@@ -527,7 +527,39 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		labelsDto[labelKey] = labelValue
 	}
-	appLabelJson.Labels = labelsDto
+	return labelsDto, nil
+}
+
+func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, appName, envName string) (map[string]string, error) {
+	appMetaInfo, err := impl.appRepository.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	return map[string]string{
+		bean3.AppNameDevtronLabel:     appName,
+		bean3.EnvNameDevtronLabel:     envName,
+		bean3.ProjectNameDevtronLabel: appMetaInfo.Team.Name,
+	}, nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
+	appLabelJson := &bean.AppLabelsJsonForDeployment{}
+	appLabelsMapFromDb, err := impl.getLabelsByAppIdForDeployment(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting app labels from db using appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	extraAppLabelsToPropagate, err := impl.getExtraAppLabelsToPropagate(appId, appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error in getting extra app labels to propagate", "appName", appName, "envName", envName, "err", err)
+		return nil, err
+	}
+	//when app labels are provided by the user and share the same label key names as those in the extraAppLabelsToPropagate map,
+	//priority will be given to the user-provided label keys.
+	mergedAppLabels := MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
+
+	appLabelJson.Labels = mergedAppLabels
 	appLabelByte, err := json.Marshal(appLabelJson)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling appLabels json", "err", err, "appLabelJson", appLabelJson)
@@ -535,6 +567,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 	}
 	return appLabelByte, nil
 }
+
 func (impl AppCrudOperationServiceImpl) GetLabelsByAppId(appId int) (map[string]string, error) {
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil {

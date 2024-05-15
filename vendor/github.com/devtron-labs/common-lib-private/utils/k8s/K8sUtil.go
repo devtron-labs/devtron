@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib-private/sshTunnel/bean"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	_ "github.com/devtron-labs/common-lib/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	remoteConnectionBean "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 	"go.uber.org/zap"
 	restclient "k8s.io/client-go/rest"
 	"net/http"
@@ -31,12 +33,12 @@ import (
 
 type K8sUtilExtended struct {
 	k8s2.K8sService
-	sshTunnelWrapperService SSHTunnelWrapperService
+	sshTunnelWrapperService ssh.SSHTunnelWrapperService
 	logger                  *zap.SugaredLogger
 }
 
 func NewK8sUtilExtended(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig,
-	sshTunnelWrapperService SSHTunnelWrapperService) *K8sUtilExtended {
+	sshTunnelWrapperService ssh.SSHTunnelWrapperService) *K8sUtilExtended {
 	return &K8sUtilExtended{
 		K8sService:              k8s2.NewK8sUtil(logger, runTimeConfig),
 		sshTunnelWrapperService: sshTunnelWrapperService,
@@ -50,22 +52,28 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 	if err != nil {
 		return nil, err
 	}
-
-	if clusterConfig.ToConnectWithSSHTunnel {
-		hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting hostUrl for ssh configured cluster", "err", err, "clusterId", clusterConfig.ClusterId)
+	connectionConfig := clusterConfig.RemoteConnectionConfig
+	if connectionConfig != nil {
+		if connectionConfig.SSHTunnelConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
+			if err != nil {
+				impl.logger.Errorw("error in getting hostUrl for ssh configured cluster", "err", err, "clusterId", clusterConfig.ClusterId)
+				return nil, err
+			}
+			// Override the server URL with the localhost URL where the SSH tunnel is hosted
+			restConfig.Host = hostUrl
+		} else if connectionConfig.ProxyConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
+			proxyUrl := connectionConfig.ProxyConfig.ProxyUrl
+			proxy, err := url.Parse(proxyUrl)
+			if err != nil {
+				impl.logger.Errorw("error in parsing proxy url", "err", err, "proxyUrl", proxyUrl)
+				return nil, err
+			}
+			restConfig.Proxy = http.ProxyURL(proxy)
+		} else {
+			impl.logger.Errorw("error in fetching connection config", "err", err)
 			return nil, err
 		}
-		// Override the server URL with the localhost URL where the SSH tunnel is hosted
-		restConfig.Host = hostUrl
-	} else if len(clusterConfig.ProxyUrl) > 0 {
-		proxy, err := url.Parse(clusterConfig.ProxyUrl)
-		if err != nil {
-			impl.logger.Errorw("error in parsing proxy url", "err", err, "proxyUrl", clusterConfig.ProxyUrl)
-			return nil, err
-		}
-		restConfig.Proxy = http.ProxyURL(proxy)
 	}
 
 	return restConfig, nil
@@ -85,7 +93,7 @@ func (impl K8sUtilExtended) GetHostUrlForSSHTunnelConfiguredCluster(clusterConfi
 
 func (impl K8sUtilExtended) CleanupForClusterUsedForVerification(config *k8s2.ClusterConfig) {
 	//cleanup for ssh tunnel, as other methods do not require cleanup
-	if config.ToConnectWithSSHTunnel {
+	if config.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 		impl.sshTunnelWrapperService.CleanupForVerificationCluster(config.ClusterName)
 	}
 }
