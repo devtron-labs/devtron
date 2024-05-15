@@ -750,7 +750,15 @@ func (impl *WatcherServiceImpl) RetrieveInterceptedEvents(params *types2.Interce
 		})
 	}
 	environments, err := impl.environmentRepository.FindByClusterIdAndNamespace(namespaceClusterIdPair)
+	if err != nil {
+		impl.logger.Errorw("error in retrieving envs using namespace clusterId mappings", "namespaceClusterIdPair", namespaceClusterIdPair, "err", err)
+		return &types2.InterceptedResponse{}, err
+	}
+
 	for _, environment := range environments {
+		if mp := clusterIdNamespaceEnv[environment.ClusterId]; mp == nil {
+			clusterIdNamespaceEnv[environment.ClusterId] = make(map[string]string)
+		}
 		clusterIdNamespaceEnv[environment.ClusterId][environment.Namespace] = environment.Name
 	}
 	clusterIds := util.Map(interceptedEventData, func(event *types2.InterceptedEventData) int {
