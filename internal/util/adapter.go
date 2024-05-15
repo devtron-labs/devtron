@@ -10,11 +10,11 @@ func GetApiErrorAdapter(httpStatusCode int, code, userMessage, internalMessage s
 		InternalMessage: internalMessage,
 	}
 }
-func GetNotFoundError() *ApiError {
+func GetUnProcessableError() *ApiError {
 	return &ApiError{
-		HttpStatusCode:  http.StatusNotFound,
-		Code:            "404",
-		UserMessage:     "Not Found",
-		InternalMessage: "Not Found",
+		HttpStatusCode:  http.StatusUnprocessableEntity,
+		Code:            "422",
+		UserMessage:     "UnprocessableEntity",
+		InternalMessage: "UnprocessableEntity",
 	}
 }
