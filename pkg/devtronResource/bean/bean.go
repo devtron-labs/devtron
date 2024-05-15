@@ -684,12 +684,7 @@ type ExistingStage struct {
 
 type TaskInfoPostApiBean struct {
 	*DevtronResourceObjectDescriptorBean
-	FilterCriteria        []string                       `json:"filterCriteria"`
-	AppIds                []int                          `json:"-"` // Internal use
-	EnvIds                []int                          `json:"-"` // Internal use
-	DeploymentStatus      map[bean.WorkflowType][]string `json:"-"` // Internal use
-	RolloutStatus         []string                       `json:"-"` // Internal use
-	RequestWithoutFilters bool                           `json:"-"` // Internal Use
+	FilterCriteria []string `json:"filterCriteria"`
 }
 
 type FilterResource string

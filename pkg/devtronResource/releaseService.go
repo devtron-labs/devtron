@@ -1361,10 +1361,11 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 		}
 	} else {
 		var appDevtronResourceSchemaId int
+		filterConditionReq := bean.NewFilterConditionInternalBean()
 		// filters decoding
 		if len(req.FilterCriteria) > 0 {
 			// setting filter values from filters
-			err = impl.setFilterConditionInRequest(req)
+			filterConditionReq, err = impl.getFilterConditionBeanFromDecodingFilters(req)
 			if err != nil {
 				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "err", err)
 				return nil, err
@@ -1378,21 +1379,21 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 			}
 			appDevtronResourceSchemaId = applicationSchema.Id
 		} else {
-			req.RequestWithoutFilters = true
+			filterConditionReq.RequestWithoutFilters = true
 		}
 
 		if query.ShowAll {
-			cdPipelineReleaseInfo, err := impl.fetchAllReleaseTaskRunInfoWithoutStageWithFilters(req, existingResourceObject, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId)
+			cdPipelineReleaseInfo, err := impl.fetchAllReleaseTaskRunInfoWithoutStageWithFilters(filterConditionReq, existingResourceObject, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId)
 			if err != nil {
 				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 				return nil, err
 			}
 			// apply filters and return updated dependencies
-			updatedCdPipelineReleaseInfo := impl.applyFiltersToDependencies(req, cdPipelineReleaseInfo)
+			updatedCdPipelineReleaseInfo := impl.applyFiltersToDependencies(filterConditionReq, cdPipelineReleaseInfo)
 			return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: []bean.DtReleaseTaskRunInfo{{Dependencies: updatedCdPipelineReleaseInfo}}}, nil
 
 		}
-		response, err = impl.getLevelDataWithDependenciesForTaskInfo(req, existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId)
+		response, err = impl.getLevelDataWithDependenciesForTaskInfo(filterConditionReq, existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
@@ -1402,18 +1403,14 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 }
 
 // setFilterConditionInRequest decodes the filters provided and sets teh filters in request for further processing
-func (impl *DevtronResourceServiceImpl) setFilterConditionInRequest(req *bean.TaskInfoPostApiBean) error {
+func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilters(req *bean.TaskInfoPostApiBean) (*bean.FilterConditionInternalBean, error) {
 	appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err := impl.getAppIdsAndEnvIdsFromFilterCriteria(req.FilterCriteria)
 	if err != nil {
 		impl.logger.Errorw("error encountered in setFilterConditionInRequest", "id", req.Id, "err", err)
-		return err
+		return nil, err
 	}
-	//setting this in request for processing filters ahead
-	req.AppIds = appIdsFilters
-	req.EnvIds = envIdsFilters
-	req.RolloutStatus = rolloutStatus
-	req.DeploymentStatus = deploymentStatus
-	return nil
+
+	return adapter.BuildFilterConditionInternalBean(appIdsFilters, envIdsFilters, rolloutStatus, deploymentStatus), nil
 }
 
 // getOnlyLevelDataForTaskInfo gets only level data with task run allowed operation.(signifies lite mode)
@@ -1464,7 +1461,7 @@ func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData, 
 }
 
 // getLevelDataWithDependenciesForTaskInfo get level wise data with dependencies in it, supports level Index key if not 0 get level of that index with its dependencies
-func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(req *bean.TaskInfoPostApiBean, objectData, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(req *bean.FilterConditionInternalBean, objectData, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int) ([]bean.DtReleaseTaskRunInfo, error) {
 	response := make([]bean.DtReleaseTaskRunInfo, 0)
 	var levelToAppDependenciesMap map[int][]*bean.DevtronResourceDependencyBean
 
@@ -1500,7 +1497,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(
 }
 
 // fetchAllReleaseTaskRunInfoWithoutStage will all the application status data with env irrespective of any levels or stages for rollout status
-func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStageWithFilters(req *bean.TaskInfoPostApiBean, existingResourceObject *repository.DevtronResourceObject, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int) ([]*bean.CdPipelineReleaseInfo, error) {
+func (impl *DevtronResourceServiceImpl) fetchAllReleaseTaskRunInfoWithoutStageWithFilters(req *bean.FilterConditionInternalBean, existingResourceObject *repository.DevtronResourceObject, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int) ([]*bean.CdPipelineReleaseInfo, error) {
 	var dependencyBean []*bean.CdPipelineReleaseInfo
 	var err error
 	//filters conditions
@@ -1545,7 +1542,7 @@ func (impl *DevtronResourceServiceImpl) fetchDeploymentAndRolloutStatusCount(obj
 	return taskInfoCount, nil
 }
 
-func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.TaskInfoPostApiBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo) []*bean.CdPipelineReleaseInfo {
+func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.FilterConditionInternalBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo) []*bean.CdPipelineReleaseInfo {
 	updatedCdPipelineReleaseInfo := make([]*bean.CdPipelineReleaseInfo, 0, len(cdPipelineReleaseInfo))
 	for _, info := range cdPipelineReleaseInfo {
 		if len(req.AppIds) != 0 && !slices.Contains(req.AppIds, info.AppId) {

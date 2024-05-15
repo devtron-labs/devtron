@@ -1,5 +1,7 @@
 package bean
 
+import "github.com/devtron-labs/devtron/api/bean"
+
 type IdIdentifierIndex struct {
 	Ids              []int    //all ids
 	Identifiers      []string //all identifiers
@@ -157,3 +159,16 @@ const (
 	ResourceObjectRunSourcePath = "overview.runSource"
 	ResourceTaskRunActionPath   = "action"
 )
+
+type FilterConditionInternalBean struct {
+	AppIds                []int
+	EnvIds                []int
+	DeploymentStatus      map[bean.WorkflowType][]string
+	RolloutStatus         []string
+	RequestWithoutFilters bool
+}
+
+func NewFilterConditionInternalBean() *FilterConditionInternalBean {
+	return &FilterConditionInternalBean{}
+
+}
