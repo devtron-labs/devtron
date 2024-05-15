@@ -226,8 +226,8 @@ github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1 h1:
 github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1/go.mod h1:Omra4isWlpBkqpaDMAGMjnNLryTLMTGXa0Q9pyqaA5o=
 github.com/devtron-labs/common-lib v0.0.16-0.20240507071833-5a793f5192e8 h1:Um+cwm0oAxX4qTaOBwvMI7IkLdaxySiWsTo23L+NbRg=
 github.com/devtron-labs/common-lib v0.0.16-0.20240507071833-5a793f5192e8/go.mod h1:JRcakVWr030hS4jCmzmI79MfUfSexbMaVKWeZorZqlA=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240507073533-d4ac3454e6f4 h1:wJWNqA4ocADtPfYv4S/ZxPZIQi2vGNdJaaU5403G564=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240507073533-d4ac3454e6f4/go.mod h1:9GgYlUJixtpJ6O6Zh/k0A0WKCOCk4YyWCDUjAMifKJI=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321 h1:Abzq1xL1zL0pz3HjDUe8W3BjIqWvoJU91UYrlM6aB4E=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321/go.mod h1:9GgYlUJixtpJ6O6Zh/k0A0WKCOCk4YyWCDUjAMifKJI=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
@@ -280,6 +280,8 @@ github.com/gammazero/deque v0.2.0 h1:SkieyNB4bg2/uZZLxvya0Pq6diUlwx7m2TeT7GAIWaA
 github.com/gammazero/deque v0.2.0/go.mod h1:LFroj8x4cMYCukHJDbxFCkT+r9AndaJnFMuZDV34tuU=
 github.com/gammazero/workerpool v1.1.3 h1:WixN4xzukFoN0XSeXF6puqEqFTl2mECI9S6W44HWy9Q=
 github.com/gammazero/workerpool v1.1.3/go.mod h1:wPjyBLDbyKnUn2XwwyD3EEwo9dHutia9/fwNmSHWACc=
+github.com/gertd/go-pluralize v0.2.1 h1:M3uASbVjMnTsPb0PNqg+E/24Vwigyo/tvyMTtAlLgiA=
+github.com/gertd/go-pluralize v0.2.1/go.mod h1:rbYaKDbsXxmRfr8uygAEKhOWsjyrrqrkHVpZvoOp8zk=
 github.com/getkin/kin-openapi v0.76.0/go.mod h1:660oXbgy5JFMKreazJaQTw7o+X00qeSyhcnluiMv+Xg=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32 h1:Mn26/9ZMNWSw9C9ERFA1PUxfmGpolnw2v0bKOREu5ew=
