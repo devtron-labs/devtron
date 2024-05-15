@@ -537,9 +537,9 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 			sourceReleaseConfigObj.Name = gjson.Get(obj.ObjectData, bean.ResourceObjectNamePath).String()
 		}
 	}
+	sourceAppWfId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceAppWfIdPath).Int())
 	if !isLite {
 		artifactId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceDependencyConfigArtifactIdKey).Int())
-		sourceAppWfId := int(gjson.Get(configDataJsonObj, bean.ReleaseResourceArtifactSourceAppWfIdPath).Int())
 		// getting artifact git commit data and image at runtime by artifact id instead of setting this schema, this has to be modified when commit source is also kept in schema (eg ci trigger is introduced)
 		artifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil && err != pg.ErrNoRows {
@@ -574,6 +574,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseDependencyConfigDataInObj(c
 	} else {
 		configData.ArtifactConfig = &bean.ArtifactConfig{
 			SourceReleaseConfig: sourceReleaseConfigObj,
+			SourceAppWorkflowId: sourceAppWfId,
 		}
 	}
 	return nil
