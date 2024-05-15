@@ -1397,9 +1397,11 @@ func (impl *DevtronResourceServiceImpl) patchImageForADependency(devtronResource
 		}
 		if dependencyBean.OldObjectId == id && helper.IsApplicationDependency(dependencyBean.DevtronResourceTypeReq) {
 			dependencyBean.Config.ArtifactConfig = &bean.ArtifactConfig{
-				ArtifactId:   artifactConfig.ArtifactId,
-				RegistryName: artifactConfig.RegistryName,
-				RegistryType: artifactConfig.RegistryType,
+				ArtifactId:          artifactConfig.ArtifactId,
+				RegistryName:        artifactConfig.RegistryName,
+				RegistryType:        artifactConfig.RegistryType,
+				SourceAppWorkflowId: artifactConfig.SourceAppWorkflowId,
+				SourceReleaseConfig: artifactConfig.SourceReleaseConfig,
 			}
 			dependencyBean.ChildInheritance = []*bean.ChildInheritance{{ResourceId: impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id, Selector: adapter.GetDefaultCdPipelineSelector()}}
 			indexChanged = dependencyBean.Index
