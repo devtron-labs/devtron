@@ -1,4 +1,5 @@
 ## Bugs
+- fix: SHOW_DOCKER_BUILD_ARGS variable not working as expected (#5117)
 - fix: dependabot version upgrade (#5089)
 - fix: containers are missing from app-details page in argocd app  (#4973)
 - fix:resolved PR review comments also remove check for virtual cluster (#5095)
