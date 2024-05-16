@@ -1612,9 +1612,16 @@ func getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(pipelinesInfo [
 	postStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
 	releaseDeploymentStatusVsCountMap := make(map[bean.ReleaseDeploymentStatus]int, len(pipelinesInfo))
 	for _, pipeline := range pipelinesInfo {
-		preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
-		deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
-		postStatusVsCountMap[pipeline.PostStatus] = postStatusVsCountMap[pipeline.PostStatus] + 1
+		if pipeline.ExistingStages.Pre {
+			preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
+		}
+		if pipeline.ExistingStages.Post {
+			postStatusVsCountMap[pipeline.PostStatus] = postStatusVsCountMap[pipeline.PostStatus] + 1
+		}
+		if pipeline.ExistingStages.Deploy {
+			// cd pipeline will always exist added this check intentionally for validation
+			deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
+		}
 		releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] = releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] + 1
 	}
 	preStatusCount := processPreOrPostDeploymentVsCountMapForResponse(preStatusVsCountMap)
