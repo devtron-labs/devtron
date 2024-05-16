@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: laeeq
+  name: postgresql-migrate-devtron
 spec:
   template:
     spec:
@@ -41,7 +41,7 @@ spec:
           hostPath:
             path: /test/scripts/sql/
   backoffLimit: 20
-  activeDeadlineSeconds: 150
+  activeDeadlineSeconds: 150000
 ---
 apiVersion: batch/v1
 kind: Job
