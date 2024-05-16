@@ -1276,6 +1276,9 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 			Message: "Wrong or expired token.",
 			Reason:  "Bad Request",
 		}
+		if token == "" {
+			errorResponse.Message = "Authorization token not present. Are you using http instead of https?"
+		}
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(errorResponse)
 		return
@@ -1330,20 +1333,25 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 
 	allowed := handler.k8sApplicationService.ValidateK8sResourceForCluster(token, resourceName, namespace, gvk, handler.verifyRbacForResource, clusterRequested.ClusterName, resourceAction)
 	if !allowed {
-		role := bean2.RoleView
-		if resourceAction == bean2.ALL {
-			role = bean2.RoleAdmin
+		if strings.Contains(r.URL.Path, "/openapi/v") {
+			allowed = true
 		}
-		errorResponse := bean.ErrorResponse{
-			Kind:    "Status",
-			Code:    403,
-			Message: fmt.Sprintf("You need %s access on Cluster: %s, Namespace: %s, Group: %s, Version: %s, Kind: %s, Resource Name: %s. Here * represents all.", role, clusterRequested.ClusterName, namespace, gvk.Group, gvk.Version, gvk.Kind, resourceName),
-			Reason:  "Forbidden",
-		}
+		if !allowed {
+			role := bean2.RoleView
+			if resourceAction == bean2.ALL {
+				role = bean2.RoleAdmin
+			}
+			errorResponse := bean.ErrorResponse{
+				Kind:    "Status",
+				Code:    403,
+				Message: fmt.Sprintf("You need %s access on Cluster: %s, Namespace: %s, Group: %s, Version: %s, Kind: %s, Resource Name: %s. Here * represents all.", role, clusterRequested.ClusterName, namespace, gvk.Group, gvk.Version, gvk.Kind, resourceName),
+				Reason:  "Forbidden",
+			}
 
-		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(errorResponse)
-		return
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(errorResponse)
+			return
+		}
 	}
 	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterRequested.Id)
 
