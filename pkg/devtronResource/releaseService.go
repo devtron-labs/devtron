@@ -1606,15 +1606,15 @@ func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(
 			continue
 		}
 		// if not of (deployment exist and status is succeeded)
-		if !(info.ExistingStages.Deploy && helper.IsStatusSucceeded(info.DeployStatus)) {
+		if info.ExistingStages.Deploy && !helper.IsStatusSucceeded(info.DeployStatus) {
 			return false, nil
 		}
 		// if not of (pre exist and status is succeeded)
-		if !(info.ExistingStages.Pre && helper.IsStatusSucceeded(info.PreStatus)) {
+		if info.ExistingStages.Pre && !helper.IsStatusSucceeded(info.PreStatus) {
 			return false, nil
 		}
 		// if not of (post exist and status is succeeded)
-		if !(info.ExistingStages.Post && helper.IsStatusSucceeded(info.PostStatus)) {
+		if info.ExistingStages.Post && !helper.IsStatusSucceeded(info.PostStatus) {
 			return false, nil
 		}
 		appIdToSuccessCriteriaFlag[appId] = true
@@ -1917,7 +1917,7 @@ func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSuc
 func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSucceedFromMap(existingResourceObject *repository.DevtronResourceObject, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, allApplicationDependencies []*bean.DevtronResourceDependencyBean) (err error) {
 	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
 	if !rolloutStatus.IsCompletelyDeployed() && len(allApplicationDependencies) != 0 {
-		appIds := make([]int, len(allApplicationDependencies))
+		appIds := make([]int, 0, len(allApplicationDependencies))
 		// ignoring child inheritance check here as callee has already handled it( GET call will be deprecated in future not handling for that)
 		for _, dependency := range allApplicationDependencies {
 			appIds = append(appIds, dependency.OldObjectId)
@@ -1964,15 +1964,15 @@ func (impl *DevtronResourceServiceImpl) isAppsDeployedOnAllEnvWithRunnerFromMap(
 			continue
 		}
 		// if not of (deployment exist and status is succeeded)
-		if !(info.ExistingStages.Deploy && helper.IsStatusSucceeded(info.DeployStatus)) {
+		if info.ExistingStages.Deploy && !helper.IsStatusSucceeded(info.DeployStatus) {
 			return false, nil
 		}
 		// if not of (pre exist and status is succeeded)
-		if !(info.ExistingStages.Pre && helper.IsStatusSucceeded(info.PreStatus)) {
+		if info.ExistingStages.Pre && !helper.IsStatusSucceeded(info.PreStatus) {
 			return false, nil
 		}
 		// if not of (post exist and status is succeeded)
-		if !(info.ExistingStages.Post && helper.IsStatusSucceeded(info.PostStatus)) {
+		if info.ExistingStages.Post && !helper.IsStatusSucceeded(info.PostStatus) {
 			return false, nil
 		}
 	}
