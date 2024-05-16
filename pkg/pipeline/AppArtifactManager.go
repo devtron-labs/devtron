@@ -18,7 +18,6 @@
 package pipeline
 
 import (
-	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -779,23 +778,11 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 			return bean2.CiArtifactResponse{}, err
 		}
 	}
-	filteredArtifactBeans := make([]bean2.CiArtifactBean, 0, len(artifactEntities))
-	for i := range artifactEntities {
-		artifactEntity := artifactEntities[i]
-		keyForFilterCheck := ""
-		if artifactEntity.PipelineId > 0 {
-			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.CIPIPELINE, artifactEntity.PipelineId)
-		} else if artifactEntity.ExternalCiPipelineId > 0 {
-			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.WEBHOOK, artifactEntity.ExternalCiPipelineId)
-		} else if artifactEntity.DataSource == repository.PRE_CD || artifactEntity.DataSource == repository.POST_CD {
-			keyForFilterCheck = fmt.Sprintf("%s-%d", appWorkflow.CDPIPELINE, artifactEntity.ComponentId)
-		}
-		if appWorkflowId, ok := workflowComponentFilterMap[keyForFilterCheck]; ok { //if present in filter map then add to response beans
-			filteredArtifactBeans = append(filteredArtifactBeans, bean2.ConvertArtifactEntityToBean(artifactEntity, appWorkflowId))
-		}
-	}
+	//not setting appWorkflowId because the artifact source may be a ci which is not present in the workflow yet
+	//such cases will require us to check for every artifact whether it is fetched because of ci or cd
+	//if fetched due to cd then we will take workflowId of cd pipeline else ci
 	artifactResponse := bean2.CiArtifactResponse{
-		CiArtifacts: filteredArtifactBeans,
+		CiArtifacts: bean2.ConvertArtifactEntityToModel(artifactEntities),
 		TotalCount:  totalCount,
 	}
 	pipelineIdToEnvName, hasProdEnv, err := impl.getWfPipelinesMetadata(workflowComponents.CdPipelineIds)
