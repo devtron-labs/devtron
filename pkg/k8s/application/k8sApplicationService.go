@@ -629,7 +629,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	k8sRequest := request.K8sRequest
 	//store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
-	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace)
+	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace, true, nil)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
