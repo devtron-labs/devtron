@@ -1849,7 +1849,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		return nil, nil, err
 	}
 	cdWfRunners, err := impl.cdWorkflowRepository.FindPartialWorkflowRunnerWithPipelineIdByIds(cdWfrIds)
-	if err != nil && !errors.Is(err, util.GetUnProcessableError()) {
+	if err != nil && errors.Is(err, util.GetUnProcessableError()) {
 		impl.logger.Errorw("error in fetching cdWfRunners", "cdWfrIds", cdWfrIds, "err", err)
 		return nil, nil, err
 	}
