@@ -1544,7 +1544,7 @@ func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.Fil
 			//continue in case env id filters len is greater than 0 and does not contain env id.
 			continue
 		}
-		if len(req.ReleaseDeploymentStatus) != 0 && !slices.Contains(req.ReleaseDeploymentStatus, info.RolloutStatus.ToString()) {
+		if len(req.ReleaseDeploymentStatus) != 0 && !slices.Contains(req.ReleaseDeploymentStatus, info.ReleaseDeploymentStatus.ToString()) {
 			//continue in case ReleaseDeploymentStatus filters len is greater than 0 and does not contain ReleaseDeploymentStatus.
 			continue
 		}
@@ -1623,7 +1623,7 @@ func getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(pipelinesInfo [
 			// cd pipeline will always exist added this check intentionally for validation
 			deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
 		}
-		releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] = releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] + 1
+		releaseDeploymentStatusVsCountMap[pipeline.ReleaseDeploymentStatus] = releaseDeploymentStatusVsCountMap[pipeline.ReleaseDeploymentStatus] + 1
 	}
 	preStatusCount := processPreOrPostDeploymentVsCountMapForResponse(preStatusVsCountMap)
 	deployStatusCount := processDeploymentVsCountMapForResponse(deployStatusVsCountMap)

@@ -1916,7 +1916,7 @@ func (impl CiCdPipelineOrchestratorImpl) getCdPipelineReleaseInfo(dbPipelines []
 			cdPipelineMinInfo.PreCdWorkflowRunnerId = value.PreCdWorkflowRunnerId
 			cdPipelineMinInfo.PostCdWorkflowRunnerId = value.PostCdWorkflowRunnerId
 		}
-		cdPipelineMinInfo.RolloutStatus = helper2.CalculateRolloutStatus(cdPipelineMinInfo)
+		cdPipelineMinInfo.ReleaseDeploymentStatus = helper2.CalculateRolloutStatus(cdPipelineMinInfo)
 		pipelineIdAppIdKeyVsReleaseInfo[helper2.GetKeyForPipelineIdAndAppId(dbPipeline.Id, dbPipeline.AppId)] = cdPipelineMinInfo
 		cdPipelines = append(cdPipelines, cdPipelineMinInfo)
 	}
