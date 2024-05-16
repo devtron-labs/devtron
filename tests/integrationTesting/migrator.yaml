@@ -9,7 +9,7 @@ spec:
         - name: postgresql-migrate-devtron
           image: laeeqa222/abcd:5f5ebe0d-43-225
           volumeMounts:
-            - mountPath: /laeeq/app/scripts/sql/
+            - mountPath: /laeeq/app/scripts/sql
               name: sql-scripts-volume
           command: [ "/bin/sh", "-c" ]
           args: [ "sleep 3600" ]
@@ -41,7 +41,7 @@ spec:
       volumes:
         - name: sql-scripts-volume
           hostPath:
-            path: /test/scripts/sql/
+            path: /test/scripts/sql
             type: DirectoryOrCreate
   backoffLimit: 20
   activeDeadlineSeconds: 150000
