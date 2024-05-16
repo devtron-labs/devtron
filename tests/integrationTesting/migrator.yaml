@@ -11,6 +11,8 @@ spec:
           volumeMounts:
             - mountPath: /tmp/app/scripts/sql/
               name: sql-scripts-volume
+          command: [ "/bin/sh", "-c" ]
+          args: [ "sleep 3600" ]
           env:
             - name: GIT_HASH
               value: be7da471e45a501eba19eaa5f8d08dfe5601598d
@@ -39,7 +41,7 @@ spec:
       volumes:
         - name: sql-scripts-volume
           hostPath:
-            path: //test/scripts/sql/
+            path: /test/scripts/sql/
   backoffLimit: 20
   activeDeadlineSeconds: 150000
 ---
