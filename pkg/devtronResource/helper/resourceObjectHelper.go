@@ -72,8 +72,8 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 	appIdentifierFilters := make([]string, 0, filterLen)
 	envIdsFilters := make([]int, 0, filterLen)
 	envIdentifierFilters := make([]string, 0, filterLen)
-	deploymentStatus := make(map[bean2.WorkflowType][]string, filterLen)
-	rolloutStatus := make([]string, 0, filterLen)
+	stageWiseDeploymentStatus := make(map[bean2.WorkflowType][]string, filterLen)
+	releaseDeploymentStatus := make([]string, 0, filterLen)
 
 	for _, filter := range filters {
 		objs := strings.Split(filter, "|")
@@ -88,7 +88,7 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 				}
 				ids, identifiers, err := getIdsAndIdentifierBasedOnType(objs)
 				if err != nil {
-					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err
+					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, stageWiseDeploymentStatus, releaseDeploymentStatus, err
 				}
 				appIdsFilters = append(appIdsFilters, ids...)
 				appIdentifierFilters = append(appIdentifierFilters, identifiers...)
@@ -100,7 +100,7 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 				}
 				ids, identifiers, err := getIdsAndIdentifierBasedOnType(objs)
 				if err != nil {
-					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err
+					return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, stageWiseDeploymentStatus, releaseDeploymentStatus, err
 				}
 				envIdsFilters = append(envIdsFilters, ids...)
 				envIdentifierFilters = append(envIdentifierFilters, identifiers...)
@@ -112,7 +112,7 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter))
 				}
 				statuses := strings.Split(objs[2], ",")
-				deploymentStatus[bean2.WorkflowType(objs[1])] = append(deploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
+				stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])] = append(stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
 			}
 		case bean.ReleaseDeploymentRolloutStatusFilter.ToString():
 			{
@@ -120,13 +120,13 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentRolloutStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentRolloutStatusFilter))
 				}
 				statuses := strings.Split(objs[1], ",")
-				rolloutStatus = append(rolloutStatus, statuses...)
+				releaseDeploymentStatus = append(releaseDeploymentStatus, statuses...)
 			}
 		default:
-			return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
+			return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, stageWiseDeploymentStatus, releaseDeploymentStatus, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidFilterCriteria, bean.InvalidFilterCriteria)
 		}
 	}
-	return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, nil
+	return appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, stageWiseDeploymentStatus, releaseDeploymentStatus, nil
 }
 
 func getIdsAndIdentifierBasedOnType(objs []string) ([]int, []string, error) {
