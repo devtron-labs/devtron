@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-devtron
-          image: laeeqa222/abcd:5f5ebe0d-43-225////quay.io/devtron/migrator:71748de9-149-11112
+          image: laeeqa222/abcd:5f5ebe0d-43-225
           volumeMounts:
             - mountPath: /tmp/app/scripts/sql/
               name: sql-scripts-volume
