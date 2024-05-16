@@ -1185,22 +1185,21 @@ func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(
 }
 
 // getReleaseDeploymentInfoForDependenciesFromMap gets every data point for dependencies in CdPipelineReleaseInfo object from map
-func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependenciesFromMap(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) ([]*bean.CdPipelineReleaseInfo, error) {
+func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependenciesFromMap(dependencies []*bean.DevtronResourceDependencyBean, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) ([]*bean.CdPipelineReleaseInfo, error) {
 	pipelinesInfo := make([]*bean.CdPipelineReleaseInfo, 0)
-	appIds, _, err := impl.getAppAndCdWfrIdsForDependencies(releaseRunSourceIdentifier, dependencies)
-	if err != nil {
-		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "releaseRunSourceIdentifier", releaseRunSourceIdentifier, "err", err)
-		return nil, err
+	appIds := make([]int, 0, len(dependencies))
+	for _, dependency := range dependencies {
+		// not checking child inheritance as callee has already filtered all child inheritance case.
+		appIds = append(appIds, dependency.OldObjectId)
 	}
-	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIds(appIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cdPipeline", "appIds", appIds, "err", err)
-		return nil, err
-	}
-	for _, pipeline := range dbPipelines {
-		pipelineIdAppIdKey := helper.GetKeyForPipelineIdAndAppId(pipeline.Id, pipeline.AppId)
-		// get release info from map and append it in final response
-		if info, ok := pipelineIdAppIdKeyVsReleaseInfo[pipelineIdAppIdKey]; ok {
+	// getting info from pipelineAppIdVsReleaseInfoMap if app id is in appIds calculated from level dependencies
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependenciesFromMap", "key", key, "err", err)
+			return nil, err
+		}
+		if slices.Contains(appIds, appId) {
 			pipelinesInfo = append(pipelinesInfo, info)
 		}
 	}
@@ -1488,7 +1487,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(
 		}
 		dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 		if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-			dependencyBean, err := impl.getReleaseDeploymentInfoForDependenciesFromMap(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index], pipelineIdAppIdKeyVsReleaseInfo)
+			dependencyBean, err := impl.getReleaseDeploymentInfoForDependenciesFromMap(levelToAppDependenciesMap[levelDependency.Index], pipelineIdAppIdKeyVsReleaseInfo)
 			if err != nil {
 				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 				return nil, err
@@ -1518,6 +1517,7 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existin
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, nil, nil, nil, err
 		}
+		//TODO: need to check if can be removed
 		err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
