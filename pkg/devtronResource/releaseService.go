@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	pipelineStageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	adapter3 "github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
@@ -1636,25 +1637,25 @@ func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap m
 	failed := 0
 	inProgress := 0
 	succeeded := 0
-	if val, ok := preOrPostStatusVsCountMap[bean.NotTriggeredStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
 		notTriggered = val
 	}
-	if val, ok := preOrPostStatusVsCountMap[bean.FailedStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowFailed]; ok {
 		failed = val
 	}
-	if val, ok := preOrPostStatusVsCountMap[bean.AbortedStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
 		failed = failed + val
 	}
-	if val, ok := preOrPostStatusVsCountMap[bean.ProgressingStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
 		inProgress = val
 	}
-	if val, ok := preOrPostStatusVsCountMap[bean.StartingStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowStarting]; ok {
 		inProgress = inProgress + val
 	}
 	if val, ok := preOrPostStatusVsCountMap[bean.RunningStatus]; ok {
 		inProgress = inProgress + val
 	}
-	if val, ok := preOrPostStatusVsCountMap[bean.SucceededStatus]; ok {
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
 		succeeded = val
 	}
 	return adapter.BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress)
@@ -1669,34 +1670,34 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	timedOut := 0
 	unableToFetch := 0
 	queued := 0
-	if val, ok := deployStatusVsCountMap[bean.NotTriggeredStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
 		notTriggered = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.FailedStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowFailed]; ok {
 		failed = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.AbortedStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
 		failed = failed + val
 	}
-	if val, ok := deployStatusVsCountMap[bean.ProgressingStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
 		inProgress = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.InitiatingStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInitiated]; ok {
 		inProgress = inProgress + val
 	}
 	if val, ok := deployStatusVsCountMap[bean.RunningStatus]; ok {
 		inProgress = inProgress + val
 	}
-	if val, ok := deployStatusVsCountMap[bean.SucceededStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
 		succeeded = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.TimedOutStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowTimedOut]; ok {
 		timedOut = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.UnableToFetchStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowUnableToFetchState]; ok {
 		unableToFetch = val
 	}
-	if val, ok := deployStatusVsCountMap[bean.QueuedStatus]; ok {
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInQueue]; ok {
 		queued = val
 	}
 	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch)

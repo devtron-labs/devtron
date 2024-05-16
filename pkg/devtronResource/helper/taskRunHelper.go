@@ -4,8 +4,10 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
+	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	stageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	slices2 "golang.org/x/exp/slices"
 )
 
@@ -59,17 +61,17 @@ func GetTaskRunIdentifier(id int, idType bean.IdType, resourceId, resourceSchema
 }
 
 var DeploymentStatusVsRolloutStatusMap = map[string]bean.ReleaseDeploymentStatus{
-	bean.StartingStatus:      bean.Ongoing,
-	bean.RunningStatus:       bean.Ongoing,
-	bean.InitiatingStatus:    bean.Ongoing,
-	bean.ProgressingStatus:   bean.Ongoing,
-	bean.QueuedStatus:        bean.Ongoing,
-	bean.AbortedStatus:       bean.Failed,
-	bean.FailedStatus:        bean.Failed,
-	bean.TimedOutStatus:      bean.Failed,
-	bean.UnableToFetchStatus: bean.Failed,
-	bean.NotTriggeredStatus:  bean.YetToTrigger,
-	bean.SucceededStatus:     bean.Completed,
+	pipelineConfig.WorkflowStarting:           bean.Ongoing,
+	bean.RunningStatus:                        bean.Ongoing,
+	pipelineConfig.WorkflowInitiated:          bean.Ongoing,
+	pipelineConfig.WorkflowInProgress:         bean.Ongoing,
+	pipelineConfig.WorkflowInQueue:            bean.Ongoing,
+	pipelineConfig.WorkflowAborted:            bean.Failed,
+	pipelineConfig.WorkflowFailed:             bean.Failed,
+	pipelineConfig.WorkflowTimedOut:           bean.Failed,
+	pipelineConfig.WorkflowUnableToFetchState: bean.Failed,
+	stageBean.NotTriggered:                    bean.YetToTrigger,
+	pipelineConfig.WorkflowSucceeded:          bean.Completed,
 }
 
 func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.ReleaseDeploymentStatus {

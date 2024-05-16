@@ -192,15 +192,5 @@ func (f FilterResource) ToString() string {
 }
 
 const (
-	FailedStatus        = "Failed"
-	NotTriggeredStatus  = "Not Triggered"
-	SucceededStatus     = "Succeeded"
-	StartingStatus      = "Starting"
-	RunningStatus       = "Running"
-	InitiatingStatus    = "Initiating"
-	ProgressingStatus   = "Progressing"
-	QueuedStatus        = "Queued"
-	AbortedStatus       = "Aborted"
-	TimedOutStatus      = "TimedOut"
-	UnableToFetchStatus = "UnableToFetch"
+	RunningStatus = "Running"
 )
