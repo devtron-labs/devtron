@@ -47,7 +47,6 @@ func (r *App) IsAppJobOrExternalType() bool {
 
 type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
-	SaveInBulkWithTxn(apps []*App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
@@ -478,10 +477,5 @@ func (repo AppRepositoryImpl) UpdateAppOfferingModeForAppIds(successAppIds []*in
 	query := "update app set app_offering_mode = ?,updated_by = ?, updated_on = ? where id in (?);"
 	var app *App
 	_, err := repo.dbConnection.Query(app, query, appOfferingMode, userId, time.Now(), pg.In(successAppIds))
-	return err
-}
-
-func (repo AppRepositoryImpl) SaveInBulkWithTxn(apps []*App, tx *pg.Tx) error {
-	err := tx.Insert(&apps)
 	return err
 }
