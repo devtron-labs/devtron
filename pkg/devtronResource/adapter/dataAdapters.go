@@ -282,8 +282,8 @@ func getReleaseLockStatusSuccessChangeMessage(isLocked bool) string {
 	return statusMessage
 }
 
-func BuildRolloutStatusCount(ongoing, yetToTrigger, failed, completed int) *bean.RolloutStatusCount {
-	return &bean.RolloutStatusCount{
+func BuildReleaseDeploymentStatus(ongoing, yetToTrigger, failed, completed int) *bean.ReleaseDeploymentStatusCount {
+	return &bean.ReleaseDeploymentStatusCount{
 		AllDeployment: yetToTrigger + failed + completed + ongoing,
 		YetToTrigger:  yetToTrigger,
 		Failed:        failed,
@@ -292,14 +292,14 @@ func BuildRolloutStatusCount(ongoing, yetToTrigger, failed, completed int) *bean
 	}
 }
 
-func BuildTaskInfoCount(rolloutStatusCount *bean.RolloutStatusCount, deploymentStatusCount *bean.DeploymentStatusCount) *bean.TaskInfoCount {
+func BuildTaskInfoCount(releaseDeploymentStatus *bean.ReleaseDeploymentStatusCount, stageWiseStatusCount *bean.StageWiseStatusCount) *bean.TaskInfoCount {
 	return &bean.TaskInfoCount{
-		RolloutStatusCount:    rolloutStatusCount,
-		DeploymentStatusCount: deploymentStatusCount,
+		ReleaseDeploymentStatusCount: releaseDeploymentStatus,
+		StageWiseStatusCount:         stageWiseStatusCount,
 	}
 }
-func BuildDeploymentStatusCount(preStatusCount *bean.PrePostStatusCount, deployCount *bean.DeploymentCount, postStatusCount *bean.PrePostStatusCount) *bean.DeploymentStatusCount {
-	return &bean.DeploymentStatusCount{
+func BuildStageWiseStatusCount(preStatusCount *bean.PrePostStatusCount, deployCount *bean.DeploymentCount, postStatusCount *bean.PrePostStatusCount) *bean.StageWiseStatusCount {
+	return &bean.StageWiseStatusCount{
 		PreStatusCount:  preStatusCount,
 		DeploymentCount: deployCount,
 		PostStatusCount: postStatusCount,

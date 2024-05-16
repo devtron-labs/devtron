@@ -178,11 +178,11 @@ func GetLastReleaseTaskRunInfo(response []bean2.DtReleaseTaskRunInfo) *bean2.DtR
 	return &response[len(response)-1]
 }
 
-func BuildFilterConditionInternalBean(appIds, envIds []int, releaseDeploymentStatus []string, deploymentStatus map[bean3.WorkflowType][]string) *bean2.FilterConditionInternalBean {
+func BuildFilterConditionInternalBean(appIds, envIds []int, releaseDeploymentStatus []string, stageWisedeploymentStatus map[bean3.WorkflowType][]string) *bean2.FilterConditionInternalBean {
 	return &bean2.FilterConditionInternalBean{
-		AppIds:           appIds,
-		EnvIds:           envIds,
-		DeploymentStatus: deploymentStatus,
-		RolloutStatus:    releaseDeploymentStatus,
+		AppIds:                    appIds,
+		EnvIds:                    envIds,
+		StageWiseDeploymentStatus: stageWisedeploymentStatus,
+		ReleaseDeploymentStatus:   releaseDeploymentStatus,
 	}
 }

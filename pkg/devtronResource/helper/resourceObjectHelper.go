@@ -106,18 +106,18 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 				envIdentifierFilters = append(envIdentifierFilters, identifiers...)
 			}
 
-		case bean.DeploymentStatusFilter.ToString():
+		case bean.StageWiseDeploymentStatusFilter.ToString():
 			{
 				if len(objs) != 3 {
-					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.DeploymentStatusFilter))
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter))
 				}
 				statuses := strings.Split(objs[2], ",")
 				deploymentStatus[bean2.WorkflowType(objs[1])] = append(deploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
 			}
-		case bean.ReleaseDeploymentStatusFilter.ToString():
+		case bean.ReleaseDeploymentRolloutStatusFilter.ToString():
 			{
 				if len(objs) != 2 {
-					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentStatusFilter))
+					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentRolloutStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.ReleaseDeploymentRolloutStatusFilter))
 				}
 				statuses := strings.Split(objs[1], ",")
 				rolloutStatus = append(rolloutStatus, statuses...)

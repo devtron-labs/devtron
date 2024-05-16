@@ -161,11 +161,11 @@ const (
 )
 
 type FilterConditionInternalBean struct {
-	AppIds                []int
-	EnvIds                []int
-	DeploymentStatus      map[bean.WorkflowType][]string
-	RolloutStatus         []string
-	RequestWithoutFilters bool
+	AppIds                    []int
+	EnvIds                    []int
+	StageWiseDeploymentStatus map[bean.WorkflowType][]string
+	ReleaseDeploymentStatus   []string
+	RequestWithoutFilters     bool
 }
 
 func NewFilterConditionInternalBean() *FilterConditionInternalBean {
@@ -181,10 +181,10 @@ type IdAndSchemaIdFilter struct {
 type FilterResource string
 
 const (
-	DevtronApplicationFilter      FilterResource = "application/devtron-application"
-	EnvironmentFilter             FilterResource = "environment"
-	DeploymentStatusFilter        FilterResource = "deploymentStatus"
-	ReleaseDeploymentStatusFilter FilterResource = "rolloutStatus"
+	DevtronApplicationFilter             FilterResource = "application/devtron-application"
+	EnvironmentFilter                    FilterResource = "environment"
+	StageWiseDeploymentStatusFilter      FilterResource = "stageWiseDeploymentStatus"
+	ReleaseDeploymentRolloutStatusFilter FilterResource = "releaseDeploymentRolloutStatus"
 )
 
 func (f FilterResource) ToString() string {

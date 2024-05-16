@@ -134,17 +134,17 @@ type DeploymentTaskInfoResponse struct {
 }
 
 type TaskInfoCount struct {
-	RolloutStatusCount    *RolloutStatusCount    `json:"rolloutStatus,omitempty"`
-	DeploymentStatusCount *DeploymentStatusCount `json:"deploymentStatus,omitempty"`
+	ReleaseDeploymentStatusCount *ReleaseDeploymentStatusCount `json:"releaseDeploymentRolloutStatus,omitempty"`
+	StageWiseStatusCount         *StageWiseStatusCount         `json:"stageWiseDeploymentStatus,omitempty"`
 }
 
-type DeploymentStatusCount struct {
+type StageWiseStatusCount struct {
 	PreStatusCount  *PrePostStatusCount `json:"pre,omitempty"`
 	DeploymentCount *DeploymentCount    `json:"deploy,omitempty"`
 	PostStatusCount *PrePostStatusCount `json:"post,omitempty"`
 }
 
-type RolloutStatusCount struct {
+type ReleaseDeploymentStatusCount struct {
 	AllDeployment int `json:"allDeployments"`
 	YetToTrigger  int `json:"yetToTrigger"`
 	Ongoing       int `json:"onGoing"`
