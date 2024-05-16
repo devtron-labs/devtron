@@ -4,10 +4,9 @@ package mocks
 
 import (
 	context "context"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	cluster "github.com/devtron-labs/devtron/pkg/cluster"
-
 	mock "github.com/stretchr/testify/mock"
 
 	repository "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -25,16 +24,16 @@ type ClusterService struct {
 }
 
 // ConnectClustersInBatch provides a mock function with given fields: clusters, clusterExistInDb
-func (_m *ClusterService) ConnectClustersInBatch(clusters []*cluster.ClusterBean, clusterExistInDb bool) {
+func (_m *ClusterService) ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool) {
 	_m.Called(clusters, clusterExistInDb)
 }
 
 // ConvertClusterBeanObjectToCluster provides a mock function with given fields: bean
-func (_m *ClusterService) ConvertClusterBeanObjectToCluster(bean *cluster.ClusterBean) *v1alpha1.Cluster {
+func (_m *ClusterService) ConvertClusterBeanObjectToCluster(bean *bean.ClusterBean) *v1alpha1.Cluster {
 	ret := _m.Called(bean)
 
 	var r0 *v1alpha1.Cluster
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean) *v1alpha1.Cluster); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean) *v1alpha1.Cluster); ok {
 		r0 = rf(bean)
 	} else {
 		if ret.Get(0) != nil {
@@ -46,11 +45,11 @@ func (_m *ClusterService) ConvertClusterBeanObjectToCluster(bean *cluster.Cluste
 }
 
 // ConvertClusterBeanToCluster provides a mock function with given fields: clusterBean, userId
-func (_m *ClusterService) ConvertClusterBeanToCluster(clusterBean *cluster.ClusterBean, userId int32) *repository.Cluster {
+func (_m *ClusterService) ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster {
 	ret := _m.Called(clusterBean, userId)
 
 	var r0 *repository.Cluster
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean, int32) *repository.Cluster); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean, int32) *repository.Cluster); ok {
 		r0 = rf(clusterBean, userId)
 	} else {
 		if ret.Get(0) != nil {
@@ -62,18 +61,18 @@ func (_m *ClusterService) ConvertClusterBeanToCluster(clusterBean *cluster.Clust
 }
 
 // CreateGrafanaDataSource provides a mock function with given fields: clusterBean, env
-func (_m *ClusterService) CreateGrafanaDataSource(clusterBean *cluster.ClusterBean, env *repository.Environment) (int, error) {
+func (_m *ClusterService) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	ret := _m.Called(clusterBean, env)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean, *repository.Environment) int); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean, *repository.Environment) int); ok {
 		r0 = rf(clusterBean, env)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*cluster.ClusterBean, *repository.Environment) error); ok {
+	if rf, ok := ret.Get(1).(func(*bean.ClusterBean, *repository.Environment) error); ok {
 		r1 = rf(clusterBean, env)
 	} else {
 		r1 = ret.Error(1)
@@ -83,11 +82,11 @@ func (_m *ClusterService) CreateGrafanaDataSource(clusterBean *cluster.ClusterBe
 }
 
 // Delete provides a mock function with given fields: bean, userId
-func (_m *ClusterService) Delete(bean *cluster.ClusterBean, userId int32) error {
+func (_m *ClusterService) Delete(bean *bean.ClusterBean, userId int32) error {
 	ret := _m.Called(bean, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean, int32) error); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean, int32) error); ok {
 		r0 = rf(bean, userId)
 	} else {
 		r0 = ret.Error(0)
@@ -97,11 +96,11 @@ func (_m *ClusterService) Delete(bean *cluster.ClusterBean, userId int32) error 
 }
 
 // DeleteFromDb provides a mock function with given fields: bean, userId
-func (_m *ClusterService) DeleteFromDb(bean *cluster.ClusterBean, userId int32) error {
+func (_m *ClusterService) DeleteFromDb(bean *bean.ClusterBean, userId int32) error {
 	ret := _m.Called(bean, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean, int32) error); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean, int32) error); ok {
 		r0 = rf(bean, userId)
 	} else {
 		r0 = ret.Error(0)
@@ -134,15 +133,15 @@ func (_m *ClusterService) FetchRolesFromGroup(userId int32) ([]*userrepository.R
 }
 
 // FindAll provides a mock function with given fields:
-func (_m *ClusterService) FindAll() ([]*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindAll() ([]*bean.ClusterBean, error) {
 	ret := _m.Called()
 
-	var r0 []*cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func() []*cluster.ClusterBean); ok {
+	var r0 []*bean.ClusterBean
+	if rf, ok := ret.Get(0).(func() []*bean.ClusterBean); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*cluster.ClusterBean)
+			r0 = ret.Get(0).([]*bean.ClusterBean)
 		}
 	}
 
@@ -157,15 +156,15 @@ func (_m *ClusterService) FindAll() ([]*cluster.ClusterBean, error) {
 }
 
 // FindAllActive provides a mock function with given fields:
-func (_m *ClusterService) FindAllActive() ([]cluster.ClusterBean, error) {
+func (_m *ClusterService) FindAllActive() ([]bean.ClusterBean, error) {
 	ret := _m.Called()
 
-	var r0 []cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func() []cluster.ClusterBean); ok {
+	var r0 []bean.ClusterBean
+	if rf, ok := ret.Get(0).(func() []bean.ClusterBean); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]cluster.ClusterBean)
+			r0 = ret.Get(0).([]bean.ClusterBean)
 		}
 	}
 
@@ -180,15 +179,15 @@ func (_m *ClusterService) FindAllActive() ([]cluster.ClusterBean, error) {
 }
 
 // FindAllForAutoComplete provides a mock function with given fields:
-func (_m *ClusterService) FindAllForAutoComplete() ([]cluster.ClusterBean, error) {
+func (_m *ClusterService) FindAllForAutoComplete() ([]bean.ClusterBean, error) {
 	ret := _m.Called()
 
-	var r0 []cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func() []cluster.ClusterBean); ok {
+	var r0 []bean.ClusterBean
+	if rf, ok := ret.Get(0).(func() []bean.ClusterBean); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]cluster.ClusterBean)
+			r0 = ret.Get(0).([]bean.ClusterBean)
 		}
 	}
 
@@ -203,15 +202,15 @@ func (_m *ClusterService) FindAllForAutoComplete() ([]cluster.ClusterBean, error
 }
 
 // FindAllForClusterByUserId provides a mock function with given fields: userId, isActionUserSuperAdmin
-func (_m *ClusterService) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]cluster.ClusterBean, error) {
+func (_m *ClusterService) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]bean.ClusterBean, error) {
 	ret := _m.Called(userId, isActionUserSuperAdmin)
 
-	var r0 []cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(int32, bool) []cluster.ClusterBean); ok {
+	var r0 []bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(int32, bool) []bean.ClusterBean); ok {
 		r0 = rf(userId, isActionUserSuperAdmin)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]cluster.ClusterBean)
+			r0 = ret.Get(0).([]bean.ClusterBean)
 		}
 	}
 
@@ -249,15 +248,15 @@ func (_m *ClusterService) FindAllNamespacesByUserIdAndClusterId(userId int32, cl
 }
 
 // FindAllWithoutConfig provides a mock function with given fields:
-func (_m *ClusterService) FindAllWithoutConfig() ([]*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	ret := _m.Called()
 
-	var r0 []*cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func() []*cluster.ClusterBean); ok {
+	var r0 []*bean.ClusterBean
+	if rf, ok := ret.Get(0).(func() []*bean.ClusterBean); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*cluster.ClusterBean)
+			r0 = ret.Get(0).([]*bean.ClusterBean)
 		}
 	}
 
@@ -272,15 +271,15 @@ func (_m *ClusterService) FindAllWithoutConfig() ([]*cluster.ClusterBean, error)
 }
 
 // FindById provides a mock function with given fields: id
-func (_m *ClusterService) FindById(id int) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindById(id int) (*bean.ClusterBean, error) {
 	ret := _m.Called(id)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(int) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(int) *bean.ClusterBean); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
@@ -295,15 +294,15 @@ func (_m *ClusterService) FindById(id int) (*cluster.ClusterBean, error) {
 }
 
 // FindByIdWithoutConfig provides a mock function with given fields: id
-func (_m *ClusterService) FindByIdWithoutConfig(id int) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindByIdWithoutConfig(id int) (*bean.ClusterBean, error) {
 	ret := _m.Called(id)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(int) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(int) *bean.ClusterBean); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
@@ -318,15 +317,15 @@ func (_m *ClusterService) FindByIdWithoutConfig(id int) (*cluster.ClusterBean, e
 }
 
 // FindByIds provides a mock function with given fields: id
-func (_m *ClusterService) FindByIds(id []int) ([]cluster.ClusterBean, error) {
+func (_m *ClusterService) FindByIds(id []int) ([]bean.ClusterBean, error) {
 	ret := _m.Called(id)
 
-	var r0 []cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func([]int) []cluster.ClusterBean); ok {
+	var r0 []bean.ClusterBean
+	if rf, ok := ret.Get(0).(func([]int) []bean.ClusterBean); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]cluster.ClusterBean)
+			r0 = ret.Get(0).([]bean.ClusterBean)
 		}
 	}
 
@@ -341,15 +340,15 @@ func (_m *ClusterService) FindByIds(id []int) ([]cluster.ClusterBean, error) {
 }
 
 // FindOne provides a mock function with given fields: clusterName
-func (_m *ClusterService) FindOne(clusterName string) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindOne(clusterName string) (*bean.ClusterBean, error) {
 	ret := _m.Called(clusterName)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(string) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(string) *bean.ClusterBean); ok {
 		r0 = rf(clusterName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
@@ -364,15 +363,15 @@ func (_m *ClusterService) FindOne(clusterName string) (*cluster.ClusterBean, err
 }
 
 // FindOneActive provides a mock function with given fields: clusterName
-func (_m *ClusterService) FindOneActive(clusterName string) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) FindOneActive(clusterName string) (*bean.ClusterBean, error) {
 	ret := _m.Called(clusterName)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(string) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(string) *bean.ClusterBean); ok {
 		r0 = rf(clusterName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
@@ -403,11 +402,11 @@ func (_m *ClusterService) GetAllClusterNamespaces() map[string][]string {
 }
 
 // GetClusterConfig provides a mock function with given fields: _a0
-func (_m *ClusterService) GetClusterConfig(_a0 *cluster.ClusterBean) (*util.ClusterConfig, error) {
+func (_m *ClusterService) GetClusterConfig(_a0 *bean.ClusterBean) (*util.ClusterConfig, error) {
 	ret := _m.Called(_a0)
 
 	var r0 *util.ClusterConfig
-	if rf, ok := ret.Get(0).(func(*cluster.ClusterBean) *util.ClusterConfig); ok {
+	if rf, ok := ret.Get(0).(func(*bean.ClusterBean) *util.ClusterConfig); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -416,7 +415,7 @@ func (_m *ClusterService) GetClusterConfig(_a0 *cluster.ClusterBean) (*util.Clus
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*cluster.ClusterBean) error); ok {
+	if rf, ok := ret.Get(1).(func(*bean.ClusterBean) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
@@ -449,25 +448,25 @@ func (_m *ClusterService) GetK8sClient() (*v1.CoreV1Client, error) {
 }
 
 // HandleErrorInClusterConnections provides a mock function with given fields: clusters, respMap, clusterExistInDb
-func (_m *ClusterService) HandleErrorInClusterConnections(clusters []*cluster.ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+func (_m *ClusterService) HandleErrorInClusterConnections(clusters []*bean.ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	_m.Called(clusters, respMap, clusterExistInDb)
 }
 
 // Save provides a mock function with given fields: parent, bean, userId
-func (_m *ClusterService) Save(parent context.Context, bean *cluster.ClusterBean, userId int32) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) Save(parent context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	ret := _m.Called(parent, bean, userId)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(context.Context, *cluster.ClusterBean, int32) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(context.Context, *bean.ClusterBean, int32) *bean.ClusterBean); ok {
 		r0 = rf(parent, bean, userId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *cluster.ClusterBean, int32) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *bean.ClusterBean, int32) error); ok {
 		r1 = rf(parent, bean, userId)
 	} else {
 		r1 = ret.Error(1)
@@ -477,20 +476,20 @@ func (_m *ClusterService) Save(parent context.Context, bean *cluster.ClusterBean
 }
 
 // Update provides a mock function with given fields: ctx, bean, userId
-func (_m *ClusterService) Update(ctx context.Context, bean *cluster.ClusterBean, userId int32) (*cluster.ClusterBean, error) {
+func (_m *ClusterService) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	ret := _m.Called(ctx, bean, userId)
 
-	var r0 *cluster.ClusterBean
-	if rf, ok := ret.Get(0).(func(context.Context, *cluster.ClusterBean, int32) *cluster.ClusterBean); ok {
+	var r0 *bean.ClusterBean
+	if rf, ok := ret.Get(0).(func(context.Context, *bean.ClusterBean, int32) *bean.ClusterBean); ok {
 		r0 = rf(ctx, bean, userId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.ClusterBean)
+			r0 = ret.Get(0).(*bean.ClusterBean)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *cluster.ClusterBean, int32) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *bean.ClusterBean, int32) error); ok {
 		r1 = rf(ctx, bean, userId)
 	} else {
 		r1 = ret.Error(1)
@@ -500,15 +499,15 @@ func (_m *ClusterService) Update(ctx context.Context, bean *cluster.ClusterBean,
 }
 
 // ValidateKubeconfig provides a mock function with given fields: kubeConfig
-func (_m *ClusterService) ValidateKubeconfig(kubeConfig string) (map[string]*cluster.ValidateClusterBean, error) {
+func (_m *ClusterService) ValidateKubeconfig(kubeConfig string) (map[string]*bean.ValidateClusterBean, error) {
 	ret := _m.Called(kubeConfig)
 
-	var r0 map[string]*cluster.ValidateClusterBean
-	if rf, ok := ret.Get(0).(func(string) map[string]*cluster.ValidateClusterBean); ok {
+	var r0 map[string]*bean.ValidateClusterBean
+	if rf, ok := ret.Get(0).(func(string) map[string]*bean.ValidateClusterBean); ok {
 		r0 = rf(kubeConfig)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*cluster.ValidateClusterBean)
+			r0 = ret.Get(0).(map[string]*bean.ValidateClusterBean)
 		}
 	}
 

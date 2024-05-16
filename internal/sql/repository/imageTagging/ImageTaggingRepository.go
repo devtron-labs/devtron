@@ -18,8 +18,10 @@
 package repository
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"time"
 )
 
@@ -72,6 +74,7 @@ type ImageTaggingRepository interface {
 	SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	GetTagsByAppId(appId int) ([]*ImageTag, error)
+	GetTagsForAppIds(ctx context.Context, appIds []int) ([]*ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]*ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
 	GetImageCommentsByArtifactIds(artifactIds []int) ([]*ImageComment, error)
@@ -110,6 +113,17 @@ func (impl *ImageTaggingRepositoryImpl) GetTagsByAppId(appId int) ([]*ImageTag, 
 	res := make([]*ImageTag, 0)
 	err := impl.dbConnection.Model(&res).
 		Where("app_id=?", appId).
+		Select()
+	return res, err
+}
+
+func (impl *ImageTaggingRepositoryImpl) GetTagsForAppIds(ctx context.Context, appIds []int) ([]*ImageTag, error) {
+	_, span := otel.Tracer("ImageTaggingRepository").Start(ctx, "GetTagsForAppIds")
+	defer span.End()
+	res := make([]*ImageTag, 0)
+	err := impl.dbConnection.Model(&res).
+		Where("app_id in (?)", pg.In(appIds)).
+		Order("id DESC").
 		Select()
 	return res, err
 }

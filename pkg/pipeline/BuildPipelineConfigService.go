@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -102,6 +103,10 @@ type CiPipelineConfigService interface {
 	// If no specific environments are provided, it retrieves all CI pipelines associated with the application.
 	// If you want more details like buildConfig ,gitMaterials etc, please refer GetCiPipeline
 	GetCiPipelineMin(appId int, envIds []int) ([]*bean.CiPipelineMin, error)
+	// GetCiComponentDetails : lists CI components (basic details of ciPipelines and externalCiPipelines) for the given appId.
+	// It retrieves all CI pipelines/ External CI Pipelines associated with the application.
+	// For CI Pipelines, It also includes bean.CiMaterial
+	GetCiComponentDetails(appId int) (map[int]*bean.CiComponentDetails, map[int]*bean.CiComponentDetails, error)
 	// PatchRegexCiPipeline : Update CI pipeline materials based on the provided regex patch request
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 	// GetCiPipelineByEnvironment : lists ciPipeline for given environmentId and appIds
@@ -396,7 +401,11 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
 	}
-
+	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
+		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
+		errorMessage := fmt.Sprintf(CiPipeline2.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
 		if material.ScmId != "" {
@@ -982,30 +991,8 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			}
 		}
 
-		branchesForCheckingBlockageState := make([]string, 0, len(pipeline.CiPipelineMaterials))
-		for _, material := range pipeline.CiPipelineMaterials {
-			// ignore those materials which have inactive git material
-			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
-				continue
-			}
-			isRegex := material.Regex != ""
-			if !(isRegex && len(material.Value) == 0) { // add branches for all cases except if type regex and branch is not set
-				branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, material.Value)
-			}
-			ciMaterial := &bean.CiMaterial{
-				Id:              material.Id,
-				CheckoutPath:    material.CheckoutPath,
-				Path:            material.Path,
-				ScmId:           material.ScmId,
-				GitMaterialId:   material.GitMaterialId,
-				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-				ScmName:         material.ScmName,
-				ScmVersion:      material.ScmVersion,
-				IsRegex:         isRegex,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
-			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
-		}
+		ciMaterials, branchesForCheckingBlockageState := bean.GetCiMaterialsBeanFromModel(pipeline.CiPipelineMaterials)
+		ciPipeline.CiMaterial = ciMaterials
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
@@ -1626,7 +1613,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := constants.NORMAL
+		pipelineType := constants.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
@@ -1650,6 +1637,36 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
 	return ciPipelineResp, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCiComponentDetails(appId int) (map[int]*bean.CiComponentDetails, map[int]*bean.CiComponentDetails, error) {
+	ciPipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
+		return nil, nil, err
+	}
+	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, nil, err
+	}
+	ciPipelineMap := make(map[int]*bean.CiComponentDetails, len(ciPipelines))
+	for _, pipeline := range ciPipelines {
+		ciPipelineComponent := bean.NewCiPipelineBeanFromModel(pipeline)
+		ciMaterials, _ := bean.GetCiMaterialsBeanFromModel(pipeline.CiPipelineMaterials)
+		ciPipelineComponent.CiMaterial = ciMaterials
+		ciPipelineMap[pipeline.Id] = ciPipelineComponent
+	}
+	externalCiPipelineMap := make(map[int]*bean.CiComponentDetails, len(ciPipelines))
+	for _, externalCiPipeline := range externalCiPipelines {
+		externalCiComponent := &bean.CiComponentDetails{
+			Id:           externalCiPipeline.Id,
+			PipelineType: bean4.GetSourceTypeFromPipelineType(constants.EXTERNAL),
+			CiMaterial:   make([]*bean.CiMaterial, 0),
+		}
+		externalCiPipelineMap[externalCiPipeline.Id] = externalCiComponent
+	}
+	return ciPipelineMap, externalCiPipelineMap, err
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error) {

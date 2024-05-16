@@ -3,19 +3,25 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	userRepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/go-pg/pg"
 
@@ -26,7 +32,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"go.uber.org/zap"
 )
 
 // ClusterServiceImplExtended extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -36,7 +41,7 @@ type ClusterServiceImplExtended struct {
 	installedAppRepository   repository2.InstalledAppRepository
 	clusterServiceCD         cluster2.ServiceClient
 	gitOpsConfigReadService  config.GitOpsConfigReadService
-	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
+	sshTunnelWrapperService  ssh.SSHTunnelWrapperService
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
 }
@@ -45,13 +50,14 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *k8s.K8sUtilExtended,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	userAuthRepository repository5.UserAuthRepository,
-	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
-	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
+	userAuthRepository userRepository.UserAuthRepository,
+	userRepository userRepository.UserRepository, roleGroupRepository userRepository.RoleGroupRepository,
+	sshTunnelWrapperService ssh.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+	remoteConnectionService remoteConnection.RemoteConnectionService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:    environmentRepository,
 		grafanaClient:            grafanaClient,
@@ -70,6 +76,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
 			userService:                      userService,
+			remoteConnectionService:          remoteConnectionService,
 		},
 	}
 	go clusterServiceExt.updateClusterConnectionMap()
@@ -85,7 +92,7 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 		return
 	}
 	for _, cluster := range clusters {
-		clusterBean := GetClusterBean(*cluster)
+		clusterBean := adapter.GetClusterBean(*cluster)
 		clusterConfig := clusterBean.GetClusterConfig()
 		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
@@ -97,26 +104,27 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 	}
 	return
 }
-func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	beans, err := impl.FindAll()
 	if err != nil {
 		return nil, err
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.SSHTunnelConfig != nil {
-			if len(bean.SSHTunnelConfig.Password) > 0 {
-				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+		if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
+			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
-			if len(bean.SSHTunnelConfig.AuthKey) > 0 {
-				bean.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+			if len(bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = remoteConnectionBean.SecretDataObfuscatePlaceholder
 			}
 		}
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -141,7 +149,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	}
 
 	for _, item := range beans {
-		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
+		defaultClusterComponents := make([]*bean.DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
 			failed := false
@@ -151,7 +159,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 				chartLen = len(charts)
 			}
 			for _, chart := range charts {
-				defaultClusterComponent := &DefaultClusterComponent{}
+				defaultClusterComponent := &bean.DefaultClusterComponent{}
 				defaultClusterComponent.AppId = chart.InstalledApp.AppId
 				defaultClusterComponent.InstalledAppId = chart.InstalledApp.Id
 				defaultClusterComponent.EnvId = chart.InstalledApp.EnvironmentId
@@ -184,7 +192,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAll() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -192,7 +200,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -200,7 +208,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	gitOpsConfigurationStatus, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
@@ -279,7 +287,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
-	if gitOpsConfigurationStatus.IsGitOpsConfigured && len(bean.ProxyUrl) == 0 && !bean.ToConnectWithSSHTunnel {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && !IsProxyOrSSHConfigured(bean) {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -331,7 +339,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	return bean, err
 }
 
-func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
+func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
@@ -380,7 +388,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
@@ -392,7 +400,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if gitOpsConfigurationStatus.IsGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 && !clusterBean.ToConnectWithSSHTunnel {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && IsProxyOrSSHConfigured(clusterBean) {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
@@ -424,7 +432,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.ClusterBean, userId int32) error {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)

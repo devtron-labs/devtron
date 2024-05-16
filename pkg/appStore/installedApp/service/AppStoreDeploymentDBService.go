@@ -600,11 +600,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	isOCIRepo := appStoreAppVersion.AppStore.DockerArtifactStore != nil
 	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	}
-	overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("validation error for the used deployment type", "appName", installAppVersionRequest.AppName, "err", err)
-		return overrideDeploymentType, err
+	} else {
+		overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("validation error for the used deployment type", "appName", installAppVersionRequest.AppName, "err", err)
+			return overrideDeploymentType, err
+		}
 	}
 	return overrideDeploymentType, nil
 }
