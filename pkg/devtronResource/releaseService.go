@@ -138,10 +138,18 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteForGetApiResourceObj(re
 			resourceObject.Overview.Note = &bean.NoteBean{
 				Value: gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceObjectReleaseNotePath).String(),
 			}
-			audit, err := impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ReleaseResourceObjectReleaseNotePath)
-			if err != nil {
-				impl.logger.Errorw("error in getting audit ")
-			} else if audit != nil && audit.Id >= 0 {
+			var audit *repository.DevtronResourceObjectAudit
+			var err error
+			audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ReleaseResourceObjectReleaseNotePath)
+			if err != nil || audit == nil || audit.Id == 0 {
+				impl.logger.Errorw("error in getting audit by path", "err", err, "objectId", existingResourceObject.Id, "path", bean.ReleaseResourceObjectReleaseNotePath)
+				//it might be possible that if audit is not found then these field's data is populated through clone action, getting its audit
+				audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpType(existingResourceObject.Id, repository.AuditOperationTypeClone)
+				if err != nil {
+					impl.logger.Errorw("error in getting audit by type", "err", err, "objectId", existingResourceObject.Id, "opType", repository.AuditOperationTypeClone)
+				}
+			}
+			if audit != nil && audit.Id >= 0 {
 				userSchema, err := impl.getUserSchemaDataById(audit.UpdatedBy)
 				if err != nil {
 					impl.logger.Errorw("error in getting user schema, updateReleaseNoteInResourceObj", "err", err, "userId", audit.UpdatedBy)
@@ -2134,6 +2142,9 @@ func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData st
 	case bean.ReleaseLockQueryPath:
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusIsLockedPath, query.Value)
 	case bean.NameQueryPath:
+		if nameStr, ok := query.Value.(string); !ok || len(nameStr) == 0 {
+			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchValueNotSupportedError, bean.PatchValueNotSupportedError)
+		}
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
 	default:
 		err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
