@@ -1,17 +1,21 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: postgresql-migrate-devtron
+  name: laeeq
 spec:
   template:
     spec:
       containers:
         - name: postgresql-migrate-devtron
-          image: laeeqa222/abcd:5f5ebe0d-43-225
+          image: laeeqa222/abcd:5f5ebe0d-43-225////quay.io/devtron/migrator:71748de9-149-11112
           volumeMounts:
             - mountPath: /tmp/app/scripts/sql/
               name: sql-scripts-volume
           env:
+            - name: GIT_HASH
+              value: be7da471e45a501eba19eaa5f8d08dfe5601598d
+            - name: GIT_REPO_URL
+              value: https://github.com/devtron-labs/devtron.git
             - name: SCRIPT_LOCATION
               value: scripts/sql/
             - name: DB_TYPE
@@ -31,8 +35,6 @@ spec:
           envFrom:
             - secretRef:
                 name: postgresql-migrator
-            - configMapRef:
-                name: git-hash-cm
       restartPolicy: OnFailure
       volumes:
         - name: sql-scripts-volume
