@@ -655,7 +655,7 @@ type CdPipelineReleaseInfo struct {
 	PreCdWorkflowRunnerId      int                     `json:"preCdWorkflowRunnerId,omitempty"`
 	CdWorkflowRunnerId         int                     `json:"cdWorkflowRunnerId,omitempty"`
 	PostCdWorkflowRunnerId     int                     `json:"postCdWorkflowRunnerId,omitempty"`
-	RolloutStatus              ReleaseDeploymentStatus `json:"rolloutStatus,omitempty"`
+	ReleaseDeploymentStatus    ReleaseDeploymentStatus `json:"releaseDeploymentRolloutStatus,omitempty"`
 }
 
 type ReleaseDeploymentStatus string
