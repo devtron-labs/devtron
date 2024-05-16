@@ -1477,7 +1477,7 @@ func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(
 			continue
 		}
 		// if this appId from map is not in provided appIds continue as we don't need to calculate for thsi appId
-		if slices.Contains(appIds, appId) {
+		if !slices.Contains(appIds, appId) {
 			continue
 		}
 		// if not of (deployment exist and status is succeeded)
