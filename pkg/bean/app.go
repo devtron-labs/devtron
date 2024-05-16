@@ -885,6 +885,11 @@ type CiArtifactBean struct {
 	DeploymentWindowArtifactMetadata deploymentWindow.DeploymentWindowAuditData `json:"deploymentWindowArtifactMetadata"`
 	PromotionApprovalMetadata        *bean5.PromotionApprovalMetaData           `json:"promotionApprovalMetadata"`
 	DeployedOnEnvironments           []string                                   `json:"deployedOnEnvironments"`
+
+	// ConfiguredInReleases is used to convey data of releases where this artifact is configured. this should be not present here, but need to do refactoring for wrapping specific beans as for current scenario we need whole CiArtifactResponse
+	// kept as interface to avoid import issues
+	ConfiguredInReleases interface{} `json:"configuredInReleases,omitempty"`
+	AppWorkflowId        int         `json:"appWorkflowId"` //app workflow where artifacts belong to, used in release
 }
 
 func (c *CiArtifactBean) GetMaterialInfo() ([]repository3.CiMaterialInfo, error) {

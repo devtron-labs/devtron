@@ -127,7 +127,7 @@ type CiArtifactRepository interface {
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) ([]*CiArtifact, error)
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
-	GetAllArtifactsForWfComponents(ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
+	GetAllArtifactsForWfComponents(artifactIds, ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
 		searchArtifactTag string, offset, limit int) ([]CiArtifact, int, error)
 	GetArtifactByImageTagAndAppId(imageTag string, appId int) (CiArtifact, error)
 	GetArtifactsByCiPipelineIds(ciPipelineIds []int) ([]CiArtifact, error)
@@ -136,6 +136,7 @@ type CiArtifactRepository interface {
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByImageAndDigestAndPipelineId(ctx context.Context, image string, imageDigest string, ciPipelineId int) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
+	GetByIdsAndArtifactTag(ids []int, searchArtifactTag string, limit, offset int) ([]CiArtifact, int, error)
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
@@ -684,7 +685,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCiPipelineId(ciPipelineId int
 	return artifacts, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetAllArtifactsForWfComponents(ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
+func (impl CiArtifactRepositoryImpl) GetAllArtifactsForWfComponents(artifactIds, ciPipelineIds, externalCiPipelineIds, cdPipelineIds []int,
 	searchArtifactTag string, offset, limit int) ([]CiArtifact, int, error) {
 	var artifacts []CiArtifact
 	query := impl.dbConnection.Model(&artifacts).Column("ci_artifact.*")
@@ -722,6 +723,9 @@ func (impl CiArtifactRepositoryImpl) GetAllArtifactsForWfComponents(ciPipelineId
 	})
 	if len(searchArtifactTag) > 0 {
 		query = query.Where("ci_artifact.image LIKE ?", fmt.Sprint("%:%", searchArtifactTag, "%"))
+	}
+	if len(artifactIds) > 0 {
+		query = query.Where("ci_artifact.id in (?)", pg.In(artifactIds))
 	}
 	totalQuery, err := query.Count()
 	if err != nil {
@@ -836,6 +840,25 @@ func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) 
 		Where("ci_artifact.id in (?) ", pg.In(ids)).
 		Select()
 	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetByIdsAndArtifactTag(ids []int, searchArtifactTag string, limit, offset int) ([]CiArtifact, int, error) {
+	if len(ids) == 0 {
+		return nil, 0, pg.ErrNoRows
+	}
+	var artifacts []CiArtifact
+	query := impl.dbConnection.Model(&artifacts).
+		Column("ci_artifact.*").
+		Where("ci_artifact.id in (?) ", pg.In(ids))
+	if len(searchArtifactTag) > 0 {
+		query = query.Where("ci_artifact.image LIKE ?", fmt.Sprint("%:%", searchArtifactTag, "%"))
+	}
+	totalCount, err := query.Count()
+	if err != nil {
+		return nil, 0, err
+	}
+	err = query.Limit(limit).Offset(offset).Select()
+	return artifacts, totalCount, err
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error) {

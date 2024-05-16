@@ -25,6 +25,7 @@ type DevtronResourceRestHandler interface {
 	GetResourceObjectListByKindAndVersion(w http.ResponseWriter, r *http.Request)
 	GetResourceObject(w http.ResponseWriter, r *http.Request)
 	CreateResourceObject(w http.ResponseWriter, r *http.Request)
+	CloneResourceObject(w http.ResponseWriter, r *http.Request)
 	CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request)
 	PatchResourceObject(w http.ResponseWriter, r *http.Request)
 	DeleteResourceObject(w http.ResponseWriter, r *http.Request)
@@ -170,6 +171,46 @@ func (handler *DevtronResourceRestHandlerImpl) CreateResourceObject(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, apiBean.ResourceCreateSuccessMessage, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) CloneResourceObject(w http.ResponseWriter, r *http.Request) {
+	ctx := util.NewRequestCtx(r.Context())
+	kind, subKind, version, caughtError := getKindSubKindVersion(w, r)
+	if caughtError {
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var reqBean serviceBean.DtResourceObjectCloneReqBean
+	err := decoder.Decode(&reqBean)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if reqBean.DevtronResourceObjectDescriptorBean == nil {
+		reqBean.DevtronResourceObjectDescriptorBean = &serviceBean.DevtronResourceObjectDescriptorBean{}
+	}
+	reqBean.Kind = kind
+	reqBean.SubKind = subKind
+	reqBean.Version = version
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	isValidated := handler.checkAuthForObject(reqBean.OldObjectId, token, kind, subKind)
+	if !isValidated {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	reqBean.UserId = ctx.GetUserId()
+	err = handler.devtronResourceService.CloneResourceObject(ctx, &reqBean)
+	if err != nil {
+		handler.logger.Errorw("service error, CloneResourceObject", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, apiBean.ResourceCloneSuccessMessage, http.StatusOK)
 	return
 }
 
