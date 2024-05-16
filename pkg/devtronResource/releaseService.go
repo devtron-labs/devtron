@@ -1345,8 +1345,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 	rsIdentifier := helper.GetTaskRunSourceIdentifier(resourceId, req.IdType, existingResourceObject.DevtronResourceId, existingResourceObject.DevtronResourceSchemaId)
 
 	// getting all release Info and corresponding map to use in further processing at level/stage or showAll(rollout status)
-	pipelineIdAppIdKeyVsReleaseInfo, allCdPipelineReleaseInfo, allApplicationDependencies,
-		taskInfoCount, err := impl.fetchAllReleaseInfoStatusWithMap(existingResourceObject, rsIdentifier)
+	pipelineIdAppIdKeyVsReleaseInfo, allCdPipelineReleaseInfo, taskInfoCount, err := impl.fetchAllReleaseInfoStatusWithMap(existingResourceObject, rsIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 		return nil, err
@@ -1357,17 +1356,6 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
-		}
-		// If the last stage of the release has TaskRunAllowed; then verify the release rollout status
-		// If all the applications in all stages are deployed to their respective environments,
-		// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
-		lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
-		if lastStageResponse != nil && lastStageResponse.IsTaskRunAllowed() {
-			err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
-			if err != nil {
-				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
-				return nil, err
-			}
 		}
 	} else {
 		var appDevtronResourceSchemaId int
@@ -1534,7 +1522,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(
 }
 
 // fetchAllReleaseInfoStatusWithMap will fetch all release info with mappings
-func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) (map[string]*bean.CdPipelineReleaseInfo, []*bean.CdPipelineReleaseInfo, []*bean.DevtronResourceDependencyBean, *bean.TaskInfoCount, error) {
+func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) (map[string]*bean.CdPipelineReleaseInfo, []*bean.CdPipelineReleaseInfo, *bean.TaskInfoCount, error) {
 	var taskInfoCount *bean.TaskInfoCount
 	var dependencyBean []*bean.CdPipelineReleaseInfo
 	var pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo
@@ -1545,19 +1533,20 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existin
 		dependencyBean, pipelineIdAppIdKeyVsReleaseInfo, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, allApplicationDependencies)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
-		//TODO: need to check if can be removed
-		err = impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, allApplicationDependencies)
+		// If all the applications in all stages are deployed to their respective environments,
+		// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+		err = impl.markRolloutStatusIfAllDependenciesGotSucceedFromMap(existingResourceObject, pipelineIdAppIdKeyVsReleaseInfo, allApplicationDependencies)
 		if err != nil {
-			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
-			return nil, nil, nil, nil, err
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
+			return nil, nil, nil, err
 		}
 
 		stageWiseDeploymentStatusCount, releaseDeploymentStatusCount := getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(dependencyBean)
 		taskInfoCount = adapter.BuildTaskInfoCount(releaseDeploymentStatusCount, stageWiseDeploymentStatusCount)
 	}
-	return pipelineIdAppIdKeyVsReleaseInfo, dependencyBean, allApplicationDependencies, taskInfoCount, nil
+	return pipelineIdAppIdKeyVsReleaseInfo, dependencyBean, taskInfoCount, nil
 }
 
 func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.FilterConditionInternalBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo) []*bean.CdPipelineReleaseInfo {
@@ -1783,6 +1772,74 @@ func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSuc
 		}
 	}
 	return nil
+}
+
+// markRolloutStatusIfAllDependenciesGotSucceedFromMap get allApplicationDependencies if not provided.
+// If all the applications in all stages are deployed to their respective environments, checks from map
+// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSucceedFromMap(existingResourceObject *repository.DevtronResourceObject, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, allApplicationDependencies []*bean.DevtronResourceDependencyBean) (err error) {
+	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
+	if !rolloutStatus.IsCompletelyDeployed() && len(allApplicationDependencies) != 0 {
+		appIds := make([]int, len(allApplicationDependencies))
+		// ignoring child inheritance check here as callee has already handled it( GET call will be deprecated in future not handling for that)
+		for _, dependency := range allApplicationDependencies {
+			appIds = append(appIds, dependency.OldObjectId)
+		}
+		isReleaseCompleted, err := impl.isAppsDeployedOnAllEnvWithRunnerFromMap(appIds, pipelineIdAppIdKeyVsReleaseInfo)
+		if err != nil {
+			impl.logger.Errorw("error encountered in markRolloutStatusIfAllDependenciesGotSucceedFromMap", "appIds", appIds, "err", err)
+			return err
+		}
+
+		if isReleaseCompleted {
+			existingResourceObject.ObjectData, err = sjson.Set(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath, bean.CompletelyDeployedReleaseRolloutStatus)
+			if err != nil {
+				impl.logger.Errorw("error in json set release rollout status completed", "err", err)
+				return err
+			}
+			err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
+			if err != nil {
+				impl.logger.Errorw("error in updating release rollout status completed", "err", err, "existingResourceObject", existingResourceObject.Id)
+				return err
+			}
+			// updated existing object (rollout status to completely deployed)
+			err = impl.updateRolloutStatusInExistingObject(existingResourceObject,
+				bean.CompletelyDeployedReleaseRolloutStatus, 1, time.Now())
+			if err != nil {
+				impl.logger.Errorw("error encountered in markRolloutStatusIfAllDependenciesGotSucceedFromMap", "err", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// isAppsDeployedOnAllEnvWithRunnerFromMap checks from map that every app is deployed on every stage successfully from
+func (impl *DevtronResourceServiceImpl) isAppsDeployedOnAllEnvWithRunnerFromMap(appIds []int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) (bool, error) {
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in isAppsDeployedOnAllEnvWithRunnerFromMap", "key", key, "err", err)
+			return false, err
+		}
+		// if this appId from map is not in provided appIds continue as we don't need to calculate for thsi appId
+		if !slices.Contains(appIds, appId) {
+			continue
+		}
+		// if not of (deployment exist and status is succeeded)
+		if !(info.ExistingStages.Deploy && helper.IsStatusSucceeded(info.DeployStatus)) {
+			return false, nil
+		}
+		// if not of (pre exist and status is succeeded)
+		if !(info.ExistingStages.Pre && helper.IsStatusSucceeded(info.PreStatus)) {
+			return false, nil
+		}
+		// if not of (post exist and status is succeeded)
+		if !(info.ExistingStages.Post && helper.IsStatusSucceeded(info.PostStatus)) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // getAppIdsAndEnvIdsFromFilterCriteria decodes filters and return app ids ,envIds, deployment status with stage, rollout Status, gets ids for identifiers if identifiers are given
