@@ -7,16 +7,13 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-devtron
-          image: quay.io/devtron/migrator:71748de9-149-11112
-          command: [ "/bin/sh", "-c" ]
-          args: [ "sleep 3600" ]
+          image: laeeqa222/abcd:5f5ebe0d-43-225
+          volumeMounts:
+            - mountPath: /tmp/app/scripts/sql/
+              name: sql-scripts-volume
           env:
-            - name: GIT_BRANCH
-              value: main
             - name: SCRIPT_LOCATION
               value: scripts/sql/
-            - name: GIT_REPO_URL
-              value: https://github.com/devtron-labs/devtron.git
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
@@ -29,12 +26,18 @@ spec:
               value: orchestrator
             - name: MIGRATE_TO_VERSION
               value: "0"
+            - name: SCRIPT_MOUNTED
+              value: true
           envFrom:
             - secretRef:
                 name: postgresql-migrator
             - configMapRef:
                 name: git-hash-cm
       restartPolicy: OnFailure
+      volumes:
+        - name: sql-scripts-volume
+          hostPath:
+            path: /test/scripts/sql/
   backoffLimit: 20
   activeDeadlineSeconds: 150
 ---
