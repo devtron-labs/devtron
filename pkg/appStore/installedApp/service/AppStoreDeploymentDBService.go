@@ -44,7 +44,7 @@ type AppStoreDeploymentDBService interface {
 	// UpdateInstalledAppVersionHistoryWithGitHash updates GitHash in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryWithGitHash(versionHistoryId int, gitHash string, userId int32) error
 	// UpdateProjectForHelmApp updates TeamId in the app.App
-	UpdateProjectForHelmApp(appName, displayName, namespace string, teamId int, userId int32) error
+	UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error
 	// InstallAppPostDbOperation is used to perform Post-Install DB operations in App Store deployments
 	InstallAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	// MarkInstalledAppVersionsInactiveByInstalledAppId will mark the repository.InstalledAppVersions inactive for the given InstalledAppId
@@ -345,7 +345,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetActiveAppForAppIdentifierOrRelea
 	return app, nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName, namespace string, teamId int, userId int32) error {
+func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, displayName string, teamId int, userId int32) error {
 	appModel, err := impl.GetActiveAppForAppIdentifierOrReleaseName(appName, displayName)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching appModel by appName", "appName", appName, "err", err)
@@ -355,23 +355,20 @@ func (impl *AppStoreDeploymentDBServiceImpl) UpdateProjectForHelmApp(appName, di
 	// only external app will have a display name, so checking the following case only for external apps
 	if appModel != nil && appModel.Id > 0 && len(displayName) > 0 {
 		/*
-					1. now we will check if for that appModel, installed_app entry present or not i.e. linked to devtron or not,
-				    2. if not, then let the normal flow continue as we can change the app_name with app unique identifier.
-					3. if exists then we will check if request's namespace is same as what present in installed_apps.
-						- if ns doesn't match then update proj. req. is for some other app found in app table via display_name,
-			              in this case create a new entry in app table for the request.
-						- if ns matches, then update proj. req. is for same app present in installed_apps, in that case we will update
-				          the app_name with unique identifier and display_name along with team_id.
+				1. now we will check if for that appModel, installed_app entries are present or not i.e. linked to devtron or not,
+			    2. if not, then let the normal flow continue as we can change the app_name with app unique identifier.
+				3. if exists then we will create new app entries with uniqueAppNameIdentifier for all installed apps.
 		*/
-		isLinkedToDevtron, _, linkedInstalledAppNamespace, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(appModel.Id)
+		isLinkedToDevtron, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(appModel.Id)
 		if err != nil {
-			impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", appModel.Id, "err", err)
+			impl.logger.Errorw("UpdateProjectForHelmApp, error in checking IsExternalAppLinkedToChartStore", "appId", appModel.Id, "err", err)
 			return err
 		}
 		if isLinkedToDevtron {
-			if namespace != linkedInstalledAppNamespace {
-				//assigning appModel as nil, so that it will create a new entry in app for the request
-				appModel = nil
+			err := impl.installedAppDbService.CreateNewAppEntryForAllInstalledApps(installedApps)
+			if err != nil {
+				impl.logger.Errorw("UpdateProjectForHelmApp, error in CreateNewAppEntryForAllInstalledApps", "appName", displayName, "err", err)
+				//not returning from here, project update req is yet to be processed for requested ext-app
 			}
 		}
 	}

@@ -396,7 +396,6 @@ func isExternalHelmApp(appId string) bool {
 func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
 	var appName string
 	var displayName string
-	var namespace string
 	appName = updateAppRequest.AppName
 	if isExternalHelmApp(updateAppRequest.AppId) {
 		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
@@ -406,7 +405,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 		}
 		appName = appIdentifier.GetUniqueAppNameIdentifier()
 		displayName = updateAppRequest.AppName
-		namespace = appIdentifier.Namespace
 	} else {
 		//in case the external app is linked, then it's unique identifier is set in app_name col. hence retrieving appName
 		//for this case, although this will also handle the case for non-external apps
@@ -416,7 +414,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 		}
 	}
 	impl.logger.Infow("update helm project request", updateAppRequest)
-	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, namespace, updateAppRequest.TeamId, updateAppRequest.UserId)
+	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, updateAppRequest.TeamId, updateAppRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in linking project to helm app", "appName", updateAppRequest.AppName, "err", err)
 		return err

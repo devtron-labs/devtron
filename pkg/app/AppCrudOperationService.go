@@ -454,39 +454,36 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
 // returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) (bool, error) {
-	var isOtherExtAppMigrated bool
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) error {
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 
-	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
-	//update this app's app_name with unique identifier along with display_name.
-	isLinked, clusterId, namespace, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
+	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {
 		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
-		return false, err
+		return err
 	}
+	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
+	//create new appEntry for all those installedApps and link installedApp.AppId to the newly created app.
 	if isLinked {
-		// if installed_app is already present for that display_name then migrate the app_name to unique identifier with installed_app ns and cluster id data
-		// this namespace and clusterId belongs to the app linked to devtron whose entry in installed_apps is present.
-		app.AppName = appIdentifier.GetUniqueAppIdentifierForGivenNamespaceAndCluster(namespace, strconv.Itoa(clusterId))
-		if namespace != appIdentifier.Namespace {
-			//this means that migration request is for the same app whose appIdentifier is sent in request and what's present in linked installed_app
-			isOtherExtAppMigrated = true
+		// if installed_apps are already present for that display_name then migrate the app_name to unique identifier with installedApp's ns and clusterId.
+		// creating new entry for app all installedApps with uniqueAppNameIdentifier and display name
+		err := impl.installedAppDbService.CreateNewAppEntryForAllInstalledApps(installedApps)
+		if err != nil {
+			impl.logger.Errorw("error in CreateNewAppEntryForAllInstalledApps", "appName", app.AppName, "err", err)
+			//not returning from here as we have to migrate the app for requested ext-app and return the response for meta info
 		}
-	} else {
-		//app not found with unique identifier but displayName, hence migrate the app_name to unique identifier and also update display_name
-		app.AppName = appNameUniqueIdentifier
 	}
-
+	// migrating the requested ext-app
+	app.AppName = appNameUniqueIdentifier
 	app.DisplayName = appIdentifier.ReleaseName
 	app.UpdatedBy = bean2.SystemUserId
 	app.UpdatedOn = time.Now()
 	err = impl.appRepository.Update(app)
 	if err != nil {
 		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return false, err
+		return err
 	}
-	return isOtherExtAppMigrated, nil
+	return nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {
@@ -499,7 +496,6 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	var displayName string
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
-		var isOtherExtAppMigrated bool
 		appIdDecoded, err := client.DecodeExternalAppAppId(appId)
 		if err != nil {
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
@@ -512,16 +508,10 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {
-			isOtherExtAppMigrated, err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
+			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
 			if err != nil {
 				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
-			}
-			// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
-			// requested app in not assigned to any project.
-			if isOtherExtAppMigrated {
-				app.TeamId = 0
-				app.Team.Name = ""
 			}
 		}
 		if app.Id == 0 {

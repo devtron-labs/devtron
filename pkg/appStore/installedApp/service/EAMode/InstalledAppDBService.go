@@ -19,7 +19,9 @@ package EAMode
 
 import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
@@ -54,7 +56,8 @@ type InstalledAppDBService interface {
 
 	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
 	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
-	IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error)
+	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
+	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -347,15 +350,53 @@ func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.App
 }
 
 // IsExternalAppLinkedToChartStore checks for an appId, if that app is linked to any chart-store app or not,
-// if it's linked then it returns true along with clusterId and namespace for that linked installed_app
-func (impl *InstalledAppDBServiceImpl) IsExternalAppLinkedToChartStore(appId int) (bool, int, string, error) {
-	installedApp, err := impl.InstalledAppRepository.GetInstalledAppsByAppId(appId)
+// if it's linked then it returns true along with all the installedApps linked to that appId
+func (impl *InstalledAppDBServiceImpl) IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error) {
+	installedApps, err := impl.InstalledAppRepository.FindInstalledAppsByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed app by app id for external apps", "appId", appId, "err", err)
-		return false, 0, "", err
+		impl.Logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed apps by app id for external apps", "appId", appId, "err", err)
+		return false, nil, err
 	}
-	if installedApp.Id > 0 {
-		return true, installedApp.Environment.ClusterId, installedApp.Environment.Namespace, nil
+	if installedApps != nil && len(installedApps) > 0 {
+		return true, installedApps, nil
 	}
-	return false, 0, "", nil
+	return false, nil, nil
+}
+
+func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error {
+	// db operations
+	dbConnection := impl.InstalledAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	for _, installedApp := range installedApps {
+		appModel := &app.App{
+			Active:          true,
+			AppName:         installedApp.GetUniqueAppNameIdentifier(),
+			TeamId:          installedApp.App.TeamId,
+			AppType:         helper.ChartStoreApp,
+			AppOfferingMode: installedApp.App.AppOfferingMode,
+			DisplayName:     installedApp.App.AppName,
+		}
+		appModel.CreateAuditLog(bean3.SystemUserId)
+		err := impl.AppRepository.SaveWithTxn(appModel, tx)
+		if err != nil {
+			impl.Logger.Errorw("error saving appModel", "err", err)
+			return err
+		}
+		//updating the installedApp.AppId with new app entry
+		installedApp.AppId = appModel.Id
+		installedApp.UpdateAuditLog(bean3.SystemUserId)
+		_, err = impl.InstalledAppRepository.UpdateInstalledApp(installedApp, tx)
+		if err != nil {
+			impl.Logger.Errorw("error saving updating installed app with new appId", "installedAppId", installedApp.Id, "err", err)
+			return err
+		}
+	}
+
+	tx.Commit()
+	return nil
 }
