@@ -1610,17 +1610,17 @@ func getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(pipelinesInfo [
 	preStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
 	deployStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
 	postStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
-	rolloutStatusVsCountMap := make(map[bean.ReleaseDeploymentStatus]int, len(pipelinesInfo))
+	releaseDeploymentStatusVsCountMap := make(map[bean.ReleaseDeploymentStatus]int, len(pipelinesInfo))
 	for _, pipeline := range pipelinesInfo {
 		preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
 		deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
 		postStatusVsCountMap[pipeline.PostStatus] = postStatusVsCountMap[pipeline.PostStatus] + 1
-		rolloutStatusVsCountMap[pipeline.RolloutStatus] = rolloutStatusVsCountMap[pipeline.RolloutStatus] + 1
+		releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] = releaseDeploymentStatusVsCountMap[pipeline.RolloutStatus] + 1
 	}
 	preStatusCount := processPreOrPostDeploymentVsCountMapForResponse(preStatusVsCountMap)
 	deployStatusCount := processDeploymentVsCountMapForResponse(deployStatusVsCountMap)
 	postStatusCount := processPreOrPostDeploymentVsCountMapForResponse(postStatusVsCountMap)
-	releaseDeploymentCount := processReleaseDeploymentStatusVsCountMapForResponse(rolloutStatusVsCountMap)
+	releaseDeploymentCount := processReleaseDeploymentStatusVsCountMapForResponse(releaseDeploymentStatusVsCountMap)
 	return adapter.BuildStageWiseStatusCount(preStatusCount, deployStatusCount, postStatusCount), releaseDeploymentCount
 }
 
