@@ -39,7 +39,7 @@ spec:
       volumes:
         - name: sql-scripts-volume
           hostPath:
-            path: /test/scripts/sql/
+            path: //test/scripts/sql/
   backoffLimit: 20
   activeDeadlineSeconds: 150000
 ---
