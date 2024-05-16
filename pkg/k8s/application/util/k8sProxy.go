@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var whiteListedUrls = []string{"/api", "/apis", "/api/v1", "/apis/apps", "/apis/apps/v1", "/openapi/v2", "/openapi/v3"}
+
 func searchInArray(array []string, value string) int {
 	for idx, element := range array {
 		if element == value {
@@ -73,9 +75,8 @@ func ParseK8sProxyURL(url string) (string, schema.GroupVersionKind, string) {
 }
 
 func IsUrlWhiteListed(url string) bool {
-	urlParts := strings.Split(url, "/")
-	if len(urlParts) >= 3 {
-		if urlParts[1] == "openapi" && (urlParts[2] == "v2" || urlParts[2] == "v3") {
+	for _, whiteListedUrl := range whiteListedUrls {
+		if whiteListedUrl == strings.TrimSuffix(url, "/") {
 			return true
 		}
 	}
