@@ -52,7 +52,6 @@ type AppWithExtraQueryFields struct {
 }
 type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
-	SaveInBulkWithTxn(apps []*App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
@@ -608,9 +607,4 @@ func (repo AppRepositoryImpl) GetTeamIdById(id int) (int, error) {
 		Where("id = ?", id).
 		Where("active = ?", true).Select(&teamId)
 	return teamId, err
-}
-
-func (repo AppRepositoryImpl) SaveInBulkWithTxn(apps []*App, tx *pg.Tx) error {
-	err := tx.Insert(&apps)
-	return err
 }
