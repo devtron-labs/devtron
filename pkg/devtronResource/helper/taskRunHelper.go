@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -9,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	stageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	slices2 "golang.org/x/exp/slices"
+	"k8s.io/utils/strings/slices"
 )
 
 func GetTaskTypeBasedOnWorkflowType(workflowType bean3.WorkflowType) bean.TaskType {
@@ -103,4 +105,9 @@ func checkIfEveryElementIsGivenValue(slice []bean.ReleaseDeploymentStatus, value
 		}
 	}
 	return true
+}
+
+func IsStatusSucceeded(status string) bool {
+	return slices.Contains([]string{pipelineConfig.WorkflowSucceeded, string(health.HealthStatusHealthy)}, status)
+
 }

@@ -749,12 +749,12 @@ func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(req *
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ActionPolicyInValidDueToStatusErrMessage, bean.ActionPolicyInValidDueToStatusErrMessage)
 	}
 
-	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(req.DevtronResourceObjectDescriptorBean, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
+	taskRunInfo, err := impl.fetchReleaseTaskRunInfoWithFilters(&bean.TaskInfoPostApiBean{DevtronResourceObjectDescriptorBean: req.DevtronResourceObjectDescriptorBean}, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
 	if err != nil {
 		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "descriptorBean", req.DevtronResourceObjectDescriptorBean, "err", err)
 		return err
 	}
-	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo)
+	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo.Data)
 	if err != nil {
 		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "taskRunInfo", taskRunInfo, "err", err)
 		return err
@@ -1353,7 +1353,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 	}
 
 	if query.IsLite {
-		response, err = impl.getOnlyLevelDataForTaskInfo(existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex)
+		response, err = impl.getOnlyLevelDataForTaskInfo(existingResourceObject.ObjectData, pipelineIdAppIdKeyVsReleaseInfo, query.LevelIndex)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
@@ -1421,9 +1421,11 @@ func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilter
 }
 
 // getOnlyLevelDataForTaskInfo gets only level data with task run allowed operation.(signifies lite mode)
-func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData, rsIdentifier string, levelIndex int) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData string, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, levelIndex int) ([]bean.DtReleaseTaskRunInfo, error) {
 	response := make([]bean.DtReleaseTaskRunInfo, 0)
 	levelDependencies := impl.getLevelDependenciesFromObjectData(objectData, levelIndex)
+	appIds := make([]int, 0)
+	var err error
 	for _, levelDependency := range levelDependencies {
 		dtReleaseTaskRunInfo := bean.DtReleaseTaskRunInfo{
 			Level: levelDependency.Index,
@@ -1442,19 +1444,15 @@ func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData, 
 					WithChildInheritance()
 				previousLevelAppDependencies := GetDependenciesBeanFromObjectData(objectData, previousAppFilterCondition)
 				if len(previousLevelAppDependencies) != 0 {
-					appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, previousLevelAppDependencies)
-					if err != nil {
-						impl.logger.Errorw("error encountered in getOnlyLevelDataForTaskInfo", "rsIdentifier", rsIdentifier, "previousLevelIndex", previousLevelIndex, "err", err)
-						return nil, err
+					for _, dependency := range previousLevelAppDependencies {
+						// not considering child inheritance as map as already filtered out child inheritance
+						appIds = append(appIds, dependency.OldObjectId)
 					}
-					if len(cdWfrIds) == 0 {
-						taskRunAllowed = false
-					} else {
-						taskRunAllowed, err = impl.ciCdPipelineOrchestrator.IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds)
-						if err != nil {
-							impl.logger.Errorw("error encountered in getOnlyLevelDataForTaskInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
-							return nil, err
-						}
+
+					taskRunAllowed, err = impl.isEachAppDeployedOnAtLeastOneEnvWithMap(appIds, pipelineIdAppIdKeyVsReleaseInfo)
+					if err != nil {
+						impl.logger.Errorw("error encountered in getOnlyLevelDataForTaskInfo", "appIds", appIds, "err", err)
+						return nil, err
 					}
 				} else {
 					taskRunAllowed = false
@@ -1465,6 +1463,38 @@ func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData, 
 		response = append(response, dtReleaseTaskRunInfo)
 	}
 	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(appIds []int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) (bool, error) {
+	appIdToSuccessCriteriaFlag := make(map[int]bool, len(appIds))
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in IsEachAppDeployedOnAtLeastOneEnvWithMap", "key", key, "err", err)
+			return false, err
+		}
+		if appIdToSuccessCriteriaFlag[appId] {
+			continue
+		}
+		// if this appId from map is not in provided appIds continue as we don't need to calculate for thsi appId
+		if slices.Contains(appIds, appId) {
+			continue
+		}
+		// if not of (deployment exist and status is succeeded)
+		if !(info.ExistingStages.Deploy && helper.IsStatusSucceeded(info.DeployStatus)) {
+			return false, nil
+		}
+		// if not of (pre exist and status is succeeded)
+		if !(info.ExistingStages.Pre && helper.IsStatusSucceeded(info.PreStatus)) {
+			return false, nil
+		}
+		// if not of (post exist and status is succeeded)
+		if !(info.ExistingStages.Post && helper.IsStatusSucceeded(info.PostStatus)) {
+			return false, nil
+		}
+		appIdToSuccessCriteriaFlag[appId] = true
+	}
+	return true, nil
 }
 
 // getLevelDataWithDependenciesForTaskInfo get level wise data with dependencies in it, supports level Index key if not 0 get level of that index with its dependencies
