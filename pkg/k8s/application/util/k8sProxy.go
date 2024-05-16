@@ -71,3 +71,13 @@ func ParseK8sProxyURL(url string) (string, schema.GroupVersionKind, string) {
 
 	return namespace, schema.GroupVersionKind{Group: group, Version: version, Kind: kind}, resourceName
 }
+
+func IsUrlWhiteListed(url string) bool {
+	urlParts := strings.Split(url, "/")
+	if len(urlParts) >= 3 {
+		if urlParts[1] == "openapi" && (urlParts[2] == "v2" || urlParts[2] == "v3") {
+			return true
+		}
+	}
+	return false
+}
