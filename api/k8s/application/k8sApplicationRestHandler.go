@@ -1332,26 +1332,21 @@ func (handler *K8sApplicationRestHandlerImpl) HandleK8sProxyRequest(w http.Respo
 	}
 
 	allowed := handler.k8sApplicationService.ValidateK8sResourceForCluster(token, resourceName, namespace, gvk, handler.verifyRbacForResource, clusterRequested.ClusterName, resourceAction)
-	if !allowed {
-		if strings.Contains(r.URL.Path, "/openapi/v") {
-			allowed = true
+	if !allowed && !util3.IsUrlWhiteListed(r.URL.Path) {
+		role := bean2.RoleView
+		if resourceAction == bean2.ALL {
+			role = bean2.RoleAdmin
 		}
-		if !allowed {
-			role := bean2.RoleView
-			if resourceAction == bean2.ALL {
-				role = bean2.RoleAdmin
-			}
-			errorResponse := bean.ErrorResponse{
-				Kind:    "Status",
-				Code:    403,
-				Message: fmt.Sprintf("You need %s access on Cluster: %s, Namespace: %s, Group: %s, Version: %s, Kind: %s, Resource Name: %s. Here * represents all.", role, clusterRequested.ClusterName, namespace, gvk.Group, gvk.Version, gvk.Kind, resourceName),
-				Reason:  "Forbidden",
-			}
+		errorResponse := bean.ErrorResponse{
+			Kind:    "Status",
+			Code:    403,
+			Message: fmt.Sprintf("You need %s access on Cluster: %s, Namespace: %s, Group: %s, Version: %s, Kind: %s, Resource Name: %s. Here * represents all.", role, clusterRequested.ClusterName, namespace, gvk.Group, gvk.Version, gvk.Kind, resourceName),
+			Reason:  "Forbidden",
+		}
 
-			w.WriteHeader(http.StatusForbidden)
-			_ = json.NewEncoder(w).Encode(errorResponse)
-			return
-		}
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(errorResponse)
+		return
 	}
 	proxyServer, err := handler.k8sApplicationService.StartProxyServer(r.Context(), clusterRequested.Id)
 
