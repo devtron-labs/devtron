@@ -1424,7 +1424,6 @@ func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilter
 func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData string, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, levelIndex int) ([]bean.DtReleaseTaskRunInfo, error) {
 	response := make([]bean.DtReleaseTaskRunInfo, 0)
 	levelDependencies := impl.getLevelDependenciesFromObjectData(objectData, levelIndex)
-	appIds := make([]int, 0)
 	var err error
 	for _, levelDependency := range levelDependencies {
 		dtReleaseTaskRunInfo := bean.DtReleaseTaskRunInfo{
@@ -1436,6 +1435,7 @@ func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData s
 			taskRunAllowed = false
 			dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
 		} else {
+			appIds := make([]int, 0)
 			previousLevelIndex := getPreviousLevelDependency(levelDependencies, levelDependency.Index)
 			if previousLevelIndex != 0 {
 				previousAppFilterCondition := bean.NewDependencyFilterCondition().
