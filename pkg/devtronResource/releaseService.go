@@ -1607,17 +1607,20 @@ func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(
 		}
 		// if not of (deployment exist and status is succeeded)
 		if info.ExistingStages.Deploy && !helper.IsStatusSucceeded(info.DeployStatus) {
-			return false, nil
+			continue
 		}
 		// if not of (pre exist and status is succeeded)
 		if info.ExistingStages.Pre && !helper.IsStatusSucceeded(info.PreStatus) {
-			return false, nil
+			continue
 		}
 		// if not of (post exist and status is succeeded)
 		if info.ExistingStages.Post && !helper.IsStatusSucceeded(info.PostStatus) {
-			return false, nil
+			continue
 		}
 		appIdToSuccessCriteriaFlag[appId] = true
+	}
+	if len(appIds) != len(appIdToSuccessCriteriaFlag) {
+		return false, nil
 	}
 	return true, nil
 }
