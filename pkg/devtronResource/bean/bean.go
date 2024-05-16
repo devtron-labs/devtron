@@ -116,6 +116,7 @@ type DevtronResourceTypeReq struct {
 	ResourceKind    DevtronResourceKind    `json:"resourceKind"`
 	ResourceSubKind DevtronResourceKind    `json:"-"` // ResourceSubKind will be derived internally from the given ResourceKind
 	ResourceVersion DevtronResourceVersion `json:"resourceVersion"`
+	SchemaId        int                    `json:"-"`
 }
 
 type PatchQuery struct {
@@ -294,11 +295,13 @@ type Environment struct {
 }
 
 type ArtifactConfig struct {
-	ArtifactId   int             `json:"artifactId"`
-	Image        string          `json:"image"`
-	RegistryType string          `json:"registryType"`
-	RegistryName string          `json:"registryName"`
-	CommitSource []GitCommitData `json:"commitSource,omitempty"`
+	ArtifactId          int                                     `json:"artifactId"`
+	Image               string                                  `json:"image"`
+	RegistryType        string                                  `json:"registryType"`
+	RegistryName        string                                  `json:"registryName"`
+	CommitSource        []GitCommitData                         `json:"commitSource,omitempty"`
+	SourceAppWorkflowId int                                     `json:"artifactSourceAppWorkflowId,omitempty"`
+	SourceReleaseConfig *DtResourceObjectInternalDescriptorBean `json:"sourceReleaseConfiguration,omitempty"`
 }
 
 type GitCommitData struct {
@@ -393,6 +396,7 @@ type FilterCriteriaDecoder struct {
 	Resource DevtronResourceKind
 	Type     FilterCriteriaIdentifier
 	Value    string
+	ValueInt int
 }
 
 type SearchCriteriaDecoder struct {
@@ -567,6 +571,7 @@ const (
 	IdDbColumnKey          = "id"
 	OldObjectIdDbColumnKey = "old_object_id"
 	NameDbColumnKey        = "name"
+	IdentifierDbColumnKey  = "identifier"
 
 	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
 	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
@@ -611,6 +616,7 @@ const (
 	ActionPolicyInValidDueToStatusErrMessage    = "Operation not allowed with the current status."
 	InvalidLevelIndexOrLevelIndexChangedMessage = "invalid level(stages) index or level(stage) index has been changed"
 	StageTaskExecutionNotAllowedMessage         = "cannot execute task as all applications in above stages are not deployed successfully on any env."
+	CloneSourceDoesNotExistsErrMessage          = "Clone source does not exists."
 )
 
 type ChildObjectType string

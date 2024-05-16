@@ -279,11 +279,13 @@ func (p *PromotionMaterialRequest) IsPendingForUserRequest() bool {
 	return p.resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && p.pendingForCurrentUser
 }
 
+// WorkflowComponentsBean includes data of workflow, ci, cd, app and is used to get artifact data on basis of all these
 type WorkflowComponentsBean struct {
 	AppId                 int
 	CiPipelineIds         []int
 	ExternalCiPipelineIds []int
 	CdPipelineIds         []int
+	ArtifactIds           []int
 	Offset                int
 	Limit                 int
 	SearchArtifactTag     string

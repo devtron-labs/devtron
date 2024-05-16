@@ -31,6 +31,12 @@ type DtResourceObjectCreateReqBean struct {
 	ParentConfig *ResourceIdentifier `json:"parentConfig,omitempty"`
 }
 
+type DtResourceObjectCloneReqBean struct {
+	*DevtronResourceObjectDescriptorBean
+	Overview  *ResourceOverview   `json:"overview,omitempty"`
+	CloneFrom *ResourceIdentifier `json:"cloneFrom"`
+}
+
 type DtResourceObjectDependenciesReqBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Dependencies      []*DevtronResourceDependencyBean `json:"dependencies"`
@@ -40,6 +46,11 @@ type DtResourceObjectDependenciesReqBean struct {
 type DtResourceObjectPatchReqBean struct {
 	*DevtronResourceObjectDescriptorBean
 	PatchQuery []PatchQuery `json:"query,omitempty"`
+}
+
+type DtResourceObjectOverviewDescriptorBean struct {
+	*DevtronResourceObjectDescriptorBean
+	*ResourceOverview
 }
 
 type ReleaseStatus string
