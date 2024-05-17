@@ -1,4 +1,5 @@
 ## Bugs
+- fix: added a check for restricting managers to assign superadmin through permission groups (#5025)
 - fix: SHOW_DOCKER_BUILD_ARGS variable not working as expected (#5117)
 - fix: dependabot version upgrade (#5089)
 - fix: containers are missing from app-details page in argocd app  (#4973)
