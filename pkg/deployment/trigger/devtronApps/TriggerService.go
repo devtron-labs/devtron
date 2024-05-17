@@ -281,6 +281,27 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 	}
 }
 
+func (impl *TriggerServiceImpl) getCdPipelineForManualCdTrigger(ctx context.Context, pipelineId int) (*pipelineConfig.Pipeline, error) {
+	_, span := otel.Tracer("TriggerService").Start(ctx, "getCdPipelineForManualCdTrigger")
+	defer span.End()
+	cdPipeline, err := impl.pipelineRepository.FindById(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	//checking if namespace exist or not
+	clusterIdToNsMap := map[int]string{
+		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
+	}
+
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	if err != nil {
+		impl.logger.Errorw("manual trigger request with invalid namespace, ManualCdTrigger", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	return cdPipeline, nil
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -288,26 +309,15 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	releaseId := 0
 	ctx := triggerContext.Context
 	var err error
-	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
-	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	//checking if namespace exist or not
-	clusterIdToNsMap := map[int]string{
-		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
-	}
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	cdPipeline, err := impl.getCdPipelineForManualCdTrigger(ctx, overrideRequest.PipelineId)
 	if err != nil {
-		return 0, err
-	}
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 		return 0, err
 	}
 	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
-		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+		_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 		span.End()
 		if err != nil {
@@ -387,7 +397,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 
 		span.End()
@@ -491,7 +501,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				return 0, err
 			}
 		} else {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
+			_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
 			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
 			span.End()
 			if err != nil && !util.IsErrNoRows(err) {
@@ -499,7 +509,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				return 0, err
 			}
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
+		_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		triggerRequest := bean.TriggerRequest{
 			CdWf:                  cdWf,
 			Pipeline:              cdPipeline,
