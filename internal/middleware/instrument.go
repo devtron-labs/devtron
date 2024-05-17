@@ -80,7 +80,7 @@ Explanation:
 5. For each URL, it checks if it already exists in `urlMappings`. If it does, it updates the existing labels. If not, it creates a new entry for that URL.
 6. Finally, it returns the `urlMappings` map, which contains each URL mapped to its corresponding labels.
 */
-func getMappings(data []map[string]interface{}) map[string]map[string]string {
+func getUrlLabelMapping(data []map[string]interface{}) map[string]map[string]string {
 	// Define a map to store the URL to labels mappings
 	urlMappings := make(map[string]map[string]string)
 
@@ -106,8 +106,8 @@ func getMappings(data []map[string]interface{}) map[string]map[string]string {
 			}
 
 			// Handle URLs separated by commas and trim whitespace
-			urlA := strings.Split(urlStr, ",")
-			for _, sUrl := range urlA {
+			urlArray := strings.Split(urlStr, ",")
+			for _, sUrl := range urlArray {
 				sUrl = strings.TrimSpace(sUrl)
 
 				// If the URL is already in the map, merge the labels
@@ -171,7 +171,7 @@ Explanation:
 1. The function calls `GetHttpLabels` to retrieve JSON data containing URL and label information.
 2. It initializes an empty slice `data` to hold the unmarshaled JSON data.
 3. It unmarshals the JSON data into the `data` slice of maps.
-4. It calls `getMappings` to process the URL and label data, resulting in a `UrlLabelsMapping`.
+4. It calls `getUrlLabelMapping` to process the URL and label data, resulting in a `UrlLabelsMapping`.
 5. It initializes a map `keys` to store unique label keys.
 6. It iterates over each object in `data` to extract label keys, splitting keys by ":" and storing the first part.
 7. It adds some predefined keys ("path", "method", "status") to the unique keys list.
@@ -192,7 +192,7 @@ func getLabels() []string {
 		fmt.Println("Error:", err)
 	}
 
-	UrlLabelsMapping = getMappings(data)
+	UrlLabelsMapping = getUrlLabelMapping(data)
 
 	// Define a map to store unique keys (labels)
 	keys := make(map[string]bool)
