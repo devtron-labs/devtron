@@ -100,6 +100,8 @@ func getLabels() []string {
 		fmt.Println("Error:", err)
 	}
 
+	fmt.Println(data)
+	fmt.Println("*******")
 	UrlLabelsMapping = getMappings(data)
 
 	// Define a map to store unique keys (labels)
