@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const DuplicateNameErrorMsg = "duplicate watcher name"
+
 type EventConfiguration struct {
 	Selectors       []Selector        `json:"selectors" validate:"dive,min=1"`
 	K8sResources    []*K8sResource    `json:"k8sResources" validate:"required"`

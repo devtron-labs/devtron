@@ -6,6 +6,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	types2 "github.com/devtron-labs/devtron/pkg/autoRemediation/types"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -17,7 +18,9 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/square/go-jose.v2/json"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"net/http"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -105,6 +108,9 @@ func (impl *WatcherServiceImpl) CreateWatcher(watcherRequest *types2.WatcherDto,
 	defer impl.watcherRepository.RollbackTx(tx)
 	watcher, err = impl.watcherRepository.Save(watcher, tx)
 	if err != nil {
+		if strings.Contains(err.Error(), repository.UniqueNameConstraint) {
+			return 0, util2.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(types2.DuplicateNameErrorMsg)
+		}
 		impl.logger.Errorw("error in saving watcher", "error", err)
 		return 0, err
 	}

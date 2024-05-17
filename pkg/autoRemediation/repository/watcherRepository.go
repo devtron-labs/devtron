@@ -8,6 +8,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const UniqueNameConstraint = "idx_unique_k8s_event_watcher_name"
+
 type K8sEventWatcher struct {
 	tableName        struct{}          `sql:"k8s_event_watcher" pg:",discard_unknown_columns"`
 	Id               int               `sql:"id,pk"`
