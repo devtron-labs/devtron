@@ -94,6 +94,8 @@ func getLabels() []string {
 	if err != nil {
 		fmt.Println(err)
 	}
+	fmt.Println(httpLabels.UrlPaths)
+	fmt.Println("****************")
 	var data []map[string]interface{}
 	// Unmarshal JSON into the defined struct
 	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
