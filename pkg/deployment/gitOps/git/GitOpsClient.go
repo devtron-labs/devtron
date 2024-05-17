@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
@@ -10,11 +11,11 @@ import (
 )
 
 type GitOpsClient interface {
-	CreateRepository(config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
-	CreateReadme(config *gitOps.GitOpsConfigDto) (string, error)
+	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
 func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {

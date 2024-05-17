@@ -297,7 +297,7 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(argoCdErr 
 	if isEmptyRepoError {
 		// - found empty repository, create some file in repository
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
 			return err

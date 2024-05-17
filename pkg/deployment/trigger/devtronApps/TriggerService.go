@@ -744,7 +744,7 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 			return releaseNo, manifest, err
 		}
 		manifestPushService := impl.getManifestPushService(triggerEvent)
-		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
+		manifestPushResponse := manifestPushService.PushChart(ctx, manifestPushTemplate)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
 			return releaseNo, manifest, manifestPushResponse.Error

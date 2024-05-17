@@ -97,13 +97,13 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 	return impl.gitCommandManager.Pull(ctx, repoRoot)
 }
 
-func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
-	return impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	newCtx := git.BuildGitContext(ctx).WithCredentials(impl.Auth)
+	return impl.gitCommandManager.CommitAndPush(newCtx, repoRoot, commitMsg, name, emailId)
 }
 
 func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {

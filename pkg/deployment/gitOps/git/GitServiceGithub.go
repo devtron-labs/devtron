@@ -64,9 +64,8 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	return nil
 }
 
-func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	ctx := context.Background()
 	repoExists := true
 	url, err := impl.GetRepoUrl(config)
 	if err != nil {
@@ -111,7 +110,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config)
+	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -134,7 +133,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
+func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -145,17 +144,16 @@ func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	hash, _, err := impl.CommitValues(ctx, cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
-	ctx := context.Background()
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {

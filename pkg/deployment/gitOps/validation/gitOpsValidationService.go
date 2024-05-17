@@ -18,6 +18,7 @@
 package validation
 
 import (
+	"context"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -37,10 +38,12 @@ import (
 )
 
 type GitOpsValidationService interface {
-	// GitOpsValidateDryRun
+	// GitOpsValidateDryRun performs the following validations:
+	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Create Readme", "Clone Http", "Clone Ssh", "Commit On Rest", "Push", "Delete Repo"
+	// And returns: gitOps.DetailedErrorGitOpsConfigResponse
 	GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
 	// ValidateCustomGitRepoURL performs the following validations:
-	// "Get Repo URL", "Create Repo (if doesn't exist)", "Organisational URL Validation", "Unique GitOps Repo"
+	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Organisational URL Validation", "Unique GitOps Repo"
 	// And returns: RepoUrl and isNew Repository url and error
 	ValidateCustomGitRepoURL(request gitOpsBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
 }
@@ -99,7 +102,8 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(config *apiBean.Gi
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
 	config.UserEmailId = userEmailId
 	config.GitRepoName = appName
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
+	ctx := context.Background()
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(ctx, config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -132,7 +136,7 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(config *apiBean.Gi
 		}
 	}
 
-	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	commit, err := gitService.CommitAndPushAllChanges(ctx, clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
@@ -167,8 +171,8 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(request.GitRepoURL)
 	}
 
-	// CreateGitRepositoryForApp will try to create repository if not present, and returns a sanitized repo url, use this repo url to maintain uniformity
-	chartGitAttribute, err := impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, request.UserId)
+	// CreateGitRepositoryForDevtronApp will try to create repository if not present, and returns a sanitized repo url, use this repo url to maintain uniformity
+	chartGitAttribute, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(context.Background(), gitOpsRepoName, request.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in validating custom gitops repo", "err", err)
 		return "", false, impl.extractErrorMessageByProvider(err, request.GitOpsProvider)

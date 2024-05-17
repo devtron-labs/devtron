@@ -704,7 +704,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		upgradeAppRequest.ACDAppName = argocdAppName
 
 		var gitOpsErr error
-		gitOpsResponse, gitOpsErr = impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, upgradeAppRequest, &monoRepoMigrationRequired, isChartChanged || isVersionChanged)
+		gitOpsResponse, gitOpsErr = impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, upgradeAppRequest, monoRepoMigrationRequired, isChartChanged || isVersionChanged)
 		if gitOpsErr != nil {
 			impl.logger.Errorw("error in performing GitOps operation", "err", gitOpsErr)
 			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)

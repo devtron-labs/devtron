@@ -455,7 +455,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
-							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 							if createGitRepoErr == nil {
 								AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(ctx, chartGitAttr, userId)
 								if AcdRegisterErr != nil {
