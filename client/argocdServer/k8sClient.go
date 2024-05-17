@@ -36,7 +36,7 @@ const (
 )
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error)
+	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
@@ -66,7 +66,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(applicationTemplatePath))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -87,7 +87,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, applicationT
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
 	config.Timeout = TimeoutSlow
-	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
+	err = impl.CreateArgoApplication(ctx, appRequest.Namespace, applicationRequestString, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd application", "err", err)
 		return "", err
@@ -96,7 +96,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, applicationT
 	return appRequest.ApplicationName, nil
 }
 
-func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, application string, config *rest.Config) error {
+func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespace string, application string, config *rest.Config) error {
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
 		return fmt.Errorf("error creating argo cd app")
@@ -107,7 +107,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Resource("applications").
 		Namespace(namespace).
 		Body([]byte(application)).
-		Do(context.Background()).Raw()
+		Do(ctx).Raw()
 
 	if err != nil {
 		response := make(map[string]interface{})

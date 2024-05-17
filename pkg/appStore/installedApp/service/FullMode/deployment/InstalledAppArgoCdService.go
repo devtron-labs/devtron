@@ -165,7 +165,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) createInArgo(ctx context.Context, chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = cluster2.DEFAULT_NAMESPACE
@@ -181,7 +181,7 @@ func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commo
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		AutoSyncEnabled: impl.acdConfig.ArgoCDAutoSyncEnabled,
 	}
-	_, err := impl.argoK8sClient.CreateAcdApp(appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+	_, err := impl.argoK8sClient.CreateAcdApp(ctx, appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo cd app ", "err", err)

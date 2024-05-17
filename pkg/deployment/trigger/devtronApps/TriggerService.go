@@ -860,8 +860,8 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 	triggeredAt time.Time, ctx context.Context) error {
 
 	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "deployArgocdApp")
-		err := impl.deployArgocdApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "deployArgoCdApp")
+		err := impl.deployArgoCdApp(overrideRequest, valuesOverrideResponse, ctx)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in deploying app on argocd", "err", err)
@@ -1024,11 +1024,11 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 	return true, nil
 }
 
-func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
+func (impl *TriggerServiceImpl) deployArgoCdApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context) error {
 
 	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
+	name, err := impl.createArgoApplicationIfRequired(ctx, overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
@@ -1037,7 +1037,7 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride)
+	updateAppInArgoCd, err := impl.updateArgoPipeline(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
@@ -1067,7 +1067,7 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 		}
 	}
-	if updateAppInArgocd {
+	if updateAppInArgoCd {
 		impl.logger.Debug("argo-cd successfully updated")
 	} else {
 		impl.logger.Debug("argo-cd failed to update, ignoring it")
@@ -1127,8 +1127,8 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	}
 }
 
-func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
-	//repo has been registered while helm create
+func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+	// repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("no chart found ", "app", appId)
@@ -1160,7 +1160,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(ctx, appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
