@@ -18,19 +18,127 @@
 package middleware
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
+
+// urlpattern
+// [{"url":["url1,url2"], "label":{k1:v1,k2:v2}},
+// {"url":["url4,url5"], "label":{k5:v6,k1:v8}}
+// ]
+
+type HttpLabels struct {
+	UrlPaths string `env:"URL_PATHS" envDefault:"[]"`
+}
+
+var UrlLabelsMapping map[string]map[string]string
+var UniqueKeys []string
+
+func GetHttpLabels() (*HttpLabels, error) {
+	cfg := &HttpLabels{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+// todo - trim spaces
+func getMappings(data []map[string]interface{}) map[string]map[string]string {
+	// Define a map to store the URL to labels mappings
+	urlMappings := make(map[string]map[string]string)
+	// Iterate through each object in the array
+	for _, obj := range data {
+		// Get the "url" array from each object
+		urls, ok := obj["url"].([]interface{})
+		if !ok {
+			continue
+		}
+		// Get the "label" object from each object
+		labelObj, ok := obj["label"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		// Iterate through each URL and add the mappings
+		for _, url := range urls {
+			urlStr, ok := url.(string)
+			if !ok {
+				continue
+			}
+			urlA := strings.Split(urlStr, ",")
+			// Create a new map for each URL to store its labels
+			labels := make(map[string]string)
+			for key, value := range labelObj {
+				strValue, ok := value.(string)
+				if !ok {
+					continue
+				}
+				labels[key] = strValue
+			}
+			for _, sUrl := range urlA {
+				sUrl = strings.TrimSpace(sUrl)
+				urlMappings[sUrl] = labels
+			}
+		}
+	}
+	return urlMappings
+}
+
+func getLabels() []string {
+	httpLabels, err := GetHttpLabels()
+	if err != nil {
+		fmt.Println(err)
+	}
+	var data []map[string]interface{}
+	// Unmarshal JSON into the defined struct
+	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
+		fmt.Println("Error:", err)
+	}
+
+	UrlLabelsMapping = getMappings(data)
+
+	// Define a map to store unique keys (labels)
+	keys := make(map[string]bool)
+
+	// Iterate through each object in the array
+	for _, obj := range data {
+		// Get the "label" object from each object
+		labelObj, ok := obj["label"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		// Iterate through each key-value pair in the "label" object
+		for key := range labelObj {
+			// Split the key by ":" to get the key part
+			parts := strings.Split(key, ":")
+			if len(parts) > 0 {
+				keys[parts[0]] = true
+			}
+		}
+	}
+	// Extract the unique keys
+	var uniqueKeys []string
+	uniqueKeys = append(uniqueKeys, "path")
+	uniqueKeys = append(uniqueKeys, "method")
+	uniqueKeys = append(uniqueKeys, "status")
+	for key := range keys {
+		uniqueKeys = append(uniqueKeys, key)
+	}
+	UniqueKeys = uniqueKeys
+
+	return uniqueKeys
+}
 
 var (
 	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: "orchestrator_http_duration_seconds",
 		Help: "Duration of HTTP requests.",
-	}, []string{"path", "method", "status"})
+	}, getLabels())
 )
 
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -140,7 +248,27 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		defer g.Dec()
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
-		httpDuration.WithLabelValues(path, method, strconv.Itoa(d.Status())).Observe(time.Since(start).Seconds())
+		strArr := []string{path, method, strconv.Itoa(d.Status())}
+		if key, ok := UrlLabelsMapping[path]; !ok {
+			for _, labelKeys := range UniqueKeys {
+				if labelKeys == "path" || labelKeys == "status" || labelKeys == "method" {
+					continue
+				}
+				strArr = append(strArr, "")
+			}
+		} else {
+			for _, labelKeys := range UniqueKeys {
+				if labelValue, ok1 := key[labelKeys]; !ok1 {
+					if labelKeys == "path" || labelKeys == "status" || labelKeys == "method" {
+						continue
+					}
+					strArr = append(strArr, "")
+				} else {
+					strArr = append(strArr, labelValue)
+				}
+			}
+		}
+		httpDuration.WithLabelValues(strArr...).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
 	})
 }
