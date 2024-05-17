@@ -142,9 +142,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	clusterIdToNsMap := map[int]string{
 		installAppVersionRequest.ClusterId: installAppVersionRequest.Namespace,
 	}
-	clusterId := make([]int, 0)
-	clusterId = append(clusterId, installAppVersionRequest.ClusterId)
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -583,9 +581,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	clusterIdToNsMap := map[int]string{
 		installedApp.Environment.ClusterId: installedApp.Environment.Namespace,
 	}
-	clusterId := make([]int, 0)
-	clusterId = append(clusterId, installedApp.Environment.ClusterId)
-	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap, clusterId)
+
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return nil, err
 	}
