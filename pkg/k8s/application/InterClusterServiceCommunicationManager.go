@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"go.uber.org/zap"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -107,6 +108,12 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 			time.Sleep(10 * time.Second)
 		}
 	}()
+	for i := 0; i < 10; i++ {
+		if portActive("localhost", k8sProxyPort) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	return reverseProxyMetadata.proxyServer, nil
 }
 
@@ -223,4 +230,14 @@ func NewClusterServiceActivityLogger(clusterServiceKey ClusterServiceKey, callba
 
 func (csal ClusterServiceActivityLogger) LogActivity() {
 	csal.callback(csal.clusterServiceKey)
+}
+
+func portActive(host string, port int) bool {
+	address := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second) // Adjust the timeout as needed
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
