@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"go.uber.org/zap"
+	"net"
 	"net/http/httputil"
 	"strconv"
 	"strings"
@@ -70,7 +71,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 	serverAddr := fmt.Sprintf("http://localhost:%d", k8sProxyPort)
 	proxyServer := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
 		return urlPath
-	}) //TODO Fix this
+	}) // TODO Fix this
 
 	reverseProxyMetadata := &ProxyServerMetadata{forwardedPort: k8sProxyPort, proxyServer: proxyServer}
 	impl.clusterServiceCache[dummyClusterKey] = reverseProxyMetadata
@@ -109,15 +110,16 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx co
 		}
 		proxyTransport := proxy.NewProxyTransport()
 		serverAddr := fmt.Sprintf("http://localhost:%d", forwardedPort)
-		proxyServer := proxy.GetProxyServer(serverAddr, proxyTransport, "orchestrator", "", NewClusterServiceActivityLogger(clusterServiceKey, impl.callback)) //TODO Fix this
+		proxyServer := proxy.GetProxyServer(serverAddr, proxyTransport, "orchestrator", "", NewClusterServiceActivityLogger(clusterServiceKey, impl.callback)) // TODO Fix this
 		reverseProxy = &ProxyServerMetadata{forwardedPort: forwardedPort, proxyServer: proxyServer}
 		impl.clusterServiceCache[clusterServiceKey] = reverseProxy
 		go func() {
 			// inactivity handling
 			for {
 				proxyServerMetadata := impl.clusterServiceCache[clusterServiceKey]
+				active := portActive("localhost", proxyServerMetadata.forwardedPort)
 				lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
-				if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
+				if !active || (!lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second)) {
 					impl.logger.Infow("stopping forwarded port because of inactivity", "forwardedPort", forwardedPort)
 					forwardedPort := proxyServerMetadata.forwardedPort
 					impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
@@ -170,4 +172,14 @@ func NewClusterServiceActivityLogger(clusterServiceKey ClusterServiceKey, callba
 
 func (csal ClusterServiceActivityLogger) LogActivity() {
 	csal.callback(csal.clusterServiceKey)
+}
+
+func portActive(host string, port int) bool {
+	address := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second) // Adjust the timeout as needed
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
