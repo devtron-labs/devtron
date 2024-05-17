@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/util/event"
@@ -262,10 +262,10 @@ func (impl NotificationConfigBuilderImpl) GenerateFilterExpression(filterConditi
 		}
 		var severityExpression, policyExpression, expression string
 		if filters.Severity != nil {
-			severityExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.Severity, strings.Join(filters.Severity, "', '"))
+			severityExpression = fmt.Sprintf("%s in ['%s']", expressionEvaluators.Severity, strings.Join(filters.Severity, "', '"))
 		}
 		if filters.PolicyPermission != nil {
-			policyExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
+			policyExpression = fmt.Sprintf("%s in ['%s']", expressionEvaluators.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
 		}
 
 		if len(severityExpression) != 0 && len(policyExpression) != 0 {

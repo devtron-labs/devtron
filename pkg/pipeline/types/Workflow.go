@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -33,8 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -94,7 +95,7 @@ type WorkflowRequest struct {
 	RefPlugins                     []*bean.RefPluginObject                          `json:"refPlugins"`
 	AppName                        string                                           `json:"appName"`
 	TriggerByAuthor                string                                           `json:"triggerByAuthor"`
-	CiBuildConfig                  *CiPipeline.CiBuildConfigBean                          `json:"ciBuildConfig"`
+	CiBuildConfig                  *CiPipeline.CiBuildConfigBean                    `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue          int                                              `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush          bool                                             `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull          bool                                             `json:"ignoreDockerCachePull"`
@@ -647,7 +648,7 @@ type WorkflowResponse struct {
 	PipelineType              string                                      `json:"pipelineType"`
 	ReferenceWorkflowId       int                                         `json:"referenceWorkflowId"`
 	AppliedFilters            []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
-	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersState       expressionEvaluators.FilterState            `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
 	TriggerMetadata           string                                      `json:"triggerMetadata"`
 	PromotionApprovalMetadata *bean4.PromotionApprovalMetaData            `json:"promotionApprovalMetadata"`

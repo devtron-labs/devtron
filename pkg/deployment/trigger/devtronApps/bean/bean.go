@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -93,7 +94,7 @@ type TriggerRequirementRequestDto struct {
 type TriggerFeasibilityResponse struct {
 	ApprovalRequestId int
 	TriggerRequest    TriggerRequest
-	FilterIdVsState   map[int]resourceFilter.FilterState
+	FilterIdVsState   map[int]expressionEvaluators.FilterState
 	Filters           []*resourceFilter.FilterMetaDataBean
 }
 

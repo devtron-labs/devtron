@@ -10,7 +10,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
@@ -126,7 +126,7 @@ type K8sApplicationServiceImpl struct {
 
 	// nil for EA mode
 	deploymentWindowService                 deploymentWindow.DeploymentWindowService
-	celEvaluatorService                     resourceFilter.CELEvaluatorService
+	celEvaluatorService                     expressionEvaluators.CELEvaluatorService
 	printers                                *printers.HumanReadableGenerator
 	interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler
 	scoopClusterServiceMap                  map[int]ScoopServiceClusterConfig
@@ -138,7 +138,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	environmentRepository repository.EnvironmentRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
-	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
+	celEvaluatorService expressionEvaluators.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
 	k8sAppConfig := &K8sAppConfig{}
 	err := env.Parse(k8sAppConfig)
@@ -759,14 +759,14 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		filteredItems := make([]interface{}, 0)
 		// resource := unstructured.Unstructured{}
 		for _, v := range resp.Resources.Items {
-			celRequest := resourceFilter.CELRequest{
+			celRequest := expressionEvaluators.CELRequest{
 				Expression: request.Filter,
-				ExpressionMetadata: resourceFilter.ExpressionMetadata{
-					Params: []resourceFilter.ExpressionParam{
+				ExpressionMetadata: expressionEvaluators.ExpressionMetadata{
+					Params: []expressionEvaluators.ExpressionParam{
 						{
 							ParamName: "self",
 							Value:     v.Object,
-							Type:      resourceFilter.ParamTypeObject,
+							Type:      expressionEvaluators.ParamTypeObject,
 						},
 					},
 				},

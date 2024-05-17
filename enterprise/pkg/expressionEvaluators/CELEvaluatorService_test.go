@@ -1,7 +1,8 @@
-package resourceFilter
+package expressionEvaluators
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -53,12 +54,12 @@ func TestCELServiceImpl_EvaluateCELRequest(t *testing.T) {
 			fields: fields{Logger: log},
 			args: args{request: CELRequest{
 				Expression: "has(self.data.player_initial_lives)",
-				ExpressionMetadata: ExpressionMetadata{
-					Params: []ExpressionParam{
+				ExpressionMetadata: resourceFilter.ExpressionMetadata{
+					Params: []resourceFilter.ExpressionParam{
 						{
 							ParamName: "self",
 							Value:     uns.UnstructuredContent(),
-							Type:      ParamTypeObject,
+							Type:      resourceFilter.ParamTypeObject,
 						},
 					},
 				},

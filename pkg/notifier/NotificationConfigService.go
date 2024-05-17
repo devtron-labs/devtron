@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -86,7 +86,7 @@ type NotificationConfigServiceImpl struct {
 	ciArtifactRepository           repository.CiArtifactRepository
 	imageTaggingService            pipeline.ImageTaggingService
 	artifactApprovalActionService  action.ArtifactApprovalActionService
-	celService                     resourceFilter.CELEvaluatorService
+	celService                     expressionEvaluators.CELEvaluatorService
 	promotionRequestService        artifactPromotion.ApprovalRequestService
 }
 
@@ -207,7 +207,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	ciArtifactRepository repository.CiArtifactRepository,
 	imageTaggingService pipeline.ImageTaggingService,
 	artifactApprovalActionService action.ArtifactApprovalActionService,
-	celService resourceFilter.CELEvaluatorService,
+	celService expressionEvaluators.CELEvaluatorService,
 	promotionRequestService artifactPromotion.ApprovalRequestService,
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
@@ -1356,17 +1356,17 @@ func (impl *NotificationConfigServiceImpl) GetNotificationConfigForImageScanSucc
 	}, err
 }
 
-func getParamsForImageScanning(severity string, policyPermission string) []resourceFilter.ExpressionParam {
-	params := []resourceFilter.ExpressionParam{
+func getParamsForImageScanning(severity string, policyPermission string) []expressionEvaluators.ExpressionParam {
+	params := []expressionEvaluators.ExpressionParam{
 		{
-			ParamName: resourceFilter.Severity,
+			ParamName: expressionEvaluators.Severity,
 			Value:     severity,
-			Type:      resourceFilter.ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 		{
-			ParamName: resourceFilter.PolicyPermission,
+			ParamName: expressionEvaluators.PolicyPermission,
 			Value:     policyPermission,
-			Type:      resourceFilter.ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 	}
 
@@ -1380,9 +1380,9 @@ func (impl *NotificationConfigServiceImpl) EvaluateNotificationExpression(ctx co
 		return conditionType.IsConditionSatisfied(true), nil
 	}
 	params := getParamsForImageScanning(severity, policyPermission)
-	evalReq := resourceFilter.CELRequest{
+	evalReq := expressionEvaluators.CELRequest{
 		Expression: expression,
-		ExpressionMetadata: resourceFilter.ExpressionMetadata{
+		ExpressionMetadata: expressionEvaluators.ExpressionMetadata{
 			Params: params,
 		},
 	}
@@ -1395,20 +1395,20 @@ func (impl *NotificationConfigServiceImpl) EvaluateNotificationExpression(ctx co
 }
 
 func (impl *NotificationConfigServiceImpl) validateNotificationRule(notificationRulesMap ...*repository.NotificationRule) error {
-	params := []resourceFilter.ExpressionParam{
+	params := []expressionEvaluators.ExpressionParam{
 		{
-			ParamName: resourceFilter.Severity,
-			Type:      resourceFilter.ParamTypeString,
+			ParamName: expressionEvaluators.Severity,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 		{
-			ParamName: resourceFilter.PolicyPermission,
-			Type:      resourceFilter.ParamTypeString,
+			ParamName: expressionEvaluators.PolicyPermission,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 	}
 	for _, notificationRule := range notificationRulesMap {
-		validateExpression := resourceFilter.CELRequest{
+		validateExpression := expressionEvaluators.CELRequest{
 			Expression:         notificationRule.Expression,
-			ExpressionMetadata: resourceFilter.ExpressionMetadata{Params: params},
+			ExpressionMetadata: expressionEvaluators.ExpressionMetadata{Params: params},
 		}
 		_, _, err := impl.celService.Validate(validateExpression)
 		if err != nil {

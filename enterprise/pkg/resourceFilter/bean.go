@@ -3,6 +3,7 @@ package resourceFilter
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -253,34 +254,6 @@ func (cd *CommitDetails) ConvertToMap() (mp map[string]string, err error) {
 	return mp, err
 }
 
-type ParamValuesType string
-
-const (
-	ParamTypeString           ParamValuesType = "string"
-	ParamTypeObject           ParamValuesType = "object"
-	ParamTypeInteger          ParamValuesType = "integer"
-	ParamTypeList             ParamValuesType = "list"
-	ParamTypeBool             ParamValuesType = "bool"
-	ParamTypeCommitDetails    ParamValuesType = "CommitDetails"
-	ParamTypeCommitDetailsMap ParamValuesType = "commitDetailsMap"
-)
-
-type ParamName string
-
-const ContainerRepo ParamName = "containerRepository"
-const ContainerImage ParamName = "containerImage"
-const ContainerImageTag ParamName = "containerImageTag"
-const ImageLabels ParamName = "imageLabels"
-const GitCommitDetails ParamName = "gitCommitDetails"
-const Severity ParamName = "severity"
-const PolicyPermission ParamName = "policyPermission"
-
-type ExpressionParam struct {
-	ParamName ParamName       `json:"paramName"`
-	Value     interface{}     `json:"value"`
-	Type      ParamValuesType `json:"type"`
-}
-
 func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) []*CommitDetails {
 	commitDetailsList := make([]*CommitDetails, 0, len(ciMaterials))
 	for _, ciMaterial := range ciMaterials {
@@ -304,7 +277,7 @@ func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) [
 	return commitDetailsList
 }
 
-func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos []repository.CiMaterialInfo) ([]ExpressionParam, error) {
+func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos []repository.CiMaterialInfo) ([]expressionEvaluators.ExpressionParam, error) {
 
 	commitDetails := GetCommitDetailsFromMaterialInfo(materialInfos)
 	lastColonIndex := strings.LastIndex(artifact, ":")
@@ -320,39 +293,35 @@ func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos 
 	containerRepository := artifact[:lastColonIndex]
 	containerImageTag := artifact[lastColonIndex+1:]
 	containerImage := artifact
-	params := []ExpressionParam{
+	params := []expressionEvaluators.ExpressionParam{
 		{
-			ParamName: ContainerRepo,
+			ParamName: expressionEvaluators.ContainerRepo,
 			Value:     containerRepository,
-			Type:      ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 		{
-			ParamName: ContainerImage,
+			ParamName: expressionEvaluators.ContainerImage,
 			Value:     containerImage,
-			Type:      ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 		{
-			ParamName: ContainerImageTag,
+			ParamName: expressionEvaluators.ContainerImageTag,
 			Value:     containerImageTag,
-			Type:      ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 		{
-			ParamName: ImageLabels,
+			ParamName: expressionEvaluators.ImageLabels,
 			Value:     imageLabels,
-			Type:      ParamTypeList,
+			Type:      expressionEvaluators.ParamTypeList,
 		},
 		{
-			ParamName: GitCommitDetails,
+			ParamName: expressionEvaluators.GitCommitDetails,
 			Value:     commitDetailsMap,
-			Type:      ParamTypeCommitDetailsMap,
+			Type:      expressionEvaluators.ParamTypeCommitDetailsMap,
 		},
 	}
 
 	return params, nil
-}
-
-type ExpressionMetadata struct {
-	Params []ExpressionParam
 }
 
 type expressionResponse struct {
@@ -381,27 +350,27 @@ type FilterCriteria struct {
 
 var FILTER_CRITERIA = []FilterCriteria{
 	{
-		Label:   string(ContainerImage),
+		Label:   string(expressionEvaluators.ContainerImage),
 		Type:    "String",
 		Tooltip: "Example:\n containerImage.contains(\"docker.io\")",
 	},
 	{
-		Label:   string(ContainerRepo),
+		Label:   string(expressionEvaluators.ContainerRepo),
 		Type:    "String",
 		Tooltip: "Example:\n containerRepository == \"devregistry\"",
 	},
 	{
-		Label:   string(ContainerImageTag),
+		Label:   string(expressionEvaluators.ContainerImageTag),
 		Type:    "String",
 		Tooltip: "Example:\n containerImageTag.startsWith(\"Prod-\")",
 	},
 	{
-		Label:   string(ImageLabels),
+		Label:   string(expressionEvaluators.ImageLabels),
 		Type:    "String[]",
 		Tooltip: "External Labels/tags defined for an image. \n Example:\n \"prod\" in imageLabels",
 	},
 	{
-		Label:   string(GitCommitDetails),
+		Label:   string(expressionEvaluators.GitCommitDetails),
 		Type:    "map",
 		Tooltip: "Commit details used to build the image. \n gitCommitDetails = {\n  'repo_url':{\n     'commitMessage': string \n     'branch':string\n  }\n} \nExample:\n gitCommitDetails['github.com/repo'].branch=='main'",
 	},

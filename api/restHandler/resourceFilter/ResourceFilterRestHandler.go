@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"net/http"
 	"strconv"
 
@@ -36,7 +37,7 @@ type ResourceFilterRestHandlerImpl struct {
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer
 	resourceFilterService resourceFilter.ResourceFilterService
-	celService            resourceFilter.CELEvaluatorService
+	celService            expressionEvaluators.CELEvaluatorService
 	validator             *validator.Validate
 	pipelineRepository    pipelineConfig.PipelineRepository
 }
@@ -45,7 +46,7 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer,
-	celService resourceFilter.CELEvaluatorService,
+	celService expressionEvaluators.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	validator *validator.Validate,
 	pipelineRepository pipelineConfig.PipelineRepository) *ResourceFilterRestHandlerImpl {
@@ -238,7 +239,7 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request resourceFilter.ValidateRequestResponse
+	var request expressionEvaluators.ValidateRequestResponse
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateRoleGroup", "err", err, "payload", request)

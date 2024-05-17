@@ -104,6 +104,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -167,9 +168,9 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/remoteConnection"
 	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
-	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -933,8 +934,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
 		pipeline4.NewCiBuildConfigServiceImpl,
 		wire.Bind(new(pipeline4.CiBuildConfigService), new(*pipeline4.CiBuildConfigServiceImpl)),
-		resourceFilter.NewCELServiceImpl,
-		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+		expressionEvaluators.NewCELServiceImpl,
+		wire.Bind(new(expressionEvaluators.CELEvaluatorService), new(*expressionEvaluators.CELServiceImpl)),
 		resourceFilter.NewResourceFilterRepositoryImpl,
 		wire.Bind(new(resourceFilter.ResourceFilterRepository), new(*resourceFilter.ResourceFilterRepositoryImpl)),
 		resourceFilter.NewFilterAuditRepositoryImpl,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -85,7 +86,7 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 	}
 
 	// allow or block w.r.t filterState
-	if filterState != resourceFilter.ALLOW {
+	if filterState != expressionEvaluators.ALLOW {
 		return adapter.GetTriggerFeasibilityResponse(approvalRequestId, triggerRequirementRequest.TriggerRequest, filterIdVsState, filters), true, false, &util.ApiError{Code: constants.FilteringConditionFail, InternalMessage: "the artifact does not pass filtering condition", UserMessage: "the artifact does not pass filtering condition"}
 	}
 

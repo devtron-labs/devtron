@@ -2,6 +2,7 @@ package artifactPromotion
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/mocks"
@@ -145,7 +146,7 @@ func getRequestService(t *testing.T) (*ApprovalRequestServiceImpl, *PromotionPol
 
 	transactionManager := sql.NewTransactionUtilImpl(dbConnection)
 	requestRepo := repository.NewRequestRepositoryImpl(dbConnection)
-	celService := resourceFilter.NewCELServiceImpl(logger)
+	celService := expressionEvaluators.NewCELServiceImpl(logger)
 	resourceFilterEvalutionService, _ := resourceFilter.NewResourceFilterEvaluatorImpl(logger, celService)
 	auditRepo := resourceFilter.NewFilterEvaluationAuditRepositoryImpl(logger, dbConnection)
 	resourceFilterEvalutionAuditService := resourceFilter.NewFilterEvaluationAuditServiceImpl(logger, auditRepo, nil)

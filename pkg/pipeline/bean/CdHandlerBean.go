@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -36,7 +37,7 @@ type CdWorkflowWithArtifact struct {
 	ImageComment              *repository.ImageComment                    `json:"imageComment"`
 	RefCdWorkflowRunnerId     int                                         `json:"referenceCdWorkflowRunnerId"`
 	AppliedFilters            []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
-	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersState       expressionEvaluators.FilterState            `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
 	PromotionApprovalMetadata *bean.PromotionApprovalMetaData             `json:"promotionApprovalMetadata"`
 }
