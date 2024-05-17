@@ -94,16 +94,13 @@ func getLabels() []string {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(httpLabels.UrlPaths)
-	fmt.Println("****************")
+
 	var data []map[string]interface{}
 	// Unmarshal JSON into the defined struct
 	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
 		fmt.Println("Error:", err)
 	}
 
-	fmt.Println(data)
-	fmt.Println("*******")
 	UrlLabelsMapping = getMappings(data)
 
 	// Define a map to store unique keys (labels)
@@ -253,10 +250,6 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		defer g.Dec()
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
-		fmt.Println(UrlLabelsMapping)
-		fmt.Println("********")
-		fmt.Println(UniqueKeys)
-		fmt.Println("********")
 		strArr := []string{path, method, strconv.Itoa(d.Status())}
 		if key, ok := UrlLabelsMapping[path]; !ok {
 			for _, labelKeys := range UniqueKeys {
