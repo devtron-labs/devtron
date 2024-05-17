@@ -9,6 +9,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strings"
 	"time"
@@ -112,6 +113,10 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter))
 				}
 				statuses := strings.Split(objs[2], ",")
+				// doing this for others and fall back cases, others signifies missing and unknown
+				if slices.Contains(statuses, bean.Others) {
+					statuses = append(statuses, bean.Missing, bean.Unknown)
+				}
 				stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])] = append(stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
 			}
 		case bean.ReleaseDeploymentRolloutStatusFilter.ToString():
