@@ -3,9 +3,12 @@ package helper
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean3 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -113,9 +116,18 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter))
 				}
 				statuses := strings.Split(objs[2], ",")
-				// doing this for others and fall back cases, others signifies missing and unknown
+				// doing this for others and fall back cases, others signifies missing and unknown and unable to fetch
 				if slices.Contains(statuses, bean.Others) {
-					statuses = append(statuses, bean.Missing, bean.Unknown)
+					statuses = append(statuses, bean.Missing, bean.Unknown, pipelineConfig.WorkflowUnableToFetchState)
+				}
+				if slices.Contains(statuses, pipelineConfig.WorkflowInProgress) {
+					statuses = append(statuses, pipelineConfig.WorkflowStarting, bean.RunningStatus, pipelineConfig.WorkflowInitiated)
+				}
+				if slices.Contains(statuses, pipelineConfig.WorkflowFailed) {
+					statuses = append(statuses, pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowTimedOut, bean3.Degraded, bean.Error, executors.WorkflowCancel)
+				}
+				if slices.Contains(statuses, pipelineConfig.WorkflowSucceeded) {
+					statuses = append(statuses, bean3.Healthy)
 				}
 				stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])] = append(stageWiseDeploymentStatus[bean2.WorkflowType(objs[1])], statuses...)
 			}
