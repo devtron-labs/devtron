@@ -253,6 +253,10 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		defer g.Dec()
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
+		fmt.Println(UrlLabelsMapping)
+		fmt.Println("********")
+		fmt.Println(UniqueKeys)
+		fmt.Println("********")
 		strArr := []string{path, method, strconv.Itoa(d.Status())}
 		if key, ok := UrlLabelsMapping[path]; !ok {
 			for _, labelKeys := range UniqueKeys {
