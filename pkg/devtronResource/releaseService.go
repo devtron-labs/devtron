@@ -142,7 +142,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteForGetApiResourceObj(re
 			var err error
 			audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ReleaseResourceObjectReleaseNotePath)
 			if err != nil || audit == nil || audit.Id == 0 {
-				impl.logger.Errorw("error in getting audit by path", "err", err, "objectId", existingResourceObject.Id, "path", bean.ReleaseResourceObjectReleaseNotePath)
+				impl.logger.Warnw("error in getting audit by path", "err", err, "objectId", existingResourceObject.Id, "path", bean.ReleaseResourceObjectReleaseNotePath)
 				//it might be possible that if audit is not found then these field's data is populated through clone action, getting its audit
 				audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpType(existingResourceObject.Id, repository.AuditOperationTypeClone)
 				if err != nil {
