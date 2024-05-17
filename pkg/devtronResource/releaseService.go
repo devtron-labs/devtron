@@ -1605,7 +1605,7 @@ func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData st
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusIsLockedPath, query.Value)
 	case bean.NameQueryPath:
 		if nameStr, ok := query.Value.(string); !ok || len(nameStr) == 0 {
-			err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchValueNotSupportedError, bean.PatchValueNotSupportedError)
+			return objectData, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchValueNotSupportedError, bean.PatchValueNotSupportedError)
 		}
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
 	default:
