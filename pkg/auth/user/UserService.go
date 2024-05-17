@@ -415,11 +415,8 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 			if hasAccessToGroup {
 				policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
 			} else {
-				trimmedGroup := strings.TrimPrefix(item.RoleGroup.Name, "group:")
-				restrictedGroups = append(restrictedGroups, bean.RestrictedGroup{
-					Group:                   trimmedGroup,
-					HasSuperAdminPermission: hasSuperAdminPermission,
-				})
+				restrictedGroup := adapter.CreateRestrictedGroup(item.RoleGroup.Name, hasSuperAdminPermission)
+				restrictedGroups = append(restrictedGroups, restrictedGroup)
 			}
 		}
 		// END GROUP POLICY
@@ -787,11 +784,8 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 					groupsModified = true
 					addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
 				} else {
-					trimmedGroup := strings.TrimPrefix(item.RoleGroup.Name, "group:")
-					restrictedGroups = append(restrictedGroups, bean.RestrictedGroup{
-						Group:                   trimmedGroup,
-						HasSuperAdminPermission: hasSuperAdminPermission,
-					})
+					restrictedGroup := adapter.CreateRestrictedGroup(item.RoleGroup.Name, hasSuperAdminPermission)
+					restrictedGroups = append(restrictedGroups, restrictedGroup)
 				}
 			}
 		}
@@ -808,11 +802,8 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, m
 							}
 							eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
 						} else {
-							trimmedGroup := strings.TrimPrefix(item, "group:")
-							restrictedGroups = append(restrictedGroups, bean.RestrictedGroup{
-								Group:                   trimmedGroup,
-								HasSuperAdminPermission: hasSuperAdminPermission,
-							})
+							restrictedGroup := adapter.CreateRestrictedGroup(item, hasSuperAdminPermission)
+							restrictedGroups = append(restrictedGroups, restrictedGroup)
 						}
 					}
 				}

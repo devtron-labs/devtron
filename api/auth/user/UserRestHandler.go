@@ -210,12 +210,12 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 		if len(restrictedGroups) != len(userInfo.UserRoleGroup) {
 			// warning
-			message := fmt.Errorf("User permissions added partially. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			message := fmt.Errorf("User permissions added partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be added. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			message := fmt.Errorf("Permission could not be added. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
@@ -271,12 +271,12 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 		if rolesChanged || groupsModified {
 			// warning
-			message := fmt.Errorf("User permissions updated partially. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			message := fmt.Errorf("User permissions updated partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be added/removed. %v%v", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			message := fmt.Errorf("Permission could not be added/removed. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
