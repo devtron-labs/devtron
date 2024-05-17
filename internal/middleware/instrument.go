@@ -55,7 +55,7 @@ Input data:
 
 	{
 	    "url": ["http://example.com", "http://example.org"],
-	    "label": {"name": "Example", "type": "Website"}
+	    "label": {"name": "Example", "type": "Website" , "key1": "value1"}
 	},
 	{
 	    "url": ["http://example.com, http://example.net"],
@@ -67,8 +67,8 @@ Input data:
 Output:
 
 	{
-	    "http://example.com": {"name": "Example2", "type": "Site"},
-	    "http://example.org": {"name": "Example", "type": "Website"},
+	    "http://example.com": {"name": "Example2", "type": "Site", "key1": "value1"},
+	    "http://example.org": {"name": "Example", "type": "Website", "key1": "value1"},
 	    "http://example.net": {"name": "Example2", "type": "Site"}
 	}
 
