@@ -54,6 +54,7 @@ type CdWorkflowRepository interface {
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindWorkflowRunnerByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
+	FindPartialWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
@@ -628,6 +629,24 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerByIds(wfrIds []int) ([]*
 	err := impl.dbConnection.
 		Model(&wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).
+		Order("id ASC").
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return wfr, err
+}
+
+// FindPartialWorkflowRunnerWithPipelineIdByIds find basic details for cd workflow runner like status, id and workflow_type with pipeline id
+func (impl *CdWorkflowRepositoryImpl) FindPartialWorkflowRunnerWithPipelineIdByIds(wfrIds []int) ([]*CdWorkflowRunner, error) {
+	if len(wfrIds) == 0 {
+		return nil, util.GetUnProcessableError()
+	}
+	var wfr []*CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.status", "cd_workflow_runner.id", "cd_workflow_runner.workflow_type", "CdWorkflow.pipeline_id").
 		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).
 		Order("id ASC").
 		Select()

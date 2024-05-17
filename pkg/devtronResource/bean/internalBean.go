@@ -1,5 +1,7 @@
 package bean
 
+import "github.com/devtron-labs/devtron/api/bean"
+
 type IdIdentifierIndex struct {
 	Ids              []int    //all ids
 	Identifiers      []string //all identifiers
@@ -179,3 +181,42 @@ var DefaultConfigStatus = &ConfigStatus{
 }
 
 var DefaultRolloutStatus = NotDeployedReleaseRolloutStatus
+
+type FilterConditionInternalBean struct {
+	AppIds                    []int
+	EnvIds                    []int
+	StageWiseDeploymentStatus map[bean.WorkflowType][]string
+	ReleaseDeploymentStatus   []string
+	RequestWithoutFilters     bool
+}
+
+func NewFilterConditionInternalBean() *FilterConditionInternalBean {
+	return &FilterConditionInternalBean{}
+
+}
+
+type IdAndSchemaIdFilter struct {
+	Id                      int
+	DevtronResourceSchemaId int
+}
+
+type FilterResource string
+
+const (
+	DevtronApplicationFilter             FilterResource = "application/devtron-application"
+	EnvironmentFilter                    FilterResource = "environment"
+	StageWiseDeploymentStatusFilter      FilterResource = "stageWiseDeploymentStatus"
+	ReleaseDeploymentRolloutStatusFilter FilterResource = "releaseDeploymentRolloutStatus"
+)
+
+func (f FilterResource) ToString() string {
+	return string(f)
+}
+
+const (
+	RunningStatus = "Running"
+	Error         = "Error"
+	Missing       = "Missing"
+	Unknown       = "Unknown"
+	Others        = "Others"
+)

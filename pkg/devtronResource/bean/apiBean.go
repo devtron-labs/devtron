@@ -127,9 +127,9 @@ const (
 )
 
 type DtReleaseTaskRunInfo struct {
-	Level          int                      `json:"level"`
+	Level          int                      `json:"level,omitempty"`
 	TaskRunAllowed *bool                    `json:"taskRunAllowed,omitempty"`
-	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies,omitempty"`
+	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies"`
 }
 
 func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
@@ -137,6 +137,49 @@ func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
 		return false
 	}
 	return *res.TaskRunAllowed
+}
+
+type DeploymentTaskInfoResponse struct {
+	TaskInfoCount *TaskInfoCount         `json:"count,omitempty"`
+	Data          []DtReleaseTaskRunInfo `json:"data,omitempty"`
+}
+
+type TaskInfoCount struct {
+	ReleaseDeploymentStatusCount *ReleaseDeploymentStatusCount `json:"releaseDeploymentRolloutStatus,omitempty"`
+	StageWiseStatusCount         *StageWiseStatusCount         `json:"stageWiseDeploymentStatus,omitempty"`
+}
+
+type StageWiseStatusCount struct {
+	PreStatusCount  *PrePostStatusCount `json:"pre,omitempty"`
+	DeploymentCount *DeploymentCount    `json:"deploy,omitempty"`
+	PostStatusCount *PrePostStatusCount `json:"post,omitempty"`
+}
+
+type ReleaseDeploymentStatusCount struct {
+	AllDeployment int `json:"allDeployments"`
+	YetToTrigger  int `json:"yetToTrigger"`
+	Ongoing       int `json:"onGoing"`
+	Failed        int `json:"failed"`
+	Completed     int `json:"completed"`
+}
+
+type PrePostStatusCount struct {
+	NotTriggered int `json:"notTriggered"`
+	Failed       int `json:"failed"`
+	InProgress   int `json:"inProgress"`
+	Succeeded    int `json:"succeeded"`
+	Others       int `json:"others"`
+}
+
+type DeploymentCount struct {
+	NotTriggered  int `json:"notTriggered"`
+	Failed        int `json:"failed"`
+	TimedOut      int `json:"timedOut"`
+	UnableToFetch int `json:"unableToFetch"`
+	InProgress    int `json:"inProgress"`
+	Queued        int `json:"queued"`
+	Succeeded     int `json:"succeeded"`
+	Others        int `json:"others"`
 }
 
 const (

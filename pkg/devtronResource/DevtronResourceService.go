@@ -7,6 +7,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	read2 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
@@ -101,6 +102,7 @@ type TaskRunService interface {
 	// 		- Equal To 0 : fetch all level data.
 	// 		- Greater Than 1 : fetch the specified level data.
 	GetTaskRunInfo(req *bean.DevtronResourceObjectDescriptorBean, query *apiBean.GetTaskRunInfoQueryParams) ([]bean.DtReleaseTaskRunInfo, error)
+	GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) (*bean.DeploymentTaskInfoResponse, error)
 	// ExecuteTask method executes a task for the devtron resource and performs dry run if set to true in request , starts.
 	ExecuteTask(ctx context.Context, req *bean.DevtronResourceTaskExecutionBean) ([]*bean.TaskExecutionResponseBean, error)
 }
@@ -132,6 +134,7 @@ type DevtronResourceServiceImpl struct {
 	cdPipelineEventPublishService        out.CDPipelineEventPublishService
 	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
 	cdWorkflowService                    cd.CdWorkflowService
+	envService                           cluster.EnvironmentService
 }
 
 func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
@@ -156,7 +159,8 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	triggerService devtronApps.TriggerService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
-	cdWorkflowService cd.CdWorkflowService) (*DevtronResourceServiceImpl, error) {
+	cdWorkflowService cd.CdWorkflowService,
+	envService cluster.EnvironmentService) (*DevtronResourceServiceImpl, error) {
 	impl := &DevtronResourceServiceImpl{
 		logger:                               logger,
 		devtronResourceRepository:            devtronResourceRepository,
@@ -181,6 +185,7 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 		cdPipelineEventPublishService:        cdPipelineEventPublishService,
 		cdWorkflowRunnerService:              cdWorkflowRunnerService,
 		cdWorkflowService:                    cdWorkflowService,
+		envService:                           envService,
 	}
 	err := impl.SetDevtronResourcesAndSchemaMap()
 	if err != nil {
@@ -2073,6 +2078,38 @@ func (impl *DevtronResourceServiceImpl) GetTaskRunInfo(req *bean.DevtronResource
 		return nil, err
 	}
 	f := getFuncToFetchTaskRunInfo(req.Kind, req.SubKind, req.Version)
+	if f != nil {
+		return f(impl, req, query, existingResourceObject)
+	} else {
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+}
+
+// GetTaskRunInfoWithFilters method fetch the task run information for the devtron resource.
+//
+//   - Request Type:
+//     bean.TaskInfoPostApiBean - supporting filters and showAll flag which will fetch all data irrespective of levels
+//   - Query Type:
+//     bean.GetTaskRunInfoQueryParams
+//   - Return Type:
+//     []bean.DtReleaseTaskRunInfo and error
+//   - Query Operations:
+//     1. IsLite
+//   - true : fetch level data with allowedDeployment flag, excluding application's release status
+//   - false : fetch level data without allowedDeployment flag and includes application's release status
+//     2. LevelIndex
+//   - Equal To 0 : fetch all level data.
+//   - Greater Than 1 : fetch the specified level data.
+//     3. showAll
+//   - default false , if set to true fetch all dependencies data without stage/level for eg rollout Status
+func (impl *DevtronResourceServiceImpl) GetTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams) (*bean.DeploymentTaskInfoResponse, error) {
+	adapter.SetIdTypeAndResourceIdBasedOnKind(req.DevtronResourceObjectDescriptorBean, req.OldObjectId)
+	_, existingResourceObject, err := impl.getResourceSchemaAndExistingObject(req.DevtronResourceObjectDescriptorBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting existing resource object", "err", err, "req", req)
+		return nil, err
+	}
+	f := getFuncToFetchTaskRunInfoWithFilters(req.Kind, req.SubKind, req.Version)
 	if f != nil {
 		return f(impl, req, query, existingResourceObject)
 	} else {

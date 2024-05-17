@@ -220,6 +220,7 @@ type DependencyFilterCondition struct {
 	filterByTypes            []DevtronResourceDependencyType
 	filterByIndexes          []int
 	filterByDependentOnIndex int
+	filterByIdAndSchemaId    []IdAndSchemaIdFilter
 	fetchChildInheritance    bool
 }
 
@@ -242,6 +243,13 @@ func (c *DependencyFilterCondition) GetFilterByDependentOnIndex() int {
 		return 0
 	}
 	return c.filterByDependentOnIndex
+}
+
+func (c *DependencyFilterCondition) GetFilterByFilterByIdAndSchemaId() []IdAndSchemaIdFilter {
+	if c == nil {
+		return nil
+	}
+	return c.filterByIdAndSchemaId
 }
 
 func (c *DependencyFilterCondition) GetChildInheritance() bool {
@@ -272,6 +280,15 @@ func (c *DependencyFilterCondition) WithFilterByDependentOnIndex(dependentOnInde
 
 func (c *DependencyFilterCondition) WithChildInheritance() *DependencyFilterCondition {
 	c.fetchChildInheritance = true
+	return c
+}
+
+func (c *DependencyFilterCondition) WithFilterByIdAndSchemaId(ids []int, schemaId int) *DependencyFilterCondition {
+	idAndSchemaIdFilters := make([]IdAndSchemaIdFilter, 0, len(ids))
+	for _, id := range ids {
+		idAndSchemaIdFilters = append(idAndSchemaIdFilters, IdAndSchemaIdFilter{Id: id, DevtronResourceSchemaId: schemaId})
+	}
+	c.filterByIdAndSchemaId = idAndSchemaIdFilters
 	return c
 }
 
@@ -410,6 +427,10 @@ const (
 	Identifier FilterCriteriaIdentifier = "identifier"
 	Id         FilterCriteriaIdentifier = "id"
 )
+
+func (i FilterCriteriaIdentifier) ToString() string {
+	return string(i)
+}
 
 // IdType is used for identifying nature of id stored in object json or to implement logics. As we are using devtron_resource_object for storing all resource types across
 // devtron we also faced a problem where id of resource object will be unique across all resource types, but old resources are stored in different tables and their id value
@@ -627,20 +648,42 @@ const (
 )
 
 type CdPipelineReleaseInfo struct {
-	AppId                      int            `json:"appId"`
-	AppName                    string         `json:"appName"`
-	EnvId                      int            `json:"envId"`
-	EnvName                    string         `json:"envName"`
-	PipelineId                 int            `json:"pipelineId"`
-	DeploymentAppDeleteRequest bool           `json:"deploymentAppDeleteRequest"`
-	ExistingStages             *ExistingStage `json:"existingStages"`
-	DeployStatus               string         `json:"deployStatus"`
-	PreStatus                  string         `json:"preStatus"`
-	PostStatus                 string         `json:"postStatus"`
+	AppId                      int                     `json:"appId"`
+	AppName                    string                  `json:"appName"`
+	EnvId                      int                     `json:"envId"`
+	EnvName                    string                  `json:"envName"`
+	PipelineId                 int                     `json:"pipelineId"`
+	DeploymentAppDeleteRequest bool                    `json:"deploymentAppDeleteRequest"`
+	ExistingStages             *ExistingStage          `json:"existingStages"`
+	DeployStatus               string                  `json:"deployStatus"`
+	PreStatus                  string                  `json:"preStatus"`
+	PostStatus                 string                  `json:"postStatus"`
+	PreCdWorkflowRunnerId      int                     `json:"preCdWorkflowRunnerId,omitempty"`
+	CdWorkflowRunnerId         int                     `json:"cdWorkflowRunnerId,omitempty"`
+	PostCdWorkflowRunnerId     int                     `json:"postCdWorkflowRunnerId,omitempty"`
+	ReleaseDeploymentStatus    ReleaseDeploymentStatus `json:"releaseDeploymentRolloutStatus,omitempty"`
+}
+
+type ReleaseDeploymentStatus string
+
+const (
+	YetToTrigger ReleaseDeploymentStatus = "yetToTrigger"
+	Ongoing      ReleaseDeploymentStatus = "onGoing"
+	Failed       ReleaseDeploymentStatus = "failed"
+	Completed    ReleaseDeploymentStatus = "completed"
+)
+
+func (r ReleaseDeploymentStatus) ToString() string {
+	return string(r)
 }
 
 type ExistingStage struct {
 	Pre    bool `json:"pre"`
 	Deploy bool `json:"deploy"`
 	Post   bool `json:"post"`
+}
+
+type TaskInfoPostApiBean struct {
+	*DevtronResourceObjectDescriptorBean
+	FilterCriteria []string `json:"filterCriteria"`
 }

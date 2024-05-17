@@ -281,3 +281,50 @@ func getReleaseLockStatusSuccessChangeMessage(isLocked bool) string {
 	}
 	return statusMessage
 }
+
+func BuildReleaseDeploymentStatus(ongoing, yetToTrigger, failed, completed int) *bean.ReleaseDeploymentStatusCount {
+	return &bean.ReleaseDeploymentStatusCount{
+		AllDeployment: yetToTrigger + failed + completed + ongoing,
+		YetToTrigger:  yetToTrigger,
+		Failed:        failed,
+		Completed:     completed,
+		Ongoing:       ongoing,
+	}
+}
+
+func BuildTaskInfoCount(releaseDeploymentStatus *bean.ReleaseDeploymentStatusCount, stageWiseStatusCount *bean.StageWiseStatusCount) *bean.TaskInfoCount {
+	return &bean.TaskInfoCount{
+		ReleaseDeploymentStatusCount: releaseDeploymentStatus,
+		StageWiseStatusCount:         stageWiseStatusCount,
+	}
+}
+func BuildStageWiseStatusCount(preStatusCount *bean.PrePostStatusCount, deployCount *bean.DeploymentCount, postStatusCount *bean.PrePostStatusCount) *bean.StageWiseStatusCount {
+	return &bean.StageWiseStatusCount{
+		PreStatusCount:  preStatusCount,
+		DeploymentCount: deployCount,
+		PostStatusCount: postStatusCount,
+	}
+}
+
+func BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch, others int) *bean.DeploymentCount {
+	return &bean.DeploymentCount{
+		NotTriggered:  notTriggered,
+		Failed:        failed,
+		Succeeded:     succeeded,
+		TimedOut:      timedOut,
+		Queued:        queued,
+		InProgress:    inProgress,
+		UnableToFetch: unableToFetch,
+		Others:        others,
+	}
+}
+
+func BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress, others int) *bean.PrePostStatusCount {
+	return &bean.PrePostStatusCount{
+		NotTriggered: notTriggered,
+		Failed:       failed,
+		Succeeded:    succeeded,
+		InProgress:   inProgress,
+		Others:       others,
+	}
+}
