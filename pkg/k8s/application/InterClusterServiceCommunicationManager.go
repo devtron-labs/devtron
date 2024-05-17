@@ -108,6 +108,12 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 			time.Sleep(10 * time.Second)
 		}
 	}()
+	for i := 0; i < 10; i++ {
+		if portActive("localhost", k8sProxyPort) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	return reverseProxyMetadata.proxyServer, nil
 }
 
