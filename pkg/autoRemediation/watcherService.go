@@ -2,6 +2,7 @@ package autoRemediation
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/client/scoop"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -182,12 +183,14 @@ func (impl *WatcherServiceImpl) createJobsForTriggerOfWatcher(triggers []*types2
 			triggerData.JobId = jobInfo.displayNameToId[res.Data.JobName]
 			triggerData.JobName = res.Data.JobName
 		}
-		if jobInfo.displayNameToId[res.Data.JobName] != 0 && jobInfo.pipelineNameToId[res.Data.PipelineName] != 0 && jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]] != 0 {
+		jobId := jobInfo.displayNameToId[res.Data.JobName]
+		key := fmt.Sprintf("%d_%s", jobId, res.Data.PipelineName)
+		if jobInfo.displayNameToId[res.Data.JobName] != 0 && jobInfo.pipelineNameToId[key] != 0 && jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[key]] != 0 {
 			triggerData.JobId = jobInfo.displayNameToId[res.Data.JobName]
 			triggerData.JobName = res.Data.JobName
-			triggerData.PipelineId = jobInfo.pipelineNameToId[res.Data.PipelineName]
+			triggerData.PipelineId = jobInfo.pipelineNameToId[key]
 			triggerData.PipelineName = res.Data.PipelineName
-			triggerData.WorkflowId = jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[res.Data.PipelineName]]
+			triggerData.WorkflowId = jobInfo.pipelineIdtoAppworkflow[jobInfo.pipelineNameToId[key]]
 		}
 		triggerData.ExecutionEnvironment = res.Data.ExecutionEnvironment
 		if jobInfo.envNameToId[res.Data.ExecutionEnvironment] != 0 {
@@ -262,9 +265,12 @@ func (impl *WatcherServiceImpl) getJobEnvPipelineDetailsForWatcher(triggers []*t
 	for _, app := range apps {
 		displayNameToId[app.DisplayName] = app.Id
 	}
+
+	// since pipeline name can be same across jobs, make unique-pipe by job-id_pipe-name
 	pipelineNameToId := make(map[string]int)
 	for _, pipeline := range pipelines {
-		pipelineNameToId[pipeline.Name] = pipeline.Id
+		key := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.Name)
+		pipelineNameToId[key] = pipeline.Id
 	}
 	var workflows []*appWorkflow.AppWorkflowMapping
 	if len(pipelinesId) != 0 {
