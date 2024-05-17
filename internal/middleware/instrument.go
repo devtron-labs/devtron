@@ -70,19 +70,31 @@ func getMappings(data []map[string]interface{}) map[string]map[string]string {
 				continue
 			}
 			urlA := strings.Split(urlStr, ",")
-			// Create a new map for each URL to store its labels
-			labels := make(map[string]string)
-			for key, value := range labelObj {
-				strValue, ok := value.(string)
-				if !ok {
-					continue
-				}
-				strValue = strings.TrimSpace(strValue)
-				labels[key] = strValue
-			}
 			for _, sUrl := range urlA {
 				sUrl = strings.TrimSpace(sUrl)
-				urlMappings[sUrl] = labels
+				// If the URL is already in the map, merge the labels
+				if existingLabels, exists := urlMappings[sUrl]; exists {
+					for key, value := range labelObj {
+						strValue, ok := value.(string)
+						if !ok {
+							continue
+						}
+						strValue = strings.TrimSpace(strValue)
+						existingLabels[key] = strValue
+					}
+				} else {
+					// Create a new map for each URL to store its labels
+					labels := make(map[string]string)
+					for key, value := range labelObj {
+						strValue, ok := value.(string)
+						if !ok {
+							continue
+						}
+						strValue = strings.TrimSpace(strValue)
+						labels[key] = strValue
+					}
+					urlMappings[sUrl] = labels
+				}
 			}
 		}
 	}
