@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/scoop/types"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -58,6 +59,10 @@ type K8sResource struct {
 	Group   string `json:"group"`
 	Version string `json:"version"`
 	Kind    string `json:"kind"`
+}
+
+func (gvk *K8sResource) GetGVKKey() string {
+	return fmt.Sprintf("%s_%s_%s", gvk.Group, gvk.Version, gvk.Kind)
 }
 
 func (gvk *K8sResource) GetGVK() schema.GroupVersionKind {
@@ -217,6 +222,17 @@ const (
 )
 
 func FetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
+	uniqueResourceMap := make(map[string]bool)
+	for _, resource := range resources {
+		uniqueResourceMap[resource.GetGVKKey()] = true
+	}
+	filteredResources := make([]*K8sResource, 0, len(resources))
+	for _, resource := range resources {
+		if uniqueResourceMap[resource.GetGVKKey()] {
+			filteredResources = append(filteredResources, resource)
+		}
+	}
+
 	gvks, err := json.Marshal(resources)
 	if err != nil {
 		return "", err
@@ -225,6 +241,10 @@ func FetchGvksFromK8sResources(resources []*K8sResource) (string, error) {
 }
 
 func GetSelectorJson(selectors []Selector) (string, error) {
+	selectors = util.Map(selectors, func(selector Selector) Selector {
+		selector.Names = util.GetUniqueKeys(selector.Names)
+		return selector
+	})
 	selectorBytes, err := json.Marshal(&selectors)
 	return string(selectorBytes), err
 }
