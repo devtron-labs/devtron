@@ -215,4 +215,7 @@ func (f FilterResource) ToString() string {
 
 const (
 	RunningStatus = "Running"
+	Error         = "Error"
+	Missing       = "Missing"
+	Unknown       = "Unknown"
 )

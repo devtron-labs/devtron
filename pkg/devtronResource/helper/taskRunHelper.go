@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	stageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	slices2 "golang.org/x/exp/slices"
 	"k8s.io/utils/strings/slices"
 )
@@ -72,8 +74,12 @@ var DeploymentStatusVsRolloutStatusMap = map[string]bean.ReleaseDeploymentStatus
 	pipelineConfig.WorkflowFailed:             bean.Failed,
 	pipelineConfig.WorkflowTimedOut:           bean.Failed,
 	pipelineConfig.WorkflowUnableToFetchState: bean.Failed,
+	bean2.Degraded:                            bean.Failed,
+	bean.Error:                                bean.Failed,
+	executors.WorkflowCancel:                  bean.Failed,
 	stageBean.NotTriggered:                    bean.YetToTrigger,
 	pipelineConfig.WorkflowSucceeded:          bean.Completed,
+	bean2.Healthy:                             bean.Completed,
 }
 
 func CalculateRolloutStatus(releaseInfo *bean.CdPipelineReleaseInfo) bean.ReleaseDeploymentStatus {

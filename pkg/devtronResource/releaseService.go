@@ -6,6 +6,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
+	bean5 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -19,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	pipelineStageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	adapter3 "github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
@@ -1796,6 +1798,7 @@ func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap m
 	failed := 0
 	inProgress := 0
 	succeeded := 0
+	others := 0
 	if val, ok := preOrPostStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
 		notTriggered = val
 	}
@@ -1803,6 +1806,15 @@ func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap m
 		failed = val
 	}
 	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[executors.WorkflowCancel]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean5.Degraded]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Error]; ok {
 		failed = failed + val
 	}
 	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
@@ -1817,7 +1829,16 @@ func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap m
 	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
 		succeeded = val
 	}
-	return adapter.BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress)
+	if val, ok := preOrPostStatusVsCountMap[bean5.Healthy]; ok {
+		succeeded = succeeded + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Unknown]; ok {
+		others = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Missing]; ok {
+		others = others + val
+	}
+	return adapter.BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress, others)
 
 }
 
@@ -1829,6 +1850,7 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	timedOut := 0
 	unableToFetch := 0
 	queued := 0
+	others := 0
 	if val, ok := deployStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
 		notTriggered = val
 	}
@@ -1836,6 +1858,15 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 		failed = val
 	}
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[executors.WorkflowCancel]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[bean5.Degraded]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.Error]; ok {
 		failed = failed + val
 	}
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
@@ -1850,6 +1881,9 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
 		succeeded = val
 	}
+	if val, ok := deployStatusVsCountMap[bean5.Healthy]; ok {
+		succeeded = succeeded + val
+	}
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowTimedOut]; ok {
 		timedOut = val
 	}
@@ -1859,7 +1893,13 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInQueue]; ok {
 		queued = val
 	}
-	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch)
+	if val, ok := deployStatusVsCountMap[bean.Unknown]; ok {
+		others = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.Missing]; ok {
+		others = others + val
+	}
+	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch, others)
 
 }
 

@@ -306,7 +306,7 @@ func BuildStageWiseStatusCount(preStatusCount *bean.PrePostStatusCount, deployCo
 	}
 }
 
-func BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch int) *bean.DeploymentCount {
+func BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch, others int) *bean.DeploymentCount {
 	return &bean.DeploymentCount{
 		NotTriggered:  notTriggered,
 		Failed:        failed,
@@ -315,14 +315,16 @@ func BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inP
 		Queued:        queued,
 		InProgress:    inProgress,
 		UnableToFetch: unableToFetch,
+		Others:        others,
 	}
 }
 
-func BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress int) *bean.PrePostStatusCount {
+func BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress, others int) *bean.PrePostStatusCount {
 	return &bean.PrePostStatusCount{
 		NotTriggered: notTriggered,
 		Failed:       failed,
 		Succeeded:    succeeded,
 		InProgress:   inProgress,
+		Others:       others,
 	}
 }
