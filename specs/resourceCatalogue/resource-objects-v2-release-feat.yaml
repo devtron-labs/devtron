@@ -1101,7 +1101,7 @@ components:
                     pre: true
                     deploy: true
                     post: false
-                  releaseDeploymentStatus: yetToTrigger
+                  releaseDeploymentRolloutStatus: yetToTrigger
                 - appId: 5
                   appName: orchestrator
                   envId: 2
