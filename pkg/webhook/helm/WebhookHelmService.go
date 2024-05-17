@@ -28,6 +28,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -154,6 +155,10 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		res, err := impl.helmAppService.InstallRelease(ctx, clusterId, installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in installing helm release", "appIdentifier", appIdentifier, "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError
 		}
 		if !res.GetSuccess() {

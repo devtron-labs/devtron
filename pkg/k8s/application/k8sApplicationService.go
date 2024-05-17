@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"io"
 	admissionregistrationV1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
 	admissionregistrationV1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -514,6 +515,10 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return false, err
 	}
 	valid := false
@@ -1391,6 +1396,10 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 	manifest, manifestOk := manifestRes.GetManifestOk()
