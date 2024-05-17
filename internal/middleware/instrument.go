@@ -48,7 +48,6 @@ func GetHttpLabels() (*HttpLabels, error) {
 	return cfg, err
 }
 
-// todo - trim spaces
 func getMappings(data []map[string]interface{}) map[string]map[string]string {
 	// Define a map to store the URL to labels mappings
 	urlMappings := make(map[string]map[string]string)
@@ -78,6 +77,7 @@ func getMappings(data []map[string]interface{}) map[string]map[string]string {
 				if !ok {
 					continue
 				}
+				strValue = strings.TrimSpace(strValue)
 				labels[key] = strValue
 			}
 			for _, sUrl := range urlA {
@@ -127,6 +127,7 @@ func getLabels() []string {
 	uniqueKeys = append(uniqueKeys, "method")
 	uniqueKeys = append(uniqueKeys, "status")
 	for key := range keys {
+		key = strings.TrimSpace(key)
 		uniqueKeys = append(uniqueKeys, key)
 	}
 	UniqueKeys = uniqueKeys
