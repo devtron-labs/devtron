@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/devtronResource/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	adapter3 "github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
@@ -453,7 +454,7 @@ func (impl *DevtronResourceServiceImpl) getFilteredReleaseObjectsForReleaseTrack
 func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObjects(kind string, subKind string, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error) {
 	for _, criteria := range filterCriteria {
 		// criteria will be in the form of resourceType|identifierType|commaSeperatedValues, will be invalid filterCriteria and error would be returned if not provided in this format.
-		criteriaDecoder, err := helper.DecodeFilterCriteriaString(criteria)
+		criteriaDecoder, err := util3.DecodeFilterCriteriaString(criteria)
 		if err != nil {
 			impl.logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean.InvalidFilterCriteria)
 			return nil, err
@@ -716,7 +717,7 @@ func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(depende
 
 func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowId int, releaseTrackFilter *bean.FilterCriteriaDecoder, err error) {
 	for _, filterCriteria := range query.FilterCriteria {
-		criteriaDecoder, err := helper.DecodeFilterCriteriaString(filterCriteria)
+		criteriaDecoder, err := util3.DecodeFilterCriteriaString(filterCriteria)
 		if err != nil {
 			return appWorkflowId, nil, err
 		}
@@ -746,7 +747,7 @@ func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQu
 }
 
 func getReleaseConfigOptionsSearchKeyData(query *apiBean.GetConfigOptionsQueryParams) (searchArtifactTag, searchImageTag string, err error) {
-	searchDecoder, err := helper.DecodeSearchKeyString(query.SearchKey)
+	searchDecoder, err := util3.DecodeSearchKeyString(query.SearchKey)
 	if err != nil {
 		return searchArtifactTag, searchImageTag, err
 	}

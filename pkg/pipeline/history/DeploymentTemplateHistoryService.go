@@ -339,6 +339,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipeline
 			DeployedOn:       history.DeployedOn,
 			DeployedBy:       history.DeployedByEmailId,
 			DeploymentStatus: history.DeploymentStatus,
+			WfrId:            history.CdWfrId,
 		})
 	}
 	return historyList, nil

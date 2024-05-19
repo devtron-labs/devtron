@@ -39,4 +39,6 @@ type CdWorkflowWithArtifact struct {
 	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
 	PromotionApprovalMetadata *bean.PromotionApprovalMetaData             `json:"promotionApprovalMetadata"`
+
+	RunSource interface{} `json:"runSource,omitempty"` //details of from where this deployment was triggered, currently have info of release
 }

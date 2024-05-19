@@ -35,10 +35,12 @@ type DeploymentConfigurationDto struct {
 }
 
 type DeployedHistoryComponentMetadataDto struct {
-	Id               int       `json:"id"`
-	DeployedOn       time.Time `json:"deployedOn"`
-	DeployedBy       string    `json:"deployedBy"` //emailId of user
-	DeploymentStatus string    `json:"deploymentStatus"`
+	Id               int         `json:"id"`
+	DeployedOn       time.Time   `json:"deployedOn"`
+	DeployedBy       string      `json:"deployedBy"` //emailId of user
+	DeploymentStatus string      `json:"deploymentStatus"`
+	WfrId            int         `json:"-"`                   //for internal usage
+	RunSource        interface{} `json:"runSource,omitempty"` //details of from where this deployment was triggered, currently have info of release
 }
 
 type HistoryDetailDto struct {

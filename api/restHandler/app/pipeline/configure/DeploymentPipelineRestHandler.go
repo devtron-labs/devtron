@@ -1940,7 +1940,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 	}
 	// RBAC CHECK
 	resp := DeploymentHistoryResp{}
-	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
+	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, nil, offset, limit)
 	resp.CdWorkflows = wfs
 	if err != nil {
 		handler.Logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)

@@ -43,6 +43,7 @@ type DeploymentTemplateHistory struct {
 	//getting below data from cd_workflow_runner and users join
 	DeploymentStatus  string `sql:"-"`
 	DeployedByEmailId string `sql:"-"`
+	CdWfrId           int    `sql:"-"`
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) CreateHistory(chart *DeploymentTemplateHistory) (*DeploymentTemplateHistory, error) {
@@ -103,7 +104,7 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfr
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error) {
 	var histories []*DeploymentTemplateHistory
-	query := "SELECT dth.id, dth.deployed_on, dth.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id" +
+	query := "SELECT dth.id, dth.deployed_on, dth.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id, cwr.id as cd_wfr_id" +
 		" FROM deployment_template_history dth" +
 		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = dth.deployed_on" +
 		" INNER JOIN users ON users.id = dth.deployed_by" +

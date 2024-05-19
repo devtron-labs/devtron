@@ -21,10 +21,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -66,7 +66,7 @@ const (
 
 type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, toGetOnlyWfrIds []int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
@@ -347,7 +347,7 @@ func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipeline
 	return cdWorkflowArtifacts
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, toGetOnlyWfrIds []int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
 
 	var cdWorkflowArtifact []pipelineBean.CdWorkflowWithArtifact
 	// this map contains artifactId -> array of tags of that artifact
@@ -357,13 +357,21 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		return cdWorkflowArtifact, err
 	}
 	if pipelineId == 0 {
+		//old logic probably not being used anymore, todo: check if unnecessary
 		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
 	} else {
-		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
+		var wfrList []pipelineConfig.CdWorkflowRunner
+		if len(toGetOnlyWfrIds) > 0 {
+			//not using offset and limit here because we are expecting that if the request is to get only wfrIds then they will be already limited
+			//as we are taking reference from taskRun
+			wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByWfrIds(toGetOnlyWfrIds)
+		} else {
+			wfrList, err = impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, size)
+		}
 		if err != nil && err != pg.ErrNoRows {
 			return cdWorkflowArtifact, err
 		}

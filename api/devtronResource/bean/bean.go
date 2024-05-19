@@ -51,6 +51,19 @@ type GetResourceListQueryParams struct {
 	FilterCriteria []string `schema:"filterCriteria"`
 }
 
+type GetHistoryQueryParams struct {
+	FilterCriteria []string `schema:"filterCriteria"`
+	OffSet         int      `schema:"offSet"`
+	Limit          int      `schema:"limit"`
+}
+
+type GetHistoryConfigQueryParams struct {
+	BaseConfigurationId  int      `schema:"baseConfigurationId"`
+	HistoryComponent     string   `schema:"historyComponent"`
+	HistoryComponentName string   `schema:"historyComponentName"`
+	FilterCriteria       []string `schema:"filterCriteria"`
+}
+
 const (
 	PathParamKind                    = "kind"
 	PathParamVersion                 = "version"

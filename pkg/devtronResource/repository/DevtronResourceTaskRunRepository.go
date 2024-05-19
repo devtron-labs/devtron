@@ -9,6 +9,10 @@ import (
 
 type DevtronResourceTaskRunRepository interface {
 	GetByRunSourceAndTaskTypes(rsIdentifier string, rsdIdentifier []string, taskTypes []bean.TaskType, excludedTaskRunIds []int) ([]DevtronResourceTaskRun, error)
+	GetByRunSourceTargetAndTaskTypes(runSourceIdentifier,
+		runTargetIdentifier string, taskTypes []bean.TaskType, offset, limit int) ([]*DevtronResourceTaskRun, error)
+	GetByTaskTypeAndIdentifiers(taskTypeIdentifiers []int,
+		taskTypes []bean.TaskType) ([]*DevtronResourceTaskRun, error)
 	BulkCreate(tx *pg.Tx, taskRuns []*DevtronResourceTaskRun) error
 	sql.TransactionWrapper
 }
@@ -61,5 +65,26 @@ func (repo *DevtronResourceTaskRunRepositoryImpl) GetByRunSourceAndTaskTypes(rsI
 		query = query.Where("id NOT IN (?)", pg.In(excludedTaskRunIds))
 	}
 	err := query.Select()
+	return dtResourceTaskRun, err
+}
+
+func (repo *DevtronResourceTaskRunRepositoryImpl) GetByRunSourceTargetAndTaskTypes(runSourceIdentifier,
+	runTargetIdentifier string, taskTypes []bean.TaskType, offset, limit int) ([]*DevtronResourceTaskRun, error) {
+	var dtResourceTaskRun []*DevtronResourceTaskRun
+	err := repo.dbConnection.
+		Model(&dtResourceTaskRun).
+		Where("run_source_identifier = ?", runSourceIdentifier).
+		Where("run_target_identifier = ?", runTargetIdentifier).
+		Where("task_type IN (?)", pg.In(taskTypes)).Offset(offset).Limit(limit).Select()
+	return dtResourceTaskRun, err
+}
+
+func (repo *DevtronResourceTaskRunRepositoryImpl) GetByTaskTypeAndIdentifiers(taskTypeIdentifiers []int,
+	taskTypes []bean.TaskType) ([]*DevtronResourceTaskRun, error) {
+	var dtResourceTaskRun []*DevtronResourceTaskRun
+	err := repo.dbConnection.
+		Model(&dtResourceTaskRun).
+		Where("task_type_identifier in (?)", pg.In(taskTypeIdentifiers)).
+		Where("task_type IN (?)", pg.In(taskTypes)).Select()
 	return dtResourceTaskRun, err
 }

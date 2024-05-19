@@ -8,13 +8,21 @@ type DevtronResourceRouter interface {
 
 type DevtronResourceRouterImpl struct {
 	devtronResourceRestHandler DevtronResourceRestHandler
+	historyRouter              HistoryRouter
 }
 
-func NewDevtronResourceRouterImpl(devtronResourceRestHandler DevtronResourceRestHandler) *DevtronResourceRouterImpl {
-	return &DevtronResourceRouterImpl{devtronResourceRestHandler: devtronResourceRestHandler}
+func NewDevtronResourceRouterImpl(devtronResourceRestHandler DevtronResourceRestHandler,
+	historyRouter HistoryRouter) *DevtronResourceRouterImpl {
+	return &DevtronResourceRouterImpl{
+		devtronResourceRestHandler: devtronResourceRestHandler,
+		historyRouter:              historyRouter,
+	}
 }
 
 func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResourceRouter *mux.Router) {
+	historyRouter := devtronResourceRouter.PathPrefix("/history").Subrouter()
+	router.historyRouter.InitDtResourceHistoryRouter(historyRouter)
+
 	devtronResourceRouter.Path("/list").
 		HandlerFunc(router.devtronResourceRestHandler.GetAllDevtronResourcesList).Methods("GET")
 
