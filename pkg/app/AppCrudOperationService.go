@@ -478,6 +478,7 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 	// migrating the requested ext-app
 	app.AppName = appNameUniqueIdentifier
 	app.DisplayName = appIdentifier.ReleaseName
+	app.TeamId = 0
 	app.UpdatedBy = bean2.SystemUserId
 	app.UpdatedOn = time.Now()
 	err = impl.appRepository.Update(app)
@@ -520,7 +521,6 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
 		// requested app in not assigned to any project.
 		if isOtherExtAppMigrated {
-			app.TeamId = 0
 			app.Team.Name = ""
 		}
 		if app.Id == 0 {
