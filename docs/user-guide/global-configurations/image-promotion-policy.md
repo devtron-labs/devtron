@@ -25,13 +25,15 @@ Therefore, Devtron offers a feature called 'Image Promotion Policy' that allows 
 Users need to have super-admin permission to create an image promotion policy.
 {% endhint %}
 
-You can create a policy using our APIs or through [Devtron CLI](https://github.com/devtron-labs/devtron-cli). Here is the CLI approach:
+You can create a policy using our APIs or through Devtron CLI. To get the latest version of the **devtctl** binary, please contact your enterprise POC or reach out to us directly for further assistance.
+
+Here is the CLI approach:
 
 **Syntax**:
 ```
-devtron-cli create imagePromotionPolicy \
-    --name="policyName" \
-    --description="desc" \
+devtctl create imagePromotionPolicy \
+    --name="example-policy" \
+    --description="This is a sample policy that promotes an image to production environment" \
     --passCondition="true" \
     --failCondition="false" \
     --approverCount=0 \
@@ -44,7 +46,7 @@ devtron-cli create imagePromotionPolicy \
 **Arguments**:
 
 * `--name` (required): The name of the image promotion policy.
-* `--description` (required): A brief description of the policy, preferably explaining what it does.
+* `--description` (optional): A brief description of the policy, preferably explaining what it does.
 * `--passCondition` (optional): Specify a condition using [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md). Images that match this condition will be eligible for promotion to the target environment.
 * `--failCondition` (optional): Images that match this condition will NOT be eligible for promotion to the target environment.
 * `--approverCount` (optional): The number of approvals required to promote an image (0-6). Defaults to 0 (no approvals).
@@ -151,7 +153,7 @@ You can apply a policy using our APIs or through [Devtron CLI](https://github.co
     apiVersion: v1
     kind: artifactPromotionPolicy
     spec:
-    payload:
+      payload:
         applicationEnvironments:
         - appName: "app1"
             envName: "env-demo"
@@ -168,7 +170,7 @@ You can apply a policy using our APIs or through [Devtron CLI](https://github.co
 * Apply the policy using the following CLI command:
 
     ```
-    devtron-cli apply policy -p="path/to/applyPolicy.yaml"
+    devtctl apply policy -p="path/to/applyPolicy.yaml"
     ```
 
 
