@@ -1,0 +1,9 @@
+drop view git_provider_view;
+drop view gitops_config_view;
+drop view cluster_view;
+drop view sso_login_config_view;
+drop view docker_artifact_store_view;
+drop view ses_config_view;
+drop view slack_config_view;
+drop view smtp_config_view;
+drop view webhook_config_view;
