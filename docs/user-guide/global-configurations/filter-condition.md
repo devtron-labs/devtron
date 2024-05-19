@@ -2,7 +2,7 @@
 
 ## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
-The [workflows](../creating-application/workflow/) you create in Devtron for managing the CI-CD of your application can be made flexible, for e.g., not all events (such as image builds) generated during the CI stage require progression to the CD stage. Therefore, instead of creating multiple pipelines that cater to complex requirements, Devtron provides you the option of creating filters to make your workflow efficient. 
+The [workflows](../creating-application/workflow/) you create in Devtron for managing the CI-CD of your application can be made flexible or restricting with the help of CD filter conditions, for e.g., not all events (such as image builds) generated during the CI stage require progression to the CD stage. Therefore, instead of creating multiple workflows that cater to complex requirements, Devtron provides you the option of defining filters to tailor your workflow according to your specific needs. 
 
 Using filter conditions, you can control the progression of events. Here are a few general examples:
 * Images containing the label "test" should not be eligible for deployment in production environment
@@ -31,8 +31,8 @@ Using filter conditions, you can control the progression of events. Here are a f
     * **Filter Name**: Give a name to the filter.
     * **Description**: (Optional) Add a description to the filter, preferably explaining what it does.
     * **Filter Condition**: You can specify either a pass condition, fail condition, or both the conditions:
-        * **Pass Condition**: Events that satisfy the pass condition are eligible to trigger in your CD pipeline.
-        * **Fail Condition**: Events that satisfy the fail condition are not eligible to trigger in your CD pipeline.
+        * **Pass Condition**: Events that satisfy the pass condition are eligible to trigger your CD pipeline.
+        * **Fail Condition**: Events that satisfy the fail condition are not eligible to trigger your CD pipeline.
     * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions with the help of following variables:
         * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39. It returns a string value in the following format: `<registry>/<repository>:<tag>`
         * **containerRepository**: Storage location for container images, e.g., kicbase
