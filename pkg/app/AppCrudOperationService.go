@@ -20,12 +20,12 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"regexp"
 	"strconv"
 	"strings"
@@ -455,13 +455,13 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
 // returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) error {
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) (bool, error) {
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
-
+	var isOtherExtAppMigrated bool
 	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {
 		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
-		return err
+		return isOtherExtAppMigrated, err
 	}
 	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
 	//create new appEntry for all those installedApps and link installedApp.AppId to the newly created app.
@@ -473,6 +473,7 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 			impl.logger.Errorw("error in CreateNewAppEntryForAllInstalledApps", "appName", app.AppName, "err", err)
 			//not returning from here as we have to migrate the app for requested ext-app and return the response for meta info
 		}
+		isOtherExtAppMigrated = true
 	}
 	// migrating the requested ext-app
 	app.AppName = appNameUniqueIdentifier
@@ -482,9 +483,9 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 	err = impl.appRepository.Update(app)
 	if err != nil {
 		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return err
+		return isOtherExtAppMigrated, err
 	}
-	return nil
+	return isOtherExtAppMigrated, nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {
@@ -497,6 +498,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	var displayName string
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
+		var isOtherExtAppMigrated bool
 		appIdDecoded, err := client.DecodeExternalAppAppId(appId)
 		if err != nil {
 			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
@@ -509,11 +511,17 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {
-			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
+			isOtherExtAppMigrated, err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
 			if err != nil {
 				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
 			}
+		}
+		// we have migrated for other app with same name linked to installed app not the one coming from request, in that case
+		// requested app in not assigned to any project.
+		if isOtherExtAppMigrated {
+			app.TeamId = 0
+			app.Team.Name = ""
 		}
 		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
