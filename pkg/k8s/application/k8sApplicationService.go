@@ -738,7 +738,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
-	var filteredDataList []map[string]interface{}
+	filteredDataList := make([]map[string]interface{}, 0)
 	// containsNameHeader := impl.containsHeader(resourceList.Headers, k8sCommonBean.K8sClusterResourceNameKey)
 	// if !containsNameHeader {
 	//	impl.logger.Warnw("data does not contains name field, returning empty data", "headers", resourceList.Headers)
