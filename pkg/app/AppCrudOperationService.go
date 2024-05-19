@@ -478,7 +478,6 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 	// migrating the requested ext-app
 	app.AppName = appNameUniqueIdentifier
 	app.DisplayName = appIdentifier.ReleaseName
-	app.TeamId = 0
 	app.UpdatedBy = bean2.SystemUserId
 	app.UpdatedOn = time.Now()
 	err = impl.appRepository.Update(app)
