@@ -12,3 +12,5 @@ type Config struct {
 	PVCNameExpression   string   `env:"PVC_NAME_EXPRESSION"`
 	MountPathExpression string   `env:"PVC_MOUNT_PATH_EXPRESSION"`
 }
+
+const BuildPVCLabel = "devtron.ai/build/pvc"
