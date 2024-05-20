@@ -774,7 +774,7 @@ func (impl *K8sApplicationServiceImpl) getResourceListV2(ctx context.Context, to
 			filteredDataList = append(filteredDataList, dataRow)
 		} else {
 			if ownerRefIntf, ok := metadata[k8sCommonBean.K8sClusterResourceOwnerReferenceKey]; ok {
-				if ownerRefs, ok := ownerRefIntf.([]map[string]interface{}); ok {
+				if ownerRefs, ok := ownerRefIntf.([]interface{}); ok {
 					for _, ownerRef := range ownerRefs {
 						allowedResponse := impl.K8sUtil.ValidateForResource(resourceNamespace, ownerRef, func(namespace string, group string, kind string, resourceName string) bool {
 							k8sRequest.ResourceIdentifier = k8s3.ResourceIdentifier{Name: resourceName, Namespace: resourceNamespace, GroupVersionKind: schema.GroupVersionKind{Group: group, Kind: kind}}
@@ -1695,10 +1695,6 @@ func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clu
 }
 
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {
-	// return 8081, ScoopServiceClusterConfig{
-	//	Port:    "8081",
-	//	PassKey: "abcd",
-	// }, nil
 	scoopConfig, ok := impl.scoopClusterServiceMap[clusterId]
 	if !ok {
 		return 0, scoopConfig, ScoopNotConfiguredErr
