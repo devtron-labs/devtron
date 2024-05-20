@@ -24,11 +24,33 @@ const (
 	NamespaceKind                = "Namespace"
 	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 	Spec                         = "spec"
+	Template                     = "template"
+	JobTemplate                  = "jobTemplate"
 	Ports                        = "ports"
 	Port                         = "port"
 	Subsets                      = "subsets"
 	Nodes                        = "nodes"
+	Containers                   = "containers"
+	InitContainers               = "initContainers"
+	EphemeralContainers          = "ephemeralContainers"
+	Image                        = "image"
 )
+
+var defaultContainerPath = []string{Spec, Template, Spec}
+var cronJobContainerPath = []string{Spec, JobTemplate, Spec, Template, Spec}
+var podContainerPath = []string{Spec}
+
+var kindToPath = map[string][]string{
+	PodKind:                       podContainerPath,
+	K8sClusterResourceCronJobKind: cronJobContainerPath,
+}
+
+func GetContainerSubPathForKind(kind string) []string {
+	if path, ok := kindToPath[kind]; ok {
+		return path
+	}
+	return defaultContainerPath
+}
 
 const (
 	PersistentVolumeClaimsResourceType = "persistentvolumeclaims"

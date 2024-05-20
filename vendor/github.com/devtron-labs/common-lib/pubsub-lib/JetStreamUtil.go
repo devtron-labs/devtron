@@ -46,6 +46,9 @@ const (
 	CI_COMPLETE_TOPIC                   string = "CI-COMPLETE"
 	CI_COMPLETE_GROUP                   string = "CI-COMPLETE_GROUP-1"
 	CI_COMPLETE_DURABLE                 string = "CI-COMPLETE_DURABLE-1"
+	IMAGE_SCANNING_SUCCESS_TOPIC        string = "IMAGE-SCANNING-SUCCESS"
+	IMAGE_SCANNING_SUCCESS_GROUP        string = "IMAGE-SCANNING-SUCCESS-GROUP"
+	IMAGE_SCANNING_SUCCESS_DURABLE      string = "IMAGE-SCANNING-SUCCESS-DURABLE"
 	APPLICATION_STATUS_UPDATE_TOPIC     string = "APPLICATION_STATUS_UPDATE"
 	APPLICATION_STATUS_UPDATE_GROUP     string = "APPLICATION_STATUS_UPDATE_GROUP-1"
 	APPLICATION_STATUS_UPDATE_DURABLE   string = "APPLICATION_STATUS_UPDATE_DURABLE-1"
@@ -95,6 +98,12 @@ const (
 	CD_STAGE_SUCCESS_EVENT_TOPIC        string = "CD-STAGE-SUCCESS-EVENT"
 	CD_STAGE_SUCCESS_EVENT_GROUP        string = "CD-STAGE-SUCCESS-EVENT-GROUP"
 	CD_STAGE_SUCCESS_EVENT_DURABLE      string = "CD-STAGE-SUCCESS-EVENT-DURABLE"
+	CD_PIPELINE_DELETE_EVENT_TOPIC      string = "CD-PIPELINE-DELETE-EVENT"
+	CD_PIPELINE_DELETE_EVENT_GROUP      string = "CD-PIPELINE-DELETE-EVENT-GROUP"
+	CD_PIPELINE_DELETE_EVENT_DURABLE    string = "CD-PIPELINE-DELETE-EVENT-DURABLE"
+	CHART_SCAN_TOPIC                    string = "CHART-SCAN-TOPIC"
+	CHART_SCAN_GROUP                    string = "CHART-SCAN-GROUP"
+	CHART_SCAN_DURABLE                  string = "CHART-SCAN-DURABLE"
 )
 
 type NatsTopic struct {
@@ -120,8 +129,9 @@ var natsTopicMapping = map[string]NatsTopic{
 	WEBHOOK_EVENT_TOPIC:          {topicName: WEBHOOK_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: WEBHOOK_EVENT_GROUP, consumerName: WEBHOOK_EVENT_DURABLE},
 	CD_BULK_DEPLOY_TRIGGER_TOPIC: {topicName: CD_BULK_DEPLOY_TRIGGER_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_BULK_DEPLOY_TRIGGER_GROUP, consumerName: CD_BULK_DEPLOY_TRIGGER_DURABLE},
 
-	CI_COMPLETE_TOPIC:       {topicName: CI_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CI_COMPLETE_GROUP, consumerName: CI_COMPLETE_DURABLE},
-	CD_STAGE_COMPLETE_TOPIC: {topicName: CD_STAGE_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CD_COMPLETE_GROUP, consumerName: CD_COMPLETE_DURABLE},
+	CI_COMPLETE_TOPIC:            {topicName: CI_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CI_COMPLETE_GROUP, consumerName: CI_COMPLETE_DURABLE},
+	CD_STAGE_COMPLETE_TOPIC:      {topicName: CD_STAGE_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CD_COMPLETE_GROUP, consumerName: CD_COMPLETE_DURABLE},
+	IMAGE_SCANNING_SUCCESS_TOPIC: {topicName: IMAGE_SCANNING_SUCCESS_TOPIC, streamName: CI_RUNNER_STREAM, queueName: IMAGE_SCANNING_SUCCESS_GROUP, consumerName: IMAGE_SCANNING_SUCCESS_DURABLE},
 
 	APPLICATION_STATUS_UPDATE_TOPIC: {topicName: APPLICATION_STATUS_UPDATE_TOPIC, streamName: KUBEWATCH_STREAM, queueName: APPLICATION_STATUS_UPDATE_GROUP, consumerName: APPLICATION_STATUS_UPDATE_DURABLE},
 	APPLICATION_STATUS_DELETE_TOPIC: {topicName: APPLICATION_STATUS_DELETE_TOPIC, streamName: KUBEWATCH_STREAM, queueName: APPLICATION_STATUS_DELETE_GROUP, consumerName: APPLICATION_STATUS_DELETE_DURABLE},
@@ -138,6 +148,9 @@ var natsTopicMapping = map[string]NatsTopic{
 	DEVTRON_CHART_INSTALL_TOPIC:       {topicName: DEVTRON_CHART_INSTALL_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: DEVTRON_CHART_INSTALL_GROUP, consumerName: DEVTRON_CHART_INSTALL_DURABLE},
 	PANIC_ON_PROCESSING_TOPIC:         {topicName: PANIC_ON_PROCESSING_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: PANIC_ON_PROCESSING_GROUP, consumerName: PANIC_ON_PROCESSING_DURABLE},
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
+
+	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
+	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -160,6 +173,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	APPLICATION_STATUS_DELETE_DURABLE:   {},
 	CD_COMPLETE_DURABLE:                 {},
 	CI_COMPLETE_DURABLE:                 {},
+	IMAGE_SCANNING_SUCCESS_DURABLE:      {},
 	WEBHOOK_EVENT_DURABLE:               {},
 	CD_TRIGGER_DURABLE:                  {},
 	BULK_HIBERNATE_DURABLE:              {},
@@ -170,6 +184,8 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	DEVTRON_CHART_INSTALL_DURABLE:       {},
 	PANIC_ON_PROCESSING_DURABLE:         {},
 	DEVTRON_TEST_CONSUMER:               {},
+	CD_STAGE_SUCCESS_EVENT_DURABLE:      {},
+	CD_PIPELINE_DELETE_EVENT_DURABLE:    {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string
@@ -212,11 +228,12 @@ func getStreamConfigMap(jsonString string) map[string]NatsStreamConfig {
 	return resMap
 }
 
-func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
+func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 	configJson := ConfigJson{}
 	err := env.Parse(&configJson)
 	if err != nil {
-		log.Fatal("error while parsing config from environment params", " err", err)
+		log.Println("error while parsing config from environment params", " err", err)
+		return err
 	}
 
 	// fetch the consumer configs that were given explicitly in the configJson.ConsumerConfigJson
@@ -229,6 +246,7 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	err = env.Parse(&defaultConfig)
 	if err != nil {
 		log.Print("error while parsing config from environment params", "err", err)
+		return err
 	}
 
 	// default stream and consumer config values
@@ -236,6 +254,21 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	defaultConsumerConfigVal := defaultConfig.GetDefaultNatsConsumerConfig()
 
 	// initialise all the consumer wise config with default values or user defined values
+	updateNatsConsumerConfigMapping(defaultConsumerConfigVal, consumerConfigMap)
+
+	// initialise all the stream wise config with default values or user defined values
+	updateNatsStreamConfigMapping(defaultStreamConfigVal, streamConfigMap)
+	return nil
+}
+
+func updateNatsConsumerConfigMapping(defaultConsumerConfigVal NatsConsumerConfig, consumerConfigMap map[string]NatsConsumerConfig) {
+	//iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
+	for _, natsTopic := range natsTopicMapping {
+		if _, ok := NatsConsumerWiseConfigMapping[natsTopic.consumerName]; !ok {
+			NatsConsumerWiseConfigMapping[natsTopic.consumerName] = NatsConsumerConfig{}
+		}
+	}
+	//initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		consumerConfig := defaultConsumerConfigVal
 		if _, ok := consumerConfigMap[key]; ok {
@@ -243,8 +276,9 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		}
 		NatsConsumerWiseConfigMapping[key] = consumerConfig
 	}
+}
 
-	// initialise all the consumer wise config with default values or user defined values
+func updateNatsStreamConfigMapping(defaultStreamConfigVal NatsStreamConfig, streamConfigMap map[string]NatsStreamConfig) {
 	for key, _ := range NatsStreamWiseConfigMapping {
 		streamConfig := defaultStreamConfigVal
 		if _, ok := streamConfigMap[key]; ok {
@@ -252,7 +286,6 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 		}
 		NatsStreamWiseConfigMapping[key] = streamConfig
 	}
-
 }
 
 func GetNatsTopic(topicName string) NatsTopic {
@@ -280,11 +313,12 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 			cfgToSet := getNewConfig(streamName, streamConfig)
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
-				log.Fatal("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
+				log.Println("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
 				return err
 			}
 		} else if err != nil {
-			log.Fatal("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
+			log.Println("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
+			return err
 		} else {
 			config := streamInfo.Config
 			streamConfig.Name = streamName

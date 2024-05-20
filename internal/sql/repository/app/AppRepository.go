@@ -41,8 +41,11 @@ type App struct {
 	sql.AuditLog
 }
 
+func (r *App) IsAppJobOrExternalType() bool {
+	return len(r.DisplayName) > 0
+}
+
 type AppRepository interface {
-	Save(pipelineGroup *App) error
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
@@ -100,11 +103,6 @@ func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRe
 
 func (repo AppRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
-}
-
-func (repo AppRepositoryImpl) Save(pipelineGroup *App) error {
-	err := repo.dbConnection.Insert(pipelineGroup)
-	return err
 }
 
 func (repo AppRepositoryImpl) SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error {

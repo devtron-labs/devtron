@@ -33,6 +33,7 @@ const (
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
 	EntityJobs                                  = "jobs"
+	EmptyStringIndicatingAll                    = ""
 )
 
 const (
@@ -78,4 +79,9 @@ const (
 const (
 	AdminUserId  = 2 // we have established Admin user as 2 while setting up devtron
 	SystemUserId = 1 // we have established System user as 1 while setting up devtron, which are being used for auto-trigger operations
+)
+
+const (
+	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+	ApiTokenTableName = "api_token"
 )

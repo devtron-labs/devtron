@@ -57,7 +57,7 @@ type CdWorkflowRepository interface {
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	IsLatestCDWfr(pipelineId, wfrId int) (bool, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
-
+	FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error)
 	GetConnection() *pg.DB
 
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
@@ -75,6 +75,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
+	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -356,7 +357,19 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	// TODO - Group By Environment And Pipeline will get latest pipeline from top
 	return cdWorkflow, err
 }
-
+func (impl *CdWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error) {
+	cnt, err := impl.dbConnection.
+		Model(&CdWorkflow{}).
+		ColumnExpr("DISTINCT pipeline_id").
+		Join("JOIN cd_workflow_runner ON cd_workflow.id = cd_workflow_runner.cd_workflow_id").
+		Where("cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.started_on > ?", bean.CD_WORKFLOW_TYPE_DEPLOY, time.Now().AddDate(0, 0, -1)).
+		Group("cd_workflow.pipeline_id").
+		Count()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching cd workflow", "err", err)
+	}
+	return cnt, err
+}
 func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
@@ -480,7 +493,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 
 func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool, error) {
 	wfr := &CdWorkflowRunner{}
-	exists, err := impl.dbConnection.
+	ifAnySuccessorWfrExists, err := impl.dbConnection.
 		Model(wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow").
 		Where("wf.pipeline_id = ?", pipelineId).
@@ -489,7 +502,7 @@ func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Where("cd_workflow_runner.id > ?", wfrId).
 		Exists()
-	return exists, err
+	return !ifAnySuccessorWfrExists, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
@@ -738,4 +751,27 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 		return false, nil
 	}
 	return exists, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType bean.WorkflowType) ([]CdWorkflowRunner, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FindLatestRunnerByPipelineIdsAndRunnerType")
+	defer span.End()
+	if pipelineIds == nil || len(pipelineIds) == 0 {
+		return nil, pg.ErrNoRows
+	}
+	var latestWfrs []CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&latestWfrs).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		ColumnExpr("MAX(cd_workflow_runner.id)").
+		Where("cd_workflow.pipeline_id IN (?)", pg.In(pipelineIds)).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow__pipeline.deleted = ?", false).
+		Group("cd_workflow_runner.id", "cd_workflow.id", "cd_workflow__pipeline.id").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "pipelineIds", pipelineIds, "runnerType", runnerType)
+		return nil, err
+	}
+	return latestWfrs, err
 }

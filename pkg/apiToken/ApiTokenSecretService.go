@@ -21,6 +21,7 @@ import (
 	"errors"
 	apiTokenAuth "github.com/devtron-labs/authenticator/apiToken"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"go.uber.org/zap"
 )
 
@@ -36,9 +37,9 @@ type ApiTokenSecretServiceImpl struct {
 
 func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, attributesService attributes.AttributesService, apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore) (*ApiTokenSecretServiceImpl, error) {
 	impl := &ApiTokenSecretServiceImpl{
-		logger:                   logger,
-		attributesService: attributesService,
-		apiTokenSecretStore:      apiTokenSecretStore,
+		logger:              logger,
+		attributesService:   attributesService,
+		apiTokenSecretStore: apiTokenSecretStore,
 	}
 
 	// get secret from db and store
@@ -67,7 +68,7 @@ func (impl ApiTokenSecretServiceImpl) GetApiTokenSecretByteArr() ([]byte, error)
 
 func (impl ApiTokenSecretServiceImpl) getApiSecretFromDb() (string, error) {
 	// get from db
-	apiTokenSecret, err := impl.attributesService.GetByKey(attributes.API_SECRET_KEY)
+	apiTokenSecret, err := impl.attributesService.GetByKey(bean.API_SECRET_KEY)
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret from DB", "error", err)
 		return "", err

@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -28,23 +26,18 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
-	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
 	"net/http"
 	"sort"
 	"strings"
@@ -76,21 +69,17 @@ type BulkUpdateServiceImpl struct {
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              dag.WorkflowDagExecutor
 	pipelineBuilder                  pipeline.PipelineBuilder
 	enforcerUtil                     rbac.EnforcerUtil
 	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
 	appWorkflowService               appWorkflow2.AppWorkflowService
-	pubsubClient                     *pubsub.PubSubClientServiceImpl
-	argoUserService                  argo.ArgoUserService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
-	cdTriggerService                 devtronApps.TriggerService
 	deployedAppService               deployedApp.DeployedAppService
-	cdWorkflowCommonService          cd.CdWorkflowCommonService
+	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -99,22 +88,19 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor dag.WorkflowDagExecutor,
+	configMapHistoryService history.ConfigMapHistoryService,
 	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,
 	ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
-	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	cdTriggerService devtronApps.TriggerService,
 	deployedAppService deployedApp.DeployedAppService,
-	cdWorkflowCommonService cd.CdWorkflowCommonService) (*BulkUpdateServiceImpl, error) {
-	impl := &BulkUpdateServiceImpl{
+	cdPipelineEventPublishService out.CDPipelineEventPublishService) *BulkUpdateServiceImpl {
+	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		logger:                           logger,
 		environmentRepository:            environmentRepository,
@@ -122,25 +108,19 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		configMapHistoryService:          configMapHistoryService,
-		workflowDagExecutor:              workflowDagExecutor,
 		pipelineBuilder:                  pipelineBuilder,
 		enforcerUtil:                     enforcerUtil,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
 		appWorkflowService:               appWorkflowService,
-		pubsubClient:                     pubsubClient,
-		argoUserService:                  argoUserService,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		chartRefService:                  chartRefService,
-		cdTriggerService:                 cdTriggerService,
 		deployedAppService:               deployedAppService,
-		cdWorkflowCommonService:          cdWorkflowCommonService,
+		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 	}
 
-	err := impl.SubscribeToCdBulkTriggerTopic()
-	return impl, err
 }
 
 const (
@@ -1337,43 +1317,14 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0]
-		overrideRequest := &bean.ValuesOverrideRequest{
-			PipelineId:     pipeline.Id,
-			AppId:          pipeline.AppId,
-			CiArtifactId:   artifact.Id,
-			UserId:         request.UserId,
-			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-		}
-		event := &bean.BulkCdDeployEvent{
-			ValuesOverrideRequest: overrideRequest,
-			UserId:                overrideRequest.UserId,
-		}
-
-		payload, err := json.Marshal(event)
+		err = impl.cdPipelineEventPublishService.PublishBulkTriggerTopicEvent(pipeline.Id, pipeline.AppId, artifact.Id, request.UserId)
 		if err != nil {
-			impl.logger.Errorw("failed to marshal cd bulk deploy event request",
-				"request", event,
-				"err", err)
-
+			impl.logger.Errorw("error, PublishBulkTriggerTopicEvent", "err", err, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
 			continue
 		}
-
-		err = impl.pubsubClient.Publish(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, string(payload))
-		if err != nil {
-			impl.logger.Errorw("failed to publish trigger request event",
-				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-				"request", overrideRequest,
-				"err", err)
-
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			response[appKey] = pipelineResponse
-			continue
-		}
-
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
@@ -1382,76 +1333,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
-}
-
-func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
-
-	callback := func(msg *model.PubSubMsg) {
-
-		event := &bean.BulkCdDeployEvent{}
-		err := json.Unmarshal([]byte(msg.Data), event)
-		if err != nil {
-			impl.logger.Errorw("Error unmarshalling received event",
-				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-				"msg", msg.Data,
-				"err", err)
-			return
-		}
-		event.ValuesOverrideRequest.UserId = event.UserId
-
-		// trigger
-		ctx, err := impl.buildACDContext()
-		if err != nil {
-			impl.logger.Errorw("error in creating acd context",
-				"err", err)
-			return
-		}
-
-		triggerContext := bean4.TriggerContext{
-			ReferenceId: pointer.String(msg.MsgId),
-			Context:     ctx,
-		}
-
-		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
-		if err != nil {
-			impl.logger.Errorw("Error triggering CD",
-				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-				"msg", msg.Data,
-				"err", err)
-		}
-	}
-
-	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		event := &bean.BulkCdDeployEvent{}
-		err := json.Unmarshal([]byte(msg.Data), event)
-		if err != nil {
-			return "error unmarshalling received event", []interface{}{"msg", msg.Data, "err", err}
-		}
-		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
-	}
-
-	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
-	if err != nil {
-		impl.logger.Error("failed to subscribe to NATS topic",
-			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-			"err", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *BulkUpdateServiceImpl) buildACDContext() (acdContext context.Context, err error) {
-	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	return ctx, nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {

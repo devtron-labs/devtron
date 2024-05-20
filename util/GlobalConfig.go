@@ -1,24 +1,24 @@
 package util
 
 import (
-	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/juju/errors"
 )
 
-type GlobalEnvVariables struct {
-	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:"devtron"`
-	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
-	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+type EnvironmentVariables struct {
+	GlobalEnvVariables          *GlobalEnvVariables
+	DevtronSecretConfig         *DevtronSecretConfig
+	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
 }
 
-func GetGlobalEnvVariables() (*GlobalEnvVariables, error) {
-	cfg := &GlobalEnvVariables{}
-	err := env.Parse(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return cfg, err
+type DeploymentServiceTypeConfig struct {
+	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
+}
+
+type GlobalEnvVariables struct {
+	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
+	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
 }
 
 type DevtronSecretConfig struct {
@@ -26,11 +26,15 @@ type DevtronSecretConfig struct {
 	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
 }
 
-func GetDevtronSecretName() (*DevtronSecretConfig, error) {
-	secretConfig := &DevtronSecretConfig{}
-	err := env.Parse(secretConfig)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("could not get devtron secret name from environment : %v", err))
+func GetEnvironmentVariables() (*EnvironmentVariables, error) {
+	cfg := &EnvironmentVariables{
+		GlobalEnvVariables:          &GlobalEnvVariables{},
+		DevtronSecretConfig:         &DevtronSecretConfig{},
+		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
 	}
-	return secretConfig, err
+	err := env.Parse(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, err
 }

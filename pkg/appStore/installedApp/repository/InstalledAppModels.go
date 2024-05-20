@@ -20,6 +20,7 @@ type InstalledAppsWithChartDetails struct {
 	ChartRepoName                string    `json:"chart_repo_name"`
 	DockerArtifactStoreId        string    `json:"docker_artifact_store_id"`
 	AppName                      string    `json:"app_name"`
+	DisplayName                  string    `json:"display_name"`
 	EnvironmentName              string    `json:"environment_name"`
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
 	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
@@ -37,6 +38,7 @@ type InstalledAppsWithChartDetails struct {
 	AppOfferingMode              string    `json:"app_offering_mode"`
 	AppStatus                    string    `json:"app_status"`
 	DeploymentAppDeleteRequest   bool      `json:"deploymentAppDeleteRequest"`
+	IsVirtualEnvironment         bool      `json:"is_virtual_environment"`
 }
 
 // InstalledAppAndEnvDetails is used to operate on native query; This should be avoided.
@@ -45,6 +47,7 @@ type InstalledAppAndEnvDetails struct {
 	EnvironmentName              string    `json:"environment_name"`
 	EnvironmentId                int       `json:"environment_id"`
 	AppName                      string    `json:"app_name"`
+	DisplayName                  string    `json:"display_name"`
 	AppOfferingMode              string    `json:"appOfferingMode"`
 	UpdatedOn                    time.Time `json:"updated_on"`
 	EmailId                      string    `json:"email_id"`

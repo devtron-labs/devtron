@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1322,9 +1323,9 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	dockerBuildConfig := dockerConfig.DockerBuildConfig
 	if dockerBuildConfig != nil {
 		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
-		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
-			CiBuildType: bean2.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean2.DockerBuildConfig{
+		dockerConfig.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
+			CiBuildType: CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &CiPipeline.DockerBuildConfig{
 				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
@@ -1544,7 +1545,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
-			if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
 				return err, http.StatusBadRequest
 			}
@@ -1586,6 +1587,15 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 }
 
 func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, appId int, userId int32) (int, error) {
+	//checking if workflow name  already exist or not
+	ok, err := handler.appWorkflowService.IsWorkflowNameFound(workflowName, appId)
+	if err != nil {
+		return 0, err
+	}
+	// if workflow name already exists then we will assign a new name to the workflow
+	if ok {
+		workflowName = util.GenerateNewWorkflowName(workflowName)
+	}
 	wf := &appWorkflow2.AppWorkflow{
 		Name:   workflowName,
 		AppId:  appId,
@@ -1672,7 +1682,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             bean2.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             CiPipeline.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
@@ -2132,6 +2142,25 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 				}
 				if ciPipeline.AppId != workflow.CiPipeline.ParentAppId {
 					return fmt.Errorf("invalid parentAppId '%v' for the given parentCiPipeline '%v'", workflow.CiPipeline.ParentAppId, workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
+				}
+				parentMaterialMap := make(map[int]*pipelineConfig.CiPipelineMaterial)
+				for _, material := range ciPipeline.CiPipelineMaterials {
+					parentMaterialMap[material.GitMaterialId] = material
+				}
+				for _, requestPipelineMaterial := range workflow.CiPipeline.CiPipelineMaterialsConfig {
+					parentMaterial, ok := parentMaterialMap[requestPipelineMaterial.GitMaterialId]
+					if !ok {
+						return fmt.Errorf("invalid material id - request material id should match parent material id for linked ci,  request material id - '%v' ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Value != parentMaterial.Value {
+						return fmt.Errorf(" parentMaterialValue and request material value should match for linked ci - parent material value - %v child value %v ", requestPipelineMaterial.Value), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Type != parentMaterial.Type {
+						return fmt.Errorf(" parentMaterialType and request material value should match for linked ci - parent material type - %v child type %v ", requestPipelineMaterial.Type), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.CheckoutPath != parentMaterial.CheckoutPath {
+						return fmt.Errorf(" parentMaterialType and request material CheckoutPath should match for linked ci - parent material CheckoutPath - %v child CheckoutPath %v ", requestPipelineMaterial.CheckoutPath), http.StatusBadRequest
+					}
 				}
 			}
 			ciMaterialCheckoutPaths := make([]string, 0)

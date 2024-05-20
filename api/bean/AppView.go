@@ -72,6 +72,7 @@ type JobContainer struct {
 	JobActualName  string                  `json:"appName""`
 	Description    GenericNoteResponseBean `json:"description"`
 	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
+	ProjectId      int                     `json:"projectId"`
 }
 
 type JobCIPipeline struct {
@@ -98,6 +99,7 @@ type JobListingContainer struct {
 	EnvironmentName              string    `sql:"environment_name" json:"environmentName"`
 	LastTriggeredEnvironmentName string    `sql:"last_triggered_environment_name" json:"lastTriggeredEnvironmentName"`
 	LastTriggeredEnvironmentId   int       `sql:"last_triggered_environment_id" json:"lastEnvironmentId"`
+	ProjectId                    int       `sql:"team_id" json:"projectId"`
 }
 
 type CiPipelineLastSucceededTime struct {
@@ -136,11 +138,15 @@ type AppEnvironmentContainer struct {
 	TeamName                    string                    `json:"teamName"`
 	Description                 string                    `json:"description" validate:"max=40"`
 	TotalCount                  int                       `json:"-"`
+	Commits                     []string                  `json:"commits"`
 }
 
 type DeploymentDetailContainer struct {
 	InstalledAppId                int             `json:"installedAppId,omitempty"`
 	AppId                         int             `json:"appId,omitempty"`
+	CdPipelineId                  int             `json:"cdPipelineId,omitempty"`
+	TriggerType                   string          `json:"triggerType,omitempty"`
+	ParentEnvironmentName         string          `json:"parentEnvironmentName"`
 	AppStoreInstalledAppVersionId int             `json:"appStoreInstalledAppVersionId,omitempty"`
 	AppStoreChartName             string          `json:"appStoreChartName,omitempty"`
 	AppStoreChartId               int             `json:"appStoreChartId,omitempty"`
@@ -166,7 +172,7 @@ type DeploymentDetailContainer struct {
 	ParentArtifactId              int             `json:"parentArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
-	CiPipelineId                  int             `json:"-"`
+	CiPipelineId                  int             `json:"ciPipelineId,omitempty"`
 	IsExternalCi                  bool            `json:"externalCi"`
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
@@ -174,6 +180,7 @@ type DeploymentDetailContainer struct {
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	HelmPackageName               string          `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string          `json:"-"`
 }
 
@@ -195,22 +202,24 @@ type Notes struct {
 }
 
 type Environment struct {
-	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
-	EnvironmentId              int    `json:"environmentId"`
-	EnvironmentName            string `json:"environmentName"`
-	AppMetrics                 *bool  `json:"appMetrics"`
-	InfraMetrics               *bool  `json:"infraMetrics"`
-	Prod                       bool   `json:"prod"`
-	ChartRefId                 int    `json:"chartRefId"`
-	LastDeployed               string `json:"lastDeployed"`
-	LastDeployedBy             string `json:"lastDeployedBy"`
-	LastDeployedImage          string `json:"lastDeployedImage"`
-	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
-	Description                string `json:"description" validate:"max=40"`
-	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
-	ClusterId                  int    `json:"clusterId"`
-	PipelineId                 int    `json:"pipelineId"`
-	LatestCdWorkflowRunnerId   int    `json:"latestCdWorkflowRunnerId,omitempty"`
+	AppStatus                  string   `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
+	EnvironmentId              int      `json:"environmentId"`
+	EnvironmentName            string   `json:"environmentName"`
+	AppMetrics                 *bool    `json:"appMetrics"`
+	InfraMetrics               *bool    `json:"infraMetrics"`
+	Prod                       bool     `json:"prod"`
+	ChartRefId                 int      `json:"chartRefId"`
+	LastDeployed               string   `json:"lastDeployed"`
+	LastDeployedBy             string   `json:"lastDeployedBy"`
+	LastDeployedImage          string   `json:"lastDeployedImage"`
+	DeploymentAppDeleteRequest bool     `json:"deploymentAppDeleteRequest"`
+	Description                string   `json:"description" validate:"max=40"`
+	IsVirtualEnvironment       bool     `json:"isVirtualEnvironment"`
+	ClusterId                  int      `json:"clusterId"`
+	PipelineId                 int      `json:"pipelineId"`
+	LatestCdWorkflowRunnerId   int      `json:"latestCdWorkflowRunnerId,omitempty"`
+	CiArtifactId               int      `json:"ciArtifactId"`
+	Commits                    []string `json:"commits"`
 }
 
 type InstanceDetail struct {

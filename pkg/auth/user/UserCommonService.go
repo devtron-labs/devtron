@@ -49,11 +49,12 @@ func NewUserCommonServiceImpl(userAuthRepository repository.UserAuthRepository,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager,
-	defaultRbacDataCacheFactory repository.RbacDataCacheFactory) *UserCommonServiceImpl {
+	defaultRbacDataCacheFactory repository.RbacDataCacheFactory) (*UserCommonServiceImpl, error) {
 	userConfig := &UserRbacConfig{}
 	err := env.Parse(userConfig)
 	if err != nil {
-		logger.Fatal("error occurred while parsing user config", err)
+		logger.Errorw("error occurred while parsing user config", err)
+		return nil, err
 	}
 	serviceImpl := &UserCommonServiceImpl{
 		userAuthRepository:          userAuthRepository,
@@ -67,7 +68,7 @@ func NewUserCommonServiceImpl(userAuthRepository repository.UserAuthRepository,
 	cStore = sessions.NewCookieStore(randKey())
 	defaultRbacDataCacheFactory.SyncPolicyCache()
 	defaultRbacDataCacheFactory.SyncRoleDataCache()
-	return serviceImpl
+	return serviceImpl, nil
 }
 
 type UserRbacConfig struct {
@@ -638,7 +639,9 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[st
 		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 	}
 	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if !containsArr(entityArr, role.EntityName) {
+	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+	} else if !containsArr(entityArr, role.EntityName) {
 		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 	}
 	workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
@@ -657,7 +660,9 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap
 		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 	}
 	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if !containsArr(entityArr, role.EntityName) {
+	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+	} else if !containsArr(entityArr, role.EntityName) {
 		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 	}
 }

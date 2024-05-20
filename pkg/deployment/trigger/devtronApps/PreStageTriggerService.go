@@ -9,15 +9,16 @@ import (
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -48,58 +49,22 @@ const (
 )
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
+	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_PRE
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
 	ctx := request.TriggerContext.Context
-	//in case of pre stage manual trigger auth is already applied and for auto triggers there is no need for auth check here
-	cdWf := request.CdWf
-	var err error
-	if cdWf == nil {
-		cdWf = &pipelineConfig.CdWorkflow{
-			CiArtifactId: artifact.Id,
-			PipelineId:   pipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-		}
-		err = impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
-		if err != nil {
-			return err
-		}
-	}
-	cdWorkflowExecutorType := impl.config.GetWorkflowExecutorType()
-	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:                  pipeline.Name,
-		WorkflowType:          bean2.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType:          cdWorkflowExecutorType,
-		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
-		TriggeredBy:           triggeredBy,
-		StartedOn:             triggeredAt,
-		Namespace:             impl.config.GetDefaultNamespace(),
-		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
-		CdWorkflowId:          cdWf.Id,
-		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean2.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
-		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		ReferenceId:           request.TriggerContext.ReferenceId,
-	}
-	var env *repository2.Environment
-	if pipeline.RunPreStageInEnv {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw(" unable to find env ", "err", err)
-			return err
-		}
-		impl.logger.Debugw("env", "env", env)
-		runner.Namespace = env.Namespace
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-	span.End()
+	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
 	if err != nil {
+		impl.logger.Errorw("error, getEnvAndNsIfRunStageInEnv", "err", err, "pipeline", pipeline, "stage", request.WorkflowType)
+		return nil
+	}
+	request.RunStageInEnvNamespace = namespace
+	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
 
@@ -111,28 +76,13 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	}
 	// custom GitOps repo url validation --> Ends
 
-	// checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
+	//checking vulnerability for the selected image
+	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(ctx, artifact, pipeline, runner, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
+		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return err
 	}
-	if isVulnerable {
-		// if image vulnerable, update timeline status and return
-		runner.Status = pipelineConfig.WorkflowFailed
-		runner.Message = pipelineConfig.FOUND_VULNERABILITY
-		runner.FinishedOn = time.Now()
-		runner.UpdatedOn = time.Now()
-		runner.UpdatedBy = triggeredBy
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-		if err != nil {
-			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-			return err
-		}
-		return fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	span.End()
 	if err != nil {
@@ -168,6 +118,100 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	if err != nil {
 		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 		return err
+	}
+	return nil
+}
+
+func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRequest, triggeredAt time.Time) (*pipelineConfig.CdWorkflow, *pipelineConfig.CdWorkflowRunner, error) {
+	triggeredBy := request.TriggeredBy
+	artifact := request.Artifact
+	pipeline := request.Pipeline
+	ctx := request.TriggerContext.Context
+	//in case of pre stage manual trigger auth is already applied and for auto triggers there is no need for auth check here
+	cdWf := request.CdWf
+	var err error
+	if cdWf == nil && request.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+		cdWf = &pipelineConfig.CdWorkflow{
+			CiArtifactId: artifact.Id,
+			PipelineId:   pipeline.Id,
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		}
+		err = impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	runner := &pipelineConfig.CdWorkflowRunner{
+		Name:                  pipeline.Name,
+		WorkflowType:          request.WorkflowType,
+		ExecutorType:          impl.config.GetWorkflowExecutorType(),
+		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
+		TriggeredBy:           triggeredBy,
+		StartedOn:             triggeredAt,
+		Namespace:             request.RunStageInEnvNamespace,
+		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
+		CdWorkflowId:          cdWf.Id,
+		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), request.WorkflowType, pipeline.Name),
+		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
+		ReferenceId:           request.TriggerContext.ReferenceId,
+	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
+	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	span.End()
+	if err != nil {
+		return nil, nil, err
+	}
+	return cdWf, runner, nil
+}
+
+func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.TriggerRequest) (*repository2.Environment, string, error) {
+	workflowStage := request.WorkflowType
+	pipeline := request.Pipeline
+	var env *repository2.Environment
+	var err error
+	namespace := impl.config.GetDefaultNamespace()
+	runStageInEnv := false
+	if workflowStage == bean2.CD_WORKFLOW_TYPE_PRE {
+		runStageInEnv = pipeline.RunPreStageInEnv
+	} else if workflowStage == bean2.CD_WORKFLOW_TYPE_POST {
+		runStageInEnv = pipeline.RunPostStageInEnv
+	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw(" unable to find env ", "err", err)
+		return nil, namespace, err
+	}
+	if runStageInEnv {
+		namespace = env.Namespace
+	}
+	return env, namespace, nil
+}
+
+func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
+	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
+	//checking vulnerability for the selected image
+	vulnerabilityCheckRequest := adapter2.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
+		return err
+	}
+	if isVulnerable {
+		// if image vulnerable, update timeline status and return
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = pipelineConfig.FOUND_VULNERABILITY
+		runner.FinishedOn = time.Now()
+		runner.UpdatedOn = time.Now()
+		runner.UpdatedBy = triggeredBy
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+			return err
+		}
+		return fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 	}
 	return nil
 }
@@ -350,7 +394,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == string(pipelineConfigBean.CI_JOB) {
+			} else if ciPipeline.PipelineType == string(CiPipeline.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -394,7 +438,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
 	//since user sees the environment of the CD pipeline
 	scope := resourceQualifiers.Scope{
-		AppId:     cdPipeline.AppId,
+		AppId:     cdPipeline.App.Id,
 		EnvId:     env.Id,
 		ClusterId: env.ClusterId,
 		SystemMetadata: &resourceQualifiers.SystemMetadata{
@@ -815,42 +859,6 @@ func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipeli
 		}
 	}
 	return sourceCiPipeline, nil
-}
-
-func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		span.End()
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return false, err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
-		if cdPipeline.Environment.ClusterId == 0 {
-			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
-				return false, err
-			}
-			cdPipeline.Environment = *envDetails
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return false, err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	return isVulnerable, nil
 }
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {

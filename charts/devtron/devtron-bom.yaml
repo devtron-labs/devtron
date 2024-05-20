@@ -7,15 +7,15 @@ global:
     allowPrivilegeEscalation: false
     runAsUser: 1000
     runAsNonRoot: true
+  containerRegistry: "quay.io/devtron"
 
 installer:
-  release: "v0.6.27"
-  image: "quay.io/devtron/inception"
-  tag: "a9820f38-185-20840"
-  
+  release: "v0.6.29"
+  registry: ""
+  image: "inception"
+  tag: "473deaa4-185-21582"
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:796b9e98-325-20868"
     config:
       extraConfigs:
         USE_V2: "true"
@@ -26,17 +26,36 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
+        ENABLE_EXTERNAL_ARGO_CD: "false"
+        SERVICE_WORKER_TIMEOUT: "1"
+        API_BATCH_SIZE: "30"
+    registry: ""
+    image: "dashboard:1c86e84e-325-22108"
+    imagePullPolicy: IfNotPresent
+
   devtron:
-    image: "quay.io/devtron/hyperion:2feec2a7-280-20864"
-    cicdImage: "quay.io/devtron/devtron:2feec2a7-434-20865"
-    customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d4dadb96-138-20830"
+    registry: ""
+    image: "hyperion:e7f34f5a-280-22107"
+    cicdImage: "devtron:e7f34f5a-434-22106"
+    imagePullPolicy: IfNotPresent
+    customOverrides: {}
+
+  ciRunner:
+    registry: ""
+    image: "ci-runner:f5614d79-541-22176"
+
+
   argocdDexServer:
-    image: "ghcr.io/dexidp/dex:v2.30.2"
+    registry: ""
+    image: "dex:v2.30.2"
+    imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
+      authenticator: "authenticator:e414faff-393-13273"
+
   kubelink:
-    image: "quay.io/devtron/kubelink:b3a017d2-564-20648"
+    registry: ""
+    image: "kubelink:2610ac5a-564-22109"
+    imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
@@ -50,12 +69,31 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+
+  kubewatch:
+    registry: ""
+    image: "kubewatch:50d4d32d-419-22116"
+    imagePullPolicy: IfNotPresent
+    configs:
+      devtroncd_NAMESPACE: "devtron-ci"
+      CI_INFORMER: "true"
+      ACD_NAMESPACE: "devtroncd"
+      ACD_INFORMER: "true"
+      NATS_STREAM_MAX_AGE: "10800"
+
   postgres:
-    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
-    armImage: "quay.io/devtron/postgres:11.9"
-  gitsensor:
-    image: "quay.io/devtron/git-sensor:7f704db3-200-20777"
+    registry: ""
+    image: "postgres:11.9.0-debian-10-r26"
+    armImage: "postgres:11.9"
+    initImage: "minideb:latest"
     imagePullPolicy: "IfNotPresent"
+    metrics:
+      image: postgres_exporter:v0.4.7
+      armImage: postgres_exporter:v0.10.1
+  gitsensor:
+    registry: ""
+    image: "git-sensor:8545feb5-200-22005"
+    imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
     persistence:
@@ -65,12 +103,14 @@ components:
       PG_USER: postgres
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
-      USE_GIT_CLI: "false"
+      USE_GIT_CLI: "true"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-  lens: 
-    image: "quay.io/devtron/lens:98130668-333-20295"
+# Values for lens
+  lens:
+    registry: ""
+    image: "lens:70577aaa-333-21179"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -83,21 +123,27 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+# Change below values for nats
   nats:
+    registry: ""
     image: nats:2.9.3-alpine
-    imagePullPolicy: IfNotPresent
     reloader:
-      image: quay.io/devtron/nats-server-config-reloader:0.6.2
+      image: nats-server-config-reloader:0.6.2
       imagePullPolicy: IfNotPresent
     metrics:
-      image: quay.io/devtron/prometheus-nats-exporter:0.9.0
+      image: prometheus-nats-exporter:0.9.0
       imagePullPolicy: IfNotPresent
+    natsBox:
+      image: nats-box
     serviceMonitor:
       enabled: false
     persistence:
       storage: 5Gi
   migrator:
-    image: "quay.io/devtron/migrator:v4.16.2"
+    registry: ""
+    image: "migrator:v4.16.2"
+    kubectlImage: "kubectl:latest"
+    duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
     envVars:
       devtron:
         DB_NAME: "orchestrator"
@@ -107,21 +153,54 @@ components:
         DB_NAME: "git_sensor"
       lens: 
         DB_NAME: "lens"
-        
+
+  chartSync:
+    registry: ""
+    image: chart-sync:d0dcc590-373-21074
+  
+# values for argocd integration
 argo-cd:
   global:
     image:
+      # -- If defined, a repository applied to all Argo CD deployments
       repository: quay.io/argoproj/argocd
+      # -- Overrides the global Argo CD image tag whose default is the chart appVersion
       tag: "v2.5.2"
+      # -- If defined, a imagePullPolicy applied to all Argo CD deployments
       imagePullPolicy: IfNotPresent
-      
+# Change below values for workflow controller
 workflowController:
-  image: "quay.io/argoproj/workflow-controller:v3.4.3"
-  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
-
+  registry: "quay.io/argoproj"
+  image: "workflow-controller:v3.4.3"
+  executorImage: "argoexec:v3.4.3"
+  IMDSv1Image: "workflow-controller:v3.0.7"
+  IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:28f95d21-334-20763"
-
+    image: "image-scanner:c0416bc2-334-22111"
+  clair:
+    image:
+      repository: clair
+      tag: 4.3.6
+# Values for notifier integration
 notifier:
-  image: "quay.io/devtron/notifier:e4ffc71a-372-20776"
+  image: "notifier:924a17f6-372-22110"
+minio:
+  image: "minio:RELEASE.2021-02-14T04-01-33Z"
+  mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  gatewayImage: "minio:RELEASE.2020-12-03T05-49-24Z"
+
+# Values for grafana integration
+monitoring:
+  grafana:
+    registry: ""
+    image: "grafana:7.3.1"
+    busyboxImage: "busybox:1.31.1"
+    batsImage: "bats:v1.4.1"
+    imagePullPolicy: IfNotPresent
+    grafanaOrgJob:
+      curlImage: k8s-utils:tutum-curl
+    grafanaDashboards:
+      image: "k8s-sidecar:1.1.0"
+      curlImage: "curl:7.73.0"
+      imagePullPolicy: IfNotPresent

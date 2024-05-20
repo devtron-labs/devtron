@@ -36,8 +36,7 @@ type GenericNoteHistoryRepository interface {
 	FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error)
 }
 
-func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB) *GenericNoteHistoryRepositoryImpl {
-	TransactionUtilImpl := sql.NewTransactionUtilImpl(dbConnection)
+func NewGenericNoteHistoryRepositoryImpl(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *GenericNoteHistoryRepositoryImpl {
 	return &GenericNoteHistoryRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: TransactionUtilImpl,

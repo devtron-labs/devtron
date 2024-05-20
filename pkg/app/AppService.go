@@ -442,7 +442,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 		if !isArgoAppSynced {
 			return isValid, installedAppVersionHistory, appId, envId, nil
@@ -491,7 +491,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 		if !isArgoAppSynced {
@@ -1060,8 +1060,8 @@ type ReleaseAttributes struct {
 	PipelineName   string
 	ReleaseVersion string
 	DeploymentType string
-	App            string
-	Env            string
+	App            string // App here corresponds to appId
+	Env            string // Env here corresponds to envId
 	AppMetrics     *bool
 }
 
@@ -1076,7 +1076,7 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 	} else {
 		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.FinishedOn = time.Now()
+			installedAppVersionHistory.SetFinishedOn()
 		} else {
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
 		}

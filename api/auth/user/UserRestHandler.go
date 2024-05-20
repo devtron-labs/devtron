@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/gorilla/schema"
 	"net/http"
@@ -110,6 +111,23 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	userInfo.UserId = userId
 	handler.logger.Infow("request payload, CreateUser", "payload", userInfo)
 
+	// struct Validations
+	handler.logger.Infow("request payload, CreateUser ", "payload", userInfo)
+	err = handler.validator.Struct(userInfo)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateUser", "err", err, "payload", userInfo)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Doing this as api is not compatible with previous release of dashboard, groups has been migrated to userRoleGroups
+	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
+	if isGroupsPresent {
+		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
+		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		return
+	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isActionUserSuperAdmin := false
@@ -143,8 +161,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 
 	// auth check inside groups
-	if len(userInfo.Groups) > 0 {
-		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.Groups)
+	if len(userInfo.UserRoleGroup) > 0 {
+		groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -173,15 +191,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 
-	handler.logger.Infow("request payload, CreateUser ", "payload", userInfo)
-	err = handler.validator.Struct(userInfo)
-	if err != nil {
-		handler.logger.Errorw("validation err, CreateUser", "err", err, "payload", userInfo)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
+	res, restrictedGroups, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -193,7 +203,22 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	if len(restrictedGroups) == 0 {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+	} else {
+		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
+
+		if len(restrictedGroups) != len(userInfo.UserRoleGroup) {
+			// warning
+			message := fmt.Errorf("User permissions added partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
+
+		} else {
+			//error
+			message := fmt.Errorf("Permission could not be added. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
+		}
+	}
 }
 
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +247,14 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	// Doing this as api is not compatible with previous release of dashboard,groups has been migrated to userRoleGroups
+	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
+	if isGroupsPresent {
+		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
+		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request, please update to latest version", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		return
+	}
 
 	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
 
@@ -234,16 +267,16 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if len(restrictedGroups) == 0 {
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 	} else {
-		groups := strings.Join(restrictedGroups, ", ")
+		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
 
 		if rolesChanged || groupsModified {
 			// warning
-			message := fmt.Errorf("User permissions updated partially. Group(s): " + groups + " could not be added/removed. You do not have manager permission for some or all projects in these groups.")
+			message := fmt.Errorf("User permissions updated partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups + ".")
+			message := fmt.Errorf("Permission could not be added/removed. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
@@ -327,10 +360,10 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByUserRoleGroups(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -397,10 +430,10 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByUserRoleGroups(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -784,10 +817,10 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByUserRoleGroups(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -855,10 +888,10 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByUserRoleGroups(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}

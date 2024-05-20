@@ -57,13 +57,13 @@ type ArgoUserServiceImpl struct {
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig,
+	envVariables *util2.EnvironmentVariables, runTimeConfig *client.RuntimeConfig,
 	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
 	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
-		devtronSecretConfig:     devtronSecretConfig,
+		devtronSecretConfig:     envVariables.DevtronSecretConfig,
 		runTimeConfig:           runTimeConfig,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
@@ -213,11 +213,9 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	username := secretData[DEVTRON_ARGOCD_USERNAME_KEY]
 	password := secretData[DEVTRON_ARGOCD_USER_PASSWORD_KEY]
 	latestTokenNo := 1
-	isTokenAvailable := true
 	var token string
 	for key, value := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
-			isTokenAvailable = true
 			keySplits := strings.Split(key, "_")
 			keyLen := len(keySplits)
 			tokenNo, err := strconv.Atoi(keySplits[keyLen-1])
@@ -232,7 +230,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		}
 	}
 
-	if !isTokenAvailable || len(token) == 0 {
+	if len(token) == 0 {
 		newTokenNo := latestTokenNo + 1
 		token, err = impl.createNewArgoCdTokenForDevtron(string(username), string(password), newTokenNo, k8sClient)
 		if err != nil {

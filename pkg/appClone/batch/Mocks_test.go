@@ -24,9 +24,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 )
 
@@ -77,37 +80,37 @@ func (repo AppRepositoryMock) FindAppsByEnvironmentId(environmentId int) ([]app.
 // --------------
 type ConfigMapServiceMock struct{}
 
-func (impl ConfigMapServiceMock) CMGlobalAddUpdate(configMapRequest *pipeline.ConfigDataRequest) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CMGlobalAddUpdate(configMapRequest *pipelineBean.ConfigDataRequest) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CMGlobalFetch(appId int) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CMGlobalFetch(appId int) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CMEnvironmentAddUpdate(configMapRequest *pipeline.ConfigDataRequest) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CMEnvironmentAddUpdate(configMapRequest *pipelineBean.ConfigDataRequest) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CMEnvironmentFetch(appId int, envId int) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CMEnvironmentFetch(appId int, envId int) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
 // ---------------------------------------------------------------------------------------------
 
-func (impl ConfigMapServiceMock) CSGlobalAddUpdate(configMapRequest *pipeline.ConfigDataRequest) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSGlobalAddUpdate(configMapRequest *pipelineBean.ConfigDataRequest) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CSGlobalFetch(appId int) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSGlobalFetch(appId int) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CSEnvironmentAddUpdate(configMapRequest *pipeline.ConfigDataRequest) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSEnvironmentAddUpdate(configMapRequest *pipelineBean.ConfigDataRequest) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CSEnvironmentFetch(appId int, envId int) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSEnvironmentFetch(appId int, envId int) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
@@ -145,34 +148,34 @@ func (impl ConfigMapServiceMock) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 
 ////
 
-func (impl ConfigMapServiceMock) CSGlobalFetchForEdit(name string, id int, userId int32) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSGlobalFetchForEdit(name string, id int, userId int32) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
-func (impl ConfigMapServiceMock) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*pipeline.ConfigDataRequest, error) {
+func (impl ConfigMapServiceMock) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*pipelineBean.ConfigDataRequest, error) {
 	panic("implement me")
 }
 
 type EnvironmentServiceMock struct{}
 
-func (impl EnvironmentServiceMock) Create(mappings *cluster.EnvironmentBean, userId int32) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) Create(mappings *bean3.EnvironmentBean, userId int32) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) FindOne(environment string) (*cluster.EnvironmentBean, error) {
-	return &cluster.EnvironmentBean{Id: 1}, nil
+func (impl EnvironmentServiceMock) FindOne(environment string) (*bean3.EnvironmentBean, error) {
+	return &bean3.EnvironmentBean{Id: 1}, nil
 	//panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetAll() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetAll() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetAllActive() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetAllActive() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) FindById(id int) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) FindById(id int) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
@@ -180,7 +183,7 @@ func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) Update(mappings *cluster.EnvironmentBean, userId int32) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) Update(mappings *bean3.EnvironmentBean, userId int32) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
@@ -188,7 +191,7 @@ func (impl EnvironmentServiceMock) FindClusterByEnvId(id int) (*cluster.ClusterB
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetEnvironmentListForAutocomplete() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetEnvironmentListForAutocomplete() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
@@ -373,7 +376,7 @@ func (impl CiPipelineRepositoryMock) FindByParentCiPipelineId(parentCiPipelineId
 	panic("implement me")
 }
 
-func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*pipelineConfig.CiPipelinesMap, error) {
+func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*bean3.CiPipelinesMap, error) {
 	panic("implement me")
 }
 func (impl CiPipelineRepositoryMock) FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*pipelineConfig.CiPipeline, int, error) {

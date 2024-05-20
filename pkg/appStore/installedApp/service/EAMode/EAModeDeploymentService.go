@@ -8,6 +8,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"net/http"
@@ -68,7 +69,7 @@ func (impl *EAModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRequ
 }
 
 func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	installAppVersionRequest.UpdateDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM)
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -252,6 +253,10 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
 		return err
 	}
+	appName := installedApp.App.AppName
+	if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		appName = installedApp.App.DisplayName
+	}
 	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
@@ -300,7 +305,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			ValuesYaml: valuesOverrideYaml,
 			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedApp.Environment.Namespace,
-				ReleaseName:      installedApp.App.AppName,
+				ReleaseName:      appName,
 			},
 			ChartName:                  appStoreApplicationVersion.Name,
 			ChartVersion:               appStoreApplicationVersion.Version,
@@ -323,7 +328,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	return "", errors.New("method getGitOpsRepoName not implemented")
+	return "", errors.New("this is not implemented")
 }
 
 func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -373,6 +378,14 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 }
 
 func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
 	return nil, errors.New("this is not implemented")
 }
 

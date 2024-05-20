@@ -66,7 +66,6 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -172,6 +171,7 @@ func InitializeApp() (*App, error) {
 		team.TeamsWireSet,
 		AuthWireSet,
 		util4.NewK8sUtil,
+		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
@@ -183,6 +183,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util2.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -204,7 +205,6 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		// sql.GetConfig,
 		eClient.GetEventClientConfig,
-		util2.GetGlobalEnvVariables,
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
@@ -225,6 +225,9 @@ func InitializeApp() (*App, error) {
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
+
+		sql.NewTransactionUtilImpl,
+		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),
 
 		trigger.NewPipelineRestHandler,
 		wire.Bind(new(trigger.PipelineTriggerRestHandler), new(*trigger.PipelineTriggerRestHandlerImpl)),
@@ -272,7 +275,7 @@ func InitializeApp() (*App, error) {
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
-		pipeline.GetDeploymentServiceTypeConfig,
+		//util2.GetEnvironmentVariables,
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
@@ -490,12 +493,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
 		pubsub1.NewPubSubClientServiceImpl,
-
-		pubsub.NewGitWebhookHandler,
-		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
-
-		pubsub.NewApplicationStatusHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -834,7 +831,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		util2.GetDevtronSecretName,
+		//util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -966,12 +963,12 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPluginInputVariableParserImpl,
 		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
 
-		pipeline.NewPipelineConfigListenerServiceImpl,
-		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 		cron2.NewCronLoggerImpl,
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
+
+		appStoreRestHandler.AppStoreWireSet,
 	)
 	return &App{}, nil
 }
