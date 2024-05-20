@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -83,4 +84,30 @@ func HasTimeWindowChangedForUserRoleGroup(item bean2.UserRoleGroup, val bean2.Us
 
 func ExtractTokenNameFromEmail(email string) string {
 	return strings.Split(email, ":")[1]
+}
+
+func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGroup) (string, string) {
+	var restrictedGroupsWithSuperAdminPermission string
+	var restrictedGroupsWithoutSuperAdminPermission string
+	var errorMessageForGroupsWithoutSuperAdmin string
+	var errorMessageForGroupsWithSuperAdmin string
+	for _, group := range restrictedGroups {
+		if group.HasSuperAdminPermission {
+			restrictedGroupsWithSuperAdminPermission += fmt.Sprintf("%s,", group.Group)
+		} else {
+			restrictedGroupsWithoutSuperAdminPermission += fmt.Sprintf("%s,", group.Group)
+		}
+	}
+
+	if len(restrictedGroupsWithoutSuperAdminPermission) > 0 {
+		// if any group was appended, remove the comma from the end
+		restrictedGroupsWithoutSuperAdminPermission = restrictedGroupsWithoutSuperAdminPermission[:len(restrictedGroupsWithoutSuperAdminPermission)-1]
+		errorMessageForGroupsWithoutSuperAdmin = fmt.Sprintf("You do not have manager permission for some or all projects in group(s): %v.", restrictedGroupsWithoutSuperAdminPermission)
+	}
+	if len(restrictedGroupsWithSuperAdminPermission) > 0 {
+		// if any group was appended, remove the comma from the end
+		restrictedGroupsWithSuperAdminPermission = restrictedGroupsWithSuperAdminPermission[:len(restrictedGroupsWithSuperAdminPermission)-1]
+		errorMessageForGroupsWithSuperAdmin = fmt.Sprintf("Only super admins can assign groups with super admin permission: %v.", restrictedGroupsWithSuperAdminPermission)
+	}
+	return errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin
 }
