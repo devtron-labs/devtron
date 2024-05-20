@@ -116,10 +116,11 @@ func BuildDevtronResourceObjectDescriptorBean(id int, kind, subKind bean.Devtron
 	return reqBean
 }
 
-func BuildEnvironmentBasicData(envName string, envId int) *bean.Environment {
-	return &bean.Environment{
-		Name: envName,
-		Id:   envId,
+func BuildCdPipelineEnvironmentBasicData(envName string, envId, pipelineId int) *bean.CdPipelineEnvironment {
+	return &bean.CdPipelineEnvironment{
+		Name:       envName,
+		Id:         envId,
+		PipelineId: pipelineId,
 	}
 }
 

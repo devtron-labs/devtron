@@ -306,9 +306,10 @@ type ChildInheritance struct {
 	Selector   []string `json:"selector"`   // ["*"] means all
 }
 
-type Environment struct {
-	Id   int    `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+type CdPipelineEnvironment struct {
+	Id         int    `json:"id,omitempty"`
+	Name       string `json:"name,omitempty"`
+	PipelineId int    `json:"pipelineId,omitempty"`
 }
 
 type ArtifactConfig struct {

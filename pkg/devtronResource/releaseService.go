@@ -1347,9 +1347,9 @@ func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependenciesF
 	return pipelinesInfo, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(childInheritance []*bean.ChildInheritance, appId int) ([]*bean.Environment, error) {
+func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(childInheritance []*bean.ChildInheritance, appId int) ([]*bean.CdPipelineEnvironment, error) {
 	// iterating in every inheritance and getting child inheritances(for eg cd) and getting corresponding details) for now it is ["*"] we will fetch all cd (env) for that dependency
-	envs := make([]*bean.Environment, 0)
+	envs := make([]*bean.CdPipelineEnvironment, 0)
 	findAll := false
 	for _, inheritance := range childInheritance {
 		// collecting selectors here currently only ["all"] is present so will find all env names for an app but can be modified in future
@@ -1362,7 +1362,7 @@ func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(
 			return envs, err
 		}
 		for _, pipeline := range pipelines {
-			env := adapter.BuildEnvironmentBasicData(pipeline.Environment.Name, pipeline.EnvironmentId)
+			env := adapter.BuildCdPipelineEnvironmentBasicData(pipeline.Environment.Name, pipeline.EnvironmentId, pipeline.Id)
 			envs = append(envs, env)
 		}
 	} else {
