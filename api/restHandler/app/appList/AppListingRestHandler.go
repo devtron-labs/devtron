@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
@@ -914,6 +915,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		if err == pg.ErrNoRows {
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
+		}
+		if util4.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 		}
 		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
