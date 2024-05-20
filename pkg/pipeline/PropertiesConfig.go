@@ -738,8 +738,8 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 	envConfigProperties.ChartRefId = request.TargetChartRefId
 	envConfigProperties.EnvironmentId = request.EnvId
 
-	// Handle case when environment is not overridden
-	if !isEnvironmentOverridden {
+	// Handle case when environment is overridden
+	if isEnvironmentOverridden {
 		envConfigProperties.IsOverride = true
 
 		// Fetch existing environment properties if available
