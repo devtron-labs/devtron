@@ -42,6 +42,12 @@ type HttpLabels struct {
 var UrlLabelsMapping map[string]map[string]string
 var UniqueKeys []string
 
+const (
+	path   string = "path"
+	method string = "method"
+	status string = "status"
+)
+
 func GetHttpLabels() (*HttpLabels, error) {
 	cfg := &HttpLabels{}
 	err := env.Parse(cfg)
@@ -215,9 +221,9 @@ func getLabels() []string {
 	}
 	// Extract the unique keys
 	var uniqueKeys []string
-	uniqueKeys = append(uniqueKeys, "path")
-	uniqueKeys = append(uniqueKeys, "method")
-	uniqueKeys = append(uniqueKeys, "status")
+	uniqueKeys = append(uniqueKeys, path)
+	uniqueKeys = append(uniqueKeys, method)
+	uniqueKeys = append(uniqueKeys, status)
 	for key := range keys {
 		key = strings.TrimSpace(key)
 		uniqueKeys = append(uniqueKeys, key)
@@ -295,12 +301,12 @@ var requestCounter = promauto.NewCounterVec(
 		Name: "orchestrator_http_requests_total",
 		Help: "How many HTTP requests processed, partitioned by status code, method and HTTP path.",
 	},
-	[]string{"path", "method", "status"})
+	[]string{path, method, status})
 
 var currentRequestGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "orchestrator_http_requests_current",
 	Help: "no of request being served currently",
-}, []string{"path", "method"})
+}, []string{path, method})
 
 var AcdGetResourceCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "acd_get_resource_counter",
@@ -375,11 +381,11 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		route := mux.CurrentRoute(r)
-		path, _ := route.GetPathTemplate()
-		method := r.Method
+		urlPath, _ := route.GetPathTemplate()
+		urlMethod := r.Method
 
 		// Gauge to track the current number of requests
-		g := currentRequestGauge.WithLabelValues(path, method)
+		g := currentRequestGauge.WithLabelValues(urlPath, urlMethod)
 		g.Inc()
 		defer g.Dec()
 
@@ -388,31 +394,35 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(d, r)
 
 		// Construct label array for Prometheus
-		strArr := []string{path, method, strconv.Itoa(d.Status())}
-		if key, ok := UrlLabelsMapping[path]; !ok {
+		valuesArray := []string{urlPath, urlMethod, strconv.Itoa(d.Status())}
+		if key, ok := UrlLabelsMapping[urlPath]; !ok {
 			for _, labelKey := range UniqueKeys {
-				if labelKey == "path" || labelKey == "status" || labelKey == "method" {
+				if areDefaultKeys(labelKey) {
 					continue
 				}
-				strArr = append(strArr, "")
+				valuesArray = append(valuesArray, "")
 			}
 		} else {
 			for _, labelKey := range UniqueKeys {
 				if labelValue, ok1 := key[labelKey]; !ok1 {
-					if labelKey == "path" || labelKey == "status" || labelKey == "method" {
+					if areDefaultKeys(labelKey) {
 						continue
 					}
-					strArr = append(strArr, "")
+					valuesArray = append(valuesArray, "")
 				} else {
-					strArr = append(strArr, labelValue)
+					valuesArray = append(valuesArray, labelValue)
 				}
 			}
 		}
 
 		// Record the duration and increment the request counter
-		httpDuration.WithLabelValues(strArr...).Observe(time.Since(start).Seconds())
-		requestCounter.WithLabelValues(path, method, strconv.Itoa(d.Status())).Inc()
+		httpDuration.WithLabelValues(valuesArray...).Observe(time.Since(start).Seconds())
+		requestCounter.WithLabelValues(urlPath, urlMethod, strconv.Itoa(d.Status())).Inc()
 	})
+}
+
+func areDefaultKeys(labelKey string) bool {
+	return labelKey == path || labelKey == status || labelKey == method
 }
 
 func IncTerminalSessionRequestCounter(sessionAction string, isError string) {
