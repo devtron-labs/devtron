@@ -40,6 +40,7 @@
 - feat: Introduction to feasibility in Deployment (#4862)
 - feat: image promotion migration (#4992)
 ## Documentation
+- doc: Image promotion policy (#4762)
 - doc: Revamped Resource Browser Doc (#5035)
 - doc: Added Bulk Restart in Application Groups doc (#5080)
 - doc: Added new doc in the index (#5029)
