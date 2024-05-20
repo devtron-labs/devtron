@@ -84,9 +84,13 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 	}
 	proxyTransport := proxy.NewProxyTransport()
 	serverAddr := fmt.Sprintf("http://localhost:%d", k8sProxyPort)
-	proxyServer, err := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
+	proxyServer, err := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(NewClusterServiceKey(clusterId, "", "", ""), impl.updateLastActivity), func(urlPath string) string {
 		return urlPath
 	})
+	if err != nil {
+		impl.logger.Errorw("Error creating k8s proxy server", "err", err)
+		return nil, err
+	}
 	proxyServer.ErrorHandler = impl.handleErrorBeforeResponse
 
 	reverseProxyMetadata := &ProxyServerMetadata{forwardedPort: k8sProxyPort, proxyServer: proxyServer}
