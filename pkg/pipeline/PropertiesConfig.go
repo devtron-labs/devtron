@@ -739,31 +739,30 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 	envConfigProperties.EnvironmentId = request.EnvId
 
 	// Handle case when environment is overridden
-	if isEnvironmentOverridden {
-		envConfigProperties.IsOverride = true
 
-		// Fetch existing environment properties if available
-		envConfigPropertiesOld, err := impl.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
-		if err == nil {
-			if envConfigPropertiesOld.Chart != nil {
-				envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
-				envConfigProperties.Active = true
-			}
-			envConfigProperties.Id = envConfigPropertiesOld.Id
-		} else {
-			updateOverride = false
+	envConfigProperties.IsOverride = true
 
-			// Retrieve default chart override
-			_, appOverride, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
-			if err != nil {
-				impl.logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
-				return bean.ProcessEnvConfigPropertiesBean{
-					StatusCode: http.StatusInternalServerError,
-				}, err
-			}
-			// Set default chart override
-			envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
+	// Fetch existing environment properties if available
+	envConfigPropertiesOld, err := impl.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
+	if err == nil {
+		if envConfigPropertiesOld.Chart != nil {
+			envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
+			envConfigProperties.Active = true
 		}
+		envConfigProperties.Id = envConfigPropertiesOld.Id
+	} else {
+		updateOverride = false
+
+		// Retrieve default chart override
+		_, appOverride, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
+		if err != nil {
+			impl.logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusInternalServerError,
+			}, err
+		}
+		// Set default chart override
+		envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
 	}
 
 	return bean.ProcessEnvConfigPropertiesBean{
