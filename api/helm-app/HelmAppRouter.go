@@ -29,6 +29,7 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 	helmRouter.Path("/hibernate").HandlerFunc(impl.helmAppRestHandler.Hibernate).Methods("POST")
 	helmRouter.Path("/unhibernate").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
 
+	// GetReleaseInfo used only for external apps
 	helmRouter.Path("/release-info").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.GetReleaseInfo).Methods("GET")
 
