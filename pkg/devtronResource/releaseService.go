@@ -1847,8 +1847,6 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	failed := 0
 	inProgress := 0
 	succeeded := 0
-	timedOut := 0
-	unableToFetch := 0
 	queued := 0
 	others := 0
 	if val, ok := deployStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
@@ -1884,12 +1882,6 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	if val, ok := deployStatusVsCountMap[bean5.Healthy]; ok {
 		succeeded = succeeded + val
 	}
-	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowTimedOut]; ok {
-		timedOut = val
-	}
-	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowUnableToFetchState]; ok {
-		unableToFetch = val
-	}
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInQueue]; ok {
 		queued = val
 	}
@@ -1899,7 +1891,13 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	if val, ok := deployStatusVsCountMap[bean.Missing]; ok {
 		others = others + val
 	}
-	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, timedOut, queued, inProgress, unableToFetch, others)
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowUnableToFetchState]; ok {
+		others = others + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowTimedOut]; ok {
+		others = others + val
+	}
+	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, queued, inProgress, others)
 
 }
 

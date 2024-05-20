@@ -116,9 +116,9 @@ func DecodeFiltersForDeployAndRolloutStatus(filters []string) ([]int, []string, 
 					return nil, nil, nil, nil, nil, nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter), fmt.Sprintf("%s:%s", bean.InvalidFilterCriteria, bean.StageWiseDeploymentStatusFilter))
 				}
 				statuses := strings.Split(objs[2], ",")
-				// doing this for others and fall back cases, others signifies missing and unknown and unable to fetch
+				// doing this for others and fall back cases, others signifies missing and unknown and unable to fetch, and timedOut
 				if slices.Contains(statuses, bean.Others) {
-					statuses = append(statuses, bean.Missing, bean.Unknown, pipelineConfig.WorkflowUnableToFetchState)
+					statuses = append(statuses, bean.Missing, bean.Unknown, pipelineConfig.WorkflowUnableToFetchState, pipelineConfig.WorkflowTimedOut)
 				}
 				if slices.Contains(statuses, pipelineConfig.WorkflowInProgress) {
 					statuses = append(statuses, pipelineConfig.WorkflowStarting, bean.RunningStatus, pipelineConfig.WorkflowInitiated)

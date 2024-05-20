@@ -164,22 +164,20 @@ type ReleaseDeploymentStatusCount struct {
 }
 
 type PrePostStatusCount struct {
-	NotTriggered int `json:"notTriggered"`
-	Failed       int `json:"failed"`
-	InProgress   int `json:"inProgress"`
-	Succeeded    int `json:"succeeded"`
+	NotTriggered int `json:"Not Triggered"`
+	Failed       int `json:"Failed"`
+	InProgress   int `json:"Progressing"`
+	Succeeded    int `json:"Succeeded"`
 	Others       int `json:"others"`
 }
 
 type DeploymentCount struct {
-	NotTriggered  int `json:"notTriggered"`
-	Failed        int `json:"failed"`
-	TimedOut      int `json:"timedOut"`
-	UnableToFetch int `json:"unableToFetch"`
-	InProgress    int `json:"inProgress"`
-	Queued        int `json:"queued"`
-	Succeeded     int `json:"succeeded"`
-	Others        int `json:"others"`
+	NotTriggered int `json:"Not Triggered"`
+	Failed       int `json:"Failed"`
+	InProgress   int `json:"Progressing"`
+	Queued       int `json:"Queued"`
+	Succeeded    int `json:"Succeeded"`
+	Others       int `json:"others"`
 }
 
 const (
