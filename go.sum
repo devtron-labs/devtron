@@ -224,8 +224,8 @@ github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1 h1:
 github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1/go.mod h1:Omra4isWlpBkqpaDMAGMjnNLryTLMTGXa0Q9pyqaA5o=
 github.com/devtron-labs/common-lib v0.0.18-0.20240520074334-86bc50296cc9 h1:79btQwxtUWsfnEiNwFskK1iUztmghsVARFO5oys9r3k=
 github.com/devtron-labs/common-lib v0.0.18-0.20240520074334-86bc50296cc9/go.mod h1:deAcJ5IjUjM6ozZQLJEgPWDUA0mKa632LBsKx8uM9TE=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321 h1:Abzq1xL1zL0pz3HjDUe8W3BjIqWvoJU91UYrlM6aB4E=
-github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321/go.mod h1:9GgYlUJixtpJ6O6Zh/k0A0WKCOCk4YyWCDUjAMifKJI=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240520081241-a045a6c7535c h1:/UeO/ORYjz62QLRhPmWUeDagL/A3PzPAD5tDY9NFo+E=
+github.com/devtron-labs/common-lib-private v0.0.14-0.20240520081241-a045a6c7535c/go.mod h1:XN6+lWTnhQuj2toRa8afLPqz7v24TSs6XiB3yMQgIL0=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
 github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150 h1:xA8pfM1IrLf7tC7sWKhX/aHHfEh68cg2pSDLe0ocwCg=

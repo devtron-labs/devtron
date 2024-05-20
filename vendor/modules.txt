@@ -167,8 +167,8 @@ github.com/argoproj/argo-cd/v2/util/proxy
 github.com/argoproj/argo-cd/v2/util/security
 github.com/argoproj/argo-cd/v2/util/settings
 github.com/argoproj/argo-cd/v2/util/tls
-# github.com/argoproj/argo-workflows/v3 v3.3.10
-## explicit; go 1.17
+# github.com/argoproj/argo-workflows/v3 v3.4.3
+## explicit; go 1.18
 github.com/argoproj/argo-workflows/v3
 github.com/argoproj/argo-workflows/v3/config
 github.com/argoproj/argo-workflows/v3/errors
@@ -430,7 +430,7 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321
+# github.com/devtron-labs/common-lib-private v0.0.14-0.20240520081241-a045a6c7535c
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
