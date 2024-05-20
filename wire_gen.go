@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/trigger"
 	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/webhook"
 	"github.com/devtron-labs/devtron/api/restHandler/app/workflow"
+	autoRemediation2 "github.com/devtron-labs/devtron/api/restHandler/autoRemediation"
 	imageDigestPolicy2 "github.com/devtron-labs/devtron/api/restHandler/imageDigestPolicy"
 	resourceFilter2 "github.com/devtron-labs/devtron/api/restHandler/resourceFilter"
 	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
@@ -63,7 +64,7 @@ import (
 	status4 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/scoop"
+	scoop2 "github.com/devtron-labs/devtron/api/scoop"
 	server2 "github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	team2 "github.com/devtron-labs/devtron/api/team"
@@ -82,6 +83,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
+	"github.com/devtron-labs/devtron/client/scoop"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
@@ -147,6 +149,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/autoRemediation"
+	repository23 "github.com/devtron-labs/devtron/pkg/autoRemediation/repository"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -517,7 +521,9 @@ func InitializeApp() (*App, error) {
 	filterEvaluationAuditRepositoryImpl := resourceFilter.NewFilterEvaluationAuditRepositoryImpl(sugaredLogger, db)
 	filterAuditRepositoryImpl := resourceFilter.NewFilterAuditRepositoryImpl(sugaredLogger, db)
 	filterEvaluationAuditServiceImpl := resourceFilter.NewFilterEvaluationAuditServiceImpl(sugaredLogger, filterEvaluationAuditRepositoryImpl, filterAuditRepositoryImpl)
-	eventSimpleFactoryImpl := client3.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, requestApprovalUserDataRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl, filterEvaluationAuditServiceImpl)
+	webhookNotificationRepositoryImpl := repository2.NewWebhookNotificationRepositoryImpl(db)
+	slackNotificationRepositoryImpl := repository2.NewSlackNotificationRepositoryImpl(db)
+	eventSimpleFactoryImpl := client3.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, requestApprovalUserDataRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl, filterEvaluationAuditServiceImpl, webhookNotificationRepositoryImpl, slackNotificationRepositoryImpl)
 	applicationServiceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	configMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(sugaredLogger, db)
 	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db, transactionUtilImpl)
@@ -765,8 +771,6 @@ func InitializeApp() (*App, error) {
 	dockerRegRouterImpl := router.NewDockerRegRouterImpl(dockerRegRestHandlerExtendedImpl)
 	notificationSettingsRepositoryImpl := repository2.NewNotificationSettingsRepositoryImpl(db)
 	notificationConfigBuilderImpl := notifier.NewNotificationConfigBuilderImpl(sugaredLogger)
-	slackNotificationRepositoryImpl := repository2.NewSlackNotificationRepositoryImpl(db)
-	webhookNotificationRepositoryImpl := repository2.NewWebhookNotificationRepositoryImpl(db)
 	configDraftRepositoryImpl := drafts.NewConfigDraftRepositoryImpl(sugaredLogger, db)
 	promotionPolicyServiceImpl := artifactPromotion.NewPromotionPolicyServiceImpl(globalPolicyDataManagerImpl, cdPipelineConfigServiceImpl, sugaredLogger, qualifierMappingServiceImpl, celServiceImpl, transactionUtilImpl)
 	commonPolicyActionsServiceImpl := policyGovernance.NewCommonPolicyActionsService(globalPolicyDataManagerImpl, qualifierMappingServiceImpl, cdPipelineConfigServiceImpl, appServiceImpl, environmentServiceImpl, sugaredLogger, transactionUtilImpl)
@@ -1083,9 +1087,15 @@ func InitializeApp() (*App, error) {
 	serviceImpl := scanningResultsParser.NewServiceImpl(cdWorkflowRepositoryImpl, ciArtifactRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, sugaredLogger, installedAppVersionHistoryRepositoryImpl)
 	scanningResultRestHandlerImpl := scanningResultsParser2.NewScanningResultRestHandlerImpl(sugaredLogger, userServiceImpl, serviceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate)
 	scanningResultRouterImpl := scanningResultsParser2.NewScanningResultRouterImpl(scanningResultRestHandlerImpl)
-	scoopServiceImpl := scoop.NewServiceImpl(sugaredLogger, clusterServiceImplExtended, eventRESTClientImpl, eventSimpleFactoryImpl)
-	scoopRestHandlerImpl := scoop.NewRestHandler(scoopServiceImpl)
-	scoopRouterImpl := scoop.NewRouterImpl(scoopRestHandlerImpl)
+	k8sEventWatcherRepositoryImpl := repository23.NewWatcherRepositoryImpl(db, sugaredLogger)
+	triggerRepositoryImpl := repository23.NewTriggerRepositoryImpl(db, sugaredLogger)
+	interceptedEventsRepositoryImpl := repository23.NewInterceptedEventsRepositoryImpl(db, sugaredLogger)
+	scoopClientGetterImpl := scoop.NewScoopClientGetter(k8sApplicationServiceImpl, environmentServiceImpl, sugaredLogger)
+	watcherServiceImpl := autoRemediation.NewWatcherServiceImpl(k8sEventWatcherRepositoryImpl, triggerRepositoryImpl, interceptedEventsRepositoryImpl, appRepositoryImpl, ciPipelineRepositoryImpl, environmentRepositoryImpl, appWorkflowRepositoryImpl, clusterRepositoryImpl, ciWorkflowRepositoryImpl, qualifierMappingServiceImpl, scoopClientGetterImpl, sugaredLogger)
+	scoopServiceImpl := scoop2.NewServiceImpl(sugaredLogger, watcherServiceImpl, ciHandlerImpl, ciPipelineMaterialRepositoryImpl, interceptedEventsRepositoryImpl, clusterServiceImplExtended, attributesServiceImpl, apiTokenServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, environmentServiceImpl)
+	scoopRestHandlerImpl := scoop2.NewRestHandler(scoopServiceImpl, watcherServiceImpl, enforcerUtilImpl, userServiceImpl, sugaredLogger, enterpriseEnforcerImpl, ciCdConfig, environmentServiceImpl)
+	watcherRestHandlerImpl := autoRemediation2.NewWatcherRestHandlerImpl(watcherServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enterpriseEnforcerImpl, celServiceImpl, sugaredLogger)
+	scoopRouterImpl := scoop2.NewRouterImpl(scoopRestHandlerImpl, watcherRestHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, appStoreRouterEnterpriseImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, globalTagRouterImpl, rbacRoleRouterImpl, globalPolicyRouterImpl, configDraftRouterImpl, resourceProtectionRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, resourceFilterRouterImpl, devtronResourceRouterImpl, authorisationConfigRouterImpl, lockConfigurationRouterImpl, proxyRouterImpl, imageDigestPolicyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, deploymentWindowRouterImpl, commonPolicyRouterImpl, artifactPromotionPolicyRouterImpl, scanningResultRouterImpl, scoopRouterImpl)
 	loggingMiddlewareImpl := util4.NewLoggingMiddlewareImpl(userServiceImpl)
 	webhookServiceImpl := pipeline.NewWebhookServiceImpl(ciArtifactRepositoryImpl, sugaredLogger, ciPipelineRepositoryImpl, ciWorkflowRepositoryImpl, cdWorkflowCommonServiceImpl)

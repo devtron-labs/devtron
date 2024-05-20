@@ -204,6 +204,13 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 	if isJob && env != nil {
+
+		// todo: confirm this from aditya @komal
+		if env.Cluster.CdArgoSetup {
+			err = errors.New("inactive cluster cd the cluster")
+			return 0, err
+		}
+
 		ciWorkflowConfig.Namespace = env.Namespace
 
 		// This will be populated for jobs running in selected environment

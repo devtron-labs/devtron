@@ -1670,7 +1670,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiComponentDetails(appId int) (map[i
 }
 
 func (impl *CiPipelineConfigServiceImpl) GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error) {
-	//getting env Variables from attributes service
+	// getting env Variables from attributes service
 	attributeObj, err := impl.attributesService.GetByKey(bean3.CI_RUNTIME_ENV_VARS)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting ci runtime env vars attribute entry", "err", err, "ciPipelineId", ciPipelineId)
