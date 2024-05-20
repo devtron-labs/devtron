@@ -55,22 +55,37 @@ func GetHttpLabels() (*HttpLabels, error) {
 }
 
 /*
+getLabels processes URL and label information, storing mappings and unique keys.
+
 Example:
-Input data:
-[
+Suppose the `GetHttpLabels` function returns the following data:
 
 	{
-	    "url": ["http://example.com", "http://example.org"],
-	    "label": {"name": "Example", "type": "Website" , "key1": "value1"}
-	},
-	{
-	    "url": ["http://example.com, http://example.net"],
-	    "label": {"name": "Example2", "type": "Site"}
+	    "UrlPaths": `[
+	        {
+	            "url": ["http://example.com", "http://example.org"],
+	            "label": {"name": "Example", "type": "Website", "key1": "value1"}
+	        },
+	        {
+	            "url": ["http://example.com, http://example.net"],
+	            "label": {"name": "Example2", "type": "Site"}
+	        }
+	    ]`
 	}
 
-]
-
 Output:
+Unique Keys:
+[
+
+	"path",
+	"method",
+	"status",
+	"name",
+	"type",
+	"key1"
+
+]
+URL Labels Mapping:
 
 	{
 	    "http://example.com": {"name": "Example2", "type": "Site", "key1": "value1"},
@@ -79,16 +94,31 @@ Output:
 	}
 
 Explanation:
-1. The function initializes an empty map `urlMappings` to store URL to label mappings.
-2. It iterates over each object in the input `data` array.
-3. For each object, it retrieves the "url" array and "label" map. If either is not in the expected format, it skips that object.
-4. It then iterates over each URL in the "url" array, handling cases where multiple URLs are separated by commas.
-5. For each URL, it checks if it already exists in `urlMappings`. If it does, it updates the existing labels. If not, it creates a new entry for that URL.
-6. Finally, it returns the `urlMappings` map, which contains each URL mapped to its corresponding labels.
+1. The function calls `GetHttpLabels` to retrieve JSON data containing URL and label information.
+2. It unmarshals the JSON data into a slice of maps.
+3. It initializes maps to store URL to label mappings and unique label keys.
+4. It iterates over the data to process URLs and labels, merging them into `urlMappings`.
+5. It also collects unique keys while processing labels.
+6. The global variables `UrlLabelsMapping` and `UniqueKeys` are updated with the mappings and unique keys, respectively.
 */
-func getUrlLabelMapping(data []map[string]interface{}) map[string]map[string]string {
+func getLabels() []string {
+	httpLabels, err := GetHttpLabels()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	var data []map[string]interface{}
+	// Unmarshal JSON into the defined struct
+	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
+		fmt.Println("Error:", err)
+		return nil
+	}
+
 	// Define a map to store the URL to labels mappings
 	urlMappings := make(map[string]map[string]string)
+	// Define a map to store unique keys (labels)
+	keys := make(map[string]bool)
 
 	// Iterate through each object in the array
 	for _, obj := range data {
@@ -141,76 +171,8 @@ func getUrlLabelMapping(data []map[string]interface{}) map[string]map[string]str
 				}
 			}
 		}
-	}
-	return urlMappings
-}
 
-/*
-Example:
-Suppose the `GetHttpLabels` function returns the following data:
-
-	{
-	    "UrlPaths": `[
-	        {
-	            "url": ["http://example.com", "http://example.org"],
-	            "label": {"name": "Example", "type": "Website"}
-	        },
-	        {
-	            "url": ["http://example.com, http://example.net"],
-	            "label": {"name": "Example2", "type": "Site"}
-	        }
-	    ]`
-	}
-
-Output:
-[
-
-	"path",
-	"method",
-	"status",
-	"name",
-	"type"
-
-]
-
-Explanation:
-1. The function calls `GetHttpLabels` to retrieve JSON data containing URL and label information.
-2. It initializes an empty slice `data` to hold the unmarshaled JSON data.
-3. It unmarshals the JSON data into the `data` slice of maps.
-4. It calls `getUrlLabelMapping` to process the URL and label data, resulting in a `UrlLabelsMapping`.
-5. It initializes a map `keys` to store unique label keys.
-6. It iterates over each object in `data` to extract label keys, splitting keys by ":" and storing the first part.
-7. It adds some predefined keys ("path", "method", "status") to the unique keys list.
-8. It iterates through the `keys` map to add all unique keys to the `uniqueKeys` slice.
-9. Finally, it returns the `uniqueKeys` slice.
-
-Note: The global variables `UrlLabelsMapping` and `UniqueKeys` are updated within the function.
-*/
-func getLabels() []string {
-	httpLabels, err := GetHttpLabels()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	var data []map[string]interface{}
-	// Unmarshal JSON into the defined struct
-	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
-		fmt.Println("Error:", err)
-	}
-
-	UrlLabelsMapping = getUrlLabelMapping(data)
-
-	// Define a map to store unique keys (labels)
-	keys := make(map[string]bool)
-
-	// Iterate through each object in the array
-	for _, obj := range data {
-		// Get the "label" object from each object
-		labelObj, ok := obj["label"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-		// Iterate through each key-value pair in the "label" object
+		// Add keys to the unique keys map
 		for key := range labelObj {
 			// Split the key by ":" to get the key part
 			parts := strings.Split(key, ":")
@@ -219,11 +181,12 @@ func getLabels() []string {
 			}
 		}
 	}
+
+	UrlLabelsMapping = urlMappings
+
 	// Extract the unique keys
 	var uniqueKeys []string
-	uniqueKeys = append(uniqueKeys, path)
-	uniqueKeys = append(uniqueKeys, method)
-	uniqueKeys = append(uniqueKeys, status)
+	uniqueKeys = append(uniqueKeys, path, method, status)
 	for key := range keys {
 		key = strings.TrimSpace(key)
 		uniqueKeys = append(uniqueKeys, key)
