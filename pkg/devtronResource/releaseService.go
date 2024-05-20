@@ -1362,7 +1362,7 @@ func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(
 			return envs, err
 		}
 		for _, pipeline := range pipelines {
-			env := adapter.BuildCdPipelineEnvironmentBasicData(pipeline.DeploymentAppType, pipeline.Environment.Name, pipeline.EnvironmentId, pipeline.Id)
+			env := adapter.BuildCdPipelineEnvironmentBasicData(pipeline.Environment.Name, pipeline.DeploymentAppType, pipeline.EnvironmentId, pipeline.Id)
 			envs = append(envs, env)
 		}
 	} else {
