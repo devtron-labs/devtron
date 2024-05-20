@@ -158,7 +158,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	syncedEnforcer := casbin.Create()
+	syncedEnforcer, err := casbin.Create()
+	if err != nil {
+		return nil, err
+	}
 	casbinSyncedEnforcer := casbin.CreateV2()
 	casbinClientConfig, err := client2.GetConfig()
 	if err != nil {
@@ -180,7 +183,10 @@ func InitializeApp() (*App, error) {
 	rbacPolicyDataRepositoryImpl := repository2.NewRbacPolicyDataRepositoryImpl(sugaredLogger, db)
 	rbacRoleDataRepositoryImpl := repository2.NewRbacRoleDataRepositoryImpl(sugaredLogger, db)
 	rbacDataCacheFactoryImpl := repository2.NewRbacDataCacheFactoryImpl(sugaredLogger, rbacPolicyDataRepositoryImpl, rbacRoleDataRepositoryImpl)
-	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
+	userCommonServiceImpl, err := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
+	if err != nil {
+		return nil, err
+	}
 	userAuditRepositoryImpl := repository2.NewUserAuditRepositoryImpl(db)
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
@@ -282,7 +288,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	dashboardRouterImpl, err := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	if err != nil {
+		return nil, err
+	}
 	installedAppVersionHistoryRepositoryImpl := repository8.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	gitOpsConfigRepositoryImpl := repository7.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
@@ -373,12 +382,18 @@ func InitializeApp() (*App, error) {
 	externalLinkRestHandlerImpl := externalLink2.NewExternalLinkRestHandlerImpl(sugaredLogger, externalLinkServiceImpl, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl)
 	externalLinkRouterImpl := externalLink2.NewExternalLinkRouterImpl(externalLinkRestHandlerImpl)
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
-	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
+	serverCacheServiceImpl, err := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
+	if err != nil {
+		return nil, err
+	}
 	moduleEnvConfig, err := module.ParseModuleEnvConfig()
 	if err != nil {
 		return nil, err
 	}
-	moduleCacheServiceImpl := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtilExtended, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl, teamServiceImpl)
+	moduleCacheServiceImpl, err := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtilExtended, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl, teamServiceImpl)
+	if err != nil {
+		return nil, err
+	}
 	moduleServiceHelperImpl := module.NewModuleServiceHelperImpl(serverEnvConfigServerEnvConfig)
 	moduleResourceStatusRepositoryImpl := moduleRepo.NewModuleResourceStatusRepositoryImpl(db)
 	moduleDataStoreModuleDataStore := moduleDataStore.InitModuleDataStore()

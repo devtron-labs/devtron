@@ -68,7 +68,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 	}
 	proxyTransport := proxy.NewProxyTransport()
 	serverAddr := fmt.Sprintf("http://localhost:%d", k8sProxyPort)
-	proxyServer := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
+	proxyServer, err := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
 		return urlPath
 	}) //TODO Fix this
 
@@ -109,7 +109,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx co
 		}
 		proxyTransport := proxy.NewProxyTransport()
 		serverAddr := fmt.Sprintf("http://localhost:%d", forwardedPort)
-		proxyServer := proxy.GetProxyServer(serverAddr, proxyTransport, "orchestrator", "", NewClusterServiceActivityLogger(clusterServiceKey, impl.callback)) //TODO Fix this
+		proxyServer, err := proxy.GetProxyServer(serverAddr, proxyTransport, "orchestrator", "", NewClusterServiceActivityLogger(clusterServiceKey, impl.callback)) //TODO Fix this
 		reverseProxy = &ProxyServerMetadata{forwardedPort: forwardedPort, proxyServer: proxyServer}
 		impl.clusterServiceCache[clusterServiceKey] = reverseProxy
 		go func() {

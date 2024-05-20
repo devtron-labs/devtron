@@ -329,12 +329,18 @@ func InitializeApp() (*App, error) {
 	rbacPolicyDataRepositoryImpl := repository4.NewRbacPolicyDataRepositoryImpl(sugaredLogger, db)
 	rbacRoleDataRepositoryImpl := repository4.NewRbacRoleDataRepositoryImpl(sugaredLogger, db)
 	rbacDataCacheFactoryImpl := repository4.NewRbacDataCacheFactoryImpl(sugaredLogger, rbacPolicyDataRepositoryImpl, rbacRoleDataRepositoryImpl)
-	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
+	userCommonServiceImpl, err := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
+	if err != nil {
+		return nil, err
+	}
 	userAuditRepositoryImpl := repository4.NewUserAuditRepositoryImpl(db)
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userGroupMapRepositoryImpl := repository4.NewUserGroupMapRepositoryImpl(db, sugaredLogger)
-	syncedEnforcer := casbin.Create()
+	syncedEnforcer, err := casbin.Create()
+	if err != nil {
+		return nil, err
+	}
 	casbinSyncedEnforcer := casbin.CreateV2()
 	casbinClientConfig, err := client2.GetConfig()
 	if err != nil {
@@ -471,12 +477,18 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
-	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
+	serverCacheServiceImpl, err := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
+	if err != nil {
+		return nil, err
+	}
 	moduleEnvConfig, err := module.ParseModuleEnvConfig()
 	if err != nil {
 		return nil, err
 	}
-	moduleCacheServiceImpl := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtilExtended, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl, teamServiceImpl)
+	moduleCacheServiceImpl, err := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtilExtended, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl, teamServiceImpl)
+	if err != nil {
+		return nil, err
+	}
 	moduleServiceHelperImpl := module.NewModuleServiceHelperImpl(serverEnvConfigServerEnvConfig)
 	moduleResourceStatusRepositoryImpl := moduleRepo.NewModuleResourceStatusRepositoryImpl(db)
 	moduleDataStoreModuleDataStore := moduleDataStore.InitModuleDataStore()
@@ -872,7 +884,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	dashboardRouterImpl, err := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	if err != nil {
+		return nil, err
+	}
 	attributesRestHandlerImpl := restHandler.NewAttributesRestHandlerImpl(sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, attributesServiceImpl)
 	attributesRouterImpl := router.NewAttributesRouterImpl(attributesRestHandlerImpl)
 	userAttributesRepositoryImpl := repository2.NewUserAttributesRepositoryImpl(db)
@@ -885,7 +900,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
+	grafanaRouterImpl, err := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
+	if err != nil {
+		return nil, err
+	}
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
 	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(sugaredLogger, ssoLoginRepositoryImpl, k8sUtilExtended, environmentVariables, userAuthOidcHelperImpl, globalAuthorisationConfigServiceImpl)
 	ssoLoginRestHandlerImpl := sso2.NewSsoLoginRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, ssoLoginServiceImpl)
@@ -1043,7 +1061,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	proxyRouterImpl := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enterpriseEnforcerImpl)
+	proxyRouterImpl, err := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enterpriseEnforcerImpl)
+	if err != nil {
+		return nil, err
+	}
 	imageDigestPolicyRestHandlerImpl, err := imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerUtilImpl, enterpriseEnforcerImpl, validate, imageDigestPolicyServiceImpl)
 	if err != nil {
 		return nil, err
