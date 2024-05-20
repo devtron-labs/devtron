@@ -83,6 +83,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 		err = apiProxyServer.ServeOnListener(listener)
 		select {
 		case <-stopChannel: // In case proxy server is stopped due to inactivity by calling stop channel, we simply return and do not log the error
+			handleK8sApiProxyError(clusterId)
 			return
 		default:
 			if err != nil {
