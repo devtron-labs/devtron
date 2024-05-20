@@ -1184,9 +1184,9 @@ spec:
         - workflow-controller-configmap
         - --executor-image
         {{- if $.Values.workflowController.IMDSv2Enforced }}
-        - {{ $.Values.workflowController.executorImage }}
+        - {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.executorImage  ) }}
         {{- else }}
-        - quay.io/argoproj/argoexec:v3.0.7
+        - {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1ExecutorImage  ) }}
         {{- end }}
         command:
         - workflow-controller
@@ -1201,9 +1201,9 @@ spec:
           value: v1
         {{- end }}
         {{- if $.Values.workflowController.IMDSv2Enforced }}
-        image: {{ $.Values.workflowController.image }}
+        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global  ) }}
         {{- else }}
-        image: quay.io/argoproj/workflow-controller:v3.0.7
+        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1Image ) }}
         {{- end }}
         name: workflow-controller
         {{- if $.Values.workflowController.resources }}        

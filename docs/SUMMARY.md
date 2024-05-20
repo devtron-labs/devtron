@@ -70,6 +70,7 @@
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
       * [StatefulSets](user-guide/creating-application/deployment-template/statefulset.md)
+    * [GitOps Configuration](user-guide/creating-application/gitops-config.md)
     * [Workflow Editor](user-guide/creating-application/workflow/README.md)
       * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
         * [Pre-Build/Post-Build Stages](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
@@ -129,6 +130,7 @@
   * [Semgrep](user-guide/plugins/semgrep.md)
   * [Codacy](user-guide/plugins/codacy.md)
   * [Copy Container Image](user-guide/plugins/copy-container-image.md)
+  * [SonarQube v1.1.0](user-guide/plugins/sonarqube-v1.1.0.md)
 
 
 ## Resources

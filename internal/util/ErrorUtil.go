@@ -18,11 +18,15 @@
 package util
 
 import (
+	"context"
+	errors2 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/errors"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"net/http"
 )
 
 type ApiError struct {
@@ -31,6 +35,33 @@ type ApiError struct {
 	InternalMessage   string      `json:"internalMessage,omitempty"`
 	UserMessage       interface{} `json:"userMessage,omitempty"`
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
+}
+
+func NewApiError() *ApiError {
+	return &ApiError{}
+}
+
+func (e *ApiError) WithHttpStatusCode(httpStatusCode int) *ApiError {
+	e.HttpStatusCode = httpStatusCode
+	return e
+}
+
+func (e *ApiError) WithCode(code string) *ApiError {
+	e.Code = code
+	return e
+}
+func (e *ApiError) WithInternalMessage(InternalMessage string) *ApiError {
+	e.InternalMessage = InternalMessage
+	return e
+}
+func (e *ApiError) WithUserMessage(userMessage interface{}) *ApiError {
+	e.UserMessage = userMessage
+	return e
+}
+
+func (e *ApiError) WithUserDetailMessage(UserDetailMessage string) *ApiError {
+	e.UserDetailMessage = UserDetailMessage
+	return e
 }
 
 func (e *ApiError) Error() string {
@@ -65,4 +96,13 @@ func GetClientDetailedError(err error) (*errors.ClientStatusCode, string) {
 		return grpcCode, errStatus.Message()
 	}
 	return grpcCode, err.Error()
+}
+
+func IsErrorContextCancelledOrDeadlineExceeded(err error) (int, bool) {
+	if errors2.Is(err, context.Canceled) {
+		return constants.HttpClientSideTimeout, true
+	} else if errors2.Is(err, context.DeadlineExceeded) {
+		return http.StatusRequestTimeout, true
+	}
+	return 0, false
 }

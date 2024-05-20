@@ -18,12 +18,14 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
@@ -73,6 +75,18 @@ func (model *InstalledApps) UpdateGitOpsRepository(gitOpsRepoUrl string, isCusto
 	model.GitOpsRepoUrl = gitOpsRepoUrl
 	model.IsCustomRepository = isCustomRepository
 	model.GitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl) // Handled for backward compatibility
+}
+
+func (model *InstalledApps) ChangeAppNameToDisplayName() {
+	model.App.AppName = model.App.DisplayName
+}
+
+func (model *InstalledApps) GetUniqueAppNameIdentifier() string {
+	if util3.IsExternalChartStoreApp(model.App.DisplayName) {
+		//if display name is set then that installedApp's app is already migrated
+		return model.App.AppName
+	}
+	return fmt.Sprintf("%s-%s-%s", model.App.AppName, model.Environment.Namespace, strconv.Itoa(model.Environment.ClusterId))
 }
 
 type InstalledAppVersions struct {
@@ -143,6 +157,8 @@ type InstalledAppRepository interface {
 	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
 	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error
 	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
+	// FindInstalledAppsByAppId returns multiple installed apps for an appId, this only happens for external-apps with same name installed in diff namespaces
+	FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -371,7 +387,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
-	query = query + " env.environment_name, env.id as environment_id, env.is_virtual_environment, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
+	query = query + " env.environment_name, env.id as environment_id, env.is_virtual_environment, a.app_name, a.display_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated , app_status.status as app_status, ia.deployment_app_delete_request"
 	query = query + " from installed_app_versions iav"
@@ -422,7 +438,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 
 func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.display_name, a.app_offering_mode, ia.updated_on, u.email_id," +
 		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type, app_status.status as app_status" +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
@@ -460,7 +476,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAnd
 	installedAppVersion := &InstalledAppVersions{}
 	err := impl.dbConnection.
 		Model(installedAppVersion).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Where("ia.id = ?", installedAppId).
 		Where("ia.environment_id = ?", envId).
@@ -674,7 +690,7 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.
 		Model(&installedApps).
-		Column("installed_apps.id", "App.app_name", "Environment.cluster_id", "Environment.namespace").
+		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Where("installed_apps.deployment_app_type = ?", deploymentAppType).
 		Where("app.active = ?", true).
@@ -888,6 +904,21 @@ func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*Inst
 		Select()
 	if err != nil {
 		impl.Logger.Errorw("error on fetching installed apps by ids", "ids", ids)
+	}
+	return installedApps, err
+}
+
+func (impl InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Where("installed_apps.app_id = ?", appId).
+		Where("installed_apps.active = true").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching installed apps by appId", "appId", appId)
 	}
 	return installedApps, err
 }

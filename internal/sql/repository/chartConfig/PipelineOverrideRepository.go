@@ -52,6 +52,11 @@ type PipelineOverride struct {
 	Pipeline          *pipelineConfig.Pipeline
 }
 
+type PipelineConfigOverrideMetadata struct {
+	AppId            int
+	MergedValuesYaml string
+}
+
 type PipelineOverrideRepository interface {
 	Save(*PipelineOverride) error
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
@@ -63,6 +68,7 @@ type PipelineOverrideRepository interface {
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineConfigOverrideMetadata, err error)
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
@@ -183,7 +189,32 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 		Select()
 	return overrides, err
 }
-
+func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrideMetadata []*PipelineConfigOverrideMetadata, err error) {
+	var OverrideMetadata []*PipelineConfigOverrideMetadata
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	query := "WITH temp_pipeline AS (" +
+		"     SELECT p.id,p.app_id " +
+		"     FROM pipeline p " +
+		"     WHERE p.environment_id = ? " +
+		"     AND p.app_id IN (?) " +
+		"     AND p.deleted = false " +
+		"     AND p.deployment_app_created = true " +
+		"     AND p.deployment_app_delete_request = false) " +
+		" SELECT pco.merged_values_yaml,p.app_id " +
+		" FROM pipeline_config_override pco " +
+		" INNER JOIN temp_pipeline p ON p.id = pco.pipeline_id " +
+		" WHERE pco.id IN " +
+		"      ( SELECT max(pco.id) as pco_id " +
+		"         FROM pipeline_config_override pco " +
+		"         WHERE pco.pipeline_id IN (SELECT id FROM temp_pipeline) " +
+		"         GROUP BY pco.pipeline_id " +
+		"       );"
+	_, err = impl.dbConnection.
+		Query(&OverrideMetadata, query, envId, pg.In(appIds))
+	return OverrideMetadata, err
+}
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error) {
 	var overrides []*PipelineOverride
 	err = impl.dbConnection.Model(&overrides).
