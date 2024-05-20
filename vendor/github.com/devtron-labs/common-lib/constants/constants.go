@@ -21,6 +21,5 @@ const (
 	METHOD     = "method"
 	PATH       = "path"
 	TOPIC      = "topic"
-	MESSAGE_ID = "msg_id"
 	STATUS     = "status"
 )

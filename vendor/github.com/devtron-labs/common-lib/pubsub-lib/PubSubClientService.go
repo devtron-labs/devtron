@@ -62,7 +62,9 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientService
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
 	status := model.PUBLISH_FAILURE
-	defer metrics.IncPublishCount(topic, status)
+	defer func() {
+		metrics.IncPublishCount(topic, status)
+	}()
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
@@ -211,14 +213,14 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 		// publish metrics for msg delivery count if msgDeliveryCount > 1
 		if msgDeliveryCount > 1 {
-			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
+			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject).Observe(float64(msgDeliveryCount))
 		}
 
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw(fmt.Sprintf("%s: found panic error", NATS_PANIC_MSG_LOG_PREFIX), "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
 			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
-			metrics.IncPanicRecoveryCount("nats", "", "", "")
+			metrics.IncPanicRecoveryCount("nats", msg.Subject, "", "")
 			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
 			publishErr := impl.publishPanicError(msg, err)
 			if publishErr != nil {
