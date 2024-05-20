@@ -15,8 +15,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	client2 "github.com/devtron-labs/scoop/client"
 	types2 "github.com/devtron-labs/scoop/types"
 	"io"
@@ -1738,54 +1736,7 @@ func (impl *K8sApplicationServiceImpl) getClusterIDFromIdentifier(request *bean3
 			}
 			return environment.ClusterId, nil
 		}
-func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error) {
-	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
-	return proxyHandler, err
-}
-
-func (impl *K8sApplicationServiceImpl) GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*bean.ClusterBean, error) {
-	clusterID, err := impl.getClusterIDFromIdentifier(request)
-	if err != nil {
-		impl.logger.Errorw("Error getting clusterId from identifier", "Error:", err)
-		return nil, err
 	}
-	clusterFound, err := impl.clusterRepository.FindById(clusterID)
-	if err != nil {
-		impl.logger.Errorw("Error finding cluster from clusterId.", "clusterId", clusterID)
-		return nil, err
-	}
-	clusterBean := adapter.GetClusterBean(*clusterFound)
-	return &clusterBean, nil
-
-	return request.ClusterId, nil
-}
-
-func (impl *K8sApplicationServiceImpl) getClusterIDFromIdentifier(request *bean3.K8sProxyRequest) (int, error) {
-	if request.ClusterId == 0 {
-		if request.ClusterName != "" {
-			clusterFound, err := impl.clusterRepository.FindOne(request.ClusterName)
-			if err != nil {
-				impl.logger.Errorw("Error finding clusterId from clusterName.", "clusterName", request.ClusterName)
-				return 0, err
-			}
-			return clusterFound.Id, nil
-		} else if request.EnvName != "" {
-			environment, err := impl.environmentRepository.FindByName(request.EnvName)
-			if err != nil {
-				impl.logger.Errorw("Error finding clusterId from envName.", "envName", request.EnvName)
-				return 0, err
-			}
-			return environment.ClusterId, nil
-		} else if request.EnvId != 0 {
-			environment, err := impl.environmentRepository.FindById(request.EnvId)
-			if err != nil {
-				impl.logger.Errorw("Error finding clusterId from envId.", "envId", request.EnvId)
-				return 0, err
-			}
-			return environment.ClusterId, nil
-		}
-	}
-
 	return request.ClusterId, nil
 }
 
