@@ -330,6 +330,13 @@ func getFuncToFetchTaskRunInfo(kind string, subKind string, version string) func
 		return nil
 	}
 }
+func getFuncToFetchTaskRunInfoWithFilters(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *bean.TaskInfoPostApiBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error) {
+	if f, ok := fetchTaskRunInfoWithFiltersFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
 
 var executeTaskFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, *repository.DevtronResourceObject) ([]*bean.TaskExecutionResponseBean, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
@@ -339,6 +346,10 @@ var executeTaskFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Co
 var fetchTaskRunInfoFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).fetchReleaseTaskRunInfo,
+}
+var fetchTaskRunInfoWithFiltersFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.TaskInfoPostApiBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).fetchReleaseTaskRunInfoWithFilters,
 }
 
 func getFuncToPerformPatchOperation(kind, subKind, version string) func(*DevtronResourceServiceImpl,

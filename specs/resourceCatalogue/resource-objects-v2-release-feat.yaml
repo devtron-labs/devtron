@@ -813,8 +813,8 @@ components:
             enum:
               - applications/devtron-application|identifier|demo-app,demo-app2
               - environment|identifier|devtron-demo,env2
-              - deploymentStatus|stageType|value1,value2
-              - rolloutStatus|value1,value2
+              - stageWiseDeploymentStatus|stageType|value1,value2
+              - releaseDeploymentRolloutStatus|value1,value2
             description: denotes filtering criteria resource|id orIdentiifer| value
 
     DevtronResourcePatchObjectDto:
@@ -1059,13 +1059,13 @@ components:
     TaskRunInfoResponse:
       example:
         count:
-          rolloutStatus:
+          releaseDeploymentRolloutStatus:
             allDeployment: 130
             yetToTrigger: 87
             ongoing: 8
             failed: 7
             completed: 28
-          deploymentStatus:
+          stageWiseDeploymentStatus:
             pre:
               notTriggered: 35
               failed: 55
@@ -1101,7 +1101,7 @@ components:
                     pre: true
                     deploy: true
                     post: false
-                  rolloutStatus: yetToTrigger
+                  releaseDeploymentRolloutStatus: yetToTrigger
                 - appId: 5
                   appName: orchestrator
                   envId: 2
@@ -1115,7 +1115,7 @@ components:
                     pre: false
                     deploy: true
                     post: false
-                  rolloutStatus: ongoing
+                  releaseDeploymentRolloutStatus: ongoing
             - level: 1
               taskRunAllowed: false
               dependencies:
@@ -1132,7 +1132,7 @@ components:
                     pre: true
                     deploy: true
                     post: false
-                  rolloutStatus: failed
+                  releaseDeploymentRolloutStatus: failed
                 - appId: 6
                   appName: git-sensor
                   envId: 2
@@ -1146,7 +1146,7 @@ components:
                     pre: false
                     deploy: true
                     post: false
-                  rolloutStatus: completed
+                  releaseDeploymentRolloutStatus: completed
       items:
         $ref: '#/components/schemas/TaskRunInfo'
 
@@ -1207,9 +1207,9 @@ components:
           type: object
           description: Deployment counts for various statuses.
           properties:
-            rolloutStatus:
+            releaseDeploymentRolloutStatus:
               type: object
-              description: Rollout status counts.
+              description: Release Deployment Status counts.
               properties:
                 allDeployments:
                   type: integer
@@ -1226,7 +1226,7 @@ components:
                 completed:
                   type: integer
                   description: Deployments completed successfully.
-            deploymentStatus:
+            stageWiseDeploymentStatus:
               type: object
               description: Deployment status breakdown by pre-deploy, deploy, and post-deploy stages.
               properties:
@@ -1339,9 +1339,9 @@ components:
                         post:
                           type: boolean
                           description: returns true if post-deployment exists
-                    rolloutStatus:
+                    releaseDeploymentRolloutStatus:
                       type: string
-                      description: Rollout status for this specific deployment.
+                      description: Release Deployment Status for this specific deployment.
 
     Dependency:
       type: object

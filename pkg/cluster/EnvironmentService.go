@@ -71,6 +71,7 @@ type EnvironmentService interface {
 	FindByNames(names []string) ([]*bean2.EnvironmentBean, error)
 	IsVirtualEnvironmentById(id int) (bool, error)
 	GetDetailsById(envId int) (*repository.Environment, error)
+	FindIdsByNames(names []string) ([]int, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -584,6 +585,10 @@ func (impl EnvironmentServiceImpl) FindByNames(names []string) ([]*bean2.Environ
 		})
 	}
 	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) FindIdsByNames(names []string) ([]int, error) {
+	return impl.environmentRepository.FindIdsByNames(names)
 }
 
 func (impl EnvironmentServiceImpl) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error) {

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/devtronResource/bean"
+	bean5 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
@@ -18,6 +20,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/devtronResource/util"
+	pipelineStageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	adapter3 "github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
@@ -141,7 +145,7 @@ func (impl *DevtronResourceServiceImpl) updateReleaseNoteForGetApiResourceObj(re
 			var err error
 			audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpPath(existingResourceObject.Id, bean.ReleaseResourceObjectReleaseNotePath)
 			if err != nil || audit == nil || audit.Id == 0 {
-				impl.logger.Errorw("error in getting audit by path", "err", err, "objectId", existingResourceObject.Id, "path", bean.ReleaseResourceObjectReleaseNotePath)
+				impl.logger.Warnw("error in getting audit by path", "err", err, "objectId", existingResourceObject.Id, "path", bean.ReleaseResourceObjectReleaseNotePath)
 				//it might be possible that if audit is not found then these field's data is populated through clone action, getting its audit
 				audit, err = impl.devtronResourceObjectAuditRepository.FindLatestAuditByOpType(existingResourceObject.Id, repository.AuditOperationTypeClone)
 				if err != nil {
@@ -885,12 +889,12 @@ func (impl *DevtronResourceServiceImpl) checkIfReleaseResourceTaskRunValid(req *
 		return util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.ActionPolicyInValidDueToStatusErrMessage, bean.ActionPolicyInValidDueToStatusErrMessage)
 	}
 
-	taskRunInfo, err := impl.fetchReleaseTaskRunInfo(req.DevtronResourceObjectDescriptorBean, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
+	taskRunInfo, err := impl.fetchReleaseTaskRunInfoWithFilters(&bean.TaskInfoPostApiBean{DevtronResourceObjectDescriptorBean: req.DevtronResourceObjectDescriptorBean}, &apiBean.GetTaskRunInfoQueryParams{IsLite: true}, existingResourceObject)
 	if err != nil {
 		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "descriptorBean", req.DevtronResourceObjectDescriptorBean, "err", err)
 		return err
 	}
-	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo)
+	err = checkIfTaskExecutionAllowed(req.Tasks, taskRunInfo.Data)
 	if err != nil {
 		impl.logger.Errorw("error encountered in checkIfReleaseResourceTaskRunValid", "taskRunInfo", taskRunInfo, "err", err)
 		return err
@@ -1305,17 +1309,41 @@ func (impl *DevtronResourceServiceImpl) getExecutedCdWfrIdsFromTaskRun(releaseRu
 	return cdWfrIds, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, error) {
+// getReleaseDeploymentInfoForDependencies gets every data point for dependencies in CdPipelineReleaseInfo object
+func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependencies(releaseRunSourceIdentifier string, dependencies []*bean.DevtronResourceDependencyBean) ([]*bean.CdPipelineReleaseInfo, map[string]*bean.CdPipelineReleaseInfo, error) {
 	appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(releaseRunSourceIdentifier, dependencies)
 	if err != nil {
-		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
-		return nil, err
+		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "releaseRunSourceIdentifier", releaseRunSourceIdentifier, "err", err)
+		return nil, nil, err
 	}
-	pipelinesInfo, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds)
+	pipelinesInfo, pipelineIdAppIdKeyVsReleaseInfo, err := impl.ciCdPipelineOrchestrator.GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds)
 	if err != nil {
-		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "err", err)
-		return nil, err
+		impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependencies", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
+		return nil, nil, err
 	}
+	return pipelinesInfo, pipelineIdAppIdKeyVsReleaseInfo, nil
+}
+
+// getReleaseDeploymentInfoForDependenciesFromMap gets every data point for dependencies in CdPipelineReleaseInfo object from map
+func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependenciesFromMap(dependencies []*bean.DevtronResourceDependencyBean, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) ([]*bean.CdPipelineReleaseInfo, error) {
+	pipelinesInfo := make([]*bean.CdPipelineReleaseInfo, 0)
+	appIds := make([]int, 0, len(dependencies))
+	for _, dependency := range dependencies {
+		// not checking child inheritance as callee has already filtered all child inheritance case.
+		appIds = append(appIds, dependency.OldObjectId)
+	}
+	// getting info from pipelineAppIdVsReleaseInfoMap if app id is in appIds calculated from level dependencies
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getReleaseDeploymentInfoForDependenciesFromMap", "key", key, "err", err)
+			return nil, err
+		}
+		if slices.Contains(appIds, appId) {
+			pipelinesInfo = append(pipelinesInfo, info)
+		}
+	}
+
 	return pipelinesInfo, nil
 }
 
@@ -1418,7 +1446,7 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 		} else {
 			dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
 			if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
-				dependencyBean, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
+				dependencyBean, _, err := impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, levelToAppDependenciesMap[levelDependency.Index])
 				if err != nil {
 					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
 					return nil, err
@@ -1434,49 +1462,600 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfo(req *bean.Devtro
 	// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
 	lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
 	if query.IsLite && lastStageResponse != nil && lastStageResponse.IsTaskRunAllowed() {
-		rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
-		if !rolloutStatus.IsCompletelyDeployed() {
-			allApplicationFilterCondition := bean.NewDependencyFilterCondition().
-				WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
-				WithChildInheritance()
-			allApplicationDependencies := GetDependenciesBeanFromObjectData(existingResourceObject.ObjectData, allApplicationFilterCondition)
-			if len(allApplicationDependencies) != 0 {
-				appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, allApplicationDependencies)
+		err := impl.markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject, rsIdentifier, nil)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
+			return nil, err
+		}
+	}
+	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *bean.TaskInfoPostApiBean, query *apiBean.GetTaskRunInfoQueryParams,
+	existingResourceObject *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error) {
+	if existingResourceObject == nil || existingResourceObject.Id == 0 {
+		impl.logger.Warnw("invalid get request, object not found", "req", req)
+		return nil, util.GetApiErrorAdapter(http.StatusNotFound, "404", bean.ResourceDoesNotExistMessage, bean.ResourceDoesNotExistMessage)
+	}
+	response := make([]bean.DtReleaseTaskRunInfo, 0)
+
+	req.Id = existingResourceObject.Id
+	req.OldObjectId = existingResourceObject.OldObjectId
+	resourceId := req.GetResourceIdByIdType()
+	rsIdentifier := helper.GetTaskRunSourceIdentifier(resourceId, req.IdType, existingResourceObject.DevtronResourceId, existingResourceObject.DevtronResourceSchemaId)
+
+	// getting all release Info and corresponding map to use in further processing at level/stage or showAll(rollout status)
+	pipelineIdAppIdKeyVsReleaseInfo, allCdPipelineReleaseInfo, taskInfoCount, err := impl.fetchAllReleaseInfoStatusWithMap(existingResourceObject, rsIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
+		return nil, err
+	}
+
+	if query.IsLite {
+		response, err = impl.getOnlyLevelDataForTaskInfo(existingResourceObject.ObjectData, pipelineIdAppIdKeyVsReleaseInfo, query.LevelIndex)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
+			return nil, err
+		}
+	} else {
+		var appDevtronResourceSchemaId int
+		filterConditionReq := bean.NewFilterConditionInternalBean()
+		// filters decoding
+		if len(req.FilterCriteria) > 0 {
+			// setting filter values from filters
+			filterConditionReq, err = impl.getFilterConditionBeanFromDecodingFilters(req)
+			if err != nil {
+				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "err", err)
+				return nil, err
+			}
+
+			// finding application/devtron-application schema id for filters check in dependency
+			applicationSchema, err := impl.devtronResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean.DevtronResourceApplication.ToString(), bean.DevtronResourceDevtronApplication.ToString(), bean.DevtronResourceVersion1.ToString())
+			if err != nil {
+				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "err", err)
+				return nil, err
+			}
+			appDevtronResourceSchemaId = applicationSchema.Id
+		} else {
+			filterConditionReq.RequestWithoutFilters = true
+		}
+
+		if query.ShowAll {
+			// rollout status page api
+			// apply filters and return updated dependencies
+			updatedCdPipelineReleaseInfo := impl.applyFiltersToDependencies(filterConditionReq, allCdPipelineReleaseInfo)
+			return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: []bean.DtReleaseTaskRunInfo{{Dependencies: updatedCdPipelineReleaseInfo}}}, nil
+
+		}
+		// deploy page api
+		response, err = impl.getLevelDataWithDependenciesForTaskInfo(filterConditionReq, existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId, pipelineIdAppIdKeyVsReleaseInfo)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
+			return nil, err
+		}
+	}
+	return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: response}, nil
+}
+
+// setFilterConditionInRequest decodes the filters provided and sets teh filters in request for further processing
+func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilters(req *bean.TaskInfoPostApiBean) (*bean.FilterConditionInternalBean, error) {
+	appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err := impl.getAppIdsAndEnvIdsFromFilterCriteria(req.FilterCriteria)
+	if err != nil {
+		impl.logger.Errorw("error encountered in setFilterConditionInRequest", "id", req.Id, "err", err)
+		return nil, err
+	}
+
+	return adapter.BuildFilterConditionInternalBean(appIdsFilters, envIdsFilters, rolloutStatus, deploymentStatus), nil
+}
+
+// getOnlyLevelDataForTaskInfo gets only level data with task run allowed operation.(signifies lite mode)
+func (impl *DevtronResourceServiceImpl) getOnlyLevelDataForTaskInfo(objectData string, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, levelIndex int) ([]bean.DtReleaseTaskRunInfo, error) {
+	response := make([]bean.DtReleaseTaskRunInfo, 0)
+	levelDependencies := impl.getLevelDependenciesFromObjectData(objectData, levelIndex)
+	var err error
+	for _, levelDependency := range levelDependencies {
+		dtReleaseTaskRunInfo := bean.DtReleaseTaskRunInfo{
+			Level: levelDependency.Index,
+		}
+		taskRunAllowed := true
+		lastStageResponse := adapter.GetLastReleaseTaskRunInfo(response)
+		if lastStageResponse != nil && !lastStageResponse.IsTaskRunAllowed() {
+			taskRunAllowed = false
+			dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
+		} else {
+			appIds := make([]int, 0)
+			previousLevelIndex := getPreviousLevelDependency(levelDependencies, levelDependency.Index)
+			if previousLevelIndex != 0 {
+				previousAppFilterCondition := bean.NewDependencyFilterCondition().
+					WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
+					WithFilterByDependentOnIndex(previousLevelIndex).
+					WithChildInheritance()
+				previousLevelAppDependencies := GetDependenciesBeanFromObjectData(objectData, previousAppFilterCondition)
+				if len(previousLevelAppDependencies) != 0 {
+					for _, dependency := range previousLevelAppDependencies {
+						// not considering child inheritance as map as already filtered out child inheritance
+						appIds = append(appIds, dependency.OldObjectId)
+					}
+
+					taskRunAllowed, err = impl.isEachAppDeployedOnAtLeastOneEnvWithMap(appIds, pipelineIdAppIdKeyVsReleaseInfo)
+					if err != nil {
+						impl.logger.Errorw("error encountered in getOnlyLevelDataForTaskInfo", "appIds", appIds, "err", err)
+						return nil, err
+					}
+				} else {
+					taskRunAllowed = false
+				}
+			}
+			dtReleaseTaskRunInfo.TaskRunAllowed = &taskRunAllowed
+		}
+		response = append(response, dtReleaseTaskRunInfo)
+	}
+	return response, nil
+}
+
+func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(appIds []int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) (bool, error) {
+	appIdToSuccessCriteriaFlag := make(map[int]bool, len(appIds))
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in IsEachAppDeployedOnAtLeastOneEnvWithMap", "key", key, "err", err)
+			return false, err
+		}
+		if appIdToSuccessCriteriaFlag[appId] {
+			continue
+		}
+		// if this appId from map is not in provided appIds continue as we don't need to calculate for thsi appId
+		if !slices.Contains(appIds, appId) {
+			continue
+		}
+		// if not of (deployment exist and status is succeeded)
+		if info.ExistingStages.Deploy && !helper.IsStatusSucceeded(info.DeployStatus) {
+			continue
+		}
+		// if not of (pre exist and status is succeeded)
+		if info.ExistingStages.Pre && !helper.IsStatusSucceeded(info.PreStatus) {
+			continue
+		}
+		// if not of (post exist and status is succeeded)
+		if info.ExistingStages.Post && !helper.IsStatusSucceeded(info.PostStatus) {
+			continue
+		}
+		appIdToSuccessCriteriaFlag[appId] = true
+	}
+	if len(appIds) != len(appIdToSuccessCriteriaFlag) {
+		return false, nil
+	}
+	return true, nil
+}
+
+// getLevelDataWithDependenciesForTaskInfo get level wise data with dependencies in it, supports level Index key if not 0 get level of that index with its dependencies
+func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(req *bean.FilterConditionInternalBean, objectData, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) ([]bean.DtReleaseTaskRunInfo, error) {
+	response := make([]bean.DtReleaseTaskRunInfo, 0)
+	var levelToAppDependenciesMap map[int][]*bean.DevtronResourceDependencyBean
+
+	levelDependencies := impl.getLevelDependenciesFromObjectData(objectData, levelIndex)
+	applicationFilterCondition := bean.NewDependencyFilterCondition().
+		WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
+		WithFilterByDependentOnIndex(levelIndex).
+		WithFilterByIdAndSchemaId(req.AppIds, appDevtronResourceSchemaId).
+		WithChildInheritance()
+	applicationDependencies := GetDependenciesBeanFromObjectData(objectData, applicationFilterCondition)
+	levelToAppDependenciesMap = adapter.MapDependenciesByDependentOnIndex(applicationDependencies)
+
+	for _, levelDependency := range levelDependencies {
+		dtReleaseTaskRunInfo := bean.DtReleaseTaskRunInfo{
+			Level: levelDependency.Index,
+		}
+		dependencies := make([]*bean.CdPipelineReleaseInfo, 0)
+		if levelToAppDependenciesMap != nil && levelToAppDependenciesMap[levelDependency.Index] != nil {
+			dependencyBean, err := impl.getReleaseDeploymentInfoForDependenciesFromMap(levelToAppDependenciesMap[levelDependency.Index], pipelineIdAppIdKeyVsReleaseInfo)
+			if err != nil {
+				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "stage", levelDependency.Index, "err", err)
+				return nil, err
+			}
+			// applying filters for rollout , env and deployment status (app ids filters is already handled, one level while fetching applicationDependencies
+			dependencyBean = impl.applyFiltersToDependencies(req, dependencyBean)
+			dependencies = append(dependencies, dependencyBean...)
+		}
+		dtReleaseTaskRunInfo.Dependencies = dependencies
+
+		response = append(response, dtReleaseTaskRunInfo)
+	}
+	return response, nil
+}
+
+// fetchAllReleaseInfoStatusWithMap will fetch all release info with mappings
+func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existingResourceObject *repository.DevtronResourceObject, rsIdentifier string) (map[string]*bean.CdPipelineReleaseInfo, []*bean.CdPipelineReleaseInfo, *bean.TaskInfoCount, error) {
+	var taskInfoCount *bean.TaskInfoCount
+	var dependencyBean []*bean.CdPipelineReleaseInfo
+	var pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo
+	var err error
+	allApplicationDependencies := getAllApplicationDependenciesFromObjectData(existingResourceObject.ObjectData)
+	if len(allApplicationDependencies) != 0 {
+		// will get map here for all application dependencies and all data as well
+		dependencyBean, pipelineIdAppIdKeyVsReleaseInfo, err = impl.getReleaseDeploymentInfoForDependencies(rsIdentifier, allApplicationDependencies)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
+			return nil, nil, nil, err
+		}
+		// If all the applications in all stages are deployed to their respective environments,
+		// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+		err = impl.markRolloutStatusIfAllDependenciesGotSucceedFromMap(existingResourceObject, pipelineIdAppIdKeyVsReleaseInfo, allApplicationDependencies)
+		if err != nil {
+			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "existingResourceObjectId", existingResourceObject.Id, "err", err)
+			return nil, nil, nil, err
+		}
+
+		stageWiseDeploymentStatusCount, releaseDeploymentStatusCount := getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(dependencyBean)
+		taskInfoCount = adapter.BuildTaskInfoCount(releaseDeploymentStatusCount, stageWiseDeploymentStatusCount)
+	}
+	return pipelineIdAppIdKeyVsReleaseInfo, dependencyBean, taskInfoCount, nil
+}
+
+func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.FilterConditionInternalBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo) []*bean.CdPipelineReleaseInfo {
+	if req.RequestWithoutFilters {
+		return cdPipelineReleaseInfo
+	}
+	updatedCdPipelineReleaseInfo := make([]*bean.CdPipelineReleaseInfo, 0, len(cdPipelineReleaseInfo))
+	for _, info := range cdPipelineReleaseInfo {
+		if len(req.AppIds) != 0 && !slices.Contains(req.AppIds, info.AppId) {
+			//continue in case app id filters len is greater than 0 and does not contain app id.
+			continue
+		}
+		if len(req.EnvIds) != 0 && !slices.Contains(req.EnvIds, info.EnvId) {
+			//continue in case env id filters len is greater than 0 and does not contain env id.
+			continue
+		}
+		if len(req.ReleaseDeploymentStatus) != 0 && !slices.Contains(req.ReleaseDeploymentStatus, info.ReleaseDeploymentStatus.ToString()) {
+			//continue in case ReleaseDeploymentStatus filters len is greater than 0 and does not contain ReleaseDeploymentStatus.
+			continue
+		}
+		//pre
+		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_PRE]; ok && len(values) > 0 {
+			if !slices.Contains(values, info.PreStatus) {
+				//continue in case pre stage filters ln is greater than 0 and does not contain pre status of info.
+				continue
+			}
+
+		}
+		//deploy
+		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_DEPLOY]; ok && len(values) > 0 {
+			if !slices.Contains(values, info.DeployStatus) {
+				//continue in case deploy stage filters ln is greater than 0 and does not contain deploy status of info.
+				continue
+			}
+		}
+		//post
+		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_POST]; ok && len(values) > 0 {
+			if !slices.Contains(values, info.PostStatus) {
+				//continue in case post stage filters ln is greater than 0 and does not contain post status of info.
+				continue
+			}
+		}
+
+		updatedCdPipelineReleaseInfo = append(updatedCdPipelineReleaseInfo, info)
+	}
+
+	return updatedCdPipelineReleaseInfo
+}
+
+func (impl *DevtronResourceServiceImpl) getLevelDependenciesFromObjectData(objectData string, levelIndex int) []*bean.DevtronResourceDependencyBean {
+	levelFilterCondition := bean.NewDependencyFilterCondition().
+		WithFilterByTypes(bean.DevtronResourceDependencyTypeLevel)
+	if levelIndex != 0 {
+		levelFilterCondition = levelFilterCondition.WithFilterByIndexes(levelIndex)
+	}
+	return GetDependenciesBeanFromObjectData(objectData, levelFilterCondition)
+}
+
+func processReleaseDeploymentStatusVsCountMapForResponse(rolloutStatusVsCountMap map[bean.ReleaseDeploymentStatus]int) *bean.ReleaseDeploymentStatusCount {
+	completedCount := 0
+	yetToTriggerCount := 0
+	failedCount := 0
+	ongoingCount := 0
+
+	if val, ok := rolloutStatusVsCountMap[bean.Completed]; ok {
+		completedCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.YetToTrigger]; ok {
+		yetToTriggerCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.Failed]; ok {
+		failedCount = val
+	}
+	if val, ok := rolloutStatusVsCountMap[bean.Ongoing]; ok {
+		ongoingCount = val
+	}
+	return adapter.BuildReleaseDeploymentStatus(ongoingCount, yetToTriggerCount, failedCount, completedCount)
+}
+
+func getStageWiseAndReleaseDeploymentStatusCountFromPipelineInfo(pipelinesInfo []*bean.CdPipelineReleaseInfo) (*bean.StageWiseStatusCount, *bean.ReleaseDeploymentStatusCount) {
+	preStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	deployStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	postStatusVsCountMap := make(map[string]int, len(pipelinesInfo))
+	releaseDeploymentStatusVsCountMap := make(map[bean.ReleaseDeploymentStatus]int, len(pipelinesInfo))
+	for _, pipeline := range pipelinesInfo {
+		if pipeline.ExistingStages.Pre {
+			preStatusVsCountMap[pipeline.PreStatus] = preStatusVsCountMap[pipeline.PreStatus] + 1
+		}
+		if pipeline.ExistingStages.Post {
+			postStatusVsCountMap[pipeline.PostStatus] = postStatusVsCountMap[pipeline.PostStatus] + 1
+		}
+		if pipeline.ExistingStages.Deploy {
+			// cd pipeline will always exist added this check intentionally for validation
+			deployStatusVsCountMap[pipeline.DeployStatus] = deployStatusVsCountMap[pipeline.DeployStatus] + 1
+		}
+		releaseDeploymentStatusVsCountMap[pipeline.ReleaseDeploymentStatus] = releaseDeploymentStatusVsCountMap[pipeline.ReleaseDeploymentStatus] + 1
+	}
+	preStatusCount := processPreOrPostDeploymentVsCountMapForResponse(preStatusVsCountMap)
+	deployStatusCount := processDeploymentVsCountMapForResponse(deployStatusVsCountMap)
+	postStatusCount := processPreOrPostDeploymentVsCountMapForResponse(postStatusVsCountMap)
+	releaseDeploymentCount := processReleaseDeploymentStatusVsCountMapForResponse(releaseDeploymentStatusVsCountMap)
+	return adapter.BuildStageWiseStatusCount(preStatusCount, deployStatusCount, postStatusCount), releaseDeploymentCount
+}
+
+func processPreOrPostDeploymentVsCountMapForResponse(preOrPostStatusVsCountMap map[string]int) *bean.PrePostStatusCount {
+	notTriggered := 0
+	failed := 0
+	inProgress := 0
+	succeeded := 0
+	others := 0
+	if val, ok := preOrPostStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
+		notTriggered = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowFailed]; ok {
+		failed = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[executors.WorkflowCancel]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean5.Degraded]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Error]; ok {
+		failed = failed + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
+		inProgress = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowStarting]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.RunningStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
+		succeeded = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean5.Healthy]; ok {
+		succeeded = succeeded + val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Unknown]; ok {
+		others = val
+	}
+	if val, ok := preOrPostStatusVsCountMap[bean.Missing]; ok {
+		others = others + val
+	}
+	return adapter.BuildPreOrPostDeploymentCount(notTriggered, failed, succeeded, inProgress, others)
+
+}
+
+func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]int) *bean.DeploymentCount {
+	notTriggered := 0
+	failed := 0
+	inProgress := 0
+	succeeded := 0
+	queued := 0
+	others := 0
+	if val, ok := deployStatusVsCountMap[pipelineStageBean.NotTriggered]; ok {
+		notTriggered = val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowFailed]; ok {
+		failed = val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowAborted]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[executors.WorkflowCancel]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[bean5.Degraded]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.Error]; ok {
+		failed = failed + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInProgress]; ok {
+		inProgress = val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInitiated]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := deployStatusVsCountMap[bean.RunningStatus]; ok {
+		inProgress = inProgress + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
+		succeeded = val
+	}
+	if val, ok := deployStatusVsCountMap[bean5.Healthy]; ok {
+		succeeded = succeeded + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowInQueue]; ok {
+		queued = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.Unknown]; ok {
+		others = val
+	}
+	if val, ok := deployStatusVsCountMap[bean.Missing]; ok {
+		others = others + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowUnableToFetchState]; ok {
+		others = others + val
+	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowTimedOut]; ok {
+		others = others + val
+	}
+	return adapter.BuildDeploymentCount(notTriggered, failed, succeeded, queued, inProgress, others)
+
+}
+
+// markRolloutStatusIfAllDependenciesGotSucceed get allApplicationDependencies if not provided.
+// If all the applications in all stages are deployed to their respective environments,
+// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSucceed(existingResourceObject *repository.DevtronResourceObject, rsIdentifier string, allApplicationDependencies []*bean.DevtronResourceDependencyBean) (err error) {
+	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
+	getAllApplicationDependencies := false
+	if len(allApplicationDependencies) == 0 {
+		getAllApplicationDependencies = true
+	}
+	if !rolloutStatus.IsCompletelyDeployed() {
+		if getAllApplicationDependencies {
+			allApplicationDependencies = getAllApplicationDependenciesFromObjectData(existingResourceObject.ObjectData)
+		}
+		if len(allApplicationDependencies) != 0 {
+			appIds, cdWfrIds, err := impl.getAppAndCdWfrIdsForDependencies(rsIdentifier, allApplicationDependencies)
+			if err != nil {
+				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
+				return err
+			}
+			isReleaseCompleted := false
+			if len(cdWfrIds) != 0 {
+				isReleaseCompleted, err = impl.ciCdPipelineOrchestrator.IsAppsDeployedOnAllEnvWithRunnerIds(appIds, cdWfrIds)
 				if err != nil {
-					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "rsIdentifier", rsIdentifier, "err", err)
-					return nil, err
+					impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
+					return err
 				}
-				isReleaseCompleted := false
-				if len(cdWfrIds) != 0 {
-					isReleaseCompleted, err = impl.ciCdPipelineOrchestrator.IsAppsDeployedOnAllEnvWithRunnerIds(appIds, cdWfrIds)
-					if err != nil {
-						impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfo", "appIds", appIds, "cdWfrIds", cdWfrIds, "err", err)
-						return nil, err
-					}
+			}
+			if isReleaseCompleted {
+				existingResourceObject.ObjectData, err = sjson.Set(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath, bean.CompletelyDeployedReleaseRolloutStatus)
+				if err != nil {
+					impl.logger.Errorw("error in json set release rollout status completed", "err", err)
+					return err
 				}
-				if isReleaseCompleted {
-					existingResourceObject.ObjectData, err = sjson.Set(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath, bean.CompletelyDeployedReleaseRolloutStatus)
-					if err != nil {
-						impl.logger.Errorw("error in json set release rollout status completed", "err", err)
-						return nil, err
-					}
-					err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
-					if err != nil {
-						impl.logger.Errorw("error in updating release rollout status completed", "err", err, "existingResourceObject", existingResourceObject.Id)
-						return nil, err
-					}
-					// updated existing object (rollout status to completely deployed)
-					err = impl.updateRolloutStatusInExistingObject(existingResourceObject,
-						bean.CompletelyDeployedReleaseRolloutStatus, 1, time.Now())
-					if err != nil {
-						impl.logger.Errorw("error encountered in executeDeploymentsForDependencies", "err", err)
-						return nil, err
-					}
+				err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
+				if err != nil {
+					impl.logger.Errorw("error in updating release rollout status completed", "err", err, "existingResourceObject", existingResourceObject.Id)
+					return err
+				}
+				// updated existing object (rollout status to completely deployed)
+				err = impl.updateRolloutStatusInExistingObject(existingResourceObject,
+					bean.CompletelyDeployedReleaseRolloutStatus, 1, time.Now())
+				if err != nil {
+					impl.logger.Errorw("error encountered in executeDeploymentsForDependencies", "err", err)
+					return err
 				}
 			}
 		}
 	}
-	return response, nil
+	return nil
+}
+
+// markRolloutStatusIfAllDependenciesGotSucceedFromMap get allApplicationDependencies if not provided.
+// If all the applications in all stages are deployed to their respective environments, checks from map
+// Mark the rollout status -> bean.CompletelyDeployedReleaseRolloutStatus
+func (impl *DevtronResourceServiceImpl) markRolloutStatusIfAllDependenciesGotSucceedFromMap(existingResourceObject *repository.DevtronResourceObject, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, allApplicationDependencies []*bean.DevtronResourceDependencyBean) (err error) {
+	rolloutStatus := bean.ReleaseRolloutStatus(gjson.Get(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath).String())
+	if !rolloutStatus.IsCompletelyDeployed() && len(allApplicationDependencies) != 0 {
+		appIds := make([]int, 0, len(allApplicationDependencies))
+		// ignoring child inheritance check here as callee has already handled it( GET call will be deprecated in future not handling for that)
+		for _, dependency := range allApplicationDependencies {
+			appIds = append(appIds, dependency.OldObjectId)
+		}
+		isReleaseCompleted, err := impl.isAppsDeployedOnAllEnvWithRunnerFromMap(appIds, pipelineIdAppIdKeyVsReleaseInfo)
+		if err != nil {
+			impl.logger.Errorw("error encountered in markRolloutStatusIfAllDependenciesGotSucceedFromMap", "appIds", appIds, "err", err)
+			return err
+		}
+
+		if isReleaseCompleted {
+			existingResourceObject.ObjectData, err = sjson.Set(existingResourceObject.ObjectData, bean.ReleaseResourceRolloutStatusPath, bean.CompletelyDeployedReleaseRolloutStatus)
+			if err != nil {
+				impl.logger.Errorw("error in json set release rollout status completed", "err", err)
+				return err
+			}
+			err = impl.devtronResourceObjectRepository.Update(nil, existingResourceObject)
+			if err != nil {
+				impl.logger.Errorw("error in updating release rollout status completed", "err", err, "existingResourceObject", existingResourceObject.Id)
+				return err
+			}
+			// updated existing object (rollout status to completely deployed)
+			err = impl.updateRolloutStatusInExistingObject(existingResourceObject,
+				bean.CompletelyDeployedReleaseRolloutStatus, 1, time.Now())
+			if err != nil {
+				impl.logger.Errorw("error encountered in markRolloutStatusIfAllDependenciesGotSucceedFromMap", "err", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// isAppsDeployedOnAllEnvWithRunnerFromMap checks from map that every app is deployed on every stage successfully from
+func (impl *DevtronResourceServiceImpl) isAppsDeployedOnAllEnvWithRunnerFromMap(appIds []int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) (bool, error) {
+	for key, info := range pipelineIdAppIdKeyVsReleaseInfo {
+		appId, err := helper.GetAppIdFromPipelineIdAppIdKey(key)
+		if err != nil {
+			impl.logger.Errorw("error encountered in isAppsDeployedOnAllEnvWithRunnerFromMap", "key", key, "err", err)
+			return false, err
+		}
+		// if this appId from map is not in provided appIds continue as we don't need to calculate for thsi appId
+		if !slices.Contains(appIds, appId) {
+			continue
+		}
+		// if not of (deployment exist and status is succeeded)
+		if info.ExistingStages.Deploy && !helper.IsStatusSucceeded(info.DeployStatus) {
+			return false, nil
+		}
+		// if not of (pre exist and status is succeeded)
+		if info.ExistingStages.Pre && !helper.IsStatusSucceeded(info.PreStatus) {
+			return false, nil
+		}
+		// if not of (post exist and status is succeeded)
+		if info.ExistingStages.Post && !helper.IsStatusSucceeded(info.PostStatus) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// getAppIdsAndEnvIdsFromFilterCriteria decodes filters and return app ids ,envIds, deployment status with stage, rollout Status, gets ids for identifiers if identifiers are given
+func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(filters []string) ([]int, []int, map[bean3.WorkflowType][]string, []string, error) {
+	// filters decoding
+	appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err := util3.DecodeFiltersForDeployAndRolloutStatus(filters)
+	if err != nil {
+		impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "filters", filters)
+		return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+	}
+	// evaluating app ids from app identifiers as we are maintaining and processing everything in ids
+	if len(appIdentifierFilters) > 0 {
+		appIds, err := impl.appRepository.FindIdsByNamesAndAppType(appIdentifierFilters, helper2.CustomApp)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "appIdentifierFilters", appIdentifierFilters)
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+		}
+		appIdsFilters = append(appIdsFilters, appIds...)
+	}
+	if len(envIdentifierFilters) > 0 {
+		envIds, err := impl.envService.FindIdsByNames(envIdentifierFilters)
+		if err != nil {
+			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "envIdentifierFilters", envIdentifierFilters)
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+		}
+		envIdsFilters = append(envIdsFilters, envIds...)
+	}
+	return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+}
+
+// getAllApplicationDependenciesFromObjectData gets all upstream dependencies from object data json
+func getAllApplicationDependenciesFromObjectData(objectData string) []*bean.DevtronResourceDependencyBean {
+	applicationFilterCondition := bean.NewDependencyFilterCondition().
+		WithFilterByTypes(bean.DevtronResourceDependencyTypeUpstream).
+		WithChildInheritance()
+
+	return GetDependenciesBeanFromObjectData(objectData, applicationFilterCondition)
 }
 
 func getPreviousLevelDependency(levelDependencies []*bean.DevtronResourceDependencyBean, currentIndex int) int {

@@ -14,6 +14,10 @@ const (
 	Id         FilterCriteriaIdentifier = "id"
 )
 
+func (i FilterCriteriaIdentifier) ToString() string {
+	return string(i)
+}
+
 type SearchCriteriaDecoder struct {
 	SearchBy SearchPropertyBy
 	Value    string
