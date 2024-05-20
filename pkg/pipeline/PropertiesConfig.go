@@ -668,7 +668,7 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 			impl.logger.Errorw("env properties not found, ChangeChartRef, to override environment add flag allowEnvOverride = true", "err", err, "payload", request)
 			return bean.ProcessEnvConfigPropertiesBean{
 				StatusCode: http.StatusNotFound,
-			}, err
+			}, errors.New("env properties not found. To override set allowEnvOverride to true")
 		}
 		// Create empty environment properties if environment override is allowed
 		envConfigProperties = &bean.EnvironmentProperties{}
