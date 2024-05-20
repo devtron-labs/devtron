@@ -26,7 +26,7 @@ require (
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
 	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
 	github.com/devtron-labs/common-lib v0.0.18-0.20240520074334-86bc50296cc9
-	github.com/devtron-labs/common-lib-private v0.0.14-0.20240520081241-a045a6c7535c
+	github.com/devtron-labs/common-lib-private v0.0.14-0.20240520084351-39161b01062f
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
 	github.com/evanphx/json-patch v5.6.0+incompatible
