@@ -11,15 +11,22 @@ func TestEvaluateCELRequest(t *testing.T) {
 	logger, _ := util.NewSugardLogger()
 	celService := NewCELServiceImpl(logger)
 	t.Run("diff output", func(tt *testing.T) {
+		labelMapValue := map[string]string{}
+		labelMapValue["devtron.ai/language"] = "python"
 		params := []ExpressionParam{
+			//{
+			//	ParamName: ContainerRepo,
+			//	Value:     "helloRepo",
+			//	Type:      ParamTypeString,
+			//},
 			{
-				ParamName: ContainerRepo,
-				Value:     "helloRepo",
-				Type:      ParamTypeString,
+				ParamName: AppLabels,
+				Value:     labelMapValue,
+				Type:      ParamTypeStringMap,
 			},
 		}
 		evalReq := CELRequest{
-			Expression: " containerRepository + 'world'",
+			Expression: "appLabels['devtron.ai/language'] == 'python' ? 'python_pvc' : 'java_pvc'",
 			ExpressionMetadata: ExpressionMetadata{
 				Params: params,
 			},

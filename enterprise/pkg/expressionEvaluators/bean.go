@@ -20,6 +20,7 @@ const (
 	ParamTypeBool             ParamValuesType = "bool"
 	ParamTypeCommitDetails    ParamValuesType = "CommitDetails"
 	ParamTypeCommitDetailsMap ParamValuesType = "commitDetailsMap"
+	ParamTypeStringMap        ParamValuesType = "stringMap"
 )
 
 type ParamName string
@@ -31,3 +32,4 @@ const ImageLabels ParamName = "imageLabels"
 const GitCommitDetails ParamName = "gitCommitDetails"
 const Severity ParamName = "severity"
 const PolicyPermission ParamName = "policyPermission"
+const AppLabels ParamName = "appLabels"
