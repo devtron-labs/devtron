@@ -47,3 +47,7 @@ func CheckAppReleaseNotExist(err error) bool {
 func CheckPermissionErrorForArgoCd(err error) bool {
 	return strings.Contains(err.Error(), PermissionDenied)
 }
+
+func IsExternalChartStoreApp(displayName string) bool {
+	return len(displayName) > 0
+}

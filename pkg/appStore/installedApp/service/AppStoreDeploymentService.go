@@ -137,6 +137,15 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
+
+	//checking if namespace exists or not
+	clusterIdToNsMap := map[int]string{
+		installAppVersionRequest.ClusterId: installAppVersionRequest.Namespace,
+	}
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	if err != nil {
+		return nil, err
+	}
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installAppVersionRequest.DeploymentAppType)
 
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
@@ -363,7 +372,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 
 	// Initialise bean
 	installAppVersionRequestDto := &appStoreBean.InstallAppVersionDTO{
-		AppName:            appIdentifier.ReleaseName,
+		AppName:            appIdentifier.GetUniqueAppNameIdentifier(),
 		UserId:             userId,
 		AppOfferingMode:    util2.SERVER_MODE_HYPERION,
 		ClusterId:          appIdentifier.ClusterId,
@@ -373,6 +382,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 		ReferenceValueId:   int(request.GetReferenceValueId()),
 		ReferenceValueKind: request.GetReferenceValueKind(),
 		DeploymentAppType:  util.PIPELINE_DEPLOYMENT_TYPE_HELM,
+		DisplayName:        appIdentifier.ReleaseName,
 	}
 
 	// STEP-2 InstallApp with only DB operations
@@ -387,21 +397,35 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 	return res, isChartRepoActive, nil
 }
 
+func isExternalHelmApp(appId string) bool {
+	// for external helm apps, updateAppRequest.AppId is of the form clusterId|namespace|displayAppName
+	return len(strings.Split(appId, "|")) > 1
+}
+
 func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
-
-	appIdSplitted := strings.Split(updateAppRequest.AppId, "|")
-
-	appName := updateAppRequest.AppName
-
-	if len(appIdSplitted) > 1 {
-		// app id is zero for CLI apps
-		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
-		appName = appIdentifier.ReleaseName
+	var appName string
+	var displayName string
+	appName = updateAppRequest.AppName
+	if isExternalHelmApp(updateAppRequest.AppId) {
+		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in decoding app id for external helm apps", "err", err)
+			return err
+		}
+		appName = appIdentifier.GetUniqueAppNameIdentifier()
+		displayName = updateAppRequest.AppName
+	} else {
+		//in case the external app is linked, then it's unique identifier is set in app_name col. hence retrieving appName
+		//for this case, although this will also handle the case for non-external apps
+		appNameUniqueIdentifier := impl.getAppNameForInstalledApp(updateAppRequest.InstalledAppId)
+		if len(appNameUniqueIdentifier) > 0 {
+			appName = appNameUniqueIdentifier
+		}
 	}
 	impl.logger.Infow("update helm project request", updateAppRequest)
-	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, updateAppRequest.TeamId, updateAppRequest.UserId)
+	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, updateAppRequest.TeamId, updateAppRequest.UserId)
 	if err != nil {
-		impl.logger.Errorw("error in linking project to helm app", "appName", appName, "err", err)
+		impl.logger.Errorw("error in linking project to helm app", "appName", updateAppRequest.AppName, "err", err)
 		return err
 	}
 	return nil
@@ -565,6 +589,15 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	defer tx.Rollback()
 
 	installedApp, err := impl.installedAppService.GetInstalledAppById(upgradeAppRequest.InstalledAppId)
+	if err != nil {
+		return nil, err
+	}
+	//checking if ns exists or not
+	clusterIdToNsMap := map[int]string{
+		installedApp.Environment.ClusterId: installedApp.Environment.Namespace,
+	}
+
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -852,9 +885,6 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// skipAppCreation flag is set for CLI apps because for CLI Helm apps if project is created first before linking to chart store then app is created during project update time.
-	// skipAppCreation - This flag will skip app creation if app already exists.
-
 	//step 1 db operation initiated
 	appModel, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -888,7 +918,7 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 			ChartVersion: appStoreAppVersion.Version,
 			ReleaseIdentifier: &bean4.ReleaseIdentifier{
 				ReleaseNamespace: installAppVersionRequest.Namespace,
-				ReleaseName:      installAppVersionRequest.AppName,
+				ReleaseName:      installAppVersionRequest.DisplayName,
 			},
 		},
 		SourceAppType: bean3.SOURCE_HELM_APP,
@@ -989,4 +1019,17 @@ func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.T
 		}
 	}
 	return err
+}
+
+// getAppNameForInstalledApp will fetch and returns AppName from app table
+func (impl *AppStoreDeploymentServiceImpl) getAppNameForInstalledApp(installedAppId int) string {
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("UpdateProjectHelmApp, error in finding app by installedAppId", "installedAppId", installedAppId, "err", err)
+		return ""
+	}
+	if installedApp != nil {
+		return installedApp.App.AppName
+	}
+	return ""
 }

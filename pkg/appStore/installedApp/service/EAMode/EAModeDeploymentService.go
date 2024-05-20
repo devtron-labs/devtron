@@ -8,6 +8,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"net/http"
@@ -252,6 +253,10 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
 		return err
 	}
+	appName := installedApp.App.AppName
+	if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		appName = installedApp.App.DisplayName
+	}
 	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
@@ -300,7 +305,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			ValuesYaml: valuesOverrideYaml,
 			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedApp.Environment.Namespace,
-				ReleaseName:      installedApp.App.AppName,
+				ReleaseName:      appName,
 			},
 			ChartName:                  appStoreApplicationVersion.Name,
 			ChartVersion:               appStoreApplicationVersion.Version,
