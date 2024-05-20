@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/authenticator/oidc"
-	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"go.uber.org/zap"
 )
@@ -34,6 +33,11 @@ type UserAuthOidcHelper interface {
 	GetDexProxy() func(writer http.ResponseWriter, request *http.Request)
 	UpdateInMemoryDataOnSsoAddUpdate(ssoUrl string) error
 }
+
+const (
+	Orchestrator = "/orchestrator"
+	Dashboard    = "dashboard"
+)
 
 type UserAuthOidcHelperImpl struct {
 	logger                       *zap.SugaredLogger
@@ -67,8 +71,8 @@ func NewUserAuthOidcHelperImpl(logger *zap.SugaredLogger, selfRegistrationRolesS
 
 // SanitiseRedirectUrl replaces initial "/orchestrator" from url
 func (impl UserAuthOidcHelperImpl) sanitiseRedirectUrl(redirectUrl string) string {
-	if strings.Contains(redirectUrl, connection.Dashboard) {
-		redirectUrl = strings.ReplaceAll(redirectUrl, connection.Orchestrator, "")
+	if strings.Contains(redirectUrl, Dashboard) {
+		redirectUrl = strings.ReplaceAll(redirectUrl, Orchestrator, "")
 	}
 	return redirectUrl
 }

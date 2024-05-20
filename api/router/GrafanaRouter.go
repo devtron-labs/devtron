@@ -19,7 +19,7 @@ type GrafanaRouterImpl struct {
 	grafanaProxy func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config) *GrafanaRouterImpl {
+func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config) (*GrafanaRouterImpl, error) {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -31,12 +31,15 @@ func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config)
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	grafanaProxy := grafana.NewGrafanaHTTPReverseProxy(fmt.Sprintf("http://%s:%s", grafanaCfg.Host, grafanaCfg.Port), client.Transport)
+	grafanaProxy, err := grafana.NewGrafanaHTTPReverseProxy(fmt.Sprintf("http://%s:%s", grafanaCfg.Host, grafanaCfg.Port), client.Transport)
+	if err != nil {
+		return nil, err
+	}
 	router := &GrafanaRouterImpl{
 		grafanaProxy: grafanaProxy,
 		logger:       logger,
 	}
-	return router
+	return router, nil
 }
 
 func (router GrafanaRouterImpl) initGrafanaRouter(grafanaRouter *mux.Router) {

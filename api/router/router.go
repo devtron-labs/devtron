@@ -181,7 +181,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	commonPolicyRouter commonPolicyActions.CommonPolicyRouter,
 	artifactPromotionPolicy artifactPromotionPolicy.Router,
 	scanningResultRouter scanningResultsParser.ScanningResultRouter,
-	scoopRouter scoop.Router) *MuxRouter {
+	scoopRouter scoop.Router,
+	) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),

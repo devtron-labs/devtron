@@ -1,6 +1,7 @@
 package util
 
 import (
+	"golang.org/x/exp/maps"
 	"math"
 	"strconv"
 	"strings"
@@ -95,4 +96,12 @@ func ContainsStringAlias[S ~[]E, E ~string](s S, v E) bool {
 func TruncateFloat(value float64, decimals int) float64 {
 	pow10 := math.Pow10(decimals)
 	return math.Trunc(value*pow10) / pow10
+}
+
+func GetUniqueKeys[T string | int](keys []T) []T {
+	set := make(map[T]bool)
+	for _, key := range keys {
+		set[key] = true
+	}
+	return maps.Keys(set)
 }

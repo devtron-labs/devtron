@@ -3,9 +3,10 @@ package cron
 import (
 	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/pubsub-lib/metrics"
-	util5 "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
+
+const PANIC = "panic"
 
 type CronLoggerImpl struct {
 	logger *zap.SugaredLogger
@@ -16,7 +17,7 @@ func (impl *CronLoggerImpl) Info(msg string, keysAndValues ...interface{}) {
 }
 
 func (impl *CronLoggerImpl) Error(err error, msg string, keysAndValues ...interface{}) {
-	if msg == util5.PANIC {
+	if msg == PANIC {
 		metrics.IncPanicRecoveryCount("cron", "", "", "")
 	}
 	keysAndValues = append([]interface{}{"err", err}, keysAndValues...)
