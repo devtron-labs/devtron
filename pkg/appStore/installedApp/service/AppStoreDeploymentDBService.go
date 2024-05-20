@@ -311,7 +311,9 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 			installedAppRes.ClusterId = environment.ClusterId
 			installedAppRes.Namespace = environment.Namespace
 		}
-
+		if util4.IsExternalChartStoreApp(a.DisplayName) {
+			installedAppRes.AppName = a.DisplayName
+		}
 		installedAppsEnvResponse = append(installedAppsEnvResponse, installedAppRes)
 	}
 	return installedAppsEnvResponse, nil

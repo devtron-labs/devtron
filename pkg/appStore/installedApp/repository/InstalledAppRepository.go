@@ -438,7 +438,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 
 func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.display_name, a.app_offering_mode, ia.updated_on, u.email_id," +
 		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type, app_status.status as app_status" +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
