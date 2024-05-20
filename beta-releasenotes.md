@@ -1,4 +1,5 @@
 ## Bugs
+- fix: handling side-effects for displaying external helm apps with same name across diff namespaces and clusters (#4951)
 - fix: fatal log removed (#5043)
 - fix: added a check for restricting managers to assign superadmin through permission groups (#5025)
 - fix: SHOW_DOCKER_BUILD_ARGS variable not working as expected (#5117)
