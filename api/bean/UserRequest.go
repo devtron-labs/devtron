@@ -131,6 +131,11 @@ type RoleGroupListingResponse struct {
 	TotalCount int          `json:"totalCount"`
 }
 
+type RestrictedGroup struct {
+	Group                   string
+	HasSuperAdminPermission bool
+}
+
 type ListingRequest struct {
 	SearchKey  string         `json:"searchKey"`
 	SortOrder  bean.SortOrder `json:"sortOrder"`
