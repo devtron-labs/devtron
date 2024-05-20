@@ -125,6 +125,7 @@ type CiPipelineRepository interface {
 	UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
+	FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
@@ -448,6 +449,24 @@ func (impl *CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline 
 		Select()
 
 	return pipeline, err
+}
+func (impl *CiPipelineRepositoryImpl) FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error) {
+	var pipelines []*CiPipeline
+	if len(pipelineName) == 0 {
+		return nil, nil
+	}
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&pipelines).
+		Join("inner join app a on ci_pipeline.app_id = a.id").
+		Where("ci_pipeline.name IN (?)", pg.In(pipelineName)).
+		Where("ci_pipeline.app_id IN (?)", pg.In(appIds)).
+		Where("ci_pipeline.deleted = ?", false).
+		Where("ci_pipeline.app_id=a.id").
+		Select()
+
+	return pipelines, err
 }
 
 func (impl *CiPipelineRepositoryImpl) CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error) {

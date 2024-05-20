@@ -96,6 +96,7 @@ type AppRepository interface {
 
 	FindAppsByIdsOrNames(ids []int, names []string) ([]*App, error)
 	GetTeamIdById(id int) (int, error)
+	FetchAppByDisplayNamesForJobs(names []string) ([]*AppDto, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -522,6 +523,24 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 		jobIds = append(jobIds, id.Id)
 	}
 	return appResp, jobIds, err
+}
+
+type AppDto struct {
+	Id          int    `json:"id"`
+	DisplayName string `json:"display_name"`
+}
+
+func (repo AppRepositoryImpl) FetchAppByDisplayNamesForJobs(names []string) ([]*AppDto, error) {
+
+	var jobIdName []*AppDto
+	if len(names) == 0 {
+		return nil, nil
+	}
+	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
+	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
+	query := "select id, display_name from app " + whereCondition
+	_, err := repo.dbConnection.Query(&jobIdName, query)
+	return jobIdName, err
 }
 
 func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error) {
