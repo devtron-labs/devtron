@@ -1711,7 +1711,7 @@ func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.Fil
 		}
 		//pre
 		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_PRE]; ok && len(values) > 0 {
-			if !slices.Contains(values, info.PreStatus) {
+			if !info.ExistingStages.Pre || !slices.Contains(values, info.PreStatus) {
 				//continue in case pre stage filters ln is greater than 0 and does not contain pre status of info.
 				continue
 			}
@@ -1719,14 +1719,14 @@ func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.Fil
 		}
 		//deploy
 		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_DEPLOY]; ok && len(values) > 0 {
-			if !slices.Contains(values, info.DeployStatus) {
+			if !info.ExistingStages.Deploy || !slices.Contains(values, info.DeployStatus) {
 				//continue in case deploy stage filters ln is greater than 0 and does not contain deploy status of info.
 				continue
 			}
 		}
 		//post
 		if values, ok := req.StageWiseDeploymentStatus[bean3.CD_WORKFLOW_TYPE_POST]; ok && len(values) > 0 {
-			if !slices.Contains(values, info.PostStatus) {
+			if !info.ExistingStages.Post || !slices.Contains(values, info.PostStatus) {
 				//continue in case post stage filters ln is greater than 0 and does not contain post status of info.
 				continue
 			}
