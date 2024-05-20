@@ -1,71 +1,436 @@
 # Resource Browser
 
-`Resource Browser` lists all of the resources running in your cluster. You can use it to view, inspect, manage, and delete resources in your cluster. You can also create resources from the `Resource Browser`.
+## Introduction
 
-Resource Browser are helpful for troubleshooting issues. It supports multi-cluster.
+The Devtron Resource Browser provides you a central interface to view and manage all your [Kubernetes objects](../../reference/glossary.md#objects) across clusters.  It helps you perform key actions like viewing logs, editing live manifests, and even creating/deleting resources directly from the user interface. This is especially useful for troubleshooting purposes as it supports multi-cluster too.
 
-**Note**: To provide permission to a user to view, inspect, manage, and delete resources, go to the [Authorization > User Permissions](./global-configurations/authorization/user-access.md) section of `Global Configurations`. You can also provide permission via [API token](./global-configurations/authorization/api-tokens.md) or [Permission groups](./global-configurations/authorization/permission-groups.md). Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
+{% hint style="info" %}
+### Additional References
+* [Resource browser versus traditional tools like kubectl](https://devtron.ai/blog/managing-kubernetes-resources-across-multiple-clusters)
+* [Why you should use Devtron's Resource Browser](https://devtron.ai/blog/what-is-the-kubernetes-resource-browser-in-devtron)
+{% endhint %}
 
-Please also note that `Resource Browser` page is under the early version of development and its a `Beta` release.
+First, the Resource Browser shows you a list of clusters added to your Devtron setup. By default, it displays a cluster named '*default_cluster*' after the [initial setup](../../setup/install/README.md) is successful.
 
-## Kubernetes Resources 
+![Figure 1: Devtron Resource Browser - List of Clusters](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-browser.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubernetes-resource-browser-latest.jpg)
+You can easily connect more clusters by clicking the **Add Cluster** button located at the top of the browser. This will take you to the [Cluster & Environments](../global-configurations/cluster-and-environments.md) configuration within [Global Configurations](../global-configurations/README.md).
 
-The following resources are grouped in the categories:
+You may click a cluster to view and manage all its resources as shown below.
 
-* **Workloads** displays workloads (Cronjob, Deployment, StatefulSet, DaemonSet, Job, and Pod resources) deployed to clusters in your current project. Includes each workload's name, status, type, number of running and total desired Pods, namespace, and cluster.
+![Figure 2: Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-list.jpg)
 
-* **Config & Storage** display ConfigMap, Secret, PersistentVolume, PersistentVolumeClaim, Pod DisruptionBudget, resources which are used by applications for storing data. The configMap and secret data are provided as local ephemeral storage, which means there is no long-term guarantee about durability. A PersistentVolume (PV) is a piece of storage in the cluster that has been provisioned by server/storage/cluster administrator or dynamically provisioned using Storage Classes. It is a resource in the cluster just like node. Whereas, A PersistentVolumeClaim (PVC) is a request for storage by a user which can be attained from PV. It is similar to a Pod. Pods consume node resources and PVCs consume PV resources.
+---
+
+## Overview
+
+![Figure 3: Resource Browser - Overview Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/rb-overview.jpg)
+
+### Resource Utilization
+
+This shows the combined CPU and memory consumption of all running pods in the cluster.
+
+| Parameter       | Description                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------|
+| CPU Usage       | Percentage of CPU resources currently being used across all the pods in the cluster.                        |
+| CPU Capacity   | Total amount of CPU resources available across all the nodes in the cluster. Measured in millicores (m).    |
+| CPU Requests   | Total amount of CPU resources requested by all the pods in the cluster.                                     |
+| CPU Limits      | Maximum amount of CPU resources that a total number of pods can use in the cluster.                        |
+| Memory Usage   | Percentage of memory resources currently being used across all the pods in the cluster.                     |
+| Memory Capacity | Total amount of memory resources available across all the nodes in the cluster. Measured in Megabytes (Mi). |
+| Memory Requests | Total amount of memory resources requested by all the pods in the cluster.                                  |
+| Memory Limits  | Maximum amount of memory resources that a total number of pods can use in the cluster.                       |
+
+### Errors
+
+This shows errors in the cluster. If no error is present in the cluster, Resource Browser will not display this section.
+
+### Catalog Framework
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to edit the catalog framework.
+{% endhint %}
+
+Based on the schema provided in the catalog framework, you can add relevant details for each cluster. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details. 
+
+### Readme
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to edit the readme file.
+{% endhint %}
+
+You can also include additional information about your cluster using the Markdown editor.
+
+---
+
+## Discovering Resources 
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to discover resources.
+{% endhint %}
+
+### Search and Filter
+
+You can use the searchbox to browse the resources.
+
+![Figure 4: Locate Resources using Searchbox](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/discover-resource.gif)
+
+Moreover, you can use filters that allow you to quickly filter your workload as per labels, field selectors, or [CEL expression](https://kubernetes.io/docs/reference/using-api/cel/) as shown below.
+
+{% embed url="https://www.youtube.com/watch?v=E-V-ELCXtfs" caption="Filtering Workloads in Devtron" %}
+
+### Edit Manifest 
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to edit its manifest.
+{% endhint %}
+
+You can edit the [manifest](../reference/glossary.md#manifest) of a Kubernetes object. This can be for fixing errors, scaling resources, or changing configuration.
+
+![Figure 5: Editing a Live Manifest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-live-manifest.gif)
+
+### View Events
+
+You can monitor activities like creation, deletion, updation, scaling, or errors in the resources involved. Refer [Events](https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/) to learn more.
+
+![Figure 6: Viewing All Events](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/events.gif)
+
+### Delete
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to delete it.
+{% endhint %}
+
+You can delete an unwanted resource if it is orphaned and no longer required by your applications.
+
+![Figure 7: Deleting a Resource](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete.gif)
+
+---
+
+## Nodes
+
+You can see the list of nodes available in your cluster. Typically you have several nodes in a cluster; in a learning or resource-limited environment, you might have only one node.
+
+The components on a typical node include the `kubelet`, a `container runtime`, and the `kube-proxy`.
+
+If you have multiple nodes, you can search a node by name or label in the search bar. The search result will display the following information about the node. To display a parameter of a node, use `Columns` on the right side, select the parameter to display from the drop-down list, and click **Apply**.
+
+![Figure 8: Searching and Filtering Nodes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cluster-nodes.jpg)
+
+| Fields | Description |
+| --- | --- |
+| Node | Alphanumeric name of the node |
+| Status | Status of a node. It can be either `Ready` or `Not Ready`. |
+| Roles | Shows the roles of a node, e.g., agent |
+| Errors | Shows the number of errors in nodes (if any) |
+| K8s Version | Shows the version of Kubernetes cluster |
+| Node Group | Shows which collection of worker nodes it belongs to |
+| No. of Pods | Shows the total number of pods present in the node |
+
+Clicking on a node shows you a number of details such as:
+
+* CPU Usage and Memory Usage of Node
+* CPU Usage and Memory Usage of Each Pod
+* Number of Pods in the Node
+* List of Pods
+* Age of Pods
+* Labels, Annotations, and Taints
+* Node IP
+
+![Figure 9: Checking Node Summary](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/node-summary.jpg)
+
+Further using the Devtron UI, you will be able to:
+* [Debug a Node](#debug-a-node)
+* [Cordon a Node](#cordon-a-node)
+* [Drain a Node](#drain-a-node)
+* [Taint a Node](#taint-a-node)
+* [Edit a Node Config](#edit-a-node-config)
+* [Delete a Node](#delete-a-node)
+
+{% hint style="info" %}
+### Why Are Node Operations Required?
+Your applications run on pods, and pods run on nodes. But sometimes, Kubernetes scheduler cannot deploy a pod on a node for several reasons, e.g., node is not ready, node is not reachable, network is unavailable, etc. In such cases, node operations help you manage the nodes better.
+{% endhint %}
+
+{% hint style="warning" %}
+### Who Can Perform These Actions?
+Users need to have super-admin permission to perform node operations.
+{% endhint %}
+
+### Debug a Node
+
+You can debug a node via [Cluster Terminal](#cluster-terminal) by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+
+* Click **Debug**.
+
+  ![Figure 10a: Debugging a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/debug.jpg)
+
+* Debug a node by selecting the terminal shell, i.e., `bash` or `sh`.
+
+  ![Figure 10b: Debug Terminal](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/debug-terminal.jpg)
+
+### Cordon a Node
+
+Cordoning a node means making the node unschedulable. After [cordoning a node](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cordon/), new pods cannot be scheduled on this node.
+
+![Figure 11a: Visual Representation - Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon-visual.jpg)
+
+* Click **Cordon**.
+
+  ![Figure 11b: Cordoning a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon.jpg)
+
+* A confirmation dialog box will appear, click **Cordon Node** to proceed.
+
+  ![Figure 11c: Cordon Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cordon-dialog.jpg)
+
+The status of the node shows `SchedulingDisabled` with `Unschedulable` parameter set as `true`.
+
+Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncordoned, new pods can be scheduled on the node.
+
+### Drain a Node
+
+Before performing maintenance on a node, [draining a node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and honour the `PodDisruptionBudgets` you have specified (if relevant).
+
+![Figure 12a: Visual Representation - Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain-visual.jpg)
+
+After the node is drained, all pods (including those managed by DaemonSets) in the node will be automatically drained to other nodes in the cluster, and the drained node will be set to cordoned status.
+
+* Click **Drain**.
+
+  ![Figure 12b: Draining a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain.jpg)
+
+* A confirmation dialog box will appear, click **Drain Node** to proceed.
+
+  ![Figure 12c: Drain Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/drain-dialog.jpg)
+
+You can also select from the following conditions before draining a node:
+
+| Name | Usage |
+| --- | --- |
+| Grace Period | Period of time in seconds given to each pod to terminate gracefully. If negative, the default value specified in the pod will be used. |
+| Delete empty directory data | Enabling this field will delete the pods using empty directory data when the node is drained. |
+| Disable eviction (use with caution) | Enabling this field will force drain to use delete, even if eviction is supported. This will bypass checking `PodDisruptionBudgets`.<br>Note: Make sure to use with caution.</br> |
+| Force drain | Enabling this field will force drain a node even if there are pods that do not declare a controller. |
+| Ignore DaemonSets | Enabling this field will ignore DaemonSet-managed pods. |
+
+### Taint a Node
+
+Taints are `key:value` pairs associated with effect. After you add taints to nodes, you can set tolerations on a pod to allow the pod to be scheduled to nodes with certain taints. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
+
+![Figure 13a: Visual Representation - Tainting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/taint-visual.jpg)
+
+**Note**: Make sure to check taint validations before you add a taint.
+
+* Click **Edit taints**.
+
+  ![Figure 13b: Tainting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-taints.jpg)
+
+* Enter the `key:value` pairs and select the [taint effect](#taint-effects) from the drop-down list.
+
+  ![Figure 13c: Adding Taints](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/taint-dialog.jpg)
+
+* Click **Save**.
+
+You can also add more taints using **+ Add taint button**, or delete the existing taint by using the delete icon. 
+
+{% hint style="info" %}
+### Additional Reference
+[Click here](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts) to read about taint effects.
+{% endhint %}
+
+### Edit a Node Config
+
+This allows you to directly edit any node. It will open the editor which contains all the configuration settings in which the default format is YAML. You can edit multiple objects, although changes are applied one at a time.
+
+![Figure 14: Editing Node Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-config.gif)
+
+* Go to the `YAML` tab and click **Edit YAML**.
+* Make the changes using the editor.
+* Click **Review & Save changes** to compare the changes in the YAML file.
+* Click **Apply changes** to confirm.
 
 
-* **Networking** displays your project's [Endpoints](https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/), [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) and [Service](https://kubernetes.io/docs/concepts/services-networking/service/) resources. Displays each resource's name, namespace, type, Cluster-IP, External-IP, Port(s), Age.
+### Delete a Node
 
-* **RBAC** stands for Role-based access control which provides the authorization strategy for regulating access to cluster or resources based on the roles of individual users within your organization.
+You can also delete a node by clicking the **Delete** button present on the right-hand side.
 
-* **Custom Resource** allows you to create your own API resources and define your own kind just like Pod, Deployment, ReplicaSet, etc. 
+![Figure 15a: Deleting a Node](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete-node.jpg)
 
+![Figure 15b: Delete Confirmation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/delete-dialog.jpg)
 
-The following resources are grouped as uncategoried:
+The node will be deleted from the cluster.
 
-** **Events** displays all the reports of an event in a cluster.
+{% hint style="info" %}
+You can also access [Cluster Terminal](#cluster-terminal) from your node.
+{% endhint %}
 
-** **Namespaces** displays the current list of namespaces in a cluster.
+---
 
-### Search and Filter Resources
+## Pods
 
-You can search and filter resources by specific resource Kinds. You can also preview `Manifest`, `Events`, `Logs`, access `Terminal` by selecting ellipsis on the specific resource or `Delete` a specific resource.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to view its pods and its data.
+{% endhint %}
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/select-resource.jpg)
+### Manifest
 
-#### Manifest
+Shows you the [configuration](../reference/glossary.md#manifest) of the selected pod and allows you to edit it. Refer [Edit Manifest](#edit-manifest) to learn more.
 
+### Events
 
-A manifest is a YAML file that describes each component or resource of your deployment and the state you want your cluster to be in once applied. Once you deploy, you can always edit your manifest file. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest.
+Shows you all the activities (create/update/delete) of the selected pod. Refer [View Events](#view-events) to know more.
 
-#### Events
+### Logs
 
-An event is automatically generated in response to changes with other resources—like nodes, pods, or containers. For example, phases across a pod’s lifecycle transition from pending to running, or statuses like successful or failed may trigger a K8s event. The same goes for re-allocations and scheduling. These events are available until 15 minutes of deployment of the application.
+Examining your cluster's pods helps you understand the health of your application. By inspecting pod logs, you can check the performance and identify if there are any failures. This is especially useful for debugging any issues effectively.
 
-#### Logs
+Moreover, you can download the pod logs for ease of sharing and troubleshooting as shown in the below video.
 
-Logs contain the logs of the Pods and Containers deployed which you can use for the process of debugging.
+{% embed url="https://www.youtube.com/watch?v=PP0ZKAZCT58" caption="Downloading Pod Logs" %}
 
+#### Pod Last Restart Snapshot
 
-### Create Kubernetes Resource
+Frequent pod restarts can impact your application as it might lead to unexpected downtimes. In such cases, it is important to determine the root cause and take actions (both preventive and corrective) if needed.
 
-**Note**: As a pre-requisite, you must have a basic understanding of Kubernetes Cluster, Resources, Kinds.
+In case any of your pod restarts, you can view its details from the pod listing screen:
+* Last pod restart event, along with the timestamp and message
+* Reason behind restart
+* Container log before restart
+* Node status and events  
 
-You can create a Kubernetes resource by passing definition YAML file. You can create more than one resource by separating the resource YAMLs by ‘---’.
+![Figure 16: Checking Restart Pod Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/restart-pod-log.gif)
 
-An example that shows the required fields and object specifications for a Kubernetes Deployment:
+### Terminal
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+User needs to be an [admin of the Kubernetes resource](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to access pod terminal.
+{% endhint %}
+
+You can access the terminal within a running container of a pod to view its logs, troubleshoot issues, or execute commands directly. This is different from the [cluster terminal](#cluster-terminal) you get at node level. 
+
+#### Launching Ephemeral Container
+
+This is a part of [Pod Terminal](#pod-terminal). It is especially useful when `kubectl exec` is insufficient because a container has crashed or a container image doesn't include debugging utilities.
+
+{% embed url="https://www.youtube.com/watch?v=Ml19i29Ivc4" caption="Launching Ephemeral Containers from Resource Browser" %}
+
+1. In the Resource Browser, select **Pod** within `Workloads`.
+2. Use the searchbar to find and locate the pod you wish to debug. Click the pod.
+3. Go to the **Terminal** tab 
+4. Click **Launch Ephemeral Container** as shown below.
+
+    You get 2 tabs:
+    1. **Basic** - It provides the bare minimum configurations required to launch an ephemeral container.
+
+    ![Figure 17: Basic Tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/basic.jpg)
+
+    It contains 3 mandatory fields:
+
+    * **Container name prefix** - Type a prefix to give to your ephemeral container, for e.g., *debug*. Your container name would look like `debug-jndvs`.
+
+    * **Image** - Choose an image to run from the dropdown. Ephemeral containers need an image to run and provide the capability to debug, such as `curl`. You can use a custom image too.
+    
+    * **Target Container name** - Since a pod can have one or more containers, choose a target container you wish to debug, from the dropdown.
+
+    2. **Advanced** - It is particularly useful for advanced users that wish to use labels or annotations since it provides additional key-value options. Refer [Ephemeral Container Spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#ephemeralcontainer-v1-core) to view the supported options.
+    
+    {% hint style="info" %}
+    Devtron ignores the 'command' field while launching an ephemeral container
+    {% endhint %}
+
+---
+
+## Other Resource Kinds
+
+Other resources in the cluster are grouped under the following categories:
+
+* Namespace
+* Workloads
+* Config & Storage
+* Networking
+* RBAC
+* Administration
+* Other Resources
+* Custom Resource
+
+![Figure 18: Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/resource-list.jpg)
+
+---
+
+## Cluster Terminal
+
+User with [super-admin](./global-configurations/authorization/user-access.md#assign-super-admin-permission) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+
+To troubleshoot a cluster or a specific node in a cluster, click the terminal icon on the right side.
+
+![Figure 19: Terminal Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/cluster-terminal.gif)
+
+* You will see the user-defined name for the cluster in Devtron. E.g. `default-cluster`.
+* Select the node you wish to troubleshoot from the `Node` drop-down. E.g. `demo-new`.
+* Select the namespace from the drop-down list which you have added in the [Environment](./global-configurations/cluster-and-environments.md#add-environment) section.
+* Select the image from the drop-down list which includes all CLI utilities or you can use a custom image, which is publicly available.
+* Select the terminal shell from the drop-down list (e.g. `sh`, `bash`) to troubleshoot a node.
+
+### Use Case - Debugging Pods
+
+You can also create a pod for debugging which will connect to the pod terminal. To find out why a particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
+
+The **Auto select** option automatically selects a node from a list of nodes and then creates a pod. Alternatively, you can choose a node of your choice from the same dropdown for debugging.
+
+The **Debug Mode** is helpful in scenarios where you can't access your node by using an SSH connection. Enabling this feature opens an interactive shell directly on the node. This shell provides unrestricted access to the node, giving you enhanced debugging capabilities.
+
+* Check the current state of the pod and recent events with the following command:
 
 ```bash
+kubectl get pods
+```
+
+* To know more information about each of these pods and to debug a pod depending on the state of the pods, run the following command:
+
+```bash
+kubectl describe pod <podname>
+```
+
+Here, you can see configuration information about the container(s) and pod (labels, resource requirements, etc.), as well as status information about the container(s) and pod (state, readiness, restart count, events, etc.). [Click here](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) to know more about pod lifecycle.
+
+{% hint style="info" %}
+A container can have no shells or multiple shells running in it. If you are unable to create a successful connection, try changing the shell, as the container may not have that shell running.
+{% endhint %}
+
+---
+
+## Creating Resources
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+User needs to be an [admin of the Kubernetes resources](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to create resources.
+{% endhint %}
+
+You can create one or more [Kubernetes objects](../reference/glossary.md#objects) in your cluster using YAML. In case you wish to create multiple objects, separate each resource definition by three dashes (---).
+
+Once you select a cluster in Resource Browser, click **+ Create Resource**, and add the resource definition.  
+
+In the below example, we have created a simple pod named `nginx`:
+
+![Figure 20: Creating Resources within Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-resource.gif)
+
+Here's one more example that shows the required fields and object specifications for a Kubernetes Deployment:
+
+{% code title="Spec File" overflow="wrap" lineNumbers="true" %}
+
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
-  labels:
+  labels: 
      app: nginx
 spec:
   replicas: 2
@@ -83,27 +448,4 @@ spec:
          ports:
          - containerPort: 80
 ```
-
-* Click `Create` button on the upper right corner of the `Kubernetes Resource Browser` page.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-resource.jpg)
-
-* Provide YAML containing K8s resource configuration and click `Apply`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-kubernetes-resource-latest.jpg)
-
-* You will see the details of `Kind`, `Name`, `Status` and `Message` of the created resources.
-
->Note: A message is displayed only when there is an error in the resource YAML.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-yaml.jpg)
-
-
-* If required, click `Edit YAML` to edit the YAML or click `Close`.
-
-* A new resource will be created or updated accordingly.
-
-
-
-
-
+{% endcode %}
