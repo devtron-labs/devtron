@@ -25,8 +25,8 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
 	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
-	github.com/devtron-labs/common-lib v0.0.16-0.20240507152853-f4e0998357d1
-	github.com/devtron-labs/common-lib-private v0.0.14-0.20240326055536-d44c3f0b1f15
+	github.com/devtron-labs/common-lib v0.0.18-0.20240520074334-86bc50296cc9
+	github.com/devtron-labs/common-lib-private v0.0.14-0.20240513130642-05e4868dc321
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
 	github.com/evanphx/json-patch v5.6.0+incompatible
@@ -84,6 +84,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
+	golang.org/x/mod v0.15.0
 	golang.org/x/oauth2 v0.19.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
@@ -266,7 +267,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
