@@ -206,7 +206,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		EmailId:  email,
 		UserType: bean.USER_TYPE_API_TOKEN,
 	}
-	createUserResponse, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
+	createUserResponse, _, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while creating user for api-token", "email", email, "error", err)
 		return nil, err
