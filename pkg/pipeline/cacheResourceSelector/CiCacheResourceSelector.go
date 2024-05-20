@@ -51,9 +51,13 @@ func (impl *CiCacheResourceSelectorImpl) GetAvailResource(scope resourceQualifie
 		return "", "", nil
 	}
 
-	// compute name from cel expression
+	autoSelectedPvc := impl.autoSelectAvailablePVC()
+	if autoSelectedPvc == nil {
+		// no error. all the pvs are busy callers should handle accordingly
+		return "", "", nil
+	}
 
-	// compute path from cel expression
+	// TODO: compute path from cel expression
 
 	return
 
@@ -90,6 +94,17 @@ func (impl *CiCacheResourceSelectorImpl) isPVCStatusSynced() bool {
 	defer impl.lock.RUnlock()
 	synced := impl.synced
 	return synced
+}
+
+func (impl *CiCacheResourceSelectorImpl) autoSelectAvailablePVC() *string {
+	impl.lock.Lock()
+	for pvc, status := range impl.resourcesStatus {
+		if status == AvailableResourceStatus {
+			pvcCopy := pvc
+			return &pvcCopy
+		}
+	}
+	return nil
 }
 
 // computePVCStatusMap computes pvc's statuses.
