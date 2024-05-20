@@ -203,11 +203,6 @@ var (
 	}, getLabels())
 )
 
-var Test = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: "test_seconds",
-	Help: "test queries",
-}, []string{"label"})
-
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",
@@ -386,7 +381,6 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		// Record the duration and increment the request counter
 		httpDuration.WithLabelValues(valuesArray...).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(urlPath, urlMethod, strconv.Itoa(d.Status())).Inc()
-		Test.WithLabelValues("value").Observe(time.Since(start).Seconds())
 	})
 }
 
