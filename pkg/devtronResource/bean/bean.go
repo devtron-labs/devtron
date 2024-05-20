@@ -307,9 +307,10 @@ type ChildInheritance struct {
 }
 
 type CdPipelineEnvironment struct {
-	Id         int    `json:"id,omitempty"`
-	Name       string `json:"name,omitempty"`
-	PipelineId int    `json:"pipelineId,omitempty"`
+	Id                int    `json:"id,omitempty"`
+	Name              string `json:"name,omitempty"`
+	PipelineId        int    `json:"pipelineId,omitempty"`
+	DeploymentAppType string `json:"deploymentAppType,omitempty"`
 }
 
 type ArtifactConfig struct {

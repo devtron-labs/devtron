@@ -116,11 +116,12 @@ func BuildDevtronResourceObjectDescriptorBean(id int, kind, subKind bean.Devtron
 	return reqBean
 }
 
-func BuildCdPipelineEnvironmentBasicData(envName string, envId, pipelineId int) *bean.CdPipelineEnvironment {
+func BuildCdPipelineEnvironmentBasicData(envName, deploymentAppType string, envId, pipelineId int) *bean.CdPipelineEnvironment {
 	return &bean.CdPipelineEnvironment{
-		Name:       envName,
-		Id:         envId,
-		PipelineId: pipelineId,
+		Name:              envName,
+		Id:                envId,
+		PipelineId:        pipelineId,
+		DeploymentAppType: deploymentAppType,
 	}
 }
 
