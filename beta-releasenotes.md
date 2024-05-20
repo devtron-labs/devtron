@@ -27,6 +27,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat: auto remediation (#5137)
 - feat: support for ca cert in trivy (#5064)
 - feat:validation for pipeline Type (#4670)
 - feat: migration update for remote connection config (#5113)
