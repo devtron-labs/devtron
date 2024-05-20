@@ -5,12 +5,14 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/types/ref"
 	"go.uber.org/zap"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 type CELEvaluatorService interface {
-	EvaluateCELRequest(request CELRequest) (bool, error)
+	EvaluateCELForBool(request CELRequest) (bool, error)
+	EvaluateCELForObject(request CELRequest) (interface{}, error)
 	Validate(request CELRequest) (*cel.Ast, *cel.Env, error)
 	ValidateCELRequest(request ValidateRequestResponse) (ValidateRequestResponse, bool)
 }
@@ -42,17 +44,39 @@ type CELRequest struct {
 	ExpressionMetadata ExpressionMetadata `json:"params"`
 }
 
-func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error) {
+func (impl *CELServiceImpl) EvaluateCELForObject(request CELRequest) (interface{}, error) {
+	outValue, err := impl.evaluateCEL(request)
+	if err != nil {
+		return false, err
+	}
+	return outValue.Value(), nil
+}
 
+func (impl *CELServiceImpl) EvaluateCELForBool(request CELRequest) (bool, error) {
+
+	out, err := impl.evaluateCEL(request)
+	if err != nil {
+		return false, err
+	}
+	outValue := out.Value()
+	if boolValue, ok := outValue.(bool); ok {
+		return boolValue, nil
+	}
+
+	return false, fmt.Errorf("expression did not evaluate to a boolean")
+
+}
+
+func (impl *CELServiceImpl) evaluateCEL(request CELRequest) (ref.Val, error) {
 	ast, env, err := impl.Validate(request)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while validating CEL request", "request", request, "err", err)
-		return false, err
+		return nil, err
 	}
 
 	prg, err := env.Program(ast)
 	if err != nil {
-		return false, fmt.Errorf("program construction error: %s", err)
+		return nil, fmt.Errorf("program construction error: %s", err)
 	}
 
 	expressionMetadata := request.ExpressionMetadata
@@ -63,15 +87,10 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 
 	out, _, err := prg.Eval(valuesMap)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	if boolValue, ok := out.Value().(bool); ok {
-		return boolValue, nil
-	}
-
-	return false, fmt.Errorf("expression did not evaluate to a boolean")
-
+	return out, nil
 }
 
 func (impl *CELServiceImpl) Validate(request CELRequest) (*cel.Ast, *cel.Env, error) {

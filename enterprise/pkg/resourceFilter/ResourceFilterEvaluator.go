@@ -30,7 +30,7 @@ func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filterConditions []util.
 			Expression:         expression,
 			ExpressionMetadata: expressionMetadata,
 		}
-		response, err := impl.celEvaluator.EvaluateCELRequest(celRequest)
+		response, err := impl.celEvaluator.EvaluateCELForBool(celRequest)
 		if err != nil {
 			return false, err
 		}

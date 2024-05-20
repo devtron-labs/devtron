@@ -1386,7 +1386,7 @@ func (impl *NotificationConfigServiceImpl) EvaluateNotificationExpression(ctx co
 			Params: params,
 		},
 	}
-	response, err := impl.celService.EvaluateCELRequest(evalReq)
+	response, err := impl.celService.EvaluateCELForBool(evalReq)
 	if err != nil {
 		impl.logger.Errorw("error while CEL expression evaluation", "err", err)
 		return false, err

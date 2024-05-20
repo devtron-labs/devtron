@@ -771,7 +771,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 					},
 				},
 			}
-			pass, err := impl.celEvaluatorService.EvaluateCELRequest(celRequest)
+			pass, err := impl.celEvaluatorService.EvaluateCELForBool(celRequest)
 			if err != nil || !pass {
 				continue
 			}

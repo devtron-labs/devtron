@@ -2,7 +2,6 @@ package expressionEvaluators
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -54,12 +53,12 @@ func TestCELServiceImpl_EvaluateCELRequest(t *testing.T) {
 			fields: fields{Logger: log},
 			args: args{request: CELRequest{
 				Expression: "has(self.data.player_initial_lives)",
-				ExpressionMetadata: resourceFilter.ExpressionMetadata{
-					Params: []resourceFilter.ExpressionParam{
+				ExpressionMetadata: ExpressionMetadata{
+					Params: []ExpressionParam{
 						{
 							ParamName: "self",
 							Value:     uns.UnstructuredContent(),
-							Type:      resourceFilter.ParamTypeObject,
+							Type:      ParamTypeObject,
 						},
 					},
 				},
@@ -76,11 +75,11 @@ func TestCELServiceImpl_EvaluateCELRequest(t *testing.T) {
 			impl := &CELServiceImpl{
 				Logger: tt.fields.Logger,
 			}
-			got, err := impl.EvaluateCELRequest(tt.args.request)
-			if !tt.wantErr(t, err, fmt.Sprintf("EvaluateCELRequest(%v)", tt.args.request)) {
+			got, err := impl.EvaluateCELForBool(tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("EvaluateCELForBool(%v)", tt.args.request)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "EvaluateCELRequest(%v)", tt.args.request)
+			assert.Equalf(t, tt.want, got, "EvaluateCELForBool(%v)", tt.args.request)
 		})
 	}
 }

@@ -32,6 +32,7 @@
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
  | CACHE_LIMIT | 5000000000 |  | 
+ | CACHE_PVCs |  |  | 
  | CAN_APPROVER_DEPLOY | false |  | 
  | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
  | CASBIN_DATABASE | casbin |  | 
@@ -208,6 +209,8 @@
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | PVC_MOUNT_PATH_EXPRESSION |  |  | 
+ | PVC_NAME_EXPRESSION |  |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
