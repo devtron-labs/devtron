@@ -47,6 +47,7 @@ type InstalledAppAndEnvDetails struct {
 	EnvironmentName              string    `json:"environment_name"`
 	EnvironmentId                int       `json:"environment_id"`
 	AppName                      string    `json:"app_name"`
+	DisplayName                  string    `json:"display_name"`
 	AppOfferingMode              string    `json:"appOfferingMode"`
 	UpdatedOn                    time.Time `json:"updated_on"`
 	EmailId                      string    `json:"email_id"`
