@@ -2204,7 +2204,7 @@ func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (strin
 	if impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
 		groupsClaims = groups
 	}
-	return email, groupsClaims, nil
+	return strings.ToLower(email), groupsClaims, nil
 }
 
 func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, string, error) {
