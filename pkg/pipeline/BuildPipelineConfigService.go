@@ -401,7 +401,11 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
 	}
-
+	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
+		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
+		errorMessage := fmt.Sprintf(CiPipeline2.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
 		if material.ScmId != "" {
@@ -1609,7 +1613,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := constants.NORMAL
+		pipelineType := constants.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]

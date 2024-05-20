@@ -29,7 +29,7 @@ type ArtifactPromotionRequest struct {
 
 func GetSourceTypeFromPipelineType(pipelineType bean4.PipelineType) bean2.SourceTypeStr {
 	switch pipelineType {
-	case bean4.NORMAL:
+	case bean4.CI_BUILD:
 		return bean2.SOURCE_TYPE_CI
 	case bean4.LINKED:
 		return bean2.SOURCE_TYPE_LINKED_CI
