@@ -31,7 +31,7 @@ var NatsEventPublishTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
 
 var NatsEventDeliveryCount = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: constants.NATS_EVENT_DELIVERY_COUNT,
-}, []string{constants.TOPIC, constants.MESSAGE_ID})
+}, []string{constants.TOPIC})
 
 var PanicRecoveryCount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: constants.PANIC_RECOVERY_COUNT,
