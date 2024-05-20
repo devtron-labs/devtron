@@ -14,17 +14,21 @@ import (
 const Dashboard = "dashboard"
 const Proxy = "proxy"
 
-func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func(writer http.ResponseWriter, request *http.Request) {
-	proxy := GetProxyServer(serverAddr, transport, Dashboard)
+func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) (func(writer http.ResponseWriter, request *http.Request), error) {
+	proxy, err := GetProxyServer(serverAddr, transport, Dashboard)
+	if err != nil {
+		return nil, err
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
-	}
+	}, nil
 }
 
-func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string) *httputil.ReverseProxy {
+func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
@@ -35,7 +39,7 @@ func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclud
 		request.URL.Path = rewriteRequestUrl(path, pathToExclude)
 		fmt.Printf("%s\n", request.URL.Path)
 	}
-	return proxy
+	return proxy, nil
 }
 
 func rewriteRequestUrl(path string, pathToExclude string) string {
@@ -50,8 +54,11 @@ func rewriteRequestUrl(path string, pathToExclude string) string {
 	return strings.Join(finalParts, "/")
 }
 
-func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
-	proxy := GetProxyServer(serverAddr, transport, Proxy)
+func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforcer casbin.Enforcer) (func(writer http.ResponseWriter, request *http.Request), error) {
+	proxy, err := GetProxyServer(serverAddr, transport, Proxy)
+	if err != nil {
+		return nil, err
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		token := r.Header.Get("token")
@@ -60,5 +67,5 @@ func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforce
 			return
 		}
 		proxy.ServeHTTP(w, r)
-	}
+	}, nil
 }

@@ -31,6 +31,8 @@ const (
 	CustomApp     AppType = 0 // cicd app
 	ChartStoreApp AppType = 1 // helm app
 	Job           AppType = 2 // jobs
+	// ExternalChartStoreApp app-type is not stored in db
+	ExternalChartStoreApp AppType = 3 // external helm app
 )
 
 type AppListingRepositoryQueryBuilder struct {

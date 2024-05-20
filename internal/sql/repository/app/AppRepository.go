@@ -41,6 +41,10 @@ type App struct {
 	sql.AuditLog
 }
 
+func (r *App) IsAppJobOrExternalType() bool {
+	return len(r.DisplayName) > 0
+}
+
 type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
