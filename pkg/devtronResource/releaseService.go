@@ -1876,6 +1876,9 @@ func processDeploymentVsCountMapForResponse(deployStatusVsCountMap map[string]in
 	if val, ok := deployStatusVsCountMap[bean.RunningStatus]; ok {
 		inProgress = inProgress + val
 	}
+	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowStarting]; ok {
+		inProgress = inProgress + val
+	}
 	if val, ok := deployStatusVsCountMap[pipelineConfig.WorkflowSucceeded]; ok {
 		succeeded = val
 	}
