@@ -101,6 +101,9 @@ const (
 	CD_PIPELINE_DELETE_EVENT_TOPIC      string = "CD-PIPELINE-DELETE-EVENT"
 	CD_PIPELINE_DELETE_EVENT_GROUP      string = "CD-PIPELINE-DELETE-EVENT-GROUP"
 	CD_PIPELINE_DELETE_EVENT_DURABLE    string = "CD-PIPELINE-DELETE-EVENT-DURABLE"
+	CHART_SCAN_TOPIC                    string = "CHART-SCAN-TOPIC"
+	CHART_SCAN_GROUP                    string = "CHART-SCAN-GROUP"
+	CHART_SCAN_DURABLE                  string = "CHART-SCAN-DURABLE"
 )
 
 type NatsTopic struct {
@@ -147,6 +150,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
 
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
+	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -242,6 +246,7 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 	err = env.Parse(&defaultConfig)
 	if err != nil {
 		log.Print("error while parsing config from environment params", "err", err)
+		return err
 	}
 
 	// default stream and consumer config values
