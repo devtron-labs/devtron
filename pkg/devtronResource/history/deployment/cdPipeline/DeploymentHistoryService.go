@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"go.uber.org/zap"
 )
@@ -57,6 +58,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 	toGetOnlyWfrIds := make([]int, 0)
 	wfrIdReleaseIdMap := make(map[int]int)
 	releaseIdsForRunSourceData := make([]int, 0)
+	toFetchRunnerData := true
 	// finding task target identifier resource and schema id assuming it tobe cd -pipeline here
 	cdPipelineSchema, err := impl.dtResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean2.DevtronResourceCdPipeline.ToString(), "",
 		bean2.DevtronResourceVersion1.ToString())
@@ -84,48 +86,51 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 		for _, deploymentTaskRun := range deploymentTaskRuns {
 			toGetOnlyWfrIds = append(toGetOnlyWfrIds, deploymentTaskRun.TaskTypeIdentifier)
 		}
+		toFetchRunnerData = len(toGetOnlyWfrIds) != 0
 	}
+	var wfs []bean3.CdWorkflowWithArtifact
 
-	wfs, err := impl.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, toGetOnlyWfrIds, offset, limit)
-	if err != nil {
-		impl.logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
-		return resp, err
-	}
-
-	if filterByReleaseId == 0 { //not filtering by release, to get run source data for result workflows only for optimised processing
-		//not getting runners for a specific release, have to get runSource of the above result wfRunners
-		filteredWfrIds := make([]int, 0, len(wfs))
-		for _, wf := range wfs {
-			filteredWfrIds = append(filteredWfrIds, wf.Id)
-		}
-		deploymentTaskRuns, err = impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(filteredWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
-		if err != nil && util2.IsErrNoRows(err) {
-			impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "filteredWfrIds", filteredWfrIds)
-			return resp, err
-		}
-
-	}
-	for _, deploymentTaskRun := range deploymentTaskRuns {
-		//decode runSourceIdentifier
-		identifier, err := util.DecodeTaskRunSourceIdentifier(deploymentTaskRun.RunSourceIdentifier)
+	if toFetchRunnerData {
+		wfs, err = impl.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, toGetOnlyWfrIds, offset, limit)
 		if err != nil {
+			impl.logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 			return resp, err
 		}
-		wfrIdReleaseIdMap[deploymentTaskRun.TaskTypeIdentifier] = identifier.Id
-		releaseIdsForRunSourceData = append(releaseIdsForRunSourceData, identifier.Id)
-	}
+		if filterByReleaseId == 0 && len(wfs) != 0 { //not filtering by release, to get run source data for result workflows only for optimised processing
+			//not getting runners for a specific release, have to get runSource of the above result wfRunners
+			filteredWfrIds := make([]int, 0, len(wfs))
+			for _, wf := range wfs {
+				filteredWfrIds = append(filteredWfrIds, wf.Id)
+			}
+			deploymentTaskRuns, err = impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(filteredWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
+			if err != nil && util2.IsErrNoRows(err) {
+				impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "filteredWfrIds", filteredWfrIds)
+				return resp, err
+			}
 
-	if len(releaseIdsForRunSourceData) > 0 {
-		runSourceMap, err := impl.dtResourceReadService.GetTaskRunSourceInfoForReleases(releaseIdsForRunSourceData)
-		if err != nil {
-			impl.logger.Errorw("error, GetTaskRunSourceInfoForReleases", "err", err, "releaseIds", releaseIdsForRunSourceData)
-			return resp, err
 		}
-		for i := range wfs {
-			wfrId := wfs[i].Id
-			releaseId := wfrIdReleaseIdMap[wfrId]
-			runSource := runSourceMap[releaseId]
-			wfs[i].RunSource = runSource
+		for _, deploymentTaskRun := range deploymentTaskRuns {
+			//decode runSourceIdentifier
+			identifier, err := util.DecodeTaskRunSourceIdentifier(deploymentTaskRun.RunSourceIdentifier)
+			if err != nil {
+				return resp, err
+			}
+			wfrIdReleaseIdMap[deploymentTaskRun.TaskTypeIdentifier] = identifier.Id
+			releaseIdsForRunSourceData = append(releaseIdsForRunSourceData, identifier.Id)
+		}
+
+		if len(releaseIdsForRunSourceData) > 0 {
+			runSourceMap, err := impl.dtResourceReadService.GetTaskRunSourceInfoForReleases(releaseIdsForRunSourceData)
+			if err != nil {
+				impl.logger.Errorw("error, GetTaskRunSourceInfoForReleases", "err", err, "releaseIds", releaseIdsForRunSourceData)
+				return resp, err
+			}
+			for i := range wfs {
+				wfrId := wfs[i].Id
+				releaseId := wfrIdReleaseIdMap[wfrId]
+				runSource := runSourceMap[releaseId]
+				wfs[i].RunSource = runSource
+			}
 		}
 	}
 
