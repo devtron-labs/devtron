@@ -139,7 +139,7 @@ Users need to have [Build and deploy permission](../user-guide/global-configurat
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to hibernate or unhibernate applications.
+Users need to have [Build & deploy permission](./global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to hibernate or unhibernate applications.
 {% endhint %}
 
 Since every application comes with an option to hibernate, the same is true for application groups. Using application group, you can hibernate one or more applications belonging to the same environment if you do not want them to consume resources (replica count will be set to 0). 
