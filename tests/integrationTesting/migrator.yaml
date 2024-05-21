@@ -12,8 +12,6 @@ spec:
             - mountPath: /tmp/app/
               name: sql-scripts-volume
           env:
-            - name: SCRIPT_LOCATION
-              value: scripts/sql/
             - name: DB_TYPE
               value: postgres
             - name: DB_USER_NAME
