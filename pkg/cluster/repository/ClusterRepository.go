@@ -170,8 +170,8 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	err := impl.dbConnection.
 		Model(cluster).
 		Column("cluster.*", "RemoteConnectionConfig").
-		Where("id =?", id).
-		Where("active =?", true).
+		Where("cluster.id =?", id).
+		Where("cluster.active =?", true).
 		Limit(1).
 		Select()
 	return cluster, err
