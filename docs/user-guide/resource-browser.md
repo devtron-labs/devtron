@@ -493,22 +493,28 @@ If you are not a super-admin and can't generate a token yourself, you can find t
   clusters:
   - cluster:
       insecure-skip-tls-verify: true
-      server: https://<devtron proxy url for cluster>
-    name: default-cluster
+      server: https://<devtron_host_name>/orchestrator/k8s/proxy/cluster/<cluster_name>
+    name: devtron-cluster
   contexts:
   - context:
-      cluster: default-cluster
+      cluster: devtron-cluster
       user: admin
-    name: default-cluster
-  current-context: default-cluster
+    name: devtron-cluster
+  current-context: devtron-cluster
   users:
   - name: admin
     user:
-      token: <devtron token>
+      token: <devtron_token>
   ```
   {% endcode %}
 
-2. Enter the cluster URL provided by Devtron in the `server` field, and API token (you generated) in the `token` field. 
+2. Edit the following placeholders in the `server` field and the `token` field:
+
+  | Placeholder         | Description                         | Example                                         |
+  | ------------------- | ----------------------------------- | ----------------------------------------------- |
+  | <devtron_host_name> | Hostname of the Devtron server      | demo.devtron.ai                                 |
+  | <cluster_name>      | Name of the cluster (or cluster ID) | devtron-cluster                                 |
+  | <devtron_token>     | API token or session token          | \-                                              |
 
   ![Figure 23: Editing Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.gif)
 
