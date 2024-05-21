@@ -478,10 +478,11 @@ Devtron helps in reducing the challenges and simplifying the maintenance of kube
 
 ### Steps
 
-{% hint style="info" %}
-### Prerequisite
-An [API token with necessary permissions](./global-configurations/authorization/api-tokens.md) for the user(s) to access the cluster.
-{% endhint %}
+**Prerequisite**: An [API token with necessary permissions](./global-configurations/authorization/api-tokens.md) for the user(s) to access the cluster. 
+
+If you are not a super-admin and can't generate a token yourself, you can use the session token (argocd.token) using the Developer Tools available in your web browser as shown below.
+
+![Figure 22: Using Session Token](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/argocd-token-v1.gif)
 
 1. Go to `~/.kube` folder on your local machine and open the `config` file. Or you may create one with the following content:
 
@@ -493,15 +494,15 @@ An [API token with necessary permissions](./global-configurations/authorization/
   - cluster:
       insecure-skip-tls-verify: true
       server: https://<devtron proxy url for cluster>
-    name: <cluster_name>
+    name: default-cluster
   contexts:
   - context:
-      cluster: <cluster_name>
-      user: <user_name>
-    name: <context_name>
-  current-context: <context_name>
+      cluster: default-cluster
+      user: admin
+    name: default-cluster
+  current-context: default-cluster
   users:
-  - name: <user_name>
+  - name: admin
     user:
       token: <devtron token>
   ```
@@ -509,11 +510,11 @@ An [API token with necessary permissions](./global-configurations/authorization/
 
 2. Enter the cluster URL provided by Devtron in the `server` field, and API token (you generated) in the `token` field. 
 
-  ![Figure 22: Editing Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.gif)
+  ![Figure 23: Editing Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.gif)
 
 3. Test the connection to the cluster by running any kubectl command, e.g., `kubectl get ns` or `kubectl get po -A`
 
 4. Once you have successfully connected to the cluster, you may run the port-forward command. Refer [kubectl port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) to see a few examples.
 
-  ![Figure 23: Example - Port Forwarding](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/port-forward.gif)
+  ![Figure 24: Example - Port Forwarding](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/port-forward.gif)
 
