@@ -58,6 +58,7 @@ type CreateAppDTO struct {
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
 	GenericNote *bean2.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	DisplayName string                         `json:"-"`                             //not exposed to UI
 }
 
 type CreateMaterialDTO struct {
@@ -191,7 +192,6 @@ type ExternalCiConfigRole struct {
 
 // -------------------
 type PatchAction int
-type PipelineType string
 
 const (
 	CREATE        PatchAction = iota

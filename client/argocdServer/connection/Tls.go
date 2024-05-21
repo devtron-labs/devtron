@@ -32,7 +32,6 @@ func GetTLS(cert *tls.Certificate) credentials.TransportCredentials {
 	//These certificates are to be read from secret create by argocd
 	//cert, err := tls.X509KeyPair([]byte(TLSCert), []byte(TLSKey))
 	//if err != nil {
-	//	log.Fatal(err)
 	//}
 	certPool := x509.NewCertPool()
 	pemCertBytes, _ := EncodeX509KeyPair(*cert)

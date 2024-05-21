@@ -1587,6 +1587,15 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 }
 
 func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, appId int, userId int32) (int, error) {
+	//checking if workflow name  already exist or not
+	ok, err := handler.appWorkflowService.IsWorkflowNameFound(workflowName, appId)
+	if err != nil {
+		return 0, err
+	}
+	// if workflow name already exists then we will assign a new name to the workflow
+	if ok {
+		workflowName = util.GenerateNewWorkflowName(workflowName)
+	}
 	wf := &appWorkflow2.AppWorkflow{
 		Name:   workflowName,
 		AppId:  appId,
@@ -2133,6 +2142,25 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 				}
 				if ciPipeline.AppId != workflow.CiPipeline.ParentAppId {
 					return fmt.Errorf("invalid parentAppId '%v' for the given parentCiPipeline '%v'", workflow.CiPipeline.ParentAppId, workflow.CiPipeline.ParentCiPipeline), http.StatusBadRequest
+				}
+				parentMaterialMap := make(map[int]*pipelineConfig.CiPipelineMaterial)
+				for _, material := range ciPipeline.CiPipelineMaterials {
+					parentMaterialMap[material.GitMaterialId] = material
+				}
+				for _, requestPipelineMaterial := range workflow.CiPipeline.CiPipelineMaterialsConfig {
+					parentMaterial, ok := parentMaterialMap[requestPipelineMaterial.GitMaterialId]
+					if !ok {
+						return fmt.Errorf("invalid material id - request material id should match parent material id for linked ci,  request material id - '%v' ", requestPipelineMaterial.GitMaterialId), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Value != parentMaterial.Value {
+						return fmt.Errorf(" parentMaterialValue and request material value should match for linked ci - parent material value - %v child value %v ", requestPipelineMaterial.Value), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.Type != parentMaterial.Type {
+						return fmt.Errorf(" parentMaterialType and request material value should match for linked ci - parent material type - %v child type %v ", requestPipelineMaterial.Type), http.StatusBadRequest
+					}
+					if requestPipelineMaterial.CheckoutPath != parentMaterial.CheckoutPath {
+						return fmt.Errorf(" parentMaterialType and request material CheckoutPath should match for linked ci - parent material CheckoutPath - %v child CheckoutPath %v ", requestPipelineMaterial.CheckoutPath), http.StatusBadRequest
+					}
 				}
 			}
 			ciMaterialCheckoutPaths := make([]string, 0)

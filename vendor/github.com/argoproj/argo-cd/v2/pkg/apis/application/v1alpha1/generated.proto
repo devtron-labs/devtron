@@ -873,6 +873,9 @@ message EnvEntry {
   optional string value = 2;
 }
 
+message ErrApplicationNotAllowedToUseProject {
+}
+
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1072,6 +1075,7 @@ message KustomizeReplica {
 
 // ListGenerator include items info
 message ListGenerator {
+  // +kubebuilder:validation:Optional
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
