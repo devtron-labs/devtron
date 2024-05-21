@@ -121,7 +121,7 @@
   * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
   * [Notifications](user-guide/integrations/notifications.md)
   * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
-* [Preset Plugins](user-guide/plugins/README.md)
+* [Pipeline Plugins](user-guide/plugins/README.md)
   * [Codacy](user-guide/plugins/codacy.md)
   * [Copy Container Image](user-guide/plugins/copy-container-image.md)
   * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)

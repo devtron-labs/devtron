@@ -14,7 +14,8 @@ Using filter conditions, you can control the progression of events. Here are a f
 ## Steps to Create a Filter
 
 {% hint style="info" %}
-**Pre-requisite**: You must have application(s) with CI-CD workflow(s) configured
+### Prerequisites
+You must have application(s) with CI-CD workflow(s) configured
 {% endhint %}
 
 1. From the left sidebar, go to **Global Configurations** → **Filter Condition**.
