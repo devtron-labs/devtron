@@ -14,3 +14,8 @@ type Config struct {
 }
 
 const BuildPVCLabel = "devtron.ai/build/pvc"
+
+type CiCacheSelector struct {
+	PVCName   string
+	MountPath string
+}

@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
@@ -141,6 +142,7 @@ type WorkflowRequest struct {
 	ImageScanMaxRetries         int                                   `json:"imageScanMaxRetries,omitempty"`
 	ImageScanRetryDelay         int                                   `json:"imageScanRetryDelay,omitempty"`
 	Scope                       resourceQualifiers.Scope
+	CiCacheSelector             *cacheResourceSelector.CiCacheSelector `json:"-"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -230,7 +232,7 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: //TODO: separate job as did in eventType, will need changes in wf template for this
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: // TODO: separate job as did in eventType, will need changes in wf template for this
 		return bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CD_WORKFLOW_NAME
@@ -242,7 +244,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return bean.CiStage //although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
+		return bean.CiStage // although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CdStage
 	default:
@@ -493,7 +495,23 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		}
 	}
 
-	if len(pvc) != 0 {
+	if workflowRequest.CiCacheSelector != nil {
+		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v1.Volume{
+			Name: "ci-cache-vol",
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: workflowRequest.CiCacheSelector.PVCName,
+					ReadOnly:  false,
+				},
+			},
+		})
+		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
+			v1.VolumeMount{
+				Name:      workflowRequest.CiCacheSelector.PVCName,
+				MountPath: workflowRequest.CiCacheSelector.MountPath,
+			})
+
+	} else if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
 		buildxPvcCachePath := config.BuildxPvcCachePath
 		defaultPvcCachePath := config.DefaultPvcCachePath

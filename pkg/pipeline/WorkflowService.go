@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -61,19 +62,20 @@ type WorkflowService interface {
 }
 
 type WorkflowServiceImpl struct {
-	Logger                 *zap.SugaredLogger
-	config                 *rest.Config
-	ciCdConfig             *types.CiCdConfig
-	appService             app.AppService
-	envRepository          repository.EnvironmentRepository
-	globalCMCSService      GlobalCMCSService
-	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
-	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sUtilExtended
-	k8sCommonService       k8s2.K8sCommonService
-	chartTemplateService   util2.ChartTemplateService
-	mergeUtil              *util2.MergeUtil
-	infraProvider          infraProviders.InfraProvider
+	Logger                  *zap.SugaredLogger
+	config                  *rest.Config
+	ciCdConfig              *types.CiCdConfig
+	appService              app.AppService
+	envRepository           repository.EnvironmentRepository
+	globalCMCSService       GlobalCMCSService
+	argoWorkflowExecutor    executors.ArgoWorkflowExecutor
+	systemWorkflowExecutor  executors.SystemWorkflowExecutor
+	k8sUtil                 *k8s.K8sUtilExtended
+	k8sCommonService        k8s2.K8sCommonService
+	chartTemplateService    util2.ChartTemplateService
+	mergeUtil               *util2.MergeUtil
+	infraProvider           infraProviders.InfraProvider
+	ciCacheResourceSelector cacheResourceSelector.CiCacheResourceSelector
 }
 
 // TODO: Move to bean
@@ -83,20 +85,22 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 	k8sUtil *k8s.K8sUtilExtended,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, chartTemplateService util2.ChartTemplateService,
 	mergeUtil *util2.MergeUtil,
-	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
+	infraProvider infraProviders.InfraProvider,
+	ciCacheResourceSelector cacheResourceSelector.CiCacheResourceSelector) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
-		Logger:                 Logger,
-		ciCdConfig:             ciCdConfig,
-		appService:             appService,
-		envRepository:          envRepository,
-		globalCMCSService:      globalCMCSService,
-		argoWorkflowExecutor:   argoWorkflowExecutor,
-		k8sUtil:                k8sUtil,
-		systemWorkflowExecutor: systemWorkflowExecutor,
-		k8sCommonService:       k8sCommonService,
-		chartTemplateService:   chartTemplateService,
-		mergeUtil:              mergeUtil,
-		infraProvider:          infraProvider,
+		Logger:                  Logger,
+		ciCdConfig:              ciCdConfig,
+		appService:              appService,
+		envRepository:           envRepository,
+		globalCMCSService:       globalCMCSService,
+		argoWorkflowExecutor:    argoWorkflowExecutor,
+		k8sUtil:                 k8sUtil,
+		systemWorkflowExecutor:  systemWorkflowExecutor,
+		k8sCommonService:        k8sCommonService,
+		chartTemplateService:    chartTemplateService,
+		mergeUtil:               mergeUtil,
+		infraProvider:           infraProvider,
+		ciCacheResourceSelector: ciCacheResourceSelector,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -179,6 +183,13 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		}
 	}
 
+	// TODO: correct the pvc and path resolution expressions
+	ciCacheSelector, err := impl.ciCacheResourceSelector.GetAvailResource(workflowRequest.Scope, workflowRequest.AppLabels, "", "", workflowRequest.WorkflowId)
+	if err != nil {
+		// some error occurred skip the ciCacheSelector and continue
+		impl.Logger.Errorw("error in getting ci cache selector", "err", err)
+	}
+	workflowRequest.CiCacheSelector = ciCacheSelector
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 
 	if err != nil {
