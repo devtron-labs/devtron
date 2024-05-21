@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-devtron
-          image: quay.io/devtron/test:e026843e-866-11925
+          image: quay.io/devtron/migrator:e026843e-866-11925
           volumeMounts:
             - mountPath: /tmp/app/
               name: sql-scripts-volume
@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-casbin
-          image: quay.io/devtron/test:e026843e-866-11925
+          image: quay.io/devtron/migrator:e026843e-866-11925
           env:
             - name: SCRIPT_LOCATION
               value: scripts/casbin/
@@ -85,7 +85,7 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-gitsensor
-          image: quay.io/devtron/test:e026843e-866-11925
+          image: quay.io/devtron/migrator:e026843e-866-11925
           env:
             - name: SCRIPT_LOCATION
               value: scripts/sql/
@@ -123,7 +123,7 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-lens
-          image: quay.io/devtron/test:e026843e-866-11925
+          image: quay.io/devtron/migrator:e026843e-866-11925
           env:
             - name: SCRIPT_LOCATION
               value: scripts/sql/
