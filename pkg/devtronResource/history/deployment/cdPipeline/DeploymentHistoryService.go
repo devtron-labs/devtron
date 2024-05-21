@@ -66,7 +66,8 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 	}
 	runTargetIdentifier := helper.GetTaskRunIdentifier(pipelineId, bean2.OldObjectId, cdPipelineSchema.DevtronResourceId, cdPipelineSchema.Id)
 	var deploymentTaskRuns []*repository.DevtronResourceTaskRun
-	if filterByReleaseId > 0 {
+	if filterByReleaseId > 0 { //filtering by release, offset and limit is valid for release runSourced workflow runners only
+		//get these runners and get only their data
 		releaseSchema, err := impl.dtResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean2.DevtronResourceRelease.ToString(), "",
 			bean2.DevtronResourceVersionAlpha1.ToString())
 		if err != nil {
@@ -91,7 +92,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 		return resp, err
 	}
 
-	if filterByReleaseId == 0 {
+	if filterByReleaseId == 0 { //not filtering by release, to get run source data for result workflows only for optimised processing
 		//not getting runners for a specific release, have to get runSource of the above result wfRunners
 		filteredWfrIds := make([]int, 0, len(wfs))
 		for _, wf := range wfs {
@@ -153,13 +154,14 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
 		return
 	}
-	filteredWfrIds := make([]int, 0, len(res))
+	respWfrIds := make([]int, 0, len(res))
 	for _, r := range res {
-		filteredWfrIds = append(filteredWfrIds, r.WfrId)
+		respWfrIds = append(respWfrIds, r.WfrId)
 	}
-	deploymentTaskRuns, err := impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(filteredWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
+	//getting run source for the response wfrIds
+	deploymentTaskRuns, err := impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(respWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
 	if err != nil && util2.IsErrNoRows(err) {
-		impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "filteredWfrIds", filteredWfrIds)
+		impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "respWfrIds", respWfrIds)
 		return resp, err
 	}
 	wfrIdReleaseIdMap := make(map[int]int)
