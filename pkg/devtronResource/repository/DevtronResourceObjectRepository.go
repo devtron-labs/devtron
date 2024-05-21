@@ -319,7 +319,7 @@ func (repo *DevtronResourceObjectRepositoryImpl) GetChildObjectsByParentArgAndSc
 func (repo *DevtronResourceObjectRepositoryImpl) GetDownstreamObjectsByParentArgAndSchemaIds(argumentValues []interface{}, argumentTypes []string,
 	devtronResourceSchemaIds []int) ([]*DevtronResourceObject, error) {
 	var models []*DevtronResourceObject
-	query := repo.dbConnection.Model(&models).Where("deleted = ?", false)
+	query := repo.dbConnection.Model(&models).Where("deleted = ?", false).Where("devtron_resource_schema_id in (?)", pg.In(devtronResourceSchemaIds))
 	query.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
 		for i := range argumentValues {
 			query.WhereOr(getDownstreamWhereClauseByArgValueTypeAndSchemaId(argumentValues[i], argumentTypes[i], devtronResourceSchemaIds[i]))
