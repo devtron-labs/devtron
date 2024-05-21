@@ -92,7 +92,7 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService clien
 
 func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
 	var remoteConnectionConfigId int
-	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+	if bean.RemoteConnectionConfig != nil {
 		remoteConnectionConfigId = bean.RemoteConnectionConfig.RemoteConnectionConfigId
 	}
 	return &repository.DockerArtifactStore{
