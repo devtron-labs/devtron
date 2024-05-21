@@ -176,6 +176,12 @@ The physical or virtual machines that make up a Kubernetes cluster, where contai
 
 In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/clusters.md#nodes)
 
+### Objects
+
+Kubernetes objects are the building blocks that define and manage your applications running on the platform. They are also known as 'Resources' or 'Kinds'. This includes nodes, pods, deployment, cronjob, configmap, and many more. 
+
+Devtron's [Resource Browser](../user-guide/resource-browser/README.md) helps you manage all such objects present in your clusters.
+
 ### Pod
 
 The smallest deployable unit in Kubernetes, consisting of one or more containers that share storage and network resources within the same context. 
