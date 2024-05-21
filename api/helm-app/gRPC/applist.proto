@@ -387,6 +387,7 @@ message RemoteConnectionConfig {
 enum RemoteConnectionMethod {
   PROXY = 0;
   SSH = 1;
+  DIRECT = 2;
 }
 
 message ProxyConfig {
