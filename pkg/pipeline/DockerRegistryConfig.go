@@ -313,7 +313,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+	if bean.RemoteConnectionConfig != nil {
 		// 2 - insert air-gapped connection config for this docker registry
 		err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, bean.User, tx)
 		if err != nil {
@@ -536,12 +536,6 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
-	if (existingStore.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy ||
-		existingStore.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH) &&
-		bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodDirect {
-		existingStore.RemoteConnectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{}
-	}
 
 	// 3- update registryConnectionConfig in server_connection_config table for this docker registry
 	if bean.RemoteConnectionConfig != nil {
