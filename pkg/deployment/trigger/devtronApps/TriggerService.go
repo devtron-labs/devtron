@@ -378,6 +378,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
+		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(overrideRequest.CdWorkflowRunnerId, overrideRequest.UserId, err)
+		if err2 != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err2", err2)
+		}
 		return 0, "", err
 	}
 	span.End()
