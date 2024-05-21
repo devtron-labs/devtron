@@ -87,22 +87,24 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *clusterBean.ClusterBean) *c
 	return clusterBean
 }
 
-func ConvertNewClusterBeanToOldClusterBean(clusterBean *clusterBean.ClusterBean) *clusterBean.ClusterBean {
-	if clusterBean.RemoteConnectionConfig != nil {
-		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
-			clusterBean.RemoteConnectionConfig.ProxyConfig != nil {
-			clusterBean.ProxyUrl = clusterBean.RemoteConnectionConfig.ProxyConfig.ProxyUrl
+func ConvertNewClusterBeanToOldClusterBean(cluster *clusterBean.ClusterBean) *clusterBean.ClusterBean {
+	if cluster.RemoteConnectionConfig != nil {
+		if cluster.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
+			cluster.RemoteConnectionConfig.ProxyConfig != nil {
+			cluster.ProxyUrl = cluster.RemoteConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
-			clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil {
-			clusterBean.ToConnectWithSSHTunnel = true
-			clusterBean.SSHTunnelConfig.SSHServerAddress = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress
-			clusterBean.SSHTunnelConfig.User = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername
-			clusterBean.SSHTunnelConfig.Password = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword
-			clusterBean.SSHTunnelConfig.AuthKey = clusterBean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey
+		if cluster.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			cluster.RemoteConnectionConfig.SSHTunnelConfig != nil {
+			cluster.ToConnectWithSSHTunnel = true
+			cluster.SSHTunnelConfig = &clusterBean.SSHTunnelConfig{
+				User:             cluster.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername,
+				Password:         cluster.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword,
+				AuthKey:          cluster.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+				SSHServerAddress: cluster.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+			}
 		}
 	}
-	return clusterBean
+	return cluster
 }
 
 func ConvertClusterBeanToCluster(clusterBean *clusterBean.ClusterBean, userId int32) *repository.Cluster {
