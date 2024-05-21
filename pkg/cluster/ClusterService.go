@@ -149,6 +149,9 @@ func IsProxyOrSSHConfigured(bean *bean.ClusterBean) bool {
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	bean = adapter.ConvertClusterBeanToNewClusterBean(bean) // bean is converted according to new struct
+	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodDirect {
+		bean.RemoteConnectionConfig = nil
+	}
 	//validating config
 	k8sServerVersion, err := impl.CheckIfConfigIsValidAndGetServerVersion(bean)
 	if err != nil {
@@ -424,6 +427,12 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 		impl.logger.Error(err)
 		return nil, err
 	}
+	if (model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy ||
+		model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH) &&
+		bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodDirect {
+		model.RemoteConnectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{}
+	}
+
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -440,14 +449,15 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	if len(requestConfigBearerToken) == 0 {
 		bean.Config[k8s2.BearerToken] = model.Config[k8s2.BearerToken]
 	}
-
-	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
-		bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
-		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword == remoteConnectionBean.SecretDataObfuscatePlaceholder {
-			bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = model.RemoteConnectionConfig.SSHPassword
-		}
-		if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey == remoteConnectionBean.SecretDataObfuscatePlaceholder {
-			bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = model.RemoteConnectionConfig.SSHPassword
+	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+		if bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH &&
+			bean.RemoteConnectionConfig.SSHTunnelConfig != nil {
+			if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword == remoteConnectionBean.SecretDataObfuscatePlaceholder {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword = model.RemoteConnectionConfig.SSHPassword
+			}
+			if bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey == remoteConnectionBean.SecretDataObfuscatePlaceholder {
+				bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey = model.RemoteConnectionConfig.SSHPassword
+			}
 		}
 	}
 
