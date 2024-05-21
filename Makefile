@@ -40,8 +40,8 @@ test-unit:
 	go test ./pkg/pipeline
 
 test-integration:
-	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
-	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
+	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test1 -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
+	docker exec dind-test1 sh -c "mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
 run: build
 	./devtron
 .PHONY: build
