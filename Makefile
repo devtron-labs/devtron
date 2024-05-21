@@ -40,17 +40,13 @@ test-unit:
 	go test ./pkg/pipeline
 
 test-integration:
-	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$TEST_BRANCH --env LATEST_HASH=$LATEST_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
-	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
-	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
-
+	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
+	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
 run: build
 	./devtron
-
 .PHONY: build
 docker-build-image:  build
 	 docker build -t devtron:$(TAG) .
-
 .PHONY: build, all, wire, clean, run, set-docker-build-env, docker-build-push, devtron,
 docker-build-push: docker-build-image
 	docker tag devtron:${TAG}  ${REGISTRY}/devtron:${TAG}
