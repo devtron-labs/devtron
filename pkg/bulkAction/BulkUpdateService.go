@@ -1408,7 +1408,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			}
 			continue
 		}
-		err = impl.cdPipelineEventPublishService.PublishBulkTriggerTopicEvent(pipeline.Id, pipeline.AppId, artifact.CiPipelineId, request.UserId)
+		err = impl.cdPipelineEventPublishService.PublishBulkTriggerTopicEvent(pipeline.Id, pipeline.AppId, artifact.Id, request.UserId, bean.CD_WORKFLOW_TYPE_DEPLOY, 0, 0)
 		if err != nil {
 			impl.logger.Errorw("error, PublishBulkTriggerTopicEvent", "err", err, "pipeline", pipeline)
 			pipelineResponse := response[appKey]

@@ -2,14 +2,17 @@ package devtronResource
 
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/audit"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/google/wire"
 )
 
 var DevtronResourceWireSet = wire.NewSet(
 	//old bindings, migrated from wire.go
-	devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-	wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+	read.NewDevtronResourceSearchableKeyServiceImpl,
+	wire.Bind(new(read.DevtronResourceSearchableKeyService), new(*read.DevtronResourceSearchableKeyServiceImpl)),
 	repository.NewDevtronResourceSearchableKeyRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceSearchableKeyRepository), new(*repository.DevtronResourceSearchableKeyRepositoryImpl)),
 
@@ -17,8 +20,18 @@ var DevtronResourceWireSet = wire.NewSet(
 	wire.Bind(new(DevtronResourceRouter), new(*DevtronResourceRouterImpl)),
 	NewDevtronResourceRestHandlerImpl,
 	wire.Bind(new(DevtronResourceRestHandler), new(*DevtronResourceRestHandlerImpl)),
+
+	devtronResource.NewDevtronResourceSchemaServiceImpl,
+	wire.Bind(new(devtronResource.DevtronResourceSchemaService), new(*devtronResource.DevtronResourceSchemaServiceImpl)),
+	in.NewInternalProcessingServiceImpl,
+	wire.Bind(new(in.InternalProcessingService), new(*in.InternalProcessingServiceImpl)),
+	read.NewReadServiceImpl,
+	wire.Bind(new(read.ReadService), new(*read.ReadServiceImpl)),
 	devtronResource.NewDevtronResourceServiceImpl,
 	wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceServiceImpl)),
+	audit.NewObjectAuditServiceImpl,
+	wire.Bind(new(audit.ObjectAuditService), new(*audit.ObjectAuditServiceImpl)),
+
 	repository.NewDevtronResourceRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceRepository), new(*repository.DevtronResourceRepositoryImpl)),
 	repository.NewDevtronResourceSchemaRepositoryImpl,
@@ -29,11 +42,23 @@ var DevtronResourceWireSet = wire.NewSet(
 	wire.Bind(new(repository.DevtronResourceSchemaAuditRepository), new(*repository.DevtronResourceSchemaAuditRepositoryImpl)),
 	repository.NewDevtronResourceObjectAuditRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectAuditRepository), new(*repository.DevtronResourceObjectAuditRepositoryImpl)),
+	repository.NewDevtronResourceTaskRunRepositoryImpl,
+	wire.Bind(new(repository.DevtronResourceTaskRunRepository), new(*repository.DevtronResourceTaskRunRepositoryImpl)),
 )
 
 var DevtronResourceWireSetEA = wire.NewSet(
+	devtronResource.NewDevtronResourceSchemaServiceImpl,
+	wire.Bind(new(devtronResource.DevtronResourceSchemaService), new(*devtronResource.DevtronResourceSchemaServiceImpl)),
 	devtronResource.NewDevtronResourceServiceImpl,
 	wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceServiceImpl)),
+
+	in.NewInternalProcessingServiceImpl,
+	wire.Bind(new(in.InternalProcessingService), new(*in.InternalProcessingServiceImpl)),
+	read.NewReadServiceImpl,
+	wire.Bind(new(read.ReadService), new(*read.ReadServiceImpl)),
+	audit.NewObjectAuditServiceImpl,
+	wire.Bind(new(audit.ObjectAuditService), new(*audit.ObjectAuditServiceImpl)),
+
 	repository.NewDevtronResourceRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceRepository), new(*repository.DevtronResourceRepositoryImpl)),
 	repository.NewDevtronResourceSchemaRepositoryImpl,
@@ -44,4 +69,6 @@ var DevtronResourceWireSetEA = wire.NewSet(
 	wire.Bind(new(repository.DevtronResourceSchemaAuditRepository), new(*repository.DevtronResourceSchemaAuditRepositoryImpl)),
 	repository.NewDevtronResourceObjectAuditRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectAuditRepository), new(*repository.DevtronResourceObjectAuditRepositoryImpl)),
+	repository.NewDevtronResourceTaskRunRepositoryImpl,
+	wire.Bind(new(repository.DevtronResourceTaskRunRepository), new(*repository.DevtronResourceTaskRunRepositoryImpl)),
 )

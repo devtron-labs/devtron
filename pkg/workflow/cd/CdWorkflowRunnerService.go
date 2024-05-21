@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -11,6 +12,7 @@ import (
 type CdWorkflowRunnerService interface {
 	FindWorkflowRunnerById(wfrId int) (*bean.CdWorkflowRunnerDto, error)
 	CheckIfWfrLatest(wfrId, pipelineId int) (isLatest bool, err error)
+	CreateBulkCdWorkflowRunners(tx *pg.Tx, cdWorkflowRunnerDtos []*bean.CdWorkflowRunnerDto) (map[int]int, error)
 }
 
 type CdWorkflowRunnerServiceImpl struct {
@@ -43,4 +45,17 @@ func (impl *CdWorkflowRunnerServiceImpl) CheckIfWfrLatest(wfrId, pipelineId int)
 		return false, err
 	}
 	return isLatest, nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) CreateBulkCdWorkflowRunners(tx *pg.Tx, cdWorkflowRunnerDtos []*bean.CdWorkflowRunnerDto) (map[int]int, error) {
+	cdWorkFlowRunners := make([]*pipelineConfig.CdWorkflowRunner, 0, len(cdWorkflowRunnerDtos))
+	for _, dto := range cdWorkflowRunnerDtos {
+		cdWorkFlowRunners = append(cdWorkFlowRunners, adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto))
+	}
+	err := impl.cdWorkflowRepository.BulkSaveWorkflowRunners(tx, cdWorkFlowRunners)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CreateBulkCdWorkflowRunners", "cdWorkFlowRunners", cdWorkFlowRunners, "err", err)
+		return nil, err
+	}
+	return util.GetCdWorkflowIdVsRunnerIdMap(cdWorkFlowRunners), nil
 }

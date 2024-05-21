@@ -104,6 +104,7 @@ type Payload struct {
 	ArtifactPromotionRequestViewLink string               `json:"artifactPromotionRequestViewLink"`
 	ArtifactPromotionApprovalLink    string               `json:"artifactPromotionApprovalLink"`
 	PromotionArtifactSource          string               `json:"promotionArtifactSource"`
+	ScoopNotificationConfig          interface{}          `json:"scoopNotificationConfig"`
 }
 
 type CiPipelineMaterialResponse struct {

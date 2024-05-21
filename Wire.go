@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -92,6 +93,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
+	scoop2 "github.com/devtron-labs/devtron/client/scoop"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
@@ -166,6 +168,9 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
+	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -218,7 +223,10 @@ func InitializeApp() (*App, error) {
 		globalPolicy.GlobalPolicyWireSet,
 		drafts.DraftsWireSet,
 		protect.ProtectWireSet,
+
 		devtronResource.DevtronResourceWireSet,
+		devtronResource2.PolicyWireSet,
+
 		globalConfig.GlobalConfigWireSet,
 		lockConfiguation.LockConfigWireSet,
 		build.BuildWireSet,
@@ -232,6 +240,7 @@ func InitializeApp() (*App, error) {
 
 		artifactApproval.ArtifactApprovalWireSet,
 		artifactPromotion2.ArtifactPromotionWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -308,12 +317,6 @@ func InitializeApp() (*App, error) {
 
 		infraConfig.NewInfraProfileRouterImpl,
 		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
-		scoop.NewServiceImpl,
-		wire.Bind(new(scoop.Service), new(*scoop.ServiceImpl)),
-		scoop.NewRestHandler,
-		wire.Bind(new(scoop.RestHandler), new(*scoop.RestHandlerImpl)),
-		scoop.NewRouterImpl,
-		wire.Bind(new(scoop.Router), new(*scoop.RouterImpl)),
 		router.NewMuxRouter,
 
 		app4.NewAppRepositoryImpl,
@@ -1016,8 +1019,8 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 
 		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
 		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
@@ -1067,6 +1070,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 
 		appStoreRestHandler.AppStoreWireSet,
+
+		remoteConnectionRepository.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(remoteConnectionRepository.RemoteConnectionRepository), new(*remoteConnectionRepository.RemoteConnectionRepositoryImpl)),
+
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
+
+		scoop2.NewScoopClientGetter,
+		wire.Bind(new(scoop2.ScoopClientGetter), new(*scoop2.ScoopClientGetterImpl)),
+		scoop.ScoopWireSet,
 	)
 	return &App{}, nil
 }

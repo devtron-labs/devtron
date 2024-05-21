@@ -13,6 +13,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -37,7 +38,7 @@ type K8sCommonService interface {
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s2.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s2.EventsResponse, error)
-	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *clusterBean.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
@@ -90,7 +91,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExt
 
 func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*ResourceGetResponse, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	var restConfigFinal *rest.Config
 	if len(request.ExternalArgoApplicationName) > 0 {
@@ -120,7 +121,7 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
@@ -141,7 +142,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 }
 
 func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
@@ -154,12 +155,12 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 		impl.logger.Errorw("error in deleting resource", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	//if request.AppIdentifier != nil {
+	// if request.AppIdentifier != nil {
 	//	saveAuditLogsErr := impl.K8sResourceHistoryService.SaveHelmAppsResourceHistory(request.AppIdentifier, request.K8sRequest, userId, bean3.Delete)
 	//	if saveAuditLogsErr != nil {
 	//		impl.logger.Errorw("error in saving audit logs for delete resource request", "err", err)
 	//	}
-	//}
+	// }
 	return resp, nil
 }
 
@@ -274,7 +275,7 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	return res, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
+func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *clusterBean.ClusterBean) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
@@ -344,16 +345,16 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 }
 
 func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) []BatchResourceResponse {
-	//total batch length
+	// total batch length
 	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {
 		impl.logger.Errorw("Empty requests for getManifestsInBatch")
 	}
 	requestsLength := len(requests)
-	//final batch responses
+	// final batch responses
 	res := make([]BatchResourceResponse, requestsLength)
 	for i := 0; i < requestsLength; {
-		//requests left to process
+		// requests left to process
 		remainingBatch := requestsLength - i
 		if remainingBatch < batchSize {
 			batchSize = remainingBatch
@@ -475,13 +476,13 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 	clusterConfig := clusterBean.GetClusterConfig()
 	v1Client, err := impl.K8sUtil.GetCoreV1Client(clusterConfig)
 	if err != nil {
-		//not logging clusterConfig as it contains sensitive data
+		// not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", clusterId)
 		return nil, nil, err
 	}
 	_, _, clientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
-		//not logging clusterConfig as it contains sensitive data
+		// not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", clusterId)
 		return nil, v1Client, err
 	}
@@ -496,13 +497,13 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(re
 
 	v1Client, err := impl.K8sUtil.GetCoreV1ClientByRestConfig(restConfig)
 	if err != nil {
-		//not logging clusterConfig as it contains sensitive data
+		// not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", req.ClusterId)
 		return nil, nil, err
 	}
 	_, clientSet, err := impl.K8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
-		//not logging clusterConfig as it contains sensitive data
+		// not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", req.ClusterId)
 		return nil, v1Client, err
 	}

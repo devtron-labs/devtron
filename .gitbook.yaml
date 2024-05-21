@@ -76,4 +76,5 @@ redirects:
     user-guide/use-cases/untitled-3: user-guide/use-cases/connect-django-with-mysql-database.md
     global-configurations/api-token: user-guide/global-configurations/authorization/api-tokens.md
     user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline.md
+    usage/clusters: usage/resource-browser
 

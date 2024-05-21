@@ -36,6 +36,8 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Filter Condition](filter-condition.md)
 
+[Image Promotion](image-promotion-policy.md)
+
 [Lock Deployment Configuration](lock-deployment-config.md)
 
 [Build Infra](build-infra.md)

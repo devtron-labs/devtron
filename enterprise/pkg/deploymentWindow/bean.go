@@ -30,6 +30,11 @@ func (action UserActionState) IsActionAllowed() bool {
 func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
+
+func (action UserActionState) IsActionBypass() bool {
+	return action == Partial
+}
+
 func GetNotFoundError(err error) error {
 	msg := "not found"
 	return &util.ApiError{

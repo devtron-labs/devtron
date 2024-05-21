@@ -13,12 +13,7 @@ message ClusterConfig {
   string keyData = 6;
   string certData = 7;
   string caData = 8;
-  string proxyUrl = 9;
-  bool toConnectWithSSHTunnel = 10;
-  string sshTunnelUser = 11;
-  string sshTunnelPassword = 12;
-  string sshTunnelAuthKey = 13;
-  string sshTunnelServerAddress = 14;
+  RemoteConnectionConfig RemoteConnectionConfig = 9;
 }
 
 message AppListRequest {
@@ -393,7 +388,32 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
+  RemoteConnectionConfig RemoteConnectionConfig = 10;
+  string RegistryId = 11;
 }
+
+enum RemoteConnectionMethod {
+  PROXY = 0;
+  SSH = 1;
+}
+
+message ProxyConfig {
+  string ProxyUrl = 1;
+}
+
+message SSHTunnelConfig {
+  string SSHServerAddress = 1;
+  string SSHUsername = 2;
+  string SSHPassword = 3;
+  string SSHAuthKey = 4;
+}
+
+message RemoteConnectionConfig {
+  RemoteConnectionMethod RemoteConnectionMethod = 1;
+  ProxyConfig ProxyConfig = 2;
+  SSHTunnelConfig SSHTunnelConfig = 3;
+}
+
 
 message OCIRegistryResponse {
   bool IsLoggedIn = 1;

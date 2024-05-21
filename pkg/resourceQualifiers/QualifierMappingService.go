@@ -3,8 +3,8 @@ package resourceQualifiers
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -17,7 +17,7 @@ import (
 type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope) ([]*QualifierMapping, error)
-	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
+	GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
@@ -272,10 +272,10 @@ func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceTyp
 type QualifierMappingServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	qualifierMappingRepository          QualifiersMappingRepository
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService
 }
 
-func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
+func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
 	return &QualifierMappingServiceImpl{
 		logger:                              logger,
 		qualifierMappingRepository:          qualifierMappingRepository,
@@ -297,8 +297,8 @@ func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilter(scope Scop
 	return impl.qualifierMappingRepository.GetQualifierMappingsForFilter(scope, searchableKeyNameIdMap)
 }
 
-func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
-	return impl.qualifierMappingRepository.GetQualifierMappingsForFilterById(resourceId)
+func (impl QualifierMappingServiceImpl) GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error) {
+	return impl.qualifierMappingRepository.GetQualifierMappingsByResourceId(resourceId, resourceType)
 }
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error) {

@@ -44,6 +44,7 @@ type AppWorkflowRepository interface {
 	FindWFCIMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error)
@@ -52,6 +53,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
+	FindFilteredWFMappingsByAppId(appId int, wfIds ...int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error)
 	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
@@ -286,6 +288,18 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 		Select()
 	return appWorkflowsMapping, err
 }
+func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	if len(ciPipelineId) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("component_id IN (?)", pg.In(ciPipelineId)).
+		Where("type = ?", CIPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
@@ -375,6 +389,20 @@ func (impl AppWorkflowRepositoryImpl) FindAllWFMappingsByAppId(appId int) ([]*Ap
 		Where("aw.active = ?", true).
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindFilteredWFMappingsByAppId(appId int, wfIds ...int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	query := impl.dbConnection.Model(&appWorkflowsMapping).
+		Join("INNER JOIN app_workflow aw on aw.id=app_workflow_mapping.app_workflow_id").
+		Where("aw.app_id = ?", appId).
+		Where("aw.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true)
+	if len(wfIds) > 0 {
+		query = query.Where("app_workflow_mapping.app_workflow_id IN (?)", pg.In(wfIds))
+	}
+	err := query.Select()
 	return appWorkflowsMapping, err
 }
 
