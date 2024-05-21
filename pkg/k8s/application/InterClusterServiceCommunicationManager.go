@@ -101,7 +101,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 			if proxyServerMetadata := impl.getK8sProxyServerMetadata(clusterId); proxyServerMetadata != nil {
 				lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
 				if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > (time.Duration(impl.cfg.ProxyUpTime) * time.Second)) {
-					impl.logger.Infow("Stopping K8sProxy because of inactivity", "k8sProxyPort", k8sProxyPort)
+					impl.logger.Infow("stopping K8sProxy because of inactivity", "k8sProxyPort", k8sProxyPort)
 					forwardedPort := proxyServerMetadata.forwardedPort
 					impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
 					return
@@ -112,12 +112,7 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(c
 			time.Sleep(10 * time.Second)
 		}
 	}()
-	for i := 0; i < 10; i++ {
-		if portActive("localhost", k8sProxyPort) {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	impl.waitForK8sProxyServer(k8sProxyPort)
 	return reverseProxyMetadata.proxyServer, nil
 }
 
@@ -130,9 +125,21 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) handleErrorBeforeRespon
 		Message: "An error occurred. Please try again.",
 		Reason:  "Internal Server Error",
 	}
-	impl.logger.Errorw("Error in connecting proxy server", "Error", err)
+	impl.logger.Errorw("error in connecting proxy server", "Error", err)
 	w.WriteHeader(http.StatusForbidden)
 	_ = json.NewEncoder(w).Encode(errorResponse)
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) waitForK8sProxyServer(port int) {
+	for i := 0; i < 10; i++ {
+		if portActive("localhost", port) {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !portActive("localhost", port) {
+		impl.portForwardManager.StopPortForwarding(context.Background(), port)
+	}
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) getK8sProxyServerMetadata(clusterId int) *ProxyServerMetadata {

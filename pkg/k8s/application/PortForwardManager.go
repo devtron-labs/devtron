@@ -48,6 +48,7 @@ func NewPortForwardManagerImpl(logger *zap.SugaredLogger, k8sCommonService k8s.K
 
 func (impl *PortForwardManagerImpl) StopPortForwarding(ctx context.Context, port int) bool {
 	if stopChannel, ok := impl.stopChannels[port]; ok {
+		impl.logger.Infow("stopping port forwarding", "port", port)
 		close(stopChannel)
 		delete(impl.stopChannels, port)
 		return true
@@ -76,7 +77,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 	if err != nil {
 		return 0, err
 	}
-	impl.logger.Infow("Starting to serve k8s api proxy server", "addr", listener.Addr().String())
+	impl.logger.Infow("starting to serve k8s api proxy server", "addr", listener.Addr().String())
 	stopChannel := make(chan struct{})
 	impl.stopChannels[unUsedPort] = stopChannel
 	go func() {
@@ -88,7 +89,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 		default:
 			if err != nil {
 				handleK8sApiProxyError(clusterId)
-				impl.logger.Errorw("An error occurred while listening to k8s api proxy server", "err", err)
+				impl.logger.Errorw("an error occurred while listening to k8s api proxy server", "err", err)
 			}
 			return
 		}
@@ -98,7 +99,7 @@ func (impl *PortForwardManagerImpl) StartK8sProxy(ctx context.Context, clusterId
 		case <-stopChannel:
 			err := listener.Close()
 			if err != nil {
-				impl.logger.Errorw("An error occurred while closing k8s api server", "err", err)
+				impl.logger.Errorw("an error occurred while closing k8s api server", "err", err)
 			}
 			return
 		}
