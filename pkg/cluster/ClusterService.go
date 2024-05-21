@@ -184,16 +184,18 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	model.K8sVersion = k8sServerVersion.String()
 
 	// save clusterConnectionConfig
-	err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving clusterConnectionConfig in db", "err", err)
-		err = &util.ApiError{
-			Code:            constants.ClusterCreateDBFailed,
-			InternalMessage: "cluster creation failed in db",
-			UserMessage:     fmt.Sprintf("requested by %d", userId),
+	if bean.RemoteConnectionConfig != nil {
+		err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving clusterConnectionConfig in db", "err", err)
+			err = &util.ApiError{
+				Code:            constants.ClusterCreateDBFailed,
+				InternalMessage: "cluster creation failed in db",
+				UserMessage:     fmt.Sprintf("requested by %d", userId),
+			}
 		}
+		model.RemoteConnectionConfigId = bean.RemoteConnectionConfig.RemoteConnectionConfigId
 	}
-	model.RemoteConnectionConfigId = bean.RemoteConnectionConfig.RemoteConnectionConfigId
 	// save cluster
 	err = impl.clusterRepository.Save(model, tx)
 	if err != nil {
@@ -427,11 +429,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 		impl.logger.Error(err)
 		return nil, err
 	}
-	if (model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy ||
-		model.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH) &&
-		bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodDirect {
-		model.RemoteConnectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{}
-	}
 
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
@@ -441,6 +438,11 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	if existingModel.Id > 0 && model.Id != existingModel.Id {
 		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
 		return nil, fmt.Errorf("cluster already exists")
+	}
+
+	if existingModel.RemoteConnectionConfig != nil && (existingModel.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy ||
+		existingModel.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH) && bean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodDirect {
+		existingModel.RemoteConnectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{}
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
@@ -512,8 +514,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 			model.RemoteConnectionConfig.SSHUsername = bean.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername
 			model.RemoteConnectionConfig.SSHPassword = bean.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword
 			model.RemoteConnectionConfig.SSHAuthKey = bean.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey
-		} else {
-			return nil, err
 		}
 	}
 	if bean.PrometheusAuth != nil {
