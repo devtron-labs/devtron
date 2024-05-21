@@ -7,17 +7,11 @@ spec:
     spec:
       containers:
         - name: postgresql-migrate-devtron
-          image: laeeqa222/abcd:5f5ebe0d-43-225
+          image: laeeqa222/abcd:96531e29-12-4216
           volumeMounts:
-            - mountPath: /laeeq/app/scripts/sql
+            - mountPath: /tmp/app/
               name: sql-scripts-volume
-          command: [ "/bin/sh", "-c" ]
-          args: [ "sleep 3600" ]
           env:
-            - name: GIT_HASH
-              value: be7da471e45a501eba19eaa5f8d08dfe5601598d
-            - name: GIT_REPO_URL
-              value: https://github.com/devtron-labs/devtron.git
             - name: SCRIPT_LOCATION
               value: scripts/sql/
             - name: DB_TYPE
@@ -41,10 +35,10 @@ spec:
       volumes:
         - name: sql-scripts-volume
           hostPath:
-            path: /test/scripts/sql
+            path: /tmp/scripts/
             type: DirectoryOrCreate
   backoffLimit: 20
-  activeDeadlineSeconds: 150000
+  activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
 kind: Job
