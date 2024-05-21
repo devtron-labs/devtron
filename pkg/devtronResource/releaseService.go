@@ -463,7 +463,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 			impl.logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean.InvalidFilterCriteria)
 			return nil, err
 		}
-		f1 := getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Resource)
+		f1 := getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Kind, criteriaDecoder.SubKind)
 		if f1 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -472,7 +472,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 			impl.logger.Errorw("error in applyFilterCriteriaOnResourceObjects", "criteriaDecoder", criteriaDecoder, "err", err)
 			return nil, err
 		}
-		f2 := getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version, criteriaDecoder.Resource)
+		f2 := getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version, criteriaDecoder.Kind, criteriaDecoder.SubKind)
 		if f2 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -725,7 +725,7 @@ func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQu
 		if err != nil {
 			return appWorkflowId, nil, err
 		}
-		switch criteriaDecoder.Resource {
+		switch criteriaDecoder.Kind {
 		case bean.DevtronResourceAppWorkflow:
 			if criteriaDecoder.Type != bean.IdQueryString {
 				return appWorkflowId, nil, fmt.Errorf("invalid filterCriteria: AppWorkflow")

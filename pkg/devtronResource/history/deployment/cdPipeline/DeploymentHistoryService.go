@@ -11,16 +11,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type DeploymentHistoryService interface {
-	GetCdPipelineDeploymentHistory(offset, limit int, filterCriteria []string) (resp bean.DeploymentHistoryResp, err error)
-	GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId int, historyComponent, historyComponentName string,
-		filterCriteria []string) (resp []*history.DeployedHistoryComponentMetadataDto, err error)
+	GetCdPipelineDeploymentHistory(offset, limit, appId, environmentId,
+		pipelineId, filterByReleaseId int) (resp bean.DeploymentHistoryResp, err error)
+	GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId, pipelineId int,
+		historyComponent, historyComponentName string) (resp []*history.DeployedHistoryComponentMetadataDto, err error)
 }
 
 type DeploymentHistoryServiceImpl struct {
@@ -54,12 +52,8 @@ func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset, limit int, filterCriteria []string) (resp bean.DeploymentHistoryResp, err error) {
-	appId, environmentId, pipelineId, filterByReleaseId, err := impl.getFilterCriteriaParamsForDeploymentHistory(filterCriteria)
-	if err != nil {
-		impl.logger.Errorw("error in getting filter criteria params", "err", err, "filterCriteria", filterCriteria)
-		return resp, err
-	}
+func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset, limit, appId, environmentId,
+	pipelineId, filterByReleaseId int) (resp bean.DeploymentHistoryResp, err error) {
 	toGetOnlyWfrIds := make([]int, 0)
 	wfrIdReleaseIdMap := make(map[int]int)
 	releaseIdsForRunSourceData := make([]int, 0)
@@ -82,7 +76,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 		runSourceIdentifier := helper.GetTaskRunSourceIdentifier(filterByReleaseId, bean2.ResourceObjectIdType, releaseSchema.DevtronResourceId, releaseSchema.Id)
 		deploymentTaskRuns, err = impl.dtResourceTaskRunRepository.GetByRunSourceTargetAndTaskTypes(runSourceIdentifier,
 			runTargetIdentifier, bean2.CdPipelineAllDeploymentTaskRuns, offset, limit)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil && util2.IsErrNoRows(err) {
 			impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "runSourceIdentifier", runSourceIdentifier, "runTargetIdentifier", runTargetIdentifier)
 			return resp, err
 		}
@@ -104,7 +98,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 			filteredWfrIds = append(filteredWfrIds, wf.Id)
 		}
 		deploymentTaskRuns, err = impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(filteredWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
-		if err != nil {
+		if err != nil && util2.IsErrNoRows(err) {
 			impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "filteredWfrIds", filteredWfrIds)
 			return resp, err
 		}
@@ -152,13 +146,8 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 	return resp, nil
 }
 
-func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId int, historyComponent, historyComponentName string,
-	filterCriteria []string) (resp []*history.DeployedHistoryComponentMetadataDto, err error) {
-	_, _, pipelineId, _, err := impl.getFilterCriteriaParamsForDeploymentHistory(filterCriteria)
-	if err != nil {
-		impl.logger.Errorw("error in getting filter criteria params", "err", err, "filterCriteria", filterCriteria)
-		return resp, err
-	}
+func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId, pipelineId int,
+	historyComponent, historyComponentName string) (resp []*history.DeployedHistoryComponentMetadataDto, err error) {
 	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(pipelineId, baseConfigurationId, historyComponent, historyComponentName)
 	if err != nil {
 		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
@@ -169,7 +158,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		filteredWfrIds = append(filteredWfrIds, r.WfrId)
 	}
 	deploymentTaskRuns, err := impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(filteredWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
-	if err != nil {
+	if err != nil && util2.IsErrNoRows(err) {
 		impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "filteredWfrIds", filteredWfrIds)
 		return resp, err
 	}
@@ -199,38 +188,4 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		}
 	}
 	return res, nil
-}
-
-func (impl *DeploymentHistoryServiceImpl) getFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (appId, environmentId, pipelineId, filterByReleaseId int, err error) {
-	for _, criteria := range filterCriteria {
-		criteriaDecoder, err := util.DecodeFilterCriteriaString(criteria)
-		if err != nil {
-			impl.logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean2.InvalidFilterCriteria)
-			return appId, environmentId, pipelineId, filterByReleaseId, err
-		}
-		switch criteriaDecoder.Resource {
-		case bean2.DevtronResourceDevtronApplication:
-			appId, err = strconv.Atoi(criteriaDecoder.Value)
-		case bean2.DevtronResourceEnvironment:
-			environmentId, err = strconv.Atoi(criteriaDecoder.Value)
-		case bean2.DevtronResourceCdPipeline:
-			pipelineId, err = strconv.Atoi(criteriaDecoder.Value)
-		case bean2.DevtronResourceRelease:
-			filterByReleaseId, err = strconv.Atoi(criteriaDecoder.Value)
-		}
-	}
-
-	if (appId == 0 || environmentId == 0) && pipelineId == 0 {
-		//currently this method only supports history for a specific pipeline
-		return appId, environmentId, pipelineId, filterByReleaseId, util2.GetApiErrorAdapter(http.StatusBadRequest, "400", bean2.InvalidFilterCriteria, bean2.InvalidFilterCriteria)
-	}
-	if pipelineId == 0 {
-		pipelineObj, err := impl.pipelineRepository.FindActiveByAppIdAndEnvId(appId, environmentId)
-		if err != nil {
-			impl.logger.Errorw("error in getting pipeline", "err", err, "appId", appId, "envId", environmentId)
-			return appId, environmentId, pipelineId, filterByReleaseId, err
-		}
-		pipelineId = pipelineObj.Id
-	}
-	return appId, environmentId, pipelineId, filterByReleaseId, nil
 }

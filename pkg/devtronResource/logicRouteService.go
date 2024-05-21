@@ -126,8 +126,8 @@ var updateResourceDependenciesDataInResponseObjFuncMap = map[string]func(*Devtro
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).updateReleaseDataForGetDependenciesApi,
 }
 
-func getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version string, resource bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, filterCriteria *bean.FilterCriteriaDecoder) ([]int, error) {
-	if f, ok := extractConditionsFromFilterCriteriaFuncMap[getKeyForKindSubKindVersionResource(kind, subKind, version, resource)]; ok {
+func getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version string, filterKind, filterSubKind bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, filterCriteria *bean.FilterCriteriaDecoder) ([]int, error) {
+	if f, ok := extractConditionsFromFilterCriteriaFuncMap[getKeyForKindSubKindVersionFilterKind(kind, subKind, version, filterKind, filterSubKind)]; ok {
 		return f
 	} else {
 		return nil
@@ -135,12 +135,12 @@ func getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version string,
 }
 
 var extractConditionsFromFilterCriteriaFuncMap = map[string]func(impl *DevtronResourceServiceImpl, filterCriteria *bean.FilterCriteriaDecoder) ([]int, error){
-	getKeyForKindSubKindVersionResource(bean.DevtronResourceRelease, "",
-		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack): (*DevtronResourceServiceImpl).getReleaseTrackIdsFromFilterValueBasedOnType,
+	getKeyForKindSubKindVersionFilterKind(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack, ""): (*DevtronResourceServiceImpl).getReleaseTrackIdsFromFilterValueBasedOnType,
 }
 
-func getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version string, resource bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error) {
-	if f, ok := getProcessingFiltersFuncMap[getKeyForKindSubKindVersionResource(kind, subKind, version, resource)]; ok {
+func getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version string, filterKind, filterSubKind bean.DevtronResourceKind) func(impl *DevtronResourceServiceImpl, resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error) {
+	if f, ok := getProcessingFiltersFuncMap[getKeyForKindSubKindVersionFilterKind(kind, subKind, version, filterKind, filterSubKind)]; ok {
 		return f
 	} else {
 		return nil
@@ -148,8 +148,8 @@ func getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version string,
 }
 
 var getProcessingFiltersFuncMap = map[string]func(impl *DevtronResourceServiceImpl, resourceObjects []*repository.DevtronResourceObject, releaseTrackIds []int) ([]*repository.DevtronResourceObject, error){
-	getKeyForKindSubKindVersionResource(bean.DevtronResourceRelease, "",
-		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack): (*DevtronResourceServiceImpl).getFilteredReleaseObjectsForReleaseTrackIds,
+	getKeyForKindSubKindVersionFilterKind(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1, bean.DevtronResourceReleaseTrack, ""): (*DevtronResourceServiceImpl).getFilteredReleaseObjectsForReleaseTrackIds,
 }
 
 func getFuncToApplyFilterResourceKind(kind, subKind, version string) func(impl *DevtronResourceServiceImpl, kind, subKind, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error) {
@@ -421,8 +421,8 @@ func getKeyForKindAndVersion[K, S, V ~string](kind K, subKind S, version V) stri
 	return fmt.Sprintf("%s-%s-%s", kind, subKind, version)
 }
 
-func getKeyForKindSubKindVersionResource[K, S, C ~string](kind K, subKind S, version C, resource bean.DevtronResourceKind) string {
-	return fmt.Sprintf("%s-%s-%s-%s", kind, subKind, version, resource)
+func getKeyForKindSubKindVersionFilterKind[K, S, C ~string](kind K, subKind S, version C, filterKind, filterSubKind bean.DevtronResourceKind) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s", kind, subKind, version, filterKind, filterSubKind)
 }
 
 func getKeyForKindVersionAndObjectUpdatePath[K, S, V, P ~string](kind K, subKind S, version V, objectUpdatePath P) string {

@@ -52,6 +52,9 @@ var DevtronResourceWireSet = wire.NewSet(
 	wire.Bind(new(HistoryRestHandler), new(*HistoryRestHandlerImpl)),
 	cdPipeline.NewDeploymentHistoryServiceImpl,
 	wire.Bind(new(cdPipeline.DeploymentHistoryService), new(*cdPipeline.DeploymentHistoryServiceImpl)),
+
+	devtronResource.NewAPIReqDecoderServiceImpl,
+	wire.Bind(new(devtronResource.APIReqDecoderService), new(*devtronResource.APIReqDecoderServiceImpl)),
 )
 
 var DevtronResourceWireSetEA = wire.NewSet(

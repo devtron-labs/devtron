@@ -1,7 +1,8 @@
 package bean
 
 type FilterCriteriaDecoder struct {
-	Resource DevtronResourceKind
+	Kind     DevtronResourceKind
+	SubKind  DevtronResourceKind
 	Type     FilterCriteriaIdentifier
 	Value    string
 	ValueInt int
