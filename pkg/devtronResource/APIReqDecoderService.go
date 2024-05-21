@@ -10,6 +10,7 @@ import (
 	"strconv"
 )
 
+// APIReqDecoderService is common service used for getting decoded devtronResource and history related api params.
 type APIReqDecoderService interface {
 	GetFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (appId,
 		environmentId, pipelineId, filterByReleaseId int, err error)
