@@ -184,7 +184,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	model.K8sVersion = k8sServerVersion.String()
 
 	// save clusterConnectionConfig
-	if bean.RemoteConnectionConfig != nil {
+	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving clusterConnectionConfig in db", "err", err)
@@ -502,7 +502,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	model.ServerUrl = bean.ServerUrl
 	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
 	model.PrometheusEndpoint = bean.PrometheusUrl
-	if bean.RemoteConnectionConfig != nil {
+	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		model.RemoteConnectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{
 			Id:               bean.RemoteConnectionConfig.RemoteConnectionConfigId,
 			ConnectionMethod: bean.RemoteConnectionConfig.ConnectionMethod,
@@ -700,7 +700,7 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *bean.ClusterBean) {
 		clusterInfo.CAData = bean.Config[k8s2.CertificateAuthorityData]
 	}
 	beanConnectionConfig := bean.RemoteConnectionConfig
-	if bean.RemoteConnectionConfig != nil {
+	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		connectionConfig := &remoteConnectionBean.RemoteConnectionConfigBean{
 			RemoteConnectionConfigId: beanConnectionConfig.RemoteConnectionConfigId,
 			ConnectionMethod:         beanConnectionConfig.ConnectionMethod,
@@ -770,7 +770,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 			connectionConfig := &remoteConnectionBean.RemoteConnectionConfigBean{
 				RemoteConnectionConfigId: model.RemoteConnectionConfigId,
 			}
-			if model.RemoteConnectionConfig != nil {
+			if model.RemoteConnectionConfig != nil && model.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 				connectionConfig.ConnectionMethod = model.RemoteConnectionConfig.ConnectionMethod
 				connectionConfig.ProxyConfig = &remoteConnectionBean.ProxyConfig{
 					ProxyUrl: model.RemoteConnectionConfig.ProxyUrl,

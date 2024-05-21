@@ -88,7 +88,7 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *clusterBean.ClusterBean) *c
 }
 
 func ConvertNewClusterBeanToOldClusterBean(cluster *clusterBean.ClusterBean) *clusterBean.ClusterBean {
-	if cluster.RemoteConnectionConfig != nil {
+	if cluster.RemoteConnectionConfig != nil && cluster.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		if cluster.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy &&
 			cluster.RemoteConnectionConfig.ProxyConfig != nil {
 			cluster.ProxyUrl = cluster.RemoteConnectionConfig.ProxyConfig.ProxyUrl
@@ -132,7 +132,7 @@ func ConvertClusterBeanToCluster(clusterBean *clusterBean.ClusterBean, userId in
 
 	var connectionMethod remoteConnectionBean.RemoteConnectionMethod
 	var connectionConfig *remoteConnectionRepository.RemoteConnectionConfig
-	if clusterBean.RemoteConnectionConfig != nil {
+	if clusterBean.RemoteConnectionConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		// if FE provided new bean
 		connectionMethod = clusterBean.RemoteConnectionConfig.ConnectionMethod
 		connectionConfig = &remoteConnectionRepository.RemoteConnectionConfig{
@@ -199,7 +199,7 @@ func GetClusterBean(model repository.Cluster) clusterBean.ClusterBean {
 		TlsClientCert: model.PTlsClientCert,
 		TlsClientKey:  model.PTlsClientKey,
 	}
-	if model.RemoteConnectionConfig != nil {
+	if model.RemoteConnectionConfig != nil && model.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		bean.RemoteConnectionConfig = &remoteConnectionBean.RemoteConnectionConfigBean{
 			RemoteConnectionConfigId: model.RemoteConnectionConfigId,
 			ConnectionMethod:         model.RemoteConnectionConfig.ConnectionMethod,
