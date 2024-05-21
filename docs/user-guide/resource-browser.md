@@ -480,7 +480,7 @@ Devtron helps in reducing the challenges and simplifying the maintenance of kube
 
 **Prerequisite**: An [API token with necessary permissions](./global-configurations/authorization/api-tokens.md) for the user(s) to access the cluster. 
 
-If you are not a super-admin and can't generate a token yourself, you can use the session token (argocd.token) using the Developer Tools available in your web browser as shown below.
+If you are not a super-admin and can't generate a token yourself, you can find the session token (argocd.token) using the Developer Tools available in your web browser as shown below.
 
 ![Figure 22: Using Session Token](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/argocd-token-v1.gif)
 
