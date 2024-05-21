@@ -449,3 +449,71 @@ spec:
          - containerPort: 80
 ```
 {% endcode %}
+
+---
+
+## Port Forwarding
+
+### Introduction
+
+Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port fowarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). Basically, it creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
+
+But first, you would need access to that cluster. Traditionally, the kubeconfig file (`./kube/config`) helps you connect with the cluster. 
+
+![Figure 21: Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.jpg)
+
+### Challenges in Kubeconfig
+
+Kubeconfig becomes painstakingly difficult to maintain especially when it comes to:
+* Granting or revoking access to the cluster for multiple people
+* Changing the permissions and subsequently the access token
+* Adding/Updating/Deleting the entries of cluster URLs and tokens
+* Keeping a record of multiple kubeconfig files
+
+### Our Solution
+
+Devtron helps in reducing the challenges and simplifying the maintenance of kubeconfig file through:
+* **Devtron's Proxy URL for Cluster** - A standardized URL that you can use in the place of your Kubernetes cluster URL.
+* **Devtron's Access Token** - A kubectl-compatible token which can be generated and centrally maintained from [Global Configurations → Authorization → API tokens](./global-configurations/authorization/api-tokens.md).
+
+### Steps
+
+{% hint style="info" %}
+### Prerequisite
+An [API token with necessary permissions](./global-configurations/authorization/api-tokens.md) for the user(s) to access the cluster.
+{% endhint %}
+
+1. Go to `~/.kube` folder on your local machine and open the `config` file. Or you may create one with the following content:
+
+  {% code title="kubeconfig" overflow="wrap" lineNumbers="true" %}
+  ```yaml
+  apiVersion: v1
+  kind: Config
+  clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://<devtron proxy url for cluster>
+    name: <cluster_name>
+  contexts:
+  - context:
+      cluster: <cluster_name>
+      user: <user_name>
+    name: <context_name>
+  current-context: <context_name>
+  users:
+  - name: <user_name>
+    user:
+      token: <devtron token>
+  ```
+  {% endcode %}
+
+2. Enter the cluster URL provided by Devtron in the `server` field, and API token (you generated) in the `token` field. 
+
+  ![Figure 22: Editing Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.gif)
+
+3. Test the connection to the cluster by running any kubectl command, e.g., `kubectl get ns` or `kubectl get po -A`
+
+4. Once you have successfully connected to the cluster, you may run the port-forward command. Refer [kubectl port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) to see a few examples.
+
+  ![Figure 23: Example - Port Forwarding](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/port-forward.gif)
+
