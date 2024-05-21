@@ -161,7 +161,7 @@ type PrePostStatusCount struct {
 	Failed       int `json:"Failed"`
 	InProgress   int `json:"Progressing"`
 	Succeeded    int `json:"Succeeded"`
-	Others       int `json:"others"`
+	Others       int `json:"Others"`
 }
 
 type DeploymentCount struct {
@@ -170,7 +170,7 @@ type DeploymentCount struct {
 	InProgress   int `json:"Progressing"`
 	Queued       int `json:"Queued"`
 	Succeeded    int `json:"Succeeded"`
-	Others       int `json:"others"`
+	Others       int `json:"Others"`
 }
 
 const (

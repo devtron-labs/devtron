@@ -16,22 +16,29 @@ import (
 const Dashboard = "dashboard"
 const Proxy = "proxy"
 
-func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func(writer http.ResponseWriter, request *http.Request) {
-	proxy := GetProxyServer(serverAddr, transport, Dashboard, "", NewNoopActivityLogger())
+func NewDashboardHTTPReverseProxy(serverAddr string, transport http.RoundTripper) (func(writer http.ResponseWriter, request *http.Request) ,error) {
+	proxy, err:= GetProxyServer(serverAddr, transport, Dashboard, "", NewNoopActivityLogger())
+	if err != nil {
+		return nil, err
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
+	}, nil
+}
+
+func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger) (*httputil.ReverseProxy, error) {
+	proxy, err := GetProxyServerWithPathTrimFunc(serverAddr, transport, pathToExclude, basePathToInclude, activityLogger, nil)
+	if err!=nil{
+		return nil, err
 	}
+	return proxy, nil
 }
 
-func GetProxyServer(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger) *httputil.ReverseProxy {
-	proxy := GetProxyServerWithPathTrimFunc(serverAddr, transport, pathToExclude, basePathToInclude, activityLogger, nil)
-	return proxy
-}
-
-func GetProxyServerWithPathTrimFunc(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger, pathTrimFunc func(string) string) *httputil.ReverseProxy {
+func GetProxyServerWithPathTrimFunc(serverAddr string, transport http.RoundTripper, pathToExclude string, basePathToInclude string, activityLogger RequestActivityLogger, pathTrimFunc func(string) string) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
@@ -47,7 +54,7 @@ func GetProxyServerWithPathTrimFunc(serverAddr string, transport http.RoundTripp
 		fmt.Printf("%s\n", request.URL.Path)
 		activityLogger.LogActivity()
 	}
-	return proxy
+	return proxy, nil
 }
 
 type RequestActivityLogger interface {
@@ -87,9 +94,12 @@ func NewProxyTransport() *http.Transport {
 	}
 }
 
-func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
+func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper, enforcer casbin.Enforcer) (func(writer http.ResponseWriter, request *http.Request) ,error) {
 	serverAddr := fmt.Sprintf("http://%s:%s", connection.Host, connection.Port)
-	proxy := GetProxyServer(serverAddr, transport, Proxy, "", NewNoopActivityLogger())
+	proxy,err := GetProxyServer(serverAddr, transport, Proxy, "", NewNoopActivityLogger())
+	if err != nil {
+		return nil, err
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if len(connection.PassKey) > 0 {
@@ -101,5 +111,5 @@ func NewHTTPReverseProxy(connection ProxyConnection, transport http.RoundTripper
 			return
 		}
 		proxy.ServeHTTP(w, r)
-	}
+	}, nil
 }

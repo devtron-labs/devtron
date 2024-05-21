@@ -82,6 +82,9 @@ type EnvironmentRepository interface {
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
 	FindByIdsOrderByCluster(ids []int) ([]*Environment, error)
+
+	GetWithClusterByNames(envNames []string) ([]*Environment, error)
+	FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -354,6 +357,20 @@ func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environ
 	return environment, err
 }
 
+func (repo EnvironmentRepositoryImpl) GetWithClusterByNames(envNames []string) ([]*Environment, error) {
+	var environment []*Environment
+	if len(envNames) == 0 {
+		return nil, nil
+	}
+	err := repo.dbConnection.
+		Model(&environment).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Where("environment.environment_name in (?)", pg.In(envNames)).
+		Select()
+	return environment, err
+}
+
 func (repositoryImpl EnvironmentRepositoryImpl) FindByEnvName(envName string) ([]*Environment, error) {
 	var environmentCluster []*Environment
 	err := repositoryImpl.dbConnection.
@@ -419,3 +436,16 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ext
 // " INNER JOIN " +
 // " (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
 // " ON apf.app_workflow_id = sqt.app_workflow_id;"
+
+func (repo EnvironmentRepositoryImpl) FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error) {
+	var mappings []*Environment
+	if len(envIds) == 0 {
+		return nil, nil
+	}
+	err := repo.dbConnection.Model(&mappings).
+		Where("environment.active = true").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.id IN (?)", pg.In(envIds)).
+		Select()
+	return mappings, err
+}

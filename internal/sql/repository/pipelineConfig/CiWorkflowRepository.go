@@ -52,6 +52,7 @@ type CiWorkflowRepository interface {
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
+	FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -287,7 +288,25 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 		Select()
 	return ciWorkflow, err
 }
+func (impl *CiWorkflowRepositoryImpl) FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) ([]*CiWorkflow, error) {
+	var ciWorkflow []*CiWorkflow
+	if len(pipelineId) == 0 {
+		return nil, nil
+	}
+	query := "SELECT MAX(id) as id " +
+		" FROM ci_workflow ciw" +
+		" WHERE ciw.ci_pipeline_id in(?)" +
+		" GROUP by ciw.ci_pipeline_id"
 
+	query = fmt.Sprintf(" SELECT * "+
+		" FROM ci_workflow WHERE id IN (%s)", query)
+
+	_, err := impl.dbConnection.Query(&ciWorkflow, query, pg.In(pipelineId))
+	if err != nil {
+		return ciWorkflow, err
+	}
+	return ciWorkflow, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
