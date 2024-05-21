@@ -456,7 +456,7 @@ spec:
 
 ### Introduction
 
-Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port fowarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). Basically, it creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
+Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). It creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
 
 But first, you would need access to that cluster. Traditionally, the kubeconfig file (`./kube/config`) helps you connect with the cluster. 
 
@@ -473,7 +473,7 @@ Kubeconfig becomes painstakingly difficult to maintain especially when it comes 
 ### Our Solution
 
 Devtron helps in reducing the challenges and simplifying the maintenance of kubeconfig file through:
-* **Devtron's Proxy URL for Cluster** - A standardized URL that you can use in the place of your Kubernetes cluster URL.
+* **Devtron's Proxy URL for Cluster** - A standardized URL that you can use in place of your Kubernetes cluster URL.
 * **Devtron's Access Token** - A kubectl-compatible token which can be generated and centrally maintained from [Global Configurations → Authorization → API tokens](./global-configurations/authorization/api-tokens.md).
 
 ### Steps
