@@ -35,29 +35,36 @@ type PubSubClientServiceImpl struct {
 	logsConfig *model.LogsConfig
 }
 
-func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
+func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientServiceImpl, error) {
 	natsClient, err := NewNatsClient(logger)
 	if err != nil {
-		logger.Fatalw("error occurred while creating nats client stopping now!!")
+		logger.Errorw("error occurred while creating nats client stopping now!!")
+		return nil, err
 	}
 	logsConfig := &model.LogsConfig{}
 	err = env.Parse(logsConfig)
 	if err != nil {
 		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
+		return nil, err
 	}
-	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	err = ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	if err != nil {
+		return nil, err
+	}
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
 		logsConfig: logsConfig,
 	}
-	return pubSubClient
+	return pubSubClient, nil
 }
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
 	status := model.PUBLISH_FAILURE
-	defer metrics.IncPublishCount(topic, status)
+	defer func() {
+		metrics.IncPublishCount(topic, status)
+	}()
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
@@ -125,7 +132,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
 		nats.BindStream(streamName))
 	if err != nil {
-		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
+		impl.Logger.Errorw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
@@ -206,13 +213,14 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 		// publish metrics for msg delivery count if msgDeliveryCount > 1
 		if msgDeliveryCount > 1 {
-			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
+			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject).Observe(float64(msgDeliveryCount))
 		}
 
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw(fmt.Sprintf("%s: found panic error", NATS_PANIC_MSG_LOG_PREFIX), "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
 			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
+			metrics.IncPanicRecoveryCount("nats", msg.Subject, "", "")
 			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
 			publishErr := impl.publishPanicError(msg, err)
 			if publishErr != nil {
