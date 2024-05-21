@@ -561,7 +561,6 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		return
 	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(request.AppId, EnvConfigPropertiesBean.EnvConfigProperties)
-
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
 			ctx, cancel := context.WithCancel(r.Context())
@@ -614,8 +613,8 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 		}
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
 
+}
 func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
