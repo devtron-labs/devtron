@@ -59,10 +59,11 @@ func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer ca
 	for serviceName, connection := range proxyConnection {
 		connection.ServiceName = serviceName
 		proxy[serviceName], err = NewHTTPReverseProxy(connection, client.Transport, enforcer)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
+
 
 	router := &ProxyRouterImpl{
 		proxy:  proxy,

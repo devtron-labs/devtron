@@ -1,6 +1,6 @@
-# Preset Plugins
+# Pipeline Plugins
 
-Preset plugins are micro tools that allow you to enhance and refine the [CI/CD workflow](../creating-application/workflow/README.md) of your application by adding new features, integrating with external tools, and automating tasks.
+Pipeline plugins (a.k.a. preset plugins) are micro tools that allow you to enhance and refine the [CI/CD workflow](../creating-application/workflow/README.md) of your application by adding new features, integrating with external tools, and automating tasks.
 
 Unlike [custom scripts](../creating-application/workflow/ci-build-pre-post-plugins.md#execute-custom-script), preset plugins come bundled with specific variables and conditions that help you make the plugins work seamlessly with your CI/CD pipeline.
 
