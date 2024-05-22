@@ -43,7 +43,6 @@ func ConvertToApiError(err error) *util2.ApiError {
 			UserMessage:     err.Error(),
 		}
 	} else {
-		// instead of iterating or making a map, think of a better implementations
 		for errMsg, statusCode := range errorHttpStatusCodeMap {
 			if strings.Contains(err.Error(), errMsg) {
 				apiError = &util2.ApiError{
