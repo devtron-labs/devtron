@@ -84,26 +84,23 @@ func getLabels() []string {
 		// Iterate through each URL and add the mappings
 		for _, urlStr := range obj.Url {
 			// Handle URLs separated by commas and trim whitespace
-			urlArray := strings.Split(urlStr, ",")
-			for _, sUrl := range urlArray {
-				sUrl = strings.TrimSpace(sUrl)
-
-				// If the URL is already in the map, merge the labels
-				if existingLabels, exists := urlMappings[sUrl]; exists {
-					for key, value := range obj.Label {
-						strValue := strings.TrimSpace(value)
-						existingLabels[key] = strValue
-					}
-				} else {
-					// Create a new map for each URL to store its labels
-					labels := make(map[string]string)
-					for key, value := range obj.Label {
-						strValue := strings.TrimSpace(value)
-						labels[key] = strValue
-					}
-					urlMappings[sUrl] = labels
+			urlStr = strings.TrimSpace(urlStr)
+			// If the URL is already in the map, merge the labels
+			if existingLabels, exists := urlMappings[urlStr]; exists {
+				for key, value := range obj.Label {
+					strValue := strings.TrimSpace(value)
+					existingLabels[key] = strValue
 				}
+			} else {
+				// Create a new map for each URL to store its labels
+				labels := make(map[string]string)
+				for key, value := range obj.Label {
+					strValue := strings.TrimSpace(value)
+					labels[key] = strValue
+				}
+				urlMappings[urlStr] = labels
 			}
+
 		}
 
 		// Add keys to the unique keys map
