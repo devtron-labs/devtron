@@ -109,7 +109,7 @@ func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emai
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
 		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
 	}
-	return commitHash, err
+	return commitHash, nil
 }
 
 func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {
