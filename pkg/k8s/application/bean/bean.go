@@ -5,6 +5,25 @@ import (
 )
 
 const (
+	Authorization     = "Authorization"
+	BaseForK8sProxy   = "/orchestrator/k8s/proxy"
+	Cluster           = "cluster"
+	Empty             = ""
+	Env               = "env"
+	ClusterIdentifier = "clusterIdentifier"
+	EnvIdentifier     = "envIdentifier"
+	RoleView          = "View"
+	RoleAdmin         = "Admin"
+	API               = "api"
+	APIs              = "apis"
+	K8sEmpty          = "k8sempty"
+	V1                = "v1"
+	ALL               = "*"
+	NAMESPACES        = "namespaces"
+	NODES             = "nodes"
+)
+
+const (
 	DEFAULT_NAMESPACE = "default"
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
@@ -60,4 +79,15 @@ type PortForwardRequest struct {
 	Namespace   string
 	ServiceName string
 	TargetPort  string // []string{"5432:5432"}
+}
+
+type K8sProxyRequest struct {
+	ClusterId   int
+	ClusterName string
+	EnvId       int
+	EnvName     string
+}
+
+type InterClusterCommunicationConfig struct {
+	ProxyUpTime int64 `env:"PROXY_UP_TIME" envDefault:"60"`
 }

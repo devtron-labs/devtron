@@ -31,6 +31,7 @@ require (
 	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
+	github.com/gertd/go-pluralize v0.2.1
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-errors/errors v1.4.2
 	github.com/go-git/go-billy/v5 v5.5.0
