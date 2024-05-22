@@ -83,12 +83,10 @@ func getLabels() []string {
 				for key, value := range obj.Label {
 					strValue := strings.TrimSpace(value)
 					labels[key] = strValue
+					keys[key] = true
 				}
 				urlMappings[urlStr] = labels
 			}
-		}
-		for key := range obj.Label {
-			keys[key] = true
 		}
 	}
 
