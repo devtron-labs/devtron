@@ -38,7 +38,7 @@ A place where all Helm charts are centrally listed for users to deploy applicati
 
 A cluster in Kubernetes refers to a set of connected computers (nodes) that collectively manage containerized applications using Kubernetes. It provides resources and services to run, manage, and scale applications. 
 
-In Devtron, you can view the list of clusters in ‘Global Configurations’ available in the left sidebar. [Read More...](../user-guide/clusters.md)
+In Devtron, you can view the list of clusters in 'Global Configurations' as well as 'Resource Browser'. [Read More...](../user-guide/resource-browser.md)
 
 ### Commit Hash
 
@@ -180,7 +180,7 @@ In Devtron, you can view nodes by going to Resource Browser → (choose a cluste
 
 Kubernetes objects are the building blocks that define and manage your applications running on the platform. They are also known as 'Resources' or 'Kinds'. This includes nodes, pods, deployment, cronjob, configmap, and many more. 
 
-Devtron's [Resource Browser](../user-guide/resource-browser/README.md) helps you manage all such objects present in your clusters.
+Devtron's [Resource Browser](../user-guide/resource-browser.md) helps you manage all such objects present in your clusters.
 
 ### Pod
 

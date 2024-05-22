@@ -13,6 +13,8 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	client2 "github.com/devtron-labs/scoop/client"
 	types2 "github.com/devtron-labs/scoop/types"
 	"io"
@@ -104,10 +106,12 @@ type K8sApplicationService interface {
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s3.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	ValidateK8sResourceForCluster(token string, resourceName string, namespace string, resourceGVK schema.GroupVersionKind, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool, clusterName string, resourceAction string) bool
 	ValidateK8sResourceAccess(token string, clusterId int, namespace string, resourceGVK schema.GroupVersionKind, resourceAction string, podName string, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool) (bool, error)
 	GetScoopServiceProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, ScoopServiceClusterConfig, error)
 	PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error)
-	StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error)
+	StartProxyServer(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error)
+	GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*bean.ClusterBean, error)
 	GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error)
 }
 
@@ -124,6 +128,7 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	environmentRepository        repository.EnvironmentRepository
+	clusterRepository            repository.ClusterRepository
 	k8sAppConfig                 *K8sAppConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
 
@@ -140,6 +145,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	environmentRepository repository.EnvironmentRepository,
+	clusterRepository repository.ClusterRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
 	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
@@ -170,6 +176,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerService:               ephemeralContainerService,
 		ephemeralContainerRepository:            ephemeralContainerRepository,
 		environmentRepository:                   environmentRepository,
+		clusterRepository:                       clusterRepository,
 		k8sAppConfig:                            k8sAppConfig,
 		argoApplicationService:                  argoApplicationService,
 		deploymentWindowService:                 deploymentWindowService,
@@ -464,12 +471,16 @@ func (impl *K8sApplicationServiceImpl) ValidateK8sResourceAccess(token string, c
 		return false, err
 	}
 	clusterName := clusterBean.ClusterName
+	return impl.ValidateK8sResourceForCluster(token, resourceName, namespace, resourceGVK, rbacForResource, clusterName, resourceAction), nil
+}
+
+func (impl *K8sApplicationServiceImpl) ValidateK8sResourceForCluster(token string, resourceName string, namespace string, resourceGVK schema.GroupVersionKind, rbacForResource func(token string, clusterName string, resourceIdentifier k8s3.ResourceIdentifier, casbinAction string) bool, clusterName string, resourceAction string) bool {
 	resourceIdentifier := k8s3.ResourceIdentifier{
 		Name:             resourceName,
 		Namespace:        namespace,
 		GroupVersionKind: resourceGVK,
 	}
-	return rbacForResource(token, clusterName, resourceIdentifier, resourceAction), nil
+	return rbacForResource(token, clusterName, resourceIdentifier, resourceAction)
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
@@ -1657,7 +1668,7 @@ func getUrls(manifest *k8s3.ManifestResponse) bean3.Response {
 	return res
 }
 
-func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
+func (impl *K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainers(clientSet *kubernetes.Clientset) (bool, error) {
 	k8sServerVersion, err := impl.K8sUtil.GetK8sServerVersion(clientSet)
 	if err != nil || k8sServerVersion == nil {
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
@@ -1675,23 +1686,58 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 	return matched, nil
 }
 
-func (impl K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
+func (impl *K8sApplicationServiceImpl) PortForwarding(ctx context.Context, clusterId int, serviceName string, namespace string, port string) (*httputil.ReverseProxy, error) {
 	impl.logger.Infow("received request for port forwarding", "clusterId", clusterId, "serviceName", serviceName, "namespace", namespace, "port", port)
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetClusterServiceProxyHandler(ctx, NewClusterServiceKey(clusterId, serviceName, namespace, port))
 	return proxyHandler, err
 }
 
-func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int, envName string) (*httputil.ReverseProxy, error) {
-	if clusterId == -1 {
-		environment, err := impl.environmentRepository.FindByName(envName)
-		if err != nil {
-			impl.logger.Errorw("Error finding clusterId from envName.", "envName", envName)
-			return nil, err
-		}
-		clusterId = environment.ClusterId
-	}
+func (impl *K8sApplicationServiceImpl) StartProxyServer(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error) {
 	proxyHandler, err := impl.interClusterServiceCommunicationHandler.GetK8sApiProxyHandler(ctx, clusterId)
 	return proxyHandler, err
+}
+
+func (impl *K8sApplicationServiceImpl) GetClusterForK8sProxy(request *bean3.K8sProxyRequest) (*bean.ClusterBean, error) {
+	clusterID, err := impl.getClusterIDFromIdentifier(request)
+	if err != nil {
+		impl.logger.Errorw("Error getting clusterId from identifier", "Error:", err)
+		return nil, err
+	}
+	clusterFound, err := impl.clusterRepository.FindById(clusterID)
+	if err != nil {
+		impl.logger.Errorw("Error finding cluster from clusterId.", "clusterId", clusterID)
+		return nil, err
+	}
+	clusterBean := adapter.GetClusterBean(*clusterFound)
+	return &clusterBean, nil
+}
+
+func (impl *K8sApplicationServiceImpl) getClusterIDFromIdentifier(request *bean3.K8sProxyRequest) (int, error) {
+	if request.ClusterId == 0 {
+		if request.ClusterName != "" {
+			clusterFound, err := impl.clusterRepository.FindOne(request.ClusterName)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from clusterName.", "clusterName", request.ClusterName)
+				return 0, err
+			}
+			return clusterFound.Id, nil
+		} else if request.EnvName != "" {
+			environment, err := impl.environmentRepository.FindByName(request.EnvName)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from envName.", "envName", request.EnvName)
+				return 0, err
+			}
+			return environment.ClusterId, nil
+		} else if request.EnvId != 0 {
+			environment, err := impl.environmentRepository.FindById(request.EnvId)
+			if err != nil {
+				impl.logger.Errorw("Error finding clusterId from envId.", "envId", request.EnvId)
+				return 0, err
+			}
+			return environment.ClusterId, nil
+		}
+	}
+	return request.ClusterId, nil
 }
 
 func (impl K8sApplicationServiceImpl) GetScoopPort(ctx context.Context, clusterId int) (int, ScoopServiceClusterConfig, error) {

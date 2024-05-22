@@ -2187,10 +2187,13 @@ func (impl *DevtronResourceServiceImpl) patchQueryForReleaseObject(objectData st
 	case bean.ReleaseLockQueryPath:
 		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ReleaseResourceConfigStatusIsLockedPath, query.Value)
 	case bean.NameQueryPath:
+		namePatchValue := ""
 		if nameStr, ok := query.Value.(string); !ok || len(nameStr) == 0 {
-			return objectData, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchValueNotSupportedError, bean.PatchValueNotSupportedError)
+			namePatchValue = gjson.Get(objectData, bean.ReleaseResourceObjectReleaseVersionPath).String()
+		} else {
+			namePatchValue = nameStr
 		}
-		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, query.Value)
+		objectData, err = helper.PatchResourceObjectDataAtAPath(objectData, bean.ResourceObjectNamePath, namePatchValue)
 	default:
 		err = util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.PatchPathNotSupportedError, bean.PatchPathNotSupportedError)
 	}
