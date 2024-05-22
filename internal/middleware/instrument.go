@@ -31,11 +31,6 @@ import (
 	"time"
 )
 
-// urlpattern
-// [{"url":["url1,url2"], "label":{k1:v1,k2:v2}},
-// {"url":["url4,url5"], "label":{k5:v6,k1:v8}}
-// ]
-
 type HttpLabels struct {
 	UrlPaths string `env:"URL_PATHS" envDefault:"[]"`
 }
