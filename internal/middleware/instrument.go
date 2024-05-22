@@ -207,15 +207,12 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 		route := mux.CurrentRoute(r)
 		urlPath, _ := route.GetPathTemplate()
 		urlMethod := r.Method
-
 		g := currentRequestGauge.WithLabelValues(urlPath, urlMethod)
 		g.Inc()
 		defer g.Dec()
-
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
 
-		// Construct label array for Prometheus
 		valuesArray := []string{urlPath, urlMethod, strconv.Itoa(d.Status())}
 		if key, ok := UrlLabelsMapping[urlPath]; !ok {
 			for _, labelKey := range UniqueKeys {
@@ -236,7 +233,6 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 				}
 			}
 		}
-
 		httpDuration.WithLabelValues(valuesArray...).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(urlPath, urlMethod, strconv.Itoa(d.Status())).Inc()
 	})
