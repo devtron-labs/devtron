@@ -66,13 +66,11 @@ func getLabels() []string {
 		fmt.Println(err)
 		return nil
 	}
-
 	var data []UrlPaths
 	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
 		fmt.Println("Error:", err)
 		return nil
 	}
-
 	urlMappings := make(map[string]map[string]string)
 	keys := make(map[string]bool)
 
@@ -92,23 +90,18 @@ func getLabels() []string {
 				}
 				urlMappings[urlStr] = labels
 			}
-
 		}
-
 		for key := range obj.Label {
 			keys[key] = true
 		}
 	}
 
 	UrlLabelsMapping = urlMappings
-
-	// Extract the unique keys
 	uniqueKeys := []string{path, method, status}
 	for key := range keys {
 		uniqueKeys = append(uniqueKeys, key)
 	}
 	UniqueKeys = uniqueKeys
-
 	return uniqueKeys
 }
 
