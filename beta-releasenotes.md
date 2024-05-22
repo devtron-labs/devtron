@@ -1,4 +1,5 @@
 ## Bugs
+- fix: added extra args in trivy cmds (#5146)
 - fix: proxyRouter empty data err panic handling (#5147)
 - fix: handling side-effects for displaying external helm apps with same name across diff namespaces and clusters (#4951)
 - fix: fatal log removed (#5043)
