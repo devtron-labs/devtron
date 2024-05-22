@@ -748,6 +748,7 @@ func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.C
 		if envConfigPropertiesOld.Chart != nil {
 			envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
 			envConfigProperties.Active = true
+			envConfigProperties.Status = models.CHARTSTATUS_SUCCESS
 		}
 		envConfigProperties.Id = envConfigPropertiesOld.Id
 	} else {
