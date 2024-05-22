@@ -139,6 +139,7 @@
  | ENTERPRISE_ENFORCER_ENABLED | true |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
+ | EXECUTE_WIRE_NIL_CHECKER | false |  | 
  | EXPOSE_CD_METRICS | false |  | 
  | EXPOSE_CI_METRICS | false |  | 
  | EXTERNAL_BLOB_STORAGE_CM_NAME | blob-storage-cm |  | 
