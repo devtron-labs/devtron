@@ -76,7 +76,7 @@ func (impl *GitManagerBaseImpl) runCommand(cmd *exec.Cmd) (response, errMsg stri
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
 		if !ok {
-			return "", "", err
+			return "", "", fmt.Errorf("%s %v", outBytes, err)
 		}
 		errOutput := string(exErr.Stderr)
 		return "", errOutput, err
