@@ -613,22 +613,24 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		return
 	}
 	//checking rbac for cd cdPipelines
-	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err != nil {
-		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	cdPipelineRbacObjects := make([]string, len(cdPipelines))
-	for i, cdPipeline := range cdPipelines {
-		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
-		cdPipelineRbacObjects[i] = envObject
-	}
-	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	for _, rbacResultOk := range envRbacResultMap {
-		if !rbacResultOk {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	if ciPipeline.App.AppType != helper.Job {
+		cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+		if err != nil {
+			handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
+		}
+		cdPipelineRbacObjects := make([]string, len(cdPipelines))
+		for i, cdPipeline := range cdPipelines {
+			envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
+			cdPipelineRbacObjects[i] = envObject
+		}
+		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
+		for _, rbacResultOk := range envRbacResultMap {
+			if !rbacResultOk {
+				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	}
 	//RBAC ENDS
