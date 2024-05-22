@@ -161,6 +161,11 @@ type ActionResponse struct {
 	Suceess bool `json:"suceess"`
 }
 
+type RestrictedGroup struct {
+	Group                   string
+	HasSuperAdminPermission bool
+}
+
 type ListingRequest struct {
 	Status      []Status        `json:"status"`    // only being used for users
 	SearchKey   string          `json:"searchKey"` // this is used for searching groupName or email matching search key.

@@ -58,6 +58,8 @@ type AppListingRepository interface {
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
+
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -136,6 +138,16 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	}
 	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
+}
+
+func (impl AppListingRepositoryImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	var jobContainers []*bean.JobListingContainer
+	query := "SELECT cip.id AS ci_pipeline_id, cip.name AS ci_pipeline_name, a.id as job_id, a.display_name as job_name" +
+		" FROM app a " +
+		" LEFT JOIN ci_pipeline cip ON a.id = cip.app_id AND cip.active=true" +
+		" WHERE a.active = true AND a.app_type = ?"
+	_, err := impl.dbConnection.Query(&jobContainers, query, helper.Job)
+	return jobContainers, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error) {

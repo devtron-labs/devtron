@@ -76,7 +76,7 @@ const (
 type InstallAppVersionDTO struct {
 	Id                           int                            `json:"id,omitempty"` // TODO: redundant data; refers to InstalledAppVersionId
 	AppId                        int                            `json:"appId,omitempty"`
-	AppName                      string                         `json:"appName,omitempty"`
+	AppName                      string                         `json:"appName,omitempty"` // AppName can be display_name in case of external-apps (which is not unique in that case)
 	TeamId                       int                            `json:"teamId,omitempty"`
 	TeamName                     string                         `json:"teamName,omitempty"`
 	EnvironmentId                int                            `json:"environmentId,omitempty"`
@@ -116,6 +116,7 @@ type InstallAppVersionDTO struct {
 	EnvironmentName              string                         `json:"-"`
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
+	DisplayName                  string `json:"-"` // used only for external apps
 }
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO

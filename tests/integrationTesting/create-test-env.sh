@@ -16,8 +16,13 @@ install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 kubectl create ns devtroncd
 kubectl create ns devtron-cd
 kubectl create ns devtron-ci
+kubectl -n devtroncd create cm git-hash-cm --from-literal=GIT_HASH=$GIT_HASH
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-secret.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/nats-server.yaml
+# we are copying sql scripts into node container and this conainer's name is fixed
+docker cp $PWD/scripts/sql/ k3d-it-cluster-server-0:./tmp/scripts
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' $PWD/tests/integrationTesting/migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' $PWD/tests/integrationTesting/migrator.yaml -i
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml

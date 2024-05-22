@@ -3,7 +3,9 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"strings"
 	"time"
 )
 
@@ -48,5 +50,13 @@ func GetUserRoleGroupAdapter(group *bean.RoleGroup, status bean.Status, timeoutE
 		RoleGroup:               group,
 		Status:                  status,
 		TimeoutWindowExpression: timeoutExpression,
+	}
+}
+
+func CreateRestrictedGroup(roleGroupName string, hasSuperAdminPermission bool) bean.RestrictedGroup {
+	trimmedGroup := strings.TrimPrefix(roleGroupName, bean3.GroupPrefix)
+	return bean.RestrictedGroup{
+		Group:                   trimmedGroup,
+		HasSuperAdminPermission: hasSuperAdminPermission,
 	}
 }

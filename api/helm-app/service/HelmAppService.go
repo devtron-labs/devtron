@@ -11,11 +11,12 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -57,7 +58,7 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*gRPC.ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
-	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	DeleteDBLinkedHelmApplication(ctx context.Context, appIdentifier *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
 	// UpdateApplication is a wrapper over helmAppClient.UpdateApplication, sends update request to kubelink for external chart store apps
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
@@ -134,6 +135,48 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
+func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gRPC.ClusterConfig {
+	config := &gRPC.ClusterConfig{
+		ApiServerUrl:          clusterBean.ServerUrl,
+		Token:                 clusterBean.Config[k8s2.BearerToken],
+		ClusterId:             int32(clusterBean.Id),
+		ClusterName:           clusterBean.ClusterName,
+		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
+	}
+
+	if clusterBean.RemoteConnectionConfig != nil {
+		connectionMethod := 0
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			connectionMethod = 1
+		}
+		clusterConnectionConfig := &gRPC.RemoteConnectionConfig{
+			RemoteConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
+		}
+		if clusterBean.RemoteConnectionConfig.ProxyConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
+			proxyConfig := clusterBean.RemoteConnectionConfig.ProxyConfig
+			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
+				ProxyUrl: proxyConfig.ProxyUrl,
+			}
+		}
+		if clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			sshTunnelConfig := clusterBean.RemoteConnectionConfig.SSHTunnelConfig
+			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
+				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
+				SSHUsername:      sshTunnelConfig.SSHUsername,
+				SSHPassword:      sshTunnelConfig.SSHPassword,
+				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
+			}
+		}
+		config.RemoteConnectionConfig = clusterConnectionConfig
+	}
+	if clusterBean.InsecureSkipTLSVerify == false {
+		config.KeyData = clusterBean.Config[k8s2.TlsKey]
+		config.CertData = clusterBean.Config[k8s2.CertData]
+		config.CaData = clusterBean.Config[k8s2.CertificateAuthorityData]
+	}
+	return config
+}
+
 func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
@@ -147,26 +190,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	}
 	req := &gRPC.AppListRequest{}
 	for _, clusterDetail := range clusters {
-		config := &gRPC.ClusterConfig{
-			ApiServerUrl:           clusterDetail.ServerUrl,
-			Token:                  clusterDetail.Config[k8s2.BearerToken],
-			ClusterId:              int32(clusterDetail.Id),
-			ClusterName:            clusterDetail.ClusterName,
-			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
-			ProxyUrl:               clusterDetail.ProxyUrl,
-			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
-		}
-		if clusterDetail.SSHTunnelConfig != nil {
-			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
-			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
-			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
-			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
-		}
-		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
-			config.CertData = clusterDetail.Config[k8s2.CertData]
-			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
-		}
+		config := ConvertClusterBeanToClusterConfig(&clusterDetail)
 		req.Clusters = append(req.Clusters, config)
 	}
 	applicatonStream, err := impl.helmAppClient.ListApplication(ctx, req)
@@ -295,26 +319,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConf
 			Token:       "",
 		}
 	} else {
-		config = gRPC.ClusterConfig{
-			ApiServerUrl:           clusterObj.ServerUrl,
-			Token:                  clusterObj.Config[k8s2.BearerToken],
-			ClusterId:              int32(clusterObj.Id),
-			ClusterName:            clusterObj.ClusterName,
-			ProxyUrl:               clusterObj.ProxyUrl,
-			ToConnectWithSSHTunnel: clusterObj.ToConnectWithSSHTunnel,
-			InsecureSkipTLSVerify:  clusterObj.InsecureSkipTLSVerify,
-		}
-		if clusterObj.SSHTunnelConfig != nil {
-			config.SshTunnelAuthKey = clusterObj.SSHTunnelConfig.AuthKey
-			config.SshTunnelUser = clusterObj.SSHTunnelConfig.User
-			config.SshTunnelPassword = clusterObj.SSHTunnelConfig.Password
-			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
-		}
-		if clusterObj.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterObj.Config[k8s2.TlsKey]
-			config.CertData = clusterObj.Config[k8s2.CertData]
-			config.CaData = clusterObj.Config[k8s2.CertificateAuthorityData]
-		}
+		config = *ConvertClusterBeanToClusterConfig(clusterObj)
 	}
 
 	return &config, nil
@@ -476,7 +481,56 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
+// getInstalledAppForAppIdentifier return installed_apps for app unique identifier or releaseName/displayName whichever exists else return pg.ErrNoRows
+func (impl *HelmAppServiceImpl) getInstalledAppForAppIdentifier(appIdentifier *AppIdentifier) (*repository.InstalledApps, error) {
+	model := &repository.InstalledApps{}
+	var err error
+	//for ext apps search app from unique identifier
+	appUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	model, err = impl.installedAppRepository.GetInstalledAppByAppName(appUniqueIdentifier)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			//if error is pg no rows, then find installed app via app.DisplayName because this can also happen that
+			//an ext-app is already linked to devtron, and it's entry in app_name col in app table will not be a unique
+			//identifier but the display name.
+			displayName := appIdentifier.ReleaseName
+			model, err = impl.installedAppRepository.GetInstalledAppByAppName(displayName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching installed app from display name", "appDisplayName", displayName, "err", err)
+				return model, err
+			}
+		} else {
+			impl.logger.Errorw("error in fetching installed app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
+			return model, err
+		}
+	}
+	return model, nil
+}
+
+func (impl *HelmAppServiceImpl) getAppForAppIdentifier(appIdentifier *AppIdentifier) (*app.App, error) {
+	//for ext apps search app from unique identifier
+	appUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	model, err := impl.appRepository.FindActiveByName(appUniqueIdentifier)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			//if error is pg no rows, then find app via release name because this can also happen that a project is
+			//already assigned a project, and it's entry in app_name col in app table will not be a unique
+			//identifier but the display name i.e. release name.
+			displayName := appIdentifier.ReleaseName
+			model, err = impl.appRepository.FindActiveByName(displayName)
+			if err != nil {
+				impl.logger.Errorw("error in fetching app from display name", "appDisplayName", displayName, "err", err)
+				return nil, err
+			}
+		} else {
+			impl.logger.Errorw("error in fetching app by app unique identifier", "appUniqueIdentifier", appUniqueIdentifier, "err", err)
+			return nil, err
+		}
+	}
+	return model, nil
+}
+
+func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, appIdentifier *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -485,67 +539,94 @@ func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Contex
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+	var isAppLinkedToChartStore bool // if true, entry present in both app and installed_app table
 
-	// For Helm deployments ReleaseName is App.Name
-	model, err := impl.installedAppRepository.GetInstalledAppByAppName(app.ReleaseName)
-	if err != nil {
-		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
+	installedAppModel, err := impl.getInstalledAppForAppIdentifier(appIdentifier)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching installed app for app identifier", "appIdentifier", appIdentifier, "err", err)
 		return nil, err
 	}
-
-	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
-	// And if the request is received for the externally installed app, the below condition will handle
-	if model.Environment.Namespace != app.Namespace {
-		return nil, pg.ErrNoRows
+	if installedAppModel.Id > 0 {
+		isAppLinkedToChartStore = true
 	}
 
-	// App Delete --> Start
-	// soft delete app
-	appModel := &model.App
-	appModel.Active = false
-	appModel.UpdatedBy = userId
-	appModel.UpdatedOn = time.Now()
-	err = impl.appRepository.UpdateWithTxn(appModel, tx)
-	if err != nil {
-		impl.logger.Errorw("error in deleting appModel", "app", appModel)
-		return nil, err
-	}
-	// App Delete --> End
+	if isAppLinkedToChartStore {
+		// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
+		// And if the request is received for the externally installed app, the below condition will handle
+		if installedAppModel.Environment.Namespace != appIdentifier.Namespace {
+			return nil, pg.ErrNoRows
+		}
 
-	// InstalledApp Delete --> Start
-	// soft delete install app
-	model.Active = false
-	model.UpdatedBy = userId
-	model.UpdatedOn = time.Now()
-	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
-	if err != nil {
-		impl.logger.Errorw("error while deleting install app", "error", err)
-		return nil, err
-	}
-	// InstalledApp Delete --> End
-
-	// InstalledAppVersions Delete --> Start
-	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(model.Id)
-	if err != nil {
-		impl.logger.Errorw("error while fetching install app versions", "error", err)
-		return nil, err
-	}
-
-	// soft delete install app versions
-	for _, item := range models {
-		item.Active = false
-		item.UpdatedBy = userId
-		item.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+		// App Delete --> Start
+		//soft delete app
+		appModel := &installedAppModel.App
+		appModel.Active = false
+		appModel.UpdatedBy = userId
+		appModel.UpdatedOn = time.Now()
+		err = impl.appRepository.UpdateWithTxn(appModel, tx)
 		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
+			impl.logger.Errorw("error in deleting appModel", "app", appModel)
 			return nil, err
 		}
+		// App Delete --> End
+
+		// InstalledApp Delete --> Start
+		// soft delete install app
+		installedAppModel.Active = false
+		installedAppModel.UpdatedBy = userId
+		installedAppModel.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledApp(installedAppModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error while deleting install app", "error", err)
+			return nil, err
+		}
+		// InstalledApp Delete --> End
+
+		// InstalledAppVersions Delete --> Start
+		models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installedAppModel.Id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching install app versions", "error", err)
+			return nil, err
+		}
+
+		// soft delete install app versions
+		for _, item := range models {
+			item.Active = false
+			item.UpdatedBy = userId
+			item.UpdatedOn = time.Now()
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+		}
+		// InstalledAppVersions Delete --> End
+	} else {
+		//this means app not found in installed_apps, but a scenario where an external app is only
+		//assigned project and not linked to devtron, in that case only entry in app will be found.
+		appModel, err := impl.getAppForAppIdentifier(appIdentifier)
+		if err != nil {
+			impl.logger.Errorw("DeleteDBLinkedHelmApplication, error in fetching app from appIdentifier", "appIdentifier", appIdentifier, "err", err)
+			return nil, err
+		}
+		if appModel != nil && appModel.Id > 0 {
+			// App Delete --> Start
+			//soft delete app
+			appModel.Active = false
+			appModel.UpdatedBy = userId
+			appModel.UpdatedOn = time.Now()
+			err = impl.appRepository.UpdateWithTxn(appModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error in deleting appModel", "app", appModel)
+				return nil, err
+			}
+			// App Delete --> End
+		}
 	}
-	// InstalledAppVersions Delete --> End
-	res, err := impl.DeleteApplication(ctx, app)
+
+	res, err := impl.DeleteApplication(ctx, appIdentifier)
 	if err != nil {
-		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", app)
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
 		return nil, err
 	}
 
@@ -599,7 +680,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
+func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *clusterBean.ClusterBean) (bool, error) {
 	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
@@ -1040,27 +1121,30 @@ type AppIdentifier struct {
 	ReleaseName string `json:"releaseName"`
 }
 
+// GetUniqueAppNameIdentifier returns unique app name identifier, we store all helm releases in kubelink cache with key
+// as what is returned from this func, this is the case where an app across diff namespace or cluster can have same name,
+// so to identify then uniquely below implementation would serve as good unique identifier for an external app.
+func (r *AppIdentifier) GetUniqueAppNameIdentifier() string {
+	return fmt.Sprintf("%s-%s-%s", r.ReleaseName, r.Namespace, strconv.Itoa(r.ClusterId))
+}
+
+func (r *AppIdentifier) GetUniqueAppIdentifierForGivenNamespaceAndCluster(namespace, clusterId string) string {
+	return fmt.Sprintf("%s-%s-%s", r.ReleaseName, namespace, clusterId)
+}
+
 func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error) {
-	component := strings.Split(appId, "|")
-	if len(component) != 3 {
-		return nil, fmt.Errorf("malformed app id %s", appId)
-	}
-	clusterId, err := strconv.Atoi(component[0])
-	if err != nil {
-		return nil, err
-	}
-	if clusterId <= 0 {
-		return nil, fmt.Errorf("target cluster is not provided")
-	}
-	return &AppIdentifier{
-		ClusterId:   clusterId,
-		Namespace:   component[1],
-		ReleaseName: component[2],
-	}, nil
+	return DecodeExternalAppAppId(appId)
 }
 
 func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string {
 	return fmt.Sprintf("%d|%s|%s", appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+}
+
+func isSameAppName(deployedAppName string, appDto app.App) bool {
+	if len(appDto.DisplayName) > 0 {
+		return deployedAppName == appDto.DisplayName
+	}
+	return deployedAppName == appDto.AppName
 }
 
 func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline, installedHelmApps []*repository.InstalledApps) openapi.AppList {
@@ -1090,7 +1174,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 
 			// do not add helm apps in the list which are created using app_store
 			for _, installedHelmApp := range installedHelmApps {
-				if deployedapp.AppName == installedHelmApp.App.AppName && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
+				if isSameAppName(deployedapp.AppName, installedHelmApp.App) && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
 					toExcludeFromList = true
 					break
 				}
@@ -1145,9 +1229,9 @@ func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAp
 	}
 }
 func (impl *HelmAppServiceImpl) CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error {
-	clusterIds:=make([]int,0)
-	for clusterId,_:=range clusterIdToNsMap{
-		clusterIds=append(clusterIds,clusterId)
+	clusterIds := make([]int, 0)
+	for clusterId, _ := range clusterIdToNsMap {
+		clusterIds = append(clusterIds, clusterId)
 	}
 	clusterBeans, err := impl.clusterService.FindByIds(clusterIds)
 	if err != nil {

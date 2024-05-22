@@ -45,7 +45,7 @@ type ProxyRouterImpl struct {
 	proxy  map[ProxyServiceName]func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer casbin.Enforcer) *ProxyRouterImpl {
+func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer casbin.Enforcer) (*ProxyRouterImpl, error) {
 	client := &http.Client{
 		Transport: NewProxyTransport(),
 	}
@@ -58,14 +58,18 @@ func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer ca
 	proxy := make(map[ProxyServiceName]func(writer http.ResponseWriter, request *http.Request))
 	for serviceName, connection := range proxyConnection {
 		connection.ServiceName = serviceName
-		proxy[serviceName] = NewHTTPReverseProxy(connection, client.Transport, enforcer)
+		proxy[serviceName], err = NewHTTPReverseProxy(connection, client.Transport, enforcer)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 
 	router := &ProxyRouterImpl{
 		proxy:  proxy,
 		logger: logger,
 	}
-	return router
+	return router, nil
 }
 
 func (router ProxyRouterImpl) InitProxyRouter(ProxyRouter *mux.Router) {
