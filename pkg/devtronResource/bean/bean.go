@@ -147,9 +147,9 @@ type DevtronResourceDependencyBean struct {
 	OldObjectId             int                              `json:"id"` //have both oldObjectId and resourceObjectId
 	DevtronResourceId       int                              `json:"devtronResourceId"`
 	DevtronResourceSchemaId int                              `json:"devtronResourceSchemaId"`
-	DependentOnIndex        int                              `json:"dependentOnIndex,omitempty"`
+	DependentOnIndex        int                              `json:"dependentOnIndex"`
 	DependentOnIndexes      []int                            `json:"dependentOnIndexes,omitempty"`
-	DependentOnParentIndex  int                              `json:"dependentOnParentIndex,omitempty"`
+	DependentOnParentIndex  int                              `json:"dependentOnParentIndex"`
 	TypeOfDependency        DevtronResourceDependencyType    `json:"typeOfDependency"`
 	Index                   int                              `json:"index"`
 	Dependencies            []*DevtronResourceDependencyBean `json:"dependencies,omitempty"`
