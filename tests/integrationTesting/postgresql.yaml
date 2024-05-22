@@ -67,9 +67,10 @@ metadata:
     chart: postgresql-8.6.4
     release: "devtron"
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: tcp-postgresql
+      nodePort: 30468
       port: 5432
       targetPort: tcp-postgresql
   selector:

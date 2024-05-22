@@ -19,6 +19,7 @@ package service
 
 import (
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/util"
@@ -240,6 +241,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
 		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
+		}
 		installedVal.Values = append(installedVal.Values, appStoreVersion)
 	}
 
@@ -259,6 +263,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			Name:              installedAppVersion.InstalledApp.App.AppName,
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
+		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
 		}
 		existingVal.Values = append(existingVal.Values, appStoreVersion)
 	}

@@ -141,8 +141,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		return response, err
 	}
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
@@ -400,8 +405,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 	}
 
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
