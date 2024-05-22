@@ -226,19 +226,16 @@ var TerminalSessionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 }, []string{"podName", "namespace", "clusterId"})
 
 func PrometheusMiddleware(next http.Handler) http.Handler {
-	// prometheus.MustRegister(requestCounter)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		route := mux.CurrentRoute(r)
 		urlPath, _ := route.GetPathTemplate()
 		urlMethod := r.Method
 
-		// Gauge to track the current number of requests
 		g := currentRequestGauge.WithLabelValues(urlPath, urlMethod)
 		g.Inc()
 		defer g.Dec()
 
-		// Delegator to capture the status code
 		d := NewDelegator(w, nil)
 		next.ServeHTTP(d, r)
 
@@ -264,7 +261,6 @@ func PrometheusMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		// Record the duration and increment the request counter
 		httpDuration.WithLabelValues(valuesArray...).Observe(time.Since(start).Seconds())
 		requestCounter.WithLabelValues(urlPath, urlMethod, strconv.Itoa(d.Status())).Inc()
 	})
