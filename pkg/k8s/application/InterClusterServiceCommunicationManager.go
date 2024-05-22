@@ -2,11 +2,15 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"go.uber.org/zap"
 	"net"
+	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
@@ -18,13 +22,17 @@ type InterClusterServiceCommunicationHandler interface {
 	GetClusterServiceProxyHandler(ctx context.Context, clusterServiceKey ClusterServiceKey) (*httputil.ReverseProxy, error)
 	GetClusterServiceProxyPort(ctx context.Context, clusterServiceKey ClusterServiceKey) (int, error)
 	GetK8sApiProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error)
+	cleanK8sProxyServerCache(clusterId int)
+	getK8sProxyServerMetadata(clusterId int) *ProxyServerMetadata
 }
 
 type InterClusterServiceCommunicationHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	portForwardManager  PortForwardManager
 	clusterServiceCache map[ClusterServiceKey]*ProxyServerMetadata
+	k8sApiProxyCache    map[int]*ProxyServerMetadata
 	lock                *sync.Mutex
+	cfg                 *bean.InterClusterCommunicationConfig
 }
 
 type ProxyServerMetadata struct {
@@ -34,8 +42,15 @@ type ProxyServerMetadata struct {
 }
 
 func NewInterClusterServiceCommunicationHandlerImpl(logger *zap.SugaredLogger, portForwardManager PortForwardManager) (*InterClusterServiceCommunicationHandlerImpl, error) {
+	cfg := &bean.InterClusterCommunicationConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+	}
+
 	clusterServiceCache := map[ClusterServiceKey]*ProxyServerMetadata{}
-	return &InterClusterServiceCommunicationHandlerImpl{logger: logger, portForwardManager: portForwardManager, clusterServiceCache: clusterServiceCache, lock: &sync.Mutex{}}, nil
+	k8sApiProxyCache := map[int]*ProxyServerMetadata{}
+	return &InterClusterServiceCommunicationHandlerImpl{logger: logger, portForwardManager: portForwardManager, clusterServiceCache: clusterServiceCache, lock: &sync.Mutex{}, cfg: cfg, k8sApiProxyCache: k8sApiProxyCache}, nil
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyHandler(ctx context.Context, clusterServiceKey ClusterServiceKey) (*httputil.ReverseProxy, error) {
@@ -58,39 +73,85 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) GetClusterServiceProxyP
 func (impl *InterClusterServiceCommunicationHandlerImpl) GetK8sApiProxyHandler(ctx context.Context, clusterId int) (*httputil.ReverseProxy, error) {
 	impl.lock.Lock()
 	defer impl.lock.Unlock()
-	dummyClusterKey := NewClusterServiceKey(clusterId, "dummy", "dummy", "dummy")
-	proxyServerMetadata, ok := impl.clusterServiceCache[dummyClusterKey]
+
+	proxyServerMetadata, ok := impl.k8sApiProxyCache[clusterId]
 	if ok {
 		return proxyServerMetadata.proxyServer, nil
 	}
-	k8sProxyPort, err := impl.portForwardManager.StartK8sProxy(ctx, clusterId)
+	k8sProxyPort, err := impl.portForwardManager.StartK8sProxy(ctx, clusterId, impl.cleanK8sProxyServerCache)
 	if err != nil {
 		return nil, err
 	}
 	proxyTransport := proxy.NewProxyTransport()
 	serverAddr := fmt.Sprintf("http://localhost:%d", k8sProxyPort)
-	proxyServer, err := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(dummyClusterKey, impl.callback), func(urlPath string) string {
+	proxyServer, err := proxy.GetProxyServerWithPathTrimFunc(serverAddr, proxyTransport, "", "", NewClusterServiceActivityLogger(NewClusterServiceKey(clusterId, "", "", ""), impl.updateLastActivity), func(urlPath string) string {
 		return urlPath
-	}) // TODO Fix this
+	})
+	if err != nil {
+		impl.logger.Errorw("Error creating k8s proxy server", "err", err)
+		return nil, err
+	}
+	proxyServer.ErrorHandler = impl.handleErrorBeforeResponse
 
 	reverseProxyMetadata := &ProxyServerMetadata{forwardedPort: k8sProxyPort, proxyServer: proxyServer}
-	impl.clusterServiceCache[dummyClusterKey] = reverseProxyMetadata
+	impl.k8sApiProxyCache[clusterId] = reverseProxyMetadata
 	go func() {
-		// inactivity handling
+		// Inactivity Handling
 		for {
-			proxyServerMetadata := impl.clusterServiceCache[dummyClusterKey]
-			lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
-			if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > 60*time.Second) {
-				impl.logger.Infow("stopping forwarded port because of inactivity", "k8sProxyPort", k8sProxyPort)
-				forwardedPort := proxyServerMetadata.forwardedPort
-				impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
-				delete(impl.clusterServiceCache, dummyClusterKey)
+			if proxyServerMetadata := impl.getK8sProxyServerMetadata(clusterId); proxyServerMetadata != nil {
+				lastActivityTimestamp := proxyServerMetadata.lastActivityTimestamp
+				if !lastActivityTimestamp.IsZero() && (time.Since(lastActivityTimestamp) > (time.Duration(impl.cfg.ProxyUpTime) * time.Second)) {
+					impl.logger.Infow("stopping K8sProxy because of inactivity", "k8sProxyPort", k8sProxyPort)
+					forwardedPort := proxyServerMetadata.forwardedPort
+					impl.portForwardManager.StopPortForwarding(context.Background(), forwardedPort)
+					return
+				}
+			} else {
 				return
 			}
 			time.Sleep(10 * time.Second)
 		}
 	}()
+	impl.waitForK8sProxyServer(k8sProxyPort)
 	return reverseProxyMetadata.proxyServer, nil
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) handleErrorBeforeResponse(w http.ResponseWriter, r *http.Request, err error) {
+	clusterId, _ := strconv.Atoi(r.Header.Get("Cluster-Id"))
+	impl.cleanK8sProxyServerCache(clusterId)
+	errorResponse := bean2.ErrorResponse{
+		Kind:    "Status",
+		Code:    500,
+		Message: "An error occurred. Please try again.",
+		Reason:  "Internal Server Error",
+	}
+	impl.logger.Errorw("error in connecting proxy server", "Error", err)
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(errorResponse)
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) waitForK8sProxyServer(port int) {
+	for i := 0; i < 10; i++ {
+		if portActive("localhost", port) {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !portActive("localhost", port) {
+		impl.portForwardManager.StopPortForwarding(context.Background(), port)
+	}
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) getK8sProxyServerMetadata(clusterId int) *ProxyServerMetadata {
+	impl.lock.Lock()
+	defer impl.lock.Unlock()
+	return impl.k8sApiProxyCache[clusterId]
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) cleanK8sProxyServerCache(clusterId int) {
+	impl.lock.Lock()
+	defer impl.lock.Unlock()
+	delete(impl.k8sApiProxyCache, clusterId)
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx context.Context, clusterServiceKey ClusterServiceKey) (*ProxyServerMetadata, error) {
@@ -134,8 +195,17 @@ func (impl *InterClusterServiceCommunicationHandlerImpl) getProxyMetadata(ctx co
 }
 
 func (impl *InterClusterServiceCommunicationHandlerImpl) callback(clusterServiceKey ClusterServiceKey) {
-	proxyServerMetadata := impl.clusterServiceCache[clusterServiceKey]
-	proxyServerMetadata.lastActivityTimestamp = time.Now()
+	if proxyServerMetadata, ok := impl.clusterServiceCache[clusterServiceKey]; ok {
+		proxyServerMetadata.lastActivityTimestamp = time.Now()
+	}
+}
+
+func (impl *InterClusterServiceCommunicationHandlerImpl) updateLastActivity(clusterServiceKey ClusterServiceKey) {
+	impl.lock.Lock()
+	defer impl.lock.Unlock()
+	if proxyServerMetadata, ok := impl.k8sApiProxyCache[clusterServiceKey.GetClusterId()]; ok {
+		proxyServerMetadata.lastActivityTimestamp = time.Now()
+	}
 }
 
 type ClusterServiceKey string

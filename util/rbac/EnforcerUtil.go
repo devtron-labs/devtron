@@ -94,7 +94,6 @@ type EnforcerUtilImpl struct {
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
 	enforcer              casbin.Enforcer
-	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
@@ -109,11 +108,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		pipelineRepository:    pipelineRepository,
 		ciPipelineRepository:  ciPipelineRepository,
 		clusterRepository:     clusterRepository,
-		EnforcerUtilHelmImpl: &EnforcerUtilHelmImpl{
-			logger:            logger,
-			clusterRepository: clusterRepository,
-		},
-		enforcer: enforcer,
+		enforcer:              enforcer,
 	}
 }
 

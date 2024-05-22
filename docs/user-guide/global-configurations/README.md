@@ -34,11 +34,11 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Tags Policy](tags-policy.md)
 
-[Filter Condition](filter-condition.md)
-
-[Image Promotion](image-promotion-policy.md)
-
 [Lock Deployment Configuration](lock-deployment-config.md)
+
+[Image Promotion Policy](image-promotion-policy.md)
+
+[Filter Condition](filter-condition.md)
 
 [Build Infra](build-infra.md)
 

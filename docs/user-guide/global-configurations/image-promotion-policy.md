@@ -144,7 +144,7 @@ Moreover, there are three filters available to make the selections easier for yo
 Users need to have super-admin permission to apply an image promotion policy.
 {% endhint %}
 
-You can apply a policy using our APIs or through [Devtron CLI](https://github.com/devtron-labs/devtron-cli). Here is the CLI approach:
+You can apply a policy using our APIs or through Devtron CLI. Here is the CLI approach:
 
 * Create a YAML file and give it a name (say `applyPolicy.yaml`). Within the file, define the applications and environments to which the image promotion policy should apply, as shown below.
 
