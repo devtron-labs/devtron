@@ -77,6 +77,7 @@ func getLabels() []string {
 				for key, value := range obj.Label {
 					strValue := strings.TrimSpace(value)
 					existingLabels[key] = strValue
+					keys[key] = true
 				}
 			} else {
 				labels := make(map[string]string)
