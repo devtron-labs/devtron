@@ -905,7 +905,7 @@ func (handler ConfigMapRestHandlerImpl) GetEnvironmentsForJob(w http.ResponseWri
 	}
 	//AUTH - check from casbin db
 	token := r.Header.Get("token")
-	object, _ := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
