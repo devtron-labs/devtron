@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	"github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	apiToken2 "github.com/devtron-labs/devtron/api/apiToken"
 	chartProvider2 "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -47,20 +48,20 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository7 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	repository7 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository6 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
-	repository9 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	repository10 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	service3 "github.com/devtron-labs/devtron/pkg/appStore/discover/service"
-	repository6 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	repository8 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
@@ -86,21 +87,23 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/audit"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
-	repository10 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	repository11 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
-	repository8 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+	repository9 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
-	repository11 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
+	repository12 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/module"
 	"github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository5 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/server"
 	"github.com/devtron-labs/devtron/pkg/server/config"
@@ -187,7 +190,7 @@ func InitializeApp() (*App, error) {
 	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl, timeoutWindowResourceMappingRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl, timeWindowServiceImpl)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
-	sshTunnelWrapperServiceImpl, err := k8s.NewSSHTunnelWrapperServiceImpl(sugaredLogger)
+	sshTunnelWrapperServiceImpl, err := ssh.NewSSHTunnelWrapperServiceImpl(sugaredLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -212,10 +215,13 @@ func InitializeApp() (*App, error) {
 	clusterRepositoryImpl := repository4.NewClusterRepositoryImpl(db, sugaredLogger)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sUtilExtended)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, globalAuthorisationConfigServiceImpl, userServiceImpl)
+	remoteConnectionRepositoryImpl := repository5.NewRemoteConnectionRepositoryImpl(db, sugaredLogger)
+	dockerArtifactStoreRepositoryImpl := repository6.NewDockerArtifactStoreRepositoryImpl(db)
+	remoteConnectionServiceImpl := remoteConnection.NewRemoteConnectionServiceImpl(sugaredLogger, remoteConnectionRepositoryImpl, dockerArtifactStoreRepositoryImpl)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, remoteConnectionServiceImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
-	attributesRepositoryImpl := repository5.NewAttributesRepositoryImpl(db)
+	attributesRepositoryImpl := repository7.NewAttributesRepositoryImpl(db)
 	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util3.GetACDAuthConfig()
@@ -228,7 +234,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtilExtended, clusterServiceImpl, acdAuthConfig, httpClient, serverEnvConfigServerEnvConfig)
-	installedAppRepositoryImpl := repository6.NewInstalledAppRepositoryImpl(sugaredLogger, db)
+	installedAppRepositoryImpl := repository8.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	helmClientConfig, err := gRPC.GetConfig()
 	if err != nil {
 		return nil, err
@@ -245,10 +251,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	helmAppServiceImpl := service.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImpl, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtilExtended, helmReleaseConfig)
-	dockerArtifactStoreRepositoryImpl := repository7.NewDockerArtifactStoreRepositoryImpl(db)
-	dockerRegistryIpsConfigRepositoryImpl := repository7.NewDockerRegistryIpsConfigRepositoryImpl(db)
-	ociRegistryConfigRepositoryImpl := repository7.NewOCIRegistryConfigRepositoryImpl(db)
-	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl)
+	dockerRegistryIpsConfigRepositoryImpl := repository6.NewDockerRegistryIpsConfigRepositoryImpl(db)
+	ociRegistryConfigRepositoryImpl := repository6.NewOCIRegistryConfigRepositoryImpl(db)
+	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, remoteConnectionServiceImpl, remoteConnectionRepositoryImpl)
 	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
@@ -260,8 +265,8 @@ func InitializeApp() (*App, error) {
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enterpriseEnforcerImpl, roleGroupServiceImpl, userCommonServiceImpl, cleanUpPoliciesServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
 	transactionUtilImpl := sql.NewTransactionUtilImpl(db)
-	genericNoteRepositoryImpl := repository8.NewGenericNoteRepositoryImpl(db, transactionUtilImpl)
-	genericNoteHistoryRepositoryImpl := repository8.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
+	genericNoteRepositoryImpl := repository9.NewGenericNoteRepositoryImpl(db, transactionUtilImpl)
+	genericNoteHistoryRepositoryImpl := repository9.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository4.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
@@ -278,24 +283,24 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
-	installedAppVersionHistoryRepositoryImpl := repository6.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
+	installedAppVersionHistoryRepositoryImpl := repository8.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl)
-	gitOpsConfigRepositoryImpl := repository5.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
+	gitOpsConfigRepositoryImpl := repository7.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	gitOpsConfigReadServiceImpl := config.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	deploymentTypeOverrideServiceImpl := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, environmentVariables, attributesServiceImpl, environmentServiceImpl)
 	eaModeDeploymentServiceImpl := EAMode.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)
 	appStoreValidatorEnterpriseImpl := service2.NewAppStoreValidatorEnterpriseImpl(sugaredLogger)
 	appStoreDeploymentDBServiceImpl := service2.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, clusterServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, eaModeDeploymentServiceImpl, appStoreValidatorEnterpriseImpl)
-	chartGroupDeploymentRepositoryImpl := repository9.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
+	chartGroupDeploymentRepositoryImpl := repository10.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	acdConfig, err := argocdServer.GetACDDeploymentConfig()
 	if err != nil {
 		return nil, err
 	}
-	devtronResourceSchemaRepositoryImpl := repository10.NewDevtronResourceSchemaRepositoryImpl(db, sugaredLogger)
-	devtronResourceObjectRepositoryImpl := repository10.NewDevtronResourceObjectRepositoryImpl(sugaredLogger, db)
+	devtronResourceSchemaRepositoryImpl := repository11.NewDevtronResourceSchemaRepositoryImpl(db, sugaredLogger)
+	devtronResourceObjectRepositoryImpl := repository11.NewDevtronResourceObjectRepositoryImpl(sugaredLogger, db)
 	readServiceImpl := read.NewReadServiceImpl(sugaredLogger, devtronResourceObjectRepositoryImpl)
-	devtronResourceObjectAuditRepositoryImpl := repository10.NewDevtronResourceObjectAuditRepositoryImpl(sugaredLogger, db)
+	devtronResourceObjectAuditRepositoryImpl := repository11.NewDevtronResourceObjectAuditRepositoryImpl(sugaredLogger, db)
 	objectAuditServiceImpl := audit.NewObjectAuditServiceImpl(sugaredLogger, devtronResourceObjectAuditRepositoryImpl)
 	internalProcessingServiceImpl := in.NewInternalProcessingServiceImpl(sugaredLogger, devtronResourceSchemaRepositoryImpl, devtronResourceObjectRepositoryImpl, readServiceImpl, objectAuditServiceImpl)
 	deletePostProcessorEnterpriseImpl := service2.NewDeletePostProcessorEnterpriseImpl(sugaredLogger, internalProcessingServiceImpl)
@@ -303,7 +308,7 @@ func InitializeApp() (*App, error) {
 	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorEnterpriseImpl, appStoreValidatorEnterpriseImpl, chartScanPublishServiceImpl)
 	helmAppRestHandlerImpl := client3.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
 	helmAppRouterImpl := client3.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
-	k8sResourceHistoryRepositoryImpl := repository11.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
+	k8sResourceHistoryRepositoryImpl := repository12.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	argoApplicationServiceImpl := argoApplication.NewArgoApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sUtilExtended, helmUserServiceImpl, helmAppServiceImpl)
 	imageScanServiceImpl := security.NewImageScanServiceImplEA()
@@ -323,7 +328,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	deploymentWindowServiceImpl := deploymentWindow.NewDeploymentWindowServiceImplEA()
-	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, environmentRepositoryImpl, argoApplicationServiceImpl, celServiceImpl, interClusterServiceCommunicationHandlerImpl, deploymentWindowServiceImpl)
+	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sUtilExtended, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, environmentRepositoryImpl, clusterRepositoryImpl, argoApplicationServiceImpl, celServiceImpl, interClusterServiceCommunicationHandlerImpl, deploymentWindowServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -410,13 +415,13 @@ func InitializeApp() (*App, error) {
 	webhookHelmServiceImpl := webhookHelm.NewWebhookHelmServiceImpl(sugaredLogger, helmAppServiceImpl, clusterServiceImpl, chartRepositoryServiceImpl, attributesServiceImpl)
 	webhookHelmRestHandlerImpl := webhookHelm2.NewWebhookHelmRestHandlerImpl(sugaredLogger, webhookHelmServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate)
 	webhookHelmRouterImpl := webhookHelm2.NewWebhookHelmRouterImpl(webhookHelmRestHandlerImpl)
-	userAttributesRepositoryImpl := repository5.NewUserAttributesRepositoryImpl(db)
+	userAttributesRepositoryImpl := repository7.NewUserAttributesRepositoryImpl(db)
 	userAttributesServiceImpl := attributes.NewUserAttributesServiceImpl(sugaredLogger, userAttributesRepositoryImpl)
 	userAttributesRestHandlerImpl := restHandler.NewUserAttributesRestHandlerImpl(sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, userAttributesServiceImpl)
 	userAttributesRouterImpl := router.NewUserAttributesRouterImpl(userAttributesRestHandlerImpl)
 	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImpl, enterpriseEnforcerImpl, userServiceImpl)
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
-	terminalAccessRepositoryImpl := repository5.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
+	terminalAccessRepositoryImpl := repository7.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err

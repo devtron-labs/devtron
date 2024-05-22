@@ -31,6 +31,8 @@
  | BUILDX_K8S_DRIVER_OPTIONS |  |  | 
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
+ | CACHED_GVKs | [] |  | 
+ | CACHED_NAMESPACES |  |  | 
  | CACHE_LIMIT | 5000000000 |  | 
  | CAN_APPROVER_DEPLOY | false |  | 
  | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
@@ -73,7 +75,16 @@
  | CLEAN_UP_RBAC_POLICIES_CRON_TIME | 0 0 * * * |  | 
  | CLI_CMD_TIMEOUT_GLOBAL_SECONDS | 0 |  | 
  | CLONING_MODE | SHALLOW |  | 
+ | CLUSTER_CACHE_ATTEMPT_LIMIT | 1 |  | 
+ | CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | 10 |  | 
+ | CLUSTER_CACHE_LIST_PAGE_SIZE | 500 |  | 
+ | CLUSTER_CACHE_LIST_SEMAPHORE_SIZE | 5 |  | 
+ | CLUSTER_CACHE_RESYNC_DURATION | 12h |  | 
+ | CLUSTER_CACHE_RETRY_USE_BACKOFF |  |  | 
+ | CLUSTER_CACHE_WATCH_RESYNC_DURATION | 10m |  | 
+ | CLUSTER_ID | 1 |  | 
  | CLUSTER_STATUS_CRON_TIME | 15 |  | 
+ | CLUSTER_SYNC_RETRY_TIMEOUT_DURATION | 10s |  | 
  | CONSUMER_CONFIG_JSON |  |  | 
  | CUSTOM_ROLE_CACHE_ALLOWED | false |  | 
  | DASHBOARD_HOST | localhost |  | 
@@ -128,6 +139,7 @@
  | ENTERPRISE_ENFORCER_ENABLED | true |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
+ | EXECUTE_WIRE_NIL_CHECKER | false |  | 
  | EXPOSE_CD_METRICS | false |  | 
  | EXPOSE_CI_METRICS | false |  | 
  | EXTERNAL_BLOB_STORAGE_CM_NAME | blob-storage-cm |  | 
@@ -190,6 +202,7 @@
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
+ | ORCHESTRATOR_URL | http://localhost:8080 |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -208,6 +221,7 @@
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | PROXY_UP_TIME | 60 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -223,6 +237,7 @@
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 
  | SCOPED_VARIABLE_NAME_REGEX | ^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  | 
+ | SHOW_DOCKER_BUILD_ARGS | true |  | 
  | SKIP_CREATING_ECR_REPO | false |  | 
  | SOCKET_DISCONNECT_DELAY_SECONDS | 5 |  | 
  | SOCKET_HEARTBEAT_SECONDS | 25 |  | 
@@ -241,6 +256,7 @@
  | TEST_PG_USER | postgres |  | 
  | TIMEOUT_FOR_FAILED_CI_BUILD | 15 |  | 
  | TIMEOUT_IN_SECONDS | 5 |  | 
+ | TOKEN |  |  | 
  | USER_SESSION_DURATION_SECONDS | 86400 |  | 
  | USE_ARTIFACT_LISTING_API_V2 | true |  | 
  | USE_ARTIFACT_LISTING_QUERY_V2 | true |  | 
@@ -253,6 +269,7 @@
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
  | USE_RBAC_CREATION_V2 | true |  | 
+ | USE_RESOURCE_LIST_V2 |  |  | 
  | VARIABLE_CACHE_ENABLED | true |  | 
  | VARIABLE_EXPRESSION_REGEX | @{{([^}]+)}} |  | 
  | WEBHOOK_TOKEN |  |  | 

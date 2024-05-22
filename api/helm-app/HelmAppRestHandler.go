@@ -233,7 +233,7 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedAppVersionDto, err := handler.installedAppService.GetReleaseInfo(appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -241,7 +241,7 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 
 	res := &bean.ReleaseAndInstalledAppInfo{
 		ReleaseInfo:      releaseInfo,
-		InstalledAppInfo: bean.ConvertToInstalledAppInfo(installedApp),
+		InstalledAppInfo: bean.ConvertToInstalledAppInfo(installedAppVersionDto),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)

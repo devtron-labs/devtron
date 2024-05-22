@@ -54,6 +54,7 @@ type EnvDto struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 	Description           string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+	Default               bool   `json:"default"`
 }
 
 type ClusterEnvDto struct {

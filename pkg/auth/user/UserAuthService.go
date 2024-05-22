@@ -376,6 +376,7 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/api/v1/session",
 		"/orchestrator/app/ci-pipeline/github-webhook/trigger",
 		"/orchestrator/webhook/msg/nats",
+		"/orchestrator/scoop/intercept-event/notify",
 		"/orchestrator/devtron/auth/verify",
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
@@ -385,7 +386,8 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/self-register/check",
 		"/orchestrator/self-register",
 		"/orchestrator/telemetry/summary",
-		"/orchestrator/scoop/notify",
+		"/orchestrator/scoop/namespace/sync",
+		"/orchestrator/scoop/watchers/sync",
 	}
 	for _, a := range urls {
 		if a == url {
@@ -401,6 +403,7 @@ func WhitelistChecker(url string) bool {
 		"/dashboard",
 		"/orchestrator/webhook/git",
 		"/orchestrator/k8s/proxy",
+		"/orchestrator/scoop/intercept-event",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {
