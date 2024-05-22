@@ -68,31 +68,23 @@ func getLabels() []string {
 	}
 
 	var data []UrlPaths
-	// Unmarshal JSON into the defined struct
 	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
 		fmt.Println("Error:", err)
 		return nil
 	}
 
-	// Define a map to store the URL to labels mappings
 	urlMappings := make(map[string]map[string]string)
-	// Define a map to store unique keys (labels)
 	keys := make(map[string]bool)
 
-	// Iterate through each UrlPaths object in the array
 	for _, obj := range data {
-		// Iterate through each URL and add the mappings
 		for _, urlStr := range obj.Url {
-			// Handle URLs separated by commas and trim whitespace
 			urlStr = strings.TrimSpace(urlStr)
-			// If the URL is already in the map, merge the labels
 			if existingLabels, exists := urlMappings[urlStr]; exists {
 				for key, value := range obj.Label {
 					strValue := strings.TrimSpace(value)
 					existingLabels[key] = strValue
 				}
 			} else {
-				// Create a new map for each URL to store its labels
 				labels := make(map[string]string)
 				for key, value := range obj.Label {
 					strValue := strings.TrimSpace(value)
@@ -103,7 +95,6 @@ func getLabels() []string {
 
 		}
 
-		// Add keys to the unique keys map
 		for key := range obj.Label {
 			keys[key] = true
 		}
