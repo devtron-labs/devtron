@@ -56,15 +56,16 @@ type UrlPaths struct {
 }
 
 func getLabels() []string {
+	uniqueKeys := []string{path, method, status}
 	httpLabels, err := GetHttpLabels()
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return uniqueKeys
 	}
 	var data []UrlPaths
 	if err := json.Unmarshal([]byte(httpLabels.UrlPaths), &data); err != nil {
 		fmt.Println("Error:", err)
-		return nil
+		return uniqueKeys
 	}
 	urlMappings := make(map[string]map[string]string)
 	keys := make(map[string]bool)
@@ -92,7 +93,6 @@ func getLabels() []string {
 	}
 
 	UrlLabelsMapping = urlMappings
-	uniqueKeys := []string{path, method, status}
 	for key := range keys {
 		uniqueKeys = append(uniqueKeys, key)
 	}
