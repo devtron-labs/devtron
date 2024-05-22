@@ -157,7 +157,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) EnvironmentListAutocomplete
 	}
 	handler.Logger.Infow("request payload, EnvironmentListAutocomplete", "appId", appId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -187,7 +187,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 	}
 	handler.Logger.Infow("request payload, GitListAutocomplete", "appId", appId)
 	//RBAC
-	object, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -232,7 +232,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) RegistriesListAutocomplete(
 
 	handler.Logger.Infow("request payload, DockerListAutocomplete", "appId", appId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -258,7 +258,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) TeamListAutocomplete(w http
 	}
 	handler.Logger.Infow("request payload, TeamListAutocomplete", "appId", appId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return

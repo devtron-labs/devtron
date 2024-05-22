@@ -40,12 +40,13 @@ type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
-	GetAppRBACNameByAppId(appId int) (string, helper.AppType)
+	GetAppRBACNameByAppId(appId int) string
+	GetAppRBACNameAndAppTypeByAppId(appId int) (string, helper.AppType)
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
 	GetTeamEnvRBACNameByAppId(appId int, envId int) string
 	GetEnvRBACNameByAppId(appId int, envId int) string
-	GetTeamRBACByCiPipelineId(pipelineId int) (string, helper.AppType)
+	GetTeamRBACByCiPipelineId(pipelineId int) string
 	GetEnvRBACArrayByAppId(appId int) []string
 	GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
 	GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string
@@ -196,7 +197,15 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int, appT
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetAppRBACNameByAppId(appId int) (string, helper.AppType) {
+func (impl EnforcerUtilImpl) GetAppRBACNameByAppId(appId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	return fmt.Sprintf("%s/%s", application.Team.Name, application.AppName)
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameAndAppTypeByAppId(appId int) (string, helper.AppType) {
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", ""), 0
@@ -255,11 +264,11 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) str
 	return fmt.Sprintf("%s/%s/%s", teamName, env.EnvironmentIdentifier, appName)
 }
 
-func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) (string, helper.AppType) {
+func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
 	ciPipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
 	if err != nil {
 		impl.logger.Error(err)
-		return "", 0
+		return ""
 	}
 	return impl.GetAppRBACNameByAppId(ciPipeline.AppId)
 }

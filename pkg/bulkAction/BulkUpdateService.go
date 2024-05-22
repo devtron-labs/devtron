@@ -981,7 +981,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
-		appObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
 		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
 		if !isValidAuth {
@@ -1136,7 +1136,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
-		appObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
 		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
 		if !isValidAuth {
@@ -1411,7 +1411,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				pResponse[pipelineKey] = false
 				response[appKey] = pResponse
 			}
-			appObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+			appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 			envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
 			isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
 			if !isValidAuth {

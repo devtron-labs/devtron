@@ -118,7 +118,7 @@ func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *h
 
 	//rback implementation starts here
 	token := r.Header.Get("token")
-	object, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -209,7 +209,7 @@ func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.R
 	token := r.Header.Get("token")
 
 	// check for existing project/app permission
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate, request.AppType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -262,7 +262,7 @@ func (handler AppInfoRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter
 	//rbac implementation ends here
 	token := r.Header.Get("token")
 	for _, appId := range request.AppIds {
-		object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
@@ -371,7 +371,7 @@ func (handler AppInfoRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *ht
 	//rbac implementation starts here
 
 	// check for existing project/app permission
-	object, appType := handler.enforcerUtil.GetAppRBACNameByAppId(bean.Identifier)
+	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(bean.Identifier)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)

@@ -94,7 +94,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	var ids []int
 	for _, item := range deployInfoList {
 		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
-			object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
+			object := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
@@ -199,7 +199,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	//RBAC
 	token := r.Header.Get("token")
 	if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
-		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -210,7 +210,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 			return
 		}
 	} else if executionDetail.AppId > 0 {
-		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -249,7 +249,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 	//RBAC
 	token := r.Header.Get("token")
 	if appId > 0 && envId > 0 {
-		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -307,7 +307,7 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	token := r.Header.Get("token")
 	var vulnerabilityExposure []*security2.VulnerabilityExposure
 	for _, item := range results.VulnerabilityExposure {
-		object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(item.AppId)
+		object := impl.enforcerUtil.GetAppRBACNameByAppId(item.AppId)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return

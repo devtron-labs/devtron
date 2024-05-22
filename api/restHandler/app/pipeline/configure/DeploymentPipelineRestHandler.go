@@ -576,7 +576,7 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", request)
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -697,7 +697,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 	envConfigProperties.EnvironmentId = environmentId
 	handler.Logger.Infow("request payload, EnvConfigOverrideCreate", "payload", envConfigProperties)
 
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -806,7 +806,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Res
 	}
 	appId := envConfigOverride.Chart.AppId
 	envId := envConfigOverride.TargetEnvironment
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -902,7 +902,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w ht
 	}
 
 	// RBAC enforcer applying
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
@@ -932,7 +932,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
@@ -1416,7 +1416,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetAppOverrideForDefaultTemplate(w
 	}
 
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -1612,7 +1612,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1672,7 +1672,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 	}
 	handler.Logger.Infow("request payload, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
 	//RBAC CHECK
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1738,7 +1738,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	handler.Logger.Infow("request payload, GetPrePostDeploymentLogs", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "workflowId", workflowId)
 
 	//RBAC CHECK
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1807,7 +1807,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Resp
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 
 	//RBAC CHECK
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1854,7 +1854,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	handler.Logger.Infow("request payload, DownloadArtifacts", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId)
 
 	//RBAC CHECK
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -1909,7 +1909,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrit
 	handler.Logger.Infow("request payload, GetStageStatus", "err", err, "appId", appId, "pipelineId", pipelineId)
 
 	//RBAC CHECK
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -2039,7 +2039,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter,
 
 	//RBAC
 	token := r.Header.Get("token")
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(cdPipeline.AppId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(cdPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -2069,7 +2069,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentPipelineStrategy(w ht
 	}
 	handler.Logger.Infow("request payload, GetDeploymentPipelineStrategy", "appId", appId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -2100,7 +2100,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentPipelineStrate
 	}
 	handler.Logger.Infow("request payload, GetDefaultDeploymentPipelineStrategy", "appId", appId, "envId", envId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -2150,7 +2150,7 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -2189,7 +2189,7 @@ func (handler *PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWr
 	}
 	handler.Logger.Infow("request payload, IsReadyToTrigger", "appId", appId, "envId", envId, "pipelineId", pipelineId)
 	//RBAC
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return

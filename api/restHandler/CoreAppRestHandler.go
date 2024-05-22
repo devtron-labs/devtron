@@ -154,7 +154,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	//rbac implementation for app (user should be admin)
 	token := r.Header.Get("token")
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 		handler.logger.Errorw("Unauthorized User for app update action", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)

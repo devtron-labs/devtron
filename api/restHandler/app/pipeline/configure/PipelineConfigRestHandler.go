@@ -232,7 +232,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resourceObject, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceObject, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -421,7 +421,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *h
 	}
 
 	//rbac implementation starts here
-	object, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -582,7 +582,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVi
 	}
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "appId", appId)
 	//RBAC CHECK
-	resourceName, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet, appType)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)

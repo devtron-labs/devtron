@@ -79,7 +79,7 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.Resp
 		}
 	}
 
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)

@@ -90,7 +90,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 	impl.logger.Infow("request payload, ResetDataForAppEnvironment", "err", err, "payload", req)
 	//RBAC
 	token := r.Header.Get("token")
-	appRbacObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
+	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
 	if appRbacObject == "" {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -127,7 +127,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 	for _, pipeline := range pipelines {
-		appRbacObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		if appRbacObject == "" {
 			continue
 		}
@@ -162,7 +162,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseW
 		return
 	}
 	token := r.Header.Get("token")
-	appRbacObject, _ := impl.enforcerUtil.GetAppRBACNameByAppId(metricRequest.AppId)
+	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(metricRequest.AppId)
 	if appRbacObject == "" {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

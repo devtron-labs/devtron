@@ -89,7 +89,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 
 	//RBAC
 	token := r.Header.Get("token")
-	object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -158,7 +158,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	//RBAC
 	token := r.Header.Get("token")
-	object, _ := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return

@@ -87,7 +87,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -146,7 +146,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList
 
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -203,7 +203,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -248,7 +248,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -298,7 +298,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

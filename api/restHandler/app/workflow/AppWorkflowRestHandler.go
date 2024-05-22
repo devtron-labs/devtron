@@ -100,7 +100,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
-	resourceName, appType := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(request.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -151,7 +151,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
-	resourceName, appType := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
 	var ok bool
 	if appType != helper.Job {

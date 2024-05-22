@@ -276,7 +276,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 	}
 	// RBAC
 	token := r.Header.Get("token")
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(jobId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(jobId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -532,7 +532,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		return
 	}
 
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -579,7 +579,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -625,7 +625,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		return
 	}
 	cdPipeline := pipelines[0]
-	object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -859,7 +859,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, fmt.Errorf("error in parsing appId : %s must be integer", appIdParam), nil, http.StatusBadRequest)
 			return
 		}
-		object, _ := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
