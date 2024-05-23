@@ -4,8 +4,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	historyBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean/history"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/util"
@@ -16,10 +16,8 @@ import (
 )
 
 type DeploymentHistoryService interface {
-	GetCdPipelineDeploymentHistory(offset, limit, appId, environmentId,
-		pipelineId, filterByReleaseId int) (resp bean.DeploymentHistoryResp, err error)
-	GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId, pipelineId int,
-		historyComponent, historyComponentName string) (resp []*history.DeployedHistoryComponentMetadataDto, err error)
+	GetCdPipelineDeploymentHistory(req *historyBean.CdPipelineDeploymentHistoryListReq) (resp historyBean.DeploymentHistoryResp, err error)
+	GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*history.DeployedHistoryComponentMetadataDto, err error)
 }
 
 type DeploymentHistoryServiceImpl struct {
@@ -53,11 +51,10 @@ func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset, limit, appId, environmentId,
-	pipelineId, filterByReleaseId int) (resp bean.DeploymentHistoryResp, err error) {
-	toGetOnlyWfrIds := make([]int, 0, limit)
-	wfrIdReleaseIdMap := make(map[int]int, limit)
-	releaseIdsForRunSourceData := make([]int, 0, limit)
+func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *historyBean.CdPipelineDeploymentHistoryListReq) (resp historyBean.DeploymentHistoryResp, err error) {
+	toGetOnlyWfrIds := make([]int, 0, req.Limit)
+	wfrIdReleaseIdMap := make(map[int]int, req.Limit)
+	releaseIdsForRunSourceData := make([]int, 0, req.Limit)
 	toFetchRunnerData := true
 	// finding task target identifier resource and schema id assuming it tobe cd -pipeline here
 	cdPipelineSchema, err := impl.dtResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean2.DevtronResourceCdPipeline.ToString(), "",
@@ -66,9 +63,9 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 		impl.logger.Errorw("error, FindSchemaByKindSubKindAndVersion for cd pipeline", "err", err)
 		return resp, err
 	}
-	runTargetIdentifier := helper.GetTaskRunIdentifier(pipelineId, bean2.OldObjectId, cdPipelineSchema.DevtronResourceId, cdPipelineSchema.Id)
+	runTargetIdentifier := helper.GetTaskRunIdentifier(req.PipelineId, bean2.OldObjectId, cdPipelineSchema.DevtronResourceId, cdPipelineSchema.Id)
 	var deploymentTaskRuns []*repository.DevtronResourceTaskRun
-	if filterByReleaseId > 0 { //filtering by release, offset and limit is valid for release runSourced workflow runners only
+	if req.FilterByReleaseId > 0 { //filtering by release, offset and limit is valid for release runSourced workflow runners only
 		//get these runners and get only their data
 		releaseSchema, err := impl.dtResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean2.DevtronResourceRelease.ToString(), "",
 			bean2.DevtronResourceVersionAlpha1.ToString())
@@ -76,9 +73,9 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 			impl.logger.Errorw("error, FindSchemaByKindSubKindAndVersion for release", "err", err)
 			return resp, err
 		}
-		runSourceIdentifier := helper.GetTaskRunSourceIdentifier(filterByReleaseId, bean2.ResourceObjectIdType, releaseSchema.DevtronResourceId, releaseSchema.Id)
+		runSourceIdentifier := helper.GetTaskRunSourceIdentifier(req.FilterByReleaseId, bean2.ResourceObjectIdType, releaseSchema.DevtronResourceId, releaseSchema.Id)
 		deploymentTaskRuns, err = impl.dtResourceTaskRunRepository.GetByRunSourceTargetAndTaskTypes(runSourceIdentifier,
-			runTargetIdentifier, bean2.CdPipelineAllDeploymentTaskRuns, offset, limit)
+			runTargetIdentifier, bean2.CdPipelineAllDeploymentTaskRuns, req.Offset, req.Limit)
 		if err != nil && util2.IsErrNoRows(err) {
 			impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "runSourceIdentifier", runSourceIdentifier, "runTargetIdentifier", runTargetIdentifier)
 			return resp, err
@@ -91,12 +88,12 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 	var wfs []bean3.CdWorkflowWithArtifact
 
 	if toFetchRunnerData {
-		wfs, err = impl.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, toGetOnlyWfrIds, offset, limit)
+		wfs, err = impl.cdHandler.GetCdBuildHistory(req.AppId, req.EnvId, req.PipelineId, toGetOnlyWfrIds, req.Offset, req.Limit)
 		if err != nil {
-			impl.logger.Errorw("service err, List", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
+			impl.logger.Errorw("service err, List", "err", err, "req", req)
 			return resp, err
 		}
-		if filterByReleaseId == 0 && len(wfs) != 0 { //not filtering by release, to get run source data for result workflows only for optimised processing
+		if req.FilterByReleaseId == 0 && len(wfs) != 0 { //not filtering by release, to get run source data for result workflows only for optimised processing
 			//not getting runners for a specific release, have to get runSource of the above result wfRunners
 			filteredWfrIds := make([]int, 0, len(wfs))
 			for _, wf := range wfs {
@@ -135,28 +132,27 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset,
 	}
 
 	resp.CdWorkflows = wfs
-	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(appId)
+	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(req.AppId)
 	if err != nil {
-		impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", appId)
+		impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", req.AppId)
 		return resp, err
 	}
 	resp.AppReleaseTagNames = appTags
 
-	prodEnvExists, err := impl.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
+	prodEnvExists, err := impl.imageTaggingService.GetProdEnvByCdPipelineId(req.PipelineId)
 	resp.TagsEditable = prodEnvExists
 	resp.HideImageTaggingHardDelete = impl.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
 	if err != nil {
-		impl.logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
+		impl.logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", req.PipelineId)
 		return resp, err
 	}
 	return resp, nil
 }
 
-func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(baseConfigurationId, pipelineId int,
-	historyComponent, historyComponentName string) (resp []*history.DeployedHistoryComponentMetadataDto, err error) {
-	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(pipelineId, baseConfigurationId, historyComponent, historyComponentName)
+func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*history.DeployedHistoryComponentMetadataDto, err error) {
+	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(req.PipelineId, req.BaseConfigurationId, req.HistoryComponent, req.HistoryComponentName)
 	if err != nil {
-		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
+		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", req.PipelineId)
 		return
 	}
 	respWfrIds := make([]int, 0, len(res))

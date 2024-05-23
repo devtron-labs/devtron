@@ -12,8 +12,7 @@ import (
 
 // APIReqDecoderService is common service used for getting decoded devtronResource and history related api params.
 type APIReqDecoderService interface {
-	GetFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (appId,
-		environmentId, pipelineId, filterByReleaseId int, err error)
+	GetFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (*bean2.DeploymentHistoryGetReqDecoderBean, error)
 }
 
 type APIReqDecoderServiceImpl struct {
@@ -29,46 +28,46 @@ func NewAPIReqDecoderServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *APIReqDecoderServiceImpl) GetFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (appId,
-	environmentId, pipelineId, filterByReleaseId int, err error) {
+func (impl *APIReqDecoderServiceImpl) GetFilterCriteriaParamsForDeploymentHistory(filterCriteria []string) (*bean2.DeploymentHistoryGetReqDecoderBean, error) {
+	resp := &bean2.DeploymentHistoryGetReqDecoderBean{}
 	for _, criteria := range filterCriteria {
 		criteriaDecoder, err := util.DecodeFilterCriteriaString(criteria)
 		if err != nil {
 			impl.logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean2.InvalidFilterCriteria)
-			return appId, environmentId, pipelineId, filterByReleaseId, err
+			return nil, err
 		}
 		switch criteriaDecoder.Kind {
 		case bean2.DevtronResourceApplication:
 			if criteriaDecoder.SubKind == bean2.DevtronResourceDevtronApplication {
-				appId, err = strconv.Atoi(criteriaDecoder.Value)
+				resp.AppId, err = strconv.Atoi(criteriaDecoder.Value)
 			}
 		case bean2.DevtronResourceEnvironment:
-			environmentId, err = strconv.Atoi(criteriaDecoder.Value)
+			resp.EnvId, err = strconv.Atoi(criteriaDecoder.Value)
 		case bean2.DevtronResourceCdPipeline:
-			pipelineId, err = strconv.Atoi(criteriaDecoder.Value)
+			resp.PipelineId, err = strconv.Atoi(criteriaDecoder.Value)
 		case bean2.DevtronResourceRelease:
-			filterByReleaseId, err = strconv.Atoi(criteriaDecoder.Value)
+			resp.FilterByReleaseId, err = strconv.Atoi(criteriaDecoder.Value)
 		}
 	}
-	if (appId == 0 || environmentId == 0) && pipelineId == 0 {
+	if (resp.AppId == 0 || resp.EnvId == 0) && resp.PipelineId == 0 {
 		//currently this method only supports history for a specific pipeline
-		return appId, environmentId, pipelineId, filterByReleaseId, util2.GetApiErrorAdapter(http.StatusBadRequest, "400", bean2.InvalidFilterCriteria, bean2.InvalidFilterCriteria)
+		return nil, util2.GetApiErrorAdapter(http.StatusBadRequest, "400", bean2.InvalidFilterCriteria, bean2.InvalidFilterCriteria)
 	}
-	if pipelineId == 0 {
-		pipelineObj, err := impl.pipelineRepository.FindActiveByAppIdAndEnvId(appId, environmentId)
+	if resp.PipelineId == 0 {
+		pipelineObj, err := impl.pipelineRepository.FindActiveByAppIdAndEnvId(resp.AppId, resp.EnvId)
 		if err != nil {
-			impl.logger.Errorw("error in getting pipeline", "err", err, "appId", appId, "envId", environmentId)
-			return appId, environmentId, pipelineId, filterByReleaseId, err
+			impl.logger.Errorw("error in getting pipeline", "appId", resp.AppId, "envId", resp.EnvId, "err", err)
+			return nil, err
 		}
-		pipelineId = pipelineObj.Id
+		resp.PipelineId = pipelineObj.Id
 	} else {
-		pipelineObj, err := impl.pipelineRepository.FindById(pipelineId)
+		pipelineObj, err := impl.pipelineRepository.FindById(resp.PipelineId)
 		if err != nil {
-			impl.logger.Errorw("error in getting pipeline", "err", err, "appId", appId, "envId", environmentId)
-			return appId, environmentId, pipelineId, filterByReleaseId, err
+			impl.logger.Errorw("error in getting pipeline", "appId", resp.AppId, "envId", resp.EnvId, "err", err)
+			return nil, err
 		}
-		appId = pipelineObj.AppId
-		environmentId = pipelineObj.EnvironmentId
+		resp.AppId = pipelineObj.AppId
+		resp.EnvId = pipelineObj.EnvironmentId
 	}
-	return appId, environmentId, pipelineId, filterByReleaseId, nil
+	return resp, nil
 }

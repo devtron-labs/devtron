@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -56,7 +57,7 @@ func (handler *HistoryRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appId, environmentId, pipelineId, filterByReleaseId, err := handler.apiReqDecoderService.GetFilterCriteriaParamsForDeploymentHistory(queryParams.FilterCriteria)
+	decodedReqBean, err := handler.apiReqDecoderService.GetFilterCriteriaParamsForDeploymentHistory(queryParams.FilterCriteria)
 	if err != nil {
 		handler.logger.Errorw("error in getting filter criteria params", "err", err, "filterCriteria", queryParams.FilterCriteria)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -65,15 +66,15 @@ func (handler *HistoryRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 
 	// RBAC START
 	token := r.Header.Get("token")
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(decodedReqBean.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	// RBAC END
 
-	resp, err := handler.deploymentHistoryService.GetCdPipelineDeploymentHistory(queryParams.OffSet, queryParams.Limit, appId,
-		environmentId, pipelineId, filterByReleaseId)
+	resp, err := handler.deploymentHistoryService.
+		GetCdPipelineDeploymentHistory(adapter.GetCDDeploymentHistoryListReq(&queryParams, decodedReqBean))
 	if err != nil {
 		handler.logger.Errorw("service error, GetCdPipelineDeploymentHistory", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -98,7 +99,7 @@ func (handler *HistoryRestHandlerImpl) GetDeploymentHistoryConfigList(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appId, _, pipelineId, _, err := handler.apiReqDecoderService.GetFilterCriteriaParamsForDeploymentHistory(queryParams.FilterCriteria)
+	decodedReqBean, err := handler.apiReqDecoderService.GetFilterCriteriaParamsForDeploymentHistory(queryParams.FilterCriteria)
 	if err != nil {
 		handler.logger.Errorw("error in getting filter criteria params", "err", err, "filterCriteria", queryParams.FilterCriteria)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -106,14 +107,14 @@ func (handler *HistoryRestHandlerImpl) GetDeploymentHistoryConfigList(w http.Res
 	}
 	//RBAC START
 	token := r.Header.Get("token")
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(decodedReqBean.AppId)
 	if isValidated := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !isValidated {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
-	resp, err := handler.deploymentHistoryService.GetCdPipelineDeploymentHistoryConfigList(queryParams.BaseConfigurationId, pipelineId,
-		queryParams.HistoryComponent, queryParams.HistoryComponentName)
+	resp, err := handler.deploymentHistoryService.
+		GetCdPipelineDeploymentHistoryConfigList(adapter.GetCDDeploymentHistoryConfigListReq(&queryParams, decodedReqBean))
 	if err != nil {
 		handler.logger.Errorw("service error, GetCdPipelineDeploymentHistoryConfigList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
