@@ -129,7 +129,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(overrideRequest
 		impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
 		return 0, manifest, err
 	}
-
+	topic := pubsub.DEVTRON_CHART_INSTALL_TOPIC
 	// publish nats event for async installation
 	err = impl.pubSubClient.Publish(topic, string(payload))
 	if err != nil {
