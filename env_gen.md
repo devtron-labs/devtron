@@ -111,6 +111,7 @@
  | DEX_URL |  |  | 
  | DOCKER_BUILD_CACHE_PATH | /var/lib/docker |  | 
  | ECR_REPO_NAME_PREFIX | test/ |  | 
+ | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_BUILD_CONTEXT | false |  | 
  | ENFORCER_CACHE | false |  | 
@@ -118,6 +119,7 @@
  | ENFORCER_MAX_BATCH_SIZE | 1 |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
+ | EXECUTE_WIRE_NIL_CHECKER | false |  | 
  | EXPOSE_CD_METRICS | false |  | 
  | EXPOSE_CI_METRICS | false |  | 
  | EXTERNAL_BLOB_STORAGE_CM_NAME | blob-storage-cm |  | 
@@ -193,7 +195,7 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
- | PROXY_SERVICE_CONFIG |  |  | 
+ | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
