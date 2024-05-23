@@ -106,7 +106,7 @@ func (tunnel *SSHTunnel) Start(ctx context.Context) error {
 		tunnel.mutex.Unlock()
 	}
 
-	log.Printf("SSH tunnel is starting : %v \n", tunnel)
+	log.Printf("SSH tunnel is starting")
 	config, err := tunnel.InitSSHConfig()
 	if err != nil {
 		return tunnel.stop(fmt.Errorf("ssh config failed: %w", err))
