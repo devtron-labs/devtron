@@ -31,6 +31,7 @@ type WorkflowTemplate struct {
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
 	WorkflowType           string
+	CiCacheResourceName    string
 }
 
 const (

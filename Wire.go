@@ -158,6 +158,7 @@ import (
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	pipeline4 "github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -525,6 +526,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline4.WorkflowService), new(*pipeline4.WorkflowServiceImpl)),
+
+		cacheResourceSelector.NewCiCacheResourceSelectorImpl,
+		wire.Bind(new(cacheResourceSelector.CiCacheResourceSelector), new(*cacheResourceSelector.CiCacheResourceSelectorImpl)),
 
 		pipeline4.NewCiServiceImpl,
 		wire.Bind(new(pipeline4.CiService), new(*pipeline4.CiServiceImpl)),

@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
@@ -142,7 +141,7 @@ type WorkflowRequest struct {
 	ImageScanMaxRetries         int                                   `json:"imageScanMaxRetries,omitempty"`
 	ImageScanRetryDelay         int                                   `json:"imageScanRetryDelay,omitempty"`
 	Scope                       resourceQualifiers.Scope
-	CiCacheSelector             *cacheResourceSelector.CiCacheSelector `json:"-"`
+	CiCacheResourceMap          map[string]string
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -495,20 +494,22 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		}
 	}
 
-	if workflowRequest.CiCacheSelector != nil {
+	if len(workflowRequest.CiCacheResourceMap) > 0 {
+		pvcName := workflowRequest.CiCacheResourceMap["PVCName"]
+		workflowTemplate.CiCacheResourceName = pvcName
 		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v1.Volume{
 			Name: "ci-cache-vol",
 			VolumeSource: v1.VolumeSource{
 				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-					ClaimName: workflowRequest.CiCacheSelector.PVCName,
+					ClaimName: pvcName,
 					ReadOnly:  false,
 				},
 			},
 		})
 		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
 			v1.VolumeMount{
-				Name:      workflowRequest.CiCacheSelector.PVCName,
-				MountPath: workflowRequest.CiCacheSelector.MountPath,
+				Name:      "ci-cache-vol",
+				MountPath: workflowRequest.CiCacheResourceMap["MountPath"],
 			})
 
 	} else if len(pvc) != 0 {
