@@ -26,6 +26,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util3 "github.com/devtron-labs/devtron/api/util"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -1046,11 +1047,15 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 
 		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			deploymentType, err := handler.appListingService.GetLastestSuccededDeploymentType(appId, envId)
 			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = argoApplication.HIBERNATING
+				handler.logger.Errorw("service err, GetLastestSuccededDeploymentType", "err", err, "app", appId, "env", envId)
+			} else {
+				if deploymentType == models.DEPLOYMENTTYPE_STOP {
+					resp.Status = argoApplication.HIBERNATING
+				} else if deploymentType == models.DEPLOYMENTTYPE_START {
+					resp.Status = string(health.HealthStatusHealthy)
+				}
 			}
 		}
 		if resp.Status == string(health.HealthStatusDegraded) {
@@ -1097,11 +1102,15 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == argoApplication.Healthy {
-				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+				deploymentType, err := handler.appListingService.GetLastestSuccededDeploymentType(appId, envId)
 				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-				} else if status {
-					resourceTree["status"] = argoApplication.HIBERNATING
+					handler.logger.Errorw("service err, GetLastestSuccededDeploymentType", "err", err, "app", appId, "env", envId)
+				} else {
+					if deploymentType == models.DEPLOYMENTTYPE_STOP {
+						resourceTree["status"] = argoApplication.HIBERNATING
+					} else if deploymentType == models.DEPLOYMENTTYPE_START {
+						resourceTree["status"] = string(health.HealthStatusHealthy)
+					}
 				}
 			}
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)

@@ -68,6 +68,7 @@ type PipelineOverrideRepository interface {
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
+	GetLatestSucceededDeploymentType(appId, environmentId int) (models.DeploymentType, error)
 	GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineConfigOverrideMetadata, err error)
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
@@ -189,6 +190,28 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 		Select()
 	return overrides, err
 }
+
+func (impl PipelineOverrideRepositoryImpl) GetLatestSucceededDeploymentType(appId, environmentId int) (models.DeploymentType, error) {
+
+	override := &PipelineOverride{}
+	err := impl.dbConnection.Model(override).
+		Join("join pipeline p on pipeline_override.pipeline_id = p.id").
+		Join("join cd_workflow cw on pipeline_override.cd_workflow_id = cw.id").
+		Join("join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id").
+		Where("p.app_id = ?", appId).
+		Where("p.environment_id = ?", environmentId).
+		Where("cwr.status not in (?)", pg.In([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed})).
+		Where("cwr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Order("pipeline_override.id desc").
+		Limit(1).
+		Select()
+
+	if err != nil {
+		return override.DeploymentType, err
+	}
+	return override.DeploymentType, err
+}
+
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrideMetadata []*PipelineConfigOverrideMetadata, err error) {
 	var OverrideMetadata []*PipelineConfigOverrideMetadata
 	if len(appIds) == 0 {

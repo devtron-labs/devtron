@@ -72,6 +72,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	GetLastestSuccededDeploymentType(appId, envId int) (models.DeploymentType, error)
 }
 
 const (
@@ -429,6 +430,15 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
 	}
+}
+
+func (impl AppListingServiceImpl) GetLastestSuccededDeploymentType(appId, envId int) (models.DeploymentType, error) {
+	deploymentType, err := impl.pipelineOverrideRepository.GetLatestSucceededDeploymentType(appId, envId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting lastest succeeded release")
+		return deploymentType, err
+	}
+	return deploymentType, nil
 }
 
 func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error) {
