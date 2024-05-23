@@ -55,9 +55,9 @@ func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(offset, limit, appId, environmentId,
 	pipelineId, filterByReleaseId int) (resp bean.DeploymentHistoryResp, err error) {
-	toGetOnlyWfrIds := make([]int, 0)
-	wfrIdReleaseIdMap := make(map[int]int)
-	releaseIdsForRunSourceData := make([]int, 0)
+	toGetOnlyWfrIds := make([]int, 0, limit)
+	wfrIdReleaseIdMap := make(map[int]int, limit)
+	releaseIdsForRunSourceData := make([]int, 0, limit)
 	toFetchRunnerData := true
 	// finding task target identifier resource and schema id assuming it tobe cd -pipeline here
 	cdPipelineSchema, err := impl.dtResourceSchemaRepository.FindSchemaByKindSubKindAndVersion(bean2.DevtronResourceCdPipeline.ToString(), "",
@@ -169,8 +169,8 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "respWfrIds", respWfrIds)
 		return resp, err
 	}
-	wfrIdReleaseIdMap := make(map[int]int)
-	releaseIdsForRunSourceData := make([]int, 0)
+	wfrIdReleaseIdMap := make(map[int]int, len(deploymentTaskRuns))
+	releaseIdsForRunSourceData := make([]int, 0, len(deploymentTaskRuns))
 	for _, deploymentTaskRun := range deploymentTaskRuns {
 		//decode runSourceIdentifier
 		identifier, err := util.DecodeTaskRunSourceIdentifier(deploymentTaskRun.RunSourceIdentifier)
