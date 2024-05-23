@@ -153,7 +153,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(req.PipelineId, req.BaseConfigurationId, req.HistoryComponent, req.HistoryComponentName)
 	if err != nil {
 		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", req.PipelineId)
-		return
+		return nil, err
 	}
 	respWfrIds := make([]int, 0, len(res))
 	for _, r := range res {
@@ -163,7 +163,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 	deploymentTaskRuns, err := impl.dtResourceTaskRunRepository.GetByTaskTypeAndIdentifiers(respWfrIds, bean2.CdPipelineAllDeploymentTaskRuns)
 	if err != nil && util2.IsErrNoRows(err) {
 		impl.logger.Errorw("error, GetByRunSourceTargetAndTaskTypes", "err", err, "respWfrIds", respWfrIds)
-		return resp, err
+		return nil, err
 	}
 	wfrIdReleaseIdMap := make(map[int]int, len(deploymentTaskRuns))
 	releaseIdsForRunSourceData := make([]int, 0, len(deploymentTaskRuns))
@@ -171,7 +171,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		//decode runSourceIdentifier
 		identifier, err := util.DecodeTaskRunSourceIdentifier(deploymentTaskRun.RunSourceIdentifier)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		wfrIdReleaseIdMap[deploymentTaskRun.TaskTypeIdentifier] = identifier.Id
 		releaseIdsForRunSourceData = append(releaseIdsForRunSourceData, identifier.Id)
@@ -181,7 +181,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigLi
 		runSourceMap, err := impl.dtResourceReadService.GetTaskRunSourceInfoForReleases(releaseIdsForRunSourceData)
 		if err != nil {
 			impl.logger.Errorw("error, GetTaskRunSourceInfoForReleases", "err", err, "releaseIds", releaseIdsForRunSourceData)
-			return resp, err
+			return nil, err
 		}
 		for i := range res {
 			wfrId := res[i].WfrId
