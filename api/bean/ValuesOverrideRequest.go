@@ -55,7 +55,6 @@ type ValuesOverrideRequest struct {
 	AppId                                 int                         `json:"appId" validate:"required"`
 	CiArtifactId                          int                         `json:"ciArtifactId" validate:"required"`
 	AdditionalOverride                    json.RawMessage             `json:"additionalOverride,omitempty"`
-	TargetDbVersion                       int                         `json:"targetDbVersion"`
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
 	DeploymentWithConfig                  DeploymentConfigurationType `json:"deploymentWithConfig"`
@@ -63,8 +62,9 @@ type ValuesOverrideRequest struct {
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
-	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` //required for async install/upgrade event;
-	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     //required for async install/upgrade handling; previously if was used internally
+	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` // required for async install/upgrade event;
+	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     // required for async install/upgrade handling; previously if was used internally
+	ForceSync                             bool                        `json:"forceSync,notnull"`
 	UserId                                int32                       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`

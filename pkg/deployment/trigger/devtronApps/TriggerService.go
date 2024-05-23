@@ -450,7 +450,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 
 		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-		if !impl.isDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType) {
+		if !impl.isDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType, overrideRequest.ForceSync) {
 			// Update previous deployment runner status (in transaction): Failed
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 			err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
@@ -624,7 +624,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return releaseErr
 	}
 	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-	if !impl.isDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType) {
+	if !impl.isDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType, false) {
 		err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, pipeline.Id, triggeredAt, triggeredBy)
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
@@ -699,12 +699,14 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
-		// asynchronous mode of installation starts
-		return impl.workflowEventPublishService.TriggerHelmAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+	if util.IsHelmApp(overrideRequest.DeploymentAppType) && impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSync) {
+		// asynchronous mode of helm installation starts
+		return impl.workflowEventPublishService.TriggerAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+	} else if util.IsAcdApp(overrideRequest.DeploymentAppType) && impl.isDevtronAsyncArgoCdInstallModeEnabled(overrideRequest.ForceSync) {
+		// asynchronous mode of ArgoCd installation starts
+		return impl.workflowEventPublishService.TriggerAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
-
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, deployedBy)
@@ -967,7 +969,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			if len(sanitizedK8sVersion) > 0 {
 				req.K8SVersion = sanitizedK8sVersion
 			}
-			if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
+			if impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSync) {
 				req.RunInCtx = true
 			}
 			// For cases where helm release was not found, kubelink will install the same configuration
@@ -988,7 +990,8 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 		} else {
 
-			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave, sanitizedK8sVersion)
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte,
+				mergeAndSave, sanitizedK8sVersion, overrideRequest.ForceSync)
 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
@@ -1194,7 +1197,8 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string, k8sServerVersion string) (*gRPC.HelmInstallCustomResponse, error) {
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier,
+	referenceChartByte []byte, valuesYaml, k8sServerVersion string, forceSync bool) (*gRPC.HelmInstallCustomResponse, error) {
 
 	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
@@ -1204,7 +1208,7 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 	if len(k8sServerVersion) > 0 {
 		helmInstallRequest.K8SVersion = k8sServerVersion
 	}
-	if impl.isDevtronAsyncInstallModeEnabled(bean.Helm) {
+	if impl.isDevtronAsyncHelmInstallModeEnabled(forceSync) {
 		helmInstallRequest.RunInCtx = true
 	}
 	// Request exec
@@ -1308,9 +1312,21 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 	return err
 }
 
-func (impl *TriggerServiceImpl) isDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
-	return impl.globalEnvVariables.EnableAsyncInstallDevtronChart &&
-		deploymentAppType == bean.Helm
+func (impl *TriggerServiceImpl) isDevtronAsyncHelmInstallModeEnabled(forceSync bool) bool {
+	return impl.globalEnvVariables.EnableAsyncHelmInstallDevtronChart && !forceSync
+}
+
+func (impl *TriggerServiceImpl) isDevtronAsyncArgoCdInstallModeEnabled(forceSync bool) bool {
+	return impl.globalEnvVariables.EnableAsyncArgoCdInstallDevtronChart && !forceSync
+}
+
+func (impl *TriggerServiceImpl) isDevtronAsyncInstallModeEnabled(deploymentAppType string, forceSync bool) bool {
+	if util.IsHelmApp(deploymentAppType) {
+		return impl.isDevtronAsyncHelmInstallModeEnabled(forceSync)
+	} else if util.IsAcdApp(deploymentAppType) {
+		return impl.isDevtronAsyncArgoCdInstallModeEnabled(forceSync)
+	}
+	return false
 }
 
 func (impl *TriggerServiceImpl) deleteCorruptedPipelineStage(pipelineStage *repository.PipelineStage, triggeredBy int32) (error, bool) {

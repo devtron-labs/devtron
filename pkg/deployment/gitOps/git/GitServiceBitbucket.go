@@ -230,6 +230,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 		Branch:   "master",
 		Author:   authorBitbucket,
 	}
+	// TODO Asutosh: Handle race condition
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
 	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {

@@ -689,6 +689,12 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 		toSkipProcess = true
 		return toSkipProcess, err
 	}
+	// TODO Asutosh: validate with concurrent case
+	isLatestWfr, err := impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfrId, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfrId)
+		return toSkipProcess, err
+	}
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
@@ -706,12 +712,7 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 				toSkipProcess = true
 				return toSkipProcess, nil
 			}
-			isLatest, err := impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfrId, pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfrId)
-				return toSkipProcess, err
-			}
-			if !isLatest {
+			if !isLatestWfr {
 				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfrId)
 				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId)
 				if err != nil {

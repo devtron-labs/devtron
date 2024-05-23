@@ -23,7 +23,7 @@ import (
 
 type WorkflowEventPublishService interface {
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
-	TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
+	TriggerAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
 		triggeredBy int32) (releaseNo int, manifest []byte, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
@@ -102,8 +102,9 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 	return nil, nil
 }
 
-// TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases
-func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
+// TODO Asutosh: code start here
+// TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
+func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
@@ -130,13 +131,13 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideReq
 	}
 
 	// publish nats event for async installation
-	err = impl.pubSubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
+	err = impl.pubSubClient.Publish(topic, string(payload))
 	if err != nil {
-		impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
+		impl.logger.Errorw("failed to publish trigger request event", "topic", topic, "payload", payload, "err", err)
 		//update workflow runner status, used in app workflow view
 		err1 = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowFailed, err.Error())
 		if err1 != nil {
-			impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err1)
+			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
 		return 0, manifest, err
 	}
@@ -144,12 +145,12 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideReq
 	//update workflow runner status, used in app workflow view
 	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue, "")
 	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err)
+		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, manifest, err
 	}
 	err = impl.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerHelmAsyncRelease", "err", err)
+		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, manifest, err
 	}
 	return 0, manifest, nil

@@ -18,7 +18,7 @@ type PipelineStatusTimelineService interface {
 	FetchTimelines(appId, envId, wfrId int, showTimeline bool) (*PipelineTimelineDetailDto, error)
 	FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int, showTimeline bool) (*PipelineTimelineDetailDto, error)
 	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32, statusTime time.Time) *pipelineConfig.PipelineStatusTimeline
-	SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool)
+	SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool)
 	GetArgoAppSyncStatus(cdWfrId int) bool
 	GetArgoAppSyncStatusForAppStore(installedAppVersionHistoryId int) bool
 	SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
@@ -338,10 +338,10 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	return timelineDetail, nil
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
+func (impl *PipelineStatusTimelineServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
 	isTimelineUpdated = false
 	if isAppStore {
-		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(pipelineId, timelineStatus)
+		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(runnerHistoryId, timelineStatus)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)
 			return nil, err, isTimelineUpdated
@@ -355,7 +355,7 @@ func (impl *PipelineStatusTimelineServiceImpl) SavePipelineStatusTimelineIfNotAl
 			latestTimeline = timeline
 		}
 	} else {
-		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(pipelineId, timelineStatus)
+		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(runnerHistoryId, timelineStatus)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)
 			return nil, err, isTimelineUpdated

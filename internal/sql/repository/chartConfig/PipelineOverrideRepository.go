@@ -35,10 +35,10 @@ type PipelineOverride struct {
 	tableName              struct{}              `sql:"pipeline_config_override" pg:",discard_unknown_columns"`
 	Id                     int                   `sql:"id,pk"`
 	RequestIdentifier      string                `sql:"request_identifier,unique,notnull"`
-	EnvConfigOverrideId    int                   `sql:"env_config_override_id, notnull"`
+	EnvConfigOverrideId    int                   `sql:"env_config_override_id,notnull"`
 	PipelineOverrideValues string                `sql:"pipeline_override_yaml,notnull"`
-	PipelineMergedValues   string                `sql:"merged_values_yaml, notnull"` //merge of appOverride, envOverride, pipelineOverride
-	Status                 models.ChartStatus    `sql:"status,notnull"`              // new , deployment-in-progress, success, rollbacked
+	PipelineMergedValues   string                `sql:"merged_values_yaml,notnull"` // merge of appOverride, envOverride, pipelineOverride
+	Status                 models.ChartStatus    `sql:"status,notnull"`             // new , deployment-in-progress, success, rollbacked
 	GitHash                string                `sql:"git_hash"`
 	CommitTime             time.Time             `sql:"commit_time,type:timestamptz"`
 	PipelineId             int                   `sql:"pipeline_id"`
