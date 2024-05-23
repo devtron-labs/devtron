@@ -21,6 +21,7 @@ import (
 	"fmt"
 	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	util2 "github.com/devtron-labs/devtron/util"
 	"log"
 	"os"
 	"os/signal"
@@ -28,7 +29,15 @@ import (
 )
 
 func main() {
-
+	globalEnvVariables, err := util2.GetEnvironmentVariables()
+	if err != nil {
+		log.Println("error while getting env variables reason:", err)
+		return
+	}
+	if globalEnvVariables.GlobalEnvVariables.ExecuteWireNilChecker {
+		CheckIfNilInWire()
+		return
+	}
 	app, err := InitializeApp()
 	if err != nil {
 		log.Panic(err)
