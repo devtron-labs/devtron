@@ -184,7 +184,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterB
 	model.K8sVersion = k8sServerVersion.String()
 
 	// save clusterConnectionConfig
-	if bean.RemoteConnectionConfig != nil && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+	if bean.RemoteConnectionConfig != nil && len(bean.RemoteConnectionConfig.ConnectionMethod) > 0 && bean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		err = impl.remoteConnectionService.CreateOrUpdateRemoteConnectionConfig(bean.RemoteConnectionConfig, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving clusterConnectionConfig in db", "err", err)
