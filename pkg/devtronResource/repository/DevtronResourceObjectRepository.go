@@ -46,7 +46,7 @@ type DevtronResourceObjectRepository interface {
 	GetChildObjectsByParentArgAndSchemaId(argumentValue interface{}, argumentType string,
 		devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	GetDownstreamObjectsByParentArgAndSchemaIds(argumentValues []interface{}, argumentTypes []string,
-		devtronResourceSchemaIds []int) ([]*DevtronResourceObject, error)
+		devtronResourceSchemaIds, filterDownstreamByResourceIds []int) ([]*DevtronResourceObject, error)
 	GetDownstreamObjectsByOwnSchemaIdAndUpstreamId(ownSchemaId, upstreamId,
 		upstreamSchemaId int) ([]*DevtronResourceObject, error)
 	GetObjectsByArgAndSchemaIds(allArgumentValues []interface{},
@@ -330,9 +330,10 @@ func (repo *DevtronResourceObjectRepositoryImpl) GetChildObjectsByParentArgAndSc
 }
 
 func (repo *DevtronResourceObjectRepositoryImpl) GetDownstreamObjectsByParentArgAndSchemaIds(argumentValues []interface{}, argumentTypes []string,
-	devtronResourceSchemaIds []int) ([]*DevtronResourceObject, error) {
+	devtronResourceSchemaIds, filterDownstreamByResourceIds []int) ([]*DevtronResourceObject, error) {
 	var models []*DevtronResourceObject
-	query := repo.dbConnection.Model(&models).Where("deleted = ?", false)
+	query := repo.dbConnection.Model(&models).Where("deleted = ?", false).
+		Where("devtron_resource_id in (?)", pg.In(filterDownstreamByResourceIds))
 	query.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
 		for i := range argumentValues {
 			query.WhereOr(getDownstreamWhereClauseByArgValueTypeAndSchemaId(argumentValues[i], argumentTypes[i], devtronResourceSchemaIds[i]))
