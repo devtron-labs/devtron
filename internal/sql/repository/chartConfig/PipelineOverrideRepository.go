@@ -200,7 +200,8 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestSucceededDeploymentType(appI
 		Join("join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id").
 		Where("p.app_id = ?", appId).
 		Where("p.environment_id = ?", environmentId).
-		Where("cwr.status not in (?)", pg.In([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed})).
+		//Where("cwr.status not in (?)", pg.In([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed})).
+		Where("cwr.status in (?)", pg.In([]string{pipelineConfig.WorkflowSucceeded})).
 		Where("cwr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Order("pipeline_override.id desc").
 		Limit(1).
