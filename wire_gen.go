@@ -63,6 +63,7 @@ import (
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm2 "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -145,6 +146,7 @@ import (
 	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
@@ -575,7 +577,12 @@ func InitializeApp() (*App, error) {
 	deployedConfigurationHistoryServiceImpl := history.NewDeployedConfigurationHistoryServiceImpl(sugaredLogger, userServiceImpl, deploymentTemplateHistoryServiceImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, cdWorkflowRepositoryImpl, scopedVariableCMCSManagerImpl)
 	dockerRegistryIpsConfigServiceImpl := dockerRegistry.NewDockerRegistryIpsConfigServiceImpl(sugaredLogger, dockerRegistryIpsConfigRepositoryImpl, k8sServiceImpl, clusterServiceImplExtended, ciPipelineRepositoryImpl, dockerArtifactStoreRepositoryImpl, ciTemplateOverrideRepositoryImpl)
 	manifestCreationServiceImpl := manifest.NewManifestCreationServiceImpl(sugaredLogger, dockerRegistryIpsConfigServiceImpl, chartRefServiceImpl, scopedVariableCMCSManagerImpl, k8sCommonServiceImpl, deployedAppMetricsServiceImpl, imageDigestPolicyServiceImpl, mergeUtil, appCrudOperationServiceImpl, deploymentTemplateServiceImpl, applicationServiceClientImpl, configMapHistoryRepositoryImpl, configMapRepositoryImpl, chartRepositoryImpl, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineOverrideRepositoryImpl, pipelineStrategyHistoryRepositoryImpl, pipelineConfigRepositoryImpl, deploymentTemplateHistoryRepositoryImpl)
-	workflowEventPublishServiceImpl, err := out.NewWorkflowEventPublishServiceImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, deployedConfigurationHistoryServiceImpl, manifestCreationServiceImpl, pipelineStatusTimelineServiceImpl, cdWorkflowRepositoryImpl, pipelineRepositoryImpl, deploymentGroupRepositoryImpl)
+	evaluatorServiceImpl := cel.NewCELServiceImpl(sugaredLogger)
+	triggerEventEvaluatorImpl, err := celEvaluator.NewTriggerEventEvaluatorImpl(sugaredLogger, imageTaggingRepositoryImpl, teamServiceImpl, attributesServiceImpl, evaluatorServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	workflowEventPublishServiceImpl, err := out.NewWorkflowEventPublishServiceImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, deployedConfigurationHistoryServiceImpl, manifestCreationServiceImpl, pipelineStatusTimelineServiceImpl, evaluatorServiceImpl, attributesServiceImpl, triggerEventEvaluatorImpl, cdWorkflowRepositoryImpl, pipelineRepositoryImpl, deploymentGroupRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}

@@ -80,9 +80,6 @@ type TriggerService interface {
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
-	HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
-		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
-
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
 }
@@ -687,7 +684,7 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
 	}
-	//setting deployedBy as 1(system user) since case of auto trigger
+	// setting deployedBy as 1(system user) since case of auto trigger
 	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
@@ -699,11 +696,8 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	if util.IsHelmApp(overrideRequest.DeploymentAppType) && impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSync) {
-		// asynchronous mode of helm installation starts
-		return impl.workflowEventPublishService.TriggerAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
-	} else if util.IsAcdApp(overrideRequest.DeploymentAppType) && impl.isDevtronAsyncArgoCdInstallModeEnabled(overrideRequest.ForceSync) {
-		// asynchronous mode of ArgoCd installation starts
+	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSync) {
+		// asynchronous mode of Helm/ArgoCd installation starts
 		return impl.workflowEventPublishService.TriggerAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
@@ -736,75 +730,105 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	return releaseNo, manifest, nil
 }
 
+func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
+	overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
+	builtChartPath string, triggerEvent bean.TriggerEvent, manifest *[]byte) error {
+	// update workflow runner status, used in app workflow view
+	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggerEvent.TriggeredAt, pipelineConfig.WorkflowInProgress, "")
+	if err != nil {
+		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+		return err
+	}
+	manifestPushTemplate, err := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, manifest)
+	if err != nil {
+		impl.logger.Errorw("error in building manifest push template", "err", err)
+		return err
+	}
+	manifestPushService := impl.getManifestPushService(triggerEvent)
+	manifestPushResponse := manifestPushService.PushChart(ctx, manifestPushTemplate)
+	if manifestPushResponse.Error != nil {
+		impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
+		return manifestPushResponse.Error
+	}
+	// Update GitOps repo url after repo migration
+	if manifestPushResponse.IsGitOpsRepoMigrated() {
+		valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
+		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+		err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, manifestPushResponse.OverRiddenRepoUrl, manifestPushTemplate.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+			return fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", manifestPushResponse.OverRiddenRepoUrl)
+		}
+	}
+	pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
+		Id:                     valuesOverrideResponse.PipelineOverride.Id,
+		GitHash:                manifestPushResponse.CommitHash,
+		CommitTime:             manifestPushResponse.CommitTime,
+		EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
+		PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
+		PipelineId:             overrideRequest.PipelineId,
+		CiArtifactId:           overrideRequest.CiArtifactId,
+		PipelineMergedValues:   valuesOverrideResponse.MergedValues,
+		AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggeredAt, UpdatedBy: overrideRequest.UserId},
+	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
+	err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
+	span.End()
+	return nil
+}
+
 func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 	builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
 	isRequestValid, err := helper.ValidateTriggerEvent(triggerEvent)
 	if !isRequestValid {
 		return releaseNo, manifest, err
 	}
-
+	var latestTimelineStatus pipelineConfig.TimelineStatus
+	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
+		latestTimelineStatus, err = impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(overrideRequest.WfrId)
+		if err != nil {
+			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
+			return releaseNo, manifest, err
+		}
+		if latestTimelineStatus.IsTerminalTimelineStatus() {
+			impl.logger.Errorw("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
+			return releaseNo, manifest, nil
+		}
+	}
 	if triggerEvent.PerformChartPush {
-		//update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggerEvent.TriggerdAt, pipelineConfig.WorkflowInProgress, "")
-		if err != nil {
-			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-			return releaseNo, manifest, err
-		}
-		manifestPushTemplate, err := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
-		if err != nil {
-			impl.logger.Errorw("error in building manifest push template", "err", err)
-			return releaseNo, manifest, err
-		}
-		manifestPushService := impl.getManifestPushService(triggerEvent)
-		manifestPushResponse := manifestPushService.PushChart(ctx, manifestPushTemplate)
-		if manifestPushResponse.Error != nil {
-			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, manifestPushResponse.Error
-		}
-		// Update GitOps repo url after repo migration
-		if manifestPushResponse.IsGitOpsRepoMigrated() {
-			valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
-			// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-			err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, manifestPushResponse.OverRiddenRepoUrl, manifestPushTemplate.UserId)
+		if !util.IsAcdApp(overrideRequest.DeploymentAppType) || latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED {
+			err = impl.performGitOps(ctx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, &manifest)
 			if err != nil {
-				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-				return releaseNo, manifest, fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", manifestPushResponse.OverRiddenRepoUrl)
+				impl.logger.Errorw("error in performing GitOps", "cdWfrId", overrideRequest.WfrId, "err", err)
+				return releaseNo, manifest, err
 			}
 		}
-		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
-			Id:                     valuesOverrideResponse.PipelineOverride.Id,
-			GitHash:                manifestPushResponse.CommitHash,
-			CommitTime:             manifestPushResponse.CommitTime,
-			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
-			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
-			PipelineId:             overrideRequest.PipelineId,
-			CiArtifactId:           overrideRequest.CiArtifactId,
-			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
-			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
-		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
-		span.End()
 	}
-
 	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, manifest, err
+		if !util.IsAcdApp(overrideRequest.DeploymentAppType) ||
+			(latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_GIT_COMMIT ||
+				latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED) {
+			err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggeredAt, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in deploying app", "err", err)
+				return releaseNo, manifest, err
+			}
 		}
+		// TODO Asutosh: Mark Deployment Request Status -> Triggered
 	}
+	if !util.IsAcdApp(overrideRequest.DeploymentAppType) ||
+		(latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_GIT_COMMIT ||
+			latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED) {
+		go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
-	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "markImageScanDeployed")
+		_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
+		span.End()
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "markImageScanDeployed")
-	_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
-	span.End()
-
-	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
-
+		middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
+		// TODO Asutosh: Mark Deployment Request Status -> Deployed
+	}
 	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
-
 }
 
 func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean4.ManifestPushTemplate, error) {

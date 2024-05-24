@@ -20,6 +20,7 @@ type PipelineStatusTimelineService interface {
 	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32, statusTime time.Time) *pipelineConfig.PipelineStatusTimeline
 	SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool)
 	GetArgoAppSyncStatus(cdWfrId int) bool
+	FetchLastTimelineStatusForWfrId(cdWfrId int) (pipelineConfig.TimelineStatus, error)
 	GetArgoAppSyncStatusForAppStore(installedAppVersionHistoryId int) bool
 	SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
 
@@ -382,6 +383,17 @@ func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatus(cdWfrId int)
 		return false
 	}
 	return true
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) FetchLastTimelineStatusForWfrId(cdWfrId int) (pipelineConfig.TimelineStatus, error) {
+	timeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfrId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching ArgoCd sync status", "err", err)
+		return "", err
+	} else if util.IsErrNoRows(err) {
+		return "", nil
+	}
+	return timeline.Status, nil
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatusForAppStore(installedAppVersionHistoryId int) bool {

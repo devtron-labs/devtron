@@ -271,7 +271,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.updateRequirementYamlInGit(installedApp, &installedAppVersion.AppStoreApplicationVersion)
 		if err != nil {
-			if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
+			if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 				impl.Logger.Errorw("error", "err", err)
 				GitCommitFailTimeline := impl.pipelineStatusTimelineService.
 					GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
@@ -290,7 +290,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp, err = impl.updateValuesYamlInGit(installedApp)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
+		if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 			GitCommitFailTimeline := impl.pipelineStatusTimelineService.
 				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx, isAppStore)

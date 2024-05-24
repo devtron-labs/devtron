@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
-	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -40,11 +39,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
+	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"sync"
 	"time"
 
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -75,7 +74,7 @@ type WorkflowDagExecutor interface {
 	HandleExternalCiWebhook(externalCiId int, request *bean2.CiArtifactWebhookRequest,
 		auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error)
 
-	ProcessDevtronAsyncHelmInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
+	ProcessDevtronAsyncInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
 		ctx context.Context) error
 
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
@@ -225,30 +224,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *model.PubSubMsg) (*bean7.AsyncCdDeployEvent, *client2.AppIdentifier, error) {
-	CDAsyncInstallNatsMessage := &bean7.AsyncCdDeployEvent{}
-	err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
-		return nil, nil, err
-	}
-	pipeline, err := impl.pipelineRepository.FindById(CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
-		return nil, nil, err
-	}
-	triggerAdapter.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
-	if CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
-		CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
-	}
-	appIdentifier := &client2.AppIdentifier{
-		ClusterId:   pipeline.Environment.ClusterId,
-		Namespace:   pipeline.Environment.Namespace,
-		ReleaseName: pipeline.DeploymentAppName,
-	}
-	return CDAsyncInstallNatsMessage, appIdentifier, nil
-}
-
 // UpdateWorkflowRunnerStatusForDeployment will update CD workflow runner based on release status and app status
 func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool {
 	helmInstalledDevtronApp, err := impl.helmAppService.GetApplicationAndReleaseStatus(context.Background(), appIdentifier)
@@ -301,17 +276,22 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	return true
 }
 
-func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest, appIdentifier *client2.AppIdentifier) {
+func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.Context, releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest, appIdentifier *client2.AppIdentifier) {
 	releaseErrString := util.GetClientErrorDetailedMessage(releaseErr)
 	switch releaseErrString {
 	case context.DeadlineExceeded.Error():
-		// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
-		if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr, false); !isWfrUpdated {
-			// updating cdWfr to failed
-			if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("Deployment timeout: release %s took more than %d mins", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartInstallRequestTimeout), overrideRequest.UserId); err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
+		if util.IsHelmApp(overrideRequest.DeploymentAppType) {
+			// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
+			if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr, false); !isWfrUpdated {
+				// updating cdWfr to failed
+				if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("%s: release %s took more than %d mins", "Deployment timeout", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartInstallRequestTimeout), overrideRequest.UserId); err != nil {
+					impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
+				}
 			}
+		} else if util.IsAcdApp(overrideRequest.DeploymentAppType) {
+			//TODO Asutosh: handle here
 		}
+
 		cdWfr.UpdatedBy = 1
 		cdWfr.UpdatedOn = time.Now()
 		err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
@@ -330,6 +310,11 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr e
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		return
 	case context.Canceled.Error():
+		// for context cancellation due to error.ServerShutDown, the new instance should pick the unfinished process and execute further.
+		if errors.Is(context.Cause(ctx), error2.ServerShutDown) {
+			// skipping
+			return
+		}
 		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
@@ -344,16 +329,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(releaseErr e
 	}
 }
 
-func (impl *WorkflowDagExecutorImpl) handleIfPreviousRunnerTriggerRequest(currentRunner *pipelineConfig.CdWorkflowRunner, userId int32) (bool, error) {
-	exists, err := impl.cdWorkflowRepository.IsLatestCDWfr(currentRunner.Id, currentRunner.CdWorkflow.PipelineId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err on fetching latest cd workflow runner, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
-		return false, err
-	}
-	return exists, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
+func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
 	ctx context.Context) error {
 	overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
@@ -361,11 +337,13 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsy
 		impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
 		return err
 	}
-	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowStarting, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
-		return err
+	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
+		// update workflow runner status, used in app workflow view
+		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowStarting, "")
+		if err != nil {
+			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
+			return err
+		}
 	}
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
@@ -377,7 +355,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsy
 	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
 	span.End()
 	if releaseErr != nil {
-		impl.handleAsyncTriggerReleaseError(releaseErr, cdWfr, overrideRequest, appIdentifier)
+		impl.handleAsyncTriggerReleaseError(ctx, releaseErr, cdWfr, overrideRequest, appIdentifier)
 	} else {
 		impl.logger.Infow("pipeline triggered successfully !!", "cdPipelineId", overrideRequest.PipelineId, "artifactId", overrideRequest.CiArtifactId, "releaseId", releaseId)
 		// Update previous deployment runner status (in transaction): Failed
@@ -836,7 +814,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	} else {
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
-	go impl.WriteCISuccessEvent(request, pipeline, buildArtifact)
+	go impl.WriteCiSuccessEvent(request, pipeline, buildArtifact)
 	async := false
 
 	// execute auto trigger in batch on CI success event
@@ -875,7 +853,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	return buildArtifact.Id, err
 }
 
-func (impl *WorkflowDagExecutorImpl) WriteCISuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
+func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
 	event := impl.eventFactory.Build(util2.Success, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	event.CiArtifactId = artifact.Id
 	if artifact.WorkflowId != nil {
@@ -912,11 +890,11 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 		}
 	}()
 
-	go impl.WriteCIStepFailedEvent(pipeline, request, savedWorkflow)
+	go impl.WriteCiStepFailedEvent(pipeline, request, savedWorkflow)
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) WriteCIStepFailedEvent(pipeline *pipelineConfig.CiPipeline, request *bean2.CiArtifactWebhookRequest, ciWorkflow *pipelineConfig.CiWorkflow) {
+func (impl *WorkflowDagExecutorImpl) WriteCiStepFailedEvent(pipeline *pipelineConfig.CiPipeline, request *bean2.CiArtifactWebhookRequest, ciWorkflow *pipelineConfig.CiWorkflow) {
 	event := impl.eventFactory.Build(util2.Fail, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers

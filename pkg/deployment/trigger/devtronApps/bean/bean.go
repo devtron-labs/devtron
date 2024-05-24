@@ -19,7 +19,7 @@ type TriggerEvent struct {
 	DeploymentAppType          string
 	ManifestStorageType        string
 	TriggeredBy                int32
-	TriggerdAt                 time.Time
+	TriggeredAt                time.Time
 }
 
 type TriggerRequest struct {

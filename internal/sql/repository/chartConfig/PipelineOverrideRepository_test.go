@@ -34,7 +34,7 @@ func getPor() PipelineOverrideRepository {
 }
 
 func TestPipelineOverrideRepositoryImpl_Save(t *testing.T) {
-	envConfigOverride, _ := getEcr().Get(5)
+	envConfigOverride, _ := getEcr().GetByIdIncludingInactive(5)
 	po := &PipelineOverride{
 		EnvConfigOverrideId:    envConfigOverride.Id,
 		Status:                 models.CHARTSTATUS_NEW,

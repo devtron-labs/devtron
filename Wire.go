@@ -72,6 +72,7 @@ import (
 	"github.com/devtron-labs/devtron/api/terminal"
 	util5 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -969,6 +970,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		appStoreRestHandler.AppStoreWireSet,
+
+		cel.NewCELServiceImpl,
+		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -65,6 +65,7 @@ type PipelineBuilder interface {
 	DevtronAppStrategyService
 	AppDeploymentTypeChangeManager
 }
+
 type PipelineBuilderImpl struct {
 	logger          *zap.SugaredLogger
 	materialRepo    pipelineConfig.MaterialRepository

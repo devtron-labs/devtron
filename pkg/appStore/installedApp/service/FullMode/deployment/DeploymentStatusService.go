@@ -13,12 +13,12 @@ import (
 
 type DeploymentStatusService interface {
 	// TODO refactoring: Move to DB service
-	SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
+	SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status pipelineConfig.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	// UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus updates failed status in pipelineConfig.PipelineStatusTimeline table
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 }
 
-func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status pipelineConfig.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 
 	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		return nil

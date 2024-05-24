@@ -72,51 +72,51 @@ import (
 )
 
 type CdPipelineConfigService interface {
-	//GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
-	//getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
-	//converting above data in proper bean object and then assigning to CDPipelineConfigObject
-	//if any error occur , will get empty object or nil
+	// GetCdPipelineById : Retrieve cdPipeline for given cdPipelineId.
+	// getting cdPipeline,environment and strategies ,preDeployStage, postDeployStage,appWorkflowMapping from respective repository and service layer
+	// converting above data in proper bean object and then assigning to CDPipelineConfigObject
+	// if any error occur , will get empty object or nil
 	GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
-	//PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
-	//Performs Create ,Update and Delete operation.
+	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
+	// Performs Create ,Update and Delete operation.
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (*bean.AppDeleteResponseDTO, error)
 	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
-	//GetTriggerViewCdPipelinesForApp :
+	// GetTriggerViewCdPipelinesForApp :
 	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	//GetCdPipelinesForApp : Retrieve cdPipeline for given appId
+	// GetCdPipelinesForApp : Retrieve cdPipeline for given appId
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	//GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
+	// GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	//GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
+	// GetCdPipelinesByEnvironment : lists cdPipeline for given environmentId and appIds
 	GetCdPipelinesByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines *bean.CdPipelines, err error)
-	//GetCdPipelinesByEnvironmentMin : lists minimum detail of cdPipelines for given environmentId and appIds
+	// GetCdPipelinesByEnvironmentMin : lists minimum detail of cdPipelines for given environmentId and appIds
 	GetCdPipelinesByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest, token string) (cdPipelines []*bean.CDPipelineConfigObject, err error)
-	//PerformBulkActionOnCdPipelines :
+	// PerformBulkActionOnCdPipelines :
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
-	//FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
+	// FindPipelineById : Retrieve Pipeline object from pipelineRepository for given cdPipelineId
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	//FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
+	// FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
-	//Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
+	// Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
 	// It first fetches the workflow details from the appWorkflow repository.
-	//If the workflow is a CD pipeline, it further checks for stage configurations.
-	//If the workflow is a webhook, it returns the webhook workflow type.
-	//In case of error , it returns 0 for parentId and empty string for parentType
+	// If the workflow is a CD pipeline, it further checks for stage configurations.
+	// If the workflow is a webhook, it returns the webhook workflow type.
+	// In case of error , it returns 0 for parentId and empty string for parentType
 	RetrieveParentDetails(pipelineId int) (parentId int, parentType bean2.WorkflowType, err error)
-	//GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
+	// GetEnvironmentByCdPipelineId : Retrieve environmentId for given cdPipelineId
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
-	//IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
+	// IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
-	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
+	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
-	//DeleteHelmTypePipelineDeploymentApp : Deletes helm release for a pipeline with force flag
+	// DeleteHelmTypePipelineDeploymentApp : Deletes helm release for a pipeline with force flag
 	DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error
 }
 

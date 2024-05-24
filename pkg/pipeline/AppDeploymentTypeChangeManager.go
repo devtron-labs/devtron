@@ -43,19 +43,19 @@ import (
 )
 
 type AppDeploymentTypeChangeManager interface {
-	//ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
 	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//TriggerDeploymentAfterTypeChange :
+	// TriggerDeploymentAfterTypeChange : triggers a new deployment after type change
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//DeleteDeploymentApps : takes in a list of pipelines and delete the applications
+	// DeleteDeploymentApps : takes in a list of pipelines and delete the applications
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
-	//DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
+	// DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
 	// and deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment.
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
@@ -325,7 +325,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 		return response, nil
 	}
 
-	deleteResponse := impl.FetchDeletedApp(ctx, cdPipelines)
+	deleteResponse := impl.fetchDeletedApp(ctx, cdPipelines)
 
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
@@ -648,7 +648,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) handleFailedDeploymentAppChange(
 		bean.Failed)
 }
 
-func (impl *AppDeploymentTypeChangeManagerImpl) FetchDeletedApp(ctx context.Context,
+func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Context,
 	pipelines []*pipelineConfig.Pipeline) *bean.DeploymentAppTypeChangeResponse {
 
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)

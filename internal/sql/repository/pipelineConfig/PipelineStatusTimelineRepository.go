@@ -7,7 +7,23 @@ import (
 	"time"
 )
 
-type TimelineStatus = string
+type TimelineStatus string
+
+func (status TimelineStatus) IsTerminalTimelineStatus() bool {
+	switch status {
+	case
+		TIMELINE_STATUS_APP_HEALTHY,
+		TIMELINE_STATUS_DEPLOYMENT_FAILED,
+		TIMELINE_STATUS_GIT_COMMIT_FAILED,
+		TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED:
+		return true
+	}
+	return false
+}
+
+func (status TimelineStatus) ToString() string {
+	return string(status)
+}
 
 var TimelineStatusDescription string
 
@@ -24,13 +40,15 @@ const (
 	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
 	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
 	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
-	TIMELINE_STATUS_MANIFEST_GENERATED     TimelineStatus = "MANIFEST_GENERATED"
+	// TIMELINE_STATUS_MANIFEST_GENERATED timeline is used for virtual env only
+	TIMELINE_STATUS_MANIFEST_GENERATED TimelineStatus = "MANIFEST_GENERATED"
+	// TIMELINE_DESCRIPTION_MANIFEST_GENERATED timeline is used for virtual env only
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATED TimelineStatus = "HELM_PACKAGE_GENERATED"
 )
 
 const (
 	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
 	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
-	TIMELINE_DESCRIPTION_MANIFEST_GENERATED   string = "HELM_PACKAGE_GENERATED"
 )
 
 type PipelineStatusTimelineRepository interface {
@@ -204,7 +222,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfr
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY, TIMELINE_STATUS_DEPLOYMENT_FAILED, TIMELINE_STATUS_GIT_COMMIT_FAILED, TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED}
+	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY.ToString(), TIMELINE_STATUS_DEPLOYMENT_FAILED.ToString(),
+		TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString(), TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED.ToString()}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).
@@ -217,7 +236,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error) {
-	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY, TIMELINE_STATUS_DEPLOYMENT_FAILED, TIMELINE_STATUS_GIT_COMMIT_FAILED, TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED}
+	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY.ToString(), TIMELINE_STATUS_DEPLOYMENT_FAILED.ToString(),
+		TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString(), TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED.ToString()}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).

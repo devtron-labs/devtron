@@ -162,7 +162,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		return valuesOverrideResponse, err
 	}
 	overrideRequest.Image = artifact.Image
-
+	// Currently strategy is used only for history creation; hence it's not required in PipelineConfigOverride
 	strategy, err := impl.getDeploymentStrategyByTriggerType(overrideRequest, ctx)
 	valuesOverrideResponse.PipelineStrategy = strategy
 	if err != nil {
@@ -170,22 +170,30 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		return valuesOverrideResponse, err
 	}
 
-	envOverride, err := impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
-	valuesOverrideResponse.EnvOverride = envOverride
-	if err != nil {
-		impl.logger.Errorw("error in getting env override by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
-	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, ctx)
-	valuesOverrideResponse.AppMetrics = appMetrics
-	if err != nil {
-		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
-		return valuesOverrideResponse, err
-	}
 	var (
 		pipelineOverride                *chartConfig.PipelineOverride
 		configMapJson, appLabelJsonByte []byte
+		envOverride                     *chartConfig.EnvConfigOverride
 	)
+	if isPipelineOverrideCreated {
+		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
+			return nil, err
+		}
+		envOverride, err = impl.environmentConfigRepository.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
+		if err != nil {
+			impl.logger.Errorw("error in getting env override by id", "id", pipelineOverride.EnvConfigOverrideId, "err", err)
+			return valuesOverrideResponse, err
+		}
+	} else {
+		envOverride, err = impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in getting env override by trigger type", "err", err)
+			return valuesOverrideResponse, err
+		}
+	}
+	valuesOverrideResponse.EnvOverride = envOverride
 
 	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
@@ -196,16 +204,15 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			return valuesOverrideResponse, err
 		}
 		overrideRequest.PipelineOverrideId = pipelineOverride.Id
-	} else {
-		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
-		if err != nil {
-			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
-			return nil, err
-		}
 	}
 	// Conditional Block based on PipelineOverrideCreated --> end
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 
+	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
+		return valuesOverrideResponse, err
+	}
 	//TODO: check status and apply lock
 	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
 	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson

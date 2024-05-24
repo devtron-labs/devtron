@@ -4,6 +4,7 @@ const (
 	HostUrlKey                     string = "url"
 	API_SECRET_KEY                 string = "apiTokenSecret"
 	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
+	PRIORITY_DEPLOYMENT_CONDITION  string = "priorityDeploymentCondition"
 )
 
 type AttributesDto struct {

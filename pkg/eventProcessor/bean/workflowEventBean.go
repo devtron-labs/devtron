@@ -54,6 +54,6 @@ type CiCompleteEvent struct {
 }
 
 type DevtronAppReleaseContextType struct {
-	CancelContext context.CancelFunc
+	CancelContext context.CancelCauseFunc
 	RunnerId      int
 }

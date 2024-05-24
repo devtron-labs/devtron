@@ -40,13 +40,16 @@ type DeploymentHistoryResp struct {
 	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
 }
+
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
+
 	HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request)
 	HandleChangeDeploymentTypeRequest(w http.ResponseWriter, r *http.Request)
 	HandleTriggerDeploymentAfterTypeChange(w http.ResponseWriter, r *http.Request)
+
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 

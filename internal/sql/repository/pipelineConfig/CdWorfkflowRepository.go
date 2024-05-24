@@ -155,7 +155,8 @@ type WorkflowExecutorType string
 const (
 	WORKFLOW_EXECUTOR_TYPE_AWF    = "AWF"
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
-	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
+	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed!"
+	PIPELINE_DELETED              = "The pipeline has been deleted!"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
 	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )

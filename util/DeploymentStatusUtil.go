@@ -10,7 +10,7 @@ const (
 	WorkflowSucceeded = "Succeeded"
 )
 
-func IsTerminalStatus(status string) bool {
+func IsTerminalRunnerStatus(status string) bool {
 	switch status {
 	case
 		string(health.HealthStatusHealthy),

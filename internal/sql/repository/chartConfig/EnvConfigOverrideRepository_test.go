@@ -47,7 +47,7 @@ func TestEnvConfigOverrideRepositoryImpl_Save(t *testing.T) {
 }
 
 func TestEnvConfigOverrideRepositoryImpl_Get(t *testing.T) {
-	eco, err := getEcr().Get(3)
+	eco, err := getEcr().GetByIdIncludingInactive(3)
 	assert.NoError(t, err)
 	assert.NotNil(t, eco)
 }

@@ -144,21 +144,43 @@ func (_m *CiPipelineRepository) FinDByParentCiPipelineAndAppId(parentCiPipeline 
 	return r0, r1
 }
 
-// FindAllPipelineInLast24Hour provides a mock function with given fields:
-func (_m *CiPipelineRepository) FindAllPipelineInLast24Hour() ([]*pipelineConfig.CiPipeline, error) {
+// FindAllDeletedPipelineCountInLast24Hour provides a mock function with given fields:
+func (_m *CiPipelineRepository) FindAllDeletedPipelineCountInLast24Hour() (int, error) {
 	ret := _m.Called()
 
-	var r0 []*pipelineConfig.CiPipeline
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]*pipelineConfig.CiPipeline, error)); ok {
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []*pipelineConfig.CiPipeline); ok {
+	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.CiPipeline)
-		}
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAllPipelineCreatedCountInLast24Hour provides a mock function with given fields:
+func (_m *CiPipelineRepository) FindAllPipelineCreatedCountInLast24Hour() (int, error) {
+	ret := _m.Called()
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -877,32 +899,32 @@ func (_m *CiPipelineRepository) GetCiPipelineByArtifactId(artifactId int) (*pipe
 	return r0, r1
 }
 
-// GetDownStreamInfo provides a mock function with given fields: ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order
-func (_m *CiPipelineRepository) GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int, limit int, offset int, appNameMatch string, envNameMatch string, order pagination.SortOrder) ([]bean.LinkedCIDetails, int, error) {
-	ret := _m.Called(ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order)
+// GetDownStreamInfo provides a mock function with given fields: ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req
+func (_m *CiPipelineRepository) GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int, appNameMatch string, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error) {
+	ret := _m.Called(ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req)
 
 	var r0 []bean.LinkedCIDetails
 	var r1 int
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int, int, string, string, pagination.SortOrder) ([]bean.LinkedCIDetails, int, error)); ok {
-		return rf(ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order)
+	if rf, ok := ret.Get(0).(func(context.Context, int, string, string, *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error)); ok {
+		return rf(ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int, int, string, string, pagination.SortOrder) []bean.LinkedCIDetails); ok {
-		r0 = rf(ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order)
+	if rf, ok := ret.Get(0).(func(context.Context, int, string, string, *pagination.RepositoryRequest) []bean.LinkedCIDetails); ok {
+		r0 = rf(ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]bean.LinkedCIDetails)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, int, int, string, string, pagination.SortOrder) int); ok {
-		r1 = rf(ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order)
+	if rf, ok := ret.Get(1).(func(context.Context, int, string, string, *pagination.RepositoryRequest) int); ok {
+		r1 = rf(ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, int, int, int, string, string, pagination.SortOrder) error); ok {
-		r2 = rf(ctx, sourceCiPipelineId, limit, offset, appNameMatch, envNameMatch, order)
+	if rf, ok := ret.Get(2).(func(context.Context, int, string, string, *pagination.RepositoryRequest) error); ok {
+		r2 = rf(ctx, sourceCiPipelineId, appNameMatch, envNameMatch, req)
 	} else {
 		r2 = ret.Error(2)
 	}

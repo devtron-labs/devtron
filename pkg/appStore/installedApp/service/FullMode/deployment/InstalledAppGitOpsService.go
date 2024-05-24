@@ -236,7 +236,7 @@ func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersi
 	commitHash, _, err := impl.gitOperationService.CommitValues(context.Background(), valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
+		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 	//update timeline status for git commit state
 	installAppVersionRequest.GitHash = commitHash
@@ -259,7 +259,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 	_, _, err = impl.gitOperationService.CommitValues(context.Background(), requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in values commit", "err", err)
-		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
+		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 
 	return nil

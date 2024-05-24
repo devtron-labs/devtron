@@ -17,7 +17,7 @@ func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 	// trigger event will decide whether to perform GitOps or deployment for a particular deployment app type
 	triggerEvent := bean.TriggerEvent{
 		TriggeredBy: deployedBy,
-		TriggerdAt:  triggeredAt,
+		TriggeredAt: triggeredAt,
 	}
 	switch deploymentAppType {
 	case bean.ArgoCd:

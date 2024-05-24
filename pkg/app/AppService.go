@@ -61,7 +61,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -430,7 +429,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 			return isValid, installedAppVersionHistory, appId, envId, nil
 		}
 	}
-	if util2.IsTerminalStatus(installedAppVersionHistory.Status) {
+	if util2.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
@@ -479,7 +478,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		impl.logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "pipelineId", pipeline.Id)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
-	if util2.IsTerminalStatus(cdWfr.Status) {
+	if util2.IsTerminalRunnerStatus(cdWfr.Status) {
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
@@ -780,7 +779,6 @@ type ValuesOverrideResponse struct {
 	PipelineOverride    *chartConfig.PipelineOverride
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
-	AppMetrics          bool
 }
 
 func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
@@ -811,7 +809,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
+	envConfigOverride, err := impl.environmentConfigRepository.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
 	}
@@ -853,28 +851,6 @@ func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, userId int32) (gitops
 	}
 	chartGitAttr.ChartLocation = filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
 	return gitOpsRepoName, chartGitAttr, nil
-}
-
-func (impl *AppServiceImpl) saveTimeline(overrideRequest *bean.ValuesOverrideRequest, status string, statusDetail string, ctx context.Context) {
-	// creating cd pipeline status timeline for git commit
-	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: overrideRequest.WfrId,
-		Status:             status,
-		StatusDetail:       statusDetail,
-		StatusTime:         time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: overrideRequest.UserId,
-			CreatedOn: time.Now(),
-			UpdatedBy: overrideRequest.UserId,
-			UpdatedOn: time.Now(),
-		},
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimeline")
-	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-	span.End()
-	if timelineErr != nil {
-		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
-	}
 }
 
 // FIXME tmp workaround

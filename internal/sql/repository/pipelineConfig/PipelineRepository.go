@@ -36,7 +36,11 @@ import (
 )
 
 type PipelineType string
-type TriggerType string //HOW pipeline should be triggered
+type TriggerType string // HOW pipeline should be triggered
+
+func (t TriggerType) ToString() string {
+	return string(t)
+}
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"

@@ -188,7 +188,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", pipeline, "cdWfr", cdWfr)
-		if util3.IsTerminalStatus(cdWfr.Status) {
+		if util3.IsTerminalRunnerStatus(cdWfr.Status) {
 			// drop event
 			return nil, isTimelineUpdated
 		}
@@ -273,7 +273,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
-		if util3.IsTerminalStatus(installedAppVersionHistory.Status) {
+		if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 			// drop event
 			return nil, isTimelineUpdated
 		}
@@ -478,7 +478,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDDevtronApps(deployedBeforeMinutes 
 		impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipelineId)
 		return err
 	}
-	if util3.IsTerminalStatus(cdWfr.Status) {
+	if util3.IsTerminalRunnerStatus(cdWfr.Status) {
 		return nil
 	}
 	pipelineStatusTimeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
@@ -537,7 +537,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "installedAppVersionId", installedAppVersionId)
 		return err
 	}
-	if util3.IsTerminalStatus(installedAppVersionHistory.Status) {
+	if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 		return nil
 	}
 	installedAppVersionHistoryId := installedAppVersionHistory.Id
