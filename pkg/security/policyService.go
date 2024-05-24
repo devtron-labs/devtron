@@ -278,8 +278,10 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 			impl.logger.Errorw("error in fetching vulnerability ", "err", err)
 			return nil, err
 		}
+		cveNameToScanResultPackageNameMapping := make(map[string]string)
 		var cveStores []*security.CveStore
 		for _, scanResult := range scanResults {
+			cveNameToScanResultPackageNameMapping[scanResult.CveStoreName] = scanResult.Package
 			cveStores = append(cveStores, &scanResult.CveStore)
 			if _, ok := scanResultsIdMap[scanResult.ImageScanExecutionHistoryId]; !ok {
 				scanResultsIdMap[scanResult.ImageScanExecutionHistoryId] = scanResult.ImageScanExecutionHistoryId
@@ -294,6 +296,12 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				Package:      cve.Package,
 				Version:      cve.Version,
 				FixedVersion: cve.FixedVersion,
+			}
+			if len(cve.Package) == 0 {
+				if packageName, ok := cveNameToScanResultPackageNameMapping[cve.Name]; ok {
+					// fetch package name from image_scan_execution_result table
+					vr.Package = packageName
+				}
 			}
 			imageBlockedCves[image] = append(imageBlockedCves[image], vr)
 		}

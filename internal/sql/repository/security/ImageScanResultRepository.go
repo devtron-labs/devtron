@@ -28,6 +28,7 @@ type ImageScanExecutionResult struct {
 	CveStoreName                string   `sql:"cve_store_name,notnull"`
 	ImageScanExecutionHistoryId int      `sql:"image_scan_execution_history_id"`
 	ScanToolId                  int      `sql:"scan_tool_id"`
+	Package                     string   `sql:"package"`
 	CveStore                    CveStore
 	ImageScanExecutionHistory   ImageScanExecutionHistory
 }

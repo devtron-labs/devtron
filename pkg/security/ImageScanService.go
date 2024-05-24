@@ -321,6 +321,10 @@ func (impl *ImageScanServiceImpl) FetchExecutionDetailResult(ctx context.Context
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
 			}
+			if len(item.CveStore.Package) == 0 {
+				// data already migrated hence get package from image_scan_execution_result
+				vulnerability.Package = item.Package
+			}
 			highCount, moderateCount, lowCount = impl.updateCount(item.CveStore.Severity, highCount, moderateCount, lowCount)
 			vulnerabilities = append(vulnerabilities, vulnerability)
 			cveStores = append(cveStores, &item.CveStore)

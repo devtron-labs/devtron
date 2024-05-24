@@ -32,7 +32,7 @@ type CveStore struct {
 	tableName    struct{}              `sql:"cve_store" pg:",discard_unknown_columns"`
 	Name         string                `sql:"name,pk"`
 	Severity     securityBean.Severity `sql:"severity,notnull"`
-	Package      string                `sql:"package,notnull"`
+	Package      string                `sql:"package,notnull"` // deprecated
 	Version      string                `sql:"version,notnull"`
 	FixedVersion string                `sql:"fixed_version,notnull"`
 	sql.AuditLog
