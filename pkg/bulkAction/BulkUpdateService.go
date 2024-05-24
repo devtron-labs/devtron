@@ -951,6 +951,10 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	return bulkUpdateResponse
 }
 
+func needToSkipDeployment(status string) bool {
+	return status != pipelineConfig.WorkflowFailed && status != pipelineConfig.WorkflowUnableToFetchState && status != pipelineConfig.WorkflowTimedOut
+}
+
 func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1001,7 +1005,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			return nil, err
 		}
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
-		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP && cdwfr.Status != pipelineConfig.WorkflowFailed {
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP && needToSkipDeployment(cdwfr.Status) {
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
@@ -1162,7 +1166,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		}
 		deploymentHistory := deploymentTypeMap[pipeline.Id]
 		if (deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START ||
-			deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY) && cdwfr.Status != pipelineConfig.WorkflowFailed {
+			deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY) && needToSkipDeployment(cdwfr.Status) {
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false

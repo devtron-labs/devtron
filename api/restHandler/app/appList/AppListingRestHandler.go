@@ -992,12 +992,23 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 	return appDetail, err, appId
 }
 
+func getApplicationStatusFromDeploymentType(deploymentType models.DeploymentType) string {
+	if deploymentType == models.DEPLOYMENTTYPE_STOP {
+		return argoApplication.HIBERNATING
+	}
+	return string(health.HealthStatusHealthy)
+}
+
 // TODO: move this to service
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
 		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
 		return resourceTree, nil
+	}
+	deploymentType, err := handler.appListingService.GetLastestSuccededDeploymentType(appId, envId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetLastestSuccededDeploymentType", "err", err, "app", appId, "env", envId)
 	}
 	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
 		// RBAC enforcer Ends
@@ -1047,16 +1058,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 
 		if resp.Status == string(health.HealthStatusHealthy) {
-			deploymentType, err := handler.appListingService.GetLastestSuccededDeploymentType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, GetLastestSuccededDeploymentType", "err", err, "app", appId, "env", envId)
-			} else {
-				if deploymentType == models.DEPLOYMENTTYPE_STOP {
-					resp.Status = argoApplication.HIBERNATING
-				} else if deploymentType == models.DEPLOYMENTTYPE_START {
-					resp.Status = string(health.HealthStatusHealthy)
-				}
-			}
+			resp.Status = getApplicationStatusFromDeploymentType(deploymentType)
 		}
 		if resp.Status == string(health.HealthStatusDegraded) {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
@@ -1102,16 +1104,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == argoApplication.Healthy {
-				deploymentType, err := handler.appListingService.GetLastestSuccededDeploymentType(appId, envId)
-				if err != nil {
-					handler.logger.Errorw("service err, GetLastestSuccededDeploymentType", "err", err, "app", appId, "env", envId)
-				} else {
-					if deploymentType == models.DEPLOYMENTTYPE_STOP {
-						resourceTree["status"] = argoApplication.HIBERNATING
-					} else if deploymentType == models.DEPLOYMENTTYPE_START {
-						resourceTree["status"] = string(health.HealthStatusHealthy)
-					}
-				}
+				resourceTree["status"] = getApplicationStatusFromDeploymentType(deploymentType)
 			}
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 		}
