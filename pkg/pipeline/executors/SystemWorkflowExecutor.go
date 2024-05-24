@@ -109,7 +109,7 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespa
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			err = fmt.Errorf("cannot find workflow %s", workflowName)
+			err = fmt.Errorf(WORKFLOW_NOT_FOUND+" %s", workflowName)
 		}
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			err = fmt.Errorf("cannot find workflow %s", workflowName)
+			err = fmt.Errorf(WORKFLOW_NOT_FOUND+" %s", workflowName)
 		}
 		return nil, err
 	}

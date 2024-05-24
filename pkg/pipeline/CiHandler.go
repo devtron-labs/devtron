@@ -609,7 +609,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 
 	// Terminate workflow
 	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
-	if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
+	if err != nil && strings.Contains(err.Error(), executors.WORKFLOW_NOT_FOUND) {
 		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
 	} else if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
@@ -1615,8 +1615,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {
 				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
-				statusError, ok := err.(*errors2.StatusError)
-				if ok && statusError.Status().Code == http.StatusNotFound {
+				if strings.Contains(err.Error(), executors.WORKFLOW_NOT_FOUND) {
 					impl.Logger.Warnw("ci workflow not found", "err", err)
 					isEligibleToMarkFailed = true
 				} else {

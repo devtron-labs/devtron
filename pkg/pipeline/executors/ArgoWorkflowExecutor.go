@@ -168,7 +168,7 @@ func (impl *ArgoWorkflowExecutorImpl) getWorkflow(workflowName string, namespace
 	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
-		return nil, fmt.Errorf("cannot find workflow %s", workflowName)
+		return nil, fmt.Errorf(WORKFLOW_NOT_FOUND+" %s", workflowName)
 	}
 	return wf, nil
 }

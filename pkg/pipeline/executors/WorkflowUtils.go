@@ -18,6 +18,8 @@ import (
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
 
+const WORKFLOW_NOT_FOUND = "cannot find workflow"
+
 func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
 	var volumes []v12.Volume
 	configMapVolumes := extractVolumesFromConfigSecretMaps(true, configMaps)
