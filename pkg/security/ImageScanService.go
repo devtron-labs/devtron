@@ -373,6 +373,10 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
 			}
+			if len(item.CveStore.Package) == 0 {
+				// data already migrated hence get package from image_scan_execution_result
+				vulnerability.Package = item.Package
+			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
 			} else if item.CveStore.Severity == security.Medium {
