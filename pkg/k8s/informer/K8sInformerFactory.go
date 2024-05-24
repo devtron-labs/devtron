@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"sync"
 	"time"
 
@@ -77,7 +78,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CAData:                info.CAData,
 		}
 
-		if info.RemoteConnectionConfig != nil {
+		if info.RemoteConnectionConfig != nil && info.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 			connectionConfig := &bean3.RemoteConnectionConfigBean{
 				RemoteConnectionConfigId: info.RemoteConnectionConfig.RemoteConnectionConfigId,
 				ConnectionMethod:         bean3.RemoteConnectionMethod(info.RemoteConnectionConfig.ConnectionMethod),
