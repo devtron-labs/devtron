@@ -297,11 +297,12 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				Version:      cve.Version,
 				FixedVersion: cve.FixedVersion,
 			}
-			if len(cve.Package) == 0 {
-				if packageName, ok := cveNameToScanResultPackageNameMapping[cve.Name]; ok {
+			if packageName, ok := cveNameToScanResultPackageNameMapping[cve.Name]; ok {
+				if len(packageName) > 0 {
 					// fetch package name from image_scan_execution_result table
 					vr.Package = packageName
 				}
+
 			}
 			imageBlockedCves[image] = append(imageBlockedCves[image], vr)
 		}
