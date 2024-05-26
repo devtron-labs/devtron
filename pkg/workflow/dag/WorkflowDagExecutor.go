@@ -31,7 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -66,7 +66,7 @@ import (
 
 type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(triggerContext bean5.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
-	HandlePreStageSuccessEvent(triggerContext bean5.TriggerContext, cdStageCompleteEvent bean7.CdStageCompleteEvent) error
+	HandlePreStageSuccessEvent(triggerContext bean5.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(triggerContext bean5.TriggerContext, pipelineOverride *chartConfig.PipelineOverride) error
 	HandlePostStageSuccessEvent(triggerContext bean5.TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
@@ -74,8 +74,7 @@ type WorkflowDagExecutor interface {
 	HandleExternalCiWebhook(externalCiId int, request *bean2.CiArtifactWebhookRequest,
 		auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error)
 
-	ProcessDevtronAsyncInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
-		ctx context.Context) error
+	ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.AsyncCdDeployRequest, appIdentifier *client2.AppIdentifier, ctx context.Context) error
 
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
@@ -289,7 +288,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				}
 			}
 		} else if util.IsAcdApp(overrideRequest.DeploymentAppType) {
-			//TODO Asutosh: handle here
+			// TODO Asutosh: handle here
 		}
 
 		cdWfr.UpdatedBy = 1
@@ -329,9 +328,8 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 	}
 }
 
-func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,
-	ctx context.Context) error {
-	overrideRequest := CDAsyncInstallNatsMessage.ValuesOverrideRequest
+func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.AsyncCdDeployRequest, appIdentifier *client2.AppIdentifier, ctx context.Context) error {
+	overrideRequest := cdAsyncInstallReq.ValuesOverrideRequest
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 	if err != nil {
 		impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
@@ -339,20 +337,20 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(CDAsyncIn
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowStarting, "")
+		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, cdAsyncInstallReq.TriggeredAt, pipelineConfig.WorkflowStarting, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
 			return err
 		}
 	}
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, cdAsyncInstallReq.TriggeredAt, ctx)
 	if err != nil {
 		return err
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	span.End()
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(ctx, releaseErr, cdWfr, overrideRequest, appIdentifier)
@@ -360,7 +358,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(CDAsyncIn
 		impl.logger.Infow("pipeline triggered successfully !!", "cdPipelineId", overrideRequest.PipelineId, "artifactId", overrideRequest.CiArtifactId, "releaseId", releaseId)
 		// Update previous deployment runner status (in transaction): Failed
 		_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-		err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(cdWfr, overrideRequest.PipelineId, CDAsyncInstallNatsMessage.TriggeredAt, overrideRequest.UserId)
+		err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(cdWfr, overrideRequest.PipelineId, cdAsyncInstallReq.TriggeredAt, overrideRequest.UserId)
 		span.End()
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners, processDevtronAsyncHelmInstallRequest", "err", err, "runner", cdWfr, "pipelineId", overrideRequest.PipelineId)
@@ -508,7 +506,7 @@ func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType 
 	return stage, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext bean5.TriggerContext, cdStageCompleteEvent bean7.CdStageCompleteEvent) error {
+func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext bean5.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error {
 	wfRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 	if err != nil {
 		return err

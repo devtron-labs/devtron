@@ -21,7 +21,7 @@ import (
 )
 
 type CdWorkflowCommonService interface {
-	UpdatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
+	SupersedePreviousDeployments(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
 	UpdateCDWorkflowRunnerStatus(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, status, message string) error
 
@@ -58,7 +58,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	}, nil
 }
 
-func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
+func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -158,13 +158,11 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 	// In case of terminal status update finished on time
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("err on fetching cd workflow, UpdateCDWorkflowRunnerStatus", "err", err)
 		return err
 	}
-	cdWorkflowId := cdWfr.CdWorkflowId
-
-	if cdWorkflowId == 0 {
+	if cdWfr.CdWorkflowId == 0 {
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId: overrideRequest.CiArtifactId,
 			PipelineId:   overrideRequest.PipelineId,
@@ -175,47 +173,49 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 			impl.logger.Errorw("err on updating cd workflow for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err
 		}
-		cdWorkflowId = cdWf.Id
-		runner := &pipelineConfig.CdWorkflowRunner{
-			Id:           cdWf.Id,
-			Name:         overrideRequest.PipelineName,
-			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       status,
-			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    triggeredAt,
-			CdWorkflowId: cdWorkflowId,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-		}
-		if isTerminalStatus {
-			runner.FinishedOn = time.Now()
-		}
-		_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		cdWfr.CdWorkflowId = cdWf.Id
+		cdWfr.CdWorkflow = cdWf
+	}
+	// if the current cdWfr status is already a terminal status and then don't update the status
+	// e.g: Status : Failed --> Progressing (not allowed)
+	if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
+		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
+		return fmt.Errorf("deployment has already been terminated for workflow runner")
+	}
+	if status == pipelineConfig.WorkflowFailed {
+		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, message)
 		if err != nil {
-			impl.logger.Errorw("err on updating cd workflow runner for status update, UpdateCDWorkflowRunnerStatus", "err", err)
+			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+			return err
+		}
+	}
+	if cdWfr.Id == 0 {
+		cdWfr.Name = overrideRequest.PipelineName
+		cdWfr.WorkflowType = bean.CD_WORKFLOW_TYPE_DEPLOY
+		cdWfr.ExecutorType = pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF
+		cdWfr.Status = status
+		cdWfr.TriggeredBy = overrideRequest.UserId
+		cdWfr.StartedOn = triggeredAt
+		cdWfr.CreatedOn = triggeredAt
+		cdWfr.CreatedBy = overrideRequest.UserId
+		cdWfr.UpdatedOn = triggeredAt
+		cdWfr.UpdatedBy = overrideRequest.UserId
+		if isTerminalStatus {
+			cdWfr.FinishedOn = time.Now()
+			cdWfr.Message = message
+		}
+		_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(cdWfr)
+		if err != nil {
+			impl.logger.Errorw("err on save cd workflow runner for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err
 		}
 	} else {
-		// if the current cdWfr status is already a terminal status and then don't update the status
-		// e.g: Status : Failed --> Progressing (not allowed)
-		if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-			impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
-			return fmt.Errorf("deployment has already been terminated for workflow runner")
-		}
-		if status == pipelineConfig.WorkflowFailed {
-			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, message)
-			if err != nil {
-				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
-				return err
-			}
-		}
 		cdWfr.Status = status
 		if isTerminalStatus {
 			cdWfr.FinishedOn = time.Now()
 			cdWfr.Message = message
 		}
-		cdWfr.UpdatedBy = overrideRequest.UserId
-		cdWfr.UpdatedOn = time.Now()
+		cdWfr.UpdateAuditLog(overrideRequest.UserId)
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
 		if err != nil {
 			impl.logger.Errorw("error on update cd workflow runner, UpdateCDWorkflowRunnerStatus", "cdWfr", cdWfr, "err", err)
@@ -223,7 +223,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 		}
 	}
 	if isTerminalStatus {
-		if cdWfr.CdWorkflow == nil {
+		if cdWfr.CdWorkflow == nil || cdWfr.CdWorkflow.Pipeline == nil {
 			pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", overrideRequest.PipelineId, "err", err)

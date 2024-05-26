@@ -28,8 +28,7 @@ import (
 
 type WorkflowEventPublishService interface {
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
-	TriggerAsyncRelease(overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
-		triggeredBy int32) (releaseNo int, manifest []byte, err error)
+	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
 
@@ -117,7 +116,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 }
 
 // TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
-func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
+func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
@@ -131,7 +130,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(overrideRequest
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return releaseNo, manifest, err
 	}
-	topic, msg, err := impl.getAsyncDeploymentTopicAndPayload(overrideRequest, valuesOverrideResponse, triggeredAt, triggeredBy)
+	topic, msg, err := impl.getAsyncDeploymentTopicAndPayload(userDeploymentRequestId, overrideRequest.DeploymentAppType, valuesOverrideResponse)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return releaseNo, manifest, err
@@ -229,29 +228,27 @@ func (impl *WorkflowEventPublishServiceImpl) triggerNatsEventForBulkAction(cdWor
 	}
 }
 
-func (impl *WorkflowEventPublishServiceImpl) getAsyncDeploymentTopicAndPayload(overrideRequest *apiBean.ValuesOverrideRequest,
-	valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, triggeredBy int32) (topic string, msg string, err error) {
+func (impl *WorkflowEventPublishServiceImpl) getAsyncDeploymentTopicAndPayload(userDeploymentRequestId int,
+	deploymentAppType string, valuesOverrideResponse *app.ValuesOverrideResponse) (topic string, msg string, err error) {
 	isPriorityEvent, err := impl.triggerEventEvaluator.IsPriorityDeployment(valuesOverrideResponse)
 	if err != nil {
 		impl.logger.Errorw("error while CEL expression evaluation", "err", err)
 		return topic, msg, err
 	}
-	if internalUtil.IsAcdApp(overrideRequest.DeploymentAppType) {
+	if internalUtil.IsAcdApp(deploymentAppType) {
 		topic = pubsub.DEVTRON_CHART_GITOPS_INSTALL_TOPIC
 		if isPriorityEvent {
 			topic = pubsub.DEVTRON_CHART_GITOPS_PRIORITY_INSTALL_TOPIC
 		}
 	}
-	if internalUtil.IsHelmApp(overrideRequest.DeploymentAppType) {
+	if internalUtil.IsHelmApp(deploymentAppType) {
 		topic = pubsub.DEVTRON_CHART_INSTALL_TOPIC
 		if isPriorityEvent {
 			topic = pubsub.DEVTRON_CHART_PRIORITY_INSTALL_TOPIC
 		}
 	}
-	event := &eventProcessorBean.AsyncCdDeployEvent{
-		ValuesOverrideRequest: overrideRequest,
-		TriggeredAt:           triggeredAt,
-		TriggeredBy:           triggeredBy,
+	event := &eventProcessorBean.AsyncCdDeployRequest{
+		UserDeploymentRequestId: userDeploymentRequestId,
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {

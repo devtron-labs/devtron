@@ -1,12 +1,14 @@
 package adapter
 
 import (
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"time"
 )
 
-func SetPipelineFieldsInOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
+func SetPipelineFieldsInOverrideRequest(overrideRequest *apiBean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
 	overrideRequest.PipelineId = pipeline.Id
 	overrideRequest.PipelineName = pipeline.Name
 	overrideRequest.EnvId = pipeline.EnvironmentId
@@ -21,5 +23,13 @@ func GetVulnerabilityCheckRequest(cdPipeline *pipelineConfig.Pipeline, imageDige
 	return &bean.VulnerabilityCheckRequest{
 		CdPipeline:  cdPipeline,
 		ImageDigest: imageDigest,
+	}
+}
+
+func NewAsyncCdDeployRequest(overrideRequest *apiBean.ValuesOverrideRequest, triggeredAt time.Time, triggeredBy int32) *bean2.AsyncCdDeployRequest {
+	return &bean2.AsyncCdDeployRequest{
+		ValuesOverrideRequest: overrideRequest,
+		TriggeredAt:           triggeredAt,
+		TriggeredBy:           triggeredBy,
 	}
 }

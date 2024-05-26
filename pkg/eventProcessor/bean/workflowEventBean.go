@@ -23,10 +23,11 @@ type CdStageCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 }
 
-type AsyncCdDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"`
-	TriggeredAt           time.Time                   `json:"triggeredAt"`
-	TriggeredBy           int32                       `json:"triggeredBy"`
+type AsyncCdDeployRequest struct {
+	UserDeploymentRequestId int                         `json:"userDeploymentRequestId"`
+	ValuesOverrideRequest   *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredAt             time.Time                   `json:"triggeredAt"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredBy             int32                       `json:"triggeredBy"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
 }
 
 type ImageDetailsFromCR struct {

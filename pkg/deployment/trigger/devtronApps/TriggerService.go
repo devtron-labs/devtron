@@ -39,6 +39,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
+	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -116,6 +118,7 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageScanService                    security2.ImageScanService
 	enforcerUtil                        rbac.EnforcerUtil
+	userDeploymentRequestService        service.UserDeploymentRequestService
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
@@ -164,6 +167,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	enforcerUtil rbac.EnforcerUtil,
+	userDeploymentRequestService service.UserDeploymentRequestService,
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
@@ -218,6 +222,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
 		globalEnvVariables:                  envVariables.GlobalEnvVariables,
+		userDeploymentRequestService:        userDeploymentRequestService,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
@@ -401,7 +406,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation, ManualCdTrigger", "err", err, "timeline", timeline)
 		}
-
 		//checking vulnerability for deploying image
 		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
@@ -446,11 +450,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, releaseErr
 		}
 
-		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
+		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncInstallRequest
 		if !impl.isDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType, overrideRequest.ForceSync) {
 			// Update previous deployment runner status (in transaction): Failed
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-			err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
+			err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
 			span.End()
 			if err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
@@ -620,9 +624,9 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		}
 		return releaseErr
 	}
-	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
+	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncInstallRequest
 	if !impl.isDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType, false) {
-		err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, pipeline.Id, triggeredAt, triggeredBy)
+		err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(runner, pipeline.Id, triggeredAt, triggeredBy)
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 			return err1
@@ -696,9 +700,15 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
+	newDeploymentRequest := adapter.NewAsyncCdDeployRequest(overrideRequest, triggeredAt, overrideRequest.UserId)
+	err = impl.userDeploymentRequestService.SaveNewDeployment(newDeploymentRequest)
+	if err != nil {
+		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
+		return releaseNo, manifest, err
+	}
 	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSync) {
 		// asynchronous mode of Helm/ArgoCd installation starts
-		return impl.workflowEventPublishService.TriggerAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+		return impl.workflowEventPublishService.TriggerAsyncRelease(newDeploymentRequest.UserDeploymentRequestId, overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
@@ -777,56 +787,103 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	return nil
 }
 
+func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, cdWfrId int, triggerEvent bean.TriggerEvent) (skipRequest bool, err error) {
+	var latestTimelineStatus pipelineConfig.TimelineStatus
+	if util.IsAcdApp(triggerEvent.DeploymentAppType) {
+		latestTimelineStatus, err = impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(cdWfrId)
+		if err != nil {
+			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
+			return skipRequest, err
+		}
+		deployRequestStatus, err := impl.userDeploymentRequestService.GetDeployRequestStatusByCdWfId(cdWfId)
+		if err != nil {
+			impl.logger.Errorw("error in getting userDeploymentRequest by cdWfId", "cdWfrId", cdWfId, "err", err)
+			return skipRequest, err
+		}
+		if latestTimelineStatus.IsTerminalTimelineStatus() && deployRequestStatus.IsTerminalTimelineStatus() {
+			impl.logger.Info("deployment is already terminated", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
+			skipRequest = true
+			return skipRequest, nil
+		}
+		switch latestTimelineStatus {
+		case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
+			return skipRequest, nil
+		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT:
+			// git commit has already been performed
+			triggerEvent.PerformChartPush = false
+			if deployRequestStatus.IsTriggered() {
+				// deployment has already been performed
+				triggerEvent.PerformDeploymentOnCluster = false
+			}
+			return skipRequest, nil
+		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
+			// git commit has already been performed
+			triggerEvent.PerformChartPush = false
+			if deployRequestStatus.IsTriggered() {
+				// deployment has already been performed
+				triggerEvent.PerformDeploymentOnCluster = false
+			}
+			return skipRequest, nil
+		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
+			// git commit has already been performed
+			triggerEvent.PerformChartPush = false
+			// deployment has already been performed
+			triggerEvent.PerformDeploymentOnCluster = false
+			return skipRequest, nil
+		}
+	}
+	return skipRequest, nil
+}
+
 func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 	builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
 	isRequestValid, err := helper.ValidateTriggerEvent(triggerEvent)
 	if !isRequestValid {
 		return releaseNo, manifest, err
 	}
-	var latestTimelineStatus pipelineConfig.TimelineStatus
-	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
-		latestTimelineStatus, err = impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(overrideRequest.WfrId)
-		if err != nil {
-			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
-			return releaseNo, manifest, err
-		}
-		if latestTimelineStatus.IsTerminalTimelineStatus() {
-			impl.logger.Errorw("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
-			return releaseNo, manifest, nil
-		}
+	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.CdWorkflowId, overrideRequest.WfrId, triggerEvent)
+	if err != nil {
+		return releaseNo, manifest, err
+	}
+	// request has already been served, skipping
+	if skipRequest {
+		return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
 	}
 	if triggerEvent.PerformChartPush {
-		if !util.IsAcdApp(overrideRequest.DeploymentAppType) || latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED {
-			err = impl.performGitOps(ctx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, &manifest)
-			if err != nil {
-				impl.logger.Errorw("error in performing GitOps", "cdWfrId", overrideRequest.WfrId, "err", err)
-				return releaseNo, manifest, err
-			}
+		err = impl.performGitOps(ctx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, &manifest)
+		if err != nil {
+			impl.logger.Errorw("error in performing GitOps", "cdWfrId", overrideRequest.WfrId, "err", err)
+			return releaseNo, manifest, err
 		}
 	}
 	if triggerEvent.PerformDeploymentOnCluster {
-		if !util.IsAcdApp(overrideRequest.DeploymentAppType) ||
-			(latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_GIT_COMMIT ||
-				latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED) {
-			err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggeredAt, ctx)
-			if err != nil {
-				impl.logger.Errorw("error in deploying app", "err", err)
-				return releaseNo, manifest, err
-			}
+		err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggeredAt, ctx)
+		if err != nil {
+			impl.logger.Errorw("error in deploying app", "err", err)
+			return releaseNo, manifest, err
 		}
-		// TODO Asutosh: Mark Deployment Request Status -> Triggered
+		err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestTriggered, overrideRequest.CdWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in updating userDeploymentRequest status",
+				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggered,
+				"err", err)
+			return releaseNo, manifest, err
+		}
 	}
-	if !util.IsAcdApp(overrideRequest.DeploymentAppType) ||
-		(latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_GIT_COMMIT ||
-			latestTimelineStatus == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED) {
-		go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
-		_, span := otel.Tracer("orchestrator").Start(ctx, "markImageScanDeployed")
-		_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
-		span.End()
+	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
-		middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
-		// TODO Asutosh: Mark Deployment Request Status -> Deployed
+	_, span := otel.Tracer("orchestrator").Start(ctx, "markImageScanDeployed")
+	_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
+	span.End()
+
+	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
+	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestCompleted, overrideRequest.CdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in updating userDeploymentRequest status",
+			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestCompleted,
+			"err", err)
+		return releaseNo, manifest, err
 	}
 	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
 }
