@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+	"net/http"
 )
 
 const (
@@ -129,7 +131,8 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 	wf, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), workflowName, v12.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			err = fmt.Errorf(WORKFLOW_NOT_FOUND+" %s", workflowName)
+			errorMessage := fmt.Sprintf("%s %s", WORKFLOW_NOT_FOUND, workflowName)
+			err = util2.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(errorMessage).WithUserDetailMessage(errorMessage)
 		}
 		return nil, err
 	}

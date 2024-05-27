@@ -10,6 +10,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
+	"net/http"
 	"net/url"
 )
 
@@ -168,7 +170,8 @@ func (impl *ArgoWorkflowExecutorImpl) getWorkflow(workflowName string, namespace
 	wf, err := wfClient.Get(context.Background(), workflowName, v1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("cannot find workflow", "name", workflowName, "err", err)
-		return nil, fmt.Errorf(WORKFLOW_NOT_FOUND+" %s", workflowName)
+		errorMessage := fmt.Sprintf("%s %s", WORKFLOW_NOT_FOUND, workflowName)
+		return nil, util2.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(errorMessage).WithUserDetailMessage(errorMessage)
 	}
 	return wf, nil
 }
