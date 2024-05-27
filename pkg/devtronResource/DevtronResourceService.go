@@ -506,11 +506,14 @@ func (impl *DevtronResourceServiceImpl) CreateOrUpdateResourceObject(ctx context
 	if err != nil {
 		return err
 	}
-	err = impl.checkIfResourcePatchOperationValid(reqBean.DevtronResourceObjectDescriptorBean,
-		devtronResourceObject.ObjectData, []bean.PatchQuery{{Path: bean.CatalogQueryPath}})
-	if err != nil {
-		impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", reqBean)
-		return err
+	if devtronResourceObject != nil && devtronResourceObject.Id > 0 {
+		//same flow being used for catalog of non-release entities where this can be going to be created first time, so only checking in case object is already created
+		err = impl.checkIfResourcePatchOperationValid(reqBean.DevtronResourceObjectDescriptorBean,
+			devtronResourceObject.ObjectData, []bean.PatchQuery{{Path: bean.CatalogQueryPath}})
+		if err != nil {
+			impl.logger.Errorw("err, checkIfResourcePatchOperationValid", "err", err, "req", reqBean)
+			return err
+		}
 	}
 	resourceObjReq := adapter.GetRequirementRequestForCatalogRequest(reqBean, false)
 	return impl.createOrUpdateDevtronResourceObject(newCtx, resourceObjReq, devtronResourceSchema, devtronResourceObject, nil)
