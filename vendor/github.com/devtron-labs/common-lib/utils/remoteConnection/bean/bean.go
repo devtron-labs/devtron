@@ -3,8 +3,9 @@ package bean
 type RemoteConnectionMethod string
 
 const (
-	RemoteConnectionMethodProxy RemoteConnectionMethod = "PROXY"
-	RemoteConnectionMethodSSH   RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodProxy  RemoteConnectionMethod = "PROXY"
+	RemoteConnectionMethodSSH    RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodDirect RemoteConnectionMethod = "DIRECT"
 )
 
 type ConnectionMethod string
