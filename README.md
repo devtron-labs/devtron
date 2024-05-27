@@ -1,4 +1,4 @@
-<p align="center">
+ <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
