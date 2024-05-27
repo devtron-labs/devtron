@@ -72,7 +72,7 @@ type AppListingService interface {
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
-	GetLastestSuccededDeploymentType(appId, envId int) (*chartConfig.LatestDeployment, error)
+	GetLastestNonFailedDeployment(appId, envId int) (*chartConfig.LatestDeployment, error)
 }
 
 const (
@@ -432,8 +432,8 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 	}
 }
 
-func (impl AppListingServiceImpl) GetLastestSuccededDeploymentType(appId, envId int) (*chartConfig.LatestDeployment, error) {
-	latestDeployment, err := impl.pipelineOverrideRepository.GetLatestSucceededDeploymentType(appId, envId)
+func (impl AppListingServiceImpl) GetLastestNonFailedDeployment(appId, envId int) (*chartConfig.LatestDeployment, error) {
+	latestDeployment, err := impl.pipelineOverrideRepository.GetLatestNonFailedDeployment(appId, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting lastest succeeded release")
 		return latestDeployment, err

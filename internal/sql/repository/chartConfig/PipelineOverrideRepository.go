@@ -73,7 +73,7 @@ type PipelineOverrideRepository interface {
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestRelease(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
-	GetLatestSucceededDeploymentType(appId, environmentId int) (*LatestDeployment, error)
+	GetLatestNonFailedDeployment(appId, environmentId int) (*LatestDeployment, error)
 	GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrides []*PipelineConfigOverrideMetadata, err error)
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
@@ -196,10 +196,10 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 	return overrides, err
 }
 
-func (impl PipelineOverrideRepositoryImpl) GetLatestSucceededDeploymentType(appId, environmentId int) (*LatestDeployment, error) {
+func (impl PipelineOverrideRepositoryImpl) GetLatestNonFailedDeployment(appId, environmentId int) (*LatestDeployment, error) {
 
 	override := &PipelineOverride{}
-	latestDeployment := &LatestDeployment{}
+	var latestDeployment *LatestDeployment
 	err := impl.dbConnection.Model(override).
 		Column("pipeline_override.deployment_type", "cwr.status").
 		Join("join pipeline p on pipeline_override.pipeline_id = p.id").
@@ -213,10 +213,10 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestSucceededDeploymentType(appI
 		Limit(1).
 		Select(latestDeployment)
 
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	return latestDeployment, err
+	return latestDeployment, nil
 }
 
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrideMetadata []*PipelineConfigOverrideMetadata, err error) {
