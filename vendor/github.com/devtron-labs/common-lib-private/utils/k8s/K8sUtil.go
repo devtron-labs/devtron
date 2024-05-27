@@ -53,7 +53,7 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 		return nil, err
 	}
 	connectionConfig := clusterConfig.RemoteConnectionConfig
-	if connectionConfig != nil {
+	if connectionConfig != nil && connectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		if connectionConfig.SSHTunnelConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 			hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
 			if err != nil {
