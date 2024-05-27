@@ -1050,7 +1050,7 @@ func (impl *WatcherServiceImpl) isTriggerConfigured(triggers []*repository.AutoR
 				impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", trigger.WatcherId, "err", err)
 				return false, err
 			}
-			if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
+			if triggerData.JobName != "" { // there can be case where trigger is created with default env but no job pipeline selected
 				return true, nil
 			}
 		}
