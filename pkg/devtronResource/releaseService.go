@@ -1499,11 +1499,12 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 		}
 	} else {
 		var appDevtronResourceSchemaId int
+		var isEmptyResponseType bool
 		filterConditionReq := bean.NewFilterConditionInternalBean()
 		// filters decoding
 		if len(req.FilterCriteria) > 0 {
 			// setting filter values from filters
-			filterConditionReq, err = impl.getFilterConditionBeanFromDecodingFilters(req)
+			filterConditionReq, isEmptyResponseType, err = impl.getFilterConditionBeanFromDecodingFilters(req)
 			if err != nil {
 				impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "err", err)
 				return nil, err
@@ -1523,12 +1524,12 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 		if query.ShowAll {
 			// rollout status page api
 			// apply filters and return updated dependencies
-			updatedCdPipelineReleaseInfo := impl.applyFiltersToDependencies(filterConditionReq, allCdPipelineReleaseInfo)
+			updatedCdPipelineReleaseInfo := impl.applyFiltersToDependencies(filterConditionReq, allCdPipelineReleaseInfo, isEmptyResponseType)
 			return &bean.DeploymentTaskInfoResponse{TaskInfoCount: taskInfoCount, Data: []bean.DtReleaseTaskRunInfo{{Dependencies: updatedCdPipelineReleaseInfo}}}, nil
 
 		}
 		// deploy page api
-		response, err = impl.getLevelDataWithDependenciesForTaskInfo(filterConditionReq, existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId, pipelineIdAppIdKeyVsReleaseInfo)
+		response, err = impl.getLevelDataWithDependenciesForTaskInfo(filterConditionReq, existingResourceObject.ObjectData, rsIdentifier, query.LevelIndex, appDevtronResourceSchemaId, pipelineIdAppIdKeyVsReleaseInfo, isEmptyResponseType)
 		if err != nil {
 			impl.logger.Errorw("error encountered in fetchReleaseTaskRunInfoWithFilters", "rsIdentifier", rsIdentifier, "err", err)
 			return nil, err
@@ -1538,14 +1539,14 @@ func (impl *DevtronResourceServiceImpl) fetchReleaseTaskRunInfoWithFilters(req *
 }
 
 // setFilterConditionInRequest decodes the filters provided and sets teh filters in request for further processing
-func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilters(req *bean.TaskInfoPostApiBean) (*bean.FilterConditionInternalBean, error) {
-	appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err := impl.getAppIdsAndEnvIdsFromFilterCriteria(req.FilterCriteria)
+func (impl *DevtronResourceServiceImpl) getFilterConditionBeanFromDecodingFilters(req *bean.TaskInfoPostApiBean) (*bean.FilterConditionInternalBean, bool, error) {
+	appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, isEmptyResponseType, err := impl.getAppIdsAndEnvIdsFromFilterCriteria(req.FilterCriteria)
 	if err != nil {
 		impl.logger.Errorw("error encountered in setFilterConditionInRequest", "id", req.Id, "err", err)
-		return nil, err
+		return nil, false, err
 	}
 
-	return adapter.BuildFilterConditionInternalBean(appIdsFilters, envIdsFilters, rolloutStatus, deploymentStatus), nil
+	return adapter.BuildFilterConditionInternalBean(appIdsFilters, envIdsFilters, rolloutStatus, deploymentStatus), isEmptyResponseType, nil
 }
 
 // getOnlyLevelDataForTaskInfo gets only level data with task run allowed operation.(signifies lite mode)
@@ -1629,7 +1630,7 @@ func (impl *DevtronResourceServiceImpl) isEachAppDeployedOnAtLeastOneEnvWithMap(
 }
 
 // getLevelDataWithDependenciesForTaskInfo get level wise data with dependencies in it, supports level Index key if not 0 get level of that index with its dependencies
-func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(req *bean.FilterConditionInternalBean, objectData, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo) ([]bean.DtReleaseTaskRunInfo, error) {
+func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(req *bean.FilterConditionInternalBean, objectData, rsIdentifier string, levelIndex, appDevtronResourceSchemaId int, pipelineIdAppIdKeyVsReleaseInfo map[string]*bean.CdPipelineReleaseInfo, isEmptyResponseType bool) ([]bean.DtReleaseTaskRunInfo, error) {
 	response := make([]bean.DtReleaseTaskRunInfo, 0)
 	var levelToAppDependenciesMap map[int][]*bean.DevtronResourceDependencyBean
 
@@ -1654,7 +1655,7 @@ func (impl *DevtronResourceServiceImpl) getLevelDataWithDependenciesForTaskInfo(
 				return nil, err
 			}
 			// applying filters for rollout , env and deployment status (app ids filters is already handled, one level while fetching applicationDependencies
-			dependencyBean = impl.applyFiltersToDependencies(req, dependencyBean)
+			dependencyBean = impl.applyFiltersToDependencies(req, dependencyBean, isEmptyResponseType)
 			dependencies = append(dependencies, dependencyBean...)
 		}
 		dtReleaseTaskRunInfo.Dependencies = dependencies
@@ -1692,11 +1693,15 @@ func (impl *DevtronResourceServiceImpl) fetchAllReleaseInfoStatusWithMap(existin
 	return pipelineIdAppIdKeyVsReleaseInfo, dependencyBean, taskInfoCount, nil
 }
 
-func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.FilterConditionInternalBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo) []*bean.CdPipelineReleaseInfo {
+func (impl *DevtronResourceServiceImpl) applyFiltersToDependencies(req *bean.FilterConditionInternalBean, cdPipelineReleaseInfo []*bean.CdPipelineReleaseInfo, isEmptyResponseType bool) []*bean.CdPipelineReleaseInfo {
 	if req.RequestWithoutFilters {
 		return cdPipelineReleaseInfo
 	}
 	updatedCdPipelineReleaseInfo := make([]*bean.CdPipelineReleaseInfo, 0, len(cdPipelineReleaseInfo))
+	if isEmptyResponseType {
+		// return empty as to handle delete or non exists cases in app and env
+		return updatedCdPipelineReleaseInfo
+	}
 	for _, info := range cdPipelineReleaseInfo {
 		if len(req.AppIds) != 0 && !slices.Contains(req.AppIds, info.AppId) {
 			//continue in case app id filters len is greater than 0 and does not contain app id.
@@ -2025,19 +2030,19 @@ func (impl *DevtronResourceServiceImpl) isAppsDeployedOnAllEnvWithRunnerFromMap(
 }
 
 // getAppIdsAndEnvIdsFromFilterCriteria decodes filters and return app ids ,envIds, deployment status with stage, rollout Status, gets ids for identifiers if identifiers are given
-func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(filters []string) ([]int, []int, map[bean3.WorkflowType][]string, []string, error) {
+func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(filters []string) ([]int, []int, map[bean3.WorkflowType][]string, []string, bool, error) {
 	// filters decoding
 	appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err := util3.DecodeFiltersForDeployAndRolloutStatus(filters)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "filters", filters)
-		return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+		return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, false, err
 	}
 	// evaluating app ids from app identifiers as we are maintaining and processing everything in ids
 	if len(appIdentifierFilters) > 0 {
 		appIds, err := impl.appRepository.FindIdsByNamesAndAppType(appIdentifierFilters, helper2.CustomApp)
 		if err != nil {
 			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "appIdentifierFilters", appIdentifierFilters)
-			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, false, err
 		}
 		appIdsFilters = append(appIdsFilters, appIds...)
 	}
@@ -2045,11 +2050,22 @@ func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(fil
 		envIds, err := impl.envService.FindIdsByNames(envIdentifierFilters)
 		if err != nil {
 			impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "envIdentifierFilters", envIdentifierFilters)
-			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+			return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, false, err
 		}
 		envIdsFilters = append(envIdsFilters, envIds...)
 	}
-	return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, err
+	return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, checkIfEmptyResponseFilters(appIdentifierFilters, appIdsFilters, envIdentifierFilters, envIdsFilters), err
+}
+
+// CheckIfEmptyResponseFilters checking this as app and env can be deleted or not existing and we calculate ids from identifiers which can results in empty slice which can result in all results in response
+func checkIfEmptyResponseFilters(appIdentifierFilters []string, appIds []int, envIdentifierFilters []string, envIds []int) bool {
+	if len(appIdentifierFilters) > 0 && len(appIds) == 0 {
+		return true
+	}
+	if len(envIdentifierFilters) > 0 && len(envIds) == 0 {
+		return true
+	}
+	return false
 }
 
 // getAllApplicationDependenciesFromObjectData gets all upstream dependencies from object data json

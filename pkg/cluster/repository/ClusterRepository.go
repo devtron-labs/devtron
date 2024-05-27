@@ -169,8 +169,9 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
 		Model(cluster).
-		Where("id =?", id).
-		Where("active =?", true).
+		Column("cluster.*", "RemoteConnectionConfig").
+		Where("cluster.id =?", id).
+		Where("cluster.active =?", true).
 		Limit(1).
 		Select()
 	return cluster, err
@@ -189,8 +190,9 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.
 		Model(&cluster).
-		Where("id in(?)", pg.In(id)).
-		Where("active =?", true).
+		Column("cluster.*", "RemoteConnectionConfig").
+		Where("cluster.id in(?)", pg.In(id)).
+		Where("cluster.active =?", true).
 		Select()
 	return cluster, err
 }
