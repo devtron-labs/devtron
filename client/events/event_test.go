@@ -17,11 +17,11 @@ func TestSendEventsOnNats(t *testing.T) {
 	mockPubsubClient := pubsub_lib.NewPubSubClientServiceImpl(logger)
 	client := util.NewHttpClient()
 	config := sql.Config{
-		Port:     "5434",
-		User:     "postgres",
-		Password: "shared-devtron-pg",
-		Database: "orchestrator_14",
-		Addr:     "localhost",
+		Port:     "",
+		User:     "",
+		Password: "",
+		Database: "",
+		Addr:     "",
 	}
 	db, err := sql.NewDbConnection(&config, logger)
 	trans := sql.NewTransactionUtilImpl(db)
