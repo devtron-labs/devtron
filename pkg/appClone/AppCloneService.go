@@ -1362,11 +1362,7 @@ func (impl *AppCloneServiceImpl) ValidateCloneWfRequest(createReq *bean.CloneWor
 			for _, pipeline := range refPipelines.Pipelines {
 				if node.ComponentId == pipeline.Id {
 					if pipeline.EnvironmentId == createReq.SourceEnvironmentId {
-						if !node.IsLast {
-							return 0, fmt.Errorf("there is another environment attached to the source environment")
-						} else {
-							workFlowId = workflow.Id
-						}
+						workFlowId = workflow.Id
 					}
 					workflowEnvironments[workflow.Id] = append(workflowEnvironments[workflow.Id], pipeline.EnvironmentName)
 				}
