@@ -32,6 +32,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat: release v2 migration (#5126)
 - feat:wire nil test in pre ci pipeline (#4858)
 - feat:added recovery counter (#5124)
 - feat: auto remediation (#5137)
