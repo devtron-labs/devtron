@@ -805,26 +805,19 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 	}
 }
 
-func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperUsers(token string) error {
+func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperUsers(w http.ResponseWriter, token string) bool {
 	envVars := &bean2.TerminalEnvVariables{}
 	err := env.Parse(envVars)
 	if err != nil {
-		handler.logger.Errorw("error parsing terminal env variables", "err", err)
-		return util2.NewApiError().
-			WithCode(strconv.Itoa(http.StatusBadRequest)).
-			WithHttpStatusCode(http.StatusBadRequest).
-			WithInternalMessage(err.Error()).
-			WithUserMessage("error parsing terminal env variables")
+		handler.logger.Warnw("error parsing env variables", "err", err)
+		return false
 	}
 	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal/ephemeral containers
 	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
-		handler.logger.Errorw("unauthorized user, only super admins can access terminal", "err", err)
-		return util2.NewApiError().
-			WithCode(strconv.Itoa(http.StatusForbidden)).
-			WithHttpStatusCode(http.StatusForbidden).
-			WithUserMessage("unauthorized")
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return true
 	}
-	return nil
+	return false
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
@@ -843,9 +836,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
-	err = handler.restrictTerminalAccessForNonSuperUsers(token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+	// check for super admin
+	restricted := handler.restrictTerminalAccessForNonSuperUsers(w, token)
+	if restricted {
 		return
 	}
 	if resourceRequestBean.AppIdentifier != nil {
@@ -1047,9 +1040,9 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.restrictTerminalAccessForNonSuperUsers(token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+	// check for super admin
+	restricted := handler.restrictTerminalAccessForNonSuperUsers(w, token)
+	if restricted {
 		return
 	}
 	//rbac applied in below function
@@ -1097,9 +1090,9 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.restrictTerminalAccessForNonSuperUsers(token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+	// check for super admin
+	restricted := handler.restrictTerminalAccessForNonSuperUsers(w, token)
+	if restricted {
 		return
 	}
 	//rbac applied in below function
