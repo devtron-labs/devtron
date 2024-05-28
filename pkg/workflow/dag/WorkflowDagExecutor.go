@@ -343,14 +343,8 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 			return err
 		}
 	}
-	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, cdAsyncInstallReq.TriggeredAt, ctx)
-	if err != nil {
-		return err
-	}
-
 	_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, true, ctx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	span.End()
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(ctx, releaseErr, cdWfr, overrideRequest, appIdentifier)
