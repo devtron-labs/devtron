@@ -204,6 +204,8 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			return valuesOverrideResponse, err
 		}
 		overrideRequest.PipelineOverrideId = pipelineOverride.Id
+		pipelineOverride.Pipeline = pipeline
+		pipelineOverride.CiArtifact = artifact
 	}
 	// Conditional Block based on PipelineOverrideCreated --> end
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
