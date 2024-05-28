@@ -31,6 +31,12 @@ type DtResourceObjectCreateReqBean struct {
 	ParentConfig *ResourceIdentifier `json:"parentConfig,omitempty"`
 }
 
+type DtResourceObjectCloneReqBean struct {
+	*DevtronResourceObjectDescriptorBean
+	Overview  *ResourceOverview   `json:"overview,omitempty"`
+	CloneFrom *ResourceIdentifier `json:"cloneFrom"`
+}
+
 type DtResourceObjectDependenciesReqBean struct {
 	*DevtronResourceObjectDescriptorBean
 	Dependencies      []*DevtronResourceDependencyBean `json:"dependencies"`
@@ -40,6 +46,11 @@ type DtResourceObjectDependenciesReqBean struct {
 type DtResourceObjectPatchReqBean struct {
 	*DevtronResourceObjectDescriptorBean
 	PatchQuery []PatchQuery `json:"query,omitempty"`
+}
+
+type DtResourceObjectOverviewDescriptorBean struct {
+	*DevtronResourceObjectDescriptorBean
+	*ResourceOverview
 }
 
 type ReleaseStatus string
@@ -116,9 +127,9 @@ const (
 )
 
 type DtReleaseTaskRunInfo struct {
-	Level          int                      `json:"level"`
+	Level          int                      `json:"level,omitempty"`
 	TaskRunAllowed *bool                    `json:"taskRunAllowed,omitempty"`
-	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies,omitempty"`
+	Dependencies   []*CdPipelineReleaseInfo `json:"dependencies"`
 }
 
 func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
@@ -126,6 +137,47 @@ func (res DtReleaseTaskRunInfo) IsTaskRunAllowed() bool {
 		return false
 	}
 	return *res.TaskRunAllowed
+}
+
+type DeploymentTaskInfoResponse struct {
+	TaskInfoCount *TaskInfoCount         `json:"count,omitempty"`
+	Data          []DtReleaseTaskRunInfo `json:"data,omitempty"`
+}
+
+type TaskInfoCount struct {
+	ReleaseDeploymentStatusCount *ReleaseDeploymentStatusCount `json:"releaseDeploymentRolloutStatus,omitempty"`
+	StageWiseStatusCount         *StageWiseStatusCount         `json:"stageWiseDeploymentStatus,omitempty"`
+}
+
+type StageWiseStatusCount struct {
+	PreStatusCount  *PrePostStatusCount `json:"pre,omitempty"`
+	DeploymentCount *DeploymentCount    `json:"deploy,omitempty"`
+	PostStatusCount *PrePostStatusCount `json:"post,omitempty"`
+}
+
+type ReleaseDeploymentStatusCount struct {
+	AllDeployment int `json:"allDeployments"`
+	YetToTrigger  int `json:"yetToTrigger"`
+	Ongoing       int `json:"onGoing"`
+	Failed        int `json:"failed"`
+	Completed     int `json:"completed"`
+}
+
+type PrePostStatusCount struct {
+	NotTriggered int `json:"Not Triggered"`
+	Failed       int `json:"Failed"`
+	InProgress   int `json:"Progressing"`
+	Succeeded    int `json:"Succeeded"`
+	Others       int `json:"Others"`
+}
+
+type DeploymentCount struct {
+	NotTriggered int `json:"Not Triggered"`
+	Failed       int `json:"Failed"`
+	InProgress   int `json:"Progressing"`
+	Queued       int `json:"Queued"`
+	Succeeded    int `json:"Succeeded"`
+	Others       int `json:"Others"`
 }
 
 const (

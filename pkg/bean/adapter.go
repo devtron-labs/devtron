@@ -20,6 +20,12 @@ func ConvertArtifactEntityToModel(ArtifactDaos []repository.CiArtifact) []CiArti
 	return ciArtifacts
 }
 
+func ConvertArtifactEntityToBean(artifactEntity repository.CiArtifact, appWorkflowId int) CiArtifactBean {
+	ciArtifact := getCiArtifactBean(artifactEntity)
+	ciArtifact.AppWorkflowId = appWorkflowId
+	return ciArtifact
+}
+
 func GetArtifactResponseWithDeployedOnEnvironments(ciArtifacts []CiArtifactBean, deployedEnvironmentsForArtifacts map[int][]string) []CiArtifactBean {
 	for i, artifact := range ciArtifacts {
 		// envs on which this artifact is deployed

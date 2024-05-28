@@ -116,3 +116,9 @@ func CheckIfDeploymentTypePrePostOrDeployOrUnknown(deploymentType models.Deploym
 	}
 	return false
 }
+
+type CdWorkflowRunnerIds struct {
+	PreCdWorkflowRunnerId  int
+	CdWorkflowRunnerId     int
+	PostCdWorkflowRunnerId int
+}

@@ -1,5 +1,7 @@
 package bean
 
+import "github.com/devtron-labs/devtron/api/bean"
+
 type IdIdentifierIndex struct {
 	Ids              []int    //all ids
 	Identifiers      []string //all identifiers
@@ -50,6 +52,18 @@ type DtResourceObjectInternalBean struct {
 	ParentConfig *ResourceIdentifier `json:"parentConfig,omitempty"`
 	//PatchQuery        []PatchQuery                     `json:"query,omitempty"`
 	//DependencyInfo    *DependencyInfo                  `json:"DependencyInfo,omitempty"`
+}
+
+type DtResourceObjectInternalDescriptorBean struct {
+	Kind                    string `json:"kind"`
+	SubKind                 string `json:"subKind,omitempty"` //TODO: extract out these fields in apiBean
+	Version                 string `json:"version"`
+	Id                      int    `json:"id,omitempty"`
+	IdType                  IdType `json:"idType,omitempty"`
+	Identifier              string `json:"identifier,omitempty"`
+	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
+	Name                    string `json:"name,omitempty"`
+	ReleaseVersion          string `json:"releaseVersion,omitempty"`
 }
 
 var PatchQueryPathAuditPathMap = map[PatchQueryPath]string{
@@ -117,6 +131,7 @@ const (
 	ResourceObjectOverviewPath      = "overview"
 	ResourceObjectIdPath            = "overview.id"
 	ResourceObjectNamePath          = "overview.name"
+	ResourceObjectIdentifierPath    = "overview.identifier"
 	ResourceObjectDescriptionPath   = "overview.description"
 	ResourceObjectCreatedOnPath     = "overview.createdOn"
 	ResourceObjectCreatedByPath     = "overview.createdBy"
@@ -146,6 +161,8 @@ const (
 	ReleaseResourceDependencyConfigArtifactIdKey         = "artifactConfig.artifactId"
 	ReleaseResourceDependencyConfigRegistryNameKey       = "artifactConfig.registryName"
 	ReleaseResourceDependencyConfigRegistryTypeKey       = "artifactConfig.registryType"
+	ReleaseResourceArtifactSourceAppWfIdPath             = "artifactConfig.artifactSourceAppWorkflowId"
+	ReleaseResourceArtifactSourceReleaseConfigPath       = "artifactConfig.sourceReleaseConfiguration"
 	ReleaseResourceDependencyConfigCiWorkflowKey         = "ciWorkflowId"
 	ReleaseResourceDependencyConfigCommitSourceKey       = "commitSource"
 	ReleaseResourceDependencyConfigReleaseInstructionKey = "releaseInstruction"
@@ -156,4 +173,50 @@ const (
 const (
 	ResourceObjectRunSourcePath = "overview.runSource"
 	ResourceTaskRunActionPath   = "action"
+)
+
+var DefaultConfigStatus = &ConfigStatus{
+	Status:   DraftReleaseConfigStatus,
+	IsLocked: false,
+}
+
+var DefaultRolloutStatus = NotDeployedReleaseRolloutStatus
+
+type FilterConditionInternalBean struct {
+	AppIds                    []int
+	EnvIds                    []int
+	StageWiseDeploymentStatus map[bean.WorkflowType][]string
+	ReleaseDeploymentStatus   []string
+	RequestWithoutFilters     bool
+}
+
+func NewFilterConditionInternalBean() *FilterConditionInternalBean {
+	return &FilterConditionInternalBean{}
+
+}
+
+type IdAndSchemaIdFilter struct {
+	Id                      int
+	DevtronResourceSchemaId int
+}
+
+type FilterResource string
+
+const (
+	DevtronApplicationFilter             FilterResource = "application/devtron-application"
+	EnvironmentFilter                    FilterResource = "environment"
+	StageWiseDeploymentStatusFilter      FilterResource = "stageWiseDeploymentStatus"
+	ReleaseDeploymentRolloutStatusFilter FilterResource = "releaseDeploymentRolloutStatus"
+)
+
+func (f FilterResource) ToString() string {
+	return string(f)
+}
+
+const (
+	RunningStatus = "Running"
+	Error         = "Error"
+	Missing       = "Missing"
+	Unknown       = "Unknown"
+	Others        = "Others"
 )

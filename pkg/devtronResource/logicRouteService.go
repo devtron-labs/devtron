@@ -7,6 +7,7 @@ import (
 	serviceBean "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	"time"
 )
 
 func getFuncForGetApiResourceKindUIComponent(kind, component string) func(*DevtronResourceServiceImpl, *repository.DevtronResourceSchema,
@@ -329,6 +330,13 @@ func getFuncToFetchTaskRunInfo(kind string, subKind string, version string) func
 		return nil
 	}
 }
+func getFuncToFetchTaskRunInfoWithFilters(kind string, subKind string, version string) func(*DevtronResourceServiceImpl, *bean.TaskInfoPostApiBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error) {
+	if f, ok := fetchTaskRunInfoWithFiltersFuncMap[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
 
 var executeTaskFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Context, *bean.DevtronResourceTaskExecutionBean, *repository.DevtronResourceObject) ([]*bean.TaskExecutionResponseBean, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
@@ -338,6 +346,10 @@ var executeTaskFuncMap = map[string]func(*DevtronResourceServiceImpl, context.Co
 var fetchTaskRunInfoFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.DevtronResourceObjectDescriptorBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) ([]bean.DtReleaseTaskRunInfo, error){
 	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).fetchReleaseTaskRunInfo,
+}
+var fetchTaskRunInfoWithFiltersFuncMap = map[string]func(*DevtronResourceServiceImpl, *bean.TaskInfoPostApiBean, *apiBean.GetTaskRunInfoQueryParams, *repository.DevtronResourceObject) (*bean.DeploymentTaskInfoResponse, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).fetchReleaseTaskRunInfoWithFilters,
 }
 
 func getFuncToPerformPatchOperation(kind, subKind, version string) func(*DevtronResourceServiceImpl,
@@ -369,6 +381,36 @@ var validateResourceObjectDeleteFuncMap = map[string]func(*DevtronResourceServic
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseDelete,
 	getKeyForKindAndVersion(bean.DevtronResourceReleaseTrack, "",
 		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).validateReleaseTrackDelete,
+}
+
+func getFuncToSetDefaultValueAndValidateForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier) error {
+	if f, ok := setDefaultValueAdnValidateForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var setDefaultValueAdnValidateForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	*bean.ResourceIdentifier) error{
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).setDefaultValueAndValidateForReleaseClone,
+}
+
+func getFuncToGetPathUpdateMapForCloneReq(kind, subKind, version string) func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	time.Time) (map[string]interface{}, error) {
+	if f, ok := getPathUpdateMapForCloneReq[getKeyForKindAndVersion(kind, subKind, version)]; ok {
+		return f
+	} else {
+		return nil
+	}
+}
+
+var getPathUpdateMapForCloneReq = map[string]func(*DevtronResourceServiceImpl, *bean.DtResourceObjectCloneReqBean,
+	time.Time) (map[string]interface{}, error){
+	getKeyForKindAndVersion(bean.DevtronResourceRelease, "",
+		bean.DevtronResourceVersionAlpha1): (*DevtronResourceServiceImpl).getPathUpdateMapForReleaseClone,
 }
 
 func getKeyForKindAndUIComponent[K, C any](kind K, component C) string {
