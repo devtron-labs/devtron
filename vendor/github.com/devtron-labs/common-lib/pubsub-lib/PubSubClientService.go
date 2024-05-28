@@ -132,7 +132,6 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
 
 	//time.Sleep(10 * time.Second)
@@ -293,8 +292,9 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 			existingConfig.Replicas = replicas
 			updatesDetected = true
 		} else {
-			impl.Logger.Errorw("replicas >1 is not possible in non-clustered mode ")
-
+			if replicas > 1 {
+				impl.Logger.Errorw("replicas >1 is not possible in non-clustered mode ")
+			}
 		}
 
 	}
