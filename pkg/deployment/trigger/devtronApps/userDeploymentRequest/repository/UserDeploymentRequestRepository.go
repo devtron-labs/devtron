@@ -47,18 +47,21 @@ type UserDeploymentRequest struct {
 }
 
 type UserDeploymentRequestRepository interface {
+	// transaction util funcs
+	sql.TransactionWrapper
 	Save(tx *pg.Tx, models []*UserDeploymentRequest) error
 	FindById(id int) (*UserDeploymentRequest, error)
 	FindByCdWfId(cdWfId int) (*UserDeploymentRequest, error)
 	FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error)
-	GetAllWithInCompleteStatus() ([]UserDeploymentRequest, error)
+	MarkAllPreviousSuperseded(tx *pg.Tx, pipelineId, previousToReqId int) (int, error)
 	UpdateStatusForCdWfIds(tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error)
 	IsLatestForPipelineId(id, pipelineId int) (bool, error)
 }
 
-func NewUserDeploymentRequestRepositoryImpl(dbConnection *pg.DB) *UserDeploymentRequestRepositoryImpl {
+func NewUserDeploymentRequestRepositoryImpl(dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *UserDeploymentRequestRepositoryImpl {
 	return &UserDeploymentRequestRepositoryImpl{
-		dbConnection: dbConnection,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: transactionUtilImpl,
 	}
 }
 
@@ -94,18 +97,27 @@ func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(cdWfIds ...int) (
 	var model []UserDeploymentRequest
 	err := impl.dbConnection.Model(model).
 		Where("cd_workflow_id IN (?)", cdWfIds).
+		Order("id DESC").
 		Select()
 	return model, err
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) GetAllWithInCompleteStatus() ([]UserDeploymentRequest, error) {
-	var model []UserDeploymentRequest
-	err := impl.dbConnection.Model(model).
+func (impl *UserDeploymentRequestRepositoryImpl) MarkAllPreviousSuperseded(tx *pg.Tx, pipelineId, previousToReqId int) (int, error) {
+	var query *orm.Query
+	if tx == nil {
+		query = impl.dbConnection.Model((*UserDeploymentRequest)(nil))
+	} else {
+		query = tx.Model((*UserDeploymentRequest)(nil))
+	}
+	res, err := query.
+		Set("status = ?", bean.DeploymentRequestSuperseded).
+		Where("pipeline_id = ?", pipelineId).
+		Where("id < ?", previousToReqId).
 		Where("status NOT IN (?)", pg.In([]bean.UserDeploymentRequestStatus{
 			bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded,
 		})).
-		Select()
-	return model, err
+		Update()
+	return res.RowsAffected(), err
 }
 
 func (impl *UserDeploymentRequestRepositoryImpl) UpdateStatusForCdWfIds(tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error) {

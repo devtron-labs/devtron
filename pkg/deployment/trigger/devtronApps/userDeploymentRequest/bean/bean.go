@@ -22,6 +22,14 @@ func (status UserDeploymentRequestStatus) IsTriggered() bool {
 	return false
 }
 
+func (status UserDeploymentRequestStatus) IsCompleted() bool {
+	switch status {
+	case DeploymentRequestCompleted:
+		return true
+	}
+	return false
+}
+
 const (
 	DeploymentRequestPending    UserDeploymentRequestStatus = "PENDING"
 	DeploymentRequestTriggered  UserDeploymentRequestStatus = "TRIGGERED"

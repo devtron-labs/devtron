@@ -34,7 +34,6 @@ type UserDeploymentRequestService interface {
 	UpdateStatusForCdWfIds(status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
 	GetDeployRequestStatusByCdWfId(cdWfId int) (bean.UserDeploymentRequestStatus, error)
 	GetAsyncCdDeployRequestById(id int) (*eventProcessorBean.AsyncCdDeployRequest, error)
-	GetAllInCompleteAsyncCdDeployRequest() ([]*eventProcessorBean.AsyncCdDeployRequest, error)
 	IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error)
 }
 
@@ -80,6 +79,12 @@ func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(status bean
 	if errors.Is(err, pg.ErrNoRows) {
 		return nil
 	}
+	tx, err := impl.userDeploymentRequestRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
+		return err
+	}
+	defer impl.userDeploymentRequestRepo.RollbackTx(tx)
 	var validCdWfIds []int
 	for _, model := range models {
 		if model.Status == status {
@@ -92,10 +97,22 @@ func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(status bean
 			return fmt.Errorf("invalid status update request from %s to %s", model.Status, status)
 		}
 		validCdWfIds = append(validCdWfIds)
+		if status.IsCompleted() {
+			_, err = impl.userDeploymentRequestRepo.MarkAllPreviousSuperseded(tx, model.PipelineId, model.Id)
+			if err != nil {
+				impl.logger.Errorw("error in marking previous userDeploymentRequest superseded", "pipelineId", model.PipelineId, "userDeploymentRequestId", model.Id, "err", err)
+				return err
+			}
+		}
 	}
-	_, err = impl.userDeploymentRequestRepo.UpdateStatusForCdWfIds(nil, status, validCdWfIds...)
+	_, err = impl.userDeploymentRequestRepo.UpdateStatusForCdWfIds(tx, status, validCdWfIds...)
 	if err != nil {
-		impl.logger.Errorw("error in saving userDeploymentRequest", "status", status, "cdWfIds", cdWfIds, "err", err)
+		impl.logger.Errorw("error in updating userDeploymentRequest status", "status", status, "cdWfIds", cdWfIds, "err", err)
+		return err
+	}
+	err = impl.userDeploymentRequestRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update userDeploymentRequest", "error", err)
 		return err
 	}
 	return nil
@@ -138,19 +155,6 @@ func (impl *UserDeploymentRequestServiceImpl) GetAsyncCdDeployRequestById(id int
 		return nil, err
 	}
 	return adapter.NewAsyncCdDeployRequest(model), nil
-}
-
-func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteAsyncCdDeployRequest() ([]*eventProcessorBean.AsyncCdDeployRequest, error) {
-	models, err := impl.userDeploymentRequestRepo.GetAllWithInCompleteStatus()
-	if err != nil {
-		impl.logger.Errorw("error in getting all in complete userDeploymentRequests", "err", err)
-		return nil, err
-	}
-	response := make([]*eventProcessorBean.AsyncCdDeployRequest, 0, len(models))
-	for _, model := range models {
-		response = append(response, adapter.NewAsyncCdDeployRequest(&model))
-	}
-	return response, nil
 }
 
 func (impl *UserDeploymentRequestServiceImpl) IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error) {
