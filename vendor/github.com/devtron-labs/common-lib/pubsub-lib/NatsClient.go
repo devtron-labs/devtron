@@ -47,7 +47,6 @@ type NatsClientConfig struct {
 	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
 	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120"`
-	Replicas             int `env:"REPLICAS" envDefault:"0"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
@@ -63,7 +62,6 @@ func (ncc NatsClientConfig) GetDefaultNatsConsumerConfig() NatsConsumerConfig {
 		NatsMsgProcessingBatchSize: ncc.NatsMsgProcessingBatchSize,
 		NatsMsgBufferSize:          ncc.GetNatsMsgBufferSize(),
 		AckWaitInSecs:              ncc.NatsMsgAckWaitInSecs,
-		Replicas:                   ncc.Replicas,
 	}
 }
 
@@ -76,8 +74,7 @@ func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 }
 
 type StreamConfig struct {
-	MaxAge   time.Duration `json:"max_age"`
-	Replicas int           `json:"num_replicas"`
+	MaxAge time.Duration `json:"max_age"`
 }
 
 type NatsStreamConfig struct {
@@ -92,8 +89,6 @@ type NatsConsumerConfig struct {
 	NatsMsgBufferSize int `json:"natsMsgBufferSize"`
 	// AckWaitInSecs is the time in seconds for which the message can be in unacknowledged state
 	AckWaitInSecs int `json:"ackWaitInSecs"`
-	//it will show the instances created for the consumers on a particular subject(topic)
-	Replicas int `json:"replicas"`
 }
 
 func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {

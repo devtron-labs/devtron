@@ -341,7 +341,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
-	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects) || (toUpdateConfig.Replicas != existingConfig.Replicas)) {
+	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
 		existingConfig.Subjects = newStreamSubjects
 		configChanged = true

@@ -27,7 +27,6 @@ type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interf
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
 	Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error
-	isClustered()
 }
 
 type PubSubClientServiceImpl struct {
@@ -139,7 +138,6 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
 
-	//time.Sleep(10 * time.Second)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
@@ -247,12 +245,6 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	callback(subMsg)
 }
 
-func (impl PubSubClientServiceImpl) isClustered(streamName string) bool {
-	// This is only ever set, no need for lock here.
-	streamInfo, _ := impl.NatsClient.JetStrCtxt.StreamInfo(streamName)
-	return streamInfo.Cluster != nil
-}
-
 func (impl PubSubClientServiceImpl) getStreamConfig(streamName string) *nats.StreamConfig {
 	configJson := NatsStreamWiseConfigMapping[streamName].StreamConfig
 	streamCfg := &nats.StreamConfig{}
@@ -292,17 +284,6 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 	if messageBufferSize := overrideConfig.GetNatsMsgBufferSize(); messageBufferSize > 0 && existingConfig.MaxAckPending != messageBufferSize {
 		existingConfig.MaxAckPending = messageBufferSize
 		updatesDetected = true
-	}
-	if replicas := overrideConfig.Replicas; replicas > 0 && existingConfig.Replicas != replicas && replicas < 5 {
-		if replicas > 1 && impl.isClustered(streamName) {
-			existingConfig.Replicas = replicas
-			updatesDetected = true
-		} else {
-			if replicas > 1 {
-				impl.Logger.Errorw("replicas >1 is not possible in non-clustered mode ")
-			}
-		}
-
 	}
 
 	if updatesDetected {
