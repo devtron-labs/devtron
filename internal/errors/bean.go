@@ -58,6 +58,8 @@ func (r *ClientStatusCode) GetHttpStatusCodeForGivenGrpcCode() int {
 		return http.StatusRequestTimeout
 	case codes.Canceled:
 		return constants.HttpClientSideTimeout
+	case codes.PermissionDenied:
+		return http.StatusUnprocessableEntity
 	default:
 		return http.StatusInternalServerError
 	}

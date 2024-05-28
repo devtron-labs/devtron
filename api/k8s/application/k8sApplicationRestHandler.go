@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -291,6 +292,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	//RBAC enforcer Ends
 	appDetail, err := handler.helmAppService.GetApplicationDetail(r.Context(), appIdentifier)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

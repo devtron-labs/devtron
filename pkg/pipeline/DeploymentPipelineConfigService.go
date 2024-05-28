@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -889,6 +890,10 @@ func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx
 	} else {
 		if err != nil {
 			impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return err
 		}
 		if deleteResourceResponse == nil || !deleteResourceResponse.GetSuccess() {
