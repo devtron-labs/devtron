@@ -364,11 +364,8 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	ok := handler.checkForHelmDeployAuth(rbacObject, request, token)
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
+	charts := handler.checkForHelmDeployAuth(request, token)
+	request.ChartGroupInstallChartRequest = charts
 	//RBAC block ends here
 
 	visited := make(map[string]bool)
@@ -401,15 +398,61 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(rbacObject string, request chartGroup.ChartGroupInstallRequest, token string) bool {
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.ProjectId, request.ChartGroupInstallChartRequest[0].EnvironmentId)
-	var ok bool
-	if rbacObject2 == "" {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject)
-	} else {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
+func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chartGroup.ChartGroupInstallRequest, token string) []*chartGroup.ChartGroupInstallChartRequest {
+	//the value of this map is array of integer because the GetHelmObjectByProjectIdAndEnvId method may return "//" for error cases
+	//so different apps may contain same object, to handle that we are using (map[string] []int)
+	rbacObjectToEnvIdMap1 := make(map[string][]int)
+	rbacObjectToEnvIdMap2 := make(map[string][]int)
+
+	rbacObjectArray1 := make([]string, 0)
+	rbacObjectArray2 := make([]string, 0)
+
+	envIdToChartGroupInstallChartRequest := make(map[int]*chartGroup.ChartGroupInstallChartRequest)
+
+	for _, chartGroupInstall := range request.ChartGroupInstallChartRequest {
+		envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId] = chartGroupInstall
+		rbacObject1, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.ProjectId, chartGroupInstall.EnvironmentId)
+		_, ok := rbacObjectToEnvIdMap1[rbacObject1]
+		if !ok {
+			rbacObjectToEnvIdMap1[rbacObject1] = make([]int, 0)
+		}
+		rbacObjectToEnvIdMap1[rbacObject1] = append(rbacObjectToEnvIdMap1[rbacObject1], chartGroupInstall.EnvironmentId)
+		rbacObjectArray1 = append(rbacObjectArray1, rbacObject1)
+		_, ok = rbacObjectToEnvIdMap2[rbacObject2]
+		if !ok {
+			rbacObjectToEnvIdMap2[rbacObject2] = make([]int, 0)
+		}
+		rbacObjectToEnvIdMap2[rbacObject2] = append(rbacObjectToEnvIdMap2[rbacObject2], chartGroupInstall.EnvironmentId)
+		rbacObjectArray2 = append(rbacObjectArray2, rbacObject2)
 	}
-	return ok
+	resultObjectMap1 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObjectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObjectArray2)
+
+	authorizedEnvIdSet := make(map[int]bool)
+	//O(n) time loop , at max we will only iterate through all the apps
+	for obj, ok := range resultObjectMap1 {
+		if ok {
+			envIds := rbacObjectToEnvIdMap1[obj]
+			for _, envId := range envIds {
+				authorizedEnvIdSet[envId] = true
+			}
+		}
+	}
+	for obj, ok := range resultObjectMap2 {
+		if ok {
+			envIds := rbacObjectToEnvIdMap2[obj]
+			for _, envId := range envIds {
+				authorizedEnvIdSet[envId] = true
+			}
+		}
+	}
+	authorizedChartGroupInstallRequests := make([]*chartGroup.ChartGroupInstallChartRequest, 0)
+	for envId, _ := range authorizedEnvIdSet {
+		authorizedChartGroupInstall := envIdToChartGroupInstallChartRequest[envId]
+		authorizedChartGroupInstallRequests = append(authorizedChartGroupInstallRequests, authorizedChartGroupInstall)
+	}
+
+	return authorizedChartGroupInstallRequests
 }
 
 func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter, r *http.Request) {
