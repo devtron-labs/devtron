@@ -809,8 +809,8 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 				continue
 			}
 		}
-		skip := impl.skipWorkflowCreation(createReq)
-		if !skip {
+		skipWfCreation := impl.skipWorkflowCreation(createReq)
+		if !skipWfCreation {
 			thisWf := appWorkflow.AppWorkflowDto{
 				Id:                    0,
 				Name:                  refAppWF.Name,
@@ -1101,19 +1101,16 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest, i
 		uniqueSuffix := uniqueId
 
 		for {
-			// Check if the pipeline name with the current suffix exists
 			pipelineExists, err = impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(pipelineName, req.appId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", pipelineName)
 				return nil, err
 			}
 
-			// If the pipeline does not exist, break the loop
 			if !pipelineExists {
 				break
 			}
 
-			// If the pipeline exists, increment the suffix and update the pipeline name
 			uniqueSuffix++
 			pipelineName = fmt.Sprintf("%s-%d", originalPipelineName, uniqueSuffix)
 		}
@@ -1343,19 +1340,19 @@ func (impl *AppCloneServiceImpl) ValidateCloneWfRequest(createReq *bean.CloneWor
 	for _, refPipeline := range refPipelines.Pipelines {
 		// target env is already present in app or not
 		if refPipeline.EnvironmentId == createReq.TargetEnvironmentId {
-			return 0, fmt.Errorf("target environment is already present in the application, appId %d", createReq.AppId)
+			return 0, fmt.Errorf("target environment provided is already present in this application")
 		}
 		// source env has parent type CI or not
 		if refPipeline.EnvironmentId == createReq.SourceEnvironmentId {
 			doesSourcePipelineExist = true
 			if refPipeline.ParentPipelineType == appWorkflow.CD_PIPELINE_TYPE {
-				return 0, fmt.Errorf("cant clone workflows for deployments in series appId %d", createReq.AppId)
+				return 0, fmt.Errorf("the source environment has a parent which is CD")
 			}
 		}
 	}
 
 	if !doesSourcePipelineExist {
-		return 0, fmt.Errorf("source environment does not exist %d", createReq.AppId)
+		return 0, fmt.Errorf("source environment does not exist")
 	}
 
 	workflowEnvironments := make(map[int][]string)
@@ -1366,7 +1363,7 @@ func (impl *AppCloneServiceImpl) ValidateCloneWfRequest(createReq *bean.CloneWor
 				if node.ComponentId == pipeline.Id {
 					if pipeline.EnvironmentId == createReq.SourceEnvironmentId {
 						if !node.IsLast {
-							return 0, fmt.Errorf("there is another environment attached to this environment appId %d", createReq.AppId)
+							return 0, fmt.Errorf("there is another environment attached to the source environment")
 						} else {
 							workFlowId = workflow.Id
 						}
