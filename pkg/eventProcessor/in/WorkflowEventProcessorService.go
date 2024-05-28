@@ -35,7 +35,7 @@ import (
 	bean8 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	cron2 "github.com/devtron-labs/devtron/util/cron"
+	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
@@ -97,7 +97,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	cronLogger *cron2.CronLoggerImpl) (*WorkflowEventProcessorImpl, error) {
+	cronLogger *cronUtil.CronLoggerImpl) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
