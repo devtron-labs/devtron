@@ -1,4 +1,5 @@
 ## Bugs
+- fix:removed unused env var (#5174)
 - fix: Handling all cases for 5xx (#5100)
 - fix: trivy scan step command fix (#5162)
 - fix: added extra args in trivy cmds (#5146)
