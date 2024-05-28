@@ -88,6 +88,7 @@ type GitMaterial struct {
 	Deleted          bool
 	FetchSubmodules  bool
 	FilterPattern    []string
+	CloningMode      string
 }
 type GitProvider struct {
 	Id            int
@@ -109,6 +110,16 @@ type GitCommit struct {
 	Changes     []string
 	WebhookData *WebhookData
 	Excluded    bool
+}
+
+type ReloadMaterialsDto struct {
+	ReloadMaterial []ReloadMaterialDto
+}
+
+type ReloadMaterialDto struct {
+	AppId         int    `json:"appId"`
+	GitmaterialId int64  `json:"gitmaterialId"`
+	CloningMode   string `json:"cloningMode"`
 }
 
 type WebhookAndCiData struct {
@@ -399,4 +410,10 @@ func (session RestClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(c
 	request := &ClientRequest{ResponseBody: &response, Method: GET, RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-filter-data"}
 	_, _, err = session.doRequest(request)
 	return response, err
+}
+
+func (session RestClientImpl) ReloadMaterials(ctx context.Context, reloadMaterials *ReloadMaterialsDto) error {
+	request := &ClientRequest{Method: GET, RequestBody: reloadMaterials, Path: "/admin/reload/materials"}
+	_, _, err := session.doRequest(request)
+	return err
 }

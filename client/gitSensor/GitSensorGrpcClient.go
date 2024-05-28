@@ -28,6 +28,7 @@ type ApiClient interface {
 	GetCommitMetadata(ctx context.Context, req *CommitMetadataRequest) (*GitCommit, error)
 	GetCommitMetadataForPipelineMaterial(ctx context.Context, req *CommitMetadataRequest) (*GitCommit, error)
 	RefreshGitMaterial(ctx context.Context, req *RefreshGitMaterialRequest) (*RefreshGitMaterialResponse, error)
+	ReloadMaterials(ctx context.Context, reloadMaterials *ReloadMaterialsDto) error
 
 	GetWebhookData(ctx context.Context, req *WebhookDataRequest) (*WebhookAndCiData, error)
 	GetAllWebhookEventConfigForHost(ctx context.Context, req *WebhookEventConfigRequest) ([]*WebhookEventConfig, error)
@@ -138,6 +139,7 @@ func (client *GrpcApiClientImpl) AddRepo(ctx context.Context, materials []*GitMa
 				CheckoutMsgAny:   item.CheckoutMsgAny,
 				Deleted:          item.Deleted,
 				FilterPattern:    item.FilterPattern,
+				CloningMode:      item.CloningMode,
 			})
 		}
 	}
@@ -168,6 +170,7 @@ func (client *GrpcApiClientImpl) UpdateRepo(ctx context.Context, material *GitMa
 		CheckoutMsgAny:   material.CheckoutMsgAny,
 		Deleted:          material.Deleted,
 		FilterPattern:    material.FilterPattern,
+		CloningMode:      material.CloningMode,
 	}
 
 	_, err = serviceClient.UpdateRepo(ctx, mappedMaterial)
@@ -739,4 +742,22 @@ func (client *GrpcApiClientImpl) mapGitCommitToProtoType(commit *GitCommit) (*pb
 		mappedRes.Date = timestamppb.New(commit.Date)
 	}
 	return mappedRes, nil
+}
+
+func (client *GrpcApiClientImpl) ReloadMaterials(ctx context.Context, reloadMaterials *ReloadMaterialsDto) error {
+
+	serviceClient, err := client.getGitSensorServiceClient()
+	if err != nil {
+		return err
+	}
+	req := pb.ReloadMaterialsRequest{}
+	for _, reloadMaterial := range reloadMaterials.ReloadMaterial {
+		tmpRel := pb.ReloadMaterial{MaterialId: reloadMaterial.GitmaterialId, CloningMode: reloadMaterial.CloningMode}
+		req.ReloadMaterials = append(req.ReloadMaterials, &tmpRel)
+	}
+	_, err = serviceClient.ReloadMaterials(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return nil
 }

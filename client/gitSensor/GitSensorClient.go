@@ -18,6 +18,7 @@ type Client interface {
 	GetCommitMetadata(ctx context.Context, req *CommitMetadataRequest) (*GitCommit, error)
 	GetCommitMetadataForPipelineMaterial(ctx context.Context, req *CommitMetadataRequest) (*GitCommit, error)
 	RefreshGitMaterial(ctx context.Context, req *RefreshGitMaterialRequest) (*RefreshGitMaterialResponse, error)
+	ReloadMaterials(ctx context.Context, reloadMaterials *ReloadMaterialsDto) error
 
 	GetWebhookData(ctx context.Context, req *WebhookDataRequest) (*WebhookAndCiData, error)
 	GetAllWebhookEventConfigForHost(ctx context.Context, req *WebhookEventConfigRequest) ([]*WebhookEventConfig, error)
@@ -128,4 +129,7 @@ func (c *ClientImpl) GetWebhookPayloadDataForPipelineMaterialId(ctx context.Cont
 
 func (c *ClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(ctx context.Context, req *WebhookPayloadFilterDataRequest) (*WebhookPayloadFilterDataResponse, error) {
 	return c.apiClient.GetWebhookPayloadFilterDataForPipelineMaterialId(ctx, req)
+}
+func (c *ClientImpl) ReloadMaterials(ctx context.Context, req *ReloadMaterialsDto) error {
+	return c.apiClient.ReloadMaterials(ctx, req)
 }
