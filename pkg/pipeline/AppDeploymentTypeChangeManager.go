@@ -34,6 +34,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/juju/errors"
@@ -762,6 +763,10 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteHelmApp(ctx context.Contex
 
 	if err != nil {
 		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return err
 	}
 

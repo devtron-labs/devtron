@@ -11,6 +11,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"net/http"
 	"time"
 
@@ -128,6 +129,10 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 
 	_, err = impl.helmAppService.InstallRelease(ctx, installAppVersionRequest.ClusterId, installReleaseRequest)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
@@ -157,6 +162,10 @@ func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context,
 		deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
 		if err != nil {
 			impl.Logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return err
 		}
 		if deleteResponse == nil || !deleteResponse.GetSuccess() {
@@ -182,6 +191,10 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
 	if err != nil {
 		impl.Logger.Errorw("Error in getting helm application deployment detail", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return installedApp, false, err
 	}
 	valuesYamlJson := helmAppDeploymentDetail.GetValuesYaml()
@@ -208,6 +221,12 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Contex
 		ReleaseName: installedApp.AppName,
 	}
 	history, err := impl.helmAppService.GetDeploymentHistory(ctx, helmAppIdentifier)
+	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
+	}
 	return history, err
 }
 
@@ -236,6 +255,10 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Co
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment detail", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 
