@@ -19,6 +19,11 @@ it randomly.
 {{- end -}}
 {{- end }}
 
+{{/*
+Check if the data in secret is present or not
+}}
+{{- define "checkSecretData" }}
+{{- $obj := (lookup "v1" .Kind .Namespace .Name).data -}}
 
 {{/*
 Return full image
