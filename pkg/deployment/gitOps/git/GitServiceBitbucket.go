@@ -3,8 +3,8 @@ package git
 import (
 	"context"
 	"fmt"
+	"github.com/ash-exp/go-bitbucket"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/ktrysmt/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
@@ -230,7 +230,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 		Branch:   "master",
 		Author:   authorBitbucket,
 	}
-	// TODO Asutosh: Handle race condition and update library
+	repoWriteOptions.WithContext(ctx)
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
 	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {

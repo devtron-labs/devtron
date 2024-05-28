@@ -229,6 +229,9 @@ github.com/argoproj/pkg/json
 github.com/argoproj/pkg/rand
 github.com/argoproj/pkg/sync
 github.com/argoproj/pkg/time
+# github.com/ash-exp/go-bitbucket v0.9.60-beta3
+## explicit; go 1.14
+github.com/ash-exp/go-bitbucket
 # github.com/aws/aws-sdk-go v1.44.290
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
@@ -805,9 +808,6 @@ github.com/klauspost/compress/s2
 # github.com/klauspost/pgzip v1.2.5
 ## explicit
 github.com/klauspost/pgzip
-# github.com/ktrysmt/go-bitbucket v0.9.60
-## explicit; go 1.14
-github.com/ktrysmt/go-bitbucket
 # github.com/leodido/go-urn v1.2.0
 ## explicit; go 1.13
 github.com/leodido/go-urn

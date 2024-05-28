@@ -8,6 +8,7 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.8.17
 	github.com/argoproj/argo-workflows/v3 v3.4.3
 	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
+	github.com/ash-exp/go-bitbucket v0.9.60-beta3
 	github.com/aws/aws-sdk-go v1.44.290
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
 	github.com/caarlos0/env v3.5.0+incompatible
@@ -45,7 +46,6 @@ require (
 	github.com/hashicorp/hcl2 v0.0.0-20191002203319-fb75b3253c80
 	github.com/invopop/jsonschema v0.7.0
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
-	github.com/ktrysmt/go-bitbucket v0.9.60
 	github.com/lib/pq v1.10.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/otiai10/copy v1.0.2
