@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	"github.com/devtron-labs/devtron/pkg/server"
@@ -225,6 +226,10 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return ModuleStatusNotInstalled, moduleType, false, err
 	}
 	releaseValues := releaseInfo.MergedValues
@@ -426,6 +431,10 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		module.Status = ModuleStatusInstallFailed
 		impl.moduleRepository.Update(module)
 		return nil, err
