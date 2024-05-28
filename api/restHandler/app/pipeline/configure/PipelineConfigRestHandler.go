@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -75,6 +76,7 @@ type DevtronAppRestHandler interface {
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request)
 	GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request)
+	CloneWorkflow(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppWorkflowRestHandler interface {
@@ -897,4 +899,50 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnviron
 		return
 	}
 	common.WriteJsonResp(w, err, results, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) CloneWorkflow(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var createRequest bean.CloneWorkflowDTO
+	err = decoder.Decode(&createRequest)
+	createRequest.UserId = userId
+
+	if err != nil {
+		handler.Logger.Errorw("request err, CloneWorkflow", "err", err, "CloneWorkflow", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, CloneWorkflow", "CloneWorkflow", createRequest)
+	err = handler.validator.Struct(createRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CloneWorkflow", "err", err, "CloneWorkflow", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	wfId, err := handler.appCloneService.ValidateCloneWfRequest(&createRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CloneWorkflow", "err", err, "CloneWorkflow", createRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	createResp, err := handler.appCloneService.CloneWorkflow(&createRequest, wfId, r.Context())
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+
 }

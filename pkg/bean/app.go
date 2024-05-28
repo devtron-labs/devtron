@@ -61,6 +61,13 @@ type CreateAppDTO struct {
 	DisplayName string                         `json:"-"`                             //not exposed to UI
 }
 
+type CloneWorkflowDTO struct {
+	AppId               int   `json:"appId"`
+	SourceEnvironmentId int   `json:"sourceEnvironmentId"`
+	TargetEnvironmentId int   `json:"targetEnvironmentId"`
+	UserId              int32 `json:"-"`
+}
+
 type CreateMaterialDTO struct {
 	Id       int            `json:"id,omitempty" validate:"number"`
 	AppId    int            `json:"appId" validate:"number"`
