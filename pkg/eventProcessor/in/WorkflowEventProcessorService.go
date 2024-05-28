@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -17,26 +17,26 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
-	bean6 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	triggerBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
-	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
-	bean3 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	cdWorkflowBean "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	bean8 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
-	util2 "github.com/devtron-labs/devtron/util"
+	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
-	util "github.com/devtron-labs/devtron/util/event"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -63,7 +63,7 @@ type WorkflowEventProcessorImpl struct {
 	deployedAppService           deployedApp.DeployedAppService
 	webhookService               pipeline.WebhookService
 	validator                    *validator.Validate
-	globalEnvVariables           *util2.GlobalEnvVariables
+	globalEnvVariables           *globalUtil.GlobalEnvVariables
 	cdWorkflowCommonService      cd.CdWorkflowCommonService
 	cdPipelineConfigService      pipeline.CdPipelineConfigService
 	userDeploymentRequestService service.UserDeploymentRequestService
@@ -90,7 +90,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	deployedAppService deployedApp.DeployedAppService,
 	webhookService pipeline.WebhookService,
 	validator *validator.Validate,
-	envVariables *util2.EnvironmentVariables,
+	envVariables *globalUtil.EnvironmentVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
@@ -155,14 +155,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 		triggerContext := triggerBean.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}
-		if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
+		if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 			impl.logger.Debugw("received pre stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
 			err = impl.workflowDagExecutor.HandlePreStageSuccessEvent(triggerContext, cdStageCompleteEvent)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
 			}
-		} else if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
+		} else if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
 			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 			if err != nil {
@@ -200,11 +200,11 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			impl.logger.Error("Error while unmarshalling cdWorkflow json object", "error", err)
 			return
 		}
-		wf := &bean3.CdWorkflowDto{
+		wf := &cdWorkflowBean.CdWorkflowDto{
 			Id:           cdWorkflow.Id,
 			CiArtifactId: cdWorkflow.CiArtifactId,
 			PipelineId:   cdWorkflow.PipelineId,
-			UserId:       bean4.SYSTEM_USER_ID,
+			UserId:       userBean.SYSTEM_USER_ID,
 		}
 		latest, err := impl.cdWorkflowService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
 		if err != nil {
@@ -292,14 +292,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 
 func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 	callback := func(msg *model.PubSubMsg) {
-		deploymentGroupAppWithEnv := new(bean7.DeploymentGroupAppWithEnv)
+		deploymentGroupAppWithEnv := new(eventProcessorBean.DeploymentGroupAppWithEnv)
 		err := json.Unmarshal([]byte(msg.Data), deploymentGroupAppWithEnv)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling deploymentGroupAppWithEnv json object", err)
 			return
 		}
 
-		stopAppRequest := &bean6.StopAppRequest{
+		stopAppRequest := &deploymentBean.StopAppRequest{
 			AppId:         deploymentGroupAppWithEnv.AppId,
 			EnvironmentId: deploymentGroupAppWithEnv.EnvironmentId,
 			UserId:        deploymentGroupAppWithEnv.UserId,
@@ -320,7 +320,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		deploymentGroupAppWithEnv := new(bean7.DeploymentGroupAppWithEnv)
+		deploymentGroupAppWithEnv := new(eventProcessorBean.DeploymentGroupAppWithEnv)
 		err := json.Unmarshal([]byte(msg.Data), deploymentGroupAppWithEnv)
 		if err != nil {
 			return "error while unmarshalling deploymentGroupAppWithEnv json object", []interface{}{"err", err}
@@ -406,11 +406,11 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			}
 		}
 		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			eventType := util.EventType(0)
+			eventType := eventUtil.EventType(0)
 			if wfrStatus == string(v1alpha1.NodeSucceeded) {
-				eventType = util.Success
+				eventType = eventUtil.Success
 			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-				eventType = util.Fail
+				eventType = eventUtil.Fail
 			}
 
 			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
@@ -421,8 +421,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				}
 			}
 
-			if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
+			if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
+				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
 				impl.logger.Debugw("event pre stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
 				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
@@ -481,7 +481,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
 			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
-				imageDetails := util2.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+				imageDetails := globalUtil.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
 				digestWorkflowMap, err := impl.webhookService.HandleMultipleImagesFromEvent(imageDetails, *ciCompleteEvent.WorkflowId)
 				if err != nil {
 					impl.logger.Errorw("error in getting digest workflow map", "err", err, "workflowId", ciCompleteEvent.WorkflowId)
@@ -505,7 +505,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 
 		} else {
-			util2.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
+			globalUtil.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
 			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
 				return
@@ -533,7 +533,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean8.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
+func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
@@ -548,7 +548,7 @@ func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerC
 	return buildArtifactId, nil
 }
 
-func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiCompleteEvent) (*bean8.CiArtifactWebhookRequest, error) {
+func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiCompleteEvent) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
 	var ciMaterialInfos []repository.CiMaterialInfo
 	for _, p := range event.CiProjectDetails {
 		var modifications []repository.Modification
@@ -602,7 +602,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		event.TriggeredBy = 1 // system triggered event
 	}
 
-	request := &bean8.CiArtifactWebhookRequest{
+	request := &wrokflowDagBean.CiArtifactWebhookRequest{
 		Image:                         event.DockerImage,
 		ImageDigest:                   event.Digest,
 		DataSource:                    event.DataSource,
@@ -621,12 +621,12 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 	return request, nil
 }
 
-func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event bean.CiCompleteEvent, workflowId int) (*bean8.CiArtifactWebhookRequest, error) {
+func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event bean.CiCompleteEvent, workflowId int) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
 	if event.TriggeredBy == 0 {
 		event.TriggeredBy = 1 // system triggered event
 	}
-	request := &bean8.CiArtifactWebhookRequest{
-		Image:              util2.ExtractEcrImage(*imageDetails.RegistryId, region, *imageDetails.RepositoryName, imageDetails.ImageTags[0]),
+	request := &wrokflowDagBean.CiArtifactWebhookRequest{
+		Image:              globalUtil.ExtractEcrImage(*imageDetails.RegistryId, region, *imageDetails.RepositoryName, imageDetails.ImageTags[0]),
 		ImageDigest:        *imageDetails.ImageDigest,
 		DataSource:         event.DataSource,
 		PipelineName:       event.PipelineName,
@@ -890,7 +890,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 	callback := func(msg *model.PubSubMsg) {
-		cdPipelineDeleteEvent := &bean7.CdPipelineDeleteEvent{}
+		cdPipelineDeleteEvent := &eventProcessorBean.CdPipelineDeleteEvent{}
 		err := json.Unmarshal([]byte(msg.Data), cdPipelineDeleteEvent)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling cdPipelineDeleteEvent object", "err", err, "msg", msg.Data)
@@ -934,7 +934,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) RemoveReleaseContextForPipeline(cdPipelineDeleteEvent *bean7.CdPipelineDeleteEvent) {
+func (impl *WorkflowEventProcessorImpl) RemoveReleaseContextForPipeline(cdPipelineDeleteEvent *eventProcessorBean.CdPipelineDeleteEvent) {
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[cdPipelineDeleteEvent.PipelineId]; ok {
