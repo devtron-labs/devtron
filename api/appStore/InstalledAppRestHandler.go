@@ -364,6 +364,11 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+	ok := handler.checkForHelmDeployAuth(rbacObject, request, token)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
 	//RBAC block ends here
 
 	visited := make(map[string]bool)
@@ -394,6 +399,17 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(rbacObject string, request chartGroup.ChartGroupInstallRequest, token string) bool {
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.ProjectId, request.ChartGroupInstallChartRequest[0].EnvironmentId)
+	var ok bool
+	if rbacObject2 == "" {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
+	}
+	return ok
 }
 
 func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter, r *http.Request) {
