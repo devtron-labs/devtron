@@ -923,6 +923,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 				appWfId:               createWorkflowMappingDto.newWfId,
 				refAppName:            refApp.AppName,
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
+				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
 			refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(cdCloneReq.appId)
 			if err != nil {
@@ -1306,7 +1307,6 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, e
 		ParentPipelineType:            refCdPipeline.ParentPipelineType,
 		IsDigestEnforcedForPipeline:   refCdPipeline.IsDigestEnforcedForPipeline,
 	}
-
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0
 		cdPipeline.ParentPipelineId = req.externalCiPipelineId

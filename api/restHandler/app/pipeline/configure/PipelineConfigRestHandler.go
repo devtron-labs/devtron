@@ -939,7 +939,7 @@ func (handler *PipelineConfigRestHandlerImpl) CloneWorkflow(w http.ResponseWrite
 	}
 	createResp, err := handler.appCloneService.CloneWorkflow(&createRequest, wfId, r.Context())
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
