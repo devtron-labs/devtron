@@ -14,7 +14,7 @@ func TestSendEventsOnNats(t *testing.T) {
 	logger, err := util.NewSugardLogger()
 	//nats, err := pubsub_lib.NewNatsClient(logger)
 	//mockPubsubClient := NewPubSubClientServiceImpl(logger)
-	mockPubsubClient := pubsub_lib.NewPubSubClientServiceImpl(logger)
+	mockPubsubClient, err := pubsub_lib.NewPubSubClientServiceImpl(logger)
 	client := util.NewHttpClient()
 	config := sql.Config{}
 	db, err := sql.NewDbConnection(&config, logger)
