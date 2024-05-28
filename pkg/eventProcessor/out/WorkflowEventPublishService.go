@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -140,7 +141,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	if err != nil {
 		impl.logger.Errorw("failed to publish trigger request event", "topic", topic, "msg", msg, "err", err)
 		//update workflow runner status, used in app workflow view
-		err1 = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowFailed, err.Error())
+		err1 = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowFailed, adapter.WithMessage(err.Error()))
 		if err1 != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
@@ -148,7 +149,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue, "")
+	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err

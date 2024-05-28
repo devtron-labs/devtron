@@ -153,7 +153,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 
 	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 
 	var gitOpsResponse *bean2.AppStoreGitOpsResponse
@@ -697,7 +697,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 
 	if util.IsManifestDownload(upgradeAppRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 	// gitOps operation
 	monoRepoMigrationRequired := false

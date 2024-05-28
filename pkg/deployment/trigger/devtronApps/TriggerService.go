@@ -700,6 +700,13 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	if err != nil {
 		return 0, err
 	}
+	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestCompleted, overrideRequest.CdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in updating userDeploymentRequest status",
+			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestCompleted,
+			"err", err)
+		return releaseNo, err
+	}
 	return releaseNo, nil
 }
 
@@ -707,7 +714,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 	builtChartPath string, triggerEvent bean.TriggerEvent) error {
 	// update workflow runner status, used in app workflow view
-	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress, "")
+	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 		return err
@@ -799,10 +806,6 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, c
 }
 
 func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, err error) {
-	err = helper.ValidateTriggerEvent(triggerEvent)
-	if err != nil {
-		return releaseNo, err
-	}
 	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.CdWorkflowId, overrideRequest.WfrId, triggerEvent)
 	if err != nil {
 		return releaseNo, err
@@ -1080,7 +1083,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress, "")
+		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err

@@ -1,11 +1,9 @@
 package helper
 
 import (
-	errors3 "errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	errors2 "github.com/juju/errors"
 	"time"
 )
 
@@ -31,27 +29,4 @@ func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
 	return triggerEvent
-}
-
-func ValidateTriggerEvent(triggerEvent bean.TriggerEvent) error {
-	switch triggerEvent.DeploymentAppType {
-	case bean.ArgoCd:
-		if !triggerEvent.PerformChartPush {
-			return errors2.New("For deployment type ArgoCd, PerformChartPush flag expected value = true, got false")
-		}
-	case bean.Helm:
-		return nil
-	case bean.GitOpsWithoutDeployment:
-		if triggerEvent.PerformDeploymentOnCluster {
-			return errors2.New("For deployment type GitOpsWithoutDeployment, PerformDeploymentOnCluster flag expected value = false, got value = true")
-		}
-	case bean.ManifestDownload:
-		if triggerEvent.PerformChartPush {
-			return errors3.New("For deployment type ManifestDownload,  PerformChartPush flag expected value = false, got true")
-		}
-		if triggerEvent.PerformDeploymentOnCluster {
-			return errors3.New("For deployment type ManifestDownload,  PerformDeploymentOnCluster flag expected value = false, got true")
-		}
-	}
-	return nil
 }

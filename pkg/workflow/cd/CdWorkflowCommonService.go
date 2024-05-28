@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -21,7 +22,7 @@ import (
 type CdWorkflowCommonService interface {
 	SupersedePreviousDeployments(cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
-	UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status, message string) error
+	UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
@@ -151,7 +152,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 	return nil
 }
 
-func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status, message string) error {
+func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error {
 	// In case of terminal status update finished on time
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
@@ -165,8 +166,11 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
 		return fmt.Errorf("deployment has already been terminated for workflow runner")
 	}
+	for _, option := range options {
+		option(cdWfr)
+	}
 	if status == pipelineConfig.WorkflowFailed {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, message)
+		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, cdWfr.Message)
 		if err != nil {
 			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
 			return err
@@ -175,7 +179,6 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 	cdWfr.Status = status
 	if isTerminalStatus {
 		cdWfr.FinishedOn = time.Now()
-		cdWfr.Message = message
 	}
 	cdWfr.UpdateAuditLog(userId)
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)

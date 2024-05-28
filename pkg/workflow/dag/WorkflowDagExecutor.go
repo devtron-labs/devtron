@@ -337,7 +337,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting, "")
+		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
 			return err
