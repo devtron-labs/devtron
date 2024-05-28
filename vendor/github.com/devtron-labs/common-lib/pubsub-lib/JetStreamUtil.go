@@ -101,9 +101,9 @@ const (
 	CD_PIPELINE_DELETE_EVENT_TOPIC      string = "CD-PIPELINE-DELETE-EVENT"
 	CD_PIPELINE_DELETE_EVENT_GROUP      string = "CD-PIPELINE-DELETE-EVENT-GROUP"
 	CD_PIPELINE_DELETE_EVENT_DURABLE    string = "CD-PIPELINE-DELETE-EVENT-DURABLE"
-	CHART_SCAN_TOPIC                    string = "CHART-SCAN-TOPIC"
-	CHART_SCAN_GROUP                    string = "CHART-SCAN-GROUP"
-	CHART_SCAN_DURABLE                  string = "CHART-SCAN-DURABLE"
+	NOTIFICATION_EVENT_TOPIC            string = "NOTIFICATION_EVENT_TOPIC"
+	NOTIFICATION_EVENT_GROUP            string = "NOTIFICATION_EVENT_GROUP"
+	NOTIFICATION_EVENT_DURABLE          string = "NOTIFICATION_EVENT_DURABLE"
 )
 
 type NatsTopic struct {
@@ -112,6 +112,7 @@ type NatsTopic struct {
 	queueName    string // needed for load balancing
 	consumerName string
 }
+
 type ConfigJson struct {
 	// StreamConfigJson is a json string of map[string]NatsStreamConfig
 	StreamConfigJson string `env:"STREAM_CONFIG_JSON"`
@@ -150,7 +151,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
 
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
-	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
+	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -186,6 +187,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	DEVTRON_TEST_CONSUMER:               {},
 	CD_STAGE_SUCCESS_EVENT_DURABLE:      {},
 	CD_PIPELINE_DELETE_EVENT_DURABLE:    {},
+	NOTIFICATION_EVENT_DURABLE:          {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string
@@ -228,12 +230,11 @@ func getStreamConfigMap(jsonString string) map[string]NatsStreamConfig {
 	return resMap
 }
 
-func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
+func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	configJson := ConfigJson{}
 	err := env.Parse(&configJson)
 	if err != nil {
-		log.Println("error while parsing config from environment params", " err", err)
-		return err
+		log.Fatal("error while parsing config from environment params", " err", err)
 	}
 
 	// fetch the consumer configs that were given explicitly in the configJson.ConsumerConfigJson
@@ -246,7 +247,6 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 	err = env.Parse(&defaultConfig)
 	if err != nil {
 		log.Print("error while parsing config from environment params", "err", err)
-		return err
 	}
 
 	// default stream and consumer config values
@@ -258,7 +258,6 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 
 	// initialise all the stream wise config with default values or user defined values
 	updateNatsStreamConfigMapping(defaultStreamConfigVal, streamConfigMap)
-	return nil
 }
 
 func updateNatsConsumerConfigMapping(defaultConsumerConfigVal NatsConsumerConfig, consumerConfigMap map[string]NatsConsumerConfig) {
@@ -313,12 +312,11 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 			cfgToSet := getNewConfig(streamName, streamConfig)
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
-				log.Println("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
+				log.Fatal("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
 				return err
 			}
 		} else if err != nil {
-			log.Println("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
-			return err
+			log.Fatal("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
 		} else {
 			config := streamInfo.Config
 			streamConfig.Name = streamName
@@ -336,7 +334,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
-	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
+	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects) || (toUpdateConfig.Replicas != existingConfig.Replicas)) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
 		existingConfig.Subjects = newStreamSubjects
 		configChanged = true

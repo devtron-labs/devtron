@@ -17,7 +17,6 @@ limitations under the License.
 package utils
 
 import (
-	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -34,16 +33,4 @@ func Generate(size int) string {
 	}
 	str := b.String()
 	return str
-}
-
-func hasScheme(url string) bool {
-	return len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")
-}
-
-func GetUrlWithScheme(url string) (urlWithScheme string) {
-	urlWithScheme = url
-	if !hasScheme(url) {
-		urlWithScheme = fmt.Sprintf("https://%s", url)
-	}
-	return urlWithScheme
 }

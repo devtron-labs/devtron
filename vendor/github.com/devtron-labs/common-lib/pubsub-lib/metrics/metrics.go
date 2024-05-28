@@ -1,41 +1,36 @@
 package metrics
 
 import (
-	"github.com/devtron-labs/common-lib/constants"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var NatsPublishingCount = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: constants.NATS_PUBLISH_COUNT,
+	Name: "nats_publish_count",
 	Help: "count of successfully published events on nats",
-}, []string{constants.TOPIC, constants.STATUS})
+}, []string{"topic", "status"})
 
 var NatsConsumptionCount = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: constants.NATS_CONSUMPTION_COUNT,
+	Name: "nats_consumption_count",
 	Help: "count of consumed events on nats ",
-}, []string{constants.TOPIC})
+}, []string{"topic"})
 
 var NatsConsumingCount = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: constants.NATS_CONSUMING_COUNT,
+	Name: "nats_consuming_count",
 	Help: "count of nats events whose consumption is in progress",
-}, []string{constants.TOPIC})
+}, []string{"topic"})
 
 var NatsEventConsumptionTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: constants.NATS_EVENT_CONSUMPTION_TIME,
-}, []string{constants.TOPIC})
+	Name: "nats_event_consumption_time",
+}, []string{"topic"})
 
 var NatsEventPublishTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: constants.NATS_EVENT_PUBLISH_TIME,
-}, []string{constants.TOPIC})
+	Name: "nats_event_publish_time",
+}, []string{"topic"})
 
 var NatsEventDeliveryCount = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name: constants.NATS_EVENT_DELIVERY_COUNT,
-}, []string{constants.TOPIC})
-
-var PanicRecoveryCount = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: constants.PANIC_RECOVERY_COUNT,
-}, []string{constants.PANIC_TYPE, constants.HOST, constants.METHOD, constants.PATH})
+	Name: "nats_event_delivery_count",
+}, []string{"topic", "msg_id"})
 
 func IncPublishCount(topic, status string) {
 	NatsPublishingCount.WithLabelValues(topic, status).Inc()
@@ -47,7 +42,4 @@ func IncConsumptionCount(topic string) {
 
 func IncConsumingCount(topic string) {
 	NatsConsumingCount.WithLabelValues(topic).Inc()
-}
-func IncPanicRecoveryCount(panicType, host, method, path string) {
-	PanicRecoveryCount.WithLabelValues(panicType, host, method, path).Inc()
 }

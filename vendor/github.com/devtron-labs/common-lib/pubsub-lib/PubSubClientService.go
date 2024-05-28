@@ -27,6 +27,7 @@ type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interf
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
 	Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error
+	isClustered()
 }
 
 type PubSubClientServiceImpl struct {
@@ -35,28 +36,23 @@ type PubSubClientServiceImpl struct {
 	logsConfig *model.LogsConfig
 }
 
-func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientServiceImpl, error) {
+func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
 	natsClient, err := NewNatsClient(logger)
 	if err != nil {
-		logger.Errorw("error occurred while creating nats client stopping now!!")
-		return nil, err
+		logger.Fatalw("error occurred while creating nats client stopping now!!")
 	}
 	logsConfig := &model.LogsConfig{}
 	err = env.Parse(logsConfig)
 	if err != nil {
 		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
-		return nil, err
 	}
-	err = ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
-	if err != nil {
-		return nil, err
-	}
+	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
 		logsConfig: logsConfig,
 	}
-	return pubSubClient, nil
+	return pubSubClient
 }
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
@@ -99,6 +95,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 // invokes callback(+required) func for each message received.
 // loggerFunc(+optional) is invoked before passing the message to the callback function.
 // validations(+optional) methods were called before passing the message to the callback func.
+
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
@@ -132,10 +129,12 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
 		nats.BindStream(streamName))
 	if err != nil {
-		impl.Logger.Errorw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
+		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
+
+	//time.Sleep(10 * time.Second)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
@@ -148,6 +147,7 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 		go impl.processMessages(wg, channel, callback, loggerFunc, validations...)
 	}
 	wg.Wait()
+
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
@@ -213,14 +213,13 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 		// publish metrics for msg delivery count if msgDeliveryCount > 1
 		if msgDeliveryCount > 1 {
-			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject).Observe(float64(msgDeliveryCount))
+			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
 		}
 
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw(fmt.Sprintf("%s: found panic error", NATS_PANIC_MSG_LOG_PREFIX), "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
 			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
-			metrics.IncPanicRecoveryCount("nats", msg.Subject, "", "")
 			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
 			publishErr := impl.publishPanicError(msg, err)
 			if publishErr != nil {
@@ -240,6 +239,12 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 	// Process the event message
 	callback(subMsg)
+}
+
+func (impl PubSubClientServiceImpl) isClustered(streamName string) bool {
+	// This is only ever set, no need for lock here.
+	streamInfo, _ := impl.NatsClient.JetStrCtxt.StreamInfo(streamName)
+	return streamInfo.Cluster != nil
 }
 
 func (impl PubSubClientServiceImpl) getStreamConfig(streamName string) *nats.StreamConfig {
@@ -281,6 +286,17 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 	if messageBufferSize := overrideConfig.GetNatsMsgBufferSize(); messageBufferSize > 0 && existingConfig.MaxAckPending != messageBufferSize {
 		existingConfig.MaxAckPending = messageBufferSize
 		updatesDetected = true
+	}
+	if replicas := overrideConfig.Replicas; replicas > 0 && existingConfig.Replicas != replicas && replicas < 5 {
+		if replicas > 1 && impl.isClustered(streamName) {
+			existingConfig.Replicas = replicas
+			updatesDetected = true
+		} else {
+			if replicas > 1 {
+				impl.Logger.Errorw("replicas >1 is not possible in non-clustered mode ")
+			}
+		}
+
 	}
 
 	if updatesDetected {
