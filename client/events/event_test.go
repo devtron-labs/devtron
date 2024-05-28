@@ -21,15 +21,16 @@ func TestSendEventsOnNats(t *testing.T) {
 		User:     "postgres",
 		Password: "shared-devtron-pg",
 		Database: "orchestrator_14",
-		Addr:     "localhost:8080",
+		Addr:     "localhost",
 	}
 	db, err := sql.NewDbConnection(&config, logger)
+	trans := sql.NewTransactionUtilImpl(db)
 	impl := &EventRESTClientImpl{
 		logger:               logger,
 		pubsubClient:         mockPubsubClient,
 		client:               client,
 		config:               &EventClientConfig{DestinationURL: "localhost:3000/notify", NotificationMedium: PUB_SUB},
-		ciPipelineRepository: pipelineConfig.NewCiPipelineRepositoryImpl(db, logger),
+		ciPipelineRepository: pipelineConfig.NewCiPipelineRepositoryImpl(db, logger, trans),
 		pipelineRepository:   pipelineConfig.NewPipelineRepositoryImpl(db, logger),
 		attributesRepository: repository.NewAttributesRepositoryImpl(db),
 	}
