@@ -4,7 +4,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"time"
 )
 
@@ -26,8 +26,8 @@ func GetVulnerabilityCheckRequest(cdPipeline *pipelineConfig.Pipeline, imageDige
 	}
 }
 
-func NewAsyncCdDeployRequest(overrideRequest *apiBean.ValuesOverrideRequest, triggeredAt time.Time, triggeredBy int32) *bean2.AsyncCdDeployRequest {
-	return &bean2.AsyncCdDeployRequest{
+func NewAsyncCdDeployRequest(overrideRequest *apiBean.ValuesOverrideRequest, triggeredAt time.Time, triggeredBy int32) *eventProcessorBean.AsyncCdDeployRequest {
+	return &eventProcessorBean.AsyncCdDeployRequest{
 		ValuesOverrideRequest: overrideRequest,
 		TriggeredAt:           triggeredAt,
 		TriggeredBy:           triggeredBy,

@@ -15,7 +15,6 @@ const (
 type TriggerEvent struct {
 	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
-	GetManifestInResponse      bool
 	DeploymentAppType          string
 	ManifestStorageType        string
 	TriggeredBy                int32

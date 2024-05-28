@@ -23,13 +23,11 @@ func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 	case bean.ArgoCd:
 		triggerEvent.PerformChartPush = true
 		triggerEvent.PerformDeploymentOnCluster = true
-		triggerEvent.GetManifestInResponse = false
 		triggerEvent.DeploymentAppType = bean.ArgoCd
 		triggerEvent.ManifestStorageType = bean2.ManifestStorageGit
 	case bean.Helm:
 		triggerEvent.PerformChartPush = false
 		triggerEvent.PerformDeploymentOnCluster = true
-		triggerEvent.GetManifestInResponse = false
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
 	return triggerEvent

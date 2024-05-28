@@ -450,38 +450,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, releaseErr
 		}
 
-		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncInstallRequest
-		if !impl.isDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType, overrideRequest.ForceSync) {
-			// Update previous deployment runner status (in transaction): Failed
-			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-			err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
-			span.End()
-			if err1 != nil {
-				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-				return 0, err1
-			}
-		}
-
-		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           runner.Id,
-				Name:         cdPipeline.Name,
-				WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  overrideRequest.UserId,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.config.GetDefaultNamespace(),
-				CdWorkflowId: overrideRequest.CdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-			}
-			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if updateErr != nil {
-				impl.logger.Errorw("error in updating runner for manifest_download type, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-				return 0, updateErr
-			}
-		}
-
 	case bean3.CD_WORKFLOW_TYPE_POST:
 		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -624,14 +592,6 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		}
 		return releaseErr
 	}
-	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncInstallRequest
-	if !impl.isDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType, false) {
-		err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(runner, pipeline.Id, triggeredAt, triggeredBy)
-		if err1 != nil {
-			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
-			return err1
-		}
-	}
 	return nil
 }
 
@@ -744,7 +704,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 	builtChartPath string, triggerEvent bean.TriggerEvent, manifest *[]byte) error {
 	// update workflow runner status, used in app workflow view
-	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggerEvent.TriggeredAt, pipelineConfig.WorkflowInProgress, "")
+	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 		return err
@@ -878,6 +838,16 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 	span.End()
 
 	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
+
+	// Update previous deployment runner status (in transaction): Failed
+	_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
+	err1 := impl.cdWorkflowCommonService.SupersedePreviousDeployments(overrideRequest.WfrId, overrideRequest.PipelineId, triggerEvent.TriggeredAt, overrideRequest.UserId)
+	span.End()
+	if err1 != nil {
+		impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "currentRunnerId", overrideRequest.WfrId, "pipelineId", overrideRequest.PipelineId)
+		return releaseNo, manifest, err1
+	}
+
 	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestCompleted, overrideRequest.CdWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error in updating userDeploymentRequest status",
@@ -1109,7 +1079,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
+		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err
