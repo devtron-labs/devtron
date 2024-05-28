@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/common-lib/utils"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -815,6 +816,19 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
+
+	envVars := &bean2.TerminalEnvVariables{}
+	err = env.Parse(envVars)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -992,6 +1006,7 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string,
 }
 
 func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1011,6 +1026,17 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		}
 		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envVars := &bean2.TerminalEnvVariables{}
+	err = env.Parse(envVars)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can create ephemeral container
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//rbac applied in below function
@@ -1036,6 +1062,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 }
 
 func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1055,6 +1082,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		}
 		handler.logger.Errorw("invalid request payload", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envVars := &bean2.TerminalEnvVariables{}
+	err = env.Parse(envVars)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can delete ephemeral container
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//rbac applied in below function

@@ -54,3 +54,7 @@ type RotatePodResourceResponse struct {
 	k8s.ResourceIdentifier
 	ErrorResponse string `json:"errorResponse"`
 }
+
+type TerminalEnvVariables struct {
+	RestrictTerminalAccessForNonSuperUser bool `env:"RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER" envDefault:"false"`
+}
