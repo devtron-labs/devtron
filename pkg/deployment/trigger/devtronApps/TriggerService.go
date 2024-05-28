@@ -669,7 +669,17 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 		return impl.workflowEventPublishService.TriggerAsyncRelease(newDeploymentRequest.UserDeploymentRequestId, overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
-	return impl.TriggerRelease(overrideRequest, false, ctx, triggeredAt, deployedBy)
+	releaseNo, err = impl.TriggerRelease(overrideRequest, false, ctx, triggeredAt, deployedBy)
+	if err != nil {
+		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
+		if err1 != nil {
+			impl.logger.Errorw("error in updating userDeploymentRequest status",
+				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestFailed,
+				"err", err1)
+		}
+		return releaseNo, err
+	}
+	return releaseNo, nil
 }
 
 // TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously

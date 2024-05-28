@@ -35,4 +35,6 @@ const (
 	DeploymentRequestTriggered  UserDeploymentRequestStatus = "TRIGGERED"
 	DeploymentRequestCompleted  UserDeploymentRequestStatus = "COMPLETED"
 	DeploymentRequestSuperseded UserDeploymentRequestStatus = "SUPERSEDED"
+	DeploymentRequestFailed     UserDeploymentRequestStatus = "FAILED"
+	DeploymentRequestTerminated UserDeploymentRequestStatus = "TERMINATED"
 )

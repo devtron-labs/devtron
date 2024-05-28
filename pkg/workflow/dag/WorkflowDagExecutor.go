@@ -31,6 +31,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -102,8 +104,9 @@ type WorkflowDagExecutorImpl struct {
 
 	helmAppService client2.HelmAppService
 
-	cdWorkflowCommonService cd.CdWorkflowCommonService
-	cdTriggerService        devtronApps.TriggerService
+	cdWorkflowCommonService      cd.CdWorkflowCommonService
+	cdTriggerService             devtronApps.TriggerService
+	userDeploymentRequestService service.UserDeploymentRequestService
 
 	manifestCreationService manifest.ManifestCreationService
 	commonArtifactService   artifacts.CommonArtifactService
@@ -283,7 +286,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
 			if isWfrUpdated := impl.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, cdWfr, false); !isWfrUpdated {
 				// updating cdWfr to failed
-				if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("%s: release %s took more than %d mins", "Deployment timeout", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartInstallRequestTimeout), overrideRequest.UserId); err != nil {
+				if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, fmt.Errorf("%s: release %s took more than %d mins", "Deployment timeout", appIdentifier.ReleaseName, impl.appServiceConfig.DevtronChartHelmInstallRequestTimeout), overrideRequest.UserId); err != nil {
 					impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 				}
 			}
@@ -348,6 +351,13 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	span.End()
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(ctx, releaseErr, cdWfr, overrideRequest, appIdentifier)
+		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
+		if err1 != nil {
+			impl.logger.Errorw("error in updating userDeploymentRequest status",
+				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestFailed,
+				"err", err1)
+		}
+		return releaseErr
 	} else {
 		impl.logger.Infow("pipeline triggered successfully !!", "cdPipelineId", overrideRequest.PipelineId, "artifactId", overrideRequest.CiArtifactId, "releaseId", releaseId)
 	}

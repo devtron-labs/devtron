@@ -393,14 +393,14 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 
 	// sync argocd app
 	if pipelineId != 0 {
-		err := impl.syncACDDevtronApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, pipelineId)
+		err := impl.syncACDDevtronApps(impl.AppConfig.ArgoCdManualSyncCronPipelineDeployedBefore, pipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in syncing devtron apps deployed via argoCD", "err", err)
 			return
 		}
 	}
 	if installedAppVersionId != 0 {
-		err := impl.syncACDHelmApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, installedAppVersionId)
+		err := impl.syncACDHelmApps(impl.AppConfig.ArgoCdManualSyncCronPipelineDeployedBefore, installedAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in syncing Helm apps deployed via argoCD", "err", err)
 			return

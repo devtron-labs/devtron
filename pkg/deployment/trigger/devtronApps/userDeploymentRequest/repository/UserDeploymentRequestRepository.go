@@ -46,16 +46,24 @@ type UserDeploymentRequest struct {
 	Status               bean.UserDeploymentRequestStatus    `sql:"status"`
 }
 
+type UserDeploymentRequestWithAdditionalFields struct {
+	UserDeploymentRequest
+	CdWorkflowRunnerId int `sql:"cd_workflow_runner_id"`
+	PipelineOverrideId int `sql:"pipeline_override_id"`
+}
+
 type UserDeploymentRequestRepository interface {
 	// transaction util funcs
 	sql.TransactionWrapper
 	Save(tx *pg.Tx, models []*UserDeploymentRequest) error
-	FindById(id int) (*UserDeploymentRequest, error)
+	FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error)
 	FindByCdWfId(cdWfId int) (*UserDeploymentRequest, error)
 	FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error)
+	GetAllInCompleteRequests() ([]UserDeploymentRequestWithAdditionalFields, error)
 	MarkAllPreviousSuperseded(tx *pg.Tx, pipelineId, previousToReqId int) (int, error)
 	UpdateStatusForCdWfIds(tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error)
 	IsLatestForPipelineId(id, pipelineId int) (bool, error)
+	TerminateForPipelineId(tx *pg.Tx, pipelineId int) (int, error)
 }
 
 func NewUserDeploymentRequestRepositoryImpl(dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *UserDeploymentRequestRepositoryImpl {
@@ -77,10 +85,18 @@ func (impl *UserDeploymentRequestRepositoryImpl) Save(tx *pg.Tx, models []*UserD
 	return tx.Insert(models)
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeploymentRequest, error) {
-	model := &UserDeploymentRequest{}
+func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error) {
+	model := &UserDeploymentRequestWithAdditionalFields{}
 	err := impl.dbConnection.Model(model).
-		Where("id = ?", id).
+		Column("user_deployment_request.*").
+		ColumnExpr("cdwfr.id AS cd_workflow_runner_id").
+		ColumnExpr("pco.id AS pipeline_override_id").
+		Join("INNER JOIN cd_workflow_runner cdwfr").
+		JoinOn("user_deployment_request.cd_workflow_id = cdwfr.cd_workflow_id").
+		JoinOn("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
+		Join("LEFT JOIN pipeline_config_override pco").
+		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
+		Where("user_deployment_request.id = ?", id).
 		Select()
 	return model, err
 }
@@ -94,10 +110,36 @@ func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfId(cdWfId int) (*User
 }
 
 func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error) {
+	if len(cdWfIds) == 0 {
+		return nil, pg.ErrNoRows
+	}
 	var model []UserDeploymentRequest
 	err := impl.dbConnection.Model(model).
 		Where("cd_workflow_id IN (?)", cdWfIds).
 		Order("id DESC").
+		Select()
+	return model, err
+}
+
+func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]UserDeploymentRequestWithAdditionalFields, error) {
+	var model []UserDeploymentRequestWithAdditionalFields
+	query := impl.dbConnection.Model().
+		Table("user_deployment_request").
+		ColumnExpr("MAX(id)").
+		Where("status NOT IN (?)", pg.In([]bean.UserDeploymentRequestStatus{
+			bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded,
+		})).
+		Group("pipeline_id")
+	err := impl.dbConnection.Model(&model).
+		Column("user_deployment_request.*").
+		ColumnExpr("cdwfr.id AS cd_workflow_runner_id").
+		ColumnExpr("pco.id AS pipeline_override_id").
+		Join("INNER JOIN cd_workflow_runner cdwfr").
+		JoinOn("user_deployment_request.cd_workflow_id = cdwfr.cd_workflow_id").
+		JoinOn("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
+		Join("LEFT JOIN pipeline_config_override pco").
+		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
+		Where("id IN (?)", query).
 		Select()
 	return model, err
 }
@@ -137,13 +179,30 @@ func (impl *UserDeploymentRequestRepositoryImpl) UpdateStatusForCdWfIds(tx *pg.T
 	return res.RowsAffected(), err
 }
 
+func (impl *UserDeploymentRequestRepositoryImpl) TerminateForPipelineId(tx *pg.Tx, pipelineId int) (int, error) {
+	var query *orm.Query
+	if tx == nil {
+		query = impl.dbConnection.Model((*UserDeploymentRequest)(nil))
+	} else {
+		query = tx.Model((*UserDeploymentRequest)(nil))
+	}
+	res, err := query.
+		Set("status = ?", bean.DeploymentRequestTerminated).
+		Join("INNER join pipeline p").
+		JoinOn("user_deployment_request.pipeline_id = p.id").
+		Where("user_deployment_request.pipeline_id = ?", pipelineId).
+		Where("p.deleted = ?", true).
+		Update()
+	return res.RowsAffected(), err
+}
+
 func (impl *UserDeploymentRequestRepositoryImpl) IsLatestForPipelineId(id, pipelineId int) (bool, error) {
 	model := &UserDeploymentRequest{}
 	ifAnySuccessorExists, err := impl.dbConnection.
 		Model(model).
 		Column("user_deployment_request.*").
 		Join("INNER join cd_workflow wf").
-		JoinOn("wf.id = user_deployment_request.cd_workflow_id").
+		JoinOn("user_deployment_request.cd_workflow_id = wf.id").
 		Where("wf.pipeline_id = ?", pipelineId).
 		Where("user_deployment_request.id > ?", id).
 		Order("user_deployment_request.id DESC").

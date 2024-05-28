@@ -616,7 +616,7 @@ func InitializeApp() (*App, error) {
 	pipelineConfigRestHandlerImpl := configure.NewPipelineRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, deploymentTemplateValidationServiceImpl, chartServiceImpl, devtronAppGitOpConfigServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, generateManifestDeploymentTemplateServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, policyServiceImpl, imageScanResultRepositoryImpl, gitProviderRepositoryImpl, argoUserServiceImpl, ciPipelineMaterialRepositoryImpl, imageTaggingServiceImpl, ciArtifactRepositoryImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, ciCdPipelineOrchestratorImpl)
 	gitOpsManifestPushServiceImpl := app2.NewGitOpsManifestPushServiceImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, pipelineStatusTimelineRepositoryImpl, acdConfig, chartRefServiceImpl, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, argoClientWrapperServiceImpl)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sServiceImpl)
-	userDeploymentRequestRepositoryImpl := repository15.NewUserDeploymentRequestRepositoryImpl(db)
+	userDeploymentRequestRepositoryImpl := repository15.NewUserDeploymentRequestRepositoryImpl(db, transactionUtilImpl)
 	userDeploymentRequestServiceImpl := service2.NewUserDeploymentRequestServiceImpl(userDeploymentRequestRepositoryImpl, sugaredLogger)
 	manifestPushConfigRepositoryImpl := repository9.NewManifestPushConfigRepository(sugaredLogger, db)
 	scanToolExecutionHistoryMappingRepositoryImpl := security.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
@@ -918,7 +918,7 @@ func InitializeApp() (*App, error) {
 	cdWorkflowServiceImpl := cd.NewCdWorkflowServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	cdWorkflowRunnerServiceImpl := cd.NewCdWorkflowRunnerServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	webhookServiceImpl := pipeline.NewWebhookServiceImpl(ciArtifactRepositoryImpl, sugaredLogger, ciPipelineRepositoryImpl, ciWorkflowRepositoryImpl, cdWorkflowCommonServiceImpl)
-	workflowEventProcessorImpl, err := in.NewWorkflowEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowServiceImpl, cdWorkflowRunnerServiceImpl, workflowDagExecutorImpl, argoUserServiceImpl, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, triggerServiceImpl, deployedAppServiceImpl, webhookServiceImpl, validate, environmentVariables, cdWorkflowCommonServiceImpl, cdPipelineConfigServiceImpl, userDeploymentRequestServiceImpl, pipelineRepositoryImpl, ciArtifactRepositoryImpl, cdWorkflowRepositoryImpl)
+	workflowEventProcessorImpl, err := in.NewWorkflowEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowServiceImpl, cdWorkflowRunnerServiceImpl, workflowDagExecutorImpl, argoUserServiceImpl, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, triggerServiceImpl, deployedAppServiceImpl, webhookServiceImpl, validate, environmentVariables, cdWorkflowCommonServiceImpl, cdPipelineConfigServiceImpl, userDeploymentRequestServiceImpl, pipelineRepositoryImpl, ciArtifactRepositoryImpl, cdWorkflowRepositoryImpl, cronLoggerImpl)
 	if err != nil {
 		return nil, err
 	}

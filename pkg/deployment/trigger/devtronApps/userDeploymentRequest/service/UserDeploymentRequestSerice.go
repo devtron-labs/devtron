@@ -32,9 +32,11 @@ import (
 type UserDeploymentRequestService interface {
 	SaveNewDeployment(asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) error
 	UpdateStatusForCdWfIds(status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
+	UpdateStatusOnPipelineDelete(pipelineId int) (err error)
 	GetDeployRequestStatusByCdWfId(cdWfId int) (bean.UserDeploymentRequestStatus, error)
 	GetAsyncCdDeployRequestById(id int) (*eventProcessorBean.AsyncCdDeployRequest, error)
 	IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error)
+	GetAllInCompleteRequests() ([]*eventProcessorBean.AsyncCdDeployRequest, error)
 }
 
 type UserDeploymentRequestServiceImpl struct {
@@ -118,6 +120,30 @@ func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(status bean
 	return nil
 }
 
+func (impl *UserDeploymentRequestServiceImpl) UpdateStatusOnPipelineDelete(pipelineId int) (err error) {
+	_, err = impl.userDeploymentRequestRepo.TerminateForPipelineId(nil, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in updating terminated status for deleted pipeline", "pipelineId", pipelineId, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteRequests() ([]*eventProcessorBean.AsyncCdDeployRequest, error) {
+	models, err := impl.userDeploymentRequestRepo.GetAllInCompleteRequests()
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in getting all incomplete userDeploymentRequests", "err", err)
+		return nil, err
+	}
+	response := make([]*eventProcessorBean.AsyncCdDeployRequest, 0, len(models))
+	for _, model := range models {
+		response = append(response, adapter.NewAsyncCdDeployRequest(&model.UserDeploymentRequest).
+			WithCdWorkflowRunnerId(model.CdWorkflowRunnerId).
+			WithPipelineOverrideId(model.PipelineOverrideId))
+	}
+	return response, nil
+}
+
 func validateStatusUpdate(curr, dest bean.UserDeploymentRequestStatus) (isAllowed bool) {
 	if curr == dest {
 		return true
@@ -154,7 +180,9 @@ func (impl *UserDeploymentRequestServiceImpl) GetAsyncCdDeployRequestById(id int
 		impl.logger.Errorw("error in getting userDeploymentRequest by id", "id", id, "err", err)
 		return nil, err
 	}
-	return adapter.NewAsyncCdDeployRequest(model), nil
+	return adapter.NewAsyncCdDeployRequest(&model.UserDeploymentRequest).
+		WithCdWorkflowRunnerId(model.CdWorkflowRunnerId).
+		WithPipelineOverrideId(model.PipelineOverrideId), nil
 }
 
 func (impl *UserDeploymentRequestServiceImpl) IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error) {

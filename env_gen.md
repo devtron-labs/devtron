@@ -88,6 +88,7 @@
  | DEFAULT_TIMEOUT | 3600 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
+ | DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT | 1 |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
  | DEVTRON_DEFAULT_NAMESPACE | devtroncd |  | 
  | DEVTRON_DEX_SECRET_NAMESPACE | devtroncd |  | 

@@ -30,6 +30,22 @@ type AsyncCdDeployRequest struct {
 	TriggeredBy             int32                       `json:"triggeredBy"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
 }
 
+func (r *AsyncCdDeployRequest) WithCdWorkflowRunnerId(id int) *AsyncCdDeployRequest {
+	if r.ValuesOverrideRequest == nil {
+		return r
+	}
+	r.ValuesOverrideRequest.WfrId = id
+	return r
+}
+
+func (r *AsyncCdDeployRequest) WithPipelineOverrideId(id int) *AsyncCdDeployRequest {
+	if r.ValuesOverrideRequest == nil {
+		return r
+	}
+	r.ValuesOverrideRequest.PipelineOverrideId = id
+	return r
+}
+
 type ImageDetailsFromCR struct {
 	ImageDetails []types.ImageDetail `json:"imageDetails"`
 	Region       string              `json:"region"`
