@@ -65,6 +65,7 @@ func (impl *CdWorkflowRunnerServiceImpl) CheckIfWfrLatest(wfrId, pipelineId int)
 
 func (impl *CdWorkflowRunnerServiceImpl) UpdateWfrStatus(dto *bean.CdWorkflowRunnerDto, status string, updatedBy int) error {
 	runnerDbObj := adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto)
+	runnerDbObj.Status = status
 	runnerDbObj.UpdatedBy = int32(updatedBy)
 	runnerDbObj.UpdatedOn = time.Now()
 	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runnerDbObj)
