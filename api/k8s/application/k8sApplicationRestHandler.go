@@ -800,6 +800,28 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 	}
 }
 
+func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperUsers(token string) error {
+	envVars := &bean2.TerminalEnvVariables{}
+	err := env.Parse(envVars)
+	if err != nil {
+		handler.logger.Errorw("error parsing terminal env variables", "err", err)
+		return util2.NewApiError().
+			WithCode(strconv.Itoa(http.StatusBadRequest)).
+			WithHttpStatusCode(http.StatusBadRequest).
+			WithInternalMessage(err.Error()).
+			WithUserMessage("error parsing terminal env variables")
+	}
+	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal/ephemeral containers
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
+		handler.logger.Errorw("unauthorized user, only super admins can access terminal", "err", err)
+		return util2.NewApiError().
+			WithCode(strconv.Itoa(http.StatusForbidden)).
+			WithHttpStatusCode(http.StatusForbidden).
+			WithUserMessage("unauthorized")
+	}
+	return nil
+}
+
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -816,19 +838,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
-
-	envVars := &bean2.TerminalEnvVariables{}
-	err = env.Parse(envVars)
+	err = handler.restrictTerminalAccessForNonSuperUsers(token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
-	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal
-	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -1028,15 +1042,9 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	envVars := &bean2.TerminalEnvVariables{}
-	err = env.Parse(envVars)
+	err = handler.restrictTerminalAccessForNonSuperUsers(token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can create ephemeral container
-	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
 	//rbac applied in below function
@@ -1084,15 +1092,9 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	envVars := &bean2.TerminalEnvVariables{}
-	err = env.Parse(envVars)
+	err = handler.restrictTerminalAccessForNonSuperUsers(token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can delete ephemeral container
-	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
 	//rbac applied in below function
