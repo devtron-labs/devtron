@@ -193,7 +193,7 @@ type TelemetryEventDto struct {
 	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
 	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
-	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
+	CloudProvider                        string             `json:"cloudProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -216,10 +216,12 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
-	payload.ServerVersion = k8sServerVersion.String()
-
+	clusters, users, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
+	_, payload, err := impl.TelemetryEventClientImpl.fetchPayloadAlongWithCommonEventParams(TelemetryEventType(eventType), ucid)
+	if err != nil {
+		impl.logger.Errorw("error in fetching common event params", "error", err, "payload", payload)
+		return err
+	}
 	environmentCount, err := impl.environmentService.GetAllActiveEnvironmentCount()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving environmentCount, setting its value to -1", "err", err)
@@ -371,7 +373,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	payload.ClusterProvider, err = impl.GetCloudProvider()
+	payload.CloudProvider, err = impl.GetCloudProvider()
 	if err != nil {
 		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err

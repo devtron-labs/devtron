@@ -50,12 +50,12 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 const LOGIN_COUNT_CONST = "login-count"
 const SKIPPED_ONBOARDING_CONST = "SkippedOnboarding"
 const ADMIN_EMAIL_ID_CONST = "admin"
+const DEVTRON_VERSION = "v1"
 
 type TelemetryEventClientImpl struct {
 	cron                           *cron.Cron
@@ -168,7 +168,7 @@ type TelemetryEventEA struct {
 	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
 	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
-	ClusterProvider                    string             `json:"clusterProvider,omitempty"`
+	CloudProvider                      string             `json:"cloudProvider,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -198,19 +198,8 @@ const (
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo,
-	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
+	hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
 	SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
-
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	k8sServerVersion, err = discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
 
 	users, err := impl.userService.GetAll()
 	if err != nil && err != pg.ErrNoRows {
@@ -302,7 +291,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ssoSetup = true
 	}
 
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
+	return clusters, users, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -331,32 +320,28 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
+	clusters, users, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
-	payload.ServerVersion = k8sServerVersion.String()
-	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-	payload.HostURL = hostURL
-	payload.SSOLogin = ssoSetup
-	payload.UserCount = len(users)
-	payload.ClusterCount = len(clusters)
-	payload.InstalledIntegrations = installedIntegrations
-	payload.InstallFailedIntegrations = installFailedIntegrations
-	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
-	payload.InstallingIntegrations = installingIntegrations
-	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
-	payload.HelmAppAccessCounter = HelmAppAccessCount
-	payload.ChartStoreVisitCount = ChartStoreVisitCount
-	payload.SkippedOnboarding = SkippedOnboarding
-	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
-	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
-	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
-
-	payload.ClusterProvider, err = impl.GetCloudProvider()
+	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(TelemetryEventType(eventType), ucid)
 	if err != nil {
-		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
 		return err
 	}
+	payloadEA.HostURL = hostURL
+	payloadEA.SSOLogin = ssoSetup
+	payloadEA.UserCount = len(users)
+	payloadEA.ClusterCount = len(clusters)
+	payloadEA.InstalledIntegrations = installedIntegrations
+	payloadEA.InstallFailedIntegrations = installFailedIntegrations
+	payloadEA.InstallTimedOutIntegrations = installTimedOutIntegrations
+	payloadEA.InstallingIntegrations = installingIntegrations
+	payloadEA.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+	payloadEA.HelmAppAccessCounter = HelmAppAccessCount
+	payloadEA.ChartStoreVisitCount = ChartStoreVisitCount
+	payloadEA.SkippedOnboarding = SkippedOnboarding
+	payloadEA.HelmAppUpdateCounter = HelmAppUpdateCounter
+	payloadEA.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
+	payloadEA.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
@@ -364,10 +349,10 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		if loginTime.IsZero() {
 			loginTime = latestUser.CreatedOn
 		}
-		payload.LastLoginTime = loginTime
+		payloadEA.LastLoginTime = loginTime
 	}
 
-	reqBody, err := json.Marshal(payload)
+	reqBody, err := json.Marshal(payloadEA)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
 		return err
@@ -439,22 +424,13 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(Heartbeat, ucid)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
+		impl.logger.Errorw("HeartbeatEventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
 		return
 	}
 
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-		return
-	}
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
-	payload.ServerVersion = k8sServerVersion.String()
-	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-
-	reqBody, err := json.Marshal(payload)
+	reqBody, err := json.Marshal(payloadEA)
 	if err != nil {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
 		return
@@ -501,29 +477,13 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
-
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(InstallationSuccess, ucid)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return nil, err
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "payload", payloadEA)
 		return nil, err
 	}
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: InstallationSuccess, DevtronVersion: "v1"}
-	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-	payload.ServerVersion = k8sServerVersion.String()
-
-	payload.ClusterProvider, err = impl.GetCloudProvider()
-	if err != nil {
-		impl.logger.Errorw("error while getting cluster provider", "error", err)
-		return nil, err
-	}
-
-	reqBody, err := json.Marshal(payload)
+	reqBody, err := json.Marshal(payloadEA)
 	if err != nil {
 		impl.logger.Errorw("Installation EventForTelemetry EA Mode, payload marshal error", "error", err)
 		return nil, nil
@@ -568,28 +528,13 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		return err
 	}
 
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(DashboardAccessed, ucid)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "payload", payloadEA)
 		return err
 	}
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardAccessed, DevtronVersion: "v1"}
-	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-	payload.ServerVersion = k8sServerVersion.String()
-
-	payload.ClusterProvider, err = impl.GetCloudProvider()
-	if err != nil {
-		impl.logger.Errorw("error while getting cluster provider", "error", err)
-		return err
-	}
-
-	reqBody, err := json.Marshal(payload)
+	reqBody, err := json.Marshal(payloadEA)
 	if err != nil {
 		impl.logger.Errorw("DashboardAccessed EventForTelemetry, payload marshal error", "error", err)
 		return err
@@ -634,28 +579,13 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		return err
 	}
 
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(DashboardLoggedIn, ucid)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
 		return err
 	}
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardLoggedIn, DevtronVersion: "v1"}
-	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-	payload.ServerVersion = k8sServerVersion.String()
-
-	payload.ClusterProvider, err = impl.GetCloudProvider()
-	if err != nil {
-		impl.logger.Errorw("error while getting cluster provider", "error", err)
-		return err
-	}
-
-	reqBody, err := json.Marshal(payload)
+	reqBody, err := json.Marshal(payloadEA)
 	if err != nil {
 		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, payload marshal error", "error", err)
 		return err
@@ -794,4 +724,52 @@ func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []strin
 
 	return installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations, nil
 
+}
+
+func (impl *TelemetryEventClientImpl) fetchPayloadAlongWithCommonEventParams(eventType TelemetryEventType, ucid string) (*TelemetryEventEA, *TelemetryEventDto, error) {
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, nil, err
+	}
+	cloudProvider, err := impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return nil, nil, err
+	}
+	// payload for EA mode
+	payloadEA := impl.buildTelemetryEventEA(eventType, ucid, k8sServerVersion.String(), cloudProvider)
+	// payload for Full mode
+	payload := impl.buildTelemetryEventDto(eventType, ucid, k8sServerVersion.String(), cloudProvider)
+
+	return payloadEA, payload, nil
+}
+
+func (impl *TelemetryEventClientImpl) buildTelemetryEventEA(eventType TelemetryEventType, ucid, serverVersion, cloudProvider string) *TelemetryEventEA {
+	return &TelemetryEventEA{
+		UCID:           ucid,
+		Timestamp:      time.Now(),
+		EventType:      eventType,
+		DevtronVersion: DEVTRON_VERSION,
+		DevtronMode:    util.GetDevtronVersion().ServerMode,
+		ServerVersion:  serverVersion,
+		CloudProvider:  cloudProvider,
+	}
+}
+
+func (impl *TelemetryEventClientImpl) buildTelemetryEventDto(eventType TelemetryEventType, ucid, serverVersion, cloudProvider string) *TelemetryEventDto {
+	return &TelemetryEventDto{
+		UCID:           ucid,
+		Timestamp:      time.Now(),
+		EventType:      eventType,
+		DevtronVersion: DEVTRON_VERSION,
+		DevtronMode:    util.GetDevtronVersion().ServerMode,
+		ServerVersion:  serverVersion,
+		CloudProvider:  cloudProvider,
+	}
 }
