@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/util"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"net/http"
 	"regexp"
@@ -106,6 +107,10 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return notes, err
 		}
 		_, err = impl.updateNotesForInstalledApp(installedAppId, notes)
