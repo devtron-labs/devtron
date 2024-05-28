@@ -1,0 +1,129 @@
+openapi: 3.0.3
+info:
+  title: Application Workflow Cloning
+  description: API for cloning application workflows
+  version: 1.0.0
+
+paths:
+  /orchestrator/app/workflow/clone:
+    post:
+      description: Clones an application workflow from a source environment to a target environment
+      operationId: CloneApplicationWorkflow
+      requestBody:
+        description: A JSON object containing the details required to clone the workflow
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloneApplicationWorkflowRequest'
+      responses:
+        '200':
+          description: Successfully cloned the application workflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloneApplicationWorkflowResponse'
+        '400':
+          description: Bad Request. Input validation error or wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+        '403':
+          description: Forbidden. User does not have the necessary permissions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedError'
+
+components:
+  schemas:
+    CloneApplicationWorkflowRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: ID of the application
+        sourceEnvironmentId:
+          type: integer
+          description: ID of the source environment
+        targetEnvironmentId:
+          type: integer
+          description: ID of the target environment
+        cloneEnvInSameWorkflow:
+          type: boolean
+          description: Flag indicating if the environment should be cloned in the same workflow
+      required:
+        - appId
+        - sourceEnvironmentId
+        - targetEnvironmentId
+        - cloneEnvInSameWorkflow
+    CloneApplicationWorkflowResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code
+        status:
+          type: string
+          description: Status message
+        result:
+          type: object
+          properties:
+            appId:
+              type: integer
+              description: ID of the application
+            sourceEnvironmentId:
+              type: integer
+              description: ID of the source environment
+            targetEnvironmentId:
+              type: integer
+              description: ID of the target environment
+            cloneEnvInSameWorkflow:
+              type: boolean
+              description: Flag indicating if the environment was cloned in the same workflow
+      required:
+        - code
+        - status
+        - result
+    DetailedError:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+        status:
+          type: string
+          description: Status message
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        internalMessage:
+          type: string
+          description: Internal error message
+        userMessage:
+          type: string
+          description: User-friendly error message
+      required:
+        - code
+        - internalMessage
+        - userMessage
