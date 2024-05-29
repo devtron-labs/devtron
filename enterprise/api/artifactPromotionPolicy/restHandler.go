@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strings"
 )
 
 type RestHandler interface {
@@ -73,7 +74,7 @@ func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	promotionPolicy.Name = strings.Trim(promotionPolicy.Name, " ")
 	err = handler.validator.Struct(promotionPolicy)
 	if err != nil {
 		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", promotionPolicy)
@@ -105,7 +106,7 @@ func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Reque
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	promotionPolicy.Name = strings.Trim(promotionPolicy.Name, " ")
 	err = handler.validator.Struct(promotionPolicy)
 	if err != nil {
 		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", promotionPolicy)
@@ -132,6 +133,7 @@ func (handler RestHandlerImpl) DeletePolicy(w http.ResponseWriter, r *http.Reque
 
 	vars := mux.Vars(r)
 	policyName := vars["name"]
+	policyName = strings.Trim(policyName, " ")
 	err := handler.promotionPolicyCUDService.DeletePolicy(ctx, policyName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
