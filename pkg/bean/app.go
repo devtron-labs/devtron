@@ -61,11 +61,14 @@ type CreateAppDTO struct {
 }
 
 type CloneWorkflowDTO struct {
-	AppId                  int   `json:"appId"`
-	SourceEnvironmentId    int   `json:"sourceEnvironmentId"`
-	TargetEnvironmentId    int   `json:"targetEnvironmentId"`
-	CloneEnvInSameWorkflow bool  `json:"cloneEnvInSameWorkflow" default:"false"`
-	UserId                 int32 `json:"-"`
+	AppId                  int    `json:"appId"`
+	AppName                string `json:"appName"`
+	SourceEnvironmentId    int    `json:"sourceEnvironmentId"`
+	SourceEnvironmentName  string `json:"sourceEnvironmentName"`
+	TargetEnvironmentId    int    `json:"targetEnvironmentId"`
+	TargetEnvironmentName  string `json:"targetEnvironmentName"`
+	CloneEnvInSameWorkflow bool   `json:"cloneEnvInSameWorkflow" default:"false"`
+	UserId                 int32  `json:"-"`
 }
 
 type CreateMaterialDTO struct {

@@ -1325,6 +1325,28 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, e
 }
 
 func (impl *AppCloneServiceImpl) ValidateCloneWfRequest(createReq *bean.CloneWorkflowDTO) (int, error) {
+	if createReq.AppId == 0 {
+		app, err := impl.appRepository.FindActiveByName(createReq.AppName)
+		if err != nil {
+			return 0, err
+		}
+		createReq.AppId = app.Id
+	}
+	if createReq.SourceEnvironmentId == 0 {
+		env, err := impl.environmentRepository.FindByName(createReq.SourceEnvironmentName)
+		if err != nil {
+			return 0, err
+		}
+		createReq.SourceEnvironmentId = env.Id
+	}
+	if createReq.TargetEnvironmentId == 0 {
+		env, err := impl.environmentRepository.FindByName(createReq.TargetEnvironmentName)
+		if err != nil {
+			return 0, err
+		}
+		createReq.TargetEnvironmentId = env.Id
+	}
+
 	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(createReq.AppId)
 	if err != nil {
 		return 0, err

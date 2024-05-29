@@ -911,7 +911,6 @@ func (handler *PipelineConfigRestHandlerImpl) CloneWorkflow(w http.ResponseWrite
 	var createRequest bean.CloneWorkflowDTO
 	err = decoder.Decode(&createRequest)
 	createRequest.UserId = userId
-
 	if err != nil {
 		handler.Logger.Errorw("request err, CloneWorkflow", "err", err, "CloneWorkflow", createRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

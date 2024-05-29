@@ -56,19 +56,25 @@ components:
         appId:
           type: integer
           description: ID of the application
+        appName:
+          type: string
+          description: Name of the application
         sourceEnvironmentId:
           type: integer
           description: ID of the source environment
+        sourceEnvironmentName:
+          type: string
+          description: Name of the source environment
         targetEnvironmentId:
           type: integer
           description: ID of the target environment
+        targetEnvironmentName:
+          type: string
+          description: Name of the target environment
         cloneEnvInSameWorkflow:
           type: boolean
           description: Flag indicating if the environment should be cloned in the same workflow
       required:
-        - appId
-        - sourceEnvironmentId
-        - targetEnvironmentId
         - cloneEnvInSameWorkflow
     CloneApplicationWorkflowResponse:
       type: object
@@ -85,12 +91,21 @@ components:
             appId:
               type: integer
               description: ID of the application
+            appName:
+              type: string
+              description: Name of the application
             sourceEnvironmentId:
               type: integer
               description: ID of the source environment
+            sourceEnvironmentName:
+              type: string
+              description: Name of the source environment
             targetEnvironmentId:
               type: integer
               description: ID of the target environment
+            targetEnvironmentName:
+              type: string
+              description: Name of the target environment
             cloneEnvInSameWorkflow:
               type: boolean
               description: Flag indicating if the environment was cloned in the same workflow
