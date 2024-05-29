@@ -403,7 +403,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 
 func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chartGroup.ChartGroupInstallRequest, token string) ([]*chartGroup.ChartGroupInstallChartRequest, *chartGroup.ChartGroupInstallAppRes) {
 	//the value of this map is array of integer because the GetHelmObjectByProjectIdAndEnvId method may return "//" for error cases
-	//so different apps may contain same object, to handle that we are using (map[string] []int)
+	//so different environments may contain same object, to handle that we are using (map[string] []int)
 	rbacObjectToEnvIdMap1 := make(map[string][]int)
 	rbacObjectToEnvIdMap2 := make(map[string][]int)
 
@@ -433,7 +433,7 @@ func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chart
 
 	authorizedEnvIdSet := make(map[int]bool)
 
-	//O(n) time loop , at max we will only iterate through all the apps
+	//O(n) time loop , at max we will only iterate through all the envs
 	for obj, ok := range resultObjectMap1 {
 		if ok {
 			envIds := rbacObjectToEnvIdMap1[obj]
