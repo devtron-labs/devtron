@@ -1,3 +1,6 @@
+//go:build wireinject
+// +build wireinject
+
 /*
  * Copyright (c) 2024. Devtron Inc.
  *
@@ -13,9 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-//go:build wireinject
-// +build wireinject
 
 package main
 
@@ -121,7 +121,7 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
@@ -953,8 +953,8 @@ func InitializeApp() (*App, error) {
 		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
-		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		read.NewDevtronResourceSearchableKeyServiceImpl,
+		wire.Bind(new(read.DevtronResourceSearchableKeyService), new(*read.DevtronResourceSearchableKeyServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
