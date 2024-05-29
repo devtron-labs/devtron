@@ -72,6 +72,8 @@ type ValuesOverrideRequest struct {
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
+	Namespace                             string                      `json:"-"`
+	ReleaseName                           string                      `json:"-"`
 	Image                                 string                      `json:"-"`
 }
 

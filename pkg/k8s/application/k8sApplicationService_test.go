@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -226,7 +226,7 @@ func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request
 // }
 func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
 	return k8s.ResourceRequestBean{
-		AppIdentifier: &client.AppIdentifier{},
+		AppIdentifier: &helmBean.AppIdentifier{},
 		K8sRequest: &k8s2.K8sRequestBean{
 			ResourceIdentifier: k8s2.ResourceIdentifier{
 				GroupVersionKind: schema.GroupVersionKind{

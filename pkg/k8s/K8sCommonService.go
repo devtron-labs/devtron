@@ -7,7 +7,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -192,7 +192,7 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 			req := ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
-				AppIdentifier: &service.AppIdentifier{
+				AppIdentifier: &helmBean.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
 				K8sRequest: &k8s.K8sRequestBean{

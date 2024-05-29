@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -578,7 +579,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
 		var err error
 		if installedApp.DeploymentAppType == bean2.ArgoCd {
-			appIdentifier := &client.AppIdentifier{
+			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   installedApp.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
 				Namespace:   installedApp.Environment.Namespace,

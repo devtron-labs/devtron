@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -433,7 +434,7 @@ func convertUrlToHttpsIfSshType(url string) string {
 }
 
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
-func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *client.AppIdentifier) (*appRepository.App, error) {
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, error) {
 	app := &appRepository.App{}
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
@@ -455,7 +456,7 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
 // returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) error {
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *helmBean.AppIdentifier) error {
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {

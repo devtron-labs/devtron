@@ -6,6 +6,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
@@ -138,7 +139,7 @@ func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context,
 	if installAppVersionRequest.ForceDelete {
 		return nil
 	}
-	appIdentifier := &client.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installAppVersionRequest.ClusterId,
 		ReleaseName: installAppVersionRequest.AppName,
 		Namespace:   installAppVersionRequest.Namespace,
@@ -174,7 +175,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
 	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
 
-	helmAppIdeltifier := &client.AppIdentifier{
+	helmAppIdeltifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
@@ -203,7 +204,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
-	helmAppIdentifier := &client.AppIdentifier{
+	helmAppIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
@@ -213,7 +214,7 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Contex
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	helmAppIdeltifier := &client.AppIdentifier{
+	helmAppIdeltifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,

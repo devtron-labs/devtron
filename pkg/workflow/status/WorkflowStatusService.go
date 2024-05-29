@@ -5,7 +5,7 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -131,7 +131,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 			// if wfr is updated within configured time then do not include for this cron cycle
 			continue
 		}
-		appIdentifier := &client.AppIdentifier{
+		appIdentifier := &bean.AppIdentifier{
 			ClusterId:   wfr.CdWorkflow.Pipeline.Environment.ClusterId,
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -1050,8 +1050,8 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	return bulkOperationResponse, nil
 }
 
-func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*client.AppIdentifier, *openapi.HibernateRequest, error) {
-	appIdentifier := &client.AppIdentifier{
+func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*helmBean.AppIdentifier, *openapi.HibernateRequest, error) {
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		Namespace:   pipeline.Environment.Namespace,
 		ReleaseName: pipeline.DeploymentAppName,

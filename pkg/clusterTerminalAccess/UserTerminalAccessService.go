@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
@@ -850,7 +850,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 	}
 	request := &k8s.ResourceRequestBean{
 		ClusterId: clusterId,
-		AppIdentifier: &client.AppIdentifier{
+		AppIdentifier: &bean.AppIdentifier{
 			ClusterId: clusterId,
 		},
 		K8sRequest: &k8s2.K8sRequestBean{

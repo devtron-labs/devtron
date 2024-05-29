@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -659,7 +660,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
 		if pipeline.DeploymentAppType == bean3.ArgoCd {
-			appIdentifier := &service.AppIdentifier{
+			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,
 				Namespace:   pipeline.Environment.Namespace,
@@ -751,7 +752,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteHelmApp(ctx context.Contex
 	}
 
 	// create app identifier
-	appIdentifier := &service.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		ReleaseName: pipeline.DeploymentAppName,
 		Namespace:   pipeline.Environment.Namespace,

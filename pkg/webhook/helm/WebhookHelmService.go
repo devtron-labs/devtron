@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
@@ -106,7 +107,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-4 - build app identifier
-	appIdentifier := &client.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   clusterId,
 		Namespace:   request.Namespace,
 		ReleaseName: request.ReleaseName,

@@ -544,7 +544,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_GIT_COMMIT &&
 			latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
 			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "wfrId", runnerHistoryId)
-			// TODO Asutosh: call deployment watcher cron method here
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(runnerHistoryId, 1)
@@ -655,7 +654,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_GIT_COMMIT &&
 			latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
 			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "wfrId", runnerHistoryId)
-			// TODO Asutosh: call deployment watcher cron method here
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetailForAppStore(runnerHistoryId, 1)

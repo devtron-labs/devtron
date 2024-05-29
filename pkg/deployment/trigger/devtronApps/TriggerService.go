@@ -82,7 +82,7 @@ type TriggerService interface {
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
-	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, skipAuditHistory bool, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error)
+	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error)
 }
 
 type TriggerServiceImpl struct {
@@ -669,7 +669,7 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 		return impl.workflowEventPublishService.TriggerAsyncRelease(newDeploymentRequest.UserDeploymentRequestId, overrideRequest, ctx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
-	releaseNo, err = impl.TriggerRelease(overrideRequest, false, ctx, triggeredAt, deployedBy)
+	releaseNo, err = impl.TriggerRelease(overrideRequest, ctx, triggeredAt, deployedBy)
 	if err != nil {
 		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
 		if err1 != nil {
@@ -683,13 +683,14 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 }
 
 // TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
-func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, skipAuditHistory bool, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
+func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
 	// Handling for auto trigger
 	if overrideRequest.UserId == 0 {
 		overrideRequest.UserId = triggeredBy
 	}
 	triggerEvent := helper.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
-
+	// if overrideRequest.PipelineOverrideId is already set to non-zero, then pipeline_config_override is already been created
+	skipAuditHistory := overrideRequest.PipelineOverrideId != 0
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
 	if !skipAuditHistory {

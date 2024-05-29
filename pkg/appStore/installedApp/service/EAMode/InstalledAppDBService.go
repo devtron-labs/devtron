@@ -18,7 +18,7 @@
 package EAMode
 
 import (
-	"github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -55,7 +55,7 @@ type InstalledAppDBService interface {
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 
 	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
-	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
+	GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
 	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
 }
@@ -326,7 +326,7 @@ func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp
 	installedApp.ChangeAppNameToDisplayName()
 }
 
-func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
 	//for external-apps appName would be uniqueIdentifier
 	appName := appIdentifier.GetUniqueAppNameIdentifier()
 	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)

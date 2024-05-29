@@ -5,7 +5,7 @@ package mocks
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	bean "github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 
@@ -545,18 +545,18 @@ func (_m *K8sApplicationService) ValidatePodLogsRequestQuery(r *http.Request) (*
 }
 
 // ValidateResourceRequest provides a mock function with given fields: ctx, appIdentifier, request
-func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *k8s.K8sRequestBean) (bool, error) {
+func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *helmBean.AppIdentifier, request *k8s.K8sRequestBean) (bool, error) {
 	ret := _m.Called(ctx, appIdentifier, request)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *k8s.K8sRequestBean) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *helmBean.AppIdentifier, *k8s.K8sRequestBean) bool); ok {
 		r0 = rf(ctx, appIdentifier, request)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *k8s.K8sRequestBean) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *helmBean.AppIdentifier, *k8s.K8sRequestBean) error); ok {
 		r1 = rf(ctx, appIdentifier, request)
 	} else {
 		r1 = ret.Error(1)

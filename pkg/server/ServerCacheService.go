@@ -20,6 +20,7 @@ package server
 import (
 	"context"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -54,7 +55,7 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 	}
 
 	// devtron helm release identifier
-	appIdentifier := client.AppIdentifier{
+	appIdentifier := bean.AppIdentifier{
 		ClusterId:   1,
 		Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
 		ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
