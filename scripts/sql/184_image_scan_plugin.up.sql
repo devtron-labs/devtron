@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_metadata'), 'Vulnerability Scanning','Scan a image','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ic-plugin-vulnerability-scan.png','f', 'now()', 1, 'now()', 1);
 

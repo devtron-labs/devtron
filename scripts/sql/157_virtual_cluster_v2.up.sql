@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS oci_registry_config
     PRIMARY KEY ("id")
 );
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Adding a CHECK constraint to ensure UNIQUE(container_registry_id, repository_type) if delete=false
 CREATE UNIQUE INDEX idx_unique_oci_registry_config
     ON oci_registry_config (docker_artifact_store_id, repository_type)

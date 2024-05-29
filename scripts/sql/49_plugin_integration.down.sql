@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."plugin_metadata" CASCADE;
 DROP TABLE "public"."plugin_tag" CASCADE;
 DROP TABLE "public"."plugin_tag_relation" CASCADE;

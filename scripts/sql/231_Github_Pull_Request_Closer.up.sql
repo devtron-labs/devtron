@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Github Pull Request Closer v1.0','Closing Pull Requests in Github ','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/GithubPullRequest-Plugin-logo.png',false,'now()',1,'now()',1);
 

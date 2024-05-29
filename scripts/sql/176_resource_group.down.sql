@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Reverting changes made to app_group_mapping
 ALTER TABLE public.resource_group_mapping DROP CONSTRAINT resource_group_mapping_fk;
 ALTER TABLE public.resource_group_mapping RENAME TO app_group_mapping;

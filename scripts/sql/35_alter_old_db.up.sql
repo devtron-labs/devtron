@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ----Dropping tables which are not being used and are not deleted earlier by migration
 
 DROP TABLE IF EXISTS casbin_role CASCADE;

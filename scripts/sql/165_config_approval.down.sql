@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE IF EXISTS public.default_rbac_role_data;
 DROP TABLE IF EXISTS public.resource_protection;
 DROP TABLE IF EXISTS public.resource_protection_history;

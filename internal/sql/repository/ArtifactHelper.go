@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 func (artifact *CiArtifact) CopyArtifactMetadata(pipelineId int, userId int32) *CiArtifact {

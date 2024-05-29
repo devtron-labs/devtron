@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --
 -- Name: user_attributes; Type: TABLE; Schema: public; Owner: postgres
 --

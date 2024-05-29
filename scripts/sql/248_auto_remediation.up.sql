@@ -97,6 +97,10 @@ ESCAPED_JSON="${ESCAPED_JSON//\\"/\\\\\\"}"      # Replace double quotes
            1
        );
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Insert Plugin Step
 INSERT INTO "plugin_step" ("id", "plugin_id", "name", "description", "index", "step_type", "script_id", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (

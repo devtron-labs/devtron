@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."config_map_history" CASCADE;
 DROP TABLE "public"."deployment_template_history" CASCADE;
 DROP TABLE "public"."app_store_charts_history" CASCADE;

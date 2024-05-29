@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE charts DROP COLUMN is_basic_view_locked;
 
 ALTER TABLE charts DROP COLUMN current_view_editor;

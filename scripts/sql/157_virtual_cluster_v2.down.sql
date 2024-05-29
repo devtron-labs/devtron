@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Dropping the sequence
 DROP SEQUENCE IF EXISTS id_seq_push_config;
 

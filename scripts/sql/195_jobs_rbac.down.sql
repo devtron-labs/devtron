@@ -1,4 +1,8 @@
 UPDATE app SET app_name = REPLACE  (app_name,'$etron','') where app_type =2;
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- UPDATE app SET app_name = REPLACE (app_name,'-','/') where app_type =2; not doing this because app_name can have different (-) //Kept for reference
 ALTER TABLE roles DROP COLUMN workflow;
 DELETE from rbac_role_resource_detail where resource='workflow';
