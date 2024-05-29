@@ -933,14 +933,35 @@ func (handler *PipelineConfigRestHandlerImpl) CloneWorkflow(w http.ResponseWrite
 	wfId, err := handler.appCloneService.ValidateCloneWfRequest(&createRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, CloneWorkflow", "err", err, "CloneWorkflow", createRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		type resp struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}
+		response := resp{}
+		response.Status = "SKIPPED"
+		response.Message = err.Error()
+		common.WriteJsonResp(w, nil, response, http.StatusOK)
 		return
 	}
-	createResp, err := handler.appCloneService.CloneWorkflow(&createRequest, wfId, r.Context())
+	_, err = handler.appCloneService.CloneWorkflow(&createRequest, wfId, r.Context())
 	if err != nil {
+		type resp struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}
+		response := resp{}
+		response.Status = "FAILED"
+		response.Message = err.Error()
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+	type resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	response := resp{}
+	response.Status = "SUCCESS"
+	response.Message = err.Error()
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 
 }
