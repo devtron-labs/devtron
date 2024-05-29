@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package cd
 
 import (
@@ -27,6 +31,7 @@ type CdWorkflowCommonService interface {
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
+	GetRunnerStatusBasedInWorkflowType(workflowType bean.WorkflowType) string
 }
 
 type CdWorkflowCommonServiceImpl struct {
@@ -191,7 +196,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 		if isTerminalStatus {
 			runner.FinishedOn = time.Now()
 		}
-		_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
 			impl.logger.Errorw("err on updating cd workflow runner for status update, UpdateCDWorkflowRunnerStatus", "err", err)
 			return err
@@ -287,4 +292,17 @@ func (impl *CdWorkflowCommonServiceImpl) canInitiateTrigger(natsMsgId string) (b
 
 func (impl *CdWorkflowCommonServiceImpl) IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error) {
 	return impl.cdWorkflowRepository.IsArtifactDeployedOnStage(ciArtifactId, pipelineId, runnerType)
+}
+
+func (impl *CdWorkflowCommonServiceImpl) GetRunnerStatusBasedInWorkflowType(workflowType bean.WorkflowType) string {
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+		return pipelineConfig.WorkflowStarting
+	case pipelineConfig.WorkflowTypePost:
+		return pipelineConfig.WorkflowStarting
+	case pipelineConfig.WorkflowTypeDeploy:
+		return pipelineConfig.WorkflowInitiated
+	}
+	// default assuming to be Initiated
+	return pipelineConfig.WorkflowInitiated
 }

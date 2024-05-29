@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_ci_env_mapping;
 CREATE TABLE "public"."ci_env_mapping" (
 "id" integer NOT NULL DEFAULT nextval('id_seq_ci_env_mapping'::regclass),

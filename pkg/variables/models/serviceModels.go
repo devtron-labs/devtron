@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package models
 
 import (
@@ -14,11 +18,6 @@ type ScopedVariableData struct {
 type VariableScopeMapping struct {
 	ScopeId int
 }
-
-//type VariableScope struct {
-//	*resourceQualifiers.QualifierMapping
-//	Data string
-//}
 
 type VariableScope struct {
 	id int

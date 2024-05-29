@@ -1,11 +1,15 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package infraConfig
 
 import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -52,7 +56,7 @@ type InfraConfigServiceImpl struct {
 	infraConfig                         *InfraConfig
 	appService                          app.AppService
 	configurationValidator              Validator
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService
 	qualifierMappingService             resourceQualifiers.QualifierMappingService
 }
 
@@ -61,7 +65,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	units *units.Units,
 	appService app.AppService,
 	configurationValidator Validator,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	qualifierMappingService resourceQualifiers.QualifierMappingService) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}
 	err := env.Parse(infraConfiguration)

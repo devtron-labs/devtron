@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package gRPC
 
 import (
@@ -28,6 +32,8 @@ type HelmAppClient interface {
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
+	TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error)
+	TemplateChartAndRetrieveChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponseWithChart, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	PushHelmChartToOCIRegistry(ctx context.Context, in *OCIRegistryRequest) (*OCIRegistryResponse, error)
@@ -289,6 +295,29 @@ func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallRel
 		return nil, err
 	}
 	response, err := applicationClient.TemplateChart(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.TemplateChartBulk(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (impl *HelmAppClientImpl) TemplateChartAndRetrieveChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponseWithChart, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.TemplateChartAndRetrieveChart(ctx, in)
 	if err != nil {
 		return nil, err
 	}

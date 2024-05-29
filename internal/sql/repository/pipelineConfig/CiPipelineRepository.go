@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipelineConfig
@@ -113,8 +100,10 @@ type CiPipelineRepository interface {
 	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
-	// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
-	FindOneWithAppData(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithMinData is to be used for fetching minimum data (including app.App and CiTemplate) for CiPipeline for the given CiPipeline.Id
+	FindOneWithMinData(id int) (pipeline *CiPipeline, err error)
+	// FindOneWithMinDataIncludingInactive is to be used for fetching minimum data (including app.App and CiTemplate) for CiPipeline for the given CiPipeline.Id
+	FindOneWithMinDataIncludingInactive(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
 	FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error)
 	FindByCiAndAppDetailsById(pipelineId int) (pipeline *CiPipeline, err error)
@@ -123,6 +112,7 @@ type CiPipelineRepository interface {
 	UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
+	FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
@@ -159,11 +149,11 @@ type CiPipelineRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiPipelineRepositoryImpl {
+func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) *CiPipelineRepositoryImpl {
 	return &CiPipelineRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -352,13 +342,22 @@ func (impl *CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, er
 	return pipeline, err
 }
 
-// FindOneWithAppData is to be used for fetching minimum data (including app.App) for CiPipeline for the given CiPipeline.Id
-func (impl *CiPipelineRepositoryImpl) FindOneWithAppData(id int) (pipeline *CiPipeline, err error) {
+func (impl *CiPipelineRepositoryImpl) FindOneWithMinData(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App").
+		Column("ci_pipeline.*", "App", "CiTemplate").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
+		Select()
+
+	return pipeline, err
+}
+
+func (impl *CiPipelineRepositoryImpl) FindOneWithMinDataIncludingInactive(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "App", "CiTemplate").
+		Where("ci_pipeline.id= ?", id).
 		Select()
 
 	return pipeline, err
@@ -437,6 +436,24 @@ func (impl *CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline 
 		Select()
 
 	return pipeline, err
+}
+func (impl *CiPipelineRepositoryImpl) FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error) {
+	var pipelines []*CiPipeline
+	if len(pipelineName) == 0 {
+		return nil, nil
+	}
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&pipelines).
+		Join("inner join app a on ci_pipeline.app_id = a.id").
+		Where("ci_pipeline.name IN (?)", pg.In(pipelineName)).
+		Where("ci_pipeline.app_id IN (?)", pg.In(appIds)).
+		Where("ci_pipeline.deleted = ?", false).
+		Where("ci_pipeline.app_id=a.id").
+		Select()
+
+	return pipelines, err
 }
 
 func (impl *CiPipelineRepositoryImpl) CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error) {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package deploymentWindow
 
 import (
@@ -30,6 +34,11 @@ func (action UserActionState) IsActionAllowed() bool {
 func (action UserActionState) IsActionAllowedWithBypass() bool {
 	return action == Allowed || action == Partial
 }
+
+func (action UserActionState) IsActionBypass() bool {
+	return action == Partial
+}
+
 func GetNotFoundError(err error) error {
 	msg := "not found"
 	return &util.ApiError{
@@ -41,10 +50,10 @@ func GetNotFoundError(err error) error {
 	}
 }
 
-func GetActionBlockedError(triggerMessage string) error {
+func GetActionBlockedError(triggerMessage string, internalCode string) error {
 	return &util.ApiError{
 		HttpStatusCode:    422,
-		Code:              "422",
+		Code:              internalCode,
 		InternalMessage:   triggerMessage,
 		UserMessage:       triggerMessage,
 		UserDetailMessage: "action blocked",

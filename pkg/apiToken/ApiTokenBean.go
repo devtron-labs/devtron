@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package apiToken
 
 import (
@@ -6,7 +10,8 @@ import (
 )
 
 type ApiTokenCustomClaims struct {
-	Email string `json:"email"`
+	Email   string `json:"email"`
+	Version string `json:"version"`
 	jwt.RegisteredClaims
 }
 type TokenCustomClaimsForNotification struct {

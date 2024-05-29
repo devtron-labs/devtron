@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE public.app_store
 DROP CONSTRAINT IF EXISTS app_store_unique;
 CREATE UNIQUE INDEX IF NOT EXISTS app_store_unique_oci_repo ON public.app_store

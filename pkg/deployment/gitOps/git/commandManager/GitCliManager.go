@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package commandManager
 
 import (
@@ -116,7 +120,9 @@ func (impl *GitCliManagerImpl) add(ctx GitContext, rootDir string) (response, er
 
 func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git push ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", "master", "--force")
+	args := []string{"-C", rootDir, "push", "origin", "master", "--force"}
+	args = impl.appendBearerAuth(ctx, args)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", args...)
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("git add output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)

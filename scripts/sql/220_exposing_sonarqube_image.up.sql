@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE plugin_pipeline_script SET script=E'PathToCodeDir=/devtroncd$CheckoutPath
 cd $PathToCodeDir
 if [[ -z "$UsePropertiesFileFromProject" || $UsePropertiesFileFromProject == false ]]

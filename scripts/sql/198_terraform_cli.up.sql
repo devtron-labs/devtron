@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Terraform CLI v1.0.0','Terraform: Simplify infrastructure as code, manage resources effortlessly, and deploy with ease using this plugins','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/terraform-cli.svg',false,'now()',1,'now()',1);
 

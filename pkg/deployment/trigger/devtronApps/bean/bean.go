@@ -1,11 +1,18 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"time"
 )
 
@@ -34,6 +41,7 @@ type TriggerRequest struct {
 	WorkflowType           bean.WorkflowType
 	TriggerMessage         string
 	DeploymentWindowState  *deploymentWindow.EnvironmentState
+	CdWorkflowRunnerId     int // current used for release if runner id comes we dont create runner
 	TriggerContext
 }
 
@@ -78,3 +86,35 @@ const (
 )
 
 const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
+
+type TriggerRequirementRequestDto struct {
+	Scope          resourceQualifiers.Scope
+	TriggerRequest TriggerRequest
+	Stage          resourceFilter.ReferenceType
+	DeploymentType models.DeploymentType
+}
+
+type TriggerFeasibilityResponse struct {
+	ApprovalRequestId int
+	TriggerRequest    TriggerRequest
+	FilterIdVsState   map[int]resourceFilter.FilterState
+	Filters           []*resourceFilter.FilterMetaDataBean
+}
+
+type VulnerabilityCheckRequest struct {
+	ImageDigest string
+	CdPipeline  *pipelineConfig.Pipeline
+}
+
+type TriggerOperationDto struct {
+	TriggerRequest  TriggerRequest
+	ExecutorType    pipelineConfig.WorkflowExecutorType
+	PipelineId      int
+	Scope           resourceQualifiers.Scope
+	TriggeredAt     time.Time
+	OverrideCdWrfId int
+}
+
+const (
+	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"
+)

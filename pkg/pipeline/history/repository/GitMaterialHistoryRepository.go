@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 import (
@@ -21,7 +25,7 @@ type GitMaterialHistory struct {
 }
 
 type GitMaterialHistoryRepository interface {
-	SaveGitMaterialHistory(material *GitMaterialHistory) error
+	SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error
 	SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error
 }
 
@@ -35,8 +39,8 @@ func NewGitMaterialHistoryRepositoyImpl(dbConnection *pg.DB) *GitMaterialHistory
 	}
 }
 
-func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(material *GitMaterialHistory) error {
-	return repo.dbConnection.Insert(material)
+func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error {
+	return tx.Insert(material)
 }
 
 func (repo GitMaterialHistoryRepositoryImpl) SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error {

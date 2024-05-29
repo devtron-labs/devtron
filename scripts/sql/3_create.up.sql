@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS "public"."id_seq_sso_login_config";
 
 CREATE TABLE "public"."sso_login_config"

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package dashboard
 
 import (
@@ -20,7 +24,7 @@ type DashboardRouterImpl struct {
 	dashboardProxy func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *DashboardRouterImpl {
+func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) (*DashboardRouterImpl, error) {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -32,12 +36,15 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *Da
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	dashboardProxy := proxy.NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
+	dashboardProxy, err := proxy.NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
+	if err != nil {
+		return nil, err
+	}
 	router := &DashboardRouterImpl{
 		dashboardProxy: dashboardProxy,
 		logger:         logger,
 	}
-	return router
+	return router, nil
 }
 
 func (router DashboardRouterImpl) InitDashboardRouter(dashboardRouter *mux.Router) {

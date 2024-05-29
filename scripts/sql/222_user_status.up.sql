@@ -1,6 +1,11 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_timeout_window_configuration;
 
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+
 -- Table Definition
 CREATE TABLE "public"."timeout_window_configuration" (
     "id" int NOT NULL DEFAULT nextval('id_seq_timeout_window_configuration'::regclass),

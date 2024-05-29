@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceQualifiers
 
 import (
@@ -17,7 +21,7 @@ type QualifiersMappingRepository interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error)
-	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
+	GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error)
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
@@ -41,11 +45,11 @@ type QualifiersMappingRepositoryImpl struct {
 	logger *zap.SugaredLogger
 }
 
-func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) (*QualifiersMappingRepositoryImpl, error) {
+func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) (*QualifiersMappingRepositoryImpl, error) {
 	return &QualifiersMappingRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}, nil
 }
 
@@ -87,11 +91,11 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilter(scope
 	}
 	return qualifierMappings, err
 }
-func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error) {
 	var qualifierMappings []*QualifierMapping
 	err := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).
-		Where("resource_type = ?", Filter).
+		Where("resource_type = ?", resourceType).
 		Where("resource_id = ?", resourceId).
 		Select()
 	if err == pg.ErrNoRows {

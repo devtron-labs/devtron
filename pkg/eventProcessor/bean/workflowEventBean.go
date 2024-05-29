@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
@@ -61,6 +65,7 @@ type CiCompleteEvent struct {
 	ImageDetailsFromCR            *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
+	DockerRegistryId              string                   `json:"dockerRegistryId"`
 }
 
 type DevtronAppReleaseContextType struct {

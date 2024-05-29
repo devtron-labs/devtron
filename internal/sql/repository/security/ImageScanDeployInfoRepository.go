@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package security
@@ -34,6 +21,7 @@ import (
 this table contains scanned images registry for deployed object and apps,
 images which are deployed on cluster by anyway and has scanned result
 */
+//TODO refactor name and column names Subhashish
 type ImageScanDeployInfo struct {
 	tableName                   struct{} `sql:"image_scan_deploy_info" pg:",discard_unknown_columns"`
 	Id                          int      `sql:"id,pk"`
@@ -46,9 +34,12 @@ type ImageScanDeployInfo struct {
 }
 
 const (
-	ScanObjectType_APP   string = "app"
-	ScanObjectType_CHART string = "chart"
-	ScanObjectType_POD   string = "pod"
+	ScanObjectType_APP           string = "app"
+	ScanObjectType_CHART         string = "chart"
+	ScanObjectType_POD           string = "pod"
+	ScanObjectType_CHART_HISTORY string = "chart-history"
+	ScanObjectType_CI_Workflow   string = "ci-workflow"
+	ScanObjectType_CD_Workflow   string = "cd-workflow"
 )
 
 type SortBy string

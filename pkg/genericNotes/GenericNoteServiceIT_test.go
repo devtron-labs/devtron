@@ -1,12 +1,16 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package genericNotes
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"log"
 	"testing"
 	"time"
 
 	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
@@ -191,7 +195,7 @@ func cleanDb(tt *testing.T) {
 	}
 }
 
-func createClusterData(DB *pg.DB, bean *cluster.ClusterBean) error {
+func createClusterData(DB *pg.DB, bean *bean.ClusterBean) error {
 	model := &repository.Cluster{
 		Id:          bean.Id,
 		ClusterName: bean.ClusterName,
@@ -206,7 +210,7 @@ func createClusterData(DB *pg.DB, bean *cluster.ClusterBean) error {
 
 func initialiseDb(tt *testing.T) {
 	DB, _ := getDbConn()
-	clusters := []cluster.ClusterBean{
+	clusters := []bean.ClusterBean{
 		{
 			Id:          10000,
 			ClusterName: "test-cluster-1",

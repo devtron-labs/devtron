@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package git
 
 import (
@@ -59,6 +63,10 @@ func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 		return gitAzureClient, err
 	} else if config.GitProvider == BITBUCKET_PROVIDER {
 		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper)
+		return gitBitbucketClient, nil
+
+	} else if config.GitProvider == BITBUCKET_DC_PROVIDER {
+		gitBitbucketClient := NewGitBitbucketDcClient(config.GitUserName, config.GitToken, config.GitHost, config.BitbucketProjectKey, logger, gitOpsHelper)
 		return gitBitbucketClient, nil
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")

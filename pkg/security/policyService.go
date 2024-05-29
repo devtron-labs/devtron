@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package security
@@ -21,9 +8,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
@@ -50,6 +39,7 @@ type PolicyService interface {
 	GetCvePolicy(id int, userId int32) (*security.CvePolicy, error)
 	GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[securityBean.Severity]*security.CvePolicy, error)
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[securityBean.Severity]*security.CvePolicy) bool
+	SendScanEventAsync(event *ScanEvent) error
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
@@ -68,6 +58,7 @@ type PolicyServiceImpl struct {
 	scanHistoryRepository         security.ImageScanHistoryRepository
 	cveStoreRepository            security.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	pubSubClient                  *pubsub.PubSubClientServiceImpl
 }
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
@@ -82,7 +73,8 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository, client *http.Client,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
 	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	pubSubClient *pubsub.PubSubClientServiceImpl) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -100,6 +92,7 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 		scanHistoryRepository:         scanHistoryRepository,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
+		pubSubClient:                  pubSubClient,
 	}
 }
 
@@ -132,21 +125,48 @@ type VerifyImageResponse struct {
 }
 
 type ScanEvent struct {
-	Image            string `json:"image"`
-	ImageDigest      string `json:"imageDigest"`
-	AppId            int    `json:"appId"`
-	EnvId            int    `json:"envId"`
-	PipelineId       int    `json:"pipelineId"`
-	CiArtifactId     int    `json:"ciArtifactId"`
-	UserId           int    `json:"userId"`
-	AccessKey        string `json:"accessKey"`
-	SecretKey        string `json:"secretKey"`
-	Token            string `json:"token"`
-	AwsRegion        string `json:"awsRegion"`
-	DockerRegistryId string `json:"dockerRegistryId"`
+	Image            string                   `json:"image"`
+	ImageDigest      string                   `json:"imageDigest"`
+	AppId            int                      `json:"appId"`
+	EnvId            int                      `json:"envId"`
+	PipelineId       int                      `json:"pipelineId"`
+	CiArtifactId     int                      `json:"ciArtifactId"`
+	UserId           int                      `json:"userId"`
+	AccessKey        string                   `json:"accessKey"`
+	SecretKey        string                   `json:"secretKey"`
+	Token            string                   `json:"token"`
+	AwsRegion        string                   `json:"awsRegion"`
+	DockerRegistryId string                   `json:"dockerRegistryId"`
+	ScanHistoryId    int                      `json:"scanHistoryId"`
+	CiProjectDetails []bean2.CiProjectDetails `json:"ciProjectDetails"`
+	SourceType       security.SourceType      `json:"sourceType"`
+	SourceSubType    security.SourceSubType   `json:"sourceSubType"`
+	CiWorkflowId     int                      `json:"ciWorkflowId"`
+	CdWorkflowId     int                      `json:"cdWorkflowId"`
+	ChartHistoryId   int                      `json:"chartHistoryId"`
+	ManifestData     *ManifestData            `json:"manifestData"`
 }
 
-func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
+type ManifestData struct {
+	ChartData  []byte `json:"chartData"`
+	ValuesYaml []byte `json:"valuesYaml"`
+}
+
+func (impl *PolicyServiceImpl) SendScanEventAsync(event *ScanEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling scan event", "err", err, "event", event)
+		return err
+	}
+	err = impl.pubSubClient.Publish(pubsub.TOPIC_CI_SCAN, string(body))
+	if err != nil {
+		impl.logger.Errorw("error in publishing TOPIC_CI_SCAN", "err", err, "eventBody", body)
+		return err
+	}
+	return nil
+}
+
+func (impl *PolicyServiceImpl) SendScanEvent(event *ScanEvent) error {
 	reqBody, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -163,6 +183,7 @@ func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return err
 	}
+	resp.Body.Close()
 	impl.logger.Debugw("response from test suit create api", "status code", resp.StatusCode)
 	return err
 }
@@ -194,7 +215,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		appId = app.Id
 		isAppStore = app.AppType == helper.ChartStoreApp
 	} else {
-		//np app do nothing
+		// np app do nothing
 	}
 
 	cvePolicy, severityPolicy, err := impl.GetApplicablePolicy(clusterId, envId, appId, isAppStore)
@@ -217,7 +238,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	scanResultsIdMap := make(map[int]int)
 	for _, image := range verifyImageRequest.Images {
 
-		//TODO - scan only if ci scan enabled
+		// TODO - scan only if ci scan enabled
 
 		scanHistory, err := impl.scanHistoryRepository.FindByImage(image)
 		if err != nil && err != pg.ErrNoRows {
@@ -232,7 +253,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				return nil, err
 			}
 			scanEvent.DockerRegistryId = dockerReg.DockerRegistry.Id
-			err = impl.SendEventToClairUtility(scanEvent)
+			err = impl.SendScanEvent(scanEvent)
 			if err != nil {
 				impl.logger.Errorw("error in send event to image scanner ", "err", err)
 				return nil, err
@@ -266,7 +287,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	}
 
 	if objectType == security.ScanObjectType_POD {
-		//TODO create entry
+		// TODO create entry
 		imageScanObjectMeta := &security.ImageScanObjectMeta{
 			Name:   verifyImageRequest.PodName,
 			Image:  strings.Join(verifyImageRequest.Images, ","),
@@ -301,7 +322,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 	}
 
 	if len(scanResultsId) > 0 {
-		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) //todo insure this touple unique in db
+		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) // todo insure this touple unique in db
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
 		} else if err == pg.ErrNoRows {
@@ -341,7 +362,7 @@ func (impl *PolicyServiceImpl) GetApplicablePolicy(clusterId, envId, appId int, 
 	} else if clusterId > 0 {
 		policyLevel = securityBean.Cluster
 	} else {
-		//error in case of global or other policy
+		// error in case of global or other policy
 		return nil, nil, fmt.Errorf("policy not identified")
 	}
 
@@ -398,7 +419,7 @@ func (impl *PolicyServiceImpl) getHighestPolicyS(allPolicies map[securityBean.Se
 	return applicablePolicies
 }
 
-//-----------crud api----
+// -----------crud api----
 /*
 Severity/cveId
 --
@@ -556,7 +577,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 		if clusterId == 0 {
 			return nil, fmt.Errorf("cluster id is missing")
 		}
-		//get cluster name
+		// get cluster name
 		cluster, err := impl.clusterService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster details", "id", clusterId, "err", err)
@@ -678,7 +699,7 @@ func (impl *PolicyServiceImpl) getPolicies(policyLevel securityBean.PolicyLevel,
 	}
 	cvePolicy, severityPolicy := impl.getApplicablePolicies(policies)
 	impl.logger.Debugw("policy identified ", "policyLevel", policyLevel)
-	//transform and return
+	// transform and return
 	return cvePolicy, severityPolicy, nil
 }
 

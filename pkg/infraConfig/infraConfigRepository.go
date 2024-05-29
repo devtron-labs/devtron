@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package infraConfig
 
 import (
@@ -42,10 +46,10 @@ type InfraConfigRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryImpl {
+func NewInfraProfileRepositoryImpl(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *InfraConfigRepositoryImpl {
 	return &InfraConfigRepositoryImpl{
 		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 

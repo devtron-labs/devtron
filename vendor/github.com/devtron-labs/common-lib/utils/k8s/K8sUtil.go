@@ -23,7 +23,6 @@ import (
 	error2 "errors"
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	http2 "github.com/devtron-labs/common-lib/utils/http"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -71,19 +70,6 @@ type K8sServiceImpl struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
 	kubeconfig    *string
-	k8sConfig     *K8sConfig
-}
-
-type K8sConfig struct {
-	K8sClientTimeout int `env:"K8s_CLIENT_TIMEOUT_SEC" envDefault:"0"`
-}
-
-func (config *K8sConfig) getK8sClientTimeout() (bool, time.Duration) {
-	k8sClientTimeout := config.K8sClientTimeout
-	if k8sClientTimeout > 0 {
-		return true, time.Duration(k8sClientTimeout) * time.Second
-	}
-	return false, time.Duration(0)
 }
 
 type K8sService interface {
@@ -99,7 +85,8 @@ type K8sService interface {
 	GetCoreV1ClientInCluster() (*v12.CoreV1Client, error)
 	GetKubeVersion() (*version.Info, error)
 	ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool
-	BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error)
+	BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error)
+	ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool
 	GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error)
 	GetK8sInClusterRestConfig() (*rest.Config, error)
 	GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error)
@@ -142,8 +129,8 @@ type K8sService interface {
 	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
 	CreateResources(ctx context.Context, restConfig *rest.Config, manifest string, gvk schema.GroupVersionKind, namespace string) (*ManifestResponse, error)
 	PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error)
-	GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string) (*ResourceListResponse, bool, error)
-	GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
+	GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, asTable bool, listOptions *metav1.ListOptions) (*ResourceListResponse, bool, error)
+	GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind, asTable bool) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, sinceSeconds int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error)
 	ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error)
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
@@ -160,14 +147,9 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	if runTimeConfig.LocalDevMode {
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
-	k8sConfig := &K8sConfig{}
-	err = env.Parse(k8sConfig)
-	if err != nil {
-		logger.Errorw("error occurred while parsing k8s config", "err", err)
-	}
 
 	flag.Parse()
-	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, k8sConfig: k8sConfig}
+	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
 
 func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error) {
@@ -188,9 +170,6 @@ func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) 
 			restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
 			restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
 		}
-	}
-	if ok, duration := impl.k8sConfig.getK8sClientTimeout(); ok {
-		restConfig.Timeout = duration
 	}
 	return restConfig, nil
 }
@@ -714,25 +693,21 @@ func (impl K8sServiceImpl) GetResourceInfoByLabelSelector(ctx context.Context, n
 
 func (impl K8sServiceImpl) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
-	var restConfig *rest.Config
-	var err error
 	if impl.runTimeConfig.LocalDevMode {
-		restConfig, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building config from flags", "error", err)
 			return nil, err
 		}
+		return restConfig, nil
 	} else {
-		restConfig, err = rest.InClusterConfig()
+		clusterConfig, err := rest.InClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in fetch default cluster config", "err", err)
 			return nil, err
 		}
+		return clusterConfig, nil
 	}
-	if ok, duration := impl.k8sConfig.getK8sClientTimeout(); ok {
-		restConfig.Timeout = duration
-	}
-	return restConfig, nil
 }
 
 func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error) {
@@ -745,7 +720,7 @@ func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v
 	}
 }
 
-func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
+func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
 	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
@@ -824,6 +799,9 @@ func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.Un
 							rowIndex[commonBean.K8sClusterResourceNamespaceKey] = namespace
 						}
 					}
+					if includeMetadata {
+						rowIndex[commonBean.K8sClusterResourceMetadataKey] = metadata
+					}
 				}
 			}
 			allowed = impl.ValidateResource(cellObj, gvk, validateResourceAccess)
@@ -860,7 +838,7 @@ func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, 
 	}
 	if len(ownerReferences) > 0 {
 		for _, ownerRef := range ownerReferences {
-			allowed := impl.validateForResource(namespace, ownerRef, validateCallback)
+			allowed := impl.ValidateForResource(namespace, ownerRef, validateCallback)
 			if allowed {
 				return allowed
 			}
@@ -870,7 +848,7 @@ func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, 
 	return validateCallback(namespace, groupName, resKind, resourceName)
 }
 
-func (impl K8sServiceImpl) validateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+func (impl K8sServiceImpl) ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resourceReference := resourceRef.(map[string]interface{})
 	resKind := resourceReference[commonBean.K8sClusterResourceKindKey].(string)
 	apiVersion := resourceReference[commonBean.K8sClusterResourceApiVersionKey].(string)
@@ -1269,7 +1247,7 @@ func (impl K8sServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Conf
 	}
 	return stream, nil
 }
-func (impl K8sServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+func (impl K8sServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind, asTable bool) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting http client", "err", err)
@@ -1287,12 +1265,14 @@ func (impl K8sServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config
 	}
 	resource := groupVersionKind.GroupVersion().WithResource(apiResource.Name)
 	wt := restConfig.WrapTransport // Reference: https://github.com/kubernetes/client-go/issues/407
-	restConfig.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
-		if wt != nil {
-			rt = wt(rt)
-		}
-		return &http2.HeaderAdder{
-			Rt: rt,
+	if asTable {
+		restConfig.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+			if wt != nil {
+				rt = wt(rt)
+			}
+			return &http2.HeaderAdder{
+				Rt: rt,
+			}
 		}
 	}
 	httpClient, err = OverrideK8sHttpClientWithTracer(restConfig)
@@ -1320,23 +1300,25 @@ func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterf
 	}
 	return nil, errors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 }
-func (impl K8sServiceImpl) GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string) (*ResourceListResponse, bool, error) {
-	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, gvk)
+func (impl K8sServiceImpl) GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, asTable bool, listOptions *metav1.ListOptions) (*ResourceListResponse, bool, error) {
+	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, gvk, asTable)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "namespace", namespace)
 		return nil, namespaced, err
 	}
 	var resp *unstructured.UnstructuredList
-	listOptions := metav1.ListOptions{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       gvk.Kind,
-			APIVersion: gvk.GroupVersion().String(),
-		},
+	if listOptions == nil {
+		listOptions = &metav1.ListOptions{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       gvk.Kind,
+				APIVersion: gvk.GroupVersion().String(),
+			},
+		}
 	}
 	if len(namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(namespace).List(ctx, listOptions)
+		resp, err = resourceIf.Namespace(namespace).List(ctx, *listOptions)
 	} else {
-		resp, err = resourceIf.List(ctx, listOptions)
+		resp, err = resourceIf.List(ctx, *listOptions)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "namespace", namespace)

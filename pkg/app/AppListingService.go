@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package app
@@ -55,6 +42,7 @@ import (
 type AppListingService interface {
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
@@ -105,8 +93,8 @@ type CiArtifactWithParentArtifact struct {
 	CiArtifactId     int
 }
 
-func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
-	for _, ns := range req.Namespaces {
+func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string) (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
+	for _, ns := range underscoreSeperatedClusterIdNamespaces {
 		items := strings.Split(ns, "_")
 		// TODO refactoring: invalid condition; always false
 		if len(items) < 1 && len(items) > 2 {
@@ -360,6 +348,15 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 	return jobCiContainers, nil
 }
 
+func (impl AppListingServiceImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	jobCiContainers, err := impl.appListingRepository.FetchJobCiPipelines()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching job ci pipelines", "error", err)
+		return jobCiContainers, err
+	}
+	return jobCiContainers, nil
+}
+
 func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
@@ -431,7 +428,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 			impl.Logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "cdWorkflowId", override.CdWorkflowId)
 			return false, err
 		}
-		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue}, cdWfr.Status) {
+		if slices.Contains([]string{pipelineConfig.WorkflowInitiated, pipelineConfig.WorkflowInQueue, pipelineConfig.WorkflowFailed}, cdWfr.Status) {
 			return false, nil
 		}
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
@@ -918,7 +915,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.Commits = make([]string, 0)
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package argoApplication
 
 import (
@@ -6,12 +10,11 @@ import (
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-
-	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
@@ -57,7 +60,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 	var clusters []clusterRepository.Cluster
 	var err error
 	if len(clusterIds) > 0 {
-		//getting cluster details by ids
+		// getting cluster details by ids
 		clusters, err = impl.clusterRepository.FindByIds(clusterIds)
 		if err != nil {
 			impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
@@ -71,25 +74,25 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		}
 	}
 
-	//TODO: make goroutine and channel for optimization
+	// TODO: make goroutine and channel for optimization
 	appListFinal := make([]*bean.ArgoApplicationListDto, 0)
 	for _, cluster := range clusters {
 		clusterObj := cluster
 		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(clusterObj)
+		clusterBean := adapter.GetClusterBean(clusterObj)
 		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
 			return nil, err
 		}
-		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces)
+		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
 		if err != nil {
 			if errStatus, ok := err.(*errors.StatusError); ok {
 				if errStatus.Status().Code == 404 {
-					//no argo apps found, not sending error
+					// no argo apps found, not sending error
 					impl.logger.Warnw("error in getting external argo app list, no apps found", "err", err, "clusterId", clusterObj.Id)
 					continue
 				}
@@ -132,7 +135,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	} else if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
@@ -159,7 +162,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	}
 	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
 	if appDeployedOnClusterId < 1 {
-		//cluster is not added on devtron, need to get server config from secret which argo-cd saved
+		// cluster is not added on devtron, need to get server config from secret which argo-cd saved
 		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
 		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
@@ -227,7 +230,7 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 
 func getApplicationListDtos(manifestObj map[string]interface{}, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
-	//map of keys and index in row cells, initially set as 0 will be updated by object
+	// map of keys and index in row cells, initially set as 0 will be updated by object
 	keysToBeFetchedFromColumnDefinitions := map[string]int{k8sCommonBean.K8sResourceColumnDefinitionName: 0,
 		k8sCommonBean.K8sResourceColumnDefinitionHealthStatus: 0, k8sCommonBean.K8sResourceColumnDefinitionSyncStatus: 0}
 	keysToBeFetchedFromRawObject := []string{k8sCommonBean.K8sClusterResourceNamespaceKey}
@@ -351,7 +354,7 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 	}
 	var configOfClusterWhereAppIsDeployed *bean.ArgoClusterConfigObj
 	if appDeployedOnClusterId < 1 {
-		//cluster is not added on devtron, need to get server config from secret which argo-cd saved
+		// cluster is not added on devtron, need to get server config from secret which argo-cd saved
 		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
 		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
@@ -407,7 +410,7 @@ func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterI
 	if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }

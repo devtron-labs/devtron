@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package chartRef
 
 import (
@@ -53,7 +57,8 @@ type ChartRefFileOpService interface {
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
 	GetRefChart(chartRefId int) (string, string, string, string, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error)
-	GetChartInBytes(chartRefId int) ([]byte, error)
+	GetChartInBytes(chartRefId int, deleteChart bool) ([]byte, error)
+	GetChartBytesInBulk(chartRefIds []int, deleteChart bool) (map[int][]byte, error)
 }
 
 type ChartRefServiceImpl struct {
@@ -269,26 +274,46 @@ func (impl *ChartRefServiceImpl) ChartRefAutocomplete() ([]*bean.ChartRefAutocom
 	return chartRefs, nil
 }
 
-func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int) ([]byte, error) {
+func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int, performCleanup bool) ([]byte, error) {
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
+	return impl.extractChartInBytes(chartRef, performCleanup)
+}
+
+func (impl *ChartRefServiceImpl) extractChartInBytes(chartRef *chartRepoRepository.ChartRef, performCleanup bool) ([]byte, error) {
 	// For user uploaded charts ChartData will be retrieved from DB
 	if chartRef.ChartData != nil {
 		return chartRef.ChartData, nil
 	}
 	// For Devtron reference charts the chart will be load from the directory location
 	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
-	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false, "", "")
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, performCleanup, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return nil, err
 	}
 	return manifestByteArr, nil
 }
-
+func (impl *ChartRefServiceImpl) GetChartBytesInBulk(chartRefIds []int, performCleanup bool) (map[int][]byte, error) {
+	chartRefs, err := impl.chartRefRepository.FindByIds(chartRefIds)
+	if err != nil {
+		impl.logger.Errorw("error getting chart data", "chartRefIds", chartRefIds, "err", err)
+		return nil, err
+	}
+	chartRefIdToBytes := make(map[int][]byte)
+	for _, chartRef := range chartRefs {
+		chartInBytes, err := impl.extractChartInBytes(chartRef, performCleanup)
+		if err != nil {
+			impl.logger.Errorw("error in converting chart to bytes", "chartRefId", chartRef.Id, "err", err)
+			return nil, err
+		}
+		chartRefIdToBytes[chartRef.Id] = chartInBytes
+	}
+	return chartRefIdToBytes, nil
+}
 func (impl *ChartRefServiceImpl) FetchCustomChartsInfo() ([]*bean.ChartDto, error) {
 	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
 	if err != nil {

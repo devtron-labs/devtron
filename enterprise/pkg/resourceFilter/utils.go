@@ -1,7 +1,12 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceFilter
 
 import (
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/util"
 )
@@ -90,4 +95,17 @@ func getFilterHistoryObjectsFromJsonString(jsonStr string) ([]*FilterHistoryObje
 	}
 	err := json.Unmarshal([]byte(jsonStr), &filterHistoryObjects)
 	return filterHistoryObjects, err
+}
+
+func WorkflowTypeToReferenceType(workflowType bean2.WorkflowType) ReferenceType {
+	switch workflowType {
+	case bean2.CD_WORKFLOW_TYPE_PRE:
+		return PreDeploy
+	case bean2.CD_WORKFLOW_TYPE_POST:
+		return PostDeploy
+	case bean2.CD_WORKFLOW_TYPE_DEPLOY:
+		return Deploy
+	default:
+		return 0
+	}
 }

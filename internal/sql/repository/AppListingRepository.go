@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 /*
@@ -58,6 +45,8 @@ type AppListingRepository interface {
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
+
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -136,6 +125,16 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	}
 	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
+}
+
+func (impl AppListingRepositoryImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	var jobContainers []*bean.JobListingContainer
+	query := "SELECT cip.id AS ci_pipeline_id, cip.name AS ci_pipeline_name, a.id as job_id, a.display_name as job_name" +
+		" FROM app a " +
+		" LEFT JOIN ci_pipeline cip ON a.id = cip.app_id AND cip.active=true" +
+		" WHERE a.active = true AND a.app_type = ?"
+	_, err := impl.dbConnection.Query(&jobContainers, query, helper.Job)
+	return jobContainers, err
 }
 
 func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error) {

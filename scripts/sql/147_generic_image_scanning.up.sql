@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_scan_tool_metadata;
 
 CREATE TABLE public.scan_tool_metadata

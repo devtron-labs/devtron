@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package appWorkflow
@@ -61,7 +48,8 @@ type AppWorkflowService interface {
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (bean4.AppWorkflowDto, error)
 	IsWorkflowNameFound(workflowName string, appId int) (bool, error)
-	FindAllWorkflowsComponentDetails(appId int) (*bean4.AllAppWorkflowComponentDetails, error)
+	FindAllWorkflowsComponentNames(appId int) (*bean4.AllAppWorkflowComponentNames, error)
+	GetAppWorkflowComponents(appId int) ([]*bean4.AppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean4.AppWorkflowDto, error)
 	FindAllWorkflowsForApps(request bean4.WorkflowNamesRequest) (*bean4.WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *bean4.TriggerViewWorkflowConfig, envIds []int) (*bean4.TriggerViewWorkflowConfig, error)
@@ -85,6 +73,7 @@ type AppWorkflowServiceImpl struct {
 	appArtifactManager               pipeline.AppArtifactManager
 	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 	appWorkflowDataReadService       read2.AppWorkflowDataReadService
+	pipelineBuilder                  pipeline.PipelineBuilder
 }
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -94,7 +83,8 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 	chartService chart.ChartService,
 	appArtifactManager pipeline.AppArtifactManager,
 	artifactPromotionDataReadService read.ArtifactPromotionDataReadService,
-	appWorkflowDataReadService read2.AppWorkflowDataReadService) *AppWorkflowServiceImpl {
+	appWorkflowDataReadService read2.AppWorkflowDataReadService,
+	pipelineBuilder pipeline.PipelineBuilder) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                           logger,
 		appWorkflowRepository:            appWorkflowRepository,
@@ -109,6 +99,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		appArtifactManager:               appArtifactManager,
 		artifactPromotionDataReadService: artifactPromotionDataReadService,
 		appWorkflowDataReadService:       appWorkflowDataReadService,
+		pipelineBuilder:                  pipelineBuilder,
 	}
 }
 
@@ -588,7 +579,7 @@ func (impl AppWorkflowServiceImpl) CheckCdPipelineByCiPipelineId(id int) bool {
 	return false
 }
 
-func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (*bean4.AllAppWorkflowComponentDetails, error) {
+func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentNames(appId int) (*bean4.AllAppWorkflowComponentNames, error) {
 	// get all workflows
 	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
 	if err != nil {
@@ -647,10 +638,67 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 			}
 		}
 	}
-	resp := &bean4.AllAppWorkflowComponentDetails{
+	resp := &bean4.AllAppWorkflowComponentNames{
 		Workflows: wfComponentDetails,
 	}
 	return resp, nil
+}
+func (impl AppWorkflowServiceImpl) GetAppWorkflowComponents(appId int) ([]*bean4.AppWorkflowComponentDetails, error) {
+	// getting all ciComponents by appId
+	ciPipelineMap, externalCiPipelineMap, err := impl.pipelineBuilder.GetCiComponentDetails(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ciComponents by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	// getting all ciComponents by appId
+	cdPipelineMap, err := impl.pipelineBuilder.GetCdComponentDetails(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting cdComponents by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	resp, err := impl.getAppWorkflowComponentDetails(appId, ciPipelineMap, externalCiPipelineMap, cdPipelineMap)
+	if err != nil {
+		impl.Logger.Errorw("error in getting all wf component details by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	return resp, nil
+}
+func (impl AppWorkflowServiceImpl) getAppWorkflowComponentDetails(appId int, ciPipelineMap, externalCiPipelineMap map[int]*bean.CiComponentDetails,
+	cdPipelineMap map[int]*bean.CdComponentDetails) ([]*bean4.AppWorkflowComponentDetails, error) {
+	// get all workflows
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting app workflows by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindAllWFMappingsByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting appWorkflowMappings by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	var wfComponentDetails []*bean4.AppWorkflowComponentDetails
+	wfIdAndComponentDtoIndexMap := make(map[int]int)
+	for index, appWf := range appWorkflows {
+		wfIdAndComponentDtoIndexMap[appWf.Id] = index
+		wfComponentDetail := &bean4.AppWorkflowComponentDetails{
+			Id:           appWf.Id,
+			WorkflowName: appWf.Name,
+			AppId:        appWf.AppId,
+		}
+		wfComponentDetails = append(wfComponentDetails, wfComponentDetail)
+	}
+	for _, appWfMapping := range appWorkflowMappings {
+		if index, ok := wfIdAndComponentDtoIndexMap[appWfMapping.AppWorkflowId]; ok {
+			if appWfMapping.Type == bean4.CI_PIPELINE_TYPE {
+				wfComponentDetails[index].CiPipeline = ciPipelineMap[appWfMapping.ComponentId]
+			} else if appWfMapping.Type == bean4.WEBHOOK_TYPE {
+				wfComponentDetails[index].CiPipeline = externalCiPipelineMap[appWfMapping.ComponentId]
+			} else if appWfMapping.Type == bean4.CD_PIPELINE_TYPE {
+				wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, cdPipelineMap[appWfMapping.ComponentId])
+			}
+		}
+	}
+	return wfComponentDetails, nil
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean4.AppWorkflowDto, error) {

@@ -1,28 +1,16 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 //go:build wireinject
 // +build wireinject
-
-/*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
 
 package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -72,6 +60,7 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
+	"github.com/devtron-labs/devtron/api/scoop"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -91,6 +80,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
+	scoop2 "github.com/devtron-labs/devtron/client/scoop"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
@@ -100,6 +90,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
+	"github.com/devtron-labs/devtron/enterprise/api/scanningResultsParser"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -164,6 +155,9 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionRepository "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
+	devtronResource2 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -216,12 +210,16 @@ func InitializeApp() (*App, error) {
 		globalPolicy.GlobalPolicyWireSet,
 		drafts.DraftsWireSet,
 		protect.ProtectWireSet,
+
 		devtronResource.DevtronResourceWireSet,
+		devtronResource2.PolicyWireSet,
+
 		globalConfig.GlobalConfigWireSet,
 		lockConfiguation.LockConfigWireSet,
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		scanningResultsParser.ScanningResultWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
 
 		eventProcessor.EventProcessorWireSet,
@@ -229,6 +227,7 @@ func InitializeApp() (*App, error) {
 
 		artifactApproval.ArtifactApprovalWireSet,
 		artifactPromotion2.ArtifactPromotionWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -305,7 +304,6 @@ func InitializeApp() (*App, error) {
 
 		infraConfig.NewInfraProfileRouterImpl,
 		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
-
 		router.NewMuxRouter,
 
 		app4.NewAppRepositoryImpl,
@@ -1008,8 +1006,8 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 
 		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
 		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
@@ -1059,6 +1057,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),
 
 		appStoreRestHandler.AppStoreWireSet,
+
+		remoteConnectionRepository.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(remoteConnectionRepository.RemoteConnectionRepository), new(*remoteConnectionRepository.RemoteConnectionRepositoryImpl)),
+
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
+
+		scoop2.NewScoopClientGetter,
+		wire.Bind(new(scoop2.ScoopClientGetter), new(*scoop2.ScoopClientGetterImpl)),
+		scoop.ScoopWireSet,
 	)
 	return &App{}, nil
 }

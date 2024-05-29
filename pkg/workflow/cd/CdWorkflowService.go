@@ -1,15 +1,23 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package cd
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/util"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type CdWorkflowService interface {
 	CheckIfLatestWf(pipelineId, cdWfId int) (latest bool, err error)
 	UpdateWorkFlow(dto *bean.CdWorkflowDto) error
+	CreateBulkCdWorkflow(tx *pg.Tx, cdWorkflowDtos []*bean.CdWorkflowDto, creationTime time.Time) (map[string]int, error)
 }
 
 type CdWorkflowServiceImpl struct {
@@ -42,4 +50,17 @@ func (impl *CdWorkflowServiceImpl) UpdateWorkFlow(dto *bean.CdWorkflowDto) error
 		return err
 	}
 	return nil
+}
+
+func (impl *CdWorkflowServiceImpl) CreateBulkCdWorkflow(tx *pg.Tx, cdWorkflowDtos []*bean.CdWorkflowDto, creationTime time.Time) (map[string]int, error) {
+	cdWorkFlows := make([]*pipelineConfig.CdWorkflow, 0, len(cdWorkflowDtos))
+	for _, dto := range cdWorkflowDtos {
+		cdWorkFlows = append(cdWorkFlows, adapter.ConvertCdWorkflowDtoToDbObjForCreation(dto, creationTime))
+	}
+	err := impl.cdWorkflowRepository.BulkSaveWorkflow(tx, cdWorkFlows)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CreateBulkCdWorkflow", "cdWorkFlows", cdWorkFlows, "err", err)
+		return nil, err
+	}
+	return util.GetPipelineArtifactIdKeyVsCdWorkflowIdMap(cdWorkFlows), nil
 }

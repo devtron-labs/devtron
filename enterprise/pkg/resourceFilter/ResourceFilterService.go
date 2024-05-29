@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceFilter
 
 import (
@@ -6,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -46,7 +50,7 @@ type ResourceFilterServiceImpl struct {
 	clusterRepository                    clusterRepository.ClusterRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	ceLEvaluatorService                  CELEvaluatorService
-	devtronResourceSearchableKeyService  devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService  read.DevtronResourceSearchableKeyService
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService
 	filterAuditRepo                      FilterAuditRepository
 }
@@ -60,7 +64,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
 	ceLEvaluatorService CELEvaluatorService,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService,
 	filterAuditRepo FilterAuditRepository,
 ) *ResourceFilterServiceImpl {
@@ -126,7 +130,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 		return nil, err
 	}
 
-	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilterById(id)
+	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsByResourceId(id, resourceQualifiers.Filter)
 	if err != nil {
 		impl.logger.Errorw("error in GetQualifierMappingsForFilterById", "err", err, "filterId", id)
 		return nil, err

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package devtronApps
 
 import (
@@ -8,12 +12,13 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -86,50 +91,27 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	scope := resourceQualifiers.Scope{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId, ClusterId: env.ClusterId, ProjectId: app.TeamId, IsProdEnv: env.Default}
 	impl.logger.Infow("scope for auto trigger ", "scope", scope)
-	filters, err := impl.resourceFilterService.GetFiltersByScope(scope)
+	triggerRequirementRequest := adapter2.GetTriggerRequirementRequest(scope, request, resourceFilter.PreDeploy, models.DEPLOYMENTTYPE_PRE)
+	feasibilityResponse, filterEvaluationAudit, err := impl.checkFeasibilityAndCreateAudit(triggerRequirementRequest, artifact.Id, pipelineStageType, stageId)
 	if err != nil {
-		impl.logger.Errorw("error in getting resource filters for the pipeline", "pipelineId", pipeline.Id, "err", err)
-		return err
-	}
-	// get releaseTags from imageTaggingService
-	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
-		return err
-	}
-
-	materialInfos, err := artifact.GetMaterialInfo()
-	if err != nil {
-		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
-		return err
-	}
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
-	if err != nil {
+		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(request.CdWorkflowRunnerId, triggeredBy, err)
+		if err2 != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerPreStage", "cdWfr", request.CdWorkflowRunnerId, "err2", err2)
+		}
+		impl.logger.Errorw("error encountered in TriggerPreStage", "err", err, "triggerRequirementRequest", triggerRequirementRequest)
 		return err
 	}
 
-	// store evaluated result
-	filterEvaluationAudit, err := impl.resourceFilterService.CreateFilterEvaluationAudit(resourceFilter.Artifact, artifact.Id, pipelineStageType, stageId, filters, filterIdVsState)
-	if err != nil {
-		impl.logger.Errorw("error in creating filter evaluation audit data cd pre stage trigger", "err", err, "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "preStageId", preStage.Id)
-		return err
-	}
-
-	// allow or block w.r.t filterState
-	if filterState != resourceFilter.ALLOW {
-		return fmt.Errorf("the artifact does not pass filtering condition")
-	}
-
-	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PreDeploy)
-	if err != nil {
-		return err
-	}
+	// overriding request frm feasibility response
+	request = feasibilityResponse.TriggerRequest
 
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
 
 	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
 
@@ -271,27 +253,36 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 			return nil, nil, err
 		}
 	}
-	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:                  pipeline.Name,
-		WorkflowType:          request.WorkflowType,
-		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
-		TriggeredBy:           triggeredBy,
-		StartedOn:             triggeredAt,
-		Namespace:             request.RunStageInEnvNamespace,
-		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
-		CdWorkflowId:          cdWf.Id,
-		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), request.WorkflowType, pipeline.Name),
-		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
-		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		ReferenceId:           request.TriggerContext.ReferenceId,
-		TriggerMetadata:       request.TriggerMessage,
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-	span.End()
-	if err != nil {
-		return nil, nil, err
+	var runner *pipelineConfig.CdWorkflowRunner
+	if request.CdWorkflowRunnerId == 0 {
+		runner = &pipelineConfig.CdWorkflowRunner{
+			Name:                  pipeline.Name,
+			WorkflowType:          request.WorkflowType,
+			ExecutorType:          impl.config.GetWorkflowExecutorType(),
+			Status:                pipelineConfig.WorkflowStarting, // starting PreStage
+			TriggeredBy:           triggeredBy,
+			StartedOn:             triggeredAt,
+			Namespace:             request.RunStageInEnvNamespace,
+			BlobStorageEnabled:    impl.config.BlobStorageEnabled,
+			CdWorkflowId:          cdWf.Id,
+			LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), request.WorkflowType, pipeline.Name),
+			AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
+			ReferenceId:           request.TriggerContext.ReferenceId,
+			TriggerMetadata:       request.TriggerMessage,
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.SaveWorkFlowRunner")
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		span.End()
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		runner, err = impl.cdWorkflowRepository.FindWorkflowRunnerById(request.CdWorkflowRunnerId)
+		if err != nil {
+			impl.logger.Errorw("error in createStartingWfAndRunner", "CdWorkflowRunnerId", request.CdWorkflowRunnerId, "err", err)
+			return nil, nil, err
+		}
 	}
 	return cdWf, runner, nil
 }
@@ -324,7 +315,8 @@ func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
 	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
 	//checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+	vulnerabilityCheckRequest := adapter2.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
 		return err
@@ -777,17 +769,28 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 
 	if ciPipeline != nil && ciPipeline.Id > 0 {
-		sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
+		sourceCiPipeline, err := impl.ciCdPipelineOrchestrator.GetSourceCiPipelineForArtifact(ciPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
-		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
-		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
-		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
-		if dbErr != nil {
-			impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
-			return nil, dbErr
+		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
+		// source ci could be empty where linked cd is derived from a webhook (external ci) linked pipeline
+		var buildRegistryConfig *types.DockerArtifactStoreBean
+		var dbErr error
+		if sourceCiPipeline != nil && sourceCiPipeline.Id != 0 {
+			buildRegistryConfig, dbErr = impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
+			if dbErr != nil {
+				impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
+				return nil, dbErr
+			}
+		} else {
+			buildRegistryConfig, dbErr = impl.ciTemplateService.GetBaseDockerConfigForCiPipeline(cdPipeline.AppId)
+			if dbErr != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
 		}
 		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
 	} else if cdPipeline.AppId > 0 {
@@ -949,7 +952,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for CI Job
-	if adapter.IsCIJob(sourceCiPipeline) {
+	if adapter.IsCIJob(&sourceCiPipeline) {
 		// for bean.CI_JOB the source artifact is always driven from overridden ci template
 		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
 		if err != nil {
@@ -960,7 +963,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for Linked CI
-	if adapter.IsLinkedCI(sourceCiPipeline) {
+	if adapter.IsLinkedCI(&sourceCiPipeline) {
 		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
@@ -981,59 +984,6 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 		return nil, fmt.Errorf("error in getting build configurations")
 	}
 	return buildRegistryConfig, nil
-}
-
-func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error) {
-	sourceCiPipeline := &ciPipeline
-	if adapter.IsLinkedCD(ciPipeline) {
-		sourceCdPipeline, err := impl.pipelineRepository.FindById(ciPipeline.ParentCiPipeline)
-		if err != nil {
-			impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
-			return nil, err
-		}
-		sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithAppData(sourceCdPipeline.CiPipelineId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
-			return nil, err
-		}
-	}
-	return sourceCiPipeline, nil
-}
-
-func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		span.End()
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return false, err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
-		if cdPipeline.Environment.ClusterId == 0 {
-			envDetails, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", cdPipeline.EnvironmentId, "err", err)
-				return false, err
-			}
-			cdPipeline.Environment = *envDetails
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return false, err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	return isVulnerable, nil
 }
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
@@ -1155,4 +1105,20 @@ func convert(ts string) (*time.Time, error) {
 		return nil, err
 	}
 	return &t, nil
+}
+
+func (impl *TriggerServiceImpl) getIfBlobStorageIsEnabled() bool {
+	return impl.config.BlobStorageEnabled
+}
+
+func (impl *TriggerServiceImpl) getLogLocationBasedOnWorkflowType(workflowType bean2.WorkflowType, pipelineName string, cdWfId int) string {
+	switch workflowType {
+	case pipelineConfig.WorkflowTypePre:
+	case pipelineConfig.WorkflowTypePost:
+		return fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWfId), workflowType, pipelineName)
+	case pipelineConfig.WorkflowTypeDeploy:
+		return ""
+	}
+	// default assuming to be empty
+	return ""
 }

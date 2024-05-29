@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipelineConfig
@@ -52,6 +39,7 @@ type CiWorkflowRepository interface {
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
+	FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -287,7 +275,25 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 		Select()
 	return ciWorkflow, err
 }
+func (impl *CiWorkflowRepositoryImpl) FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) ([]*CiWorkflow, error) {
+	var ciWorkflow []*CiWorkflow
+	if len(pipelineId) == 0 {
+		return nil, nil
+	}
+	query := "SELECT MAX(id) as id " +
+		" FROM ci_workflow ciw" +
+		" WHERE ciw.ci_pipeline_id in(?)" +
+		" GROUP by ciw.ci_pipeline_id"
 
+	query = fmt.Sprintf(" SELECT * "+
+		" FROM ci_workflow WHERE id IN (%s)", query)
+
+	_, err := impl.dbConnection.Query(&ciWorkflow, query, pg.In(pipelineId))
+	if err != nil {
+		return ciWorkflow, err
+	}
+	return ciWorkflow, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).

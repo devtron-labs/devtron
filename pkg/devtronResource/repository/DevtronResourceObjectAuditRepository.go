@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 import (
@@ -11,11 +15,15 @@ type AuditOperationType string
 const (
 	AuditOperationTypeCreate  AuditOperationType = "CREATE"
 	AuditOperationTypeUpdate  AuditOperationType = "UPDATE"
+	AuditOperationTypePatch   AuditOperationType = "PATCH"
 	AuditOperationTypeDeleted AuditOperationType = "DELETE"
+	AuditOperationTypeClone   AuditOperationType = "CLONE"
 )
 
 type DevtronResourceObjectAuditRepository interface {
 	Save(model *DevtronResourceObjectAudit) error
+	FindLatestAuditByOpPath(resourceObjectId int, opPath string) (*DevtronResourceObjectAudit, error)
+	FindLatestAuditByOpType(resourceObjectId int, opType AuditOperationType) (*DevtronResourceObjectAudit, error)
 }
 
 type DevtronResourceObjectAuditRepositoryImpl struct {
@@ -36,7 +44,8 @@ type DevtronResourceObjectAudit struct {
 	Id                      int                `sql:"id,pk"`
 	DevtronResourceObjectId int                `sql:"devtron_resource_object_id"`
 	ObjectData              string             `sql:"object_data"` //json string
-	AuditOperation          AuditOperationType `sql:"audit_operation"     `
+	AuditOperation          AuditOperationType `sql:"audit_operation"`
+	AuditOperationPath      []string           `sql:"audit_operation_path" pg:",array"` //path in object at which the audit operation is performed
 	sql.AuditLog
 }
 
@@ -47,4 +56,18 @@ func (repo *DevtronResourceObjectAuditRepositoryImpl) Save(model *DevtronResourc
 		return err
 	}
 	return nil
+}
+
+func (repo *DevtronResourceObjectAuditRepositoryImpl) FindLatestAuditByOpPath(resourceObjectId int, opPath string) (*DevtronResourceObjectAudit, error) {
+	var model DevtronResourceObjectAudit
+	err := repo.dbConnection.Model(&model).Where("devtron_resource_object_id = ?", resourceObjectId).
+		Where("? = ANY(audit_operation_path)", opPath).Order("updated_on desc").Limit(1).Select()
+	return &model, err
+}
+
+func (repo *DevtronResourceObjectAuditRepositoryImpl) FindLatestAuditByOpType(resourceObjectId int, opType AuditOperationType) (*DevtronResourceObjectAudit, error) {
+	var model DevtronResourceObjectAudit
+	err := repo.dbConnection.Model(&model).Where("devtron_resource_object_id = ?", resourceObjectId).
+		Where("audit_operation = ?", opType).Order("updated_on desc").Limit(1).Select()
+	return &model, err
 }

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 //go:build wireinject
 // +build wireinject
 
@@ -6,6 +10,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
@@ -41,12 +46,11 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -59,9 +63,13 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	repository3 "github.com/devtron-labs/devtron/pkg/remoteConnection/repository"
+	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -104,6 +112,7 @@ func InitializeApp() (*App, error) {
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
 		argoApplication.ArgoApplicationWireSet,
+
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,
@@ -112,11 +121,12 @@ func InitializeApp() (*App, error) {
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
-		devtronResource.DevtronResourceWireSetEA,
-		helper.NewAppListingRepositoryQueryBuilder,
-		repository.NewAppListingRepositoryImpl,
 
-		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+		//TODO: check why policy is giving error of unused provider
+		//globalPolicy.GlobalPolicyWireSetEA,
+		//devtronResource2.PolicyWireSet,
+		devtronResource.DevtronResourceWireSetEA,
+
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
@@ -229,8 +239,8 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 		cron.NewCronLoggerImpl,
 
 		timeoutWindow.NewTimeWindowServiceImpl,
@@ -245,10 +255,22 @@ func InitializeApp() (*App, error) {
 		deploymentWindow.NewDeploymentWindowServiceImplEA,
 		wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
 
-		appWorkflow.NewAppWorkflowRepositoryImpl,
-		wire.Bind(new(appWorkflow.AppWorkflowRepository), new(*appWorkflow.AppWorkflowRepositoryImpl)),
-
 		appStore.AppStoreWireSet,
+
+		security.NewImageScanServiceImplEA,
+		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
+
+		resourceFilter.NewCELServiceImpl,
+		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+
+		out.NewChartScanPublishServiceImplEA,
+		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
+
+		repository3.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(repository3.RemoteConnectionRepository), new(*repository3.RemoteConnectionRepositoryImpl)),
+
+		remoteConnection.NewRemoteConnectionServiceImpl,
+		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

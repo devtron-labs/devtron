@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package configure
 
 import (
@@ -72,6 +76,7 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
+	GetRestartWorkloadData(w http.ResponseWriter, r *http.Request)
 	SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 	GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 
@@ -1004,6 +1009,66 @@ func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.R
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	if err != nil {
+		return
+	}
+	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
+	if err != nil {
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get(common.TokenHeaderKey)
+	request := handler.filterAuthorizedResourcesForGroup(appIds, envId, token)
+	if len(request) == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+	defer cancel()
+	resp, err := handler.deploymentTemplateService.GetRestartWorkloadData(ctx, request, envId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetRestartWorkloadData", "resp", resp, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+func (handler *PipelineConfigRestHandlerImpl) filterAuthorizedResourcesForGroup(appIds []int, envId int, token string) []int {
+
+	appToEnv := make(map[int][]int)
+	for _, appId := range appIds {
+		appToEnv[appId] = []int{envId}
+	}
+	rbacObjectToApp := make(map[string]int)
+	rbacObjects := make([]string, 0)
+
+	objectMap := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppIdBatch(appToEnv)
+
+	for _, appId := range appIds {
+
+		object := objectMap[appId][envId]
+		rbacObjectToApp[object] = appId
+		rbacObjects = append(rbacObjects, object)
+
+	}
+
+	authorizedApps := make([]int, 0)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, rbacObjects)
+	for object, isAllowed := range results {
+		if isAllowed {
+			authorizedApps = append(authorizedApps, rbacObjectToApp[object])
+		}
+	}
+
+	return authorizedApps
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.ResponseWriter, r *http.Request) {

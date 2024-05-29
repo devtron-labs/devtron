@@ -113,6 +113,10 @@ CREATE TABLE "public"."pre_post_cd_script_history"
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_strategy_history;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE "public"."pipeline_strategy_history"
 (

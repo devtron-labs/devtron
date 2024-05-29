@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -54,6 +58,7 @@ type EnvDto struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 	Description           string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+	Default               bool   `json:"default"`
 }
 
 type ClusterEnvDto struct {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package security
 
 import (
@@ -17,6 +21,7 @@ type ScanToolExecutionHistoryMapping struct {
 	ExecutionFinishTime         time.Time                            `sql:"execution_finish_time,notnull"`
 	State                       serverBean.ScanExecutionProcessState `sql:"state"`
 	TryCount                    int                                  `sql:"try_count"`
+	ErrorMessage                string                               `sql:"error_message"`
 	sql.AuditLog
 }
 
@@ -116,6 +121,9 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesBy
 }
 func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesByExecutionHistoryIds(ids []int) ([]*ScanToolExecutionHistoryMapping, error) {
 	var models []*ScanToolExecutionHistoryMapping
+	if len(ids) == 0 {
+		return models, nil
+	}
 	err := repo.dbConnection.Model(&models).Column("scan_tool_execution_history_mapping.*").
 		Where("image_scan_execution_history_id in (?)", pg.In(ids)).
 		Select()

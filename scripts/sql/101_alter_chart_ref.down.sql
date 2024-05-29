@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DELETE FROM "public"."chart_ref" WHERE ("location" = 'deployment-chart_1-0-0' AND "version" = '1.0.0');
 
 ALTER TABLE "chart_ref" DROP COLUMN "deployment_strategy_path";

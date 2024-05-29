@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Codacy','Codacy is an automated code analysis/quality tool that helps developers ship better software, faster.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/codacy-plugin-icon.png',false,'now()',1,'now()',1);
 

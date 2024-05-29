@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package bean
@@ -35,6 +22,7 @@ import (
 	constants1 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"strings"
 	"time"
 )
@@ -72,7 +60,8 @@ type CreateAppDTO struct {
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
 	GenericNote *bean4.GenericNoteResponseBean `json:"genericNote,omitempty"`
-	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` // TODO: Change Validation if new AppType is introduced
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	DisplayName string                         `json:"-"`                             //not exposed to UI
 }
 
 type CreateMaterialDTO struct {
@@ -177,6 +166,26 @@ type CiPipelineMin struct {
 	ScanEnabled      bool                    `json:"scanEnabled,notnull"`
 }
 
+type CiComponentDetails struct {
+	Name         string                  `json:"name,omitempty"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id           int                     `json:"id"`
+	PipelineType constants.SourceTypeStr `json:"pipelineType,omitempty"`
+	ScanEnabled  bool                    `json:"scanEnabled,notnull"`
+	CiMaterial   []*CiMaterial           `json:"ciMaterial,omitempty"`
+}
+
+type CdComponentDetails struct {
+	Name              string `json:"name,omitempty"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                int    `json:"id"`
+	DeploymentAppType string `json:"deploymentAppType"`
+	EnvironmentId     int    `json:"environmentId"`
+	EnvironmentName   string `json:"environmentName"`
+}
+
+const (
+	CiComponentNotFound = "no CI components found"
+)
+
 type CiScript struct {
 	Id             int    `json:"id"`
 	Index          int    `json:"index"`
@@ -209,7 +218,6 @@ type ExternalCiConfigRole struct {
 
 // -------------------
 type PatchAction int
-type PipelineType string
 
 const (
 	CREATE          PatchAction = iota
@@ -864,6 +872,11 @@ type CiArtifactBean struct {
 	DeploymentWindowArtifactMetadata deploymentWindow.DeploymentWindowAuditData `json:"deploymentWindowArtifactMetadata"`
 	PromotionApprovalMetadata        *bean5.PromotionApprovalMetaData           `json:"promotionApprovalMetadata"`
 	DeployedOnEnvironments           []string                                   `json:"deployedOnEnvironments"`
+
+	// ConfiguredInReleases is used to convey data of releases where this artifact is configured. this should be not present here, but need to do refactoring for wrapping specific beans as for current scenario we need whole CiArtifactResponse
+	// kept as interface to avoid import issues
+	ConfiguredInReleases interface{} `json:"configuredInReleases,omitempty"`
+	AppWorkflowId        int         `json:"appWorkflowId"` //app workflow where artifacts belong to, used in release
 }
 
 func (c *CiArtifactBean) GetMaterialInfo() ([]repository3.CiMaterialInfo, error) {

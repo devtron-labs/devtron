@@ -175,6 +175,11 @@ VALUES ((nextval('id_seq_plugin_step_variable')), (select currval('id_seq_plugin
         'now()', '1', 'now()', '1');
 
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+
 --- dTrack plugin for maven & gradle
 
 INSERT INTO "public"."plugin_metadata" ("id", "name", "description", "type", "icon", "deleted", "created_on",

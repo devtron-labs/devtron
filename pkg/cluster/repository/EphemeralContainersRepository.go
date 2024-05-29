@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 import (
@@ -40,10 +44,10 @@ type EphemeralContainersRepository interface {
 	FindContainerByName(clusterID int, namespace, podName, name string) (*EphemeralContainerBean, error)
 }
 
-func NewEphemeralContainersRepositoryImpl(db *pg.DB) *EphemeralContainersRepositoryImpl {
+func NewEphemeralContainersRepositoryImpl(db *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *EphemeralContainersRepositoryImpl {
 	return &EphemeralContainersRepositoryImpl{
 		dbConnection:        db,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(db),
+		TransactionUtilImpl: transactionUtilImpl,
 	}
 }
 

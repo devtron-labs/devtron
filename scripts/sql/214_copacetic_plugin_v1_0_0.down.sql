@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DELETE FROM plugin_step_variable WHERE plugin_step_id=(SELECT ps.id FROM plugin_metadata p INNER JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copacetic v1.0.0' and ps."index"=1 and ps.deleted=false);
 DELETE FROM plugin_step WHERE plugin_id=(SELECT id FROM plugin_metadata WHERE name='Copacetic v1.0.0');
 DELETE FROM plugin_stage_mapping WHERE plugin_id=(SELECT id FROM plugin_metadata WHERE name='Copacetic v1.0.0');

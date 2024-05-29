@@ -1,4 +1,8 @@
 BEGIN;
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- create resource filter audit table
 CREATE SEQUENCE IF NOT EXISTS resource_filter_audit_seq;
 CREATE TABLE IF NOT EXISTS "public"."resource_filter_audit"

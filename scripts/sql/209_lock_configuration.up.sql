@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_lock_configuration;
 
 CREATE TABLE IF NOT EXISTS public.lock_configuration

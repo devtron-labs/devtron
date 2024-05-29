@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package variables
 
 import (
@@ -6,7 +10,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -35,7 +39,7 @@ type ScopedVariableServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	scopedVariableRepository            repository2.ScopedVariableRepository
 	qualifierMappingService             resourceQualifiers.QualifierMappingService
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService
 	VariableNameConfig                  *VariableConfig
 	VariableCache                       *cache.VariableCacheObj
 
@@ -45,7 +49,7 @@ type ScopedVariableServiceImpl struct {
 	clusterRepository     repository.ClusterRepository
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
 	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,

@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package gitops
@@ -271,15 +258,15 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
 			return nil, err
 		}
-		for _, cluster := range clusters {
+		for _, clusterItem := range clusters {
 			//if cluster is configured with proxy or with ssh tunnel then gitOps is not supported so skipping such clusters
-			if len(cluster.ProxyUrl) > 0 || cluster.ToConnectWithSSHTunnel {
+			if cluster.IsProxyOrSSHConfigured(&clusterItem) {
 				continue
 			}
-			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&clusterItem)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
-				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
+				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", clusterItem.ClusterName, "err", err)
 				return nil, err
 			}
 		}
@@ -351,6 +338,8 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
 	model.AllowCustomRepository = request.AllowCustomRepository
+	model.UpdatedBy = request.UserId
+	model.UpdatedOn = time.Now()
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)

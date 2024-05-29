@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package casbin
 
 import (
@@ -48,9 +52,9 @@ type EnterpriseEnforcerConfig struct {
 func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer, enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger, casbinService CasbinService, globalAuthConfigService auth.GlobalAuthorisationConfigService) (*EnterpriseEnforcerImpl, error) {
-	enforcerImpl := NewEnforcerImpl(enforcer, enforcerV2, sessionManager, logger, casbinService, globalAuthConfigService)
+	enforcerImpl, err := NewEnforcerImpl(enforcer, enforcerV2, sessionManager, logger, casbinService, globalAuthConfigService)
 	enforcerConfig := &EnterpriseEnforcerConfig{}
-	err := env.Parse(enforcerConfig)
+	err = env.Parse(enforcerConfig)
 	if err != nil {
 		logger.Fatal("error occurred while parsing enforcer config", err)
 	}

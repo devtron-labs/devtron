@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package appList
@@ -20,6 +7,7 @@ package appList
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -27,6 +15,8 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
@@ -51,7 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	_ "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -84,6 +74,8 @@ type AppListingRestHandler interface {
 
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -122,7 +114,7 @@ type AppStatus struct {
 type AppAutocomplete struct {
 	Teams        []team.TeamRequest
 	Environments []bean2.EnvironmentBean
-	Clusters     []cluster.ClusterBean
+	Clusters     []clusterBean.ClusterBean
 }
 
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
@@ -299,7 +291,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
-	//Allow CORS here By * or specific origin
+	// Allow CORS here By * or specific origin
 	util3.SetupCorsOriginHeader(&w)
 	token := r.Header.Get("token")
 	t0 := time.Now()
@@ -354,7 +346,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
-	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	_, _, err = app.GetNamespaceClusterMapping(fetchAppListingRequest.Namespaces)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
@@ -650,26 +642,34 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
 	appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) {
+	var apiError *util.ApiError
+	ok := errors.As(err, &apiError)
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
 				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
 				if appDeleteErr != nil {
-					common.WriteJsonResp(w, fmt.Errorf("error in deleting devtron pipeline for deleted argocd app"), nil, http.StatusInternalServerError)
+					apiError.UserMessage = constants.ErrorDeletingPipelineForDeletedArgoAppMsg
+					common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 					return
 				} else if appDeleteErr == nil && !acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("argocd app deleted"), nil, http.StatusNotFound)
+					apiError.UserMessage = constants.ArgoAppDeletedErrMsg
+					common.WriteJsonResp(w, apiError, nil, http.StatusNotFound)
 					return
 				}
 			}
 		}
 	}
 	// not returned yet therefore no specific error to be handled, send error in internal message
-	common.WriteJsonResp(w, &util.ApiError{
-		InternalMessage: err.Error(),
-		UserMessage:     "unable to fetch resource tree",
-	}, nil, http.StatusInternalServerError)
+	if ok && apiError != nil {
+		apiError.UserMessage = constants.UnableToFetchResourceTreeErrMsg
+	} else {
+		apiError = &util.ApiError{
+			InternalMessage: err.Error(),
+			UserMessage:     constants.UnableToFetchResourceTreeErrMsg,
+		}
+	}
+	common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
@@ -905,6 +905,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
+		if util4.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
+		}
 		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
@@ -985,6 +989,10 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 // TODO: move this to service
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
+	if !cdPipeline.DeploymentAppCreated {
+		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
+		return resourceTree, nil
+	}
 	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
 		// RBAC enforcer Ends
 		query := &application2.ResourcesQuery{
@@ -1008,9 +1016,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
+			internalMsg := fmt.Sprintf("%s, err:- %s", constants.UnableToFetchResourceTreeForAcdErrMsg, err.Error())
+			clientCode, _ := util.GetClientDetailedError(err)
+			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
 			err = &util.ApiError{
+				HttpStatusCode:  httpStatusCode,
 				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				InternalMessage: internalMsg,
 				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
 			}
 			return resourceTree, err
@@ -1111,8 +1123,30 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
 	if err != nil {
 		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		httpStatus, ok := util.IsErrorContextCancelledOrDeadlineExceeded(err)
+		if ok {
+			return nil, &util.ApiError{HttpStatusCode: httpStatus, Code: strconv.Itoa(httpStatus), InternalMessage: err.Error()}
+		}
 		return nil, err
 	}
 	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
+}
+
+func (handler AppListingRestHandlerImpl) FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	authorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	res, err := handler.appListingService.FetchJobCiPipelines()
+	if err != nil {
+		handler.logger.Errorw("error in fetching job ci pipelines", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

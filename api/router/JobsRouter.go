@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package router
 
 import (
@@ -19,10 +23,11 @@ func NewJobRouterImpl(pipelineConfigRestHandler configure.PipelineConfigRestHand
 		appListingRestHandler:     appListingRestHandler,
 		pipelineConfigRestHandler: pipelineConfigRestHandler,
 	}
-	//return router
+	// return router
 }
 func (router JobRouterImpl) InitJobRouter(jobRouter *mux.Router) {
 	jobRouter.Path("").HandlerFunc(router.pipelineConfigRestHandler.CreateApp).Methods("POST")
 	jobRouter.Path("/list").HandlerFunc(router.appListingRestHandler.FetchJobs).Methods("POST")
 	jobRouter.Path("/ci-pipeline/list/{jobId}").HandlerFunc(router.appListingRestHandler.FetchJobOverviewCiPipelines).Methods("GET")
+	jobRouter.Path("/ci-pipeline/autocomplete").HandlerFunc(router.appListingRestHandler.FetchAutocompleteJobCiPipelines).Methods("GET")
 }

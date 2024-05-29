@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package chartRepoRepository
 
 import (
@@ -49,6 +53,7 @@ type ChartRepository interface {
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
 	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
+	FindLatestChartByAppIds(appId []int) (chart []*Chart, err error)
 	FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error)
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
@@ -58,10 +63,10 @@ type ChartRepository interface {
 	sql.TransactionWrapper
 }
 
-func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
+func NewChartRepository(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *ChartRepositoryImpl {
 	return &ChartRepositoryImpl{
 		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -129,6 +134,18 @@ func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int
 	err = repositoryImpl.dbConnection.
 		Model(chart).
 		Where("app_id= ?", appId).
+		Where("latest= ?", true).
+		Select()
+	return chart, err
+}
+func (repositoryImpl ChartRepositoryImpl) FindLatestChartByAppIds(appIds []int) ([]*Chart, error) {
+	var chart []*Chart
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&chart).
+		Where("app_id in (?)", pg.In(appIds)).
 		Where("latest= ?", true).
 		Select()
 	return chart, err

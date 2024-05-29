@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package deployedApp
 
 import (
@@ -8,6 +12,7 @@ import (
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -114,7 +119,7 @@ func (impl *DeployedAppServiceImpl) checkForDeploymentWindow(podRotateRequest *b
 		return podRotateRequest, fmt.Errorf("error in getting deployment window state %v", err)
 	}
 	if !actionState.IsActionAllowedWithBypass() {
-		return podRotateRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState))
+		return podRotateRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
 	}
 	return podRotateRequest, nil
 }

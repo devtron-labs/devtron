@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE request_approval_user_data DROP COLUMN "request_type";
 
 ALTER TABLE request_approval_user_data RENAME TO deployment_approval_user_data;

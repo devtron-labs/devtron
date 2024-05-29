@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package util
 
 import (
@@ -19,6 +23,7 @@ type GlobalEnvVariables struct {
 	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+	ExecuteWireNilChecker          bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
 }
 
 type DevtronSecretConfig struct {

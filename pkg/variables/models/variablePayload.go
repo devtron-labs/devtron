@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package models
 
 import (
@@ -75,10 +79,6 @@ var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
 type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`
 }
-
-//func (variableValue VariableValue) Stringify() (string, error) {
-//	return utils.StringifyValue(variableValue.Value)
-//}
 
 func (value VariableValue) StringValue() string {
 	switch reflect.TypeOf(value.Value).Kind() {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE ci_pipeline_material SET  active = false FROM git_material JOIN app ON app.id = git_material.app_id WHERE app.app_type = 2 AND ci_pipeline_material.git_material_id = git_material.id;
 
 UPDATE ci_pipeline SET active = false WHERE app_id IN (SELECT id FROM app WHERE app_type = 2);

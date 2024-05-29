@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_metadata'), 'Pull images from container repository','Polls a container repository and pulls images stored in the repository which can be used for deployment.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-poll-container-registry.png','f', 'now()', 1, 'now()', 1);
 

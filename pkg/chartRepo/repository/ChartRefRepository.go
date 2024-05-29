@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package chartRepoRepository
 
 import (
@@ -34,6 +38,7 @@ type ChartRefRepository interface {
 	Save(chartRepo *ChartRef) error
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
+	FindByIds(ids []int) ([]*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
@@ -70,6 +75,16 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 		Where("id = ?", id).
 		Where("active = ?", true).Select()
 	return repo, err
+}
+func (impl ChartRefRepositoryImpl) FindByIds(ids []int) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&chartRefs).
+		Where("id in (?)", pg.In(ids)).
+		Where("active = ?", true).Select()
+	return chartRefs, err
 }
 func (impl ChartRefRepositoryImpl) FindByVersionAndName(name, version string) (*ChartRef, error) {
 	repo := &ChartRef{}

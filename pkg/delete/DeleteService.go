@@ -1,7 +1,12 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package delete
 
 import (
 	"fmt"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -16,11 +21,11 @@ import (
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
+	DeleteCluster(deleteRequest *clusterBean.ClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
-	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
+	DeleteVirtualCluster(bean *clusterBean.VirtualClusterBean, userId int32) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
@@ -57,7 +62,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *clusterBean.ClusterBean, userId int32) error {
 	err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
@@ -103,7 +108,7 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *clusterBean.VirtualClusterBean, userId int32) error {
 	err := impl.clusterService.DeleteVirtualClusterFromDb(bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", bean)

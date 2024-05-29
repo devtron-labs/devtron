@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- 1 for  deployment approval request, 2 for artifact promotion approval request
 ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer NOT NULL DEFAULT 1;
 

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DELETE FROM "default_auth_role"
     WHERE role_type in ('clusterAdmin','clusterEdit','clusterView');
 

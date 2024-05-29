@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Sequence and defined type for cluster_note
 CREATE SEQUENCE IF NOT EXISTS id_seq_cluster_note;
 

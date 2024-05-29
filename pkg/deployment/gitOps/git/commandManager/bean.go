@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package commandManager
 
 import (
@@ -30,4 +34,5 @@ func (gitCtx GitContext) WithTimeout(timeoutSeconds int) (GitContext, context.Ca
 // BasicAuth represent a HTTP basic auth
 type BasicAuth struct {
 	Username, Password string
+	BearerAuth         string
 }

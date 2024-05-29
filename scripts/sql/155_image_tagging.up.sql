@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_image_tag;
 
 CREATE TABLE IF NOT EXISTS public.release_tags (

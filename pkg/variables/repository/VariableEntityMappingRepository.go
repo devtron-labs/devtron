@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 import (
@@ -16,11 +20,11 @@ type VariableEntityMappingRepository interface {
 	DeleteVariablesForEntity(tx *pg.Tx, variableIDs []string, entity Entity, userId int32) error
 }
 
-func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *VariableEntityMappingRepositoryImpl {
+func NewVariableEntityMappingRepository(logger *zap.SugaredLogger, dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *VariableEntityMappingRepositoryImpl {
 	return &VariableEntityMappingRepositoryImpl{
 		logger:              logger,
 		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 

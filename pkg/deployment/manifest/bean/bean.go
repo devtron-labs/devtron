@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
@@ -12,6 +16,9 @@ const (
 	HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
 	Enabled                 = "enabled"
 	ReplicaCount            = "replicaCount"
+	AppNameDevtronLabel     = "api.devtron.ai/appName"
+	EnvNameDevtronLabel     = "api.devtron.ai/envName"
+	ProjectNameDevtronLabel = "api.devtron.ai/project"
 )
 
 type ConfigMapAndSecretJsonV2 struct {

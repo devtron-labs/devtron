@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 BEGIN;
 -- gitops_config modifications
 -- Step 1: Drop the new columns allow_custom_repository

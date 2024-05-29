@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package app
@@ -22,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -79,6 +67,7 @@ type AppServiceConfig struct {
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
+	ScanV2Enabled                              bool   `env:"SCAN_V2_ENABLED" envDefault:"false"`
 }
 
 const AppNotFound = "app not found"
@@ -149,6 +138,8 @@ type AppService interface {
 	// PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
 
 	FindAppByNames(names []string) ([]*app.App, error)
+	FindDevtronAppIdsByNames(names []string) ([]int, error)
+	FindDevtronAppIdByName(name string) (int, error)
 	FindAppById(appId int) (*app.App, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error)
@@ -460,7 +451,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 		if !isArgoAppSynced {
 			return isValid, installedAppVersionHistory, appId, envId, nil
@@ -509,7 +500,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
 		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
 		if !isArgoAppSynced {
@@ -1092,8 +1083,8 @@ type ReleaseAttributes struct {
 	PipelineName   string
 	ReleaseVersion string
 	DeploymentType string
-	App            string
-	Env            string
+	App            string // App here corresponds to appId
+	Env            string // Env here corresponds to envId
 	AppMetrics     *bool
 }
 
@@ -1159,6 +1150,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 
 func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
 	return impl.appRepository.FindByNames(names)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdsByNames(names []string) ([]int, error) {
+	return impl.appRepository.FindIdsByNamesAndAppType(names, helper2.CustomApp)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdByName(name string) (int, error) {
+	return impl.appRepository.FindIdByNameAndAppType(name, helper2.CustomApp)
 }
 
 func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {

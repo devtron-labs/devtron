@@ -1,8 +1,14 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package informer
 
 import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	bean3 "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"sync"
 	"time"
 
@@ -66,20 +72,35 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
 		clusterConfig := &k8s2.ClusterConfig{
-			ClusterId:              info.ClusterId,
-			ClusterName:            info.ClusterName,
-			BearerToken:            info.BearerToken,
-			Host:                   info.ServerUrl,
-			ProxyUrl:               info.ProxyUrl,
-			InsecureSkipTLSVerify:  info.InsecureSkipTLSVerify,
-			KeyData:                info.KeyData,
-			CertData:               info.CertData,
-			CAData:                 info.CAData,
-			ToConnectWithSSHTunnel: info.ToConnectWithSSHTunnel,
-			SSHTunnelServerAddress: info.SSHTunnelServerAddress,
-			SSHTunnelUser:          info.SSHTunnelUser,
-			SSHTunnelPassword:      info.SSHTunnelPassword,
-			SSHTunnelAuthKey:       info.SSHTunnelAuthKey,
+			ClusterId:             info.ClusterId,
+			ClusterName:           info.ClusterName,
+			BearerToken:           info.BearerToken,
+			Host:                  info.ServerUrl,
+			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
+			KeyData:               info.KeyData,
+			CertData:              info.CertData,
+			CAData:                info.CAData,
+		}
+
+		if info.RemoteConnectionConfig != nil && info.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+			connectionConfig := &bean3.RemoteConnectionConfigBean{
+				RemoteConnectionConfigId: info.RemoteConnectionConfig.RemoteConnectionConfigId,
+				ConnectionMethod:         bean3.RemoteConnectionMethod(info.RemoteConnectionConfig.ConnectionMethod),
+			}
+			if info.RemoteConnectionConfig.ProxyConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodProxy) {
+				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
+					ProxyUrl: info.RemoteConnectionConfig.ProxyConfig.ProxyUrl,
+				}
+			}
+			if info.RemoteConnectionConfig.SSHTunnelConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodSSH) {
+				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
+					SSHServerAddress: info.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+					SSHUsername:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername,
+					SSHPassword:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword,
+					SSHAuthKey:       info.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+				}
+			}
+			clusterConfig.RemoteConnectionConfig = connectionConfig
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 type RoleType string
@@ -115,4 +119,9 @@ const (
 	Active_TemporaryAccess          StatusType = 5
 	Inactive_TemporaryAccess        StatusType = 6
 	Active_Inactive_TemporaryAccess StatusType = 7
+)
+
+const (
+	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+	ApiTokenTableName = "api_token"
 )

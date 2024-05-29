@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE environment ADD COLUMN is_virtual_environment BOOLEAN;
 
 update environment set is_virtual_environment=false;

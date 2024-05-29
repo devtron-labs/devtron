@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE TABLE IF NOT EXISTS "public"."self_registration_roles" (
      "role" varchar(255) NOT NULL,
      "created_on" timestamptz,

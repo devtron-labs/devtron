@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package bean
@@ -24,6 +11,7 @@ import (
 )
 
 type WorkflowType string
+
 type DeploymentConfigurationType string
 
 const (
@@ -50,6 +38,19 @@ func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineSt
 	}
 }
 
+func (workflowType WorkflowType) GetDeploymentStageType() models.DeploymentType {
+	switch workflowType {
+	case CD_WORKFLOW_TYPE_PRE:
+		return models.DEPLOYMENTTYPE_PRE
+	case CD_WORKFLOW_TYPE_POST:
+		return models.DEPLOYMENTTYPE_POST
+	case CD_WORKFLOW_TYPE_DEPLOY:
+		return models.DEPLOYMENTTYPE_DEPLOY
+	default:
+		return models.DEPLOYMENTTYPE_UNKNOWN
+	}
+}
+
 type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
@@ -65,6 +66,7 @@ type ValuesOverrideRequest struct {
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` //required for async install/upgrade event;
 	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     //required for async install/upgrade handling; previously if was used internally
+	CdWorkflowRunnerId                    int                         `json:"cdWorkflowRunnerId"` // used for deployment triggered through release, will use existing cd workflow runner if CdWorkflowRunnerId is found.
 	UserId                                int32                       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`
@@ -93,4 +95,17 @@ type BulkCdDeployEvent struct {
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
+}
+
+func CheckIfDeploymentTypePrePostOrDeployOrUnknown(deploymentType models.DeploymentType) bool {
+	if deploymentType == models.DEPLOYMENTTYPE_DEPLOY || deploymentType == models.DEPLOYMENTTYPE_UNKNOWN || deploymentType == models.DEPLOYMENTTYPE_PRE || deploymentType == models.DEPLOYMENTTYPE_POST {
+		return true
+	}
+	return false
+}
+
+type CdWorkflowRunnerIds struct {
+	PreCdWorkflowRunnerId  int
+	CdWorkflowRunnerId     int
+	PostCdWorkflowRunnerId int
 }

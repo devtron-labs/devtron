@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package common
 
 import (
@@ -6,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+const TokenHeaderKey = "token"
 
 func ExtractIntPathParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
 	vars := mux.Vars(r)

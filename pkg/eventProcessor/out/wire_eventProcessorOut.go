@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package out
 
 import "github.com/google/wire"
@@ -17,4 +21,7 @@ var EventProcessorOutWireSet = wire.NewSet(
 
 	NewCIPipelineEventPublishServiceImpl,
 	wire.Bind(new(CIPipelineEventPublishService), new(*CIPipelineEventPublishServiceImpl)),
+
+	NewChartScanPublishServiceImpl,
+	wire.Bind(new(ChartScanPublishService), new(*ChartScanPublishServiceImpl)),
 )

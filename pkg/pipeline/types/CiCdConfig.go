@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package types
 
 import (
@@ -64,6 +68,7 @@ type CiCdConfig struct {
 	NatsServerHost                   string                              `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 	ImageScanMaxRetries              int                                 `env:"IMAGE_SCAN_MAX_RETRIES" envDefault:"3"`
 	ImageScanRetryDelay              int                                 `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5"`
+	ShowDockerBuildCmdInLogs         bool                                `env:"SHOW_DOCKER_BUILD_ARGS" envDefault:"true"`
 	// from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`

@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipeline
@@ -26,6 +13,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -96,6 +85,8 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	remoteConnectionService       remoteConnection.RemoteConnectionService
+	dockerRegistryConfig          *DockerRegistryConfigImpl
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -115,6 +106,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	remoteConnectionService remoteConnection.RemoteConnectionService,
+	dockerRegistryConfig *DockerRegistryConfigImpl,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -136,6 +129,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		remoteConnectionService:       remoteConnectionService,
+		dockerRegistryConfig:          dockerRegistryConfig,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -196,6 +191,13 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 	if isJob && env != nil {
+
+		// todo: confirm this from aditya @komal
+		if env.Cluster.CdArgoSetup {
+			err = errors.New("inactive cluster cd the cluster")
+			return 0, err
+		}
+
 		ciWorkflowConfig.Namespace = env.Namespace
 
 		// This will be populated for jobs running in selected environment
@@ -746,11 +748,18 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	if dockerRegistry != nil {
+		var registryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean
+		registryConnectionConfig, err = impl.dockerRegistryConfig.GetRemoteConnectionConfigByDockerId(dockerRegistry.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
+			return nil, err
+		}
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
 		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRegistryConnectionConfig = registryConnectionConfig
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username

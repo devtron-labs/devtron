@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package client
@@ -53,6 +40,7 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
 	WriteNatsEvent(channel string, payload interface{}) error
+	SendAnyEvent(event map[string]interface{}) (bool, error)
 }
 
 type Event struct {
@@ -103,6 +91,7 @@ type Payload struct {
 	ArtifactPromotionRequestViewLink string               `json:"artifactPromotionRequestViewLink"`
 	ArtifactPromotionApprovalLink    string               `json:"artifactPromotionApprovalLink"`
 	PromotionArtifactSource          string               `json:"promotionArtifactSource"`
+	ScoopNotificationConfig          interface{}          `json:"scoopNotificationConfig"`
 }
 
 type CiPipelineMaterialResponse struct {
@@ -287,4 +276,29 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 	}
 	err = impl.pubsubClient.Publish(topic, string(body))
 	return err
+}
+
+// do not call this method if notification module is not installed
+func (impl *EventRESTClientImpl) SendAnyEvent(event map[string]interface{}) (bool, error) {
+	impl.logger.Debugw("event before send", "event", event)
+	body, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("error while marshaling event request ", "err", err)
+		return false, err
+	}
+	var reqBody = []byte(body)
+	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		impl.logger.Errorw("error while writing event", "err", err)
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := impl.client.Do(req)
+	if err != nil {
+		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
+		return false, err
+	}
+	defer resp.Body.Close()
+	impl.logger.Debugw("event completed", "event resp", resp)
+	return true, err
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
+option go_package = "github.com/devtron-labs/kubelink/bean/grpc/gRPC";
 
 message ClusterConfig {
   string apiServerUrl = 1;
@@ -13,12 +13,7 @@ message ClusterConfig {
   string keyData = 6;
   string certData = 7;
   string caData = 8;
-  string proxyUrl = 9;
-  bool toConnectWithSSHTunnel = 10;
-  string sshTunnelUser = 11;
-  string sshTunnelPassword = 12;
-  string sshTunnelAuthKey = 13;
-  string sshTunnelServerAddress = 14;
+  RemoteConnectionConfig RemoteConnectionConfig = 9;
 }
 
 message AppListRequest {
@@ -42,6 +37,8 @@ service ApplicationService {
   rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
+  rpc TemplateChartBulk(BulkInstallReleaseRequest) returns (BulkTemplateChartResponse){}
+  rpc TemplateChartAndRetrieveChart(InstallReleaseRequest) returns (TemplateChartResponseWithChart){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
@@ -265,6 +262,7 @@ message UpgradeReleaseRequest {
   int32 historyMax = 3;
   ChartContent chartContent = 4;
   bool RunInCtx = 5;
+  string K8sVersion = 6;
 }
 
 message UpgradeReleaseResponse {
@@ -300,8 +298,12 @@ message InstallReleaseRequest {
   bool IsOCIRepo = 9;
   int32 installAppVersionHistoryId = 10;
   ChartContent chartContent = 11;
+  string appName=12;
 }
 
+message  BulkInstallReleaseRequest{
+  repeated  InstallReleaseRequest BulkInstallReleaseRequest=1;
+}
 message InstallReleaseResponse {
   bool success = 1;
 }
@@ -317,13 +319,24 @@ message RollbackReleaseRequest {
 
 message TemplateChartResponse {
   string generatedManifest = 1;
+  string appName=2;
 }
+message BulkTemplateChartResponse {
+  repeated TemplateChartResponse BulkTemplateChartResponse=1;
+}
+
+message TemplateChartResponseWithChart {
+  TemplateChartResponse templateChartResponse = 1;
+  ChartContent chartBytes = 2;
+}
+
 
 message HelmInstallCustomRequest {
   string valuesYaml = 1;
   ChartContent chartContent = 2;
   ReleaseIdentifier releaseIdentifier = 3;
   bool RunInCtx = 4;
+  string K8sVersion = 5;
 }
 
 message HelmInstallCustomResponse {
@@ -375,7 +388,32 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
+  RemoteConnectionConfig RemoteConnectionConfig = 10;
+  string RegistryId = 11;
 }
+
+enum RemoteConnectionMethod {
+  PROXY = 0;
+  SSH = 1;
+}
+
+message ProxyConfig {
+  string ProxyUrl = 1;
+}
+
+message SSHTunnelConfig {
+  string SSHServerAddress = 1;
+  string SSHUsername = 2;
+  string SSHPassword = 3;
+  string SSHAuthKey = 4;
+}
+
+message RemoteConnectionConfig {
+  RemoteConnectionMethod RemoteConnectionMethod = 1;
+  ProxyConfig ProxyConfig = 2;
+  SSHTunnelConfig SSHTunnelConfig = 3;
+}
+
 
 message OCIRegistryResponse {
   bool IsLoggedIn = 1;
