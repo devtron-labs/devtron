@@ -39,16 +39,11 @@ jobs:
              if !(echo "$arch" | grep -q "amd64" && (echo "$arch" | grep -q "arm64" || echo "$arch" | grep -q "arm")); then
                  echo " $image Image does not support multiarchitecture"
              fi
-                           }
+                      }
          while read -r line; do
           image=$(echo "$line" | cut -d'"' -f4)
           if [ -n "$image" ]; then
              echo "$image"
-             if [ -n "$tag" ]; then
-                image_ref="$image:$tag"
-              else
-                image_ref="$image"
-              fi
-             get_image_arch "$image_ref"
+             get_image_arch "$image"    
           fi
          done < <(grep -Eo '"image":\s*"[^"]*"' values.json)
