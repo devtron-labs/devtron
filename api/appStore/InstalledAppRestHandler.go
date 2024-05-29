@@ -29,6 +29,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -364,7 +365,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	charts := handler.checkForHelmDeployAuth(request, token)
+	charts, res := handler.checkForHelmDeployAuth(request, token)
 	request.ChartGroupInstallChartRequest = charts
 	//RBAC block ends here
 
@@ -389,7 +390,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 			return
 		}
 	}
-	res, err := handler.chartGroupService.DeployBulk(&request)
+	res, err = handler.chartGroupService.DeployBulk(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeployBulk", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -398,7 +399,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chartGroup.ChartGroupInstallRequest, token string) []*chartGroup.ChartGroupInstallChartRequest {
+func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chartGroup.ChartGroupInstallRequest, token string) ([]*chartGroup.ChartGroupInstallChartRequest, *chartGroup.ChartGroupInstallAppRes) {
 	//the value of this map is array of integer because the GetHelmObjectByProjectIdAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []int)
 	rbacObjectToEnvIdMap1 := make(map[string][]int)
@@ -407,10 +408,10 @@ func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chart
 	rbacObjectArray1 := make([]string, 0)
 	rbacObjectArray2 := make([]string, 0)
 
-	envIdToChartGroupInstallChartRequest := make(map[int]*chartGroup.ChartGroupInstallChartRequest)
+	envIdToChartGroupInstallChartRequest := make(map[int][]*chartGroup.ChartGroupInstallChartRequest)
 
 	for _, chartGroupInstall := range request.ChartGroupInstallChartRequest {
-		envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId] = chartGroupInstall
+		envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId] = append(envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId], chartGroupInstall)
 		rbacObject1, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.ProjectId, chartGroupInstall.EnvironmentId)
 		_, ok := rbacObjectToEnvIdMap1[rbacObject1]
 		if !ok {
@@ -429,6 +430,7 @@ func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chart
 	resultObjectMap2 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObjectArray2)
 
 	authorizedEnvIdSet := make(map[int]bool)
+
 	//O(n) time loop , at max we will only iterate through all the apps
 	for obj, ok := range resultObjectMap1 {
 		if ok {
@@ -449,10 +451,56 @@ func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chart
 	authorizedChartGroupInstallRequests := make([]*chartGroup.ChartGroupInstallChartRequest, 0)
 	for envId, _ := range authorizedEnvIdSet {
 		authorizedChartGroupInstall := envIdToChartGroupInstallChartRequest[envId]
-		authorizedChartGroupInstallRequests = append(authorizedChartGroupInstallRequests, authorizedChartGroupInstall)
+		for _, authChartGroup := range authorizedChartGroupInstall {
+			authorizedChartGroupInstallRequests = append(authorizedChartGroupInstallRequests, authChartGroup)
+		}
+	}
+	unauthorizedChartGroupInstallRequests := make([]*chartGroup.ChartGroupInstallChartRequest, 0)
+
+	for _, req := range request.ChartGroupInstallChartRequest {
+		isAuthorized := false
+		for _, authReq := range authorizedChartGroupInstallRequests {
+			if reflect.DeepEqual(req, authReq) {
+				isAuthorized = true
+				break
+			}
+		}
+		if !isAuthorized {
+			unauthorizedChartGroupInstallRequests = append(unauthorizedChartGroupInstallRequests, req)
+		}
 	}
 
-	return authorizedChartGroupInstallRequests
+	// Create slices for ChartGroupInstallMetadata
+	authorizedMetadata := make([]chartGroup.ChartGroupInstallMetadata, 0)
+	unauthorizedMetadata := make([]chartGroup.ChartGroupInstallMetadata, 0)
+
+	for _, req := range authorizedChartGroupInstallRequests {
+		metadata := handler.getChartGroupInstallMetadata(req, string(chartGroup.StatusSuccess), string(chartGroup.ReasonTriggered))
+		authorizedMetadata = append(authorizedMetadata, metadata)
+	}
+
+	for _, req := range unauthorizedChartGroupInstallRequests {
+		metadata := handler.getChartGroupInstallMetadata(req, string(chartGroup.StatusFailed), string(chartGroup.ReasonNotAuthorize))
+		unauthorizedMetadata = append(unauthorizedMetadata, metadata)
+	}
+	unauthorizeCount := len(unauthorizedChartGroupInstallRequests)
+	totalCount := len(request.ChartGroupInstallChartRequest)
+	// Combine all metadata into a single ChartGroupInstallAppRes
+	chartGroupInstallAppRes := &chartGroup.ChartGroupInstallAppRes{
+		ChartGroupInstallMetadata: append(authorizedMetadata, unauthorizedMetadata...),
+		Summary:                   fmt.Sprintf(chartGroup.FAILED_TO_TRIGGER, unauthorizeCount, totalCount),
+	}
+	return authorizedChartGroupInstallRequests, chartGroupInstallAppRes
+}
+
+func (handler *InstalledAppRestHandlerImpl) getChartGroupInstallMetadata(req *chartGroup.ChartGroupInstallChartRequest, triggerStatus string, reason string) chartGroup.ChartGroupInstallMetadata {
+	metadata := chartGroup.ChartGroupInstallMetadata{
+		AppName:       req.AppName,
+		EnvironmentId: req.EnvironmentId,
+		TriggerStatus: triggerStatus,
+		Reason:        reason,
+	}
+	return metadata
 }
 
 func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter, r *http.Request) {

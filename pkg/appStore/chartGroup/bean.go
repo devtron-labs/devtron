@@ -17,6 +17,23 @@ type ChartGroupInstallChartRequest struct {
 	ReferenceValueKind string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
 	ChartGroupEntryId  int    `json:"chartGroupEntryId"` //optional
 }
-
-type ChartGroupInstallAppRes struct {
+type ChartGroupInstallMetadata struct {
+	AppName       string `json:"appName"`
+	EnvironmentId int    `json:"environmentId"`
+	TriggerStatus string `json:"triggerStatus"`
+	Reason        string `json:"reason"`
 }
+type ChartGroupInstallAppRes struct {
+	ChartGroupInstallMetadata []ChartGroupInstallMetadata `json:"chartGroupInstallMetadata"`
+	Summary                   string                      `json:"summary"`
+}
+type TriggerStatus string
+type Reason string
+
+const FAILED_TO_TRIGGER = "%d/%d failed to trigger"
+const (
+	StatusFailed       TriggerStatus = "failed"
+	StatusSuccess      TriggerStatus = "success"
+	ReasonNotAuthorize Reason        = "not authorized"
+	ReasonTriggered    Reason        = "triggered"
+)
