@@ -199,7 +199,7 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 func (impl PipelineOverrideRepositoryImpl) GetLatestNonFailedDeployment(appId, environmentId int) (*LatestDeployment, error) {
 
 	override := &PipelineOverride{}
-	var latestDeployment *LatestDeployment
+	latestDeployment := &LatestDeployment{}
 	err := impl.dbConnection.Model(override).
 		Column("pipeline_override.deployment_type", "cwr.status").
 		Join("join pipeline p on pipeline_override.pipeline_id = p.id").
@@ -213,7 +213,7 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestNonFailedDeployment(appId, e
 		Limit(1).
 		Select(latestDeployment)
 
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		return nil, err
 	}
 	return latestDeployment, nil
