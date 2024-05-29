@@ -826,7 +826,7 @@ func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperU
 	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal/ephemeral containers
 	if handler.terminalEnvVariables.RestrictTerminalAccessForNonSuperUser {
 		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
-			common.WriteJsonResp(w, errors.New("unauthorized User"), "Unauthorized User", http.StatusUnauthorized)
+			common.WriteJsonResp(w, errors.New("unauthorized User"), nil, http.StatusUnauthorized)
 			return true
 		}
 	}
