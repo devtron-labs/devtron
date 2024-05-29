@@ -92,7 +92,7 @@ type K8sApplicationRestHandlerImpl struct {
 	terminalEnvVariables   *util.TerminalEnvVariables
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, terminalEnvVariables *util.TerminalEnvVariables) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -105,7 +105,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		helmAppService:         helmAppService,
 		userService:            userService,
 		k8sCommonService:       k8sCommonService,
-		terminalEnvVariables:   terminalEnvVariables,
+		terminalEnvVariables:   envVariables.TerminalEnvVariables,
 	}
 }
 
