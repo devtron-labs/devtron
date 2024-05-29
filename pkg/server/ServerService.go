@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -78,6 +79,10 @@ func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.
 	devtronAppDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron helm app release status ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 
@@ -153,6 +158,10 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 	if !updateResponse.GetSuccess() {
