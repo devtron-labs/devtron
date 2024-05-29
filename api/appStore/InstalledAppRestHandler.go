@@ -365,7 +365,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	charts, res := handler.checkForHelmDeployAuth(request, token)
+	charts, authRes := handler.checkForHelmDeployAuth(request, token)
 	request.ChartGroupInstallChartRequest = charts
 	//RBAC block ends here
 
@@ -390,11 +390,13 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 			return
 		}
 	}
-	res, err = handler.chartGroupService.DeployBulk(&request)
+	res, err := handler.chartGroupService.DeployBulk(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeployBulk", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	} else {
+		res = authRes
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
