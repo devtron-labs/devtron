@@ -32,7 +32,7 @@ const tokenHeaderKey = "token"
 const argocdTokenHeaderKey = "argocd.token"
 
 // Authorizer is a middleware for authorization
-func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool, userStatusCheckInDb func(token string) (bool, int32, error)) func(next http.Handler) http.Handler {
+func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool, userStatusCheckInDb func(token string) (bool, int32, string, error)) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			token := ""
@@ -73,7 +73,7 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				if userStatusCheckInDb != nil {
 
 					// checking user status in db
-					isInactive, userId, err := userStatusCheckInDb(token)
+					isInactive, userId, emailId, err := userStatusCheckInDb(token)
 					if err != nil {
 						writeResponse(http.StatusUnauthorized, "Invalid User", w, err)
 						return
@@ -83,7 +83,10 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 					}
 
 					// setting user id in context
-					context.WithValue(r.Context(), "userId", userId)
+					ctx := context.WithValue(r.Context(), "userId", userId)
+					ctx = context.WithValue(ctx, "token", token)
+					ctx = context.WithValue(ctx, "emailId", emailId)
+					r = r.WithContext(ctx)
 				}
 			}
 			if pass {

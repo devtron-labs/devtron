@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"log"
 	"math/rand"
 	"net/http"
@@ -53,13 +54,13 @@ type UserAuthService interface {
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
-	AuthVerification(r *http.Request) (bool, error)
+	AuthVerification(r *http.Request) (bool, string, error)
 	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) error
 }
 
 type UserAuthServiceImpl struct {
 	userAuthRepository repository.UserAuthRepository
-	//sessionClient is being used for argocd username-password login proxy
+	// sessionClient is being used for argocd username-password login proxy
 	sessionClient       session2.ServiceClient
 	logger              *zap.SugaredLogger
 	userRepository      repository.UserRepository
@@ -71,7 +72,7 @@ type UserAuthServiceImpl struct {
 var (
 	cStore         *sessions.CookieStore
 	dexOauthConfig *oauth2.Config
-	//googleOauthConfig *oauth2.Config
+	// googleOauthConfig *oauth2.Config
 	oauthStateString     = randToken()
 	idTokenVerifier      *oidc.IDTokenVerifier
 	jwtKey               = randKey()
@@ -202,6 +203,7 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 			writeResponse(http.StatusBadRequest, "StatusBadRequest", w, errors.New("StatusBadRequest"))
 			return
 		}
+		claims.Email = util2.ConvertEmailToLowerCase(claims.Email)
 		bearerToken := claims.Token
 		user, err := authorize(context.Background(), bearerToken)
 		if err != nil {
@@ -257,11 +259,12 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 }
 
 func (impl UserAuthServiceImpl) HandleLoginWithClientIp(ctx context.Context, username, password, clientIp string) (string, error) {
+	impl.logger.Info("login with client ip")
 	token, err := impl.HandleLogin(username, password)
 	if err == nil {
 		id, _, err := impl.userService.GetUserByToken(ctx, token)
 		if err != nil {
-			impl.logger.Infow("error occured while getting user by token", "err", err)
+			impl.logger.Errorw("error occurred while getting user by token", "err", err)
 		} else {
 			impl.userService.SaveLoginAudit("", clientIp, id)
 		}
@@ -308,6 +311,7 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	Claims.Email = util2.ConvertEmailToLowerCase(Claims.Email)
 	dbUser, err := impl.userRepository.FetchUserDetailByEmail(Claims.Email)
 	if err != nil {
 		impl.logger.Errorw("Exception while fetching user from db", "err", err)
@@ -315,7 +319,7 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 	if dbUser.Id > 0 {
 		// Do nothing, User already exist in our db. (unique check by email id)
 	} else {
-		//create new user in our db on d basis of info got from google api or hex. assign a basic role
+		// create new user in our db on d basis of info got from google api or hex. assign a basic role
 		model := &repository.UserModel{
 			EmailId:     Claims.Email,
 			AccessToken: rawIDToken,
@@ -449,7 +453,7 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 	return true, nil
 }
 
-func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) {
+func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, string, error) {
 	token := r.Header.Get("token")
 	if token == "" {
 		impl.logger.Infow("no token provided")
@@ -458,7 +462,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
 		}
-		return false, err
+		return false, "", err
 	}
 
 	_, err := impl.sessionManager.VerifyToken(token)
@@ -470,12 +474,12 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			InternalMessage: "failed to verify token",
 			UserMessage:     "token verification failed while getting logged in user",
 		}
-		return false, err
+		return false, "", err
 	}
 	emailId, version, err := impl.userService.GetEmailAndVersionFromToken(token)
 	if err != nil {
 		impl.logger.Errorw("AuthVerification failed ", "error", err)
-		return false, err
+		return false, "", err
 	}
 	exists := impl.userService.UserExists(emailId)
 	if !exists {
@@ -485,7 +489,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			InternalMessage: "user does not exist",
 			UserMessage:     "active user does not exist",
 		}
-		return false, err
+		return false, "", err
 	}
 	// checking length of version, to ensure backward compatibility as earlier we did not
 	// have version for api-tokens
@@ -494,12 +498,12 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		err := impl.userService.CheckIfTokenIsValid(emailId, version)
 		if err != nil {
 			impl.logger.Errorw("token is not valid", "error", err, "token", token)
-			return false, err
+			return false, "", err
 		}
 	}
 
 	//TODO - extends for other purpose
-	return true, nil
+	return true, emailId, nil
 }
 
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string, workflowName string) (err error) {
