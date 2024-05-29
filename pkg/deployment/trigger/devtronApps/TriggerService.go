@@ -2092,6 +2092,7 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 func (impl *TriggerServiceImpl) getWorkflowExecutorTypeForPrePostOrDeploy(workflowType bean3.WorkflowType) pipelineConfig.WorkflowExecutorType {
 	switch workflowType {
 	case pipelineConfig.WorkflowTypePre:
+		return impl.config.GetWorkflowExecutorType()
 	case pipelineConfig.WorkflowTypePost:
 		return impl.config.GetWorkflowExecutorType()
 	case pipelineConfig.WorkflowTypeDeploy:
