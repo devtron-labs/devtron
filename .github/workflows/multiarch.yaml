@@ -1,0 +1,56 @@
+name: Multi-Arch Image Check
+
+on:
+  push:
+    branches:
+      - release-bot
+
+jobs:
+
+  check-multiarch:
+    name: Check Multi-Arch Images
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Install yq
+      run: |
+        sudo apt-get update && sudo apt-get install -y jq
+        sudo apt-get install -y python3-pip
+        sudo pip3 install yq
+    - name: Check Multi-Arch Images
+      run: |
+         yq '.' charts/devtron/values.yaml > values.json  
+         
+        
+         get_image_arch() {
+             local image="$1"
+             image_ref=$(echo $image | sed 's/:.*//' )
+             echo "$image"
+             local arch=$(docker manifest inspect "quay.io/devtron/$image" | jq -r '.manifests[].platform.architecture' | sort | uniq)
+             if [ $? -ne 0 ]; then
+                error_images+=("$image")
+                return
+            fi
+            
+             if !(echo "$arch" | grep -q "amd64" && (echo "$arch" | grep -q "arm64" || echo "$arch" | grep -q "arm")); then
+                 echo " $image Image does not support multiarchitecture"
+             fi
+                           }
+         while read -r line; do
+          image=$(echo "$line" | cut -d'"' -f4)
+          if [ -n "$image" ]; then
+             echo "$image"
+             if [ -n "$tag" ]; then
+                image_ref="$image:$tag"
+              else
+                image_ref="$image"
+              fi
+             get_image_arch "$image_ref"
+          fi
+         done < <(grep -Eo '"image":\s*"[^"]*"' values.json)
