@@ -13,11 +13,13 @@ const (
 	AuditOperationTypeUpdate  AuditOperationType = "UPDATE"
 	AuditOperationTypePatch   AuditOperationType = "PATCH"
 	AuditOperationTypeDeleted AuditOperationType = "DELETE"
+	AuditOperationTypeClone   AuditOperationType = "CLONE"
 )
 
 type DevtronResourceObjectAuditRepository interface {
 	Save(model *DevtronResourceObjectAudit) error
 	FindLatestAuditByOpPath(resourceObjectId int, opPath string) (*DevtronResourceObjectAudit, error)
+	FindLatestAuditByOpType(resourceObjectId int, opType AuditOperationType) (*DevtronResourceObjectAudit, error)
 }
 
 type DevtronResourceObjectAuditRepositoryImpl struct {
@@ -56,5 +58,12 @@ func (repo *DevtronResourceObjectAuditRepositoryImpl) FindLatestAuditByOpPath(re
 	var model DevtronResourceObjectAudit
 	err := repo.dbConnection.Model(&model).Where("devtron_resource_object_id = ?", resourceObjectId).
 		Where("? = ANY(audit_operation_path)", opPath).Order("updated_on desc").Limit(1).Select()
+	return &model, err
+}
+
+func (repo *DevtronResourceObjectAuditRepositoryImpl) FindLatestAuditByOpType(resourceObjectId int, opType AuditOperationType) (*DevtronResourceObjectAudit, error) {
+	var model DevtronResourceObjectAudit
+	err := repo.dbConnection.Model(&model).Where("devtron_resource_object_id = ?", resourceObjectId).
+		Where("audit_operation = ?", opType).Order("updated_on desc").Limit(1).Select()
 	return &model, err
 }

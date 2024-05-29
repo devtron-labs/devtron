@@ -26,6 +26,7 @@ type GetTaskRunInfoQueryParams struct {
 	GetQueryParams
 	IsLite     bool `schema:"lite"`
 	LevelIndex int  `schema:"levelIndex"`
+	ShowAll    bool `schema:"showAll"`
 }
 
 type ConfigOptionType = string
@@ -34,7 +35,7 @@ type GetConfigOptionsQueryParams struct {
 	GetQueryParams
 	DependenciesInfo []string         `schema:"dependencyInfo,required"`
 	ConfigOption     ConfigOptionType `schema:"configOption"`
-	FilterCriteria   string           `schema:"filterCriteria"`
+	FilterCriteria   []string         `schema:"filterCriteria"`
 	SearchKey        string           `schema:"searchKey"`
 	Limit            int              `schema:"limit"`
 	Offset           int              `schema:"offset"`
@@ -63,5 +64,6 @@ const (
 	QueryParamComponent              = "component"
 	ResourceUpdateSuccessMessage     = "Resource object updated successfully."
 	ResourceCreateSuccessMessage     = "Resource object created successfully."
+	ResourceCloneSuccessMessage      = "Resource object cloned successfully."
 	DependenciesUpdateSuccessMessage = "Resource dependencies updated successfully."
 )
