@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package workflow
@@ -100,8 +99,8 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
+	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(request.AppId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate, appType)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -151,10 +150,12 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 
 	token := r.Header.Get("token")
 	//rbac block starts from here
-	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppIdAndWorkflow(appId, appWorkflow.Name)
-	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
-	if !ok {
+	var ok bool
+	if appType != helper.Job {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName)
+	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionDelete, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionDelete, workflowResourceName)
 	}
 	if !ok {
@@ -208,7 +209,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
-	ok := impl.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	ok := impl.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, app.AppType)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
@@ -448,7 +449,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	handler.Logger.Debugw("rbac object for workflows view data", "object", object)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, app.AppType)
 	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
