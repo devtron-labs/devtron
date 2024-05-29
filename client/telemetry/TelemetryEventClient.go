@@ -323,8 +323,8 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	clusters, users, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
 
 	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(TelemetryEventType(eventType), ucid)
-	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
+	if err != nil || payloadEA == nil {
+		impl.logger.Errorw("SummaryEventForTelemetry, error in fetching common event params", "error", err, "eventType", eventType, "ucid", ucid)
 		return err
 	}
 	payloadEA.HostURL = hostURL
@@ -425,8 +425,8 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	}
 
 	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(Heartbeat, ucid)
-	if err != nil {
-		impl.logger.Errorw("HeartbeatEventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
+	if err != nil || payloadEA == nil {
+		impl.logger.Errorw("HeartbeatEventForTelemetry, error in fetching common event params", "error", err, "eventType", Heartbeat, "ucid", ucid)
 		return
 	}
 
@@ -478,8 +478,8 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 		return nil, err
 	}
 	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(InstallationSuccess, ucid)
-	if err != nil {
-		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "payload", payloadEA)
+	if err != nil || payloadEA == nil {
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "eventType", InstallationSuccess, "ucid", ucid)
 		return nil, err
 	}
 
@@ -529,8 +529,8 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 	}
 
 	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(DashboardAccessed, ucid)
-	if err != nil {
-		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "payload", payloadEA)
+	if err != nil || payloadEA == nil {
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, error in fetching common event params", "error", err, "eventType", DashboardAccessed, "ucid", ucid)
 		return err
 	}
 
@@ -580,8 +580,8 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 	}
 
 	payloadEA, _, err := impl.fetchPayloadAlongWithCommonEventParams(DashboardLoggedIn, ucid)
-	if err != nil {
-		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, error in fetching common event params", "error", err, "payload", payloadEA)
+	if err != nil || payloadEA == nil {
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, error in fetching common event params", "error", err, "eventType", DashboardLoggedIn, "ucid", ucid)
 		return err
 	}
 

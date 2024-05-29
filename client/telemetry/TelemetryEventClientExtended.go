@@ -218,8 +218,8 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	clusters, users, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
 	_, payload, err := impl.TelemetryEventClientImpl.fetchPayloadAlongWithCommonEventParams(TelemetryEventType(eventType), ucid)
-	if err != nil {
-		impl.logger.Errorw("error in fetching common event params", "error", err, "payload", payload)
+	if err != nil || payload == nil {
+		impl.logger.Errorw("error in fetching common event params", "error", err, "eventType", eventType, "ucid", ucid)
 		return err
 	}
 	environmentCount, err := impl.environmentService.GetAllActiveEnvironmentCount()
