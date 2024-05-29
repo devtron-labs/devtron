@@ -40,6 +40,7 @@ type EnforcerUtil interface {
 	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
 	GetAppRBACNameByAppId(appId int) string
+	GetAppRBACNameAndAppTypeByAppId(appId int) (string, helper.AppType)
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
 	GetTeamEnvRBACNameByAppId(appId int, envId int) string
@@ -73,7 +74,7 @@ type EnforcerUtil interface {
 	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
-	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
+	CheckAppRbacForAppOrJob(token, resourceName, action string, appType helper.AppType) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool
 	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 }
@@ -196,6 +197,14 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByAppId(appId int) string {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
 	return fmt.Sprintf("%s/%s", application.Team.Name, application.AppName)
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameAndAppTypeByAppId(appId int) (string, helper.AppType) {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", ""), 0
+	}
+	return fmt.Sprintf("%s/%s", application.Team.Name, application.AppName), application.AppType
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACByAppNameAndEnvId(appName string, envId int) string {
@@ -697,12 +706,13 @@ func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
 	return rbacObjects
 }
 
-func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action string) bool {
-	ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName)
-	if !ok {
-		ok = impl.enforcer.Enforce(token, casbin.ResourceJobs, action, resourceName)
+func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action string, appType helper.AppType) bool {
+	if appType == helper.Job {
+		return impl.enforcer.Enforce(token, casbin.ResourceJobs, action, resourceName)
+
 	}
-	return ok
+	return impl.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName)
+
 }
 
 func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool {
