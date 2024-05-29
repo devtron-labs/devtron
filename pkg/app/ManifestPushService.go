@@ -78,7 +78,7 @@ func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPu
 		return manifestPushTemplate.RepoUrl, nil
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(context.Background(), gitOpsRepoName, manifestPushTemplate.UserId)
+	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(ctx, gitOpsRepoName, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)

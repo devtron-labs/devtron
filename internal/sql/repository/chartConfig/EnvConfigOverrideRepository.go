@@ -191,9 +191,8 @@ func (r EnvConfigOverrideRepositoryImpl) GetByIdIncludingInactive(id int) (*EnvC
 	eco := &EnvConfigOverride{}
 	err := r.dbConnection.
 		Model(eco).
-		Where("env_config_override.id = ?", id).
-		Where("env_config_override.active = ?", true).
 		Column("env_config_override.*", "Chart").
+		Where("env_config_override.id = ?", id).
 		Select()
 	return eco, err
 }
