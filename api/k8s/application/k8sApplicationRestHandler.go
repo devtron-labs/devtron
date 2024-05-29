@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/common-lib/utils"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -74,9 +73,10 @@ type K8sApplicationRestHandlerImpl struct {
 	helmAppService         client.HelmAppService
 	userService            user.UserService
 	k8sCommonService       k8s.K8sCommonService
+	terminalEnvVariables   *util.TerminalEnvVariables
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, terminalEnvVariables *util.TerminalEnvVariables) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -89,6 +89,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		helmAppService:         helmAppService,
 		userService:            userService,
 		k8sCommonService:       k8sCommonService,
+		terminalEnvVariables:   terminalEnvVariables,
 	}
 }
 
@@ -806,16 +807,12 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 }
 
 func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperUsers(w http.ResponseWriter, token string) bool {
-	envVars := &bean2.TerminalEnvVariables{}
-	err := env.Parse(envVars)
-	if err != nil {
-		handler.logger.Warnw("error parsing env variables", "err", err)
-		return false
-	}
 	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal/ephemeral containers
-	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin && envVars.RestrictTerminalAccessForNonSuperUser {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return true
+	if handler.terminalEnvVariables.RestrictTerminalAccessForNonSuperUser {
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+			common.WriteJsonResp(w, errors.New("unauthorized User"), "Unauthorized User", http.StatusUnauthorized)
+			return true
+		}
 	}
 	return false
 }

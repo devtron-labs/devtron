@@ -8,6 +8,7 @@ type EnvironmentVariables struct {
 	GlobalEnvVariables          *GlobalEnvVariables
 	DevtronSecretConfig         *DevtronSecretConfig
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
+	TerminalEnvVariables        *TerminalEnvVariables
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -27,11 +28,16 @@ type DevtronSecretConfig struct {
 	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
 }
 
+type TerminalEnvVariables struct {
+	RestrictTerminalAccessForNonSuperUser bool `env:"RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER" envDefault:"false"`
+}
+
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 	cfg := &EnvironmentVariables{
 		GlobalEnvVariables:          &GlobalEnvVariables{},
 		DevtronSecretConfig:         &DevtronSecretConfig{},
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
+		TerminalEnvVariables:        &TerminalEnvVariables{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {
