@@ -50,10 +50,8 @@ import (
 	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
-	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
@@ -111,8 +109,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	cronLogger *cronUtil.CronLoggerImpl) (*WorkflowEventProcessorImpl, error) {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -143,14 +140,8 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		return nil, err
 	}
 	impl.appServiceConfig = appServiceConfig
-	newCron := cron.New(
-		cron.WithChain(cron.Recover(cronLogger)))
-	newCron.Start()
-	_, err = newCron.AddFunc(fmt.Sprintf("@every %dm", appServiceConfig.DevtronChartArgoCdInstallRequestTimeout), impl.ProcessIncompleteDeploymentReq)
-	if err != nil {
-		logger.Errorw("error while configure cron job for ci workflow status update", "err", err)
-		return impl, err
-	}
+	// handle incomplete deployment requests after restart
+	go impl.ProcessIncompleteDeploymentReq()
 	return impl, nil
 }
 
@@ -715,7 +706,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
 	}
 	if cdAsyncInstallReq.UserDeploymentRequestId != 0 {
-		cdAsyncInstallReq, err = impl.userDeploymentRequestService.GetAsyncCdDeployRequestById(cdAsyncInstallReq.UserDeploymentRequestId)
+		cdAsyncInstallReq, err = impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(cdAsyncInstallReq.UserDeploymentRequestId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching userDeploymentRequest by id", "userDeploymentRequestId", cdAsyncInstallReq.UserDeploymentRequestId, "err", err)
 			return nil, err
@@ -799,6 +790,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 		return
 	}
 	for _, cdAsyncInstallReq := range cdAsyncInstallRequests {
+		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq)
 		err = impl.setAdditionalDataInAsyncInstallReq(cdAsyncInstallReq)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data to AsyncCdDeployRequest, skipping", "err", err)
@@ -811,6 +803,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 			impl.logger.Infow("successfully processed deployment request", "cdAsyncInstallReq", cdAsyncInstallReq)
 		}
 	}
+	impl.logger.Infow("successfully processed all incomplete deployment requests")
 	return
 }
 
@@ -858,20 +851,6 @@ func (impl *WorkflowEventProcessorImpl) getTimeOutByDeploymentType(deploymentTyp
 }
 
 func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(cdWfr *pipelineConfig.CdWorkflowRunner, userDeploymentRequestId, pipelineId int, userId int32) (isValidRequest bool, err error) {
-	var isLatestRequest bool
-	if userDeploymentRequestId != 0 {
-		isLatestRequest, err = impl.userDeploymentRequestService.IsLatestForPipelineId(userDeploymentRequestId, pipelineId)
-		if err != nil {
-			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
-			return isValidRequest, err
-		}
-	} else {
-		isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
-		if err != nil {
-			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
-			return isValidRequest, err
-		}
-	}
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
@@ -886,6 +865,20 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(cdWfr *
 			if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
 				impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, handleConcurrentOrInvalidRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
 				return isValidRequest, nil
+			}
+			var isLatestRequest bool
+			if userDeploymentRequestId != 0 {
+				isLatestRequest, err = impl.userDeploymentRequestService.IsLatestForPipelineId(userDeploymentRequestId, pipelineId)
+				if err != nil {
+					impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
+					return isValidRequest, err
+				}
+			} else {
+				isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
+				if err != nil {
+					impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
+					return isValidRequest, err
+				}
 			}
 			if !isLatestRequest {
 				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)

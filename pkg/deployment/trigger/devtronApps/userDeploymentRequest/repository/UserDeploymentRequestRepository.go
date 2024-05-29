@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -57,6 +58,7 @@ type UserDeploymentRequestRepository interface {
 	sql.TransactionWrapper
 	Save(tx *pg.Tx, models []*UserDeploymentRequest) error
 	FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error)
+	GetLatestIdForPipeline(deploymentReqId int) (int, error)
 	FindByCdWfId(cdWfId int) (*UserDeploymentRequest, error)
 	FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error)
 	GetAllInCompleteRequests() ([]UserDeploymentRequestWithAdditionalFields, error)
@@ -109,6 +111,20 @@ func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfId(cdWfId int) (*User
 	return model, err
 }
 
+func (impl *UserDeploymentRequestRepositoryImpl) GetLatestIdForPipeline(deploymentReqId int) (int, error) {
+	var latestId int
+	query := impl.dbConnection.Model().
+		Table("user_deployment_request").
+		Column("pipeline_id").
+		Where("id = ?", deploymentReqId)
+	err := impl.dbConnection.Model().
+		Table("user_deployment_request").
+		ColumnExpr("MAX(id) AS id").
+		Where("pipeline_id IN (?)", query).
+		Select(&latestId)
+	return latestId, err
+}
+
 func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error) {
 	if len(cdWfIds) == 0 {
 		return nil, pg.ErrNoRows
@@ -139,6 +155,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]U
 		JoinOn("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Join("LEFT JOIN pipeline_config_override pco").
 		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
+		Where("cdwfr.status NOT IN (?)", pg.In(append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInQueue))).
 		Where("id IN (?)", query).
 		Select()
 	return model, err

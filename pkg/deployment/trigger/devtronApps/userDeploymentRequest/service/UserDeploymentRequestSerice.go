@@ -34,7 +34,7 @@ type UserDeploymentRequestService interface {
 	UpdateStatusForCdWfIds(status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
 	UpdateStatusOnPipelineDelete(pipelineId int) (err error)
 	GetDeployRequestStatusByCdWfId(cdWfId int) (bean.UserDeploymentRequestStatus, error)
-	GetAsyncCdDeployRequestById(id int) (*eventProcessorBean.AsyncCdDeployRequest, error)
+	GetLatestAsyncCdDeployRequestForPipeline(deploymentReqId int) (*eventProcessorBean.AsyncCdDeployRequest, error)
 	IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error)
 	GetAllInCompleteRequests() ([]*eventProcessorBean.AsyncCdDeployRequest, error)
 }
@@ -174,10 +174,15 @@ func (impl *UserDeploymentRequestServiceImpl) GetDeployRequestStatusByCdWfId(cdW
 	return model.Status, nil
 }
 
-func (impl *UserDeploymentRequestServiceImpl) GetAsyncCdDeployRequestById(id int) (*eventProcessorBean.AsyncCdDeployRequest, error) {
-	model, err := impl.userDeploymentRequestRepo.FindById(id)
+func (impl *UserDeploymentRequestServiceImpl) GetLatestAsyncCdDeployRequestForPipeline(deploymentReqId int) (*eventProcessorBean.AsyncCdDeployRequest, error) {
+	latestDeploymentReqId, err := impl.userDeploymentRequestRepo.GetLatestIdForPipeline(deploymentReqId)
 	if err != nil {
-		impl.logger.Errorw("error in getting userDeploymentRequest by id", "id", id, "err", err)
+		impl.logger.Errorw("error in getting latestDeploymentReqId by previous id", "id", deploymentReqId, "err", err)
+		return nil, err
+	}
+	model, err := impl.userDeploymentRequestRepo.FindById(latestDeploymentReqId)
+	if err != nil {
+		impl.logger.Errorw("error in getting userDeploymentRequest by id", "latestDeploymentReqId", latestDeploymentReqId, "err", err)
 		return nil, err
 	}
 	return adapter.NewAsyncCdDeployRequest(&model.UserDeploymentRequest).
