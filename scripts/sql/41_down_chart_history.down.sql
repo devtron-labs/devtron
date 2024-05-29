@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE TABLE "public"."app_store_charts_history"
 (
     "id"                            integer NOT NULL DEFAULT nextval('id_seq_app_store_charts_history'::regclass),

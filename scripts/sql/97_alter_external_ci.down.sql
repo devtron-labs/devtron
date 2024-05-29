@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE "public"."external_ci_pipeline" ALTER COLUMN "ci_pipeline_id" SET NOT NULL;
 
 ALTER TABLE "public"."external_ci_pipeline" ALTER COLUMN "access_token" SET NOT NULL;

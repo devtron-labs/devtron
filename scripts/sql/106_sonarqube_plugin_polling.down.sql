@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DELETE FROM plugin_step_variable WHERE name = 'UsePropertiesFileFromProject';
 
 DELETE FROM plugin_step_variable WHERE name = 'CheckForSonarAnalysisReport';

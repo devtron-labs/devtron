@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --
 -- Name: cve_policy_control_script it basically updated the duplicate records of app_id, env_id,severity to delete state except for the latest one.
 --

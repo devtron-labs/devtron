@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE scan_tool_metadata
 SET result_descriptor_template = '[
     {

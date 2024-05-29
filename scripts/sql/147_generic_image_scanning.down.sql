@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE public.image_scan_execution_history
     DROP COLUMN "scan_event_json" ,
     DROP COLUMN "execution_history_directory_path";

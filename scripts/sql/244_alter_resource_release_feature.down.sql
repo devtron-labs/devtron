@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."devtron_resource_task_run";
 
 DROP SEQUENCE IF EXISTS id_devtron_resource_task_run;

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE "public"."chart_repo" DROP COLUMN "user_name";
 ALTER TABLE "public"."chart_repo" DROP COLUMN "password";
 ALTER TABLE "public"."chart_repo" DROP COLUMN "ssh_key";

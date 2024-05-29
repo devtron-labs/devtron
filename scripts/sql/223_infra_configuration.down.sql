@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."infra_profile_configuration";
 DROP INDEX idx_unique_profile_name;
 DROP TABLE "public"."infra_profile";

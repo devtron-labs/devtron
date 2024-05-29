@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE "public"."chart_repo" ADD COLUMN "user_name" varchar(250);
 ALTER TABLE "public"."chart_repo" ADD COLUMN "password" varchar(250);
 ALTER TABLE "public"."chart_repo" ADD COLUMN "ssh_key" varchar(250);

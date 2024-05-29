@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Git Sensor node details table
 DROP TABLE IF EXISTS "public"."git_sensor_node" CASCADE;
 

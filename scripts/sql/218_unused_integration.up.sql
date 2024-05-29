@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --
 -- Dropping table: project_management_tool_config; Schema: public; Owner: postgres
 --
