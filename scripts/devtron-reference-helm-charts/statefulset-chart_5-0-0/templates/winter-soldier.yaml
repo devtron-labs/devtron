@@ -2,7 +2,11 @@
 apiVersion: {{ $.Values.winterSoldier.apiVersion }}
 kind: Hibernator
 metadata:
+  {{- if .Values.winterSoldier.name }}
+  name: {{ .Values.winterSoldier.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-hibernator
+  {{- end }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}

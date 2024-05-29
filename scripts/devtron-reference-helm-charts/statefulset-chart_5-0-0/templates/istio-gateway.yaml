@@ -2,7 +2,11 @@
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
+  {{- if .Values.istio.gateway.name }}
+  name: {{ .Values.istio.gateway.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}

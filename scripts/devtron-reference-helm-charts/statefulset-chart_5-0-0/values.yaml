@@ -47,6 +47,7 @@ image:
   pullPolicy: IfNotPresent
 
 autoscaling:
+  name:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
@@ -82,6 +83,7 @@ autoscaling:
 #
 
 kedaAutoscaling:
+  name:
   enabled: false
   envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
   cooldownPeriod: 300 # Optional. Default: 300 seconds
@@ -173,9 +175,11 @@ ReadinessProbe:
 #      value: abc
 
 prometheus:
+  name:
   release: monitoring
 
 servicemonitor:
+  name:
   additionalLabels: {}
 
 
@@ -214,6 +218,7 @@ prometheusRule:
 #        summary: More than 5% of the all requests did return 4XX, this require your attention
 #
 winterSoldier:
+  name:
   enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   labels: {}
@@ -226,6 +231,7 @@ winterSoldier:
   fieldSelector: []
   type: StatefulSet
 ingress:
+  name:
   enabled: false
   className: ""
   labels: {}
@@ -279,6 +285,7 @@ ingressInternal:
 istio:
   enable: false
   gateway:
+    name:
     enabled: false
     labels: {}
     annotations: {}
@@ -287,6 +294,7 @@ istio:
       enabled: false
       secretName: ""
   virtualService:
+    name:
     enabled: false
     labels: {}
     annotations: {}
@@ -506,6 +514,7 @@ envoyproxy:
      memory: 50Mi
 
 ambassadorMapping:
+  # name: ""
   enabled: false
   # labels:
   #   key1: value1

@@ -2,7 +2,11 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name:  {{ template ".Chart.Name .fullname" . }}
+  {{- if .Values.prometheusRule.name }}
+  name: {{ .Values.prometheusRule.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" . }}
+  {{- end }}
   {{- if .Values.prometheusRule.namespace }}
   namespace: {{ .Values.prometheusRule.namespace }}
   {{- end }}

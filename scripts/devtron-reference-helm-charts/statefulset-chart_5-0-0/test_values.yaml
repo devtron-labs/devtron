@@ -6,8 +6,10 @@ kedaAutoscaling:
 ambassadorMapping:
   enabled: true
 istio:
-  enabled: true
+  enable: true
   gateway:
+    enabled: true
+  virtualService:
     enabled: true
 appLabels: 
       test: thyjhgfv

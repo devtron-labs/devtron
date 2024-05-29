@@ -3,7 +3,11 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: {{  template ".Chart.Name .fullname" $ }}-virtualservice
+  {{- if .virtualService.name }}
+  name: {{ .virtualService.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" $ }}-virtualservice
+  {{- end }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}

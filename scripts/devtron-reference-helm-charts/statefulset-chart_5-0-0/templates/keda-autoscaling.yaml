@@ -2,7 +2,11 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
+  {{- if $.Values.kedaAutoscaling.name }}
+  name: {{ $.Values.kedaAutoscaling.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-keda
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}

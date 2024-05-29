@@ -26,7 +26,11 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  {{- if .Values.statefulSetConfig.name }}
+  name: {{ .Values.statefulSetConfig.name }}
+  {{- else }}
   name: {{ include ".Chart.Name .fullname" $ }}
+  {{- end }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
