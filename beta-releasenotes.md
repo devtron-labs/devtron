@@ -1,4 +1,5 @@
 ## Bugs
+- fix: apps and jobs permission (#5110)
 - fix: added Copyright (#5172)
 - fix:removed unused env var (#5174)
 - fix: Handling all cases for 5xx (#5100)
