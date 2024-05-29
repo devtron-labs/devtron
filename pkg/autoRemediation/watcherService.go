@@ -434,6 +434,27 @@ func (impl *WatcherServiceImpl) DeleteWatcherById(watcherId int, userId int32) e
 		return err
 	}
 
+	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting triggers ", "err", err)
+		return err
+	}
+	triggersData := make([]types2.Trigger, 0, len(triggers))
+	for _, trigger := range triggers {
+		triggerData, err := getTriggerDataFromJson(trigger.Data)
+		if err != nil {
+			impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", trigger.WatcherId, "err", err)
+			return err
+		}
+		triggersData = append(triggersData, types2.Trigger{
+			Id:             trigger.Id,
+			IdentifierType: types2.TriggerType(trigger.Type),
+			WatcherId:      watcherId,
+			Data:           triggerData,
+		})
+	}
+
+	watcherRequest.Triggers = triggersData
 	err = impl.informScoops(types.DELETE, watcherRequest, clustersMap)
 	if err != nil {
 		impl.logger.Errorw("error in informing respective scoops about this watcher creation", "err", err, "watcherId", watcherId)
@@ -910,9 +931,25 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 		impl.logger.Errorw("error in getting triggers ", "err", err)
 		return nil, err
 	}
-	watcherIdToTrigger := make(map[int][]*repository.AutoRemediationTrigger)
+	watcherIdToTrigger := make(map[int][]types2.Trigger)
 	for _, trigger := range triggers {
-		watcherIdToTrigger[trigger.WatcherId] = append(watcherIdToTrigger[trigger.WatcherId], trigger)
+		triggerData, err := getTriggerDataFromJson(trigger.Data)
+		if err != nil {
+			impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", trigger.WatcherId, "err", err)
+			return nil, err
+		}
+
+		triggersData := watcherIdToTrigger[trigger.WatcherId]
+		if triggersData == nil {
+			triggersData = make([]types2.Trigger, 0)
+		}
+		triggersData = append(triggersData, types2.Trigger{
+			Id:             trigger.Id,
+			IdentifierType: types2.TriggerType(trigger.Type),
+			WatcherId:      trigger.WatcherId,
+			Data:           triggerData,
+		})
+		watcherIdToTrigger[trigger.WatcherId] = triggersData
 	}
 	for _, watcher := range watchers {
 		selectors, err := types2.GetSelectorsFromJson(watcher.Selectors)
@@ -931,9 +968,8 @@ func (impl *WatcherServiceImpl) GetWatchersByClusterId(clusterId int) ([]*types.
 			impl.logger.Errorw("error in unmarshalling gvk string ", "gvk", watcher.Gvks, "err", err)
 			continue
 		}
-		triggerConfigured := false
 
-		triggerConfigured, err = impl.isTriggerConfigured(watcherIdToTrigger[watcher.Id])
+		triggerConfigured := impl.isTriggerConfigured(watcherIdToTrigger[watcher.Id])
 		if err != nil {
 			impl.logger.Errorw("error in checking configured trigger details", "err", err)
 			continue
@@ -994,16 +1030,7 @@ func (impl *WatcherServiceImpl) getImpactedClusterDetails(oldWatcherSelectors, n
 
 func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest *types2.WatcherDto, clusterMap map[string]*repository2.Cluster) error {
 
-	triggers, err := impl.triggerRepository.GetTriggerByWatcherId(watcherRequest.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting triggers ", "err", err)
-		return err
-	}
-	triggerConfigured, err := impl.isTriggerConfigured(triggers)
-	if err != nil {
-		impl.logger.Errorw("error in checking configured trigger details", "err", err)
-		return err
-	}
+	triggerConfigured := impl.isTriggerConfigured(watcherRequest.Triggers)
 	for clusterName, cluster := range clusterMap {
 
 		selector := types2.GetClusterSelector(clusterName, watcherRequest.EventConfiguration.Selectors)
@@ -1042,18 +1069,13 @@ func (impl *WatcherServiceImpl) informScoops(action types.Action, watcherRequest
 	return nil
 }
 
-func (impl *WatcherServiceImpl) isTriggerConfigured(triggers []*repository.AutoRemediationTrigger) (bool, error) {
+func (impl *WatcherServiceImpl) isTriggerConfigured(triggers []types2.Trigger) bool {
 	if len(triggers) != 0 {
 		for _, trigger := range triggers {
-			triggerData, err := getTriggerDataFromJson(trigger.Data)
-			if err != nil {
-				impl.logger.Errorw("error in getting trigger data from json ", "triggerData", triggerData, "watcherId", trigger.WatcherId, "err", err)
-				return false, err
-			}
-			if triggerData.JobId != 0 { // there can be case where trigger is created with default env but no job pipeline selected
-				return true, nil
+			if trigger.Data.JobName != "" { // there can be case where trigger is created with default env but no job pipeline selected
+				return true
 			}
 		}
 	}
-	return false, nil
+	return false
 }
