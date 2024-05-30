@@ -150,6 +150,10 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 }
 
 func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
+	if slices.Contains(pipelineConfig.WfrTerminalStatusList, runner.Status) {
+		impl.logger.Infow("cd wf runner status is already in terminal state", "err", releaseErr, "currentRunner", runner)
+		return nil
+	}
 	err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
 	if err != nil {
 		impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
