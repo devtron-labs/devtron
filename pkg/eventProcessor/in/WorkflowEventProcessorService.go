@@ -52,6 +52,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
@@ -816,7 +817,8 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(cdAs
 		impl.logger.Errorw("err on fetching cd workflow runner by id", "err", err, "cdWfrId", cdWfrId)
 		return err
 	}
-	isValidRequest, err := impl.handleConcurrentOrInvalidRequest(cdWfr, cdAsyncInstallReq.UserDeploymentRequestId, pipelineId, userId)
+	ctx := context.Background()
+	isValidRequest, err := impl.handleConcurrentOrInvalidRequest(ctx, cdWfr, cdAsyncInstallReq.UserDeploymentRequestId, pipelineId, userId)
 	if err != nil {
 		impl.logger.Errorw("error, handleConcurrentOrInvalidRequest", "err", err, "cdWfrId", cdWfrId, "cdWfrStatus", cdWfr.Status, "pipelineId", pipelineId)
 		return err
@@ -825,12 +827,12 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(cdAs
 		impl.logger.Debugw("skipping async helm install request", "req", cdAsyncInstallReq.ValuesOverrideRequest)
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), impl.getTimeOutByDeploymentType(cdAsyncInstallReq.ValuesOverrideRequest.DeploymentAppType))
+	ctxWithTimeOut, cancel := context.WithTimeout(ctx, impl.getTimeOutByDeploymentType(cdAsyncInstallReq.ValuesOverrideRequest.DeploymentAppType))
 	defer cancel()
-	newCtx, cancelCause := context.WithCancelCause(ctx)
+	newCtx, cancelCause := context.WithCancelCause(ctxWithTimeOut)
 	// setting Cancel Cause -> nil for successfully processed request
 	defer cancelCause(nil)
-	impl.UpdateReleaseContextForPipeline(pipelineId, cdWfrId, cancelCause)
+	impl.UpdateReleaseContextForPipeline(newCtx, pipelineId, cdWfrId, cancelCause)
 	defer impl.cleanUpDevtronAppReleaseContextMap(pipelineId, cdWfrId)
 	err = impl.workflowDagExecutor.ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq, newCtx)
 	if err != nil {
@@ -850,7 +852,9 @@ func (impl *WorkflowEventProcessorImpl) getTimeOutByDeploymentType(deploymentTyp
 	return time.Duration(0)
 }
 
-func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(cdWfr *pipelineConfig.CdWorkflowRunner, userDeploymentRequestId, pipelineId int, userId int32) (isValidRequest bool, err error) {
+func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(ctx context.Context, cdWfr *pipelineConfig.CdWorkflowRunner, userDeploymentRequestId, pipelineId int, userId int32) (isValidRequest bool, err error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.handleConcurrentOrInvalidRequest")
+	defer span.End()
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
@@ -897,7 +901,9 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(cdWfr *
 	return true, nil
 }
 
-func (impl *WorkflowEventProcessorImpl) UpdateReleaseContextForPipeline(pipelineId, cdWfrId int, cancel context.CancelCauseFunc) {
+func (impl *WorkflowEventProcessorImpl) UpdateReleaseContextForPipeline(ctx context.Context, pipelineId, cdWfrId int, cancel context.CancelCauseFunc) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.UpdateReleaseContextForPipeline")
+	defer span.End()
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {

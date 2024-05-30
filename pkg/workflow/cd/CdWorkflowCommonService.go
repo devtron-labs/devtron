@@ -30,13 +30,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util4 "github.com/devtron-labs/devtron/util"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/strings/slices"
 	"time"
 )
 
 type CdWorkflowCommonService interface {
-	SupersedePreviousDeployments(cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
+	SupersedePreviousDeployments(ctx context.Context, cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
 	UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error
 
@@ -73,7 +74,9 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	}, nil
 }
 
-func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
+func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx context.Context, cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CdWorkflowCommonServiceImpl.SupersedePreviousDeployments")
+	defer span.End()
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -169,6 +172,8 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 }
 
 func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CdWorkflowCommonServiceImpl.UpdateCDWorkflowRunnerStatus")
+	defer span.End()
 	// In case of terminal status update finished on time
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)

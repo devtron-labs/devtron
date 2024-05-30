@@ -17,6 +17,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -26,6 +27,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
+	"go.opentelemetry.io/otel"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,7 +55,7 @@ type AppCrudOperationService interface {
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
-	GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error)
+	GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
@@ -621,7 +623,9 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 	}, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
+func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "AppCrudOperationServiceImpl.GetAppLabelsForDeployment")
+	defer span.End()
 	appLabelJson := &bean.AppLabelsJsonForDeployment{}
 	appLabelsMapFromDb, err := impl.getLabelsByAppIdForDeployment(appId)
 	if err != nil {

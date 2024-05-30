@@ -105,6 +105,8 @@ func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGit
 }
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manifestPushTemplate *bean.ManifestPushTemplate) bean.ManifestPushResponse {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOpsManifestPushServiceImpl.PushChart")
+	defer span.End()
 	manifestPushResponse := bean.ManifestPushResponse{}
 	// 1. Fetch Global GitOps Details
 	globalGitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
@@ -123,7 +125,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 	// 3. Create Git Repo if required
 	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
-		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, ctx)
+		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, newCtx)
 		if errMsg != nil {
 			manifestPushResponse.Error = errMsg
 			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
@@ -133,7 +135,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		manifestPushResponse.OverRiddenRepoUrl = overRiddenGitRepoUrl
 	}
 	// 4. Push Chart to Git Repository
-	err = impl.pushChartToGitRepo(ctx, manifestPushTemplate)
+	err = impl.pushChartToGitRepo(newCtx, manifestPushTemplate)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err
@@ -142,7 +144,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 
 	// 5. Commit chart values to Git Repository
-	commitHash, commitTime, err := impl.commitValuesToGit(ctx, manifestPushTemplate)
+	commitHash, commitTime, err := impl.commitValuesToGit(newCtx, manifestPushTemplate)
 	if err != nil {
 		impl.logger.Errorw("error in committing values to git", "err", err)
 		manifestPushResponse.Error = err

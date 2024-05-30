@@ -110,7 +110,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWor
 	}
 	//RBAC END
 
-	res, err := handler.deployedConfigurationHistoryService.GetDeployedConfigurationByWfrId(pipelineId, wfrId)
+	res, err := handler.deployedConfigurationHistoryService.GetDeployedConfigurationByWfrId(r.Context(), pipelineId, wfrId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeployedConfigurationByWfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

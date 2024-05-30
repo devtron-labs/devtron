@@ -17,6 +17,9 @@
 package history
 
 import (
+	"context"
+	"errors"
+	"go.opentelemetry.io/otel"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -34,9 +37,9 @@ type PipelineStrategyHistoryService interface {
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
 
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*HistoryDetailDto, error)
-	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
+	CheckIfHistoryExistsForPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (historyId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
-	GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error)
+	GetLatestDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error)
 }
 
 type PipelineStrategyHistoryServiceImpl struct {
@@ -135,15 +138,16 @@ func (impl PipelineStrategyHistoryServiceImpl) GetDeploymentDetailsForDeployedSt
 	return historiesDto, nil
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error) {
+func (impl PipelineStrategyHistoryServiceImpl) CheckIfHistoryExistsForPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (historyId int, exists bool, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PipelineStrategyHistoryServiceImpl.CheckIfHistoryExistsForPipelineIdAndWfrId")
+	defer span.End()
 	impl.logger.Debugw("received request, CheckIfHistoryExistsForPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
-
-	//checking if history exists for pipelineId and wfrId
-	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
-	if err != nil && err != pg.ErrNoRows {
+	// checking if history exists for pipelineId and wfrId
+	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(newCtx, pipelineId, wfrId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return 0, false, err
-	} else if err == pg.ErrNoRows {
+	} else if errors.Is(err, pg.ErrNoRows) {
 		return 0, false, nil
 	}
 	return history.Id, true, nil
@@ -189,11 +193,12 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 	return historyDto, nil
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error) {
+func (impl PipelineStrategyHistoryServiceImpl) GetLatestDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error) {
 	impl.logger.Debugw("received request, GetLatestDeployedHistoryByPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
-
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "PipelineStrategyHistoryServiceImpl.GetLatestDeployedHistoryByPipelineIdAndWfrId")
+	defer span.End()
 	//checking if history exists for pipelineId and wfrId
-	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(newCtx, pipelineId, wfrId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err

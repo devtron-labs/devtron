@@ -18,6 +18,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/adapter"
@@ -25,13 +26,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/repository"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
 type UserDeploymentRequestService interface {
-	SaveNewDeployment(asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) error
-	UpdateStatusForCdWfIds(status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
+	SaveNewDeployment(ctx context.Context, asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) error
+	UpdateStatusForCdWfIds(ctx context.Context, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
 	UpdateStatusOnPipelineDelete(pipelineId int) (err error)
 	GetDeployRequestStatusByCdWfId(cdWfId int) (bean.UserDeploymentRequestStatus, error)
 	GetLatestAsyncCdDeployRequestForPipeline(deploymentReqId int) (*eventProcessorBean.AsyncCdDeployRequest, error)
@@ -54,7 +56,9 @@ func NewUserDeploymentRequestServiceImpl(
 	return userDeploymentRequestService
 }
 
-func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) (err error) {
+func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) (err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
+	defer span.End()
 	var models []*repository.UserDeploymentRequest
 	if len(asyncCdDeployRequests) == 0 {
 		return fmt.Errorf("invalid request: no UserDeploymentRequests found to be saved")
@@ -64,7 +68,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(asyncCdDeployReq
 		userDeploymentRequest.Status = bean.DeploymentRequestPending
 		models = append(models, userDeploymentRequest)
 	}
-	err = impl.userDeploymentRequestRepo.Save(nil, models)
+	err = impl.userDeploymentRequestRepo.Save(newCtx, models)
 	if err != nil {
 		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", asyncCdDeployRequests, "err", err)
 		return err
@@ -72,8 +76,10 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(asyncCdDeployReq
 	return nil
 }
 
-func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error) {
-	models, err := impl.userDeploymentRequestRepo.FindByCdWfIds(cdWfIds...)
+func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(ctx context.Context, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.UpdateStatusForCdWfIds")
+	defer span.End()
+	models, err := impl.userDeploymentRequestRepo.FindByCdWfIds(newCtx, cdWfIds...)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting userDeploymentRequests by cdWfIds", "cdWfIds", cdWfIds, "err", err)
 		return err
@@ -100,14 +106,14 @@ func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(status bean
 		}
 		validCdWfIds = append(validCdWfIds)
 		if status.IsCompleted() {
-			_, err = impl.userDeploymentRequestRepo.MarkAllPreviousSuperseded(tx, model.PipelineId, model.Id)
+			_, err = impl.userDeploymentRequestRepo.MarkAllPreviousSuperseded(newCtx, tx, model.PipelineId, model.Id)
 			if err != nil {
 				impl.logger.Errorw("error in marking previous userDeploymentRequest superseded", "pipelineId", model.PipelineId, "userDeploymentRequestId", model.Id, "err", err)
 				return err
 			}
 		}
 	}
-	_, err = impl.userDeploymentRequestRepo.UpdateStatusForCdWfIds(tx, status, validCdWfIds...)
+	_, err = impl.userDeploymentRequestRepo.UpdateStatusForCdWfIds(newCtx, tx, status, validCdWfIds...)
 	if err != nil {
 		impl.logger.Errorw("error in updating userDeploymentRequest status", "status", status, "cdWfIds", cdWfIds, "err", err)
 		return err

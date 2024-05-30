@@ -160,6 +160,8 @@ func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest
 }
 
 func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.GetValuesOverrideForTrigger")
+	defer span.End()
 	helper.ResolveDeploymentTypeAndUpdate(overrideRequest)
 	valuesOverrideResponse := &app.ValuesOverrideResponse{}
 	isPipelineOverrideCreated := overrideRequest.PipelineOverrideId > 0
@@ -169,8 +171,8 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		impl.logger.Errorw("error in fetching pipeline by pipeline id", "err", err, "pipeline-id-", overrideRequest.PipelineId)
 		return valuesOverrideResponse, err
 	}
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	// TODO: refactor the tracer
+	_, span = otel.Tracer("orchestrator").Start(newCtx, "ciArtifactRepository.Get")
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	valuesOverrideResponse.Artifact = artifact
 	span.End()
@@ -179,7 +181,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	}
 	overrideRequest.Image = artifact.Image
 	// Currently strategy is used only for history creation; hence it's not required in PipelineConfigOverride
-	strategy, err := impl.getDeploymentStrategyByTriggerType(overrideRequest, ctx)
+	strategy, err := impl.getDeploymentStrategyByTriggerType(overrideRequest, newCtx)
 	valuesOverrideResponse.PipelineStrategy = strategy
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy by trigger type", "err", err)
@@ -203,7 +205,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			return valuesOverrideResponse, err
 		}
 	} else {
-		envOverride, err = impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, ctx)
+		envOverride, err = impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, newCtx)
 		if err != nil {
 			impl.logger.Errorw("error in getting env override by trigger type", "err", err)
 			return valuesOverrideResponse, err
@@ -213,9 +215,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 
 	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "savePipelineOverride")
-		pipelineOverride, err = impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
-		span.End()
+		pipelineOverride, err = impl.savePipelineOverride(newCtx, overrideRequest, envOverride.Id, triggeredAt)
 		if err != nil {
 			return valuesOverrideResponse, err
 		}
@@ -226,7 +226,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	// Conditional Block based on PipelineOverrideCreated --> end
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 
-	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, ctx)
+	appMetrics, err := impl.getAppMetricsByTriggerType(overrideRequest, newCtx)
 	if err != nil {
 		impl.logger.Errorw("error in getting app metrics by trigger type", "err", err)
 		return valuesOverrideResponse, err
@@ -241,38 +241,32 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
 		chartVersion := envOverride.Chart.ChartVersion
-		_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
 		scope := helper.GetScopeForVariables(overrideRequest, envOverride)
 		request := helper.CreateConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
 
-		configMapJson, err = impl.getConfigMapAndSecretJsonV2(request, envOverride)
-		span.End()
+		configMapJson, err = impl.getConfigMapAndSecretJsonV2(newCtx, request, envOverride)
 		if err != nil {
 			impl.logger.Errorw("error in fetching config map n secret ", "err", err)
 			configMapJson = nil
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "appCrudOperationService.GetLabelsByAppIdForDeployment")
-		appLabelJsonByte, err = impl.appCrudOperationService.GetAppLabelsForDeployment(overrideRequest.AppId, overrideRequest.AppName, overrideRequest.EnvName)
-		span.End()
+		appLabelJsonByte, err = impl.appCrudOperationService.GetAppLabelsForDeployment(newCtx, overrideRequest.AppId, overrideRequest.AppName, overrideRequest.EnvName)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+		mergedValues = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
-		_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
 		// handle image pull secret if access given
-		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
-		span.End()
+		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
 		if err != nil {
 			return valuesOverrideResponse, err
 		}
 
 		pipelineOverride.PipelineMergedValues = string(mergedValues)
 		valuesOverrideResponse.MergedValues = string(mergedValues)
-		err = impl.pipelineOverrideRepository.Update(pipelineOverride)
+		err = impl.pipelineOverrideRepository.Update(newCtx, pipelineOverride)
 		if err != nil {
 			return valuesOverrideResponse, err
 		}
@@ -285,12 +279,12 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 }
 
 func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getDeploymentStrategyByTriggerType")
+	defer span.End()
 	strategy := &chartConfig.PipelineStrategy{}
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId")
-		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		span.End()
+		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(newCtx, overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed strategy history by pipelineId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return nil, err
@@ -301,11 +295,11 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		deploymentTemplateType := helper.GetDeploymentTemplateType(overrideRequest)
 		if overrideRequest.ForceTrigger || len(deploymentTemplateType) == 0 {
-			_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
+			_, span := otel.Tracer("orchestrator").Start(newCtx, "pipelineConfigRepository.GetDefaultStrategyByPipelineId")
 			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
 			span.End()
 		} else {
-			_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
+			_, span := otel.Tracer("orchestrator").Start(newCtx, "pipelineConfigRepository.FindByStrategyAndPipelineId")
 			strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplateType, overrideRequest.PipelineId)
 			span.End()
 		}
@@ -562,8 +556,9 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartC
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(request bean3.ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
-
+func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getConfigMapAndSecretJsonV2")
+	defer span.End()
 	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
 
 	var err error
@@ -730,7 +725,9 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 	return override, nil
 }
 
-func (impl *ManifestCreationServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {
+func (impl *ManifestCreationServiceImpl) savePipelineOverride(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.savePipelineOverride")
+	defer span.End()
 	currentReleaseNo, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(overrideRequest.PipelineId)
 	if err != nil {
 		return nil, err

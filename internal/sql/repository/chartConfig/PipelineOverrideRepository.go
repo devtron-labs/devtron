@@ -17,6 +17,7 @@
 package chartConfig
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -27,6 +28,7 @@ import (
 	deploymentStatus "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
+	"go.opentelemetry.io/otel"
 	"time"
 )
 
@@ -61,7 +63,7 @@ type PipelineOverrideRepository interface {
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
 	GetLatestConfigByRequestIdentifier(requestIdentifier string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestConfigByEnvironmentConfigOverrideId(envConfigOverrideId int) (pipelineOverride *PipelineOverride, err error)
-	Update(pipelineOverride *PipelineOverride) error
+	Update(ctx context.Context, pipelineOverride *PipelineOverride) error
 	GetCurrentPipelineReleaseCounter(pipelineId int) (releaseCounter int, err error)
 	GetByPipelineIdAndReleaseNo(pipelineId, releaseNo int) (pipelineOverrides []*PipelineOverride, err error)
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
@@ -85,7 +87,9 @@ func (impl PipelineOverrideRepositoryImpl) Save(pipelineOverride *PipelineOverri
 	return impl.dbConnection.Insert(pipelineOverride)
 }
 
-func (impl PipelineOverrideRepositoryImpl) Update(pipelineOverride *PipelineOverride) error {
+func (impl PipelineOverrideRepositoryImpl) Update(ctx context.Context, pipelineOverride *PipelineOverride) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "PipelineOverrideRepositoryImpl.Update")
+	defer span.End()
 	_, err := impl.dbConnection.Model(pipelineOverride).WherePK().UpdateNotNull()
 	return err
 }

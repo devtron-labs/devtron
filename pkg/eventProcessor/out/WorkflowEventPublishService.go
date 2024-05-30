@@ -139,18 +139,18 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 
 // TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
 func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventPublishServiceImpl.TriggerAsyncRelease")
+	defer span.End()
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
+	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
 	// save triggered deployment history
 	if valuesOverrideResponse.Pipeline != nil && valuesOverrideResponse.EnvOverride != nil {
-		err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
+		err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 		if err1 != nil {
 			impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
 		}
 	}
-	span.End()
-	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
+	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error in updating userDeploymentRequest status",
 			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
@@ -171,7 +171,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	if err != nil {
 		impl.logger.Errorw("failed to publish trigger request event", "topic", topic, "msg", msg, "err", err)
 		//update workflow runner status, used in app workflow view
-		err1 := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowFailed, adapter.WithMessage(err.Error()))
+		err1 := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowFailed, adapter.WithMessage(err.Error()))
 		if err1 != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
@@ -179,7 +179,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
+	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err

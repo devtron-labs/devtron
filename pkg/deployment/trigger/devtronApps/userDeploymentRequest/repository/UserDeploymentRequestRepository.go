@@ -18,6 +18,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -26,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.opentelemetry.io/otel"
 	"time"
 )
 
@@ -56,14 +58,14 @@ type UserDeploymentRequestWithAdditionalFields struct {
 type UserDeploymentRequestRepository interface {
 	// transaction util funcs
 	sql.TransactionWrapper
-	Save(tx *pg.Tx, models []*UserDeploymentRequest) error
+	Save(ctx context.Context, models []*UserDeploymentRequest) error
 	FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error)
 	GetLatestIdForPipeline(deploymentReqId int) (int, error)
 	FindByCdWfId(cdWfId int) (*UserDeploymentRequest, error)
-	FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error)
+	FindByCdWfIds(ctx context.Context, cdWfIds ...int) ([]UserDeploymentRequest, error)
 	GetAllInCompleteRequests() ([]UserDeploymentRequestWithAdditionalFields, error)
-	MarkAllPreviousSuperseded(tx *pg.Tx, pipelineId, previousToReqId int) (int, error)
-	UpdateStatusForCdWfIds(tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error)
+	MarkAllPreviousSuperseded(ctx context.Context, tx *pg.Tx, pipelineId, previousToReqId int) (int, error)
+	UpdateStatusForCdWfIds(ctx context.Context, tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error)
 	IsLatestForPipelineId(id, pipelineId int) (bool, error)
 	TerminateForPipelineId(tx *pg.Tx, pipelineId int) (int, error)
 }
@@ -80,11 +82,10 @@ type UserDeploymentRequestRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) Save(tx *pg.Tx, models []*UserDeploymentRequest) error {
-	if tx == nil {
-		return impl.dbConnection.Insert(models)
-	}
-	return tx.Insert(models)
+func (impl *UserDeploymentRequestRepositoryImpl) Save(ctx context.Context, models []*UserDeploymentRequest) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.Save")
+	defer span.End()
+	return impl.dbConnection.Insert(models)
 }
 
 func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error) {
@@ -125,7 +126,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetLatestIdForPipeline(deployme
 	return latestId, err
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(cdWfIds ...int) ([]UserDeploymentRequest, error) {
+func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(ctx context.Context, cdWfIds ...int) ([]UserDeploymentRequest, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.FindByCdWfIds")
+	defer span.End()
 	if len(cdWfIds) == 0 {
 		return nil, pg.ErrNoRows
 	}
@@ -161,7 +164,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]U
 	return model, err
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) MarkAllPreviousSuperseded(tx *pg.Tx, pipelineId, previousToReqId int) (int, error) {
+func (impl *UserDeploymentRequestRepositoryImpl) MarkAllPreviousSuperseded(ctx context.Context, tx *pg.Tx, pipelineId, previousToReqId int) (int, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.MarkAllPreviousSuperseded")
+	defer span.End()
 	var query *orm.Query
 	if tx == nil {
 		query = impl.dbConnection.Model((*UserDeploymentRequest)(nil))
@@ -179,7 +184,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) MarkAllPreviousSuperseded(tx *p
 	return res.RowsAffected(), err
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) UpdateStatusForCdWfIds(tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error) {
+func (impl *UserDeploymentRequestRepositoryImpl) UpdateStatusForCdWfIds(ctx context.Context, tx *pg.Tx, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (int, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.UpdateStatusForCdWfIds")
+	defer span.End()
 	if len(cdWfIds) == 0 {
 		return 0, nil
 	}

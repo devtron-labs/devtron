@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -130,15 +131,16 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
-
-	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName string) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ArgoClientWrapperServiceImpl.SyncArgoCDApplicationIfNeededAndRefresh")
+	defer span.End()
+	impl.logger.Info("ArgoCd manual sync for app started", "argoAppName", argoAppName)
 	if impl.ACDConfig.IsManualSyncEnabled() {
 
-		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
+		impl.logger.Debugw("syncing ArgoCd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
-		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+		_, syncErr := impl.acdClient.Sync(newCtx, &application2.ApplicationSyncRequest{Name: &argoAppName,
 			Revision: &revision,
 			Prune:    &pruneResources,
 		})
@@ -147,14 +149,14 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 			statusCode, msg := util.GetClientDetailedError(syncErr)
 			if statusCode.IsFailedPreconditionCode() && msg == ErrorOperationAlreadyInProgress {
 				impl.logger.Info("terminating ongoing sync operation and retrying manual sync", "argoAppName", argoAppName)
-				_, terminationErr := impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
+				_, terminationErr := impl.acdClient.TerminateOperation(newCtx, &application2.OperationTerminateRequest{
 					Name: &argoAppName,
 				})
 				if terminationErr != nil {
 					impl.logger.Errorw("error in terminating sync operation")
 					return fmt.Errorf("error in terminating existing sync, err: %w", terminationErr)
 				}
-				_, syncErr = impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+				_, syncErr = impl.acdClient.Sync(newCtx, &application2.ApplicationSyncRequest{Name: &argoAppName,
 					Revision: &revision,
 					Prune:    &pruneResources,
 					RetryStrategy: &v1alpha1.RetryStrategy{
@@ -169,9 +171,9 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 				return syncErr
 			}
 		}
-		impl.logger.Infow("argocd sync completed", "argoAppName", argoAppName)
+		impl.logger.Infow("ArgoCd sync completed", "argoAppName", argoAppName)
 	}
-	refreshErr := impl.GetArgoAppWithNormalRefresh(context, argoAppName)
+	refreshErr := impl.GetArgoAppWithNormalRefresh(newCtx, argoAppName)
 	if refreshErr != nil {
 		impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
 	}

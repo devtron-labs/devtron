@@ -17,10 +17,12 @@
 package repository
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
@@ -30,7 +32,7 @@ type PipelineStrategyHistoryRepository interface {
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error)
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error)
-	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error)
+	GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error)
 }
 
@@ -101,7 +103,9 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeploye
 	return histories, nil
 }
 
-func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error) {
+func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "PipelineStrategyHistoryRepositoryImpl.GetHistoryByPipelineIdAndWfrId")
+	defer span.End()
 	var history PipelineStrategyHistory
 	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = pipeline_strategy_history.deployed_on").
 		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).

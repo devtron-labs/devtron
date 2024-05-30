@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"context"
 	pg "github.com/go-pg/pg"
 	mock "github.com/stretchr/testify/mock"
 
@@ -107,7 +108,7 @@ func (_m *PipelineStrategyHistoryRepository) GetDeploymentDetailsForDeployedStra
 }
 
 // GetHistoryByPipelineIdAndWfrId provides a mock function with given fields: pipelineId, wfrId
-func (_m *PipelineStrategyHistoryRepository) GetHistoryByPipelineIdAndWfrId(pipelineId int, wfrId int) (*repository.PipelineStrategyHistory, error) {
+func (_m *PipelineStrategyHistoryRepository) GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*repository.PipelineStrategyHistory, error) {
 	ret := _m.Called(pipelineId, wfrId)
 
 	var r0 *repository.PipelineStrategyHistory

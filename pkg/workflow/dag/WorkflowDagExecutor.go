@@ -280,8 +280,10 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 }
 
 func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.Context, releaseErr error, cdWfr *pipelineConfig.CdWorkflowRunner, overrideRequest *bean.ValuesOverrideRequest) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.handleAsyncTriggerReleaseError")
+	defer span.End()
 	// for context cancellation due to error.ServerShutDown, the new instance should pick the unfinished process and execute further.
-	if errors.Is(context.Cause(ctx), error2.ServerShutDown) {
+	if errors.Is(context.Cause(newCtx), error2.ServerShutDown) {
 		// skipping
 		return
 	}
@@ -336,6 +338,8 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 }
 
 func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.AsyncCdDeployRequest, ctx context.Context) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.ProcessDevtronAsyncInstallRequest")
+	defer span.End()
 	overrideRequest := cdAsyncInstallReq.ValuesOverrideRequest
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(overrideRequest.WfrId)
 	if err != nil {
@@ -344,18 +348,16 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
+		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
 			return err
 		}
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, ctx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
-	span.End()
+	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
-		impl.handleAsyncTriggerReleaseError(ctx, releaseErr, cdWfr, overrideRequest)
-		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
+		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
+		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
 		if err1 != nil {
 			impl.logger.Errorw("error in updating userDeploymentRequest status",
 				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestFailed,
