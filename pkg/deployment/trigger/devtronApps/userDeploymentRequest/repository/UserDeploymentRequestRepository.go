@@ -133,8 +133,8 @@ func (impl *UserDeploymentRequestRepositoryImpl) FindByCdWfIds(ctx context.Conte
 		return nil, pg.ErrNoRows
 	}
 	var model []UserDeploymentRequest
-	err := impl.dbConnection.Model(model).
-		Where("cd_workflow_id IN (?)", cdWfIds).
+	err := impl.dbConnection.Model(&model).
+		Where("cd_workflow_id IN (?)", pg.In(cdWfIds)).
 		Order("id DESC").
 		Select()
 	return model, err
