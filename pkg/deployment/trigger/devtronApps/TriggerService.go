@@ -866,7 +866,7 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		}
 	}
 	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggeredAt, newCtx)
+		err = impl.deployApp(overrideRequest, valuesOverrideResponse, newCtx)
 		if err != nil {
 			impl.logger.Errorw("error in deploying app", "err", err)
 			return releaseNo, err
@@ -956,19 +956,18 @@ func (impl *TriggerServiceImpl) getManifestPushService(triggerEvent bean.Trigger
 	return manifestPushService
 }
 
-func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	triggeredAt time.Time, ctx context.Context) error {
-
+func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideRequest,
+	valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.deployApp")
+	defer span.End()
 	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "deployArgoCdApp")
-		err := impl.deployArgoCdApp(overrideRequest, valuesOverrideResponse, ctx)
-		span.End()
+		err := impl.deployArgoCdApp(overrideRequest, valuesOverrideResponse, newCtx)
 		if err != nil {
-			impl.logger.Errorw("error in deploying app on argocd", "err", err)
+			impl.logger.Errorw("error in deploying app on ArgoCd", "err", err)
 			return err
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, ctx)
+		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, newCtx)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
