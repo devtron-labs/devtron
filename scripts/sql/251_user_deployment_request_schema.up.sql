@@ -32,3 +32,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
     UNIQUE ("cd_workflow_id"),
     PRIMARY KEY ("id")
 );
+
+-- insert priority deployment condition into attributes table
+INSERT INTO "public"."attributes"(key, value, active, created_on, created_by, updated_on, updated_by)
+    VALUES ('priorityDeploymentCondition', 'isProdEnv == true', 't', NOW(), 1, NOW(), 1);
