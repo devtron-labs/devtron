@@ -703,7 +703,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
 		return nil, err
 	}
-	if cdAsyncInstallReq.UserDeploymentRequestId != 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
+	if cdAsyncInstallReq.UserDeploymentRequestId == 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
 		impl.logger.Errorw("invalid async cd pipeline deployment request", "msg", msg.Data)
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
 	}
