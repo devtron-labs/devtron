@@ -692,7 +692,7 @@ func getAsyncDeploymentLoggerFunc(topicType string) pubsub.LoggerFunc {
 		if err != nil {
 			return fmt.Sprintf("error in unmarshalling CD Pipeline %s install request nats message", topicType), []interface{}{"err", err}
 		}
-		return fmt.Sprintf("got message for devtron chart %s install", topicType), []interface{}{"appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "pipelineId", cdAsyncInstallReq.ValuesOverrideRequest.PipelineId, "artifactId", cdAsyncInstallReq.ValuesOverrideRequest.CiArtifactId}
+		return fmt.Sprintf("got message for devtron chart %s install", topicType), []interface{}{"userDeploymentRequestId", cdAsyncInstallReq.UserDeploymentRequestId}
 	}
 }
 
