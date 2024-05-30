@@ -66,6 +66,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", asyncCdDeployRequest, "err", err)
 		return userDeploymentRequestId, err
 	}
+	asyncCdDeployRequest.UserDeploymentRequestId = userDeploymentRequest.Id
 	userDeploymentRequestId = userDeploymentRequest.Id
 	return userDeploymentRequestId, nil
 }
