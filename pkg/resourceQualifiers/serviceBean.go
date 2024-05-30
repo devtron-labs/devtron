@@ -104,7 +104,7 @@ func GetValuesFromSelectionIdentifier(selector QualifierSelector, selectionIdent
 		return 0, ""
 	}
 }
-func getAuditLog(userid int32) sql.AuditLog {
+func GetAuditLog(userid int32) sql.AuditLog {
 	auditLog := sql.AuditLog{
 		CreatedOn: time.Now(),
 		CreatedBy: userid,
@@ -124,6 +124,6 @@ func (selection *ResourceMappingSelection) toResourceMapping(selector QualifierS
 		IdentifierValueString: valueString,
 		Active:                true,
 		CompositeKey:          compositeString,
-		AuditLog:              getAuditLog(userId),
+		AuditLog:              GetAuditLog(userId),
 	}
 }

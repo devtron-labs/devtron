@@ -1231,7 +1231,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m)
+		err = impl.updateRepositoryToGitSensor(m, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -1309,7 +1309,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		}
 		materials = append(materials, inputMaterial)
 	}
-	err = impl.addRepositoryToGitSensor(materials)
+	err = impl.addRepositoryToGitSensor(materials, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating to sensor", "err", err)
 		return nil, err
@@ -1335,7 +1335,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 		return nil, err
 	}
 
-	err = impl.updateRepositoryToGitSensor(updatedMaterial)
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
 		return nil, err
@@ -1348,7 +1348,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pipelineConfig.GitMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pipelineConfig.GitMaterial, cloningMode string) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1358,11 +1358,12 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *p
 		Deleted:          !material.Active,
 		FetchSubmodules:  material.FetchSubmodules,
 		FilterPattern:    material.FilterPattern,
+		CloningMode:      cloningMode,
 	}
 	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
 	var sensorMaterials []*gitSensor.GitMaterial
 	for _, material := range materials {
 		sensorMaterial := &gitSensor.GitMaterial{
@@ -1373,6 +1374,7 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 			Deleted:         false,
 			FetchSubmodules: material.FetchSubmodules,
 			FilterPattern:   material.FilterPattern,
+			CloningMode:     cloningMode,
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
