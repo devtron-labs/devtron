@@ -103,6 +103,10 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                     "properties":
                     {}
                 },
+                "readme":
+                {
+                    "type": "string"
+                },
                 "required":
                 [
                     "id",
@@ -196,6 +200,10 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                     "type": "object",
                     "properties":
                     {}
+                },
+                "readme":
+                {
+                    "type": "string"
                 },
                 "required":
                 [
