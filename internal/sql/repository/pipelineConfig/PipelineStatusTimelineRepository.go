@@ -77,7 +77,9 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
+	CheckIfTimelineStatusPresentByWfrId(wfrId int, status TimelineStatus) (bool, error)
 	CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error)
+	CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int, status TimelineStatus) (bool, error)
 	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
 	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error
 	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error
@@ -248,6 +250,19 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 	return exists, nil
 }
 
+func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTimelineStatusPresentByWfrId(wfrId int, status TimelineStatus) (bool, error) {
+	timeline := &PipelineStatusTimeline{}
+	exists, err := impl.dbConnection.Model(timeline).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status = ?", status).
+		Exists()
+	if err != nil {
+		impl.logger.Errorw("error in checking if timeline status exists for wfrId", "err", err, "wfrId", wfrId, "status", status)
+		return false, err
+	}
+	return exists, nil
+}
+
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error) {
 	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY.ToString(), TIMELINE_STATUS_DEPLOYMENT_FAILED.ToString(),
 		TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString(), TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED.ToString()}
@@ -257,6 +272,19 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 		Where("status in (?)", pg.In(terminalStatus)).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal timeline of latest installed app by installedAppVersionHistoryId and status", "err", err, "wfrId", installedAppVersionHistoryId)
+		return false, err
+	}
+	return exists, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int, status TimelineStatus) (bool, error) {
+	timeline := &PipelineStatusTimeline{}
+	exists, err := impl.dbConnection.Model(timeline).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Where("status = ?", status).
+		Exists()
+	if err != nil {
+		impl.logger.Errorw("error in checking if timeline status exists for wfrId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "status", status)
 		return false, err
 	}
 	return exists, nil

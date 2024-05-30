@@ -149,7 +149,8 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]U
 			bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded,
 		})).
 		Group("pipeline_id")
-	err := impl.dbConnection.Model(&model).
+	err := impl.dbConnection.Model().
+		Table("user_deployment_request").
 		Column("user_deployment_request.*").
 		ColumnExpr("cdwfr.id AS cd_workflow_runner_id").
 		ColumnExpr("pco.id AS pipeline_override_id").
@@ -159,8 +160,8 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]U
 		Join("LEFT JOIN pipeline_config_override pco").
 		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
 		Where("cdwfr.status NOT IN (?)", pg.In(append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInQueue))).
-		Where("id IN (?)", query).
-		Select()
+		Where("user_deployment_request.id IN (?)", query).
+		Select(&model)
 	return model, err
 }
 

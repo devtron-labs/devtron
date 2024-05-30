@@ -524,7 +524,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForAppStore(app *v1alpha1.Appl
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, runnerHistoryId int, statusTime time.Time,
 	triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time,
 	isAppStore bool) (isTimelineUpdated bool, isTimelineTimedOut bool, kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
-	// pipelineId can be wfrId or installedAppVersionHistoryId
+	// runnerHistoryId can be wfrId or installedAppVersionHistoryId
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", runnerHistoryId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated = false
 	isTimelineTimedOut = false
@@ -538,10 +538,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 		}
-		// CASE 1: for Manual sync the last timeline status should be TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED
-		// CASE 2: for Auto sync the last timeline status should be TIMELINE_STATUS_GIT_COMMIT
-		if latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_GIT_COMMIT &&
-			latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
+		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByWfrId(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT)
+		if err != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", runnerHistoryId)
+			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
+		}
+		if !preRequiredStatusExists {
 			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "wfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
@@ -648,11 +650,13 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Infow("terminal status timeline exists for installed App, skipping more timeline changes", "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 		}
-		// CASE 1: for Manual sync the last timeline status should be TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED
-		// CASE 2: for Auto sync the last timeline status should be TIMELINE_STATUS_GIT_COMMIT
-		if latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_GIT_COMMIT &&
-			latestTimelineBeforeUpdate.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
-			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "wfrId", runnerHistoryId)
+		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT)
+		if err != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
+			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
+		}
+		if !preRequiredStatusExists {
+			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetailForAppStore(runnerHistoryId, 1)
