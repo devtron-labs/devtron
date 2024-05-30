@@ -675,14 +675,14 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.HandleCDTriggerRelease")
 	defer span.End()
 	newDeploymentRequest := adapter.NewAsyncCdDeployRequest(overrideRequest, triggeredAt, overrideRequest.UserId)
-	err = impl.userDeploymentRequestService.SaveNewDeployment(newCtx, newDeploymentRequest)
+	userDeploymentRequestId, err := impl.userDeploymentRequestService.SaveNewDeployment(newCtx, newDeploymentRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
 		return releaseNo, err
 	}
 	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSync) {
 		// asynchronous mode of Helm/ArgoCd installation starts
-		return impl.workflowEventPublishService.TriggerAsyncRelease(newDeploymentRequest.UserDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
+		return impl.workflowEventPublishService.TriggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
 	releaseNo, err = impl.TriggerRelease(overrideRequest, newCtx, triggeredAt, deployedBy)

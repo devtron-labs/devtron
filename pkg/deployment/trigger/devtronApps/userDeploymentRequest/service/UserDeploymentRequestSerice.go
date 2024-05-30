@@ -32,7 +32,7 @@ import (
 )
 
 type UserDeploymentRequestService interface {
-	SaveNewDeployment(ctx context.Context, asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) error
+	SaveNewDeployment(ctx context.Context, asyncCdDeployRequest *eventProcessorBean.AsyncCdDeployRequest) (int, error)
 	UpdateStatusForCdWfIds(ctx context.Context, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error)
 	UpdateStatusOnPipelineDelete(pipelineId int) (err error)
 	GetDeployRequestStatusByCdWfId(cdWfId int) (bean.UserDeploymentRequestStatus, error)
@@ -56,24 +56,18 @@ func NewUserDeploymentRequestServiceImpl(
 	return userDeploymentRequestService
 }
 
-func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, asyncCdDeployRequests ...*eventProcessorBean.AsyncCdDeployRequest) (err error) {
+func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, asyncCdDeployRequest *eventProcessorBean.AsyncCdDeployRequest) (userDeploymentRequestId int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
-	var models []*repository.UserDeploymentRequest
-	if len(asyncCdDeployRequests) == 0 {
-		return fmt.Errorf("invalid request: no UserDeploymentRequests found to be saved")
-	}
-	for _, asyncCdDeployRequest := range asyncCdDeployRequests {
-		userDeploymentRequest := adapter.NewUserDeploymentRequest(asyncCdDeployRequest)
-		userDeploymentRequest.Status = bean.DeploymentRequestPending
-		models = append(models, userDeploymentRequest)
-	}
-	err = impl.userDeploymentRequestRepo.Save(newCtx, models)
+	userDeploymentRequest := adapter.NewUserDeploymentRequest(asyncCdDeployRequest)
+	userDeploymentRequest.Status = bean.DeploymentRequestPending
+	err = impl.userDeploymentRequestRepo.Save(newCtx, userDeploymentRequest)
 	if err != nil {
-		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", asyncCdDeployRequests, "err", err)
-		return err
+		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", asyncCdDeployRequest, "err", err)
+		return userDeploymentRequestId, err
 	}
-	return nil
+	userDeploymentRequestId = userDeploymentRequest.Id
+	return userDeploymentRequestId, nil
 }
 
 func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(ctx context.Context, status bean.UserDeploymentRequestStatus, cdWfIds ...int) (err error) {

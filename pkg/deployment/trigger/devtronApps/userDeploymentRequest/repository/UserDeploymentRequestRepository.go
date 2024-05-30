@@ -58,7 +58,7 @@ type UserDeploymentRequestWithAdditionalFields struct {
 type UserDeploymentRequestRepository interface {
 	// transaction util funcs
 	sql.TransactionWrapper
-	Save(ctx context.Context, models []*UserDeploymentRequest) error
+	Save(ctx context.Context, models ...*UserDeploymentRequest) error
 	FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error)
 	GetLatestIdForPipeline(deploymentReqId int) (int, error)
 	FindByCdWfId(cdWfId int) (*UserDeploymentRequest, error)
@@ -82,7 +82,7 @@ type UserDeploymentRequestRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (impl *UserDeploymentRequestRepositoryImpl) Save(ctx context.Context, models []*UserDeploymentRequest) error {
+func (impl *UserDeploymentRequestRepositoryImpl) Save(ctx context.Context, models ...*UserDeploymentRequest) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.Save")
 	defer span.End()
 	return impl.dbConnection.Insert(&models)
