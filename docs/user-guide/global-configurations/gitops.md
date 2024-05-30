@@ -17,11 +17,11 @@ Users need to have super-admin permission to configure GitOps.
 
 1. Go to **Global Configurations** → **GitOps**
 
-   ![Figure 1: Global Configuration - GitOps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitops.jpg)
+   ![Figure 1: Global Configuration - GitOps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitops-v1.jpg)
 
 2. Select any one of the [supported Git providers](#supported-git-providers) to configure GitOps. 
 
-   ![Figure 2: Selecting a Provider](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/select-provider.jpg)
+   ![Figure 2: Selecting a Provider](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/select-provider-v1.jpg)
 
 {% hint style="warning" %}
 The Git provider you select for configuring GitOps might impact the following sections:
@@ -79,7 +79,7 @@ Below are the Git providers supported in Devtron for storing configuration files
 * [GitHub](#github)
 * [GitLab](#gitlab)
 * [Azure](#azure)
-* [Bitbucket Cloud](#bitbucket-cloud)
+* [Bitbucket](#bitbucket)
 
 ### GitHub
 
@@ -96,7 +96,7 @@ Fill the following mandatory fields:
 | --- | --- |
 | **Git Host** | Shows the URL of GitHub, e.g., https://github.com/ |
 | **GitHub Organisation Name** | Enter the GitHub organization name. <br />If you do not have one, refer [how to create organization in Github](#how-to-create-organization-in-github). |
-| **GitHub Username** | Provide the username of your GitHub account. |
+| **GitHub Username** | Provide the username of your GitHub account |
 | **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account. <br />If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).|
 
 
@@ -137,7 +137,13 @@ Fill the following mandatory fields:
 | **Azure DevOps Username*** | Provide the username of your Azure DevOps account |
 | **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account. <br />If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page). |
 
-### Bitbucket Cloud
+### Bitbucket
+
+Here, you get 2 options:
+* [Bitbucket Cloud](#bitbucket-cloud) - Select this if you wish to store GitOps configuration in a web-based Git repository hosting service offered by Bitbucket.
+* [Bitbucket Data Center](#bitbucket-data-center) - Select this if you wish to store GitOps configuration in a git repository hosted on a self-managed Bitbucket Data Center (on-prem).
+
+#### Bitbucket Cloud
 
 {% hint style="info" %}
 ### Prerequisite
@@ -147,20 +153,37 @@ Fill the following mandatory fields:
 
 {% endhint %}
 
+![Figure 5: Entering Details of Bitbucket Cloud](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket-cloud-v1.jpg)
+
 Fill the following mandatory fields:
 
 | Field | Description |
 | --- | --- |
 | **Bitbucket Host** | Shows the URL of Bitbucket Cloud, e.g., https://bitbucket.org/ |
-| **Bitbucket Workspace ID** | Enter the Bitbucket workspace ID. <br />If you do not have one, refer [Bitbucket Workspace Id](#how-to-create-bitbucket-workspace-id).|
+| **Bitbucket Workspace ID** | Enter the Bitbucket workspace ID. <br />If you do not have one, refer [Bitbucket Workspace Id](#how-to-create-bitbucket-workspace-id)|
+| **Bitbucket Project Key** | Enter the Bitbucket project key. <br />If you do not have one, refer [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/). <br />Note: If the project is not provided, the repository is automatically assigned to the oldest project in the workspace. |
 | **Bitbucket Username*** | Provide the username of your Bitbucket account |
 | **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account. <br />If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). |
 
-Fill the optional field if needed:
+#### Bitbucket Data Center
+
+{% hint style="info" %}
+### Prerequisite
+
+A Bitbucket Data Center account
+
+{% endhint %}
+
+![Figure 6: Entering Details of Bitbucket Data Center](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket-server-v1.jpg)
+
+Fill the following mandatory fields:
 
 | Field | Description |
 | --- | --- |
-| **Bitbucket Project Key** | Enter the Bitbucket project key. <br />If you do not have one, refer [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/). <br />Note: If the project is not provided, the repository is automatically assigned to the oldest project in the workspace. |
+| **Bitbucket Host** | Enter the URL address of your Bitbucket Data Center, e.g., https://bitbucket.mycompany.com |
+| **Bitbucket Project Key** | Enter the Bitbucket project key. Refer [Bitbucket Project Key](https://confluence.atlassian.com/bitbucketserver/creating-projects-776639848.html). |
+| **Bitbucket Username*** | Provide the username of your Bitbucket Data Center account |
+| **Password** | Provide the password to authenticate your Bitbucket Data Center account |
 
 ---
 

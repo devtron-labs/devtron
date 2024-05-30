@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -93,7 +92,8 @@ type PipelineRepository interface {
 	FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error)
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
-	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
+	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
+	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
@@ -447,12 +447,17 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*").
+func (impl PipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
+}
+func (impl PipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&Pipeline{}).
+		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
+		Count()
+	return pipelineCount, err
 }
 func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRepoRepository
 
 import (
@@ -49,6 +65,7 @@ type ChartRepository interface {
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
 	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
+	FindLatestChartByAppIds(appId []int) (chart []*Chart, err error)
 	FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error)
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
@@ -58,10 +75,10 @@ type ChartRepository interface {
 	sql.TransactionWrapper
 }
 
-func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
+func NewChartRepository(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *ChartRepositoryImpl {
 	return &ChartRepositoryImpl{
 		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -129,6 +146,18 @@ func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int
 	err = repositoryImpl.dbConnection.
 		Model(chart).
 		Where("app_id= ?", appId).
+		Where("latest= ?", true).
+		Select()
+	return chart, err
+}
+func (repositoryImpl ChartRepositoryImpl) FindLatestChartByAppIds(appIds []int) ([]*Chart, error) {
+	var chart []*Chart
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&chart).
+		Where("app_id in (?)", pg.In(appIds)).
 		Where("latest= ?", true).
 		Select()
 	return chart, err
