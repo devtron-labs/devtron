@@ -50,6 +50,7 @@ import (
 	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	error2 "github.com/devtron-labs/devtron/util/error"
 	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -925,6 +926,15 @@ func (impl *WorkflowEventProcessorImpl) cleanUpDevtronAppReleaseContextMap(pipel
 			delete(impl.devtronAppReleaseContextMap, pipelineId)
 		}
 	}
+}
+
+func (impl *WorkflowEventProcessorImpl) ShutDownDevtronAppReleaseContext() {
+	impl.devtronAppReleaseContextMapLock.Lock()
+	defer impl.devtronAppReleaseContextMapLock.Unlock()
+	for _, devtronAppReleaseContext := range impl.devtronAppReleaseContextMap {
+		devtronAppReleaseContext.CancelContext(error2.ServerShutDown)
+	}
+	impl.devtronAppReleaseContextMap = make(map[int]bean.DevtronAppReleaseContextType)
 }
 
 func (impl *WorkflowEventProcessorImpl) isReleaseContextExistsForPipeline(pipelineId, cdWfrId int) bool {

@@ -21,7 +21,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"log"
 	"net/http"
 	"os"
@@ -53,10 +55,12 @@ type App struct {
 	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
-	serveTls           bool
-	sessionManager2    *authMiddleware.SessionManager
-	OtelTracingService *otel.OtelTracingServiceImpl
-	loggingMiddleware  util.LoggingMiddleware
+	serveTls                   bool
+	sessionManager2            *authMiddleware.SessionManager
+	OtelTracingService         *otel.OtelTracingServiceImpl
+	loggingMiddleware          util.LoggingMiddleware
+	pubSubClient               pubsub.PubSubClientService
+	workflowEventProcessorImpl in.WorkflowEventProcessorImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -68,21 +72,25 @@ func NewApp(router *router.MuxRouter,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
+	pubSubClient pubsub.PubSubClientService,
+	workflowEventProcessorImpl in.WorkflowEventProcessorImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:             router,
-		Logger:                Logger,
-		SSE:                   sse,
-		Enforcer:              enforcer,
-		db:                    db,
-		serveTls:              false,
-		sessionManager2:       sessionManager2,
-		posthogClient:         posthogClient,
-		OtelTracingService:    otel.NewOtelTracingServiceImpl(Logger),
-		loggingMiddleware:     loggingMiddleware,
-		centralEventProcessor: centralEventProcessor,
+		MuxRouter:                  router,
+		Logger:                     Logger,
+		SSE:                        sse,
+		Enforcer:                   enforcer,
+		db:                         db,
+		serveTls:                   false,
+		sessionManager2:            sessionManager2,
+		posthogClient:              posthogClient,
+		OtelTracingService:         otel.NewOtelTracingServiceImpl(Logger),
+		loggingMiddleware:          loggingMiddleware,
+		centralEventProcessor:      centralEventProcessor,
+		pubSubClient:               pubSubClient,
+		workflowEventProcessorImpl: workflowEventProcessorImpl,
 	}
 	return app
 }
@@ -132,6 +140,11 @@ func (app *App) Start() {
 
 func (app *App) Stop() {
 	app.Logger.Info("orchestrator shutdown initiating")
+	err := app.pubSubClient.ShutDown()
+	if err != nil {
+		app.Logger.Errorw("error in NATS client shutdown", "err", err)
+	}
+	app.workflowEventProcessorImpl.ShutDownDevtronAppReleaseContext()
 	posthogCl := app.posthogClient.Client
 	if posthogCl != nil {
 		app.Logger.Info("flushing messages of posthog")
@@ -139,7 +152,7 @@ func (app *App) Stop() {
 	}
 	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	app.Logger.Infow("closing router")
-	err := app.server.Shutdown(timeoutContext)
+	err = app.server.Shutdown(timeoutContext)
 	if err != nil {
 		app.Logger.Errorw("error in mux router shutdown", "err", err)
 	}
