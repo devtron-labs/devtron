@@ -704,12 +704,18 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	if overrideRequest.UserId == 0 {
 		overrideRequest.UserId = triggeredBy
 	}
-	triggerEvent := helper.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
-	// if overrideRequest.PipelineOverrideId is already set to non-zero, then pipeline_config_override is already been created
-	skipAuditHistory := overrideRequest.PipelineOverrideId != 0
+	triggerEvent := helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
+	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.CdWorkflowId, overrideRequest.WfrId, triggerEvent)
+	if err != nil {
+		return releaseNo, err
+	}
+	// request has already been served, skipping
+	if skipRequest {
+		return releaseNo, nil
+	}
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
-	if !skipAuditHistory {
+	if triggerEvent.SaveTriggersHistory {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 		if valuesOverrideResponse.Pipeline != nil && valuesOverrideResponse.EnvOverride != nil {
 			err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
@@ -718,6 +724,13 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 			}
 		}
 		span.End()
+		err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
+		if err != nil {
+			impl.logger.Errorw("error in updating userDeploymentRequest status",
+				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
+				"err", err)
+			return releaseNo, err
+		}
 	}
 	if err != nil {
 		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
@@ -804,8 +817,14 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, c
 		}
 		switch latestTimelineStatus {
 		case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
+			if deployRequestStatus.IsTriggerHistorySaved() {
+				// trigger history has already been saved
+				triggerEvent.SaveTriggersHistory = false
+			}
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT:
+			// trigger history has already been saved
+			triggerEvent.SaveTriggersHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			if deployRequestStatus.IsTriggered() {
@@ -814,6 +833,8 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, c
 			}
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
+			// trigger history has already been saved
+			triggerEvent.SaveTriggersHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			if deployRequestStatus.IsTriggered() {
@@ -822,6 +843,8 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, c
 			}
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
+			// trigger history has already been saved
+			triggerEvent.SaveTriggersHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			// deployment has already been performed
@@ -833,14 +856,6 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, c
 }
 
 func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, err error) {
-	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.CdWorkflowId, overrideRequest.WfrId, triggerEvent)
-	if err != nil {
-		return releaseNo, err
-	}
-	// request has already been served, skipping
-	if skipRequest {
-		return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, nil
-	}
 	if triggerEvent.PerformChartPush {
 		err = impl.performGitOps(ctx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent)
 		if err != nil {

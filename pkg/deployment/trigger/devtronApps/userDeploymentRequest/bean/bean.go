@@ -22,6 +22,14 @@ func (status UserDeploymentRequestStatus) IsTriggered() bool {
 	return false
 }
 
+func (status UserDeploymentRequestStatus) IsTriggerHistorySaved() bool {
+	switch status {
+	case DeploymentRequestTriggerAuditCompleted:
+		return true
+	}
+	return false
+}
+
 func (status UserDeploymentRequestStatus) IsCompleted() bool {
 	switch status {
 	case DeploymentRequestCompleted:
@@ -31,10 +39,11 @@ func (status UserDeploymentRequestStatus) IsCompleted() bool {
 }
 
 const (
-	DeploymentRequestPending    UserDeploymentRequestStatus = "PENDING"
-	DeploymentRequestTriggered  UserDeploymentRequestStatus = "TRIGGERED"
-	DeploymentRequestCompleted  UserDeploymentRequestStatus = "COMPLETED"
-	DeploymentRequestSuperseded UserDeploymentRequestStatus = "SUPERSEDED"
-	DeploymentRequestFailed     UserDeploymentRequestStatus = "FAILED"
-	DeploymentRequestTerminated UserDeploymentRequestStatus = "TERMINATED"
+	DeploymentRequestPending               UserDeploymentRequestStatus = "PENDING"
+	DeploymentRequestTriggerAuditCompleted UserDeploymentRequestStatus = "TRIGGER_AUDIT_COMPLETED"
+	DeploymentRequestTriggered             UserDeploymentRequestStatus = "TRIGGERED"
+	DeploymentRequestCompleted             UserDeploymentRequestStatus = "COMPLETED"
+	DeploymentRequestSuperseded            UserDeploymentRequestStatus = "SUPERSEDED"
+	DeploymentRequestFailed                UserDeploymentRequestStatus = "FAILED"
+	DeploymentRequestTerminated            UserDeploymentRequestStatus = "TERMINATED"
 )

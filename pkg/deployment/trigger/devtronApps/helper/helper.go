@@ -27,7 +27,7 @@ func GetValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
 
-func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
+func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
 	// trigger event will decide whether to perform GitOps or deployment for a particular deployment app type
 	triggerEvent := bean.TriggerEvent{
 		TriggeredBy: deployedBy,
@@ -44,5 +44,6 @@ func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
+	triggerEvent.SaveTriggersHistory = true
 	return triggerEvent
 }
