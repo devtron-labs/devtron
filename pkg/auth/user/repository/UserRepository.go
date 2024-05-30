@@ -94,7 +94,6 @@ func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*Use
 	return userModel, nil
 }
 func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {
-	userModel.RequestEmailId = userModel.EmailId
 	userModel.EmailId = util.ConvertEmailToLowerCase(userModel.EmailId)
 	err := tx.Update(userModel)
 	if err != nil {
