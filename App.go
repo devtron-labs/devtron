@@ -59,8 +59,8 @@ type App struct {
 	sessionManager2            *authMiddleware.SessionManager
 	OtelTracingService         *otel.OtelTracingServiceImpl
 	loggingMiddleware          util.LoggingMiddleware
-	pubSubClient               pubsub.PubSubClientService
-	workflowEventProcessorImpl in.WorkflowEventProcessorImpl
+	pubSubClient               *pubsub.PubSubClientServiceImpl
+	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -72,8 +72,8 @@ func NewApp(router *router.MuxRouter,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
-	pubSubClient pubsub.PubSubClientService,
-	workflowEventProcessorImpl in.WorkflowEventProcessorImpl,
+	pubSubClient *pubsub.PubSubClientServiceImpl,
+	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation

@@ -930,6 +930,6 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor)
+	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor, pubSubClientServiceImpl, workflowEventProcessorImpl)
 	return mainApp, nil
 }
