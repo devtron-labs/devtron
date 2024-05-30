@@ -198,9 +198,9 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestRelease(appId, environmentId
 
 func (impl PipelineOverrideRepositoryImpl) GetLatestNonFailedDeployment(appId, environmentId int) (*LatestDeployment, error) {
 
-	override := &PipelineOverride{}
-	latestDeployment := &LatestDeployment{}
-	err := impl.dbConnection.Model(override).
+	var override PipelineOverride
+	var latestDeployment LatestDeployment
+	err := impl.dbConnection.Model(&override).
 		Column("pipeline_override.deployment_type", "cwr.status").
 		Join("join pipeline p on pipeline_override.pipeline_id = p.id").
 		Join("join cd_workflow cw on pipeline_override.cd_workflow_id = cw.id").
@@ -211,12 +211,12 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestNonFailedDeployment(appId, e
 		Where("cwr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Order("pipeline_override.id desc").
 		Limit(1).
-		Select(latestDeployment)
+		Select(&latestDeployment)
 
 	if err != nil {
 		return nil, err
 	}
-	return latestDeployment, nil
+	return &latestDeployment, nil
 }
 
 func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseForAppIds(appIds []int, envId int) (pipelineOverrideMetadata []*PipelineConfigOverrideMetadata, err error) {
