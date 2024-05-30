@@ -85,7 +85,7 @@ type UserDeploymentRequestRepositoryImpl struct {
 func (impl *UserDeploymentRequestRepositoryImpl) Save(ctx context.Context, models []*UserDeploymentRequest) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.Save")
 	defer span.End()
-	return impl.dbConnection.Insert(models)
+	return impl.dbConnection.Insert(&models)
 }
 
 func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error) {
