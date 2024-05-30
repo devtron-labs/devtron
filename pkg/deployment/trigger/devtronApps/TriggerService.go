@@ -893,14 +893,6 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "currentRunnerId", overrideRequest.WfrId, "pipelineId", overrideRequest.PipelineId)
 		return releaseNo, err1
 	}
-
-	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestCompleted, overrideRequest.CdWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in updating userDeploymentRequest status",
-			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestCompleted,
-			"err", err)
-		return releaseNo, err
-	}
 	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, nil
 }
 
