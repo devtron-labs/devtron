@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
+	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -60,6 +62,7 @@ type WorkflowEventPublishServiceImpl struct {
 	celEvaluatorService                 cel.EvaluatorService
 	attributesService                   attributes.AttributesService
 	triggerEventEvaluator               celEvaluator.TriggerEventEvaluator
+	userDeploymentRequestService        service.UserDeploymentRequestService
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
@@ -75,6 +78,7 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	celEvaluatorService cel.EvaluatorService,
 	attributesService attributes.AttributesService,
 	triggerEventEvaluator celEvaluator.TriggerEventEvaluator,
+	userDeploymentRequestService service.UserDeploymentRequestService,
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -94,6 +98,7 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 		celEvaluatorService:                 celEvaluatorService,
 		attributesService:                   attributesService,
 		triggerEventEvaluator:               triggerEventEvaluator,
+		userDeploymentRequestService:        userDeploymentRequestService,
 
 		cdWorkflowRepository: cdWorkflowRepository,
 		pipelineRepository:   pipelineRepository,
@@ -145,6 +150,13 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 		}
 	}
 	span.End()
+	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in updating userDeploymentRequest status",
+			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
+			"err", err)
+		return releaseNo, err
+	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return releaseNo, err
