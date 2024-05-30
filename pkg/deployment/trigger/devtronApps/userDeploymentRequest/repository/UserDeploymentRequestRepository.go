@@ -35,7 +35,7 @@ type UserDeploymentRequest struct {
 	tableName            struct{}                            `sql:"user_deployment_request" pg:",discard_unknown_columns"`
 	Id                   int                                 `sql:"id,pk"`
 	PipelineId           int                                 `sql:"pipeline_id"`
-	CiArtifactId         int                                 `sql:"ciArtifact_id"`
+	CiArtifactId         int                                 `sql:"ci_artifact_id"`
 	AdditionalOverride   json.RawMessage                     `sql:"additional_override"`
 	ForceTrigger         bool                                `sql:"force_trigger"`
 	ForceSync            bool                                `sql:"force_sync"`

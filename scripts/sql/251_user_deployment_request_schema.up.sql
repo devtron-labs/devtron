@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
 (
     "id"                                     integer NOT NULL DEFAULT nextval('id_seq_user_deployment_request_sequence'::regclass),
     "pipeline_id"                            integer NOT NULL,
-    "ciArtifact_id"                          integer NOT NULL,
+    "ci_artifact_id"                         integer NOT NULL,
     "additional_override"                    bytea,
     "force_trigger"                          bool    NOT NULL DEFAULT FALSE,
     "force_sync"                             bool    NOT NULL DEFAULT FALSE,
@@ -22,13 +22,13 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
 
     CONSTRAINT user_deployment_request_pipeline_id_fk
         FOREIGN KEY (pipeline_id)
-            REFERENCES public.pipeline(id),
-    CONSTRAINT user_deployment_request_ciArtifact_id_fk
-        FOREIGN KEY (ciArtifact_id)
-            REFERENCES public.ciArtifact(id),
-    CONSTRAINT user_deployment_request_pipeline_id_fk
+            REFERENCES "public"."pipeline"(id),
+    CONSTRAINT user_deployment_request_ci_artifact_id_fk
+        FOREIGN KEY (ci_artifact_id)
+            REFERENCES "public"."ci_artifact"(id),
+    CONSTRAINT user_deployment_request_cd_workflow_id_fk
         FOREIGN KEY (cd_workflow_id)
-            REFERENCES public.cd_workflow(id),
+            REFERENCES "public"."cd_workflow"(id),
     UNIQUE ("cd_workflow_id"),
     PRIMARY KEY ("id")
 );
