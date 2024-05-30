@@ -308,6 +308,14 @@ func (impl *EventRESTClientImpl) SendAnyEvent(event map[string]interface{}) (boo
 		impl.logger.Errorw("error while marshaling event request ", "err", err)
 		return false, err
 	}
+	if impl.config.NotificationMedium == PUB_SUB {
+		err = impl.sendEventsOnNats(body)
+		if err != nil {
+			impl.logger.Errorw("error while publishing event  ", "err", err)
+			return false, err
+		}
+		return true, nil
+	}
 	var reqBody = []byte(body)
 	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
 	if err != nil {
