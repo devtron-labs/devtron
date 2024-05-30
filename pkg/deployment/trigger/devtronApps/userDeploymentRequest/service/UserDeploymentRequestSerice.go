@@ -156,6 +156,10 @@ func validateStatusUpdate(curr, dest bean.UserDeploymentRequestStatus) (isAllowe
 	}
 	switch curr {
 	case bean.DeploymentRequestPending:
+		if !slices.Contains([]bean.UserDeploymentRequestStatus{bean.DeploymentRequestTriggerAuditCompleted, bean.DeploymentRequestTriggered, bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded}, dest) {
+			return false
+		}
+	case bean.DeploymentRequestTriggerAuditCompleted:
 		if !slices.Contains([]bean.UserDeploymentRequestStatus{bean.DeploymentRequestTriggered, bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded}, dest) {
 			return false
 		}
@@ -165,6 +169,8 @@ func validateStatusUpdate(curr, dest bean.UserDeploymentRequestStatus) (isAllowe
 		}
 	case bean.DeploymentRequestCompleted:
 	case bean.DeploymentRequestSuperseded:
+	case bean.DeploymentRequestFailed:
+	case bean.DeploymentRequestTerminated:
 	default:
 		return false
 	}

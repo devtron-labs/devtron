@@ -8,7 +8,8 @@ func (status UserDeploymentRequestStatus) ToString() string {
 
 func (status UserDeploymentRequestStatus) IsTerminalTimelineStatus() bool {
 	switch status {
-	case DeploymentRequestCompleted, DeploymentRequestSuperseded:
+	case DeploymentRequestCompleted, DeploymentRequestSuperseded,
+		DeploymentRequestFailed, DeploymentRequestTerminated:
 		return true
 	}
 	return false
