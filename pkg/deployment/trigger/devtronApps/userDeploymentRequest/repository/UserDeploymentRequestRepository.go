@@ -90,7 +90,8 @@ func (impl *UserDeploymentRequestRepositoryImpl) Save(ctx context.Context, model
 
 func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeploymentRequestWithAdditionalFields, error) {
 	model := &UserDeploymentRequestWithAdditionalFields{}
-	err := impl.dbConnection.Model(model).
+	err := impl.dbConnection.Model().
+		Table("user_deployment_request").
 		Column("user_deployment_request.*").
 		ColumnExpr("cdwfr.id AS cd_workflow_runner_id").
 		ColumnExpr("pco.id AS pipeline_override_id").
@@ -100,7 +101,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) FindById(id int) (*UserDeployme
 		Join("LEFT JOIN pipeline_config_override pco").
 		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
 		Where("user_deployment_request.id = ?", id).
-		Select()
+		Select(model)
 	return model, err
 }
 

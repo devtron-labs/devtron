@@ -204,6 +204,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in getting env override by id", "id", pipelineOverride.EnvConfigOverrideId, "err", err)
 			return valuesOverrideResponse, err
 		}
+		envOverride.Environment = &pipeline.Environment
 	} else {
 		envOverride, err = impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, newCtx)
 		if err != nil {

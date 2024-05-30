@@ -708,11 +708,12 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
 	}
 	if cdAsyncInstallReq.UserDeploymentRequestId != 0 {
-		cdAsyncInstallReq, err = impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(cdAsyncInstallReq.UserDeploymentRequestId)
+		latestCdAsyncInstallReq, err := impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(cdAsyncInstallReq.UserDeploymentRequestId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching userDeploymentRequest by id", "userDeploymentRequestId", cdAsyncInstallReq.UserDeploymentRequestId, "err", err)
 			return nil, err
 		}
+		cdAsyncInstallReq = latestCdAsyncInstallReq
 	}
 	err = impl.setAdditionalDataInAsyncInstallReq(cdAsyncInstallReq)
 	if err != nil {
@@ -974,5 +975,6 @@ func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(cdAsy
 	if cdAsyncInstallReq.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		cdAsyncInstallReq.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
+	cdAsyncInstallReq.ValuesOverrideRequest.UserId = cdAsyncInstallReq.TriggeredBy
 	return nil
 }
