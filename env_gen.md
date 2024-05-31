@@ -118,6 +118,7 @@
  | ENFORCER_MAX_BATCH_SIZE | 1 |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
+ | EXECUTE_WIRE_NIL_CHECKER | false |  | 
  | EXPOSE_CD_METRICS | false |  | 
  | EXPOSE_CI_METRICS | false |  | 
  | EXTERNAL_BLOB_STORAGE_CM_NAME | blob-storage-cm |  | 
@@ -193,7 +194,7 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
- | PROXY_SERVICE_CONFIG |  |  | 
+ | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -207,6 +208,7 @@
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 
  | SCOPED_VARIABLE_NAME_REGEX | ^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  | 
+ | SHOW_DOCKER_BUILD_ARGS | true |  | 
  | SKIP_CREATING_ECR_REPO | false |  | 
  | SOCKET_DISCONNECT_DELAY_SECONDS | 5 |  | 
  | SOCKET_HEARTBEAT_SECONDS | 25 |  | 
