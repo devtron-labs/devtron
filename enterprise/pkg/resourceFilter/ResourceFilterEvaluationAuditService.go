@@ -6,6 +6,7 @@ package resourceFilter
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -13,15 +14,15 @@ import (
 )
 
 type FilterHistoryObject struct {
-	FilterHistoryId int         `json:"filter_history_id"`
-	State           FilterState `json:"state"`
-	Message         string      `json:"message"`
+	FilterHistoryId int                              `json:"filter_history_id"`
+	State           expressionEvaluators.FilterState `json:"state"`
+	Message         string                           `json:"message"`
 }
 
 type FilterEvaluationAuditService interface {
-	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
+	CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]FilterState, error)
+	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]expressionEvaluators.FilterState, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
 	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
 	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
@@ -77,7 +78,7 @@ func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(
 	return savedFilterEvaluationAudit, nil
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) (*ResourceFilterEvaluationAudit, error) {
 	filterHistoryObjectsStr, err := impl.extractFilterHistoryObjects(filters, filterIdVsState)
 	if err != nil {
 		impl.logger.Errorw("error in extracting filter history objects", "err", err, "filters", filters, "filterIdVsState", filterIdVsState)
@@ -103,7 +104,7 @@ func (impl *FilterEvaluationAuditServiceImpl) UpdateFilterEvaluationAuditRef(id 
 	return impl.filterEvaluationAuditRepo.UpdateRefTypeAndRefId(id, refType, refId)
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]FilterState, error) {
+func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, map[int]expressionEvaluators.FilterState, error) {
 
 	// find the evaluation audit
 	resourceFilterEvaluationAudits, err := impl.filterEvaluationAuditRepo.GetByRefAndMultiSubject(referenceType, referenceId, subjectType, subjectIds)
@@ -113,7 +114,7 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 	}
 
 	subjectIdVsfilterHistoryIdVsEvaluatedTimeMap := make(map[int]map[int]time.Time)
-	subjectIdVsState := make(map[int]FilterState)
+	subjectIdVsState := make(map[int]expressionEvaluators.FilterState)
 	for _, resourceFilterEvaluationAudit := range resourceFilterEvaluationAudits {
 		filterHistoryIdVsEvaluatedTimeMap, ok := subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId]
 		if !ok {
@@ -125,15 +126,15 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 			return nil, nil, err
 		}
 
-		subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = ALLOW
+		subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = expressionEvaluators.ALLOW
 		filterStateForSubject := true
 		for _, filterHistoryObject := range filterHistoryObjects {
 			filterHistoryIdVsEvaluatedTimeMap[filterHistoryObject.FilterHistoryId] = resourceFilterEvaluationAudit.CreatedOn
-			filterStateForSubject = filterStateForSubject && (filterHistoryObject.State == ALLOW)
+			filterStateForSubject = filterStateForSubject && (filterHistoryObject.State == expressionEvaluators.ALLOW)
 		}
 		subjectIdVsfilterHistoryIdVsEvaluatedTimeMap[resourceFilterEvaluationAudit.SubjectId] = filterHistoryIdVsEvaluatedTimeMap
 		if !filterStateForSubject {
-			subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = BLOCK
+			subjectIdVsState[resourceFilterEvaluationAudit.SubjectId] = expressionEvaluators.BLOCK
 		}
 	}
 	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, subjectIdVsState, nil
@@ -168,7 +169,7 @@ func (impl *FilterEvaluationAuditServiceImpl) GetLastEvaluationFilterHistoryData
 	return subjectIdVsfilterHistoryIdVsEvaluatedTimeMap, nil
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (string, error) {
+func (impl *FilterEvaluationAuditServiceImpl) extractFilterHistoryObjects(filters []*FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) (string, error) {
 	filterIds := make([]int, 0)
 	// store filtersMap here, later will help to identify filters that doesn't have filterAudit
 	filtersMap := make(map[int]*FilterMetaDataBean)

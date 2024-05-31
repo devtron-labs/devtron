@@ -31,6 +31,7 @@ import (
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/security"
 	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
@@ -87,6 +88,7 @@ type WorkflowEventProcessorImpl struct {
 	policyService           security.PolicyService
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
 	imageScanHistoryRepo    security2.ImageScanHistoryRepository
+	ciCacheSelector         cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -113,6 +115,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	policyService security.PolicyService,
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
 	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+	ciCacheSelector cacheResourceSelector.CiCacheResourceSelector,
 ) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
@@ -143,6 +146,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		policyService:                   policyService,
 		imageScanDeployInfoRepo:         imageScanDeployInfoRepo,
 		imageScanHistoryRepo:            imageScanHistoryRepo,
+		ciCacheSelector:                 ciCacheSelector,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -763,6 +767,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		if err != nil {
 			return
 		}
+		impl.ciCacheSelector.UpdateResourceStatus(*ciCompleteEvent.WorkflowId, "complete")
 
 		triggerContext := bean5.TriggerContext{
 			Context:     context.Background(),

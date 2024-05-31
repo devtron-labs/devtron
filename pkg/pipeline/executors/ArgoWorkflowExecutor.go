@@ -15,8 +15,10 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"net/url"
+	"strconv"
 )
 
 const (
@@ -99,6 +102,20 @@ func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.Work
 		},
 	}
 	impl.updateBlobStorageConfig(workflowTemplate, &ciCdTemplate)
+	metadata := ciCdTemplate.Metadata
+	labels := metadata.Labels
+	ciCacheResourceName := workflowTemplate.CiCacheResourceName
+	if len(ciCacheResourceName) > 0 {
+		ciResourceCacheMap := map[string]string{cacheResourceSelector.BuildPVCLabelKey1: cacheResourceSelector.BuildPVCLabelValue1,
+			cacheResourceSelector.BuildPVCLabelKey2: ciCacheResourceName, cacheResourceSelector.BuildWorkflowId: strconv.Itoa(workflowTemplate.WorkflowId)}
+		if len(labels) == 0 {
+			labels = ciResourceCacheMap
+		} else {
+			maps.Copy(labels, ciResourceCacheMap)
+		}
+		metadata.Labels = labels
+		ciCdTemplate.Metadata = metadata
+	}
 	templates = append(templates, ciCdTemplate)
 
 	objectMeta := workflowTemplate.CreateObjectMetadata()

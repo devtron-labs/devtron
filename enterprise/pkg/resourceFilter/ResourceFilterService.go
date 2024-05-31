@@ -7,6 +7,7 @@ package resourceFilter
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -31,12 +32,12 @@ type ResourceFilterService interface {
 	DeleteFilter(userId int32, id int) error
 
 	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
-	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (FilterState, map[int]FilterState, error)
+	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (expressionEvaluators.FilterState, map[int]expressionEvaluators.FilterState, error)
 
 	// filter evaluation audit
-	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
+	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
-	GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]FilterState, map[int][]*FilterMetaDataBean, map[int]time.Time, error)
+	GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]expressionEvaluators.FilterState, map[int][]*FilterMetaDataBean, map[int]time.Time, error)
 	GetEvaluatedFiltersForSubjectsAndReferenceIds(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string][]*FilterMetaDataBean, map[string]time.Time, error)
 }
 
@@ -49,7 +50,7 @@ type ResourceFilterServiceImpl struct {
 	teamRepository                       team.TeamRepository
 	clusterRepository                    clusterRepository.ClusterRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
-	ceLEvaluatorService                  CELEvaluatorService
+	ceLEvaluatorService                  expressionEvaluators.CELEvaluatorService
 	devtronResourceSearchableKeyService  read.DevtronResourceSearchableKeyService
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService
 	filterAuditRepo                      FilterAuditRepository
@@ -63,7 +64,7 @@ func NewResourceFilterServiceImpl(logger *zap.SugaredLogger,
 	teamRepository team.TeamRepository,
 	clusterRepository clusterRepository.ClusterRepository,
 	environmentRepository clusterRepository.EnvironmentRepository,
-	ceLEvaluatorService CELEvaluatorService,
+	ceLEvaluatorService expressionEvaluators.CELEvaluatorService,
 	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	resourceFilterEvaluationAuditService FilterEvaluationAuditService,
 	filterAuditRepo FilterAuditRepository,
@@ -157,7 +158,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 	}
 
 	// validating given condition expressions
-	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
+	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(expressionEvaluators.ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
 		filterRequest.Conditions = validateResp.Conditions
 		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
@@ -235,7 +236,7 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		return filterRequest, errors.New("invalid qualifier selectors")
 	}
 	// validating given condition expressions
-	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
+	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(expressionEvaluators.ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
 		filterRequest.Conditions = validateResp.Conditions
 		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
@@ -357,24 +358,24 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 	return nil
 }
 
-func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (FilterState, map[int]FilterState, error) {
+func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string, materialInfos []repository.CiMaterialInfo) (expressionEvaluators.FilterState, map[int]expressionEvaluators.FilterState, error) {
 
-	filterIdVsState := make(map[int]FilterState)
-	finalState := ALLOW
+	filterIdVsState := make(map[int]expressionEvaluators.FilterState)
+	finalState := expressionEvaluators.ALLOW
 	params, err := GetParamsFromArtifact(artifactImage, imageLabels, materialInfos)
 	if err != nil {
-		return ERROR, filterIdVsState, err
+		return expressionEvaluators.ERROR, filterIdVsState, err
 	}
 	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter.Conditions, ExpressionMetadata{Params: params})
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 		if err != nil {
-			finalState = ERROR
-			filterIdVsState[filter.Id] = ERROR
+			finalState = expressionEvaluators.ERROR
+			filterIdVsState[filter.Id] = expressionEvaluators.ERROR
 			// return ERROR, nil
 		}
 		if !allowed {
-			finalState = BLOCK
-			filterIdVsState[filter.Id] = BLOCK
+			finalState = expressionEvaluators.BLOCK
+			filterIdVsState[filter.Id] = expressionEvaluators.BLOCK
 			// return BLOCK, nil
 		}
 	}
@@ -732,7 +733,7 @@ func (impl *ResourceFilterServiceImpl) fetchAppsAndEnvs(appIds []int, envIds []i
 	return apps, envs, nil
 }
 
-func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {
+func (impl *ResourceFilterServiceImpl) CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) (*ResourceFilterEvaluationAudit, error) {
 	if len(filters) == 0 {
 		return nil, nil
 	}
@@ -743,7 +744,7 @@ func (impl *ResourceFilterServiceImpl) UpdateFilterEvaluationAuditRef(id int, re
 	return impl.resourceFilterEvaluationAuditService.UpdateFilterEvaluationAuditRef(id, refType, refId)
 }
 
-func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]FilterState, map[int][]*FilterMetaDataBean, map[int]time.Time, error) {
+func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]expressionEvaluators.FilterState, map[int][]*FilterMetaDataBean, map[int]time.Time, error) {
 
 	// fetch filter history objects
 	subjectIdVsFilterHistoryVsEvaluatedTimes, subjectIdVsState, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryDataBySubjects(subjectType, subjectIds, referenceId, referenceType)

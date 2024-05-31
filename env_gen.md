@@ -34,6 +34,7 @@
  | CACHED_GVKs | [] |  | 
  | CACHED_NAMESPACES |  |  | 
  | CACHE_LIMIT | 5000000000 |  | 
+ | CACHE_PVCs | java-cache-pvc-2,node-cache-pvc-1,node-cache-pvc-2 |  | 
  | CAN_APPROVER_DEPLOY | false |  | 
  | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
  | CASBIN_DATABASE | casbin |  | 
@@ -222,6 +223,8 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
  | PROXY_UP_TIME | 60 |  | 
+ | PVC_MOUNT_PATH_EXPRESSION | appLabels['devtron.ai/language'] == 'java' ? '/devtroncd/.m2' : '/devtroncd/node_modules' |  | 
+ | PVC_NAME_EXPRESSION | appLabels['devtron.ai/language'] == 'java' ? 'java-cache' : 'node-cache' |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
