@@ -77,27 +77,50 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeployedConfigurationHistoryServiceImpl.CreateHistoriesForDeploymentTrigger")
 	defer span.End()
-	//creating history for deployment template
-	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
+	deploymentTemplateHistoryId, templateHistoryExists, err := impl.deploymentTemplateHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
 	if err != nil {
-		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
+		impl.logger.Errorw("error in checking if deployment template history exists for deployment trigger", "err", err)
 		return err
 	}
-	cmId, csId, err := impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	if !templateHistoryExists {
+		// creating history for deployment template
+		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, envOverride.Chart.ImageDescriptorTemplate, deployedOn, deployedBy)
+		if err != nil {
+			impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
+			return err
+		}
+		deploymentTemplateHistoryId = deploymentTemplateHistory.Id
+	}
+	cmId, csId, cmCsHistoryExists, err := impl.configMapHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
 	if err != nil {
-		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
+		impl.logger.Errorw("error in checking if config map/ secrete history exists for deployment trigger", "err", err)
 		return err
+	}
+	if !cmCsHistoryExists {
+		cmId, csId, err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+		if err != nil {
+			impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
+			return err
+		}
 	}
 	if strategy != nil {
-		err = impl.strategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+		// checking if pipeline strategy configuration for this pipelineId and with deployedOn time exists or not
+		strategyHistoryExists, err := impl.strategyHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
 		if err != nil {
-			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+			impl.logger.Errorw("error in checking if deployment template history exists for deployment trigger", "err", err)
 			return err
+		}
+		if !strategyHistoryExists {
+			err = impl.strategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+				return err
+			}
 		}
 	}
 
 	var variableSnapshotHistories = util4.GetBeansPtr(
-		repository5.GetSnapshotBean(deploymentTemplateHistory.Id, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
+		repository5.GetSnapshotBean(deploymentTemplateHistoryId, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
 		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
 		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),
 	)

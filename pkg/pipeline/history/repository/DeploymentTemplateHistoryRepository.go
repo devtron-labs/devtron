@@ -29,6 +29,7 @@ type DeploymentTemplateHistoryRepository interface {
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error)
+	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error)
 }
 
@@ -131,4 +132,18 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryList(pipel
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error) {
+	var history DeploymentTemplateHistory
+	err := impl.dbConnection.Model(&history).
+		Where("deployment_template_history.deployed_on = ?", deployedOn).
+		Where("deployment_template_history.pipeline_id = ?", pipelineId).
+		Where("deployment_template_history.deployed = ?", true).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in checking if deployment template history exists by pipelineId & deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return &history, err
+	}
+	return &history, nil
 }

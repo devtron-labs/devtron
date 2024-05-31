@@ -38,6 +38,7 @@ type PipelineStrategyHistoryService interface {
 
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (historyId int, exists bool, err error)
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
 	GetLatestDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error)
 }
@@ -214,4 +215,13 @@ func (impl PipelineStrategyHistoryServiceImpl) GetLatestDeployedHistoryByPipelin
 		historyDto.PipelineTriggerType = history.PipelineTriggerType
 	}
 	return historyDto, nil
+}
+
+func (impl PipelineStrategyHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (exists bool, err error) {
+	exists, err = impl.pipelineStrategyHistoryRepository.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId, deployedOn)
+	if err != nil {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return exists, err
+	}
+	return exists, err
 }

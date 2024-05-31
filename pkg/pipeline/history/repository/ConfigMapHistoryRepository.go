@@ -36,6 +36,7 @@ type ConfigMapHistoryRepository interface {
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
+	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
 }
 
@@ -125,4 +126,20 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, ba
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).
+		Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
+		Where("deployed_on = ?", deployedOn).
+		Where("deployed = ?", true).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting deployed CM/CS history by pipelineId and deployedOn",
+			"pipelineId", pipelineId, "deployedOn", deployedOn, "configType", configType, "err", err)
+		return &history, err
+	}
+	return &history, nil
 }

@@ -24,6 +24,7 @@ import (
 
 type VariableSnapshotHistoryRepository interface {
 	SaveVariableSnapshots(variableSnapshotHistories []*VariableSnapshotHistory) error
+	CheckIfVariableSnapshotExists(historyReference HistoryReference) (bool, error)
 	GetVariableSnapshots(historyReferences []HistoryReference) ([]*VariableSnapshotHistory, error)
 }
 
@@ -34,6 +35,15 @@ func (impl VariableSnapshotHistoryRepositoryImpl) SaveVariableSnapshots(variable
 		return err
 	}
 	return nil
+}
+
+func (impl VariableSnapshotHistoryRepositoryImpl) CheckIfVariableSnapshotExists(historyReference HistoryReference) (bool, error) {
+	var variableSnapshotHistory VariableSnapshotHistory
+	exists, err := impl.dbConnection.Model(&variableSnapshotHistory).
+		Where("history_reference_id = ?", historyReference.HistoryReferenceId).
+		Where("history_reference_type = ?", historyReference.HistoryReferenceType).
+		Exists()
+	return exists, err
 }
 
 func (impl VariableSnapshotHistoryRepositoryImpl) GetVariableSnapshots(historyReferences []HistoryReference) ([]*VariableSnapshotHistory, error) {

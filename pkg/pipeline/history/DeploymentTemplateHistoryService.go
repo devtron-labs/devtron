@@ -18,6 +18,7 @@ package history
 
 import (
 	"context"
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"time"
@@ -44,6 +45,7 @@ type DeploymentTemplateHistoryService interface {
 
 	GetHistoryForDeployedTemplateById(ctx context.Context, id int, pipelineId int) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (deploymentTemplateHistoryId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	// used for rollback
@@ -391,4 +393,17 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 		},
 	}
 	return historyDto, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (deploymentTemplateHistoryId int, exists bool, err error) {
+	history, err := impl.deploymentTemplateHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return deploymentTemplateHistoryId, exists, err
+	} else if errors.Is(err, pg.ErrNoRows) {
+		return deploymentTemplateHistoryId, exists, nil
+	}
+	deploymentTemplateHistoryId = history.Id
+	exists = true
+	return deploymentTemplateHistoryId, exists, err
 }

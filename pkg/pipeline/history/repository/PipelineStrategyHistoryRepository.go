@@ -33,6 +33,7 @@ type PipelineStrategyHistoryRepository interface {
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error)
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error)
 	GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error)
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (bool, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error)
 }
 
@@ -133,4 +134,18 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetDeployedHistoryList(pipelin
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (bool, error) {
+	var history PipelineStrategyHistory
+	exists, err := impl.dbConnection.Model(&history).
+		Where("pipeline_strategy_history.deployed_on = ?", deployedOn).
+		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
+		Where("pipeline_strategy_history.deployed = ?", true).
+		Exists()
+	if err != nil {
+		impl.logger.Errorw("error in checking if pipeline strategy history exists by pipelineId & deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return exists, err
+	}
+	return exists, nil
 }

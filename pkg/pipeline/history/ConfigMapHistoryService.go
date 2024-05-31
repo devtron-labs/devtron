@@ -19,6 +19,7 @@ package history
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -44,6 +45,7 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
 	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
 }
@@ -635,4 +637,29 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		HistoryConfig: historyDto,
 	}
 	return componentLevelData, nil
+}
+
+func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error) {
+	cmHistory, cmErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
+	if cmErr != nil && !errors.Is(cmErr, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", cmErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return cmId, csId, exists, cmErr
+	}
+	if cmErr == nil {
+		cmId = cmHistory.Id
+	}
+	csHistory, csErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
+	if csErr != nil && !errors.Is(csErr, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", csErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return cmId, csId, exists, csErr
+	}
+	if csErr == nil {
+		csId = csHistory.Id
+	}
+	if cmErr == nil && csErr == nil {
+		exists = true
+	} else {
+		err = pg.ErrNoRows
+	}
+	return cmId, csId, exists, err
 }
