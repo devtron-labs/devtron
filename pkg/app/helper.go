@@ -18,7 +18,7 @@ package app
 
 import "strings"
 
-// LabelMatchingRegex is the official k8s label matching regex
+// LabelMatchingRegex is the official k8s label matching regex, pls refer https://github.com/kubernetes/apimachinery/blob/bfd2aff97e594f6aad77acbe2cbbe190acc93cbc/pkg/util/validation/validation.go#L167
 const LabelMatchingRegex = "^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$"
 
 // MergeChildMapToParentMap merges child map of generic type map into parent map of generic type
