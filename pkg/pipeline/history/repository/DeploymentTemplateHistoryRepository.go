@@ -141,9 +141,5 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryForPipelin
 		Where("deployment_template_history.pipeline_id = ?", pipelineId).
 		Where("deployment_template_history.deployed = ?", true).
 		Select()
-	if err != nil {
-		impl.logger.Errorw("error in checking if deployment template history exists by pipelineId & deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
-		return &history, err
-	}
-	return &history, nil
+	return &history, err
 }

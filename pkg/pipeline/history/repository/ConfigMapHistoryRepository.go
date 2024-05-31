@@ -136,10 +136,5 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime
 		Where("deployed_on = ?", deployedOn).
 		Where("deployed = ?", true).
 		Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployed CM/CS history by pipelineId and deployedOn",
-			"pipelineId", pipelineId, "deployedOn", deployedOn, "configType", configType, "err", err)
-		return &history, err
-	}
-	return &history, nil
+	return &history, err
 }

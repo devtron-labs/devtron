@@ -143,9 +143,5 @@ func (impl PipelineStrategyHistoryRepositoryImpl) CheckIfTriggerHistoryExistsFor
 		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
 		Where("pipeline_strategy_history.deployed = ?", true).
 		Exists()
-	if err != nil {
-		impl.logger.Errorw("error in checking if pipeline strategy history exists by pipelineId & deployedOn", "err", err, "pipelineId", pipelineId, "deployedOn", deployedOn)
-		return exists, err
-	}
-	return exists, nil
+	return exists, err
 }
