@@ -642,7 +642,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error) {
 	cmHistory, cmErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
 	if cmErr != nil && !errors.Is(cmErr, pg.ErrNoRows) {
-		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", cmErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		impl.logger.Errorw("error in checking if config map history exists for pipelineId and deployedOn", "err", cmErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
 		return cmId, csId, exists, cmErr
 	}
 	if cmErr == nil {
@@ -650,7 +650,7 @@ func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineId
 	}
 	csHistory, csErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
 	if csErr != nil && !errors.Is(csErr, pg.ErrNoRows) {
-		impl.logger.Errorw("error in checking if history exists for pipelineId and deployedOn", "err", csErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		impl.logger.Errorw("error in checking if secret history exists for pipelineId and deployedOn", "err", csErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
 		return cmId, csId, exists, csErr
 	}
 	if csErr == nil {
@@ -658,8 +658,6 @@ func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineId
 	}
 	if cmErr == nil && csErr == nil {
 		exists = true
-	} else {
-		err = pg.ErrNoRows
 	}
-	return cmId, csId, exists, err
+	return cmId, csId, exists, nil
 }
