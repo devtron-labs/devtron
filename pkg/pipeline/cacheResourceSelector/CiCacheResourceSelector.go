@@ -109,7 +109,7 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 		} else {
 			// pvc got free
 			impl.resourcesStatus[pvc] = AvailableResourceStatus
-			//TODO KB: run a particular command to make PVC unavailable
+			// TODO KB: run a particular command to make PVC unavailable
 			impl.cleanupResources(pvc)
 			return true
 		}
@@ -165,6 +165,7 @@ func (impl *CiCacheResourceSelectorImpl) cleanupResources(pvcName string) {
 
 func (impl *CiCacheResourceSelectorImpl) getPVName(pvcName string) (string, bool) {
 	var pvName string
+	var ok bool
 	pvcResourceRequest := &k8s.ResourceRequestBean{
 		ClusterId: 1,
 		K8sRequest: &k8s2.K8sRequestBean{
@@ -184,11 +185,16 @@ func (impl *CiCacheResourceSelectorImpl) getPVName(pvcName string) (string, bool
 		return pvName, true
 	}
 	manifestResponse := pvcResource.ManifestResponse
-	if manifestResponse != nil {
-		pvcManifestObject := manifestResponse.Manifest.Object
-		pvcSpec := pvcManifestObject["spec"].(map[string]interface{})
-		pvName = pvcSpec["volumeName"].(string)
+	if manifestResponse == nil {
+		return pvName, true
 	}
+
+	pvcManifestObject := manifestResponse.Manifest.Object
+	pvcSpec := pvcManifestObject["spec"].(map[string]interface{})
+	if pvName, ok = pvcSpec["volumeName"].(string); !ok {
+		return pvName, true
+	}
+
 	return pvName, false
 }
 
