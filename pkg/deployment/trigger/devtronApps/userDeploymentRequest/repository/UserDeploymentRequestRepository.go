@@ -220,10 +220,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) TerminateForPipelineId(tx *pg.T
 	}
 	res, err := query.
 		Set("status = ?", bean.DeploymentRequestTerminated).
-		Join("INNER join pipeline p").
-		JoinOn("user_deployment_request.pipeline_id = p.id").
 		Where("user_deployment_request.pipeline_id = ?", pipelineId).
-		Where("p.deleted = ?", true).
 		Update()
 	if err != nil {
 		return 0, err
