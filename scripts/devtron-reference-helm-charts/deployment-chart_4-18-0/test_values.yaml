@@ -22,6 +22,10 @@ kedaAutoscaling:
     #     - type: Percent
     #       value: 100
     #       periodSeconds: 15
+  labels:
+    hello: hii
+  annotations:
+    devtron.ai/name: "value"
   triggers: 
   - type: kubernetes-workload
     name: trig_one

@@ -10,14 +10,14 @@ metadata:
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
   {{- if .Values.appLabels }}
-  {{ toYaml .Values.appLabels | indent 4 }}
+{{ toYaml .Values.appLabels | indent 4 }}
   {{- end }}
   {{- if .Values.kedaAutoscaling.labels }}
-  {{ toYaml .Values.kedaAutoscaling.labels | indent 4 }}
+{{ toYaml .Values.kedaAutoscaling.labels | indent 4 }}
   {{- end }}
   {{- if .Values.kedaAutoscaling.annotations }}
   annotations:
-  {{ toYaml .Values.kedaAutoscaling.annotations | indent 4 }}
+{{ toYaml .Values.kedaAutoscaling.annotations | indent 4 }}
   {{- end }}
 spec:
   scaleTargetRef:

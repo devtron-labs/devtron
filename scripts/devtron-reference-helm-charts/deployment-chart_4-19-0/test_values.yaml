@@ -22,6 +22,10 @@ kedaAutoscaling:
     #     - type: Percent
     #       value: 100
     #       periodSeconds: 15
+  labels:
+    hello: hii
+  annotations:
+    devtron.ai/name: "value"
   triggers: 
   - type: kubernetes-workload
     name: trig_one
@@ -60,6 +64,9 @@ containerSpec:
         host: example.com
         path: /example
         port: 90
+appLabels:
+  hello: hii
+  hey: hello
 
 imagePullSecrets:
   - test1

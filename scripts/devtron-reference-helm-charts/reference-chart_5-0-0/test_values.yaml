@@ -1,6 +1,47 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+kedaAutoscaling:
+  labels:
+    hello: hii
+  annotations:
+    devtron.ai/name: "value"
+  enabled: true
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  cooldownPeriod: 300 # Optional. Default: 300 seconds
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  idleReplicaCount: 0 # Optional. Must be less than minReplicaCount
+  pollingInterval: 30 # Optional. Default: 30 seconds
+  # The fallback section is optional. It defines a number of replicas to fallback to if a scaler is in an error state.
+  fallback: {} # Optional. Section to specify fallback options
+    # failureThreshold: 3 # Mandatory if fallback section is included
+    # replicas: 6
+  advanced: {}
+    # horizontalPodAutoscalerConfig: # Optional. Section to specify HPA related options
+    # behavior: # Optional. Use to modify HPA's scaling behavior
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #     - type: Percent
+    #       value: 100
+    #       periodSeconds: 15
+  triggers: 
+  - type: kubernetes-workload
+    name: trig_one
+    metadata:
+      podSelector: 'pod=workload-test'
+  - type: metrics-api
+    name: trig_two
+    metadata:
+      url: "https://mockbin.org/bin/336a8d99-9e09-4f1f-979d-851a6d1b1423"
+      valueLocation: "tasks"
+
+  triggerAuthentication:
+    enabled: true
+    name: "trigger-test"
+    spec: {}
+  authenticationRef: {}
 
 rolloutLabels:
   name: devops-team
@@ -81,6 +122,8 @@ image:
   pullPolicy: IfNotPresent
 
 autoscaling:
+  annotations:
+    devtron.ai/name: "value"
   enabled: true
   MinReplicas: 1
   MaxReplicas: 2
@@ -115,12 +158,13 @@ autoscaling:
 #
 
 secret:
-  enabled: false
+  enabled: true
 
 service:
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
-  annotations: {}
+  annotations:
+    devtron.ai/name: "value"
     # test1: test2
   # test3: test4
 
@@ -143,12 +187,14 @@ EnvVariables:
     value: qa
 
 deployment:
+  annotations:
+    devtron.ai/name: "value"
   strategy:
     blueGreen:
       autoPromotionSeconds: 30
       scaleDownDelaySeconds: 30
       previewReplicaCount: 1
-      autoPromotionEnabled: false
+      autoPromotionenabled: true
     rolling:
       maxSurge: "25%"
       maxUnavailable: 1
@@ -190,8 +236,10 @@ analysisTemplate:
   enabled: true
   templates:
   - name: success-rate
-    annotations: {}
-    labels: {}
+    labels:
+        hello: hii
+    annotations:
+      devtron.ai/name: "value"
     args:
     - name: service-name
       value: example-svc.default.svc.cluster.local
@@ -246,12 +294,18 @@ prometheus:
   release: monitoring
 
 servicemonitor:
-  additionalLabels: {}
+    labels:
+      hello: hii
+    annotations:
+      devtron.ai/name: "value"
 
 
 prometheusRule:
   enabled: true
-  additionalLabels: {}
+  labels:
+    hello: hii
+  annotations:
+    devtron.ai/name: "value"
   namespace: ""
   rules:
     # These are just examples rules, please adapt them to your needs
@@ -271,12 +325,16 @@ prometheusRule:
       annotations:
         description: Too many 4XXs
         summary: More than 5% of the all requests did return 4XX, this require your attention
+      
 
 
 ingress:
   enabled: true
   className: nginx
-  annotations: {}
+  labels:
+    hello: hii
+  annotations:
+    devtron.ai/name: "value"
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 #    kubernetes.io/ingress.class: nginx
@@ -316,9 +374,12 @@ ingress:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: false
+  enabled: true
   className: nginx-internal
-  annotations: {}
+  labels:
+      hello: hii
+  annotations:
+    devtron.ai/name: "value"
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
  #    nginx.ingress.kubernetes.io/canary: "true"
@@ -347,15 +408,15 @@ ingressInternal:
   #      - chart-example.local
 
 dbMigrationConfig:
-  enabled: false
+  enabled: true
 
 command:
   workingDir: /app
-  enabled: false
+  enabled: true
   value: ["ls"]
 
 args:
-  enabled: false
+  enabled: true
   value: []
 
 resources:
@@ -386,7 +447,7 @@ nodeSelector: {}
 orchestrator.deploymant.algo: 1
 
 ConfigMaps:
-  enabled: false
+  enabled: true
   maps: []
 #  - name: config-map-1
 #    type: environment
@@ -418,7 +479,7 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: false
+  enabled: true
   secrets:
   - name: config-secret-1
     type: environment
