@@ -613,16 +613,20 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	extraAppLabels := make(map[string]string)
 	regexp := regexp.MustCompile(LabelMatchingRegex)
-	if regexp.MatchString(appName) {
-		extraAppLabels[bean3.AppNameDevtronLabel] = appName
-	}
-	if regexp.MatchString(envName) {
-		extraAppLabels[bean3.EnvNameDevtronLabel] = envName
-	}
-	if regexp.MatchString(appMetaInfo.Team.Name) {
-		extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+	extraAppLabels := make(map[string]string)
+
+	extraAppLabels[bean3.AppNameDevtronLabel] = appName
+	extraAppLabels[bean3.EnvNameDevtronLabel] = envName
+	extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+
+	extraAppLabels = sanitizeLabels(extraAppLabels)
+	for labelKey, labelValue := range extraAppLabels {
+		if regexp.MatchString(labelValue) {
+			extraAppLabels[labelKey] = labelValue
+		} else {
+			delete(extraAppLabels, labelKey)
+		}
 	}
 	return extraAppLabels, nil
 }
