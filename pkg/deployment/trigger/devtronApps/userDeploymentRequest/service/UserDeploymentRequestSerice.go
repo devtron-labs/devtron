@@ -99,7 +99,7 @@ func (impl *UserDeploymentRequestServiceImpl) UpdateStatusForCdWfIds(ctx context
 		if !isValid {
 			return fmt.Errorf("invalid status update request from %s to %s", model.Status, status)
 		}
-		validCdWfIds = append(validCdWfIds)
+		validCdWfIds = append(validCdWfIds, model.CdWorkflowId)
 		if status.IsCompleted() {
 			_, err = impl.userDeploymentRequestRepo.MarkAllPreviousSuperseded(newCtx, tx, model.PipelineId, model.Id)
 			if err != nil {
