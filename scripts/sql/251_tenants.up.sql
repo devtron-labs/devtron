@@ -212,15 +212,13 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                     [
                         "Contacts"
                     ]
-                },
-                "required":
-                [
-                    "id",
-                    "idType",
-                    "tenantId",
-                    "metadata"
-                ]
-            }
+                }
+            },
+            "required":
+            [
+                "id",
+                "tenantId"
+            ]
         },
         "dependencies":
         {
@@ -417,15 +415,13 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                     [
                         "Contacts"
                     ]
-                },
-                "required":
-                [
-                    "id",
-                    "idType",
-                    "tenantId",
-                    "metadata"
-                ]
-            }
+                }
+            },
+            "required":
+            [
+                "id",
+                "tenantId"
+            ]
         },
         "dependencies":
         {
