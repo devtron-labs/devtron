@@ -44,6 +44,6 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
-	triggerEvent.SaveTriggersHistory = true
+	triggerEvent.SaveTriggerHistory = true
 	return triggerEvent
 }

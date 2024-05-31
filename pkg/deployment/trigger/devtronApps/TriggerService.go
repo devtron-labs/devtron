@@ -717,7 +717,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	}
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
-	if triggerEvent.SaveTriggersHistory {
+	if triggerEvent.SaveTriggerHistory {
 		if valuesOverrideResponse.Pipeline != nil && valuesOverrideResponse.EnvOverride != nil {
 			err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 			if err1 != nil {
@@ -798,16 +798,15 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 }
 
 func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEvent *bean.TriggerEvent, cdWfId, cdWfrId int) (skipRequest bool, err error) {
-	var latestTimelineStatus pipelineConfig.TimelineStatus
+	deployRequestStatus, err := impl.userDeploymentRequestService.GetDeployRequestStatusByCdWfId(cdWfId)
+	if err != nil {
+		impl.logger.Errorw("error in getting userDeploymentRequest by cdWfId", "cdWfrId", cdWfId, "err", err)
+		return skipRequest, err
+	}
 	if util.IsAcdApp(triggerEvent.DeploymentAppType) {
-		latestTimelineStatus, err = impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(cdWfrId)
+		latestTimelineStatus, err := impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(cdWfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
-			return skipRequest, err
-		}
-		deployRequestStatus, err := impl.userDeploymentRequestService.GetDeployRequestStatusByCdWfId(cdWfId)
-		if err != nil {
-			impl.logger.Errorw("error in getting userDeploymentRequest by cdWfId", "cdWfrId", cdWfId, "err", err)
 			return skipRequest, err
 		}
 		if latestTimelineStatus.IsTerminalTimelineStatus() && deployRequestStatus.IsTerminalTimelineStatus() {
@@ -819,12 +818,12 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 		case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
 			if deployRequestStatus.IsTriggerHistorySaved() {
 				// trigger history has already been saved
-				triggerEvent.SaveTriggersHistory = false
+				triggerEvent.SaveTriggerHistory = false
 			}
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT:
 			// trigger history has already been saved
-			triggerEvent.SaveTriggersHistory = false
+			triggerEvent.SaveTriggerHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			if deployRequestStatus.IsTriggered() {
@@ -834,7 +833,7 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
 			// trigger history has already been saved
-			triggerEvent.SaveTriggersHistory = false
+			triggerEvent.SaveTriggerHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			if deployRequestStatus.IsTriggered() {
@@ -844,12 +843,20 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 			return skipRequest, nil
 		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
 			// trigger history has already been saved
-			triggerEvent.SaveTriggersHistory = false
+			triggerEvent.SaveTriggerHistory = false
 			// git commit has already been performed
 			triggerEvent.PerformChartPush = false
 			// deployment has already been performed
 			triggerEvent.PerformDeploymentOnCluster = false
 			return skipRequest, nil
+		}
+	} else {
+		if deployRequestStatus.IsTriggerHistorySaved() {
+			// trigger history has already been saved
+			triggerEvent.SaveTriggerHistory = false
+		} else if deployRequestStatus.IsTriggered() {
+			// deployment has already been performed
+			triggerEvent.PerformDeploymentOnCluster = false
 		}
 	}
 	return skipRequest, nil

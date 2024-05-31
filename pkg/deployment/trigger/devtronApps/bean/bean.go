@@ -29,7 +29,7 @@ const (
 )
 
 type TriggerEvent struct {
-	SaveTriggersHistory        bool
+	SaveTriggerHistory         bool
 	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
 	DeploymentAppType          string
