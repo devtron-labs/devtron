@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
     CONSTRAINT "dep_mapping_component_object_id_fk" FOREIGN KEY ("component_dt_res_object_id") REFERENCES "public"."devtron_resource_object" ("id"),
     CONSTRAINT "dep_mapping_component_schema_id_fk" FOREIGN KEY ("component_dt_res_schema_id") REFERENCES "public"."devtron_resource_schema" ("id"),
     CONSTRAINT "dep_mapping_dependency_object_id_fk" FOREIGN KEY ("component_dt_res_object_id") REFERENCES "public"."devtron_resource_object" ("id"),
-    CONSTRAINT "dep_mapping_dependency_schema_id_fk" FOREIGN KEY ("dependency_dt_res_schema_id") REFERENCES "public"."devtron_resource_schema" ("id"),
+    CONSTRAINT "dep_mapping_dependency_schema_id_fk" FOREIGN KEY ("dependency_dt_res_schema_id") REFERENCES "public"."devtron_resource_schema" ("id")
 );
 
 
