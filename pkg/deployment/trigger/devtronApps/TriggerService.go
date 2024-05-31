@@ -769,7 +769,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	manifestPushService := impl.getManifestPushService(triggerEvent)
 	manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
 	if manifestPushResponse.Error != nil {
-		impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
+		impl.logger.Errorw("error in pushing manifest to git", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
 		return manifestPushResponse.Error
 	}
 	// Update GitOps repo url after repo migration

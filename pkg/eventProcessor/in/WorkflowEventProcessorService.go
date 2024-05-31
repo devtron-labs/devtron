@@ -819,7 +819,12 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(cdAs
 		impl.logger.Errorw("err on fetching cd workflow runner by id", "err", err, "cdWfrId", cdWfrId)
 		return err
 	}
-	ctx := context.Background()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token for async deployment", "err", err)
+		return err
+	}
+	ctx := context.WithValue(context.Background(), "token", acdToken)
 	isValidRequest, err := impl.handleConcurrentOrInvalidRequest(ctx, cdWfr, cdAsyncInstallReq.UserDeploymentRequestId, pipelineId, userId)
 	if err != nil {
 		impl.logger.Errorw("error, handleConcurrentOrInvalidRequest", "err", err, "cdWfrId", cdWfrId, "cdWfrStatus", cdWfr.Status, "pipelineId", pipelineId)
