@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package application
 
 import (
@@ -9,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
@@ -428,6 +445,10 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return false, err
 	}
 	valid := false
@@ -456,21 +477,21 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 		for _, pod := range app.ResourceTreeResponse.PodMetadata {
 			if pod.Name == podName {
 
-				//finding the container name in main Containers
+				// finding the container name in main Containers
 				for _, container := range pod.Containers {
 					if container == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in init containers
+				// finding the container name in init containers
 				for _, initContainer := range pod.InitContainers {
 					if initContainer == requestContainerName {
 						return true
 					}
 				}
 
-				//finding the container name in ephemeral containers
+				// finding the container name in ephemeral containers
 				for _, ephemeralContainer := range pod.EphemeralContainers {
 					if ephemeralContainer.Name == requestContainerName {
 						return true
@@ -627,9 +648,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
-	//store the copy of requested resource identifier
+	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
-	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace)
+	resp, namespaced, err := impl.K8sUtil.GetResourceList(ctx, restConfig, resourceIdentifierCloned.GroupVersionKind, resourceIdentifierCloned.Namespace, true, nil)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
@@ -644,7 +665,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, checkForResourceCallback)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -652,7 +673,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-		//return nil, err
+		// return nil, err
 	} else {
 		resourceList.ServerVersion = k8sServerVersion.String()
 	}
@@ -666,7 +687,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token
 		return nil, err
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, clusterBean := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
@@ -830,7 +851,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 				impl.logger.Errorw("error occured while trying to create epehemral containers with legacy API", "err", err)
 				return fmt.Errorf("error creating JSON 6902 patch for old /ephemeralcontainers API: %s", err)
 			}
-			//try with legacy API
+			// try with legacy API
 			result := v1Client.RESTClient().Patch(types.JSONPatchType).
 				Namespace(pod.Namespace).
 				Resource("pods").
@@ -963,7 +984,7 @@ func (impl *K8sApplicationServiceImpl) GetPodContainersList(clusterId int, names
 	}
 	ephemeralContainerStatusMap := make(map[string]bool)
 	for _, c := range pod.Status.EphemeralContainerStatuses {
-		//c.state contains three states running,waiting and terminated
+		// c.state contains three states running,waiting and terminated
 		// at any point of time only one state will be there
 		if c.State.Running != nil {
 			ephemeralContainerStatusMap[c.Name] = true
@@ -1019,6 +1040,10 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 	manifest, manifestOk := manifestRes.GetManifestOk()
@@ -1027,7 +1052,7 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 		return nil, fmt.Errorf("no manifest found for this request")
 	}
 
-	//getting rest config by clusterId
+	// getting rest config by clusterId
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
@@ -1150,8 +1175,8 @@ func (impl K8sApplicationServiceImpl) K8sServerVersionCheckForEphemeralContainer
 		return false, err
 	}
 
-	//ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
-	//https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
+	// ephemeral containers feature is introduced in version v1.23 of kubernetes, it is stable from version v1.25
+	// https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/
 	ephemeralRegex := impl.ephemeralContainerConfig.EphemeralServerVersionRegex
 	matched, err := util2.MatchRegexExpression(ephemeralRegex, k8sServerVersion.String())
 	if err != nil {
