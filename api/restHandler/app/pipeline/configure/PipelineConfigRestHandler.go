@@ -231,8 +231,8 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resourceObject, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete, appType)
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -358,7 +358,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	object := fmt.Sprintf("%s/%s", project.Name, "*")
-	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate, createRequest.AppType)
+	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
 	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -420,8 +420,8 @@ func (handler *PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *h
 	}
 
 	//rbac implementation starts here
-	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -581,8 +581,8 @@ func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVi
 	}
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "appId", appId)
 	//RBAC CHECK
-	resourceName, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet, appType)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -657,7 +657,7 @@ func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Resp
 	}
 	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet, app.AppType)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
