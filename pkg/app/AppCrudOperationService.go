@@ -625,7 +625,7 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		if regexp.MatchString(labelValue) {
 			extraAppLabels[labelKey] = labelValue
 		} else {
-			// in case extra labels doesn't are failing k8s official label matching regex  even after sanitization then
+			// in case extra labels are failing k8s official label matching regex  even after sanitization then
 			//delete the label as this can break deployments.
 			impl.logger.Warnw("extra label failed LabelMatchingRegex validation, regex:- ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$", "labelKey", labelKey, "labelValue", labelValue)
 			delete(extraAppLabels, labelKey)
