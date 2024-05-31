@@ -604,11 +604,18 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	return map[string]string{
-		bean3.AppNameDevtronLabel:     appName,
-		bean3.EnvNameDevtronLabel:     envName,
-		bean3.ProjectNameDevtronLabel: appMetaInfo.Team.Name,
-	}, nil
+	extraAppLabels := make(map[string]string)
+	regexp := regexp.MustCompile(LabelMatchingRegex)
+	if regexp.MatchString(appName) {
+		extraAppLabels[bean3.AppNameDevtronLabel] = appName
+	}
+	if regexp.MatchString(envName) {
+		extraAppLabels[bean3.EnvNameDevtronLabel] = envName
+	}
+	if regexp.MatchString(appMetaInfo.Team.Name) {
+		extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+	}
+	return extraAppLabels, nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
