@@ -1,4 +1,5 @@
 ## Bugs
+- fix: extra labels propagation based on k8s label regex matching (#5216)
 - fix: invalid runner status (#5189)
 - fix: revert changes from main (#5206)
 - fix: apps and jobs permission (#5110)
