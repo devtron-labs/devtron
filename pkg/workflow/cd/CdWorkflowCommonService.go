@@ -189,7 +189,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx contex
 	// e.g: Status : Failed --> Progressing (not allowed)
 	if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
 		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
-		return fmt.Errorf("deployment has already been terminated for workflow runner")
+		return nil
 	}
 	for _, option := range options {
 		option(cdWfr)
