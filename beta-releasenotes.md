@@ -1,4 +1,5 @@
 ## Bugs
+- fix: invalid runner status (#5189)
 - fix: revert changes from main (#5206)
 - fix: apps and jobs permission (#5110)
 - fix: added Copyright (#5172)
