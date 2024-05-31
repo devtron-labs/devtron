@@ -183,6 +183,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) MarkAllPreviousSuperseded(ctx c
 			bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded,
 		})).
 		Update()
+	if err != nil {
+		return 0, err
+	}
 	return res.RowsAffected(), err
 }
 
@@ -202,6 +205,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) UpdateStatusForCdWfIds(ctx cont
 		Set("status = ?", status).
 		Where("cd_workflow_id IN (?)", pg.In(cdWfIds)).
 		Update()
+	if err != nil {
+		return 0, err
+	}
 	return res.RowsAffected(), err
 }
 
@@ -219,6 +225,9 @@ func (impl *UserDeploymentRequestRepositoryImpl) TerminateForPipelineId(tx *pg.T
 		Where("user_deployment_request.pipeline_id = ?", pipelineId).
 		Where("p.deleted = ?", true).
 		Update()
+	if err != nil {
+		return 0, err
+	}
 	return res.RowsAffected(), err
 }
 
