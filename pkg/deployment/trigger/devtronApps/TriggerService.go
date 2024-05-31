@@ -680,7 +680,7 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
 		return releaseNo, err
 	}
-	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSync) {
+	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSyncDeployment) {
 		// asynchronous mode of Helm/ArgoCd installation starts
 		return impl.workflowEventPublishService.TriggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
@@ -707,7 +707,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		overrideRequest.UserId = triggeredBy
 	}
 	triggerEvent := helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
-	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.CdWorkflowId, overrideRequest.WfrId, triggerEvent)
+	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(&triggerEvent, overrideRequest.CdWorkflowId, overrideRequest.WfrId)
 	if err != nil {
 		return releaseNo, err
 	}
@@ -797,7 +797,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	return nil
 }
 
-func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfId, cdWfrId int, triggerEvent bean.TriggerEvent) (skipRequest bool, err error) {
+func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEvent *bean.TriggerEvent, cdWfId, cdWfrId int) (skipRequest bool, err error) {
 	var latestTimelineStatus pipelineConfig.TimelineStatus
 	if util.IsAcdApp(triggerEvent.DeploymentAppType) {
 		latestTimelineStatus, err = impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(cdWfrId)
@@ -1055,7 +1055,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			if len(sanitizedK8sVersion) > 0 {
 				req.K8SVersion = sanitizedK8sVersion
 			}
-			if impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSync) {
+			if impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSyncDeployment) {
 				req.RunInCtx = true
 			}
 			// For cases where helm release was not found, kubelink will install the same configuration
@@ -1077,7 +1077,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		} else {
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(newCtx, releaseIdentifier, referenceChartByte,
-				mergeAndSave, sanitizedK8sVersion, overrideRequest.ForceSync)
+				mergeAndSave, sanitizedK8sVersion, overrideRequest.ForceSyncDeployment)
 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {

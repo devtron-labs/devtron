@@ -20,18 +20,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"time"
 )
 
 type TimelineStatus string
 
 func (status TimelineStatus) IsTerminalTimelineStatus() bool {
-	switch status {
-	case
-		TIMELINE_STATUS_APP_HEALTHY,
-		TIMELINE_STATUS_DEPLOYMENT_FAILED,
-		TIMELINE_STATUS_GIT_COMMIT_FAILED,
-		TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED:
+	if slices.Contains(TerminalTimelineStatusList, status) {
 		return true
 	}
 	return false
@@ -41,7 +37,12 @@ func (status TimelineStatus) ToString() string {
 	return string(status)
 }
 
-var TimelineStatusDescription string
+var TerminalTimelineStatusList = []TimelineStatus{
+	TIMELINE_STATUS_APP_HEALTHY,
+	TIMELINE_STATUS_DEPLOYMENT_FAILED,
+	TIMELINE_STATUS_GIT_COMMIT_FAILED,
+	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+}
 
 const (
 	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
@@ -237,12 +238,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfr
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY.ToString(), TIMELINE_STATUS_DEPLOYMENT_FAILED.ToString(),
-		TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString(), TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED.ToString()}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).
-		Where("status in (?)", pg.In(terminalStatus)).Exists()
+		Where("status in (?)", pg.In(TerminalTimelineStatusList)).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal timeline of latest wf by pipelineId and status", "err", err, "wfrId", wfrId)
 		return false, err
@@ -264,12 +263,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTimelineStatusPresentBy
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error) {
-	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY.ToString(), TIMELINE_STATUS_DEPLOYMENT_FAILED.ToString(),
-		TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString(), TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED.ToString()}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
-		Where("status in (?)", pg.In(terminalStatus)).Exists()
+		Where("status in (?)", pg.In(TerminalTimelineStatusList)).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal timeline of latest installed app by installedAppVersionHistoryId and status", "err", err, "wfrId", installedAppVersionHistoryId)
 		return false, err

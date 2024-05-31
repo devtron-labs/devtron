@@ -57,13 +57,13 @@ type ValuesOverrideRequest struct {
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
 	DeploymentWithConfig                  DeploymentConfigurationType `json:"deploymentWithConfig"`
-	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"`
+	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"` // target cd_workflow_runner_id for rollback. Used in rollback deployment cases
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` // required for async install/upgrade event;
 	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     // required for async install/upgrade handling; previously if was used internally
-	ForceSync                             bool                        `json:"forceSync,notnull"`
+	ForceSyncDeployment                   bool                        `json:"forceSyncDeployment,notnull"`
 	UserId                                int32                       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`

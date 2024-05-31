@@ -38,10 +38,10 @@ type UserDeploymentRequest struct {
 	CiArtifactId         int                                 `sql:"ci_artifact_id"`
 	AdditionalOverride   json.RawMessage                     `sql:"additional_override"`
 	ForceTrigger         bool                                `sql:"force_trigger"`
-	ForceSync            bool                                `sql:"force_sync"`
+	ForceSyncDeployment  bool                                `sql:"force_sync_deployment"`
 	Strategy             string                              `sql:"strategy"`
 	DeploymentWithConfig apiBean.DeploymentConfigurationType `sql:"deployment_with_config"`
-	SpecificTriggerWfrId int                                 `sql:"specific_trigger_wfr_id"`
+	SpecificTriggerWfrId int                                 `sql:"specific_trigger_wfr_id"` // target cd_workflow_runner_id for rollback. Used in rollback deployment cases
 	CdWorkflowId         int                                 `sql:"cd_workflow_id"`
 	DeploymentType       models.DeploymentType               `sql:"deployment_type"`
 	TriggeredAt          time.Time                           `sql:"triggered_at"`

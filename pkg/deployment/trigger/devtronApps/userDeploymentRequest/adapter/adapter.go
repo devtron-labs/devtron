@@ -18,7 +18,7 @@ func NewValuesOverrideRequest(userDeploymentRequest *repository.UserDeploymentRe
 		CdWorkflowType:                        apiBean.CD_WORKFLOW_TYPE_DEPLOY,
 		CdWorkflowId:                          userDeploymentRequest.CdWorkflowId,
 		DeploymentType:                        userDeploymentRequest.DeploymentType,
-		ForceSync:                             userDeploymentRequest.ForceSync,
+		ForceSyncDeployment:                   userDeploymentRequest.ForceSyncDeployment,
 	}
 }
 
@@ -43,7 +43,7 @@ func NewUserDeploymentRequest(asyncCdDeployRequest *bean.AsyncCdDeployRequest) *
 		SpecificTriggerWfrId: valuesOverrideRequest.WfrIdForDeploymentWithSpecificTrigger,
 		CdWorkflowId:         valuesOverrideRequest.CdWorkflowId,
 		DeploymentType:       valuesOverrideRequest.DeploymentType,
-		ForceSync:            valuesOverrideRequest.ForceSync,
+		ForceSyncDeployment:  valuesOverrideRequest.ForceSyncDeployment,
 		TriggeredAt:          asyncCdDeployRequest.TriggeredAt,
 		TriggeredBy:          asyncCdDeployRequest.TriggeredBy,
 	}

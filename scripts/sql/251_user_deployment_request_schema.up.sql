@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
     "ci_artifact_id"                         integer NOT NULL,
     "additional_override"                    bytea,
     "force_trigger"                          bool    NOT NULL DEFAULT FALSE,
-    "force_sync"                             bool    NOT NULL DEFAULT FALSE,
+    "force_sync_deployment"                  bool    NOT NULL DEFAULT FALSE,
     "strategy"                               varchar(100),
     "deployment_with_config"                 varchar(100),
     "specific_trigger_wfr_id"                integer,

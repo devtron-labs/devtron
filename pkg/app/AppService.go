@@ -543,7 +543,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
 		if !preRequiredStatusExists {
-			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "wfrId", runnerHistoryId)
+			impl.logger.Errorw("pre-condition failed: timeline for GIT_COMMIT is missing for wfrId", "wfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(runnerHistoryId, 1)
@@ -655,7 +655,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
 		if !preRequiredStatusExists {
-			impl.logger.Errorw("pre-condition failed for TIMELINE_STATUS_KUBECTL_APPLY_STARTED", "installedAppVersionHistoryId", runnerHistoryId)
+			impl.logger.Errorw("pre-condition failed: timeline for GIT_COMMIT is missing for installedAppVersionHistoryId", "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, fmt.Errorf("pre-condition failed timeline status update")
 		}
 		err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetailForAppStore(runnerHistoryId, 1)
