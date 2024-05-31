@@ -23,7 +23,11 @@ metadata:
 spec:
   {{- with .Values.prometheusRule.rules }}
   groups:
-    - name: {{ template ".Chart.Name .fullname" $ }}
+    {{- if $.Values.prometheusRule.name }}
+    - name: {{ $.Values.prometheusRule.name }}
+    {{- else }}
+    - name: {{ template ".Chart.Name .fullname" . }}
+    {{- end }}
       rules: {{- toYaml . | nindent 6 }}
   {{- end }}
   {{- end }}

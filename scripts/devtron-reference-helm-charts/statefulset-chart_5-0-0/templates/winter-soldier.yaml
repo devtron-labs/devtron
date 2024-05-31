@@ -29,7 +29,11 @@ spec:
   selectors:
     - inclusions:
         - objectSelector:
+            {{- if .Values.statefulSetConfig.name }}
+            name: {{ .Values.statefulSetConfig.name }}
+            {{- else }}
             name: {{ include ".Chart.Name .fullname" $ }}
+            {{- end }}
             type: StatefulSet
             fieldSelector:
 {{toYaml $.Values.winterSoldier.fieldSelector | indent 14}} 

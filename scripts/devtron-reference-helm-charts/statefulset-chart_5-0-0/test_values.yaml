@@ -265,6 +265,7 @@ servicemonitor:
 
 
 prometheusRule:
+  name: ""
   enabled: true
   additionalLabels: {}
   namespace: ""

@@ -27,10 +27,14 @@ metadata:
 spec:
 {{- if or .gateway.enabled .virtualService.gateways }}
   gateways:
-  {{- if .gateway.enabled }} 
-    - {{ template ".Chart.Name .fullname" $ }}-istio-gateway
-  {{- end }}
-  {{- range .virtualService.gateways }}
+    {{- if .gateway.enabled }}
+    {{- if .gateway.name }}
+    - name: {{ .gateway.name }}
+    {{- else }}
+    - name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+    {{- end }}
+    {{- end }}
+    {{- range .virtualService.gateways }}
     - {{ . | quote }}
   {{- end }}
 {{- end }}

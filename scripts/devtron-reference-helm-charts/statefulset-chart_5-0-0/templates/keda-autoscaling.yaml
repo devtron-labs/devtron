@@ -17,7 +17,11 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: StatefulSet
+    {{- if .Values.statefulSetConfig.name }}
+    name: {{ .Values.statefulSetConfig.name }}
+    {{- else }}
     name: {{ include ".Chart.Name .fullname" $ }}
+    {{- end }}
 {{- if $.Values.kedaAutoscaling.envSourceContainerName }}
     envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}
 {{- end }}
