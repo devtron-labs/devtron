@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# Copyright (c) 2024. Devtron Inc.
+#
+
 # start-server.sh
 python manage.py migrate 
 python manage.py createsuperuser --no-input

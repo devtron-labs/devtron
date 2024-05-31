@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE cluster
     DROP COLUMN to_connect_with_ssh_tunnel,
     DROP COLUMN ssh_tunnel_user,

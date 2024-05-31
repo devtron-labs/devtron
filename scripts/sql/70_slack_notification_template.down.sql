@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- revert notification template update for CI trigger slack
 UPDATE notification_templates
 set template_payload = '{

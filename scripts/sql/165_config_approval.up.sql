@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO rbac_policy_resource_detail ("resource", "policy_resource_value", "allowed_actions",
                                          "resource_object", "eligible_entity_access_types", "deleted", "created_on",
                                          "created_by", "updated_on", "updated_by")

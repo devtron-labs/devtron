@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE pipeline_status_timeline
 SET status ='KUBECTL_APPLY_SYNCED'
 WHERE status = 'KUBECTL APPLY SYNCED';

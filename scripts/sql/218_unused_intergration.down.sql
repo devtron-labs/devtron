@@ -82,6 +82,11 @@ ALTER TABLE public.db_config_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.db_config_id_seq OWNED BY public.db_config.id;
 
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+
 --
 -- Name: db_migration_config; Type: TABLE; Schema: public; Owner: postgres
 --

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'DockerSlim v1.0.0','This plugin is used to Slim the docker images (Currently this plugin can be used only for docker images not for docker buildx images).','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/dockerslim-plugin-icon.png',false,'now()',1,'now()',1);
 

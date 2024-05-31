@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE IF EXISTS custom_tag;
 
 DROP INDEX IF EXISTS entity_key_value;

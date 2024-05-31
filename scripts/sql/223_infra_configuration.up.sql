@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_infra_profile;
 CREATE TABLE IF NOT EXISTS public.infra_profile
 (

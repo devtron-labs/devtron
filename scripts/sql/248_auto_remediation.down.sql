@@ -35,6 +35,10 @@ DELETE FROM pipeline_stage_step_variable WHERE pipeline_stage_step_id in (SELECT
 DELETE FROM pipeline_stage_step where ref_plugin_id in (SELECT id from plugin_metadata WHERE name ='Custom Webhook Notifier v1.0.0');
 DELETE FROM plugin_metadata WHERE name ='Custom Webhook Notifier v1.0.0';
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- DELETE EVENTs
 DELETE FROM event WHERE id = 9;
 DELETE FROM notification_templates WHERE event_type_id = 9;

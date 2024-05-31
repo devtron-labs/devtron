@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package artifactPromotionApprovalRequest
 
 import "github.com/gorilla/mux"

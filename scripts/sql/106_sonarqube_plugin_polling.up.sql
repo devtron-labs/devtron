@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 do $$
 BEGIN
     IF NOT EXISTS (SELECT * FROM plugin_step_variable WHERE name = 'UsePropertiesFileFromProject' AND plugin_step_id = 2) THEN

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package app
 
 // MergeChildMapToParentMap merges child map of generic type map into parent map of generic type

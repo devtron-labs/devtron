@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."devtron_resource_object_audit";
 
 DROP TABLE "public"."devtron_resource_object";

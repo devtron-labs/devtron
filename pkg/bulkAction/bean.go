@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bulkAction
 
 type NameIncludesExcludes struct {

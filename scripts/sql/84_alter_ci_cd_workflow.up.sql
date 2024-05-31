@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE ci_workflow ADD pod_name text;
 Update ci_workflow SET pod_name = name;
 

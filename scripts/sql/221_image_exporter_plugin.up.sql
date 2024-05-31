@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Plugin metadata
 INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_metadata'), 'Container Image Exporter v1.0.0','Generate a Tarball Archive for Your Docker Images','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/docker-logo.png','f', 'now()', 1, 'now()', 1);
 

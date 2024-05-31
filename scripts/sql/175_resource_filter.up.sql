@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS resource_filter_seq;
 CREATE TABLE IF NOT EXISTS "public"."resource_filter"
 (

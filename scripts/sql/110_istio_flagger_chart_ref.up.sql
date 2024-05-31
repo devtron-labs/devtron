@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO "public"."chart_ref" ("name","location", "version", "deployment_strategy_path","is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
      ('Deployment','deployment-chart_1-1-0', '1.1.0','pipeline-values.yaml','f', 't', 'now()', 1, 'now()', 1);
 

@@ -25,6 +25,10 @@ ALTER TABLE "public"."notification_settings"
     DROP COLUMN IF EXISTS notification_rule_id,
     DROP COLUMN IF EXISTS additional_config_json;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Drop notification_rule table
 DROP TABLE IF EXISTS "public"."notification_rule";
 

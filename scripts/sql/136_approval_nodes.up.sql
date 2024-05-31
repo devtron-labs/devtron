@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 alter table pipeline add column IF NOT EXISTS user_approval_config character varying(1000);
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_approval_request;

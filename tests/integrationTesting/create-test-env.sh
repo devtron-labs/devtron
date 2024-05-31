@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2024. Devtron Inc.
+#
+
 # shellcheck disable=SC2155
 #export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
 export LATEST_HASH=`git log --pretty=format:'%H' -n 1`

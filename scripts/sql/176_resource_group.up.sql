@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 
 ALTER TABLE public.app_group_mapping DROP CONSTRAINT app_group_mapping_app_id_fkey;
 ALTER TABLE public.app_group_mapping DROP CONSTRAINT app_group_mapping_app_group_id_fkey;

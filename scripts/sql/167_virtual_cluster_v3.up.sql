@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- app_store modifications
 -- Step 1: Create a new column for docker_artifact_store_id foreign key
 ALTER TABLE public.app_store

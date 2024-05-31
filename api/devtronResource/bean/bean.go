@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import "github.com/devtron-labs/devtron/pkg/devtronResource/bean"

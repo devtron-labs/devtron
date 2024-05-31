@@ -1451,6 +1451,10 @@ CREATE TABLE IF NOT EXISTS public.devtron_resource_task_run
     PRIMARY KEY ("id")
 );
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- unique index on combinaton of task type and task_type_identifier
 CREATE UNIQUE INDEX "idx_unique_task_type_and_identifier_id"
     ON devtron_resource_task_run(task_type,task_type_identifier);

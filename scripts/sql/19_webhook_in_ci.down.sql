@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- drop column git_host_id from git_provider
 ALTER TABLE git_provider
     DROP COLUMN git_host_id;

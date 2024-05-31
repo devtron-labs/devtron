@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package ciPipeline
 
 import "github.com/devtron-labs/devtron/pkg/infraConfig"

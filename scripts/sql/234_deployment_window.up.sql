@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_timeout_window_resource_mappings;
 CREATE TABLE IF NOT EXISTS "public"."timeout_window_resource_mappings"
 (

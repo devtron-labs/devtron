@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS variable_definition_seq;
 CREATE TABLE IF NOT EXISTS "public"."variable_definition"
 (
