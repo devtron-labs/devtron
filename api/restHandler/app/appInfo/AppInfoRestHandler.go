@@ -117,8 +117,8 @@ func (handler AppInfoRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *h
 
 	//rback implementation starts here
 	token := r.Header.Get("token")
-	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -209,7 +209,7 @@ func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.R
 
 	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate, request.AppType)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -217,7 +217,7 @@ func (handler AppInfoRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.R
 
 	// check for request project/app permission
 	object = handler.enforcerUtil.GetAppRBACNameByTeamIdAndAppId(request.TeamId, request.Id)
-	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate, request.AppType)
+	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -370,8 +370,8 @@ func (handler AppInfoRestHandlerImpl) UpdateAppNote(w http.ResponseWriter, r *ht
 	//rbac implementation starts here
 
 	// check for existing project/app permission
-	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(bean.Identifier)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate, appType)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(bean.Identifier)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionUpdate)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
