@@ -722,14 +722,15 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 			err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 			if err1 != nil {
 				impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
+			} else {
+				dbErr := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
+				if dbErr != nil {
+					impl.logger.Errorw("error in updating userDeploymentRequest status",
+						"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
+						"err", dbErr)
+					return releaseNo, dbErr
+				}
 			}
-		}
-		err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in updating userDeploymentRequest status",
-				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
-				"err", err)
-			return releaseNo, err
 		}
 	}
 	if err != nil {
