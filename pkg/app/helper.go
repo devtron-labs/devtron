@@ -18,6 +18,7 @@ package app
 
 import "strings"
 
+// LabelMatchingRegex is the official k8s label matching regex
 const LabelMatchingRegex = "^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$"
 
 // MergeChildMapToParentMap merges child map of generic type map into parent map of generic type
