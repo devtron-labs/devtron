@@ -19,7 +19,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -36,7 +35,7 @@ type UserDeploymentRequest struct {
 	Id                   int                                 `sql:"id,pk"`
 	PipelineId           int                                 `sql:"pipeline_id"`
 	CiArtifactId         int                                 `sql:"ci_artifact_id"`
-	AdditionalOverride   json.RawMessage                     `sql:"additional_override"`
+	AdditionalOverride   []byte                              `sql:"additional_override"`
 	ForceTrigger         bool                                `sql:"force_trigger"`
 	ForceSyncDeployment  bool                                `sql:"force_sync_deployment"`
 	Strategy             string                              `sql:"strategy"`

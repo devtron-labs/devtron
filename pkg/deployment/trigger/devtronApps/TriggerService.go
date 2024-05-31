@@ -759,7 +759,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	// update workflow runner status, used in app workflow view
 	err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
 	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+		impl.logger.Errorw("error in updating the workflow runner status", "err", err)
 		return err
 	}
 	manifestPushTemplate, err := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath)
