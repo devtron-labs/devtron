@@ -454,6 +454,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
+
+		if wfr.Status != string(v1alpha1.NodeSucceeded) {
+			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
+			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			if err != nil {
+				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		}
+
 		triggerContext := bean5.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}

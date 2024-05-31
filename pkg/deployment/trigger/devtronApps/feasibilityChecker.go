@@ -46,7 +46,7 @@ func (impl *TriggerServiceImpl) CheckFeasibility(triggerRequirementRequest *bean
 			return nil, false, false, err
 		}
 		if !isArtifactAvailable {
-			return nil, false, false, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE).WithCode(constants.ArtifactNotAvailable)
+			return nil, false, false, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithInternalMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE).WithUserMessage(constants2.ARTIFACT_UNAVAILABLE_MESSAGE).WithCode(constants.ArtifactNotAvailable)
 		}
 
 		_, err = impl.isImagePromotionPolicyViolated(cdPipeline, artifact.Id, triggeredBy)
@@ -157,7 +157,7 @@ func (impl *TriggerServiceImpl) CheckIfPreOrPostExists(cdPipeline *pipelineConfi
 			return nil
 		}
 	default:
-		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithUserMessage(constants2.DEPLOYMENT_TYPE_NOT_SUPPORTED_MESSAGE)
+		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(constants2.DEPLOYMENT_TYPE_NOT_SUPPORTED_MESSAGE).WithUserMessage(constants2.DEPLOYMENT_TYPE_NOT_SUPPORTED_MESSAGE)
 
 	}
 	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, workflowType.WorkflowTypeToStageType())
@@ -167,10 +167,10 @@ func (impl *TriggerServiceImpl) CheckIfPreOrPostExists(cdPipeline *pipelineConfi
 	}
 	exists := pipelineStage != nil && pipelineStage.Id != 0
 	if !exists && deploymentType == models.DEPLOYMENTTYPE_PRE {
-		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(constants2.PRE_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithCode(constants.PreCDDoesNotExists)
+		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(constants2.PRE_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithUserMessage(constants2.PRE_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithCode(constants.PreCDDoesNotExists)
 	}
 	if !exists && deploymentType == models.DEPLOYMENTTYPE_POST {
-		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(constants2.POST_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithCode(constants.PostCDDoesNotExists)
+		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(constants2.POST_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithUserMessage(constants2.POST_DEPLOYMENT_DOES_NOT_EXIST_MESSAGE).WithCode(constants.PostCDDoesNotExists)
 	}
 	return nil
 }
