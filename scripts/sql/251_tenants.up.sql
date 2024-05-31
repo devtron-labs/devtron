@@ -1,8 +1,8 @@
-CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object_dep_relations;
+CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object_dep_mapping;
 
-CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
+CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_mapping"
 (
-    "id"                             int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_dep_relations'::regclass),
+    "id"                             int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_dep_mapping'::regclass),
     "component_dt_res_object_id"     int,
     "component_dt_res_schema_id"     int,
     "dependency_dt_res_object_id"    int,
@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
 
 INSERT INTO devtron_resource(kind, display_name, icon,is_exposed, parent_kind_id, deleted, created_on, created_by, updated_on,
                              updated_by)
-VALUES ('tenant', 'Tenant', '',false, 0, false, now(), 1, now(), 1),
-       ('installation', 'Installation', '',true, 0, false, now(), 1, now(), 1);
+VALUES ('tenant', 'Tenant', '',true, 0, false, now(), 1, now(), 1),
+       ('installation', 'Installation', '',false, 0, false, now(), 1, now(), 1);
 
 INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, sample_schema, latest, created_on, created_by, updated_on,
                                     updated_by)
@@ -101,17 +101,124 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                 {
                     "type": "object",
                     "properties":
-                    {}
-                },
-                "readme":
-                {
-                    "type": "string"
+                    {
+                        "Contacts":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Owner":
+                                {
+                                    "type": "object",
+                                    "refType": "#/references/users"
+                                },
+                                "On pager duty":
+                                {
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "items":
+                                    {
+                                        "type": "object",
+                                        "refType": "#/references/users"
+                                    }
+                                },
+                                "Team":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Growth team",
+                                        "Support team",
+                                        "Platform team",
+                                        "Operations team"
+                                    ]
+                                },
+                                "3rd party contacts":
+                                {
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "items":
+                                    {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "required":
+                            [
+                                "Owner"
+                            ]
+                        },
+                        "Networking & Others":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Cluster type":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Production",
+                                        "Non production"
+                                    ]
+                                },
+                                "Exposed to":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Public",
+                                        "Private"
+                                    ]
+                                },
+                                "VPC peered":
+                                {
+                                    "type": "array",
+                                    "items":
+                                    {
+                                        "type": "string"
+                                    }
+                                },
+                                "Documentation":
+                                {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        },
+                        "Backup":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Backup strategy":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Full backup",
+                                        "Incremental",
+                                        "Snapshot"
+                                    ]
+                                },
+                                "Backup retention policy (days)":
+                                {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "required":
+                    [
+                        "Contacts"
+                    ]
                 },
                 "required":
                 [
                     "id",
                     "idType",
-                    "tenantId"
+                    "tenantId",
+                    "metadata"
                 ]
             }
         },
@@ -199,17 +306,124 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
                 {
                     "type": "object",
                     "properties":
-                    {}
-                },
-                "readme":
-                {
-                    "type": "string"
+                    {
+                        "Contacts":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Owner":
+                                {
+                                    "type": "object",
+                                    "refType": "#/references/users"
+                                },
+                                "On pager duty":
+                                {
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "items":
+                                    {
+                                        "type": "object",
+                                        "refType": "#/references/users"
+                                    }
+                                },
+                                "Team":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Growth team",
+                                        "Support team",
+                                        "Platform team",
+                                        "Operations team"
+                                    ]
+                                },
+                                "3rd party contacts":
+                                {
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "items":
+                                    {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "required":
+                            [
+                                "Owner"
+                            ]
+                        },
+                        "Networking & Others":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Cluster type":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Production",
+                                        "Non production"
+                                    ]
+                                },
+                                "Exposed to":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Public",
+                                        "Private"
+                                    ]
+                                },
+                                "VPC peered":
+                                {
+                                    "type": "array",
+                                    "items":
+                                    {
+                                        "type": "string"
+                                    }
+                                },
+                                "Documentation":
+                                {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        },
+                        "Backup":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "Backup strategy":
+                                {
+                                    "type": "string",
+                                    "enum":
+                                    [
+                                        "Full backup",
+                                        "Incremental",
+                                        "Snapshot"
+                                    ]
+                                },
+                                "Backup retention policy (days)":
+                                {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "required":
+                    [
+                        "Contacts"
+                    ]
                 },
                 "required":
                 [
                     "id",
                     "idType",
-                    "tenantId"
+                    "tenantId",
+                    "metadata"
                 ]
             }
         },
@@ -225,96 +439,96 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
         "overview"
     ]
 }',true, now(), 1, now(), 1),
-((select id from devtron_resource where kind = 'installation'), 'alpha1',
-'{
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Installation Schema",
-    "type": "object",
-    "properties":
-    {
-        "kind":
-        {
-            "const": "installation"
-        },
-        "version":
-        {
-            "type": "string",
-            "enum":
-            [
-                "alpha1"
-            ]
-        },
-        "overview":
-        {
+       ((select id from devtron_resource where kind = 'installation'), 'alpha1',
+        '{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "Installation Schema",
             "type": "object",
             "properties":
             {
-                "id":
+                "kind":
                 {
-                    "type": "number"
+                    "const": "installation"
                 },
-                "idType":
+                "version":
                 {
                     "type": "string",
                     "enum":
                     [
-                        "resourceObjectId",
-                        "oldObjectId"
+                        "alpha1"
                     ]
                 },
-                "installationId":
-                {
-                    "type": "string"
-                },
-                "name":
-                {
-                    "type": "string"
-                },
-                "icon":
-                {
-                    "type": "string",
-                    "contentEncoding": "base64"
-                },
-                "description":
-                {
-                    "type": "string"
-                },
-                "createdOn":
-                {
-                    "type": "string"
-                },
-                "createdBy":
+                "overview":
                 {
                     "type": "object",
-                    "refType": "#/references/users"
-                },
-                "tags":
-                {
-                    "additionalProperties":
+                    "properties":
                     {
-                        "type": "string"
-                    }
+                        "id":
+                        {
+                            "type": "number"
+                        },
+                        "idType":
+                        {
+                            "type": "string",
+                            "enum":
+                            [
+                                "resourceObjectId",
+                                "oldObjectId"
+                            ]
+                        },
+                        "installationId":
+                        {
+                            "type": "string"
+                        },
+                        "name":
+                        {
+                            "type": "string"
+                        },
+                        "icon":
+                        {
+                            "type": "string",
+                            "contentEncoding": "base64"
+                        },
+                        "description":
+                        {
+                            "type": "string"
+                        },
+                        "createdOn":
+                        {
+                            "type": "string"
+                        },
+                        "createdBy":
+                        {
+                            "type": "object",
+                            "refType": "#/references/users"
+                        },
+                        "tags":
+                        {
+                            "additionalProperties":
+                            {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required":
+                    [
+                        "id",
+                        "idType",
+                        "installationId"
+                    ]
+                },
+                "dependencies":
+                {
+                    "type": "array"
                 }
             },
             "required":
             [
-                "id",
-                "idType",
-                "installationId"
+                "version",
+                "kind",
+                "overview"
             ]
-        },
-        "dependencies":
-        {
-            "type": "array"
-        }
-    },
-    "required":
-    [
-        "version",
-        "kind",
-        "overview"
-    ]
-}', '{
+        }', '{
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Installation Schema",
     "type": "object",
