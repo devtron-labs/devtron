@@ -1,8 +1,8 @@
-CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object_dep_mapping;
+CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object_dep_relations;
 
-CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_mapping"
+CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
 (
-    "id"                             int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_dep_mapping'::regclass),
+    "id"                             int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_dep_relations'::regclass),
     "component_dt_res_object_id"     int,
     "component_dt_res_schema_id"     int,
     "dependency_dt_res_object_id"    int,
