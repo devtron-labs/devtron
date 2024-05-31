@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --ADD Columns is_editable and description in external_link table
 ALTER TABLE "public"."external_link" ADD COLUMN is_editable bool NOT NULL DEFAULT false;
 ALTER TABLE "public"."external_link" ADD COLUMN description text;

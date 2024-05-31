@@ -1,4 +1,8 @@
-package resourceFilter
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+package expressionEvaluators
 
 import (
 	"fmt"
@@ -75,11 +79,11 @@ func TestCELServiceImpl_EvaluateCELRequest(t *testing.T) {
 			impl := &CELServiceImpl{
 				Logger: tt.fields.Logger,
 			}
-			got, err := impl.EvaluateCELRequest(tt.args.request)
-			if !tt.wantErr(t, err, fmt.Sprintf("EvaluateCELRequest(%v)", tt.args.request)) {
+			got, err := impl.EvaluateCELForBool(tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("EvaluateCELForBool(%v)", tt.args.request)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "EvaluateCELRequest(%v)", tt.args.request)
+			assert.Equalf(t, tt.want, got, "EvaluateCELForBool(%v)", tt.args.request)
 		})
 	}
 }

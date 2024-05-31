@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO public.event (id, event_type, description) VALUES (4, 'APPROVAL', '');
 INSERT INTO "public"."notification_templates" (channel_type, node_type, event_type_id, template_name, template_payload)
 VALUES ('smtp', 'CD', 4, 'CD approval smtp template', '{"from": "{{fromEmail}}",

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE "public"."chart_ref_metadata" (
     "chart_name" varchar(100) NOT NULL,

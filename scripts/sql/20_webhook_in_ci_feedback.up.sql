@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --
 -- Name: webhook_event_data_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package types
@@ -22,6 +10,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -32,8 +21,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -93,7 +82,7 @@ type WorkflowRequest struct {
 	RefPlugins                     []*bean.RefPluginObject                          `json:"refPlugins"`
 	AppName                        string                                           `json:"appName"`
 	TriggerByAuthor                string                                           `json:"triggerByAuthor"`
-	CiBuildConfig                  *CiPipeline.CiBuildConfigBean                          `json:"ciBuildConfig"`
+	CiBuildConfig                  *CiPipeline.CiBuildConfigBean                    `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue          int                                              `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush          bool                                             `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull          bool                                             `json:"ignoreDockerCachePull"`
@@ -139,6 +128,7 @@ type WorkflowRequest struct {
 	ImageScanMaxRetries         int                                   `json:"imageScanMaxRetries,omitempty"`
 	ImageScanRetryDelay         int                                   `json:"imageScanRetryDelay,omitempty"`
 	Scope                       resourceQualifiers.Scope
+	CiCacheResourceMap          map[string]string
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -228,7 +218,7 @@ func (workflowRequest *WorkflowRequest) GetEventTypeForWorkflowRequest() string 
 
 func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() string {
 	switch workflowRequest.Type {
-	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: //TODO: separate job as did in eventType, will need changes in wf template for this
+	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE: // TODO: separate job as did in eventType, will need changes in wf template for this
 		return bean.CI_WORKFLOW_NAME
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CD_WORKFLOW_NAME
@@ -240,7 +230,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
-		return bean.CiStage //although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
+		return bean.CiStage // although for job, event type is changed to job from ci but for backward compatibility still sending ci for global cm/cs
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return bean.CdStage
 	default:
@@ -492,7 +482,25 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		}
 	}
 
-	if len(pvc) != 0 {
+	if len(workflowRequest.CiCacheResourceMap) > 0 {
+		pvcName := workflowRequest.CiCacheResourceMap["PVCName"]
+		workflowTemplate.CiCacheResourceName = pvcName
+		workflowTemplate.Volumes = append(workflowTemplate.Volumes, v1.Volume{
+			Name: "ci-cache-vol",
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvcName,
+					ReadOnly:  false,
+				},
+			},
+		})
+		workflowMainContainer.VolumeMounts = append(workflowMainContainer.VolumeMounts,
+			v1.VolumeMount{
+				Name:      "ci-cache-vol",
+				MountPath: workflowRequest.CiCacheResourceMap["MountPath"],
+			})
+
+	} else if len(pvc) != 0 {
 		buildPvcCachePath := config.BuildPvcCachePath
 		buildxPvcCachePath := config.BuildxPvcCachePath
 		defaultPvcCachePath := config.DefaultPvcCachePath
@@ -647,7 +655,7 @@ type WorkflowResponse struct {
 	PipelineType              string                                      `json:"pipelineType"`
 	ReferenceWorkflowId       int                                         `json:"referenceWorkflowId"`
 	AppliedFilters            []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
-	AppliedFiltersState       resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersState       expressionEvaluators.FilterState            `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp   time.Time                                   `json:"appliedFiltersTimestamp"`
 	TriggerMetadata           string                                      `json:"triggerMetadata"`
 	PromotionApprovalMetadata *bean4.PromotionApprovalMetaData            `json:"promotionApprovalMetadata"`

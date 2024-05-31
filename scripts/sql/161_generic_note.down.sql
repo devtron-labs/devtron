@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER SEQUENCE IF EXISTS id_seq_generic_note RENAME to id_seq_cluster_note;
 ALTER SEQUENCE IF EXISTS id_seq_generic_note_history RENAME to id_seq_cluster_note_history;
 

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package application
@@ -26,7 +14,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util4 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
@@ -151,7 +139,7 @@ type K8sApplicationServiceImpl struct {
 
 	// nil for EA mode
 	deploymentWindowService                 deploymentWindow.DeploymentWindowService
-	celEvaluatorService                     resourceFilter.CELEvaluatorService
+	celEvaluatorService                     expressionEvaluators.CELEvaluatorService
 	printers                                *printers.HumanReadableGenerator
 	interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler
 	scoopClusterServiceMap                  map[int]ScoopServiceClusterConfig
@@ -164,7 +152,7 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterService clus
 	environmentRepository repository.EnvironmentRepository,
 	clusterRepository repository.ClusterRepository,
 	argoApplicationService argoApplication.ArgoApplicationService,
-	celEvaluatorService resourceFilter.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
+	celEvaluatorService expressionEvaluators.CELEvaluatorService, interClusterServiceCommunicationHandler InterClusterServiceCommunicationHandler,
 	deploymentWindowService deploymentWindow.DeploymentWindowService) (*K8sApplicationServiceImpl, error) {
 	k8sAppConfig := &K8sAppConfig{}
 	err := env.Parse(k8sAppConfig)
@@ -899,19 +887,19 @@ func (impl *K8sApplicationServiceImpl) getResourceListV1(ctx context.Context, to
 		filteredItems := make([]interface{}, 0)
 		// resource := unstructured.Unstructured{}
 		for _, v := range resp.Resources.Items {
-			celRequest := resourceFilter.CELRequest{
+			celRequest := expressionEvaluators.CELRequest{
 				Expression: request.Filter,
-				ExpressionMetadata: resourceFilter.ExpressionMetadata{
-					Params: []resourceFilter.ExpressionParam{
+				ExpressionMetadata: expressionEvaluators.ExpressionMetadata{
+					Params: []expressionEvaluators.ExpressionParam{
 						{
 							ParamName: "self",
 							Value:     v.Object,
-							Type:      resourceFilter.ParamTypeObject,
+							Type:      expressionEvaluators.ParamTypeObject,
 						},
 					},
 				},
 			}
-			pass, err := impl.celEvaluatorService.EvaluateCELRequest(celRequest)
+			pass, err := impl.celEvaluatorService.EvaluateCELForBool(celRequest)
 			if err != nil || !pass {
 				continue
 			}

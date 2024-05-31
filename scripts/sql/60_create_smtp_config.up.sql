@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_smtp_config;
 
 CREATE TABLE public.smtp_config (

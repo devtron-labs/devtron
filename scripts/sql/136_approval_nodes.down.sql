@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 alter table pipeline DROP column IF EXISTS user_approval_config;
 
 update public.deployment_approval_request set active = false;

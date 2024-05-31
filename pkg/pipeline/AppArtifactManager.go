@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
@@ -19,6 +7,7 @@ package pipeline
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
@@ -84,7 +73,7 @@ type AppArtifactManagerImpl struct {
 	ciArtifactRepository             repository.CiArtifactRepository
 	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
 	pipelineStageService             PipelineStageService
-	celService                       resourceFilter.CELEvaluatorService
+	celService                       expressionEvaluators.CELEvaluatorService
 	resourceFilterService            resourceFilter.ResourceFilterService
 	resourceFilterAuditService       resourceFilter.FilterEvaluationAuditService
 	config                           *types.CdConfig
@@ -111,7 +100,7 @@ func NewAppArtifactManagerImpl(
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	celService resourceFilter.CELEvaluatorService,
+	celService expressionEvaluators.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	pipelineStageService PipelineStageService,
@@ -1668,7 +1657,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string, materialInfos []repository.CiMaterialInfo) resourceFilter.FilterState {
+func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string, materialInfos []repository.CiMaterialInfo) expressionEvaluators.FilterState {
 
 	releaseTags := make([]string, 0, len(imageTaggingResp))
 	for _, imageTag := range imageTaggingResp {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE app_store_application_version ALTER COLUMN "icon" TYPE VARCHAR(512);
 ALTER TABLE app_store_application_version ALTER COLUMN "source" TYPE VARCHAR(512);
 ALTER TABLE app_store_application_version ALTER COLUMN "home" TYPE VARCHAR(256);

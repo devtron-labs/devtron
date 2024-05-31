@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'GKE Provisioner v1.1.0','Provision a Google Kubernetes Engine cluster within a Google Cloud Platform project. The cluster should be configured with an initial firewall setting designed to permit access only to SSH, ports 80 and 8080, and NodePorts','PRESET','https://raw.githubusercontent.com/ajaydevtron/devtron/main/assets/gke-plugin-icon.png',false,'now()',1,'now()',1);
 

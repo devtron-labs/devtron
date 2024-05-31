@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource;
 
 CREATE TABLE "public"."devtron_resource"

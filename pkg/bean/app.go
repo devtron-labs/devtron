@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
@@ -20,6 +8,7 @@ import (
 	"encoding/json"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -867,9 +856,9 @@ type CiArtifactBean struct {
 	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment            *repository2.ImageComment            `json:"imageComment"`
-	FilterState             resourceFilter.FilterState           `json:"filterState"`
+	FilterState             expressionEvaluators.FilterState     `json:"filterState"`
 	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
-	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersState     expressionEvaluators.FilterState     `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
 	CreatedTime             string                               `json:"createdTime"`
 	ExternalCiPipelineId    int                                  `json:"-"`

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"

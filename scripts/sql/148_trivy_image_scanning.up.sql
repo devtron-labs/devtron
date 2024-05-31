@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO public.scan_tool_metadata(name, version, server_base_url, result_descriptor_template, scan_target, active, deleted, created_on, created_by, updated_on, updated_by,tool_metadata) VALUES ('CLAIR','V2',null,null,'IMAGE',false,false,now()::timestamp,'1',now()::timestamp,'1',null),('CLAIR','V4',null,null,'IMAGE',false,false,now()::timestamp,'1',now()::timestamp,'1',null),('TRIVY','V1',null,'[{{$size1:= len .Results}}{{range $i1, $v1 := .Results}}{{ if  $v1.Vulnerabilities}}{{$size2:= len $v1.Vulnerabilities}}{{range $i2, $v2 := $v1.Vulnerabilities}}{{if and (eq $i1 (add $size1 -1)) (eq $i2 (add $size2 -1)) }}
 {
 "package": "{{$v2.PkgName}}",

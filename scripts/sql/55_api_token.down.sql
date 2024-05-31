@@ -2,6 +2,10 @@ DROP TABLE "public"."api_token" CASCADE;
 
 DROP TABLE "public"."user_audit" CASCADE;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- DROP sequence
 DROP SEQUENCE IF EXISTS public.id_seq_api_token;
 

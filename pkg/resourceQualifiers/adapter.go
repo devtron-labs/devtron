@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceQualifiers
 
 func BuildScope(appId, envId, clusterId, projectId int, isProdEnv bool) Scope {

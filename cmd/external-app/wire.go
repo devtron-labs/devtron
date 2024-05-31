@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 //go:build wireinject
@@ -58,7 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -272,8 +260,8 @@ func InitializeApp() (*App, error) {
 		security.NewImageScanServiceImplEA,
 		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
 
-		resourceFilter.NewCELServiceImpl,
-		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+		expressionEvaluators.NewCELServiceImpl,
+		wire.Bind(new(expressionEvaluators.CELEvaluatorService), new(*expressionEvaluators.CELServiceImpl)),
 
 		out.NewChartScanPublishServiceImplEA,
 		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),
