@@ -533,7 +533,7 @@ func InitializeApp() (*App, error) {
 	gitWebhookServiceImpl := git2.NewGitWebhookServiceImpl(sugaredLogger, ciHandlerImpl, gitWebhookRepositoryImpl)
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
 	prePostCdScriptHistoryRepositoryImpl := repository12.NewPrePostCdScriptHistoryRepositoryImpl(sugaredLogger, db)
-	configMapHistoryRepositoryImpl := repository12.NewConfigMapHistoryRepositoryImpl(sugaredLogger, db)
+	configMapHistoryRepositoryImpl := repository12.NewConfigMapHistoryRepositoryImpl(sugaredLogger, db, transactionUtilImpl)
 	configMapHistoryServiceImpl := history.NewConfigMapHistoryServiceImpl(sugaredLogger, configMapHistoryRepositoryImpl, pipelineRepositoryImpl, configMapRepositoryImpl, userServiceImpl, scopedVariableCMCSManagerImpl)
 	prePostCdScriptHistoryServiceImpl := history.NewPrePostCdScriptHistoryServiceImpl(sugaredLogger, prePostCdScriptHistoryRepositoryImpl, configMapRepositoryImpl, configMapHistoryServiceImpl)
 	gitMaterialHistoryRepositoryImpl := repository12.NewGitMaterialHistoryRepositoyImpl(db)
