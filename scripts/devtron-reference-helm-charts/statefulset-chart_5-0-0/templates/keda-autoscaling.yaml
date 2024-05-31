@@ -2,11 +2,7 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  {{- if $.Values.kedaAutoscaling.name }}
-  name: {{ $.Values.kedaAutoscaling.name }}
-  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-keda
-  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
@@ -17,11 +13,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: StatefulSet
-    {{- if .Values.statefulSetConfig.name }}
-    name: {{ .Values.statefulSetConfig.name }}
-    {{- else }}
     name: {{ include ".Chart.Name .fullname" $ }}
-    {{- end }}
 {{- if $.Values.kedaAutoscaling.envSourceContainerName }}
     envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}
 {{- end }}

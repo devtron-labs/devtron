@@ -21,11 +21,7 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  {{- if $.Values.ingress.name }}
-  name: {{ $.Values.ingress.name }}
-  {{- else }}
   name: {{ template ".Chart.Name .fullname" . }}-ingress
-  {{- end }}
   namespace: {{ $.Values.NameSpace }}
   labels:
     appId: {{ $.Values.app | quote }}
@@ -110,11 +106,7 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  {{- if $.Values.ingressInternal.name }}
-  name: {{ $.Values.ingressInternal.name }}
-  {{- else }}
   name: {{ template ".Chart.Name .fullname" . }}-ingress-internal
-  {{- end }}
   namespace: {{ $.Values.NameSpace }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}

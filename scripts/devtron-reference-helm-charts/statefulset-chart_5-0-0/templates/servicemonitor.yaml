@@ -4,11 +4,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  {{- if .Values.servicemonitor.name }}
-  name: {{ .Values.servicemonitor.name }}
-  {{- else }}
   name: {{ template ".Chart.Name .fullname" . }}-sm
-  {{- end }}
   labels:
     kind: Prometheus
     appId: {{ $.Values.app | quote }}

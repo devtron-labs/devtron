@@ -2,11 +2,7 @@
 apiVersion: {{ $.Values.winterSoldier.apiVersion }}
 kind: Hibernator
 metadata:
-  {{- if .Values.winterSoldier.name }}
-  name: {{ .Values.winterSoldier.name }}
-  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-hibernator
-  {{- end }}
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
@@ -29,11 +25,7 @@ spec:
   selectors:
     - inclusions:
         - objectSelector:
-            {{- if .Values.statefulSetConfig.name }}
-            name: {{ .Values.statefulSetConfig.name }}
-            {{- else }}
             name: {{ include ".Chart.Name .fullname" $ }}
-            {{- end }}
             type: StatefulSet
             fieldSelector:
 {{toYaml $.Values.winterSoldier.fieldSelector | indent 14}} 

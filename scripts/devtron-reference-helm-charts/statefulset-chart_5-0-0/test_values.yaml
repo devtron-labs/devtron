@@ -6,10 +6,8 @@ kedaAutoscaling:
 ambassadorMapping:
   enabled: true
 istio:
-  enable: true
+  enabled: true
   gateway:
-    enabled: true
-  virtualService:
     enabled: true
 appLabels: 
       test: thyjhgfv
@@ -265,7 +263,6 @@ servicemonitor:
 
 
 prometheusRule:
-  name: ""
   enabled: true
   additionalLabels: {}
   namespace: ""

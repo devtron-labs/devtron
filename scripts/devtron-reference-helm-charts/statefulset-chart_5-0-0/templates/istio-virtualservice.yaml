@@ -3,11 +3,7 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  {{- if .virtualService.name }}
-  name: {{ .virtualService.name }}
-  {{- else }}
-  name: {{ template ".Chart.Name .fullname" $ }}-virtualservice
-  {{- end }}
+  name: {{  template ".Chart.Name .fullname" $ }}-virtualservice
   labels:
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
@@ -27,14 +23,10 @@ metadata:
 spec:
 {{- if or .gateway.enabled .virtualService.gateways }}
   gateways:
-    {{- if .gateway.enabled }}
-    {{- if .gateway.name }}
-    - name: {{ .gateway.name }}
-    {{- else }}
-    - name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
-    {{- end }}
-    {{- end }}
-    {{- range .virtualService.gateways }}
+  {{- if .gateway.enabled }} 
+    - {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
+  {{- range .virtualService.gateways }}
     - {{ . | quote }}
   {{- end }}
 {{- end }}

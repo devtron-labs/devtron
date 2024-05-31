@@ -2,11 +2,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  {{- if .Values.prometheusRule.name }}
-  name: {{ .Values.prometheusRule.name }}
-  {{- else }}
-  name: {{ template ".Chart.Name .fullname" . }}
-  {{- end }}
+  name:  {{ template ".Chart.Name .fullname" . }}
   {{- if .Values.prometheusRule.namespace }}
   namespace: {{ .Values.prometheusRule.namespace }}
   {{- end }}
@@ -23,11 +19,7 @@ metadata:
 spec:
   {{- with .Values.prometheusRule.rules }}
   groups:
-    {{- if $.Values.prometheusRule.name }}
-    - name: {{ $.Values.prometheusRule.name }}
-    {{- else }}
-    - name: {{ template ".Chart.Name .fullname" . }}
-    {{- end }}
+    - name: {{ template ".Chart.Name .fullname" $ }}
       rules: {{- toYaml . | nindent 6 }}
   {{- end }}
   {{- end }}
