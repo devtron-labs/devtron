@@ -854,7 +854,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 			}
 		}
 	} else {
-		impl.logger.Errorw("autoscaling is not enabled", "pipelineId", pipelineId)
+		impl.logger.Infow("autoscaling is not enabled", "pipelineId", pipelineId)
 	}
 
 	//check for custom chart support
