@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package server
@@ -22,6 +9,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -78,6 +66,10 @@ func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.
 	devtronAppDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron helm app release status ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 
@@ -153,6 +145,10 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return nil, err
 	}
 	if !updateResponse.GetSuccess() {

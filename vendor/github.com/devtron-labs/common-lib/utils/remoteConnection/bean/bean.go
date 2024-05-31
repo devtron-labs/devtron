@@ -3,8 +3,9 @@ package bean
 type RemoteConnectionMethod string
 
 const (
-	RemoteConnectionMethodProxy RemoteConnectionMethod = "PROXY"
-	RemoteConnectionMethodSSH   RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodProxy  RemoteConnectionMethod = "PROXY"
+	RemoteConnectionMethodSSH    RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodDirect RemoteConnectionMethod = "DIRECT"
 )
 
 type ConnectionMethod string
@@ -33,11 +34,15 @@ type RemoteConnectionConfigBean struct {
 }
 
 type RegistryConfig struct {
-	RegistryId       string
-	RegistryUrl      string
-	RegistryUsername string
-	RegistryPassword string
-	ConnectionMethod ConnectionMethod
-	ProxyConfig      *ProxyConfig
-	SSHConfig        *SSHTunnelConfig
+	RegistryId                string
+	RegistryUrl               string
+	RegistryUsername          string
+	RegistryPassword          string
+	RegistryConnectionType    string //secure, insecure, secure-with-cert
+	RegistryCertificateString string
+	RegistryCAFilePath        string
+	IsPublicRegistry          bool
+	ConnectionMethod          ConnectionMethod //ssh, proxy
+	ProxyConfig               *ProxyConfig
+	SSHConfig                 *SSHTunnelConfig
 }

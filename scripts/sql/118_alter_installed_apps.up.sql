@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 
 update pipeline set deployment_app_delete_request=true
 where deleted=true AND deployment_app_type='argo_cd' AND deployment_app_created=false;

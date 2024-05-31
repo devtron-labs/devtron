@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- DROP TABLE
 DROP TABLE IF EXISTS public.ephemeral_container_actions;
 DROP TABLE IF EXISTS public.ephemeral_container;

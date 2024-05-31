@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE TABLE "public"."custom_tag"
 (
     id                     serial PRIMARY KEY,

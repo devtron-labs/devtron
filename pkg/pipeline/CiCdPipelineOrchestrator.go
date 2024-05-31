@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipeline
@@ -28,6 +15,7 @@ import (
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	devtronResourceAdapter "github.com/devtron-labs/devtron/pkg/devtronResource/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -99,7 +87,7 @@ type CiCdPipelineOrchestrator interface {
 	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
-	GetCdPipelinesReleaseInfoForApp(appId, cdWfrIds []int) (cdPipelines []*devtronResourceBean.CdPipelineReleaseInfo, err error)
+	GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds []int) (cdPipelines []*devtronResourceBean.CdPipelineReleaseInfo, pipelineIdAppIdKeyVsReleaseInfo map[string]*devtronResourceBean.CdPipelineReleaseInfo, err error)
 	IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds []int) (bool, error)
 	IsAppsDeployedOnAllEnvWithRunnerIds(appIds, cdWfrIds []int) (bool, error)
 	GetCdPipelineIdsForRunnerIds(cdWfrIds []int) ([]int, error)
@@ -1841,33 +1829,48 @@ func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, erro
 	return impl.pipelineRepository.PipelineExists(name)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds []int) (cdPipelines []*devtronResourceBean.CdPipelineReleaseInfo, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds, cdWfrIds []int) (cdPipelines []*devtronResourceBean.CdPipelineReleaseInfo, pipelineIdAppIdKeyVsReleaseInfo map[string]*devtronResourceBean.CdPipelineReleaseInfo, err error) {
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appIds", appIds, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
+	cdWfRunners, err := impl.cdWorkflowRepository.FindPartialWorkflowRunnerWithPipelineIdByIds(cdWfrIds)
+	if err != nil && errors.Is(err, util.GetUnProcessableError()) {
+		impl.logger.Errorw("error in fetching cdWfRunners", "cdWfrIds", cdWfrIds, "err", err)
+		return nil, nil, err
+	}
+	return impl.getCdPipelineReleaseInfo(dbPipelines, cdWfRunners)
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getCdPipelineReleaseInfo(dbPipelines []*pipelineConfig.Pipeline, cdWfRunners []*pipelineConfig.CdWorkflowRunner) (cdPipelines []*devtronResourceBean.CdPipelineReleaseInfo, pipelineIdAppIdKeyVsReleaseInfo map[string]*devtronResourceBean.CdPipelineReleaseInfo, err error) {
 	pipelineIdToDeploymentStatus := make(map[int]string)
 	pipelineIdToPreDeploymentStatus := make(map[int]string)
 	pipelineIdToPostDeploymentStatus := make(map[int]string)
-	cdWfRunners, err := impl.cdWorkflowRepository.FindWorkflowRunnerByIds(cdWfrIds)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching cdWfRunners", "cdWfrIds", cdWfrIds, "err", err)
-		return nil, err
-	}
+	pipelineIdToCdWorkflowRunnerId := make(map[int]apiBean.CdWorkflowRunnerIds)
+	pipelineIdAppIdKeyVsReleaseInfo = make(map[string]*devtronResourceBean.CdPipelineReleaseInfo, len(dbPipelines))
+
 	for _, cdWfRunner := range cdWfRunners {
+		cdWorkflowRunnerIds := pipelineIdToCdWorkflowRunnerId[cdWfRunner.CdWorkflow.PipelineId]
 		if cdWfRunner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_DEPLOY {
 			pipelineIdToDeploymentStatus[cdWfRunner.CdWorkflow.PipelineId] = cdWfRunner.Status
+			cdWorkflowRunnerIds.CdWorkflowRunnerId = cdWfRunner.Id
+			pipelineIdToCdWorkflowRunnerId[cdWfRunner.CdWorkflow.PipelineId] = cdWorkflowRunnerIds
 		} else if cdWfRunner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE {
 			pipelineIdToPreDeploymentStatus[cdWfRunner.CdWorkflow.PipelineId] = cdWfRunner.Status
+			cdWorkflowRunnerIds.PreCdWorkflowRunnerId = cdWfRunner.Id
+			pipelineIdToCdWorkflowRunnerId[cdWfRunner.CdWorkflow.PipelineId] = cdWorkflowRunnerIds
 		} else if cdWfRunner.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			pipelineIdToPostDeploymentStatus[cdWfRunner.CdWorkflow.PipelineId] = cdWfRunner.Status
+			cdWorkflowRunnerIds.PostCdWorkflowRunnerId = cdWfRunner.Id
+			pipelineIdToCdWorkflowRunnerId[cdWfRunner.CdWorkflow.PipelineId] = cdWorkflowRunnerIds
 		}
 	}
+
 	pipelineStageMapping, err := impl.getExistingStagesForCdPipelineIds(dbPipelines)
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "appIds", appIds, "err", err)
-		return nil, err
+		impl.logger.Errorw("error in fetching getCdPipelineReleaseInfo", "err", err)
+		return nil, nil, err
 	}
 	cdPipelines = make([]*devtronResourceBean.CdPipelineReleaseInfo, 0, len(dbPipelines))
 	for _, dbPipeline := range dbPipelines {
@@ -1895,11 +1898,18 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesReleaseInfoForApp(appIds,
 		if value, ok := pipelineIdToPostDeploymentStatus[dbPipeline.Id]; ok {
 			cdPipelineMinInfo.PostStatus = value
 		}
+		if value, ok := pipelineIdToCdWorkflowRunnerId[dbPipeline.Id]; ok {
+			cdPipelineMinInfo.CdWorkflowRunnerId = value.CdWorkflowRunnerId
+			cdPipelineMinInfo.PreCdWorkflowRunnerId = value.PreCdWorkflowRunnerId
+			cdPipelineMinInfo.PostCdWorkflowRunnerId = value.PostCdWorkflowRunnerId
+		}
+		cdPipelineMinInfo.ReleaseDeploymentStatus = helper2.CalculateRolloutStatus(cdPipelineMinInfo)
+		pipelineIdAppIdKeyVsReleaseInfo[helper2.GetKeyForPipelineIdAndAppId(dbPipeline.Id, dbPipeline.AppId)] = cdPipelineMinInfo
 		cdPipelines = append(cdPipelines, cdPipelineMinInfo)
 	}
-	return cdPipelines, nil
-}
+	return cdPipelines, pipelineIdAppIdKeyVsReleaseInfo, nil
 
+}
 func (impl CiCdPipelineOrchestratorImpl) IsEachAppDeployedOnAtLeastOneEnvWithRunnerIds(appIds, cdWfrIds []int) (bool, error) {
 	// Here, the cdWfRunners are in ascending order.
 	// This is to ensure the below maps will have the latest cdWfRunner for a pipeline

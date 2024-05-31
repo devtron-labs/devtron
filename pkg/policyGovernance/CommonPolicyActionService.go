@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package policyGovernance
 
 import (
@@ -16,6 +20,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -76,7 +81,7 @@ func (impl *CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(ctx *util2.
 	if !ok {
 		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
-
+	applyIdentifiersRequest.ApplyToPolicyName = strings.Trim(applyIdentifiersRequest.ApplyToPolicyName, " ")
 	var err error
 	var scopes []*resourceQualifiers.SelectionIdentifier
 	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
@@ -211,7 +216,12 @@ func (impl *CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(lis
 	if !noPolicyFilter {
 		policyNames = validPolicyNames
 	}
+	result := make([]AppEnvPolicyContainer, 0)
 	policies, err := impl.getPolicies(policyNames, listFilter.PolicyType)
+	// if all policy Names are wrong then we will move forward and we will return empty list
+	if len(policies) == 0 && len(policyNames) > 0 {
+		return result, 0, nil
+	}
 	if err != nil {
 		return nil, 0, err
 	}
@@ -270,7 +280,7 @@ func (impl *CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(lis
 		impl.logger.Errorw("error in fetching the paginated app environment list using filter", "filter", filter, "err", err)
 		return nil, 0, err
 	}
-	result := make([]AppEnvPolicyContainer, 0)
+
 	for _, cdPipMeta := range paginatedAppEnvData {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)

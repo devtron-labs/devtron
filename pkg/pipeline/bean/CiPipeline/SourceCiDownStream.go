@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package CiPipeline
 
 import "github.com/devtron-labs/devtron/util/response/pagination"

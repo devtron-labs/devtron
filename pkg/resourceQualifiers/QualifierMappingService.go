@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceQualifiers
 
 import (
@@ -17,7 +21,7 @@ import (
 type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope) ([]*QualifierMapping, error)
-	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
+	GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
@@ -297,8 +301,8 @@ func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilter(scope Scop
 	return impl.qualifierMappingRepository.GetQualifierMappingsForFilter(scope, searchableKeyNameIdMap)
 }
 
-func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
-	return impl.qualifierMappingRepository.GetQualifierMappingsForFilterById(resourceId)
+func (impl QualifierMappingServiceImpl) GetQualifierMappingsByResourceId(resourceId int, resourceType ResourceType) ([]*QualifierMapping, error) {
+	return impl.qualifierMappingRepository.GetQualifierMappingsByResourceId(resourceId, resourceType)
 }
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error) {

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
@@ -18,6 +22,12 @@ func ConvertArtifactEntityToModel(ArtifactDaos []repository.CiArtifact) []CiArti
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 	return ciArtifacts
+}
+
+func ConvertArtifactEntityToBean(artifactEntity repository.CiArtifact, appWorkflowId int) CiArtifactBean {
+	ciArtifact := getCiArtifactBean(artifactEntity)
+	ciArtifact.AppWorkflowId = appWorkflowId
+	return ciArtifact
 }
 
 func GetArtifactResponseWithDeployedOnEnvironments(ciArtifacts []CiArtifactBean, deployedEnvironmentsForArtifacts map[int][]string) []CiArtifactBean {

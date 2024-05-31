@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package user
@@ -376,6 +363,7 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/api/v1/session",
 		"/orchestrator/app/ci-pipeline/github-webhook/trigger",
 		"/orchestrator/webhook/msg/nats",
+		"/orchestrator/scoop/intercept-event/notify",
 		"/orchestrator/devtron/auth/verify",
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
@@ -385,7 +373,8 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/self-register/check",
 		"/orchestrator/self-register",
 		"/orchestrator/telemetry/summary",
-		"/orchestrator/scoop/notify",
+		"/orchestrator/scoop/namespace/sync",
+		"/orchestrator/scoop/watchers/sync",
 	}
 	for _, a := range urls {
 		if a == url {
@@ -401,6 +390,7 @@ func WhitelistChecker(url string) bool {
 		"/dashboard",
 		"/orchestrator/webhook/git",
 		"/orchestrator/k8s/proxy",
+		"/orchestrator/scoop/intercept-event",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {

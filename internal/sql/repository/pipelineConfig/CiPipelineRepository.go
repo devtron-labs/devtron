@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipelineConfig
@@ -125,6 +112,7 @@ type CiPipelineRepository interface {
 	UpdateCiEnvMapping(cienvmapping *CiEnvMapping, tx *pg.Tx) error
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
+	FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
@@ -448,6 +436,24 @@ func (impl *CiPipelineRepositoryImpl) FindByName(pipelineName string) (pipeline 
 		Select()
 
 	return pipeline, err
+}
+func (impl *CiPipelineRepositoryImpl) FindByNames(pipelineName []string, appIds []int) ([]*CiPipeline, error) {
+	var pipelines []*CiPipeline
+	if len(pipelineName) == 0 {
+		return nil, nil
+	}
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&pipelines).
+		Join("inner join app a on ci_pipeline.app_id = a.id").
+		Where("ci_pipeline.name IN (?)", pg.In(pipelineName)).
+		Where("ci_pipeline.app_id IN (?)", pg.In(appIds)).
+		Where("ci_pipeline.deleted = ?", false).
+		Where("ci_pipeline.app_id=a.id").
+		Select()
+
+	return pipelines, err
 }
 
 func (impl *CiPipelineRepositoryImpl) CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error) {

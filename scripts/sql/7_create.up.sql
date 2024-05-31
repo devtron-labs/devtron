@@ -1,5 +1,9 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_attributes;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE "public"."attributes" (
     "id" int4 NOT NULL DEFAULT nextval('id_seq_attributes'::regclass),

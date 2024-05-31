@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE chart_ref SET is_default=false;
 INSERT INTO "public"."chart_ref" ("name","location", "version", "deployment_strategy_path","is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
      ('Deployment','deployment-chart_4-19-0', '4.19.0','pipeline-values.yaml','t', 't', 'now()', 1, 'now()', 1);

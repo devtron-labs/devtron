@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Jira Issue Updater','This plugin extends the capabilities of Devtron CI and can update issues in JIRA by adding pipeline status and metadata as comment on the tickets.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-jira.png',false,'now()',1,'now()',1);
 

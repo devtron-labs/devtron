@@ -4,6 +4,11 @@ where entity = 'cluster'
   and role = 'admin';
 
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+
 -- Sequence and defined type
 CREATE SEQUENCE IF NOT EXISTS id_seq_rbac_policy_resource_detail;
 

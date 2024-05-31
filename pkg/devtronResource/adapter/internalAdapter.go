@@ -1,6 +1,11 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package adapter
 
 import (
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
@@ -175,4 +180,13 @@ func GetLastReleaseTaskRunInfo(response []bean2.DtReleaseTaskRunInfo) *bean2.DtR
 		return nil
 	}
 	return &response[len(response)-1]
+}
+
+func BuildFilterConditionInternalBean(appIds, envIds []int, releaseDeploymentStatus []string, stageWisedeploymentStatus map[bean3.WorkflowType][]string) *bean2.FilterConditionInternalBean {
+	return &bean2.FilterConditionInternalBean{
+		AppIds:                    appIds,
+		EnvIds:                    envIds,
+		StageWiseDeploymentStatus: stageWisedeploymentStatus,
+		ReleaseDeploymentStatus:   releaseDeploymentStatus,
+	}
 }

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package deploymentWindow
 
 import (
@@ -296,7 +300,6 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	v := r.URL.Query()
 	appId, envIds, err := handler.getAppIdAndEnvIdsFromQueryParam(w, v)
 	if err != nil {
-		common.WriteJsonResp(w, err, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	err = handler.validateAppAndEnvs(w, appId, envIds)
@@ -400,7 +403,7 @@ func (handler *DeploymentWindowRestHandlerImpl) validateAppAndEnvs(w http.Respon
 func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(w http.ResponseWriter, v url.Values) (int, []int, error) {
 	appId, err := strconv.Atoi(v.Get("appId"))
 	if err != nil {
-		common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "please provide valid appId", http.StatusBadRequest)
 		return appId, nil, err
 	}
 	envIdsString := v.Get("envIds")
@@ -409,6 +412,10 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 		if err != nil {
 			common.WriteJsonResp(w, err, "error finding pipelines for app Id", http.StatusBadRequest)
 			return 0, nil, err
+		}
+		if len(envIds) == 0 {
+			common.WriteJsonResp(w, nil, deploymentWindow.DeploymentWindowResponse{}, http.StatusOK)
+			return 0, nil, fmt.Errorf("")
 		}
 		return appId, envIds, nil
 	}

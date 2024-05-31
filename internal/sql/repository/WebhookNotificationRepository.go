@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package repository
 
 import (
@@ -10,9 +14,10 @@ type WebhookNotificationRepository interface {
 	UpdateWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	SaveWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	FindAll() ([]WebhookConfig, error)
-	FindByName(value string) ([]WebhookConfig, error)
+	FindNameByRegex(value string) ([]WebhookConfig, error)
 	FindByIds(ids []*int) ([]*WebhookConfig, error)
 	MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error
+	FindOneByName(name string) (WebhookConfig, error)
 }
 
 type WebhookNotificationRepositoryImpl struct {
@@ -60,7 +65,7 @@ func (impl *WebhookNotificationRepositoryImpl) SaveWebhookConfig(webhookConfig *
 	return webhookConfig, impl.dbConnection.Insert(webhookConfig)
 }
 
-func (impl *WebhookNotificationRepositoryImpl) FindByName(value string) ([]WebhookConfig, error) {
+func (impl *WebhookNotificationRepositoryImpl) FindNameByRegex(value string) ([]WebhookConfig, error) {
 	var webhookConfigs []WebhookConfig
 	err := impl.dbConnection.Model(&webhookConfigs).Where(`config_name like ?`, "%"+value+"%").
 		Where("deleted = ?", false).Select()
@@ -78,4 +83,14 @@ func (repo *WebhookNotificationRepositoryImpl) FindByIds(ids []*int) ([]*Webhook
 func (impl *WebhookNotificationRepositoryImpl) MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error {
 	webhookConfig.Deleted = true
 	return impl.dbConnection.Update(webhookConfig)
+}
+
+func (impl *WebhookNotificationRepositoryImpl) FindOneByName(name string) (WebhookConfig, error) {
+	var webhookConfig = WebhookConfig{}
+	err := impl.dbConnection.Model(&webhookConfig).
+		Where("deleted = ?", false).
+		Where("config_name = ? ", name).
+		Limit(1).
+		Select()
+	return webhookConfig, err
 }

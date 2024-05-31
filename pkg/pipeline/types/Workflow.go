@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package types
@@ -255,7 +242,8 @@ func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdCon
 	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}, {Name: "NATS_SERVER_HOST", Value: config.NatsServerHost}}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
-	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)
+	showDockerBuildArgsEnv := v1.EnvVar{Name: "SHOW_DOCKER_BUILD_ARGS", Value: strconv.FormatBool(config.ShowDockerBuildCmdInLogs)}
+	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv, showDockerBuildArgsEnv)
 	return containerEnvVariables
 }
 

@@ -1,23 +1,14 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package EAMode
 
 import (
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
@@ -49,6 +40,11 @@ type InstalledAppDBService interface {
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
+
+	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
+	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
+	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
+	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -122,6 +118,10 @@ func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilte
 			LastDeployedAt:    &appLocal.UpdatedOn,
 			AppStatus:         &appLocal.AppStatus,
 		}
+		if util4.IsExternalChartStoreApp(appLocal.DisplayName) {
+			//case of external app where display name is stored in app table
+			helmAppResp.AppName = &appLocal.DisplayName
+		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
 	installedAppsResponse.HelmApps = &helmAppsResponse
@@ -193,11 +193,11 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
-		HelmPackageName: adapter.GetGeneratedHelmPackageName(
-			installedAppVerison.InstalledApp.App.AppName,
-			installedAppVerison.InstalledApp.Environment.Name,
-			installedAppVerison.InstalledApp.UpdatedOn),
 	}
+	if util4.IsExternalChartStoreApp(installedAppVerison.InstalledApp.App.DisplayName) {
+		deploymentContainer.AppName = installedAppVerison.InstalledApp.App.DisplayName
+	}
+	deploymentContainer.HelmPackageName = adapter.GetGeneratedHelmPackageName(deploymentContainer.AppName, deploymentContainer.EnvironmentName, installedAppVerison.InstalledApp.UpdatedOn)
 	userInfo, err := impl.UserService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
 		impl.Logger.Errorw("error fetching user info", "err", err)
@@ -307,4 +307,83 @@ func (impl *InstalledAppDBServiceImpl) UpdateInstalledAppVersion(installedAppVer
 		return nil, err
 	}
 	return installedAppVersion, nil
+}
+
+func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps) {
+	installedApp.ChangeAppNameToDisplayName()
+}
+
+func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
+	//for external-apps appName would be uniqueIdentifier
+	appName := appIdentifier.GetUniqueAppNameIdentifier()
+	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and appUniqueIdentifierName", "appIdentifier", appIdentifier, "appUniqueIdentifierName", appName, "error", err)
+		return nil, err
+	} else if util.IsErrNoRows(err) {
+		// when app_name is not yet migrated to unique identifier
+		installedAppVersionDto, err = impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		if err != nil {
+			impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and releaseName", "appIdentifier", appIdentifier, "error", err)
+			return nil, err
+		}
+		//if dto found, check if release-info request is for the same namespace app as stored in installed_app because two ext-apps can have same
+		//release name but in different namespaces, if they differ then release info request is for another ext-app with same name but in diff namespace
+		if installedAppVersionDto != nil && installedAppVersionDto.Id > 0 && installedAppVersionDto.Namespace != appIdentifier.Namespace {
+			installedAppVersionDto = nil
+		}
+	}
+	return installedAppVersionDto, nil
+}
+
+// IsExternalAppLinkedToChartStore checks for an appId, if that app is linked to any chart-store app or not,
+// if it's linked then it returns true along with all the installedApps linked to that appId
+func (impl *InstalledAppDBServiceImpl) IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error) {
+	installedApps, err := impl.InstalledAppRepository.FindInstalledAppsByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("IsExternalAppLinkedToChartStore, error in fetching installed apps by app id for external apps", "appId", appId, "err", err)
+		return false, nil, err
+	}
+	if installedApps != nil && len(installedApps) > 0 {
+		return true, installedApps, nil
+	}
+	return false, nil, nil
+}
+
+func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error {
+	// db operations
+	dbConnection := impl.InstalledAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	for _, installedApp := range installedApps {
+		appModel := &app.App{
+			Active:          true,
+			AppName:         installedApp.GetUniqueAppNameIdentifier(),
+			TeamId:          installedApp.App.TeamId,
+			AppType:         helper.ChartStoreApp,
+			AppOfferingMode: installedApp.App.AppOfferingMode,
+			DisplayName:     installedApp.App.AppName,
+		}
+		appModel.CreateAuditLog(bean3.SystemUserId)
+		err := impl.AppRepository.SaveWithTxn(appModel, tx)
+		if err != nil {
+			impl.Logger.Errorw("error saving appModel", "err", err)
+			return err
+		}
+		//updating the installedApp.AppId with new app entry
+		installedApp.AppId = appModel.Id
+		installedApp.UpdateAuditLog(bean3.SystemUserId)
+		_, err = impl.InstalledAppRepository.UpdateInstalledApp(installedApp, tx)
+		if err != nil {
+			impl.Logger.Errorw("error saving updating installed app with new appId", "installedAppId", installedApp.Id, "err", err)
+			return err
+		}
+	}
+
+	tx.Commit()
+	return nil
 }

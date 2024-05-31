@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package constants
 
 type ArtifactPromotionRequestStatus int
@@ -161,3 +165,4 @@ const WorkflowNotFoundErr = "workflow not found"
 const PolicyNotFoundErr = "policy not found"
 const PromotionRequestStale = "request is no longer valid as the policy is no longer governing this pipeline or the pipeline was deleted on which this request was raised, state: stale"
 const ArtifactSourceMisMatch = "artifact is not related to the given workflow's source"
+const UNAUTHORIZED = "unauthorized"

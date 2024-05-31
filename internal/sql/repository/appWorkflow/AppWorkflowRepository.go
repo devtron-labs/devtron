@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package appWorkflow
@@ -21,6 +8,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 )
 
@@ -44,6 +32,7 @@ type AppWorkflowRepository interface {
 	FindWFCIMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error)
@@ -68,6 +57,8 @@ type AppWorkflowRepository interface {
 	FindByComponentIdForCiPipelineType(componentId int) ([]*AppWorkflowMapping, error)
 	FindByCiSourceWorkflowMappingById(workflowId int) (*AppWorkflowMapping, error)
 	FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error)
+
+	FindByComponentTypeAndIds(componentTypeIdsMap map[string][]int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -282,6 +273,18 @@ func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId
 	var appWorkflowsMapping []*AppWorkflowMapping
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", ciPipelineId).
+		Where("type = ?", CIPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineIds(ciPipelineId []int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	if len(ciPipelineId) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("component_id IN (?)", pg.In(ciPipelineId)).
 		Where("type = ?", CIPIPELINE).
 		Where("active = ?", true).
 		Select()
@@ -553,4 +556,21 @@ func (impl AppWorkflowRepositoryImpl) FindAllMappingsInCdPipelineWorkflow(cdPipe
 		return nil, err
 	}
 	return appWorkflowsMapping, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByComponentTypeAndIds(componentTypeIdsMap map[string][]int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	query := impl.dbConnection.Model(&appWorkflowsMapping)
+	query = query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+		for componentType, componentIds := range componentTypeIdsMap {
+			q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
+				q = q.Where("type = ? ", componentType).
+					Where("component_id in (?)", pg.In(componentIds))
+				return q, nil
+			})
+		}
+		return q, nil
+	}).Where("active = ?", true)
+	err := query.Select()
+	return appWorkflowsMapping, err
 }

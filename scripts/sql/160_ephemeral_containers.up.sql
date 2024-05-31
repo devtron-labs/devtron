@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_ephemeral_container;
 
 CREATE TABLE "public"."ephemeral_container" (

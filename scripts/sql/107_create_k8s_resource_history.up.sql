@@ -1,5 +1,9 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_k8s_resource_history_sequence;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE IF NOT EXISTS "public"."kubernetes_resource_history"
 (

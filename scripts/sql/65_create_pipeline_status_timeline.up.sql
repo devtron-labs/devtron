@@ -1,5 +1,9 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_status_timeline;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE "public"."pipeline_status_timeline"
 (

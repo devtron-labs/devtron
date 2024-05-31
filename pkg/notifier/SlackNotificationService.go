@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package notifier
@@ -207,7 +194,7 @@ func (impl *SlackNotificationServiceImpl) buildConfigUpdateModel(slackConfig *re
 func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error) {
 	var results []*NotificationRecipientListingResponse
 
-	slackConfigs, err := impl.slackRepository.FindByName(value)
+	slackConfigs, err := impl.slackRepository.FindNameByRegex(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err
@@ -219,7 +206,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 			Dest:      util2.Slack}
 		results = append(results, result)
 	}
-	webhookConfigs, err := impl.webhookRepository.FindByName(value)
+	webhookConfigs, err := impl.webhookRepository.FindNameByRegex(value)
 
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all webhook config", "err", err)
@@ -303,7 +290,7 @@ func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *Sl
 
 	existingConfig.UpdatedOn = time.Now()
 	existingConfig.UpdatedBy = userId
-	//deleting slack config
+	// deleting slack config
 	err = impl.slackRepository.MarkSlackConfigDeleted(existingConfig)
 	if err != nil {
 		impl.logger.Errorw("error in deleting slack config", "err", err, "id", existingConfig.Id)

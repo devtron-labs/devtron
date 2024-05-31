@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipeline
@@ -58,8 +45,9 @@ type AppArtifactManager interface {
 	// RetrieveArtifactsByCDPipeline : RetrieveArtifactsByCDPipeline returns all the artifacts for the cd pipeline (pre / deploy / post)
 	RetrieveArtifactsByCDPipeline(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, searchString string, count int, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 	// RetrieveArtifactsForAppWorkflows - List all the artifacts available for the given combination of bean.WorkflowComponentsBean
+	// and filtered by workflow component filter map (map of "componentType-componentId" and appWorkflowId, ex - {"CIPIPELINE-8": 8})
 	// returns - bean2.CiArtifactResponse and error
-	RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error)
+	RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean, workflowComponentFilterMap map[string]int) (bean2.CiArtifactResponse, error)
 
 	RetrieveArtifactsByCDPipelineV2(ctx *util2.RequestCtx, pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error)
 
@@ -750,27 +738,15 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean) (bean2.CiArtifactResponse, error) {
+func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowComponents *bean.WorkflowComponentsBean,
+	workflowComponentFilterMap map[string]int) (bean2.CiArtifactResponse, error) {
 	var artifactEntities []repository.CiArtifact
 	var totalCount int
 	var err error
 	if workflowComponents.Limit == 0 {
 		workflowComponents.Limit = 20
 	}
-	if len(workflowComponents.SearchImageTag) == 0 {
-		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
-			workflowComponents.CiPipelineIds,
-			workflowComponents.ExternalCiPipelineIds,
-			workflowComponents.CdPipelineIds,
-			workflowComponents.SearchArtifactTag,
-			workflowComponents.Offset,
-			workflowComponents.Limit,
-		)
-		if err != nil {
-			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
-			return bean2.CiArtifactResponse{}, err
-		}
-	} else {
+	if len(workflowComponents.SearchImageTag) != 0 {
 		artifactEntity, err := impl.ciArtifactRepository.GetArtifactByImageTagAndAppId(workflowComponents.SearchImageTag, workflowComponents.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
@@ -780,7 +756,19 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsForAppWorkflows(workflowCom
 			artifactEntities = []repository.CiArtifact{artifactEntity}
 			totalCount = 1
 		}
+	} else { //get by wf components
+		artifactEntities, totalCount, err = impl.ciArtifactRepository.GetAllArtifactsForWfComponents(
+			workflowComponents.ArtifactIds, workflowComponents.CiPipelineIds,
+			workflowComponents.ExternalCiPipelineIds, workflowComponents.CdPipelineIds,
+			workflowComponents.SearchArtifactTag, workflowComponents.Offset, workflowComponents.Limit)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts for app workflow", "workflowComponents", workflowComponents, "err", err)
+			return bean2.CiArtifactResponse{}, err
+		}
 	}
+	//not setting appWorkflowId because the artifact source may be a ci which is not present in the workflow yet
+	//such cases will require us to check for every artifact whether it is fetched because of ci or cd
+	//if fetched due to cd then we will take workflowId of cd pipeline else ci
 	artifactResponse := bean2.CiArtifactResponse{
 		CiArtifacts: bean2.ConvertArtifactEntityToModel(artifactEntities),
 		TotalCount:  totalCount,

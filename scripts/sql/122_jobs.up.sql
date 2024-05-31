@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE app ADD COLUMN IF NOT EXISTS app_type integer not null DEFAULT 0;
 UPDATE app SET app_type = CASE WHEN app_store = false THEN 0 WHEN app_store = true THEN 1 ELSE app_type  END;
 ALTER TABLE app ADD COLUMN IF NOT EXISTS description text;

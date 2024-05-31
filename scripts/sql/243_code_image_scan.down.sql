@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 
 DROP TABLE IF EXISTS "public"."resource_scan_execution_result";
 

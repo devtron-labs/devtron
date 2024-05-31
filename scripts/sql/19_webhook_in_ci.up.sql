@@ -754,6 +754,11 @@ and node_type = 'CD'
 and event_type_id = 2;
 
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+
 ---- update notification template for CD fail stack
 UPDATE notification_templates
 set template_payload = '{

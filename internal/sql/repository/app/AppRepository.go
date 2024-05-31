@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package app
@@ -40,6 +27,10 @@ type App struct {
 	Description     string         `sql:"description"`
 	Team            team.Team
 	sql.AuditLog
+}
+
+func (r *App) IsAppJobOrExternalType() bool {
+	return len(r.DisplayName) > 0
 }
 
 type AppWithExtraQueryFields struct {
@@ -92,6 +83,7 @@ type AppRepository interface {
 
 	FindAppsByIdsOrNames(ids []int, names []string) ([]*App, error)
 	GetTeamIdById(id int) (int, error)
+	FetchAppByDisplayNamesForJobs(names []string) ([]*AppDto, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -518,6 +510,24 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 		jobIds = append(jobIds, id.Id)
 	}
 	return appResp, jobIds, err
+}
+
+type AppDto struct {
+	Id          int    `json:"id"`
+	DisplayName string `json:"display_name"`
+}
+
+func (repo AppRepositoryImpl) FetchAppByDisplayNamesForJobs(names []string) ([]*AppDto, error) {
+
+	var jobIdName []*AppDto
+	if len(names) == 0 {
+		return nil, nil
+	}
+	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
+	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
+	query := "select id, display_name from app " + whereCondition
+	_, err := repo.dbConnection.Query(&jobIdName, query)
+	return jobIdName, err
 }
 
 func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error) {

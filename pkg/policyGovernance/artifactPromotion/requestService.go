@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package artifactPromotion
 
 import (
@@ -264,6 +268,17 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util3.
 
 	if artifactId != 0 {
 		responses, err := impl.evaluatePoliciesOnArtifact(metadata, policiesMap)
+		for index, resp := range responses {
+			if env, ok := envMap[resp.Name]; ok {
+				resp.IsVirtualEnvironment = env.IsVirtualEnvironment
+				if resp.PromotionValidationMessage == constants.NO_PERMISSION {
+					resp.PromotionValidationMessage = constants.UNAUTHORIZED
+				} else if !resp.PromotionPossible {
+					resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+				}
+				responses[index] = resp
+			}
+		}
 		if err != nil {
 			impl.logger.Errorw("error in evaluating policies on an ciArtifact", "ciArtifactId", artifactId, "policiesMap", policiesMap, "authorizedEnvironments", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 			return nil, err
@@ -428,15 +443,8 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	envMap := metadata.GetActiveEnvironmentsMap()
+
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
-	for envName, resp := range responseMap {
-		if env, ok := envMap[envName]; ok {
-			resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
-			responseMap[envName] = resp
-		}
-	}
 
 	if len(policiesMap) > 0 {
 		// can be concurrent
@@ -459,7 +467,6 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			}
 			envResp := responseMap[envName]
 			envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-			envResp.PromotionValidationMessage = constants.EMPTY
 			envResp.PromotionPossible = evaluationResult
 			// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 			if !evaluationResult {

@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package appList
@@ -29,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
@@ -86,6 +74,8 @@ type AppListingRestHandler interface {
 
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -301,7 +291,7 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request) {
-	//Allow CORS here By * or specific origin
+	// Allow CORS here By * or specific origin
 	util3.SetupCorsOriginHeader(&w)
 	token := r.Header.Get("token")
 	t0 := time.Now()
@@ -356,7 +346,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
-	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	_, _, err = app.GetNamespaceClusterMapping(fetchAppListingRequest.Namespaces)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
@@ -915,6 +905,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
+		if util4.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
+		}
 		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
@@ -1137,4 +1131,22 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	}
 	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
+}
+
+func (handler AppListingRestHandlerImpl) FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	authorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	res, err := handler.appListingService.FetchJobCiPipelines()
+	if err != nil {
+		handler.logger.Errorw("error in fetching job ci pipelines", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

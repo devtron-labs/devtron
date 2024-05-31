@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Mail Master v1.0.0','The Plugin is designed for sending bulk emails directly through your preferred SMTP server.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/MailMaster.png',false,'now()',1,'now()',1);
 

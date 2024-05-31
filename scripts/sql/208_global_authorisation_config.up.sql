@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_global_authorisation_config;
 
 CREATE TABLE IF NOT EXISTS "public"."global_authorisation_config"

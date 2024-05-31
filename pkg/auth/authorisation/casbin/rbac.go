@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package casbin
@@ -56,10 +43,13 @@ func NewEnforcerImpl(
 	enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger, casbinService CasbinService,
-	globalAuthConfigService auth.GlobalAuthorisationConfigService) *EnforcerImpl {
+	globalAuthConfigService auth.GlobalAuthorisationConfigService) (*EnforcerImpl, error) {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
-	enforcerConfig := getConfig()
+	enforcerConfig, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
 	enf := &EnforcerImpl{lockCacheData: lock,
 		enforcerRWLock:          &sync.RWMutex{},
 		batchRequestLock:        batchRequestLock,
@@ -73,7 +63,7 @@ func NewEnforcerImpl(
 	}
 	setEnforcerImpl(enf)
 	setCasbinService(casbinService)
-	return enf
+	return enf, nil
 }
 
 type CacheData struct {
@@ -89,13 +79,14 @@ type EnforcerConfig struct {
 	UseCasbinV2           bool `env:"USE_CASBIN_V2" envDefault:"false"`
 }
 
-func getConfig() *EnforcerConfig {
+func getConfig() (*EnforcerConfig, error) {
 	cacheConfig := &EnforcerConfig{}
 	err := env.Parse(cacheConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
-	return cacheConfig
+	return cacheConfig, nil
 }
 
 func getEnforcerCache(logger *zap.SugaredLogger, enforcerConfig *EnforcerConfig) *cache.Cache {

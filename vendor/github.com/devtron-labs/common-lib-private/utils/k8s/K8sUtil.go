@@ -53,7 +53,7 @@ func (impl K8sUtilExtended) GetRestConfigByCluster(clusterConfig *k8s2.ClusterCo
 		return nil, err
 	}
 	connectionConfig := clusterConfig.RemoteConnectionConfig
-	if connectionConfig != nil {
+	if connectionConfig != nil && connectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		if connectionConfig.SSHTunnelConfig != nil && connectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 			hostUrl, err := impl.GetHostUrlForSSHTunnelConfiguredCluster(clusterConfig)
 			if err != nil {
@@ -93,7 +93,7 @@ func (impl K8sUtilExtended) GetHostUrlForSSHTunnelConfiguredCluster(clusterConfi
 
 func (impl K8sUtilExtended) CleanupForClusterUsedForVerification(config *k8s2.ClusterConfig) {
 	//cleanup for ssh tunnel, as other methods do not require cleanup
-	if config.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+	if config.RemoteConnectionConfig != nil && config.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 		impl.sshTunnelWrapperService.CleanupForVerificationCluster(config.ClusterName)
 	}
 }

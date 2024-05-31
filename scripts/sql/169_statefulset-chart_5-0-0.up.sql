@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO "public"."chart_ref" ("location", "version","deployment_strategy_path", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by","name") VALUES
     ('statefulset-chart_5-0-0', '5.0.0','pipeline-values.yaml', 'f', 't', 'now()', 1, 'now()', 1,'StatefulSet');
 

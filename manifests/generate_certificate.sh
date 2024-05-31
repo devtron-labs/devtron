@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#
+# Copyright (c) 2024. Devtron Inc.
+#
+
 set -o errexit
 set -o nounset
 #set -o pipefail

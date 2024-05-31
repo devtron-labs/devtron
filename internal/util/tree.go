@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package util
 
 // IsAncestor finds if a node1 is an ancestor of node2 in a n-ary tree

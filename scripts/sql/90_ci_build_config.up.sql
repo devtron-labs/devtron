@@ -1,5 +1,9 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_ci_build_config;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE IF NOT EXISTS public.ci_build_config
 (

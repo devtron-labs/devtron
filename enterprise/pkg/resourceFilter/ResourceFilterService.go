@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package resourceFilter
 
 import (
@@ -127,7 +131,7 @@ func (impl *ResourceFilterServiceImpl) GetFilterById(id int) (*FilterRequestResp
 		return nil, err
 	}
 
-	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsForFilterById(id)
+	qualifierMappings, err := impl.qualifyingMappingService.GetQualifierMappingsByResourceId(id, resourceQualifiers.Filter)
 	if err != nil {
 		impl.logger.Errorw("error in GetQualifierMappingsForFilterById", "err", err, "filterId", id)
 		return nil, err

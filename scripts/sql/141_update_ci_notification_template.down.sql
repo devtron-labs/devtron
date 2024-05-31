@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- revert notification template for CI fail ses/smtp
 UPDATE notification_templates
 set template_payload = '{"from": "{{fromEmail}}",

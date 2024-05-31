@@ -579,7 +579,7 @@ paths:
                       $ref: '#/components/schemas/ArtifactsList'
 
   /orchestrator/resource/task/info/release/alpha1:
-    get:
+    post:
       description: Get release task (deployment) information
       parameters:
         - name: id
@@ -613,6 +613,19 @@ paths:
             example: 1
           in: query
           required: false
+        - name: showAll
+          description: if set to true gives all dependencies at once without any relevance of stage or level
+          schema:
+            type: boolean
+            example: false
+          in: query
+      requestBody:
+        description: json
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInfoObjectDto'
       responses:
         '200':
           description: list response
@@ -789,6 +802,20 @@ components:
                   - LAST_DEPLOYED_CONFIG
               pipelineId:
                 type: number
+
+    TaskInfoObjectDto:
+      type: object
+      properties:
+        filterCriteria:
+          type: array
+          items:
+            type: string
+            enum:
+              - applications/devtron-application|identifier|demo-app,demo-app2
+              - environment|identifier|devtron-demo,env2
+              - stageWiseDeploymentStatus|stageType|value1,value2
+              - releaseDeploymentRolloutStatus|value1,value2
+            description: denotes filtering criteria resource|id orIdentiifer| value
 
     DevtronResourcePatchObjectDto:
       type: object
@@ -1031,64 +1058,95 @@ components:
 
     TaskRunInfoResponse:
       example:
-        - level: 0
-          taskRunAllowed: true
-          dependencies:
-            - appId: 5
-              appName: orchestrator
-              envId: 1
-              envName: "prod-env"
-              pipelineId: 1
-              deployStatus: "Progressing"
-              preStatus: "Succeeded"
-              postStatus: "Not Triggered"
-              deploymentAppDeleteRequest: false
-              existingStages:
-                pre: true
-                deploy: true
-                post: false
-            - appId: 5
-              appName: orchestrator
-              envId: 2
-              envName: "dev-env"
-              pipelineId: 1
-              deployStatus: "Progressing"
-              preStatus: "Not Triggered"
-              postStatus: "Not Triggered"
-              deploymentAppDeleteRequest: false
-              existingStages:
-                pre: false
-                deploy: true
-                post: false
-        - level: 1
-          taskRunAllowed: false
-          dependencies:
-            - appId: 6
-              appName: git-sensor
-              envId: 1
-              envName: "prod-env"
-              pipelineId: 1
-              deployStatus: "Progressing"
-              preStatus: "Not Triggered"
-              postStatus: "Not Triggered"
-              deploymentAppDeleteRequest: false
-              existingStages:
-                pre: true
-                deploy: true
-                post: false
-            - appId: 6
-              appName: git-sensor
-              envId: 2
-              envName: "dev-env"
-              pipelineId: 1
-              deployStatus: "Progressing"
-              preStatus: "Not Triggered"
-              postStatus: "Not Triggered"
-              deploymentAppDeleteRequest: false
-              existingStages:
-                pre: false
-                deploy: true
-                post: false
+        count:
+          releaseDeploymentRolloutStatus:
+            allDeployment: 130
+            yetToTrigger: 87
+            ongoing: 8
+            failed: 7
+            completed: 28
+          stageWiseDeploymentStatus:
+            pre:
+              notTriggered: 35
+              failed: 55
+              inProgress: 20
+              succeeded: 13
+            deploy:
+              notTriggered: 35
+              failed: 55
+              timedOut: 13
+              unableToFetch: 13
+              inProgress: 20
+              queued: 13
+              succeeded: 13
+            post:
+              notTriggered: 35
+              failed: 55
+              inProgress: 20
+              succeeded: 13
+          data:
+            - level: 0
+              taskRunAllowed: true
+              dependencies:
+                - appId: 5
+                  appName: orchestrator
+                  envId: 1
+                  envName: prod-env
+                  pipelineId: 1
+                  deployStatus: Progressing
+                  preStatus: Succeeded
+                  postStatus: Not Triggered
+                  deploymentAppDeleteRequest: false
+                  existingStages:
+                    pre: true
+                    deploy: true
+                    post: false
+                  releaseDeploymentRolloutStatus: yetToTrigger
+                - appId: 5
+                  appName: orchestrator
+                  envId: 2
+                  envName: dev-env
+                  pipelineId: 1
+                  deployStatus: Progressing
+                  preStatus: Not Triggered
+                  postStatus: Not Triggered
+                  deploymentAppDeleteRequest: false
+                  existingStages:
+                    pre: false
+                    deploy: true
+                    post: false
+                  releaseDeploymentRolloutStatus: ongoing
+            - level: 1
+              taskRunAllowed: false
+              dependencies:
+                - appId: 6
+                  appName: git-sensor
+                  envId: 1
+                  envName: prod-env
+                  pipelineId: 1
+                  deployStatus: Progressing
+                  preStatus: Not Triggered
+                  postStatus: Not Triggered
+                  deploymentAppDeleteRequest: false
+                  existingStages:
+                    pre: true
+                    deploy: true
+                    post: false
+                  releaseDeploymentRolloutStatus: failed
+                - appId: 6
+                  appName: git-sensor
+                  envId: 2
+                  envName: dev-env
+                  pipelineId: 1
+                  deployStatus: Progressing
+                  preStatus: Not Triggered
+                  postStatus: Not Triggered
+                  deploymentAppDeleteRequest: false
+                  existingStages:
+                    pre: false
+                    deploy: true
+                    post: false
+                  releaseDeploymentRolloutStatus: completed
       items:
         $ref: '#/components/schemas/TaskRunInfo'
 
@@ -1143,56 +1201,147 @@ components:
             $ref: '#/components/schemas/ChildDependency'
 
     TaskRunInfo:
-      type: array
-      items:
-        type: object
-        properties:
-          level:
-            type: integer
-            description: The index of the release stage.
-          taskRunAllowed:
-            type: boolean
-            example: wheather trigger action is allowed for the applications in this stage.
-          dependencies:
-            type: array
-            items:
+      type: object
+      properties:
+        count:
+          type: object
+          description: Deployment counts for various statuses.
+          properties:
+            releaseDeploymentRolloutStatus:
               type: object
+              description: Release Deployment Status counts.
               properties:
-                appId:
-                  type: number
-                  description: application id
-                appName:
-                  type: string
-                  description: application name.
-                envId:
-                  type: number
-                  description: environment id
-                envName:
-                  type: string
-                  description: environment name
-                pipelineId:
-                  type: number
-                  description: pipeline id
-                deployStatus:
-                  type: string
-                preStatus:
-                  type: string
-                postStatus:
-                  type: string
-                deploymentAppDeleteRequest:
-                  type: boolean
-                existingStages:
+                allDeployments:
+                  type: integer
+                  description: Total number of deployments.
+                yetToTrigger:
+                  type: integer
+                  description: Deployments not yet triggered.
+                onGoing:
+                  type: integer
+                  description: Deployments in progress.
+                failed:
+                  type: integer
+                  description: Deployments failed.
+                completed:
+                  type: integer
+                  description: Deployments completed successfully.
+            stageWiseDeploymentStatus:
+              type: object
+              description: Deployment status breakdown by pre-deploy, deploy, and post-deploy stages.
+              properties:
+                pre:
+                  type: object
+                  description: Pre-deployment stage statuses.
+                  properties:
+                    notTriggered:
+                      type: integer
+                      description: Pre-deployments not triggered.
+                    failed:
+                      type: integer
+                      description: Pre-deployments failed.
+                    inProgress:
+                      type: integer
+                      description: Pre-deployments in progress.
+                    succeeded:
+                      type: integer
+                      description: Pre-deployments completed successfully.
+                deploy:
+                  type: object
+                  description: Deployment stage statuses.
+                  properties:
+                    notTriggered:
+                      type: integer
+                      description: Deployment not triggered.
+                    failed:
+                      type: integer
+                      description: Deployment failed.
+                    timedOut:
+                      type: integer
+                      description: Deployment timed out count
+                    unableToFetch:
+                      type: integer
+                      description: Deployment unable to fetch count
+                    queued:
+                      type: integer
+                      description: Deployment queued count
+                    inProgress:
+                      type: integer
+                      description: Deployment in progress.
+                    succeeded:
+                      type: integer
+                      description: Deployment completed successfully.
+                post:
+                  type: object
+                  description: Post-deployment stage statuses.
+                  properties:
+                    notTriggered:
+                      type: integer
+                      description: Post-deployments not triggered.
+                    failed:
+                      type: integer
+                      description: Post-deployments failed.
+                    inProgress:
+                      type: integer
+                      description: Post-deployments in progress.
+                    succeeded:
+                      type: integer
+                      description: Pre-deployments completed successfully.
+        data:
+          type: array
+          description: Array of deployment details.
+          items:
+            type: object
+            properties:
+              level:
+                type: integer
+                description: The index of the release stage.
+              taskRunAllowed:
+                type: boolean
+                example: wheather trigger action is allowed for the applications in this stage.
+              dependencies:
+                type: array
+                items:
                   type: object
                   properties:
-                    pre:
+                    appId:
+                      type: number
+                      description: application id
+                    appName:
+                      type: string
+                      description: application name.
+                    envId:
+                      type: number
+                      description: environment id
+                    envName:
+                      type: string
+                      description: environment name
+                    pipelineId:
+                      type: number
+                      description: pipeline id
+                    deployStatus:
+                      type: string
+                    preStatus:
+                      type: string
+                    postStatus:
+                      type: string
+                    deploymentAppDeleteRequest:
                       type: boolean
-                      description: returns true if pre-deployment exists
-                    deploy:
-                      type: boolean
-                      description: returns true if deployment exists
-                    post:
-                      type: boolean
-                      description: returns true if post-deployment exists
+                    existingStages:
+                      type: object
+                      properties:
+                        pre:
+                          type: boolean
+                          description: returns true if pre-deployment exists
+                        deploy:
+                          type: boolean
+                          description: returns true if deployment exists
+                        post:
+                          type: boolean
+                          description: returns true if post-deployment exists
+                    releaseDeploymentRolloutStatus:
+                      type: string
+                      description: Release Deployment Status for this specific deployment.
 
     Dependency:
       type: object
@@ -1604,6 +1753,7 @@ components:
           type: string
           description: artifact registry store name
           example: "devtron-docker"
+
 
     ErrorResponse:
       required:

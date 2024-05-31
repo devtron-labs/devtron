@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package devtronResource
 
 import (
@@ -26,6 +30,9 @@ func appendDependencyArgDetails(argValues *[]interface{}, argTypes *[]string, sc
 
 func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesApi(req *bean.DevtronResourceObjectDescriptorBean, query *bean2.GetDependencyQueryParams,
 	resourceSchema *repository.DevtronResourceSchema, resourceObject *repository.DevtronResourceObject, response *bean.DtResourceObjectDependenciesReqBean) error {
+	devtronAppResourceId := impl.devtronResourcesMapByKind[bean.DevtronResourceDevtronApplication.ToString()].Id
+	cdPipelineResourceId := impl.devtronResourcesMapByKind[bean.DevtronResourceCdPipeline.ToString()].Id
+	filterDownstreamByResourceIds := []int{devtronAppResourceId, cdPipelineResourceId} //this should be propagated through request when UI has become mature
 	dependenciesOfParent, err := impl.getDependenciesInObjectDataFromJsonString(resourceObject.DevtronResourceSchemaId, resourceObject.ObjectData, true)
 	if err != nil {
 		impl.logger.Errorw("error in getting dependencies from json object", "err", err)
@@ -56,7 +63,7 @@ func (impl *DevtronResourceServiceImpl) updateV1ResourceDataForGetDependenciesAp
 		return err
 	}
 
-	downstreamDependencyObjects, err := impl.getDownstreamDependencyObjects(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream)
+	downstreamDependencyObjects, err := impl.getDownstreamDependencyObjects(argValuesToGetDownstream, argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream, filterDownstreamByResourceIds)
 	if err != nil {
 		impl.logger.Errorw("err, getDownstreamDependencyObjects", "err", err, "argValues", argValuesToGetDownstream,
 			"argTypes", argTypesToGetDownstream, "schemaIds", schemaIdsOfArgsToGetDownstream)
@@ -236,12 +243,12 @@ func (impl *DevtronResourceServiceImpl) updateChildDependenciesWithOwnDependenci
 }
 
 func (impl *DevtronResourceServiceImpl) getDownstreamDependencyObjects(argValuesToGetDownstream []interface{},
-	argTypesToGetDownstream []string, schemaIdsOfArgsToGetDownstream []int) ([]*repository.DevtronResourceObject, error) {
+	argTypesToGetDownstream []string, schemaIdsOfArgsToGetDownstream, filterDownstreamByResourceIds []int) ([]*repository.DevtronResourceObject, error) {
 	downstreamDependencyObjects := make([]*repository.DevtronResourceObject, 0, len(argValuesToGetDownstream))
 	var err error
 	if len(argValuesToGetDownstream) > 0 {
 		downstreamDependencyObjects, err = impl.devtronResourceObjectRepository.GetDownstreamObjectsByParentArgAndSchemaIds(argValuesToGetDownstream,
-			argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream)
+			argTypesToGetDownstream, schemaIdsOfArgsToGetDownstream, filterDownstreamByResourceIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting downstream objects by parent old object ids and schema ids", "err", err, "oldObjectIds", argValuesToGetDownstream,
 				"schemaIds", schemaIdsOfArgsToGetDownstream)

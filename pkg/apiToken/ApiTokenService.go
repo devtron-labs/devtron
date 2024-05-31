@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package apiToken
@@ -44,6 +31,7 @@ type ApiTokenService interface {
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
 	CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error)
+	CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -81,7 +69,7 @@ func GetTokenConfig() (*TokenVariableConfig, error) {
 }
 
 type TokenVariableConfig struct {
-	ExpireAtInHours int64 `env:"NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` //30*24
+	ExpireAtInHours int64 `env:"NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` // 30*24
 }
 
 func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
@@ -117,7 +105,7 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 	for _, apiTokenFromDb := range apiTokensFromDb {
 		authPassed := true
 		userId := apiTokenFromDb.User.Id
-		//checking permission on each of the roles associated with this API Token
+		// checking permission on each of the roles associated with this API Token
 		environmentNames := strings.Split(environmentName, ",")
 		for _, environment := range environmentNames {
 			projectObject := fmt.Sprintf("%s/%s", projectName, appName)
@@ -229,7 +217,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 
 	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
+	token, err := impl.CreateApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +228,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		EmailId:  email,
 		UserType: bean.USER_TYPE_API_TOKEN,
 	}
-	createUserResponse, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
+	createUserResponse, _, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while creating user for api-token", "email", email, "error", err)
 		return nil, err
@@ -320,7 +308,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		token, err := impl.createApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
+		token, err := impl.CreateApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
 		if err != nil {
 			return nil, err
 		}
@@ -403,7 +391,7 @@ func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(claims *TokenCu
 	return token, nil
 
 }
-func (impl ApiTokenServiceImpl) createApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {
 		return "", err

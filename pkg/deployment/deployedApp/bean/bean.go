@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import util5 "github.com/devtron-labs/common-lib/utils/k8s"

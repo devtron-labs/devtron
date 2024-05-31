@@ -1,10 +1,15 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 type RemoteConnectionMethod string
 
 const (
-	RemoteConnectionMethodProxy RemoteConnectionMethod = "PROXY"
-	RemoteConnectionMethodSSH   RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodProxy  RemoteConnectionMethod = "PROXY"
+	RemoteConnectionMethodSSH    RemoteConnectionMethod = "SSH"
+	RemoteConnectionMethodDirect RemoteConnectionMethod = "DIRECT"
 )
 
 const SecretDataObfuscatePlaceholder = "••••••••"

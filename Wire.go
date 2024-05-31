@@ -1,22 +1,9 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 //go:build wireinject
 // +build wireinject
-
-/*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
 
 package main
 
@@ -93,6 +80,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
+	scoop2 "github.com/devtron-labs/devtron/client/scoop"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
@@ -318,12 +306,6 @@ func InitializeApp() (*App, error) {
 
 		infraConfig.NewInfraProfileRouterImpl,
 		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
-		scoop.NewServiceImpl,
-		wire.Bind(new(scoop.Service), new(*scoop.ServiceImpl)),
-		scoop.NewRestHandler,
-		wire.Bind(new(scoop.RestHandler), new(*scoop.RestHandlerImpl)),
-		scoop.NewRouterImpl,
-		wire.Bind(new(scoop.Router), new(*scoop.RouterImpl)),
 		router.NewMuxRouter,
 
 		app4.NewAppRepositoryImpl,
@@ -1086,6 +1068,10 @@ func InitializeApp() (*App, error) {
 
 		remoteConnection.NewRemoteConnectionServiceImpl,
 		wire.Bind(new(remoteConnection.RemoteConnectionService), new(*remoteConnection.RemoteConnectionServiceImpl)),
+
+		scoop2.NewScoopClientGetter,
+		wire.Bind(new(scoop2.ScoopClientGetter), new(*scoop2.ScoopClientGetterImpl)),
+		scoop.ScoopWireSet,
 	)
 	return &App{}, nil
 }
