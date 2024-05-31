@@ -204,7 +204,11 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in getting env override by id", "id", pipelineOverride.EnvConfigOverrideId, "err", err)
 			return valuesOverrideResponse, err
 		}
-		envOverride.Environment = &pipeline.Environment
+		err = impl.setEnvironmentModelInEnvOverride(ctx, envOverride)
+		if err != nil {
+			impl.logger.Errorw("error while setting environment data in envOverride", "env", envOverride.TargetEnvironment, "err", err)
+			return nil, err
+		}
 	} else {
 		envOverride, err = impl.getEnvOverrideByTriggerType(overrideRequest, triggeredAt, newCtx)
 		if err != nil {
@@ -365,14 +369,11 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForSpecificConfigTrigger(
 		return nil, err
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	span.End()
+	err = impl.setEnvironmentModelInEnvOverride(ctx, envOverride)
 	if err != nil {
-		impl.logger.Errorw("unable to find env", "err", err, "env", envOverride.TargetEnvironment)
+		impl.logger.Errorw("error while setting environment data in envOverride", "env", envOverride.TargetEnvironment, "err", err)
 		return nil, err
 	}
-	envOverride.Environment = env
 	//updating historical data in envConfigOverride and appMetrics flag
 	envOverride.IsOverride = true
 	envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
@@ -460,14 +461,11 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 		envOverride.Chart = chart
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	span.End()
+	err = impl.setEnvironmentModelInEnvOverride(ctx, envOverride)
 	if err != nil {
-		impl.logger.Errorw("unable to find env", "err", err)
+		impl.logger.Errorw("error while setting environment data in envOverride", "env", envOverride.TargetEnvironment, "err", err)
 		return nil, err
 	}
-	envOverride.Environment = env
 	scope := helper.GetScopeForVariables(overrideRequest, envOverride)
 	if envOverride.IsOverride {
 		entity := repository5.GetEntity(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel)
@@ -913,4 +911,16 @@ func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(template
 		return 0, err
 	}
 	return helper.FetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
+}
+
+func (impl *ManifestCreationServiceImpl) setEnvironmentModelInEnvOverride(ctx context.Context, envOverride *chartConfig.EnvConfigOverride) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.setEnvironmentModelInEnvOverride")
+	defer span.End()
+	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+	if err != nil {
+		impl.logger.Errorw("unable to find env", "err", err, "env", envOverride.TargetEnvironment)
+		return err
+	}
+	envOverride.Environment = env
+	return nil
 }
