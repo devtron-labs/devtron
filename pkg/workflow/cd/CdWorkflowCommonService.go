@@ -94,7 +94,7 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 		impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunnerId", cdWfrId)
 		return err
 	} else if len(previousNonTerminalRunners) == 0 {
-		impl.logger.Errorw("no previous runner found in updating cd wf runner status,", "err", err, "currentRunnerId", cdWfrId)
+		impl.logger.Infow("no previous runner found in updating cd wf runner status,", "err", err, "currentRunnerId", cdWfrId)
 		return nil
 	}
 

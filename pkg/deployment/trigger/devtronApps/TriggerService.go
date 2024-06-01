@@ -1353,17 +1353,24 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 	imageDigest string, isScanEnabled bool, image string) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.markImageScanDeployed")
 	defer span.End()
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
+	impl.logger.Debugw("mark image scan deployed for devtron app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching execution history", "err", err)
 		return err
 	}
-	if executionHistory == nil || executionHistory.Id == 0 {
-		impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
-		return fmt.Errorf("no execution history found for digest - %s", imageDigest)
+	if errors.Is(err, pg.ErrNoRows) || executionHistory == nil || executionHistory.Id == 0 {
+		if isScanEnabled {
+			// There should ImageScanHistory for ScanEnabled artifacts
+			impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
+			return fmt.Errorf("no execution history found for digest - %s", imageDigest)
+		} else {
+			// For ScanDisabled artifacts it should be an expected condition
+			impl.logger.Infow("no execution history found for digest", "digest", imageDigest)
+			return nil
+		}
 	}
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "executionHistory", executionHistory)
+	impl.logger.Debugw("saving image_scan_deploy_info for cd auto or manual trigger", "executionHistory", executionHistory)
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
