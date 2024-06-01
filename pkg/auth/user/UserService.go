@@ -93,6 +93,7 @@ type UserService interface {
 	GetSuperAdminIds() ([]int32, error)
 	FetchUserIdsByEmails(emails []string) ([]int32, error)
 	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error)
+	GetUserGroupsByEnvAndApprovalAction(appName, envName, team, action string) ([]string, error)
 	CheckIfTokenIsValid(email string, version string) error
 }
 
@@ -1941,6 +1942,7 @@ func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]st
 }
 
 func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, emailIds []string) ([]string, error) {
+
 	for _, groupName := range permissionGroupNames {
 		polices, err := casbin2.GetUserAttachedToRoleWithTimeoutExpressionAndFormat(groupName)
 		if err != nil {
@@ -3323,4 +3325,12 @@ func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, actio
 		return emailIds, err
 	}
 	return finalEmails, nil
+}
+
+func (impl UserServiceImpl) GetUserGroupsByEnvAndApprovalAction(appName, envName, team, action string) ([]string, error) {
+	_, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
+	if err != nil {
+		return permissionGroupNames, err
+	}
+	return permissionGroupNames, nil
 }
