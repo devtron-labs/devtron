@@ -636,8 +636,11 @@ func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, a
 }
 
 func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
-	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
-
+	startTime := time.Now()
+	defer func() {
+		impl.logger.Debugw("auto trigger release process completed", "timeTaken", time.Since(startTime), "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "wfrId", wfrId)
+	}()
+	impl.logger.Debugw("auto triggering release for", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "wfrId", wfrId)
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
@@ -666,7 +669,7 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
-		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
+		impl.logger.Infow("pipeline successfully triggered", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
 	return err
 }
