@@ -8,10 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"slices"
+	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -710,7 +712,7 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int, token
 		}
 		groupsWithConfigApprovalAccess, err := impl.userService.GetUserGroupsByEnvAndApprovalAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover)
 		for _, group := range groups {
-			if slices.Contains(groupsWithConfigApprovalAccess, group) {
+			if slices.Contains(groupsWithConfigApprovalAccess, fmt.Sprintf("group:%s", strings.ToLower(group))) {
 				return []string{email}
 			}
 		}
