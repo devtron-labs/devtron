@@ -12,7 +12,7 @@ import (
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
-	"slices"
+	"golang.org/x/exp/slices"
 	"strings"
 	"time"
 
