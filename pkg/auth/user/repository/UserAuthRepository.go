@@ -479,7 +479,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error) {
 	var roleGroups []string
 	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
-		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and r.environment=? and r.entity_name=?;"
+		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and (r.environment=? OR r.environment is null) and (r.entity_name=? OR r.entity_name is null);"
 	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
 	if err != nil && err != pg.ErrNoRows {
 		return roleGroups, err
