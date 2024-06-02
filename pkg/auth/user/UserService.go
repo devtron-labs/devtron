@@ -1939,6 +1939,7 @@ func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName, token string
 		for _, group := range groups {
 			if slices.Contains(permissionGroupNames, fmt.Sprintf("%s%s", bean5.GroupPrefix, strings.ToLower(group))) {
 				approvers = []string{email}
+				break
 			}
 		}
 	} else {
@@ -3347,6 +3348,7 @@ func (impl UserServiceImpl) GetUserByEnvAndApprovalAction(appName, envName, team
 		for _, group := range groups {
 			if slices.Contains(permissionGroupNames, fmt.Sprintf("%s%s", bean5.GroupPrefix, strings.ToLower(group))) {
 				approvers = []string{email}
+				break
 			}
 		}
 	} else {
