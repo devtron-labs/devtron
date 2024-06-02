@@ -1180,13 +1180,13 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 		}
 	} else if promotionRequest.Status == constants.AWAITING_APPROVAL {
 		impl.logger.Infow("sending email notification for artifact promotion request", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
-		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetUserId())
+		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetToken(), ctx.GetUserId())
 	}
 	return status, nil
 
 }
 
-func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelineId int, metadata *bean.RequestMetaData, userId int32) {
+func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelineId int, metadata *bean.RequestMetaData, token string, userId int32) {
 
 	pipelineIdToDapMapping := metadata.GetActiveAuthorisedPipelineDaoMap()
 
@@ -1194,7 +1194,7 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 
 	event := impl.eventFactory.Build(util2.ArtifactPromotionApproval, nil, pipeline.AppId, &pipeline.EnvironmentId, "")
 
-	artifactPromotionNotificationRequest, err := impl.buildArtifactPromotionNotificationRequest(pipeline, metadata, userId)
+	artifactPromotionNotificationRequest, err := impl.buildArtifactPromotionNotificationRequest(pipeline, metadata, token, userId)
 	if err != nil {
 		impl.logger.Errorw("error in building artifact promotion notification request", "pipelineId", pipeline.Id, "err", err)
 		return
@@ -1208,7 +1208,7 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 	}
 }
 
-func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, userId int32) (client.ArtifactPromotionNotificationRequest, error) {
+func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, token string, userId int32) (client.ArtifactPromotionNotificationRequest, error) {
 
 	team, err := impl.teamService.FetchOne(pipeline.App.TeamId)
 	if err != nil {
@@ -1216,7 +1216,7 @@ func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationReques
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
 
-	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, team.Name, bean5.ArtifactPromoter)
+	imagePromoterEmails, err := impl.userService.GetUserByEnvAndApprovalAction(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, team.Name, bean5.ArtifactPromoter, token)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promoter access emails", "appName", pipeline.App.AppName, "envName", pipeline.Environment.Name, "team", team.Name, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err

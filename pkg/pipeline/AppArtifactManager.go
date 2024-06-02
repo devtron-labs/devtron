@@ -1879,7 +1879,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 		return bean2.CiArtifactResponse{}, err
 	}
 
-	imagePromotionApproverEmails, err := impl.getImagePromoterApproverEmails(cdPipeline)
+	imagePromotionApproverEmails, err := impl.getImagePromoterApproverEmails(cdPipeline, ctx.GetToken())
 	if err != nil {
 		impl.logger.Errorw("error in finding users with image promoter approver access", "pipelineIds", cdPipeline.Id, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1927,13 +1927,13 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.Requ
 	}, nil
 }
 
-func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bean2.CDPipelineMinConfig) ([]string, error) {
+func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bean2.CDPipelineMinConfig, token string) ([]string, error) {
 	teamObj, err := impl.teamService.FetchOne(pipeline.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
 		return nil, err
 	}
-	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentIdentifier, teamObj.Name, bean3.ArtifactPromoter)
+	imagePromotionApproverEmails, err := impl.userService.GetUserByEnvAndApprovalAction(pipeline.AppName, pipeline.EnvironmentIdentifier, teamObj.Name, bean3.ArtifactPromoter, token)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promotion approver emails allowed on env", "envName", pipeline.EnvironmentName, "appName", pipeline.AppName, "err", err)
 		return nil, err

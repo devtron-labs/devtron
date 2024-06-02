@@ -8,12 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
-	"golang.org/x/exp/slices"
-	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -704,23 +701,9 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int, token
 		}
 		envIdentifier = env.EnvironmentIdentifier
 	}
-	if impl.globalAuthConfigService.IsGroupClaimsConfigActive() {
-		email, groups, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
-		if err != nil {
-			impl.logger.Errorw("error, GetEmailAndGroupClaimsFromToken", "err", err)
-			return approvers
-		}
-		groupsWithConfigApprovalAccess, err := impl.userService.GetUserGroupsByEnvAndApprovalAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover)
-		for _, group := range groups {
-			if slices.Contains(groupsWithConfigApprovalAccess, fmt.Sprintf("group:%s", strings.ToLower(group))) {
-				return []string{email}
-			}
-		}
-	} else {
-		approvers, err = impl.userService.GetUsersByEnvAndAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
-		}
+	approvers, err = impl.userService.GetUserByEnvAndApprovalAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover, token)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}
 	return approvers
 }
