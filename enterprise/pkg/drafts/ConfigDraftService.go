@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"time"
@@ -71,7 +70,6 @@ type ConfigDraftServiceImpl struct {
 	eventFactory                        client.EventFactory
 	eventClient                         client.EventClient
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
-	globalAuthConfigService             auth.GlobalAuthorisationConfigService
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
@@ -82,7 +80,6 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	mergeUtil util.MergeUtil, eventFactory client.EventFactory, eventClient client.EventClient,
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
-	globalAuthConfigService auth.GlobalAuthorisationConfigService,
 ) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                              logger,
@@ -101,7 +98,6 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		envConfigRepo:                       envConfigRepo,
 		mergeUtil:                           mergeUtil,
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
-		globalAuthConfigService:             globalAuthConfigService,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
