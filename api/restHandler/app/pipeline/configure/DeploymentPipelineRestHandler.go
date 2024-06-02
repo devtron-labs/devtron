@@ -1310,14 +1310,14 @@ func (handler *PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	token := r.Header.Get("token")
+
 	var approvalActionRequest bean.UserApprovalActionRequest
 	err = decoder.Decode(&approvalActionRequest)
-
 	appId := approvalActionRequest.AppId
 	pipelineId := approvalActionRequest.PipelineId
 
 	approvalActionType := approvalActionRequest.ActionType
-
 	if approvalActionType == bean.APPROVAL_APPROVE_ACTION {
 		pipelineInfo, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
 		if err != nil {
@@ -1325,14 +1325,13 @@ func (handler *PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		allowed := handler.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, userId)
+		allowed := handler.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, token, userId)
 		if !allowed {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
 		// rbac block starts from here
-		token := r.Header.Get("token")
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -1474,7 +1473,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 
 	if isApprovalNode {
 		// fetch users with approval access to this app and Env
-		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier)
+		approvalUsersByEnv, err := handler.userAuthService.GetApprovalUsersByEnv(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, token)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
