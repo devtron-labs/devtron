@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package app
@@ -617,11 +604,25 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	return map[string]string{
-		bean3.AppNameDevtronLabel:     appName,
-		bean3.EnvNameDevtronLabel:     envName,
-		bean3.ProjectNameDevtronLabel: appMetaInfo.Team.Name,
-	}, nil
+	regexp := regexp.MustCompile(LabelMatchingRegex)
+	extraAppLabels := make(map[string]string)
+
+	extraAppLabels[bean3.AppNameDevtronLabel] = appName
+	extraAppLabels[bean3.EnvNameDevtronLabel] = envName
+	extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+
+	extraAppLabels = sanitizeLabels(extraAppLabels)
+	for labelKey, labelValue := range extraAppLabels {
+		if regexp.MatchString(labelValue) {
+			extraAppLabels[labelKey] = labelValue
+		} else {
+			// in case extra labels are failing k8s official label matching regex  even after sanitization then
+			//delete the label as this can break deployments.
+			impl.logger.Warnw("extra label failed LabelMatchingRegex validation, regex:- ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$", "labelKey", labelKey, "labelValue", labelValue)
+			delete(extraAppLabels, labelKey)
+		}
+	}
+	return extraAppLabels, nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {

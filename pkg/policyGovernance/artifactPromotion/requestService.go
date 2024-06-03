@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package artifactPromotion
 
 import (
@@ -7,6 +11,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -263,6 +268,17 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx *util3.
 
 	if artifactId != 0 {
 		responses, err := impl.evaluatePoliciesOnArtifact(metadata, policiesMap)
+		for index, resp := range responses {
+			if env, ok := envMap[resp.Name]; ok {
+				resp.IsVirtualEnvironment = env.IsVirtualEnvironment
+				if resp.PromotionValidationMessage == constants.NO_PERMISSION {
+					resp.PromotionValidationMessage = constants.UNAUTHORIZED
+				} else if !resp.PromotionPossible {
+					resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+				}
+				responses[index] = resp
+			}
+		}
 		if err != nil {
 			impl.logger.Errorw("error in evaluating policies on an ciArtifact", "ciArtifactId", artifactId, "policiesMap", policiesMap, "authorizedEnvironments", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 			return nil, err
@@ -404,7 +420,7 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	return requestMetaData, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
+func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]expressionEvaluators.ExpressionParam, error) {
 	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
 	if err != nil {
@@ -427,15 +443,8 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	envMap := metadata.GetActiveEnvironmentsMap()
+
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
-	for envName, resp := range responseMap {
-		if env, ok := envMap[envName]; ok {
-			resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
-			responseMap[envName] = resp
-		}
-	}
 
 	if len(policiesMap) > 0 {
 		// can be concurrent
@@ -445,7 +454,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			return nil, err
 		}
 		for envName, policy := range policiesMap {
-			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 			if err != nil {
 				impl.logger.Errorw("policy evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
 				responseMap[envName] = bean.EnvironmentPromotionMetaData{
@@ -458,7 +467,6 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			}
 			envResp := responseMap[envName]
 			envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-			envResp.PromotionValidationMessage = constants.EMPTY
 			envResp.PromotionPossible = evaluationResult
 			// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 			if !evaluationResult {
@@ -1101,7 +1109,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 		return constants.POLICY_EVALUATION_ERRORED, err
 	}
 
-	evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(promotionPolicy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+	evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(promotionPolicy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 	if err != nil {
 		impl.logger.Errorw("evaluation failed with error", "policyConditions", promotionPolicy.Conditions, "pipelineId", cdPipeline.Id, promotionPolicy.Conditions, "params", params, "err", err)
 		return constants.POLICY_EVALUATION_ERRORED, err
@@ -1248,9 +1256,9 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
-	state := resourceFilter.ALLOW
+	state := expressionEvaluators.ALLOW
 	if !evaluationResult {
-		state = resourceFilter.BLOCK
+		state = expressionEvaluators.BLOCK
 	}
 
 	histories, err := impl.promotionPolicyDataReadService.GetPolicyHistoryIdsByPolicyIds([]int{promotionPolicy.Id})
@@ -1436,7 +1444,7 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 			continue
 		}
 
-		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 		if err != nil {
 			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "pipelineId", request.DestinationPipelineId, "policyConditions", policy.Conditions, "params", params, "err", err)
 			continue

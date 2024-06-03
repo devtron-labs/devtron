@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE pipeline_status_timeline_resources CASCADE;
 
 DROP SEQUENCE IF EXISTS id_seq_pipeline_status_timeline_resources;

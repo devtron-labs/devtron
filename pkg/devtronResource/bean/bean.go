@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
@@ -116,6 +120,7 @@ type DevtronResourceTypeReq struct {
 	ResourceKind    DevtronResourceKind    `json:"resourceKind"`
 	ResourceSubKind DevtronResourceKind    `json:"-"` // ResourceSubKind will be derived internally from the given ResourceKind
 	ResourceVersion DevtronResourceVersion `json:"resourceVersion"`
+	SchemaId        int                    `json:"-"`
 }
 
 type PatchQuery struct {
@@ -219,6 +224,7 @@ type DependencyFilterCondition struct {
 	filterByTypes            []DevtronResourceDependencyType
 	filterByIndexes          []int
 	filterByDependentOnIndex int
+	filterByIdAndSchemaId    []IdAndSchemaIdFilter
 	fetchChildInheritance    bool
 }
 
@@ -241,6 +247,13 @@ func (c *DependencyFilterCondition) GetFilterByDependentOnIndex() int {
 		return 0
 	}
 	return c.filterByDependentOnIndex
+}
+
+func (c *DependencyFilterCondition) GetFilterByFilterByIdAndSchemaId() []IdAndSchemaIdFilter {
+	if c == nil {
+		return nil
+	}
+	return c.filterByIdAndSchemaId
 }
 
 func (c *DependencyFilterCondition) GetChildInheritance() bool {
@@ -274,6 +287,15 @@ func (c *DependencyFilterCondition) WithChildInheritance() *DependencyFilterCond
 	return c
 }
 
+func (c *DependencyFilterCondition) WithFilterByIdAndSchemaId(ids []int, schemaId int) *DependencyFilterCondition {
+	idAndSchemaIdFilters := make([]IdAndSchemaIdFilter, 0, len(ids))
+	for _, id := range ids {
+		idAndSchemaIdFilters = append(idAndSchemaIdFilters, IdAndSchemaIdFilter{Id: id, DevtronResourceSchemaId: schemaId})
+	}
+	c.filterByIdAndSchemaId = idAndSchemaIdFilters
+	return c
+}
+
 type DependencyConfigBean struct {
 	*DevtronAppDependencyConfig
 }
@@ -294,11 +316,13 @@ type Environment struct {
 }
 
 type ArtifactConfig struct {
-	ArtifactId   int             `json:"artifactId"`
-	Image        string          `json:"image"`
-	RegistryType string          `json:"registryType"`
-	RegistryName string          `json:"registryName"`
-	CommitSource []GitCommitData `json:"commitSource,omitempty"`
+	ArtifactId          int                                     `json:"artifactId"`
+	Image               string                                  `json:"image"`
+	RegistryType        string                                  `json:"registryType"`
+	RegistryName        string                                  `json:"registryName"`
+	CommitSource        []GitCommitData                         `json:"commitSource,omitempty"`
+	SourceAppWorkflowId int                                     `json:"artifactSourceAppWorkflowId,omitempty"`
+	SourceReleaseConfig *DtResourceObjectInternalDescriptorBean `json:"sourceReleaseConfiguration,omitempty"`
 }
 
 type GitCommitData struct {
@@ -393,6 +417,7 @@ type FilterCriteriaDecoder struct {
 	Resource DevtronResourceKind
 	Type     FilterCriteriaIdentifier
 	Value    string
+	ValueInt int
 }
 
 type SearchCriteriaDecoder struct {
@@ -406,6 +431,10 @@ const (
 	Identifier FilterCriteriaIdentifier = "identifier"
 	Id         FilterCriteriaIdentifier = "id"
 )
+
+func (i FilterCriteriaIdentifier) ToString() string {
+	return string(i)
+}
 
 // IdType is used for identifying nature of id stored in object json or to implement logics. As we are using devtron_resource_object for storing all resource types across
 // devtron we also faced a problem where id of resource object will be unique across all resource types, but old resources are stored in different tables and their id value
@@ -567,6 +596,7 @@ const (
 	IdDbColumnKey          = "id"
 	OldObjectIdDbColumnKey = "old_object_id"
 	NameDbColumnKey        = "name"
+	IdentifierDbColumnKey  = "identifier"
 
 	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
 	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
@@ -611,6 +641,7 @@ const (
 	ActionPolicyInValidDueToStatusErrMessage    = "Operation not allowed with the current status."
 	InvalidLevelIndexOrLevelIndexChangedMessage = "invalid level(stages) index or level(stage) index has been changed"
 	StageTaskExecutionNotAllowedMessage         = "cannot execute task as all applications in above stages are not deployed successfully on any env."
+	CloneSourceDoesNotExistsErrMessage          = "Clone source does not exists."
 )
 
 type ChildObjectType string
@@ -621,20 +652,42 @@ const (
 )
 
 type CdPipelineReleaseInfo struct {
-	AppId                      int            `json:"appId"`
-	AppName                    string         `json:"appName"`
-	EnvId                      int            `json:"envId"`
-	EnvName                    string         `json:"envName"`
-	PipelineId                 int            `json:"pipelineId"`
-	DeploymentAppDeleteRequest bool           `json:"deploymentAppDeleteRequest"`
-	ExistingStages             *ExistingStage `json:"existingStages"`
-	DeployStatus               string         `json:"deployStatus"`
-	PreStatus                  string         `json:"preStatus"`
-	PostStatus                 string         `json:"postStatus"`
+	AppId                      int                     `json:"appId"`
+	AppName                    string                  `json:"appName"`
+	EnvId                      int                     `json:"envId"`
+	EnvName                    string                  `json:"envName"`
+	PipelineId                 int                     `json:"pipelineId"`
+	DeploymentAppDeleteRequest bool                    `json:"deploymentAppDeleteRequest"`
+	ExistingStages             *ExistingStage          `json:"existingStages"`
+	DeployStatus               string                  `json:"deployStatus"`
+	PreStatus                  string                  `json:"preStatus"`
+	PostStatus                 string                  `json:"postStatus"`
+	PreCdWorkflowRunnerId      int                     `json:"preCdWorkflowRunnerId,omitempty"`
+	CdWorkflowRunnerId         int                     `json:"cdWorkflowRunnerId,omitempty"`
+	PostCdWorkflowRunnerId     int                     `json:"postCdWorkflowRunnerId,omitempty"`
+	ReleaseDeploymentStatus    ReleaseDeploymentStatus `json:"releaseDeploymentRolloutStatus,omitempty"`
+}
+
+type ReleaseDeploymentStatus string
+
+const (
+	YetToTrigger ReleaseDeploymentStatus = "yetToTrigger"
+	Ongoing      ReleaseDeploymentStatus = "onGoing"
+	Failed       ReleaseDeploymentStatus = "failed"
+	Completed    ReleaseDeploymentStatus = "completed"
+)
+
+func (r ReleaseDeploymentStatus) ToString() string {
+	return string(r)
 }
 
 type ExistingStage struct {
 	Pre    bool `json:"pre"`
 	Deploy bool `json:"deploy"`
 	Post   bool `json:"post"`
+}
+
+type TaskInfoPostApiBean struct {
+	*DevtronResourceObjectDescriptorBean
+	FilterCriteria []string `json:"filterCriteria"`
 }

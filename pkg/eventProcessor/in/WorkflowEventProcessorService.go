@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package in
 
 import (
@@ -27,6 +31,7 @@ import (
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/security"
 	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
@@ -83,6 +88,7 @@ type WorkflowEventProcessorImpl struct {
 	policyService           security.PolicyService
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
 	imageScanHistoryRepo    security2.ImageScanHistoryRepository
+	ciCacheSelector         cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -109,6 +115,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	policyService security.PolicyService,
 	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
 	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+	ciCacheSelector cacheResourceSelector.CiCacheResourceSelector,
 ) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
@@ -139,6 +146,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		policyService:                   policyService,
 		imageScanDeployInfoRepo:         imageScanDeployInfoRepo,
 		imageScanHistoryRepo:            imageScanHistoryRepo,
+		ciCacheSelector:                 ciCacheSelector,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -446,6 +454,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
+
+		if wfr.Status != string(v1alpha1.NodeSucceeded) {
+			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
+			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			if err != nil {
+				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		}
+
 		triggerContext := bean5.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}
@@ -759,6 +777,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		if err != nil {
 			return
 		}
+		impl.ciCacheSelector.UpdateResourceStatus(*ciCompleteEvent.WorkflowId, "complete")
 
 		triggerContext := bean5.TriggerContext{
 			Context:     context.Background(),

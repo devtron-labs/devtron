@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package adapter
 
 import (
 	"context"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -36,7 +41,7 @@ func GetTriggerRequirementRequest(scope resourceQualifiers.Scope, triggerRequest
 	}
 }
 
-func GetTriggerFeasibilityResponse(approvalRequestId int, triggerRequest bean2.TriggerRequest, filterIdVsState map[int]resourceFilter.FilterState, filters []*resourceFilter.FilterMetaDataBean) *bean2.TriggerFeasibilityResponse {
+func GetTriggerFeasibilityResponse(approvalRequestId int, triggerRequest bean2.TriggerRequest, filterIdVsState map[int]expressionEvaluators.FilterState, filters []*resourceFilter.FilterMetaDataBean) *bean2.TriggerFeasibilityResponse {
 	return &bean2.TriggerFeasibilityResponse{
 		ApprovalRequestId: approvalRequestId,
 		TriggerRequest:    triggerRequest,

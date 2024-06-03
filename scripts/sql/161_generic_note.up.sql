@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER SEQUENCE IF EXISTS id_seq_cluster_note RENAME to id_seq_generic_note;
 ALTER SEQUENCE IF EXISTS id_seq_cluster_note_history RENAME to id_seq_generic_note_history;
 AlTER TABLE cluster_note DROP CONSTRAINT cluster_note_cluster_id_fkey;

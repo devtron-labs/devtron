@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package service
 
 import (
@@ -144,7 +148,7 @@ func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gR
 		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
 	}
 
-	if clusterBean.RemoteConnectionConfig != nil {
+	if clusterBean.RemoteConnectionConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
 		connectionMethod := 0
 		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
 			connectionMethod = 1

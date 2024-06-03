@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package chartRepo
 
 import "github.com/devtron-labs/devtron/internal/sql/repository"

@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package module
@@ -24,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	"github.com/devtron-labs/devtron/pkg/server"
@@ -225,6 +213,10 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return ModuleStatusNotInstalled, moduleType, false, err
 	}
 	releaseValues := releaseInfo.MergedValues
@@ -426,6 +418,10 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release ", "err", err)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		module.Status = ModuleStatusInstallFailed
 		impl.moduleRepository.Update(module)
 		return nil, err

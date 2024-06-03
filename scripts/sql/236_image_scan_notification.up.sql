@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Migration of data type in webhook_config
 ALTER TABLE webhook_config ALTER payload TYPE VARCHAR;
 

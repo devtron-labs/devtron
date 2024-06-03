@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipeline
@@ -21,10 +8,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
@@ -342,7 +330,7 @@ func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipeline
 		cdWorkflowArtifacts[i].AppliedFilters = appliedFiltersMap[artifactWfrKey]
 		cdWorkflowArtifacts[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[artifactWfrKey]
 		// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
-		cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
+		cdWorkflowArtifact.AppliedFiltersState = expressionEvaluators.ALLOW
 	}
 	return cdWorkflowArtifacts
 }

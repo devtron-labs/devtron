@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package devtronResource
 
 import (
@@ -179,6 +183,19 @@ func validateDependencyFilterCondition(dependencyOfParent *bean.DevtronResourceD
 	return false
 }
 
+func (impl *DevtronResourceServiceImpl) getParentDependencyFromObjectData(devtronResourceSchemaId int, objectData string) (*bean.DevtronResourceDependencyBean, error) {
+	parentTypeDependencies, err := impl.getSpecificDependenciesInObjectDataFromJsonString(devtronResourceSchemaId, objectData, bean.DevtronResourceDependencyTypeParent)
+	if err != nil {
+		impl.logger.Errorw("error in getting parent dependency of ")
+		return nil, err
+	}
+	if len(parentTypeDependencies) != 1 {
+		impl.logger.Errorw("invalid parent dependency mapping found", "schemaId", devtronResourceSchemaId, "objectData", objectData)
+		return nil, err
+	}
+	return parentTypeDependencies[0], nil
+}
+
 func (impl *DevtronResourceServiceImpl) getSpecificDependenciesInObjectDataFromJsonString(devtronResourceSchemaId int, objectData string, typeOfDependency bean.DevtronResourceDependencyType) ([]*bean.DevtronResourceDependencyBean, error) {
 	dependenciesResult := gjson.Get(objectData, bean.ResourceObjectDependenciesPath)
 	dependenciesResultArr := dependenciesResult.Array()
@@ -330,22 +347,27 @@ func GetDependenciesBeanFromObjectData(objectData string, filterCondition *bean.
 		if len(filterCondition.GetFilterByIndexes()) != 0 && !slices.Contains(filterCondition.GetFilterByIndexes(), index) {
 			continue
 		}
+
+		schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
+		schemaId := int(schemaIdResult.Int())
+
+		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
+		oldObjectId := int(oldObjectIdResult.Int())
+		// if filter condition has filter by id and schema and filter condition does not contains current dependency continue with next ones.
+		if len(filterCondition.GetFilterByFilterByIdAndSchemaId()) > 0 && !slices.Contains(filterCondition.GetFilterByFilterByIdAndSchemaId(), bean.IdAndSchemaIdFilter{Id: oldObjectId, DevtronResourceSchemaId: schemaId}) {
+			continue
+		}
+
 		dependencyBean := bean.NewDevtronResourceDependencyBean().
 			WithDependentOnIndexes(dependentOnIndexArray...).
 			WithTypeOfDependency(typeOfDependency).
-			WithIndex(index)
+			WithIndex(index).
+			WithDevtronResourceSchemaId(schemaId).
+			WithOldObjectId(oldObjectId)
 
 		devtronResourceIdResult := gjson.Get(dependency, bean.DevtronResourceIdKey)
 		devtronResourceId := int(devtronResourceIdResult.Int())
 		dependencyBean = dependencyBean.WithDevtronResourceId(devtronResourceId)
-
-		schemaIdResult := gjson.Get(dependency, bean.DevtronResourceSchemaIdKey)
-		schemaId := int(schemaIdResult.Int())
-		dependencyBean = dependencyBean.WithDevtronResourceSchemaId(schemaId)
-
-		oldObjectIdResult := gjson.Get(dependency, bean.IdKey)
-		oldObjectId := int(oldObjectIdResult.Int())
-		dependencyBean = dependencyBean.WithOldObjectId(oldObjectId)
 
 		idTypeResult := gjson.Get(dependency, bean.IdTypeKey)
 		idType := bean.IdType(idTypeResult.String())

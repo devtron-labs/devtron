@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package constants
 
 const CDPipelineNotFoundErr = "cd pipeline not found"

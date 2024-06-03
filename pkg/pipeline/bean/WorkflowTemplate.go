@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package bean
 
 import (
@@ -31,6 +35,7 @@ type WorkflowTemplate struct {
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
 	WorkflowType           string
+	CiCacheResourceName    string
 }
 
 const (

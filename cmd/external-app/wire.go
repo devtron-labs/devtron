@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 //go:build wireinject
 // +build wireinject
 
@@ -42,7 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -256,8 +260,8 @@ func InitializeApp() (*App, error) {
 		security.NewImageScanServiceImplEA,
 		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
 
-		resourceFilter.NewCELServiceImpl,
-		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
+		expressionEvaluators.NewCELServiceImpl,
+		wire.Bind(new(expressionEvaluators.CELEvaluatorService), new(*expressionEvaluators.CELServiceImpl)),
 
 		out.NewChartScanPublishServiceImplEA,
 		wire.Bind(new(out.ChartScanPublishService), new(*out.ChartScanPublishServiceImpl)),

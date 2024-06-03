@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- drop table webhook_event_data
 DROP TABLE IF EXISTS webhook_event_data;
 

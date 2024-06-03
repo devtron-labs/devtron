@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package scanningResultsParser
 
 import "github.com/gorilla/mux"

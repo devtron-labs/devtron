@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_searchable_key;
 
 CREATE TABLE IF NOT EXISTS devtron_resource_searchable_key

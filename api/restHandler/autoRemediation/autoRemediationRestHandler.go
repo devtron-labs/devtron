@@ -1,9 +1,13 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package autoRemediation
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -40,12 +44,12 @@ type WatcherRestHandlerImpl struct {
 	validator       *validator.Validate
 	enforcerUtil    rbac.EnforcerUtil
 	enforcer        casbin.Enforcer
-	celEvaluator    resourceFilter.CELEvaluatorService
+	celEvaluator    expressionEvaluators.CELEvaluatorService
 	logger          *zap.SugaredLogger
 }
 
 func NewWatcherRestHandlerImpl(watcherService autoRemediation.WatcherService, userAuthService user.UserService, validator *validator.Validate,
-	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, celEvaluator resourceFilter.CELEvaluatorService, logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, celEvaluator expressionEvaluators.CELEvaluatorService, logger *zap.SugaredLogger) *WatcherRestHandlerImpl {
 	return &WatcherRestHandlerImpl{
 		watcherService:  watcherService,
 		userAuthService: userAuthService,
@@ -59,24 +63,24 @@ func NewWatcherRestHandlerImpl(watcherService autoRemediation.WatcherService, us
 
 func (impl WatcherRestHandlerImpl) evaluateEventExpression(expression string) error {
 
-	params := []resourceFilter.ExpressionParam{
+	params := []expressionEvaluators.ExpressionParam{
 		{
 			ParamName: "final",
-			Type:      resourceFilter.ParamTypeObject,
+			Type:      expressionEvaluators.ParamTypeObject,
 		},
 		{
 			ParamName: "initial",
-			Type:      resourceFilter.ParamTypeObject,
+			Type:      expressionEvaluators.ParamTypeObject,
 		},
 		{
 			ParamName: "action",
-			Type:      resourceFilter.ParamTypeString,
+			Type:      expressionEvaluators.ParamTypeString,
 		},
 	}
 
-	request := resourceFilter.CELRequest{
+	request := expressionEvaluators.CELRequest{
 		Expression:         expression,
-		ExpressionMetadata: resourceFilter.ExpressionMetadata{Params: params},
+		ExpressionMetadata: expressionEvaluators.ExpressionMetadata{Params: params},
 	}
 
 	_, _, err := impl.celEvaluator.Validate(request)

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package helper
 
 import (
@@ -7,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/tidwall/gjson"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -89,4 +94,12 @@ func GetResourceObjectIdAndType(existingResourceObject *repository.DevtronResour
 
 func GetKeyForPipelineIdAndAppId(pipelineId, appId int) string {
 	return fmt.Sprintf("%v-%v", pipelineId, appId)
+}
+
+func GetAppIdFromPipelineIdAppIdKey(key string) (int, error) {
+	objs := strings.Split(key, "-")
+	if len(objs) != 2 {
+		return 0, util.GetApiErrorAdapter(http.StatusInternalServerError, "500", "Not able to process", "Invalid pipeline and app id key")
+	}
+	return strconv.Atoi(objs[1])
 }

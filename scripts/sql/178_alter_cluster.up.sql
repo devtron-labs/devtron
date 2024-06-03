@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE cluster
     ADD COLUMN to_connect_with_ssh_tunnel boolean,
     ADD COLUMN ssh_tunnel_user            VARCHAR(100),

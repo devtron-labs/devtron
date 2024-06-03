@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package notifier
@@ -21,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
 	"github.com/devtron-labs/devtron/util/event"
@@ -262,10 +249,10 @@ func (impl NotificationConfigBuilderImpl) GenerateFilterExpression(filterConditi
 		}
 		var severityExpression, policyExpression, expression string
 		if filters.Severity != nil {
-			severityExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.Severity, strings.Join(filters.Severity, "', '"))
+			severityExpression = fmt.Sprintf("%s in ['%s']", expressionEvaluators.Severity, strings.Join(filters.Severity, "', '"))
 		}
 		if filters.PolicyPermission != nil {
-			policyExpression = fmt.Sprintf("%s in ['%s']", resourceFilter.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
+			policyExpression = fmt.Sprintf("%s in ['%s']", expressionEvaluators.PolicyPermission, strings.Join(filters.PolicyPermission, "', '"))
 		}
 
 		if len(severityExpression) != 0 && len(policyExpression) != 0 {

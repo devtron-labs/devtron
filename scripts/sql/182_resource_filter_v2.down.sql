@@ -1,4 +1,8 @@
 BEGIN;
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- drop tables
 DROP TABLE IF EXISTS resource_filter_audit;
 DROP TABLE IF EXISTS resource_filter_evaluation_audit;

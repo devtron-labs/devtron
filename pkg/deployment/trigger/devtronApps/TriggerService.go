@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 package devtronApps
 
 import (
@@ -18,6 +22,7 @@ import (
 	client "github.com/devtron-labs/devtron/client/events"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -378,6 +383,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
+		err2 := impl.markCurrentRunnerFailedIfRunnerIsFound(overrideRequest.CdWorkflowRunnerId, overrideRequest.UserId, err)
+		if err2 != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.CdWorkflowRunnerId, "err2", err2)
+		}
 		return 0, "", err
 	}
 	span.End()
@@ -620,7 +629,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 }
 
 // createAuditForFeasibility creates audit currrently in case of filters fail and error when nil
-func (impl *TriggerServiceImpl) createAuditForFeasibility(createAudit bool, subjectId int, refType resourceFilter.ReferenceType, refId int, filters []*resourceFilter.FilterMetaDataBean, filterIdVsState map[int]resourceFilter.FilterState) *resourceFilter.ResourceFilterEvaluationAudit {
+func (impl *TriggerServiceImpl) createAuditForFeasibility(createAudit bool, subjectId int, refType resourceFilter.ReferenceType, refId int, filters []*resourceFilter.FilterMetaDataBean, filterIdVsState map[int]expressionEvaluators.FilterState) *resourceFilter.ResourceFilterEvaluationAudit {
 	// creating audit only when error occurred due to filters fail or err is nil because in other err cases filter audit is not required.
 	if createAudit {
 		// store evaluated result
@@ -689,7 +698,7 @@ func (impl *TriggerServiceImpl) isArtifactDeploymentAllowed(pipeline *pipelineCo
 // checkFeasibilityAndCreateAudit first checks feasibility and creates audit if createAudit flag comes to true
 func (impl *TriggerServiceImpl) checkFeasibilityAndCreateAudit(triggerRequirementRequest *bean.TriggerRequirementRequestDto, subjectId int, refType resourceFilter.ReferenceType, refId int) (*bean.TriggerFeasibilityResponse, *resourceFilter.ResourceFilterEvaluationAudit, error) {
 	var filters []*resourceFilter.FilterMetaDataBean
-	var filterIdVsState map[int]resourceFilter.FilterState
+	var filterIdVsState map[int]expressionEvaluators.FilterState
 	feasibilityResponse, createAudit, _, err := impl.CheckFeasibility(triggerRequirementRequest)
 	if feasibilityResponse != nil {
 		filterIdVsState, filters = feasibilityResponse.FilterIdVsState, feasibilityResponse.Filters

@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * Copyright (c) 2020-2024. Devtron Inc.
  */
 
 package pipeline
@@ -24,6 +11,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"io/ioutil"
 	"net/http"
@@ -117,13 +105,15 @@ type CiHandlerImpl struct {
 	blobConfigStorageService     BlobStorageConfigService
 	envService                   cluster.EnvironmentService
 	ciPipelineConfigService      CiPipelineConfigService
+	ciCacheSelector              cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtilExtended, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
 	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
-	envService cluster.EnvironmentService, ciPipelineConfigService CiPipelineConfigService) *CiHandlerImpl {
+	envService cluster.EnvironmentService, ciPipelineConfigService CiPipelineConfigService,
+	ciCacheSelector cacheResourceSelector.CiCacheResourceSelector) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -151,6 +141,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		blobConfigStorageService:     blobConfigStorageService,
 		envService:                   envService,
 		ciPipelineConfigService:      ciPipelineConfigService,
+		ciCacheSelector:              ciCacheSelector,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -1151,6 +1142,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		return 0, err
 	}
 
+	impl.ciCacheSelector.UpdateResourceStatus(workflowId, status)
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
