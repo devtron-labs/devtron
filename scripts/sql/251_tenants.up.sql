@@ -3,9 +3,9 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_object_dep_relations;
 CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
 (
     "id"                             int NOT NULL DEFAULT nextval('id_seq_devtron_resource_object_dep_relations'::regclass),
-    "component_dt_res_object_id"     int,
+    "component_object_id"     int,
     "component_dt_res_schema_id"     int,
-    "dependency_dt_res_object_id"    int,
+    "dependency_object_id"    int,
     "dependency_dt_res_schema_id"    int,
     "type_of_dependency"             VARCHAR(50),
     "created_on"                     timestamptz,
@@ -13,9 +13,7 @@ CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
     "updated_on"                     timestamptz,
     "updated_by"                     integer,
     PRIMARY KEY ("id"),
-    CONSTRAINT "dep_mapping_component_object_id_fk" FOREIGN KEY ("component_dt_res_object_id") REFERENCES "public"."devtron_resource_object" ("id"),
     CONSTRAINT "dep_mapping_component_schema_id_fk" FOREIGN KEY ("component_dt_res_schema_id") REFERENCES "public"."devtron_resource_schema" ("id"),
-    CONSTRAINT "dep_mapping_dependency_object_id_fk" FOREIGN KEY ("component_dt_res_object_id") REFERENCES "public"."devtron_resource_object" ("id"),
     CONSTRAINT "dep_mapping_dependency_schema_id_fk" FOREIGN KEY ("dependency_dt_res_schema_id") REFERENCES "public"."devtron_resource_schema" ("id")
 );
 
