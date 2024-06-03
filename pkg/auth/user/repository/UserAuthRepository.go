@@ -479,8 +479,8 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error) {
 	var roleGroups []string
 	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
-		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and (r.environment=? OR r.environment is null) and (r.entity_name=? OR r.entity_name is null);"
-	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
+		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and (r.environment=? OR r.environment is null) and (r.entity_name=? OR r.entity_name is null) or r.role = ?;"
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
 		return roleGroups, err
 	}
@@ -508,9 +508,9 @@ func (impl UserAuthRepositoryImpl) GetConfigApprovalRoleGroupCasbinNameByEnv(app
 		"INNER JOIN roles r ON rgrm.role_id = r.id " +
 		"WHERE (r.action = 'configApprover') " +
 		"AND (r.environment IS NULL OR r.environment = ?) " +
-		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? or r.role = ?;"
 
-	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
 		return roleGroups, err
 	}
@@ -992,7 +992,7 @@ func (impl UserAuthRepositoryImpl) GetUsersByEnvAndAction(appName, envName, team
 	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
 		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
 		"and us.id not in (1);"
-	_, err := impl.dbConnection.Query(&emailIds, query, action, envName, appName, "role:super-admin___")
+	_, err := impl.dbConnection.Query(&emailIds, query, action, envName, appName, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
 	}
@@ -1003,9 +1003,9 @@ func (impl UserAuthRepositoryImpl) GetUsersByEnvAndAction(appName, envName, team
 		"INNER JOIN roles r ON rgrm.role_id = r.id " +
 		"WHERE (r.action = ? ) " +
 		"AND (r.environment IS NULL OR r.environment = ?) " +
-		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? OR .role = ?;"
 
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, action, envName, appName, team)
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, action, envName, appName, team, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
 	}
