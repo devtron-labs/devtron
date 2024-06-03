@@ -410,7 +410,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		if impl.isDeploymentTypeStartOrStop(overrideRequest.DeploymentType) {
+		if isNotHibernateRequest(overrideRequest.DeploymentType) {
 			vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
 			isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 			if err != nil {
@@ -523,7 +523,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, err
 }
 
-func (impl *TriggerServiceImpl) isDeploymentTypeStartOrStop(deploymentType models.DeploymentType) bool {
+func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
 	if deploymentType == models.DEPLOYMENTTYPE_STOP || deploymentType == models.DEPLOYMENTTYPE_START {
 		return false
 	}
