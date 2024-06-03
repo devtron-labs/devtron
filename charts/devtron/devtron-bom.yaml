@@ -8,9 +8,8 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
-
 installer:
-  release: "v0.6.30-rc.0"
+  release: "v0.6.30"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -32,26 +31,21 @@ components:
     registry: ""
     image: "dashboard:1c86e84e-325-22108"
     imagePullPolicy: IfNotPresent
-
   devtron:
     registry: ""
-    image: "hyperion:e7f34f5a-280-22107"
+    image: "hyperion:4cf44b29-280-23032"
     cicdImage: "devtron:e7f34f5a-434-22106"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
-
   ciRunner:
     registry: ""
     image: "ci-runner:f5614d79-541-22176"
-
-
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
-
   kubelink:
     registry: ""
     image: "kubelink:2610ac5a-564-22109"
@@ -69,7 +63,6 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-
   kubewatch:
     registry: ""
     image: "kubewatch:50d4d32d-419-22116"
@@ -80,7 +73,6 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -107,7 +99,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-# Values for lens
+      # Values for lens
   lens:
     registry: ""
     image: "lens:70577aaa-333-21179"
@@ -123,7 +115,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-# Change below values for nats
+      # Change below values for nats
   nats:
     registry: ""
     image: nats:2.9.3-alpine
@@ -151,13 +143,11 @@ components:
         DB_NAME: "casbin"
       gitsensor:
         DB_NAME: "git_sensor"
-      lens: 
+      lens:
         DB_NAME: "lens"
-
   chartSync:
     registry: ""
     image: chart-sync:d0dcc590-373-21074
-  
 # values for argocd integration
 argo-cd:
   global:
@@ -189,7 +179,6 @@ minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
   gatewayImage: "minio:RELEASE.2020-12-03T05-49-24Z"
-
 # Values for grafana integration
 monitoring:
   grafana:
