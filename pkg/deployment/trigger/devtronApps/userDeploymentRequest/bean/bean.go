@@ -1,15 +1,22 @@
 package bean
 
+import "golang.org/x/exp/slices"
+
 type UserDeploymentRequestStatus string
+
+var TerminalDeploymentRequestStatus = []UserDeploymentRequestStatus{
+	DeploymentRequestCompleted,
+	DeploymentRequestSuperseded,
+	DeploymentRequestFailed,
+	DeploymentRequestTerminated,
+}
 
 func (status UserDeploymentRequestStatus) ToString() string {
 	return string(status)
 }
 
-func (status UserDeploymentRequestStatus) IsTerminalTimelineStatus() bool {
-	switch status {
-	case DeploymentRequestCompleted, DeploymentRequestSuperseded,
-		DeploymentRequestFailed, DeploymentRequestTerminated:
+func (status UserDeploymentRequestStatus) IsTerminalStatus() bool {
+	if slices.Contains(TerminalDeploymentRequestStatus, status) {
 		return true
 	}
 	return false

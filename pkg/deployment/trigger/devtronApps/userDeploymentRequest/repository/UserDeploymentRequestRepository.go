@@ -145,9 +145,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests() ([]U
 	query := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		ColumnExpr("MAX(id)").
-		Where("status NOT IN (?)", pg.In([]bean.UserDeploymentRequestStatus{
-			bean.DeploymentRequestCompleted, bean.DeploymentRequestSuperseded,
-		})).
+		Where("status NOT IN (?)", pg.In(bean.TerminalDeploymentRequestStatus)).
 		Group("pipeline_id")
 	err := impl.dbConnection.Model().
 		Table("user_deployment_request").

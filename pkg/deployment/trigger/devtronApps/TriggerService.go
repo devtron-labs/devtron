@@ -844,7 +844,7 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
 			return skipRequest, err
 		}
-		if latestTimelineStatus.IsTerminalTimelineStatus() && deployRequestStatus.IsTerminalTimelineStatus() {
+		if latestTimelineStatus.IsTerminalTimelineStatus() && deployRequestStatus.IsTerminalStatus() {
 			impl.logger.Info("deployment is already terminated", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
 			skipRequest = true
 			return skipRequest, nil
