@@ -89,7 +89,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 }
 
 func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
-	//getting all clusters which have SSH Tunnel configured
+	// getting all clusters which have SSH Tunnel configured
 	clusters, err := impl.clusterRepository.GetAllSSHTunnelConfiguredClusters()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error("error in getting all sshTunnel configured clusters", "err", err)
@@ -101,8 +101,8 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Warnw("error in connecting with cluster through SSH tunnel", "err", err, "clusterId", cluster.Id)
-			//not returning here as at startup it might be possible that the cluster connection status is not updated,
-			//and we might be trying on an invalid cluster, so with one try we will move on
+			// not returning here as at startup it might be possible that the cluster connection status is not updated,
+			// and we might be trying on an invalid cluster, so with one try we will move on
 			continue
 		}
 	}
@@ -129,7 +129,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterB
 }
 
 func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {
-	//devtron full mode logic
+	// devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
 		clusterIds = append(clusterIds, cluster.Id)
@@ -239,8 +239,8 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 			}
 			env.GrafanaDatasourceId = grafanaDatasourceId
 		}
-		//if the request doesn't have a non-empty prometheus url, and we don't have a GrafanaDataSourceId defined yet, no point in
-		//going to grafana client and trying to get data source
+		// if the request doesn't have a non-empty prometheus url, and we don't have a GrafanaDataSourceId defined yet, no point in
+		// going to grafana client and trying to get data source
 		if bean.PrometheusUrl != "" && env.GrafanaDatasourceId != 0 {
 			promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
 			if err != nil {
@@ -346,7 +346,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
-		//starts grafana creation
+		// starts grafana creation
 		createDatasourceReq := grafana.CreateDatasourceRequest{
 			Name:      "Prometheus-" + env.Name,
 			Type:      "prometheus",
@@ -380,7 +380,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bea
 			impl.logger.Errorw("error on create grafana datasource", "err", err)
 			return 0, err
 		}
-		//ends grafana creation
+		// ends grafana creation
 		grafanaDatasourceId = grafanaResp.Id
 	}
 	env.GrafanaDatasourceId = grafanaDatasourceId
@@ -404,14 +404,14 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if gitOpsConfigurationStatus.IsGitOpsConfigured && IsProxyOrSSHConfigured(clusterBean) {
-		//create it into argo cd as well
+	if gitOpsConfigurationStatus.IsGitOpsConfigured && !IsProxyOrSSHConfigured(clusterBean) {
+		// create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
 		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
-			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
+			err1 := impl.ClusterServiceImpl.Delete(bean, userId) // FIXME nishant call local
 			if err1 != nil {
 				impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
 				err = &util.ApiError{
@@ -431,7 +431,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 		}
 	}
 
-	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	// on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
 	return clusterBean, nil
 }
