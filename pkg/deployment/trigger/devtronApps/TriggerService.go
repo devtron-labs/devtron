@@ -701,6 +701,26 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 	return releaseNo, nil
 }
 
+func (impl *TriggerServiceImpl) saveDeploymentTriggerHistory(cdWfId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
+	if valuesOverrideResponse.Pipeline == nil || valuesOverrideResponse.EnvOverride == nil {
+		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfId", cdWfId)
+		return nil
+	}
+	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
+	if err1 != nil {
+		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfId", cdWfId)
+		return nil
+	}
+	dbErr := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(ctx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, cdWfId)
+	if dbErr != nil {
+		impl.logger.Errorw("error in updating userDeploymentRequest status",
+			"cdWfId", cdWfId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
+			"err", dbErr)
+		return dbErr
+	}
+	return nil
+}
+
 // TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
 func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.TriggerRelease")
@@ -721,19 +741,11 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
 	if triggerEvent.SaveTriggerHistory {
-		if valuesOverrideResponse.Pipeline != nil && valuesOverrideResponse.EnvOverride != nil {
-			err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
-			if err1 != nil {
-				impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
-			} else {
-				dbErr := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
-				if dbErr != nil {
-					impl.logger.Errorw("error in updating userDeploymentRequest status",
-						"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
-						"err", dbErr)
-					return releaseNo, dbErr
-				}
-			}
+		// saveDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
+		historyErr := impl.saveDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
+		if historyErr != nil {
+			impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
+			return releaseNo, err
 		}
 	}
 	if err != nil {
