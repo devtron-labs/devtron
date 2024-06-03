@@ -674,6 +674,26 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 	return err
 }
 
+func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.triggerAsyncRelease")
+	defer span.End()
+	// build merged values and save PCO history for the release
+	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
+	// auditDeploymentTriggerHistory is performed irrespective of GetValuesOverrideForTrigger error - for auditing purposes
+	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, deployedBy)
+	if historyErr != nil {
+		impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return releaseNo, err
+	}
+	// handling GetValuesOverrideForTrigger error
+	if err != nil {
+		impl.logger.Errorw("error in fetching values for trigger", "err", err)
+		return releaseNo, err
+	}
+	// asynchronous mode of Helm/ArgoCd installation starts
+	return impl.workflowEventPublishService.TriggerAsyncRelease(userDeploymentRequestId, overrideRequest, valuesOverrideResponse, newCtx, deployedBy)
+}
+
 func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.HandleCDTriggerRelease")
 	defer span.End()
@@ -684,8 +704,7 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 		return releaseNo, err
 	}
 	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSyncDeployment) {
-		// asynchronous mode of Helm/ArgoCd installation starts
-		return impl.workflowEventPublishService.TriggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
+		return impl.triggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
 	releaseNo, err = impl.TriggerRelease(overrideRequest, newCtx, triggeredAt, deployedBy)
@@ -701,7 +720,7 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 	return releaseNo, nil
 }
 
-func (impl *TriggerServiceImpl) saveDeploymentTriggerHistory(cdWfId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
+func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
 	if valuesOverrideResponse.Pipeline == nil || valuesOverrideResponse.EnvOverride == nil {
 		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfId", cdWfId)
 		return nil
@@ -741,8 +760,8 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
 	if triggerEvent.SaveTriggerHistory {
-		// saveDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
-		historyErr := impl.saveDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
+		// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
+		historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
 		if historyErr != nil {
 			impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
 			return releaseNo, err

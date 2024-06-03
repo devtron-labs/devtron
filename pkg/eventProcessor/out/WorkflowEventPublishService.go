@@ -21,21 +21,15 @@ import (
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
-	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -47,22 +41,18 @@ import (
 
 type WorkflowEventPublishService interface {
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
-	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error)
+	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
+		valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
 
 type WorkflowEventPublishServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	pubSubClient                        *pubsub.PubSubClientServiceImpl
-	cdWorkflowCommonService             cd.CdWorkflowCommonService
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	manifestCreationService             manifest.ManifestCreationService
-	pipelineStatusTimelineService       status.PipelineStatusTimelineService
-	config                              *types.CdConfig
-	celEvaluatorService                 cel.EvaluatorService
-	attributesService                   attributes.AttributesService
-	triggerEventEvaluator               celEvaluator.TriggerEventEvaluator
-	userDeploymentRequestService        service.UserDeploymentRequestService
+	logger                        *zap.SugaredLogger
+	pubSubClient                  *pubsub.PubSubClientServiceImpl
+	cdWorkflowCommonService       cd.CdWorkflowCommonService
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	config                        *types.CdConfig
+	triggerEventEvaluator         celEvaluator.TriggerEventEvaluator
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
@@ -72,13 +62,8 @@ type WorkflowEventPublishServiceImpl struct {
 func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
-	manifestCreationService manifest.ManifestCreationService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
-	celEvaluatorService cel.EvaluatorService,
-	attributesService attributes.AttributesService,
 	triggerEventEvaluator celEvaluator.TriggerEventEvaluator,
-	userDeploymentRequestService service.UserDeploymentRequestService,
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -88,17 +73,12 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 		return nil, err
 	}
 	impl := &WorkflowEventPublishServiceImpl{
-		logger:                              logger,
-		pubSubClient:                        pubSubClient,
-		cdWorkflowCommonService:             cdWorkflowCommonService,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-		manifestCreationService:             manifestCreationService,
-		pipelineStatusTimelineService:       pipelineStatusTimelineService,
-		config:                              config,
-		celEvaluatorService:                 celEvaluatorService,
-		attributesService:                   attributesService,
-		triggerEventEvaluator:               triggerEventEvaluator,
-		userDeploymentRequestService:        userDeploymentRequestService,
+		logger:                        logger,
+		pubSubClient:                  pubSubClient,
+		cdWorkflowCommonService:       cdWorkflowCommonService,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		config:                        config,
+		triggerEventEvaluator:         triggerEventEvaluator,
 
 		cdWorkflowRepository: cdWorkflowRepository,
 		pipelineRepository:   pipelineRepository,
@@ -138,30 +118,10 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 }
 
 // TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
-func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
+func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
+	valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventPublishServiceImpl.TriggerAsyncRelease")
 	defer span.End()
-	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
-	// save triggered deployment history
-	if valuesOverrideResponse.Pipeline != nil && valuesOverrideResponse.EnvOverride != nil {
-		err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
-		if err1 != nil {
-			impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
-		} else {
-			dbErr := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, overrideRequest.CdWorkflowId)
-			if dbErr != nil {
-				impl.logger.Errorw("error in updating userDeploymentRequest status",
-					"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
-					"err", dbErr)
-				return releaseNo, dbErr
-			}
-		}
-	}
-	if err != nil {
-		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return releaseNo, err
-	}
 	topic, msg, err := impl.getAsyncDeploymentTopicAndPayload(userDeploymentRequestId, overrideRequest.DeploymentAppType, valuesOverrideResponse)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)

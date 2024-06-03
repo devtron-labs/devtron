@@ -792,8 +792,14 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 		impl.logger.Errorw("error in fetching all in complete userDeploymentRequests", "err", err)
 		return
 	}
-	for _, cdAsyncInstallReq := range cdAsyncInstallRequests {
-		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq)
+	count := len(cdAsyncInstallRequests)
+	if count > 0 {
+		impl.logger.Infow("found incomplete deployment requests", "count", count)
+	} else {
+		impl.logger.Infow("no incomplete deployment requests to be processed, skipping")
+	}
+	for index, cdAsyncInstallReq := range cdAsyncInstallRequests {
+		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq, "request sequence", index+1)
 		err = impl.setAdditionalDataInAsyncInstallReq(cdAsyncInstallReq)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data to AsyncCdDeployRequest, skipping", "err", err)
@@ -806,7 +812,9 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 			impl.logger.Infow("successfully processed deployment request", "cdAsyncInstallReq", cdAsyncInstallReq)
 		}
 	}
-	impl.logger.Infow("successfully processed all incomplete deployment requests")
+	if count > 0 {
+		impl.logger.Infow("successfully processed all incomplete deployment requests")
+	}
 	return
 }
 
