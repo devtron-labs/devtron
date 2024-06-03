@@ -1003,7 +1003,7 @@ func (impl UserAuthRepositoryImpl) GetUsersByEnvAndAction(appName, envName, team
 		"INNER JOIN roles r ON rgrm.role_id = r.id " +
 		"WHERE (r.action = ? ) " +
 		"AND (r.environment IS NULL OR r.environment = ?) " +
-		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? OR .role = ?;"
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? OR r.role = ?;"
 
 	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, action, envName, appName, team, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
