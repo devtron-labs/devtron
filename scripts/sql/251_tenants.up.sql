@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS "public"."devtron_resource_object_dep_relations"
 INSERT INTO devtron_resource(kind, display_name, icon,is_exposed, parent_kind_id, deleted, created_on, created_by, updated_on,
                              updated_by)
 VALUES ('tenant', 'Tenant', '',true, 0, false, now(), 1, now(), 1),
-       ('installation', 'Installation', '',false, 0, false, now(), 1, now(), 1);
+       ('installation', 'Installation', '',false, 0, false, now(), 1, now(), 1),
+       ('environment', 'Environment', '',false, 0, false, now(), 1, now(), 1);
 
 INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, sample_schema, latest, created_on, created_by, updated_on,
                                     updated_by)
@@ -612,4 +613,70 @@ VALUES ((select id from devtron_resource where kind = 'tenant'), 'alpha1',
         "kind",
         "overview"
     ]
-}',  true, now(), 1, now(), 1);
+}',  true, now(), 1, now(), 1),
+((select id from devtron_resource where kind = 'environment'), 'v1',
+        '{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Environment Schema",
+    "type": "object",
+    "properties":
+    {
+        "kind":
+        {
+            "const": "environment"
+        },
+        "version":
+        {
+            "type": "string",
+            "enum":
+            [
+                "v1"
+            ]
+        },
+        "overview":
+        {
+            "type": "object"
+        },
+        "dependencies":
+        {
+            "type": "array"
+        }
+    },
+    "required":
+    [
+        "version",
+        "kind"
+    ]
+}','{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Environment Schema",
+    "type": "object",
+    "properties":
+    {
+        "kind":
+        {
+            "const": "environment"
+        },
+        "version":
+        {
+            "type": "string",
+            "enum":
+            [
+                "v1"
+            ]
+        },
+        "overview":
+        {
+            "type": "object"
+        },
+        "dependencies":
+        {
+            "type": "array"
+        }
+    },
+    "required":
+    [
+        "version",
+        "kind"
+    ]
+}', true, now(), 1, now(), 1);
