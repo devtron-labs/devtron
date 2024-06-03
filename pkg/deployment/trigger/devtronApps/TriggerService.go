@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -839,7 +840,10 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 		return skipRequest, err
 	}
 	if util.IsAcdApp(triggerEvent.DeploymentAppType) {
-		latestTimelineStatus, err := impl.pipelineStatusTimelineService.FetchLastTimelineStatusForWfrId(cdWfrId)
+		request := statusBean.NewTimelineGetRequest().
+			WithCdWfrId(cdWfrId).
+			ExcludingStatuses(pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS)
+		latestTimelineStatus, err := impl.pipelineStatusTimelineService.GetLastTimelineStatusFor(request)
 		if err != nil {
 			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
 			return skipRequest, err
