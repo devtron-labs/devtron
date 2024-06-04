@@ -21,7 +21,7 @@ import (
 
 type CiCacheResourceSelector interface {
 	GetAvailResource(scope resourceQualifiers.Scope, appLabels map[string]string, ciWorkflowId int) (*CiCacheResource, error)
-	UpdateResourceStatus(ciWorkflowId int, status string) bool
+	UpdateResourceStatus(ciWorkflowId int, podName string, namespace string, status string) bool
 }
 
 type CiCacheResourceSelectorImpl struct {
@@ -99,7 +99,7 @@ func (impl *CiCacheResourceSelectorImpl) GetAvailResource(scope resourceQualifie
 // status: make pvc unavailable
 // running
 // pending
-func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, status string) bool {
+func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, podName string, namespace string, status string) bool {
 	impl.lock.Lock()
 	defer impl.lock.Unlock()
 
@@ -108,6 +108,9 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 			// 	pvc is busy, no need to update
 		} else {
 			// pvc got free
+			if status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed) {
+				impl.cleanupPod(podName, namespace)
+			}
 			impl.resourcesStatus[pvc] = AvailableResourceStatus
 			// TODO KB: run a particular command to make PVC unavailable
 			impl.cleanupResources(pvc)
@@ -115,6 +118,24 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 		}
 	}
 	return false
+}
+
+func (impl *CiCacheResourceSelectorImpl) cleanupPod(podName, namespace string) {
+	resourceRequestBean := &k8s.ResourceRequestBean{
+		ClusterId: 1,
+		K8sRequest: &k8s2.K8sRequestBean{
+			ResourceIdentifier: k8s2.ResourceIdentifier{
+				GroupVersionKind: schema.GroupVersionKind{
+					Version: "v1",
+					Kind:    "Pod",
+				},
+				Name:      podName,
+				Namespace: namespace,
+			},
+			ForceDelete: true,
+		},
+	}
+	impl.k8sCommonService.DeleteResource(context.Background(), resourceRequestBean)
 }
 
 func (impl *CiCacheResourceSelectorImpl) cleanupResources(pvcName string) {

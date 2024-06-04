@@ -1142,12 +1142,13 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		return 0, err
 	}
 
-	impl.ciCacheSelector.UpdateResourceStatus(workflowId, status)
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("cannot get saved wf", "err", err)
 		return 0, err
 	}
+
+	impl.ciCacheSelector.UpdateResourceStatus(workflowId, podName, savedWorkflow.Namespace, status)
 
 	ciWorkflowConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(savedWorkflow.CiPipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
