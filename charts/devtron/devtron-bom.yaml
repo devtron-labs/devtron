@@ -171,7 +171,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:c0416bc2-334-22111"
+    image: "image-scanner:3ab2ba46-141-23064"
   clair:
     image:
       repository: clair
