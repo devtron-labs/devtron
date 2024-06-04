@@ -120,7 +120,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:50d4d32d-419-22116"
+    image: "kubewatch:f8ac0fe6-419-23054"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
