@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.30-rc.0"
+  release: "v0.6.30"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -209,8 +209,6 @@ components:
     image: chart-sync:d0dcc590-373-21074
   notifier:
     image: notifier:546aaf51-372-23056
-  image-scanner:
-    image: image-scanner:3ab2ba46-141-23063
 # values for argocd integration
 argo-cd:
   enabled: false
