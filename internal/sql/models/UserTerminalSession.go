@@ -47,7 +47,6 @@ type UserTerminalSessionConfig struct {
 	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600"`
 	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
 	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"10"`
-	ArrayDiffMemoization              bool   `env:"ARRAY_DIFF_MEMOIZATION" envDefault:"false"`
 }
 
 type UserTerminalSessionResponse struct {
