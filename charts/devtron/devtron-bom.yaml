@@ -150,6 +150,8 @@ components:
     image: chart-sync:d0dcc590-373-21074
   notifier:
     image: notifier:546aaf51-372-23056
+  image-scanner:
+    image: image-scanner:3ab2ba46-141-23063
 # values for argocd integration
 argo-cd:
   global:
