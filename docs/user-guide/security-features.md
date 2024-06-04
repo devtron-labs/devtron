@@ -7,7 +7,7 @@ Devtron provides [DevSecOps](https://devtron.ai/product/devsecops) capabilities 
 One of the key components of DevSecOps is the detection of security risks. Currently, Devtron supports the following types of scanning:
 
 * Image Scan
-* Code Scan (not available for Helm apps) 
+* Code Scan 
 * Kubernetes Manifest Scan
 
 ![Figure 1: Security Scan Results](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-scan.jpg)
@@ -23,7 +23,7 @@ You can integrate a scanning tool of your choice. By default, Devtron integrates
 
 ## Where to Initiate the Scan
 
-### After Code Commit
+### Before Building Artifact
 
 When you commit the code, it's essential to scan it before building a [container image](../reference/glossary.md#image). By scanning early, you can catch and fix problems before they become expensive or time-consuming to remediate later. 
 
@@ -94,6 +94,28 @@ When you [deploy a helm chart](../user-guide/deploy-chart/deployment-of-charts.m
 Results of helm app scan will be visible under `Image Scan` and `Kubernetes Manifest` in the **App Details** page as shown below.
 
 ![Figure 9: Helm App Scan Results](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/helm-app-scan.gif)
+
+### Extras
+
+You can also check for vulnerabilities within a specific workload such as job, pod, deployment, etc. There are two ways to perform it:
+
+#### From App Details
+
+* Go to **App Details** (Devtron App/Helm App) → **Workloads** (under `K8 Resources` tab).
+* Click a workload, e.g., Pod.
+* On the right-hand side, click the kebab menu (3 vertical dots).
+* Click **Check Vulnerabilities**.
+
+    ![Figure 10: Scanning Workloads - App Details Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/app-details-scan.gif)
+
+#### From Resource Browser
+
+* Go to Resource Browser.
+* Select a cluster.
+* Click a workload within the **Workloads** dropdown.
+* Access the **Check Vulnerabilities** option from the kebab menu present to your selected workload.
+
+    ![Figure 11: Scanning Workloads - Resource Browser](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/rb-scan.gif)
 
 ---
 
