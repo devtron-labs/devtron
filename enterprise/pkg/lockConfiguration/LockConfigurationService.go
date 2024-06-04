@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -29,29 +28,33 @@ type LockConfigurationService interface {
 	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error)
 }
 
+type LockConfigurationServiceConfig struct {
+	ArrayDiffMemoization bool `env:"ARRAY_DIFF_MEMOIZATION" envDefault:"false"`
+}
+
 type LockConfigurationServiceImpl struct {
-	logger                      *zap.SugaredLogger
-	lockConfigurationRepository LockConfigurationRepository
-	userService                 user.UserService
-	mergeUtil                   util.MergeUtil
-	userTerminalSessionConfig   *models.UserTerminalSessionConfig
+	logger                         *zap.SugaredLogger
+	lockConfigurationRepository    LockConfigurationRepository
+	userService                    user.UserService
+	mergeUtil                      util.MergeUtil
+	lockConfigurationServiceConfig *LockConfigurationServiceConfig
 }
 
 func NewLockConfigurationServiceImpl(logger *zap.SugaredLogger,
 	lockConfigurationRepository LockConfigurationRepository,
 	userService user.UserService,
 	mergeUtil util.MergeUtil) *LockConfigurationServiceImpl {
-	config := &models.UserTerminalSessionConfig{}
+	config := &LockConfigurationServiceConfig{}
 	err := env.Parse(config)
 	if err != nil {
 		logger.Warnw("error in initialising UserTerminalSessionConfig but continuing with rest of initialisation", err)
 	}
 	return &LockConfigurationServiceImpl{
-		logger:                      logger,
-		lockConfigurationRepository: lockConfigurationRepository,
-		userService:                 userService,
-		mergeUtil:                   mergeUtil,
-		userTerminalSessionConfig:   config,
+		logger:                         logger,
+		lockConfigurationRepository:    lockConfigurationRepository,
+		userService:                    userService,
+		mergeUtil:                      mergeUtil,
+		lockConfigurationServiceConfig: config,
 	}
 }
 
@@ -167,7 +170,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
 		return nil, err
 	}
-	impl.logger.Infow("env var ARRAY_DIFF_MEMOIZATION=", impl.userTerminalSessionConfig.ArrayDiffMemoization)
+	impl.logger.Infow("env var ARRAY_DIFF_MEMOIZATION=", impl.lockConfigurationServiceConfig.ArrayDiffMemoization)
 	allChanges, deletedMap, addedMap, modifiedMap, containChangesInArray, deletedPaths := impl.getDiffJson(savedConfigMap, currentConfigMap, "")
 	var isLockConfigError bool
 	if lockConfig.ContainAllowedPaths {
@@ -407,7 +410,7 @@ func (impl LockConfigurationServiceImpl) getModifiedValue(word1 []interface{}, w
 }
 
 func (impl LockConfigurationServiceImpl) getArrayDiff(word1 []interface{}, word2 []interface{}) ([]interface{}, []interface{}, []interface{}, []interface{}) {
-	if impl.userTerminalSessionConfig.ArrayDiffMemoization {
+	if impl.lockConfigurationServiceConfig.ArrayDiffMemoization {
 		return impl.getArrayDiffWithMemoization(word1, word2)
 	} else {
 		return impl.getArrayDiffWithoutMemoization(word1, word2)
