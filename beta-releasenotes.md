@@ -49,7 +49,9 @@
 - feat: CD Trigger Plugin (#4810)
 - feat: Introduction to feasibility in Deployment (#4862)
 ## Documentation
+- docs: config.md updatation for new flag (#5061)
 - doc: Fixes in Documentation for May Month (#5150)
+- docs: config.md updatation for new flag (#5061)
 - doc: Added kubectl port-fwd section in RB (#5139)
 - doc: Added Bitbucket Data Center in GitOps doc (#5075)
 - doc: Image promotion policy (#4762)
