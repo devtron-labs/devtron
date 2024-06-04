@@ -25,6 +25,7 @@ import (
 	"time"
 )
 
+const TESTER = "yashashvi"
 const (
 	CI_RUNNER_STREAM                    string = "CI-RUNNER"
 	ORCHESTRATOR_STREAM                 string = "ORCHESTRATOR"
@@ -262,13 +263,13 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 }
 
 func updateNatsConsumerConfigMapping(defaultConsumerConfigVal NatsConsumerConfig, consumerConfigMap map[string]NatsConsumerConfig) {
-	//iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
+	// iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
 	for _, natsTopic := range natsTopicMapping {
 		if _, ok := NatsConsumerWiseConfigMapping[natsTopic.consumerName]; !ok {
 			NatsConsumerWiseConfigMapping[natsTopic.consumerName] = NatsConsumerConfig{}
 		}
 	}
-	//initialise all the consumer wise config with default values or user defined values
+	// initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		consumerConfig := defaultConsumerConfigVal
 		if _, ok := consumerConfigMap[key]; ok {
