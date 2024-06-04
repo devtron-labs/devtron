@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -48,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -369,11 +369,14 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		impl.logger.Errorw("error in checking if gitOps is configured or not", "err", err)
 		return nil, err
 	}
+	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
 		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
+		//making environment array for fetching the clusterIds
+		envIds = append(envIds, &pipeline.EnvironmentId)
 		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfigured, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -381,7 +384,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
-
+	err = impl.checkIfNsExistsForEnvIds(envIds)
+	if err != nil {
+		return nil, err
+	}
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
@@ -884,6 +890,10 @@ func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx
 	} else {
 		if err != nil {
 			impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return err
 		}
 		if deleteResourceResponse == nil || !deleteResourceResponse.GetSuccess() {
@@ -2062,4 +2072,22 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 	}
 	return respDtos
 
+}
+func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
+	//fetching environments for the given environment Ids
+	environmentList, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return fmt.Errorf("error in fetching environment err:", err)
+	}
+	clusterIdToNsMap := make(map[int]string, 0)
+	for _, environment := range environmentList {
+
+		clusterIdToNsMap[environment.ClusterId] = environment.Namespace
+	}
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appStore
@@ -26,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
 	"strconv"
@@ -603,6 +603,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
 	}
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
+	}
 
 	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
 	if err != nil {
@@ -723,6 +727,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
+	}
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 	}
 	if installedApp.Environment.IsVirtualEnvironment {
 		common.WriteJsonResp(w, nil, nil, http.StatusOK)

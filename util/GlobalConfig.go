@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package util
 
 import (
@@ -19,6 +35,7 @@ type GlobalEnvVariables struct {
 	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+	ExecuteWireNilChecker          bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
 }
 
 type DevtronSecretConfig struct {

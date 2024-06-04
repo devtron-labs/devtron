@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package adapter
 
 import (
@@ -174,11 +190,9 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "LINKED") 207_ci_external.up
-// TODO migrate the deprecated values and maintain a consistent PipelineType
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 &&
-		(ci.PipelineType == string(CiPipeline.CI_EXTERNAL) || ci.PipelineType == string(CiPipeline.LINKED))
+		ci.PipelineType == string(CiPipeline.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
