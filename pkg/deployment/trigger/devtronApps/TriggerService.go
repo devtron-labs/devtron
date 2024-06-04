@@ -860,17 +860,8 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEv
 				triggerEvent.SaveTriggerHistory = false
 			}
 			return skipRequest, nil
-		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT:
-			// trigger history has already been saved
-			triggerEvent.SaveTriggerHistory = false
-			// git commit has already been performed
-			triggerEvent.PerformChartPush = false
-			if deployRequestStatus.IsTriggered() {
-				// deployment has already been performed
-				triggerEvent.PerformDeploymentOnCluster = false
-			}
-			return skipRequest, nil
-		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
+		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+			pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
 			// trigger history has already been saved
 			triggerEvent.SaveTriggerHistory = false
 			// git commit has already been performed
