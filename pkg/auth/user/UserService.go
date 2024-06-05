@@ -12,6 +12,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	util4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	bean5 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	helper3 "github.com/devtron-labs/devtron/pkg/auth/common/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
@@ -79,8 +80,8 @@ type UserService interface {
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 	GetRoleFiltersByGroupCasbinNames(groupNames []string) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
-	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
-	CheckForApproverAccess(appName, envName string, userId int32) bool
+	GetApprovalUsersByEnv(appName, envName, token string) ([]string, error)
+	CheckForApproverAccess(appName, envName, token string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
@@ -92,7 +93,7 @@ type UserService interface {
 	GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error)
 	GetSuperAdminIds() ([]int32, error)
 	FetchUserIdsByEmails(emails []string) ([]int32, error)
-	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error)
+	GetUserByEnvAndApprovalAction(appName, envName, team, action, token string) ([]string, error)
 	CheckIfTokenIsValid(email string, version string) error
 }
 
@@ -1829,8 +1830,8 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 	}
 }
 
-func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, userId int32) bool {
-	allowedUsers, err := impl.GetApprovalUsersByEnv(appName, envName)
+func (impl UserServiceImpl) CheckForApproverAccess(appName, envName, token string, userId int32) bool {
+	allowedUsers, err := impl.GetApprovalUsersByEnv(appName, envName, token)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching approval users", "appName", appName, "envName", envName, "err", err)
 		return false
@@ -1923,24 +1924,40 @@ func (impl UserServiceImpl) getActiveImageApproverUser(appName, envName string) 
 
 }
 
-func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
-	emailIds, err := impl.getActiveImageApproverUser(appName, envName)
-	if err != nil {
-		impl.logger.Errorw("error in GetApprovalUsersByEnv", "appName", appName, "envName", envName, "err", err)
-		return emailIds, err
-	}
+func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName, token string) ([]string, error) {
 	permissionGroupNames, err := impl.userAuthRepository.GetApprovalRoleGroupCasbinNameByEnv(appName, envName)
 	if err != nil {
-		return emailIds, err
+		return nil, err
 	}
-	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
-	if err != nil {
-		return emailIds, err
+	approvers := make([]string, 0, 2*len(permissionGroupNames))
+	if impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
+		email, groups, err := impl.GetEmailAndGroupClaimsFromToken(token)
+		if err != nil {
+			impl.logger.Errorw("error, GetEmailAndGroupClaimsFromToken", "err", err)
+			return nil, err
+		}
+		for _, group := range groups {
+			if slices.Contains(permissionGroupNames, fmt.Sprintf("%s%s", bean5.GroupPrefix, strings.ToLower(group))) {
+				approvers = []string{email}
+				break
+			}
+		}
+	} else {
+		emailIds, err := impl.getActiveImageApproverUser(appName, envName)
+		if err != nil {
+			impl.logger.Errorw("error in GetApprovalUsersByEnv", "appName", appName, "envName", envName, "err", err)
+			return nil, err
+		}
+		approvers, err = impl.extractEmailIds(permissionGroupNames, emailIds)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return finalEmails, nil
+	return approvers, nil
 }
 
 func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, emailIds []string) ([]string, error) {
+
 	for _, groupName := range permissionGroupNames {
 		polices, err := casbin2.GetUserAttachedToRoleWithTimeoutExpressionAndFormat(groupName)
 		if err != nil {
@@ -3313,14 +3330,32 @@ func (impl UserServiceImpl) FetchUserIdsByEmails(emails []string) ([]int32, erro
 	return ids, nil
 }
 
-func (impl UserServiceImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, error) {
+// GetUserByEnvAndApprovalAction gets users who have approval access for the given app, env and action (configApprover or artifactPromoter).
+// If the system is following group claims based auth then the method checks if the user requesting has any group with the approval action access
+// if yes then it is sent as response else empty
+func (impl UserServiceImpl) GetUserByEnvAndApprovalAction(appName, envName, team, action, token string) ([]string, error) {
 	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetUsersByEnvAndAction(appName, envName, team, action)
 	if err != nil {
-		return emailIds, err
+		return nil, err
 	}
-	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
-	if err != nil {
-		return emailIds, err
+	approvers := make([]string, 0, len(emailIds)+len(permissionGroupNames))
+	if impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive() {
+		email, groups, err := impl.GetEmailAndGroupClaimsFromToken(token)
+		if err != nil {
+			impl.logger.Errorw("error, GetEmailAndGroupClaimsFromToken", "err", err)
+			return nil, err
+		}
+		for _, group := range groups {
+			if slices.Contains(permissionGroupNames, fmt.Sprintf("%s%s", bean5.GroupPrefix, strings.ToLower(group))) {
+				approvers = []string{email}
+				break
+			}
+		}
+	} else {
+		approvers, err = impl.extractEmailIds(permissionGroupNames, emailIds)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return finalEmails, nil
+	return approvers, nil
 }

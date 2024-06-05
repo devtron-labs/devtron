@@ -7,7 +7,7 @@ package artifactPromotion
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
@@ -42,7 +42,7 @@ type PromotionPolicyServiceImpl struct {
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
-	celEvaluatorService             resourceFilter.CELEvaluatorService
+	celEvaluatorService             expressionEvaluators.CELEvaluatorService
 	transactionManager              sql.TransactionWrapper
 
 	// hooks
@@ -54,7 +54,7 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
-	celEvaluatorService resourceFilter.CELEvaluatorService,
+	celEvaluatorService expressionEvaluators.CELEvaluatorService,
 	transactionManager sql.TransactionWrapper,
 ) *PromotionPolicyServiceImpl {
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
@@ -81,7 +81,7 @@ func (impl *PromotionPolicyServiceImpl) AddUpdateEventObserver(hook func(tx *pg.
 }
 
 func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, policyName string, policyBean *bean.PromotionPolicy) error {
-	validateResp, inValid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
+	validateResp, inValid := impl.celEvaluatorService.ValidateCELRequest(expressionEvaluators.ValidateRequestResponse{Conditions: policyBean.Conditions})
 	if inValid {
 		err := errors.New("invalid filter conditions : " + fmt.Sprint(validateResp))
 		return util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid conditions statements : " + err.Error())
@@ -137,7 +137,7 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(ctx *util2.RequestCtx, poli
 }
 
 func (impl *PromotionPolicyServiceImpl) CreatePolicy(ctx *util2.RequestCtx, policyBean *bean.PromotionPolicy) error {
-	validateResp, valid := impl.celEvaluatorService.ValidateCELRequest(resourceFilter.ValidateRequestResponse{Conditions: policyBean.Conditions})
+	validateResp, valid := impl.celEvaluatorService.ValidateCELRequest(expressionEvaluators.ValidateRequestResponse{Conditions: policyBean.Conditions})
 	if valid {
 		err := errors.New("invalid filter conditions : " + fmt.Sprint(validateResp))
 		return util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("invalid conditions statements : " + err.Error())

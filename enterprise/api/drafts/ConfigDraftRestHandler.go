@@ -266,13 +266,12 @@ func (impl *ConfigDraftRestHandlerImpl) GetDraftByName(w http.ResponseWriter, r 
 	if err != nil {
 		return
 	}
-
-	draftResponse, err := impl.configDraftService.GetDraftByName(appId, envId, resourceName, drafts.DraftResourceType(resourceType), userId)
+	token := r.Header.Get("token")
+	draftResponse, err := impl.configDraftService.GetDraftByName(appId, envId, resourceName, drafts.DraftResourceType(resourceType), userId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	token := r.Header.Get("token")
 	dataEncrypted := false
 	appAdminUser := impl.enforceForAppAndEnv(draftResponse.AppId, draftResponse.EnvId, token, casbin.ActionUpdate)
 	if draftResponse.Resource == drafts.CSDraftResource && !appAdminUser {

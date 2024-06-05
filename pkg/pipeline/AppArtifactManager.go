@@ -7,6 +7,7 @@ package pipeline
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	read3 "github.com/devtron-labs/devtron/pkg/appWorkflow/read"
@@ -72,7 +73,7 @@ type AppArtifactManagerImpl struct {
 	ciArtifactRepository             repository.CiArtifactRepository
 	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
 	pipelineStageService             PipelineStageService
-	celService                       resourceFilter.CELEvaluatorService
+	celService                       expressionEvaluators.CELEvaluatorService
 	resourceFilterService            resourceFilter.ResourceFilterService
 	resourceFilterAuditService       resourceFilter.FilterEvaluationAuditService
 	config                           *types.CdConfig
@@ -99,7 +100,7 @@ func NewAppArtifactManagerImpl(
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	celService resourceFilter.CELEvaluatorService,
+	celService expressionEvaluators.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	pipelineStageService PipelineStageService,
@@ -1656,7 +1657,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string, materialInfos []repository.CiMaterialInfo) resourceFilter.FilterState {
+func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string, materialInfos []repository.CiMaterialInfo) expressionEvaluators.FilterState {
 
 	releaseTags := make([]string, 0, len(imageTaggingResp))
 	for _, imageTag := range imageTaggingResp {
@@ -1878,7 +1879,7 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsForPromotionApprovalNode(ctx *
 		return bean2.CiArtifactResponse{}, err
 	}
 
-	imagePromotionApproverEmails, err := impl.getImagePromoterApproverEmails(cdPipeline)
+	imagePromotionApproverEmails, err := impl.getImagePromoterApproverEmails(cdPipeline, ctx.GetToken())
 	if err != nil {
 		impl.logger.Errorw("error in finding users with image promoter approver access", "pipelineIds", cdPipeline.Id, "err", err)
 		return bean2.CiArtifactResponse{}, err
@@ -1926,13 +1927,13 @@ func (impl *AppArtifactManagerImpl) fetchArtifactsPendingForUser(ctx *util2.Requ
 	}, nil
 }
 
-func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bean2.CDPipelineMinConfig) ([]string, error) {
+func (impl *AppArtifactManagerImpl) getImagePromoterApproverEmails(pipeline *bean2.CDPipelineMinConfig, token string) ([]string, error) {
 	teamObj, err := impl.teamService.FetchOne(pipeline.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
 		return nil, err
 	}
-	imagePromotionApproverEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.AppName, pipeline.EnvironmentIdentifier, teamObj.Name, bean3.ArtifactPromoter)
+	imagePromotionApproverEmails, err := impl.userService.GetUserByEnvAndApprovalAction(pipeline.AppName, pipeline.EnvironmentIdentifier, teamObj.Name, bean3.ArtifactPromoter, token)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promotion approver emails allowed on env", "envName", pipeline.EnvironmentName, "appName", pipeline.AppName, "err", err)
 		return nil, err

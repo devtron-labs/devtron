@@ -4,6 +4,11 @@
 
 package app
 
+import "strings"
+
+// LabelMatchingRegex is the official k8s label matching regex, pls refer https://github.com/kubernetes/apimachinery/blob/bfd2aff97e594f6aad77acbe2cbbe190acc93cbc/pkg/util/validation/validation.go#L167
+const LabelMatchingRegex = "^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$"
+
 // MergeChildMapToParentMap merges child map of generic type map into parent map of generic type
 // and returns merged mapping, if parentMap is nil then nil is returned.
 func MergeChildMapToParentMap[T comparable, R any](parentMap map[T]R, toMergeMap map[T]R) map[T]R {
@@ -16,4 +21,13 @@ func MergeChildMapToParentMap[T comparable, R any](parentMap map[T]R, toMergeMap
 		}
 	}
 	return parentMap
+}
+
+func sanitizeLabels(extraAppLabels map[string]string) map[string]string {
+	for lkey, lvalue := range extraAppLabels {
+		if strings.Contains(lvalue, " ") {
+			extraAppLabels[lkey] = strings.ReplaceAll(lvalue, " ", "_")
+		}
+	}
+	return extraAppLabels
 }

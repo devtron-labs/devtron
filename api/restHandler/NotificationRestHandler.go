@@ -1204,7 +1204,7 @@ func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, deploymentApprovalRequest.UserId)
+	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, token, deploymentApprovalRequest.UserId)
 	if !allowed {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

@@ -454,12 +454,36 @@ func (impl *CdPipelineConfigServiceImpl) GetCdComponentDetails(appId int) (map[i
 	return cdPipelineMap, err
 }
 
+func (impl *CdPipelineConfigServiceImpl) validatePipelineRequest(pipeline *bean.CDPipelineConfigObject, isAppCloneReq bool) error {
+	if pipeline.ParentPipelineType == appWorkflow.WEBHOOK || isAppCloneReq {
+		return nil
+	}
+	parent, err := impl.appWorkflowRepository.FindByTypeAndComponentId(pipeline.AppWorkflowId, pipeline.ParentPipelineId, pipeline.ParentPipelineType)
+	if err != nil {
+		return err
+	}
+	if parent.AppWorkflowId != pipeline.AppWorkflowId {
+		return fmt.Errorf("parent pipeline workflow doesn't match with provided workflow id")
+	}
+	return nil
+}
+
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	// Validation for checking deployment App type
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+
+		err := impl.validatePipelineRequest(pipeline, pipelineCreateRequest.IsCloneAppReq)
+		if err != nil {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: err.Error(),
+				UserMessage:     "please check parent pipeline id and type provided in request",
+			}
+		}
+
 		// skip creation of pipeline if envId is not set
 		if pipeline.EnvironmentId <= 0 {
 			continue

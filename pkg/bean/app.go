@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -855,9 +856,9 @@ type CiArtifactBean struct {
 	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment            *repository2.ImageComment            `json:"imageComment"`
-	FilterState             resourceFilter.FilterState           `json:"filterState"`
+	FilterState             expressionEvaluators.FilterState     `json:"filterState"`
 	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
-	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersState     expressionEvaluators.FilterState     `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
 	CreatedTime             string                               `json:"createdTime"`
 	ExternalCiPipelineId    int                                  `json:"-"`

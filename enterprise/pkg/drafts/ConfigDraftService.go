@@ -45,7 +45,7 @@ type ConfigDraftService interface {
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
-	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
+	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32, token string) (*ConfigDraftResponse, error)
 	ApproveDraft(draftId int, draftVersionId int, userId int32) (*DraftVersionResponse, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
@@ -351,18 +351,19 @@ func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType
 	return appConfigDrafts, nil
 }
 
-func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error) {
+func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32,
+	token string) (*ConfigDraftResponse, error) {
 	draftVersion, err := impl.configDraftRepository.GetLatestConfigDraftByName(appId, envId, resourceName, resourceType)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	draftResponse := &ConfigDraftResponse{}
 	if draftVersion == nil {
-		draftResponse.Approvers = impl.getApproversData(appId, envId)
+		draftResponse.Approvers = impl.getApproversData(appId, envId, token)
 		return draftResponse, nil
 	}
 	draftResponse = draftVersion.ConvertToConfigDraft()
-	err = impl.updateDraftResponse(draftResponse.DraftId, userId, draftResponse)
+	err = impl.updateDraftResponse(draftResponse.DraftId, userId, draftResponse, token)
 	if err != nil {
 		return nil, err
 	}
@@ -375,15 +376,15 @@ func (impl *ConfigDraftServiceImpl) GetDraftById(draftId int, userId int32) (*Co
 		return nil, err
 	}
 	draftResponse := configDraft.ConvertToConfigDraft()
-	err = impl.updateDraftResponse(draftId, userId, draftResponse)
+	err = impl.updateDraftResponse(draftId, userId, draftResponse, "")
 	if err != nil {
 		return nil, err
 	}
 	return draftResponse, nil
 }
 
-func (impl *ConfigDraftServiceImpl) updateDraftResponse(draftId int, userId int32, draftResponse *ConfigDraftResponse) error {
-	draftResponse.Approvers = impl.getApproversData(draftResponse.AppId, draftResponse.EnvId)
+func (impl *ConfigDraftServiceImpl) updateDraftResponse(draftId int, userId int32, draftResponse *ConfigDraftResponse, token string) error {
+	draftResponse.Approvers = impl.getApproversData(draftResponse.AppId, draftResponse.EnvId, token)
 	userContributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
 	if err != nil {
 		return err
@@ -680,7 +681,7 @@ func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]
 	return userIdVsUserInfoMap, nil
 }
 
-func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []string {
+func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int, token string) []string {
 	var approvers []string
 	application, err := impl.appRepo.FindAppAndTeamByAppId(appId)
 	if err != nil {
@@ -696,7 +697,7 @@ func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int) []str
 		}
 		envIdentifier = env.EnvironmentIdentifier
 	}
-	approvers, err = impl.userService.GetUsersByEnvAndAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover)
+	approvers, err = impl.userService.GetUserByEnvAndApprovalAction(appName, envIdentifier, application.Team.Name, bean4.ConfigApprover, token)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching config approval emails, so sending empty approvers list", "err", err)
 	}

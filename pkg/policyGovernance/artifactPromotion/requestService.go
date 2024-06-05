@@ -11,6 +11,7 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -419,7 +420,7 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 	return requestMetaData, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
+func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]expressionEvaluators.ExpressionParam, error) {
 	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
 	if err != nil {
@@ -453,7 +454,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 			return nil, err
 		}
 		for envName, policy := range policiesMap {
-			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+			evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 			if err != nil {
 				impl.logger.Errorw("policy evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
 				responseMap[envName] = bean.EnvironmentPromotionMetaData{
@@ -1108,7 +1109,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 		return constants.POLICY_EVALUATION_ERRORED, err
 	}
 
-	evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(promotionPolicy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+	evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(promotionPolicy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 	if err != nil {
 		impl.logger.Errorw("evaluation failed with error", "policyConditions", promotionPolicy.Conditions, "pipelineId", cdPipeline.Id, promotionPolicy.Conditions, "params", params, "err", err)
 		return constants.POLICY_EVALUATION_ERRORED, err
@@ -1179,13 +1180,13 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx *util3.RequestCt
 		}
 	} else if promotionRequest.Status == constants.AWAITING_APPROVAL {
 		impl.logger.Infow("sending email notification for artifact promotion request", "cdPipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
-		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetUserId())
+		go impl.sendPromotionRequestNotification(cdPipeline.Id, metadata, ctx.GetToken(), ctx.GetUserId())
 	}
 	return status, nil
 
 }
 
-func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelineId int, metadata *bean.RequestMetaData, userId int32) {
+func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelineId int, metadata *bean.RequestMetaData, token string, userId int32) {
 
 	pipelineIdToDapMapping := metadata.GetActiveAuthorisedPipelineDaoMap()
 
@@ -1193,7 +1194,7 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 
 	event := impl.eventFactory.Build(util2.ArtifactPromotionApproval, nil, pipeline.AppId, &pipeline.EnvironmentId, "")
 
-	artifactPromotionNotificationRequest, err := impl.buildArtifactPromotionNotificationRequest(pipeline, metadata, userId)
+	artifactPromotionNotificationRequest, err := impl.buildArtifactPromotionNotificationRequest(pipeline, metadata, token, userId)
 	if err != nil {
 		impl.logger.Errorw("error in building artifact promotion notification request", "pipelineId", pipeline.Id, "err", err)
 		return
@@ -1207,7 +1208,7 @@ func (impl *ApprovalRequestServiceImpl) sendPromotionRequestNotification(pipelin
 	}
 }
 
-func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, userId int32) (client.ArtifactPromotionNotificationRequest, error) {
+func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationRequest(pipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData, token string, userId int32) (client.ArtifactPromotionNotificationRequest, error) {
 
 	team, err := impl.teamService.FetchOne(pipeline.App.TeamId)
 	if err != nil {
@@ -1215,7 +1216,7 @@ func (impl *ApprovalRequestServiceImpl) buildArtifactPromotionNotificationReques
 		return client.ArtifactPromotionNotificationRequest{}, err
 	}
 
-	imagePromoterEmails, err := impl.userService.GetUsersByEnvAndAction(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, team.Name, bean5.ArtifactPromoter)
+	imagePromoterEmails, err := impl.userService.GetUserByEnvAndApprovalAction(pipeline.App.AppName, pipeline.Environment.EnvironmentIdentifier, team.Name, bean5.ArtifactPromoter, token)
 	if err != nil {
 		impl.logger.Errorw("error in finding image promoter access emails", "appName", pipeline.App.AppName, "envName", pipeline.Environment.Name, "team", team.Name, "err", err)
 		return client.ArtifactPromotionNotificationRequest{}, err
@@ -1255,9 +1256,9 @@ func parseArtifactPromotionRequest(pipeline *pipelineConfig.Pipeline, metadata *
 }
 
 func (impl *ApprovalRequestServiceImpl) evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
-	state := resourceFilter.ALLOW
+	state := expressionEvaluators.ALLOW
 	if !evaluationResult {
-		state = resourceFilter.BLOCK
+		state = expressionEvaluators.BLOCK
 	}
 
 	histories, err := impl.promotionPolicyDataReadService.GetPolicyHistoryIdsByPolicyIds([]int{promotionPolicy.Id})
@@ -1443,7 +1444,7 @@ func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg
 			continue
 		}
 
-		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, expressionEvaluators.ExpressionMetadata{Params: params})
 		if err != nil {
 			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "pipelineId", request.DestinationPipelineId, "policyConditions", policy.Conditions, "params", params, "err", err)
 			continue

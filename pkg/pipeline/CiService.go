@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/remoteConnection"
@@ -85,8 +86,9 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
-	remoteConnectionService       remoteConnection.RemoteConnectionService
-	dockerRegistryConfig          *DockerRegistryConfigImpl
+	remoteConnectionService      remoteConnection.RemoteConnectionService
+	dockerRegistryConfig         *DockerRegistryConfigImpl
+	ciCacheResourceSelector      cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -108,6 +110,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	infraProvider infraProviders.InfraProvider,
 	remoteConnectionService remoteConnection.RemoteConnectionService,
 	dockerRegistryConfig *DockerRegistryConfigImpl,
+	ciCacheResourceSelector cacheResourceSelector.CiCacheResourceSelector,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -129,8 +132,9 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
-		remoteConnectionService:       remoteConnectionService,
-		dockerRegistryConfig:          dockerRegistryConfig,
+		remoteConnectionService:      remoteConnectionService,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		ciCacheResourceSelector:      ciCacheResourceSelector,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -265,6 +269,15 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
 	} else {
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
+	}
+
+	ciCacheResource, err := impl.ciCacheResourceSelector.GetAvailResource(workflowRequest.Scope, workflowRequest.AppLabels, workflowRequest.WorkflowId)
+	if err != nil {
+		// some error occurred skip the ciCacheResource and continue
+		impl.Logger.Errorw("error in getting ci cache resource", "err", err)
+	}
+	if ciCacheResource != nil {
+		workflowRequest.CiCacheResourceMap = ciCacheResource.GetMap()
 	}
 
 	err = impl.executeCiPipeline(workflowRequest)
