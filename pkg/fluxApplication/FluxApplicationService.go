@@ -70,8 +70,9 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 		impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
 
 	} else {
-		fluxApplicationList, err1 := applicationStream.Recv()
-		if err1 != nil {
+		var fluxApplicationList *gRPC.FluxApplicationList
+		fluxApplicationList, err = applicationStream.Recv()
+		if err != nil {
 			impl.logger.Errorw("error in list Flux applications streams recv", "err", err)
 		} else {
 			appLists := fluxApplicationList.GetFluxApplicationDetail()
