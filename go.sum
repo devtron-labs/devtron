@@ -222,10 +222,10 @@ github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0 h1:U
 github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
 github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1 h1:L9i7pulHAwQGD7d9l4dRPPKgE6fj2gMJsaRihEjja5Y=
 github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1/go.mod h1:Omra4isWlpBkqpaDMAGMjnNLryTLMTGXa0Q9pyqaA5o=
-github.com/devtron-labs/common-lib v0.0.19-0.20240528110708-f6086d04927d h1:isvK4uvMYSkJWExrXn22nvXYOum7iygZ5Z887e5mx0g=
-github.com/devtron-labs/common-lib v0.0.19-0.20240528110708-f6086d04927d/go.mod h1:deAcJ5IjUjM6ozZQLJEgPWDUA0mKa632LBsKx8uM9TE=
-github.com/devtron-labs/common-lib-private v0.0.16-0.20240529060937-643c24d33be0 h1:aY2iqtY3kaU/0HOuVRqMamhBphKMwiqFfPGGBLxLt4M=
-github.com/devtron-labs/common-lib-private v0.0.16-0.20240529060937-643c24d33be0/go.mod h1:aVlh9JxjZng8x3TMW09/SLWxpOtpi327zGCasFmzawQ=
+github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0 h1:ARbxkctmnFrTUpo3eo6kSCG0N0qN56LmR8jVkaQCn9E=
+github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0/go.mod h1:deAcJ5IjUjM6ozZQLJEgPWDUA0mKa632LBsKx8uM9TE=
+github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b h1:krozNubZxE5zNItynXLUV/vyRj9GgUOeRrJk/h7otl4=
+github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b/go.mod h1:gO+kxaGctrafbb6tfy+qHA6DMTxwhrq2Qm928bxZ8n8=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
 github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150 h1:xA8pfM1IrLf7tC7sWKhX/aHHfEh68cg2pSDLe0ocwCg=

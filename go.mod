@@ -25,8 +25,8 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240408141418-d24cdc252ef0
 	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
-	github.com/devtron-labs/common-lib 1448aa5b15d0f7c99309c0be332c4773aa8e98e5
-	github.com/devtron-labs/common-lib-private dd77322b395b8d881c0f71e2d4aa919b9e7327d3
+	github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0
+	github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b
 	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
 	github.com/evanphx/json-patch v5.6.0+incompatible
