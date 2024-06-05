@@ -76,6 +76,7 @@ func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 type StreamConfig struct {
 	MaxAge time.Duration `json:"max_age"`
 }
+
 type NatsStreamConfig struct {
 	StreamConfig StreamConfig `json:"streamConfig"`
 }
