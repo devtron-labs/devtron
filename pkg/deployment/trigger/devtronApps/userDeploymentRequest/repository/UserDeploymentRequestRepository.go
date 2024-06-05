@@ -146,7 +146,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		JoinOn("cdwfr.id = pst.cd_workflow_runner_id").
 		Where("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cdwfr.status NOT IN (?)", pg.In(append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInQueue))).
-		Where("pst.status = ?", pipelineConfig.TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED).
+		Where("pst.status = ?", pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
 		Where("NOT EXISTS (?)", subQuery).
 		Group("pipeline_id")
 	err := impl.dbConnection.Model().

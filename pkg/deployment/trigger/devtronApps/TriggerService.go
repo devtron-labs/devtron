@@ -590,7 +590,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 	// custom GitOps repo url validation --> Ends
 	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(pipeline, artifact.ImageDigest)
-	//checking vulnerability for deploying image
+	// checking vulnerability for deploying image
 	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(request.TriggerContext.Context, vulnerabilityCheckRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
@@ -728,7 +728,7 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 		return nil
 	}
 	// creating cd pipeline status timeline for deployment trigger history saved
-	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfrId, 0, pipelineConfig.TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_AUDIT_COMPLETED, triggeredBy, time.Now())
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_AUDIT_COMPLETED, triggeredBy, time.Now())
 	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment trigger history saved", "err", err, "timeline", timeline)
@@ -744,8 +744,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	if overrideRequest.UserId == 0 {
 		overrideRequest.UserId = triggeredBy
 	}
-	triggerEvent := helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
-	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.WfrId, &triggerEvent)
+	triggerEvent, skipRequest, err := impl.buildTriggerEventForOverrideRequest(overrideRequest, triggeredAt)
 	if err != nil {
 		return releaseNo, err
 	}
@@ -835,37 +834,38 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	return nil
 }
 
-func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfrId int, triggerEvent *bean.TriggerEvent) (skipRequest bool, err error) {
+func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, triggeredAt time.Time) (triggerEvent bean.TriggerEvent, skipRequest bool, err error) {
+	triggerEvent = helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
 	request := statusBean.NewTimelineGetRequest().
-		WithCdWfrId(cdWfrId).
+		WithCdWfrId(overrideRequest.WfrId).
 		ExcludingStatuses(pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS)
 	latestTimelineStatus, err := impl.pipelineStatusTimelineService.GetLastTimelineStatusFor(request)
 	if err != nil {
-		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
-		return skipRequest, err
+		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return triggerEvent, skipRequest, err
 	}
 	if latestTimelineStatus.IsTerminalTimelineStatus() {
-		impl.logger.Info("deployment is already terminated", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
+		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
 		skipRequest = true
-		return skipRequest, nil
+		return triggerEvent, skipRequest, nil
 	}
 	switch latestTimelineStatus {
 	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
-		return skipRequest, fmt.Errorf("invalid deployment request recieved")
-	case pipelineConfig.TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED:
+		return triggerEvent, skipRequest, fmt.Errorf("invalid deployment request recieved")
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED:
 		// perform all trigger events
-		return skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED:
+		return triggerEvent, skipRequest, nil
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED:
 		// trigger history has already been saved
 		triggerEvent.SaveTriggerHistory = false
-		return skipRequest, nil
+		return triggerEvent, skipRequest, nil
 	case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
 		pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
 		// trigger history has already been saved
 		triggerEvent.SaveTriggerHistory = false
 		// git commit has already been performed
 		triggerEvent.PerformChartPush = false
-		return skipRequest, nil
+		return triggerEvent, skipRequest, nil
 	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED:
 		// trigger history has already been saved
 		triggerEvent.SaveTriggerHistory = false
@@ -875,12 +875,12 @@ func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfrId i
 		triggerEvent.PerformDeploymentOnCluster = false
 	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED,
 		pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
-		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
+		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
 		skipRequest = true
-		return skipRequest, nil
+		return triggerEvent, skipRequest, nil
 	}
 
-	return skipRequest, nil
+	return triggerEvent, skipRequest, nil
 }
 
 func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, err error) {

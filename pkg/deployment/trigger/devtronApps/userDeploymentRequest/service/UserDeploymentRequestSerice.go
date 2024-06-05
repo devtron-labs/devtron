@@ -60,7 +60,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
 	userDeploymentRequest := adapter.NewUserDeploymentRequest(asyncCdDeployRequest)
-	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(asyncCdDeployRequest.ValuesOverrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED, asyncCdDeployRequest.TriggeredBy, time.Now())
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(asyncCdDeployRequest.ValuesOverrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED, asyncCdDeployRequest.TriggeredBy, time.Now())
 	tx, err := impl.userDeploymentRequestRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
