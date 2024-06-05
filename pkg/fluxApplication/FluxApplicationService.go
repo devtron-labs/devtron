@@ -36,7 +36,7 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error) {
 	var clusters []*cluster.ClusterBean
 	var err error
-
+	appListCluster := make([]*bean.FluxApplicationListDto, 0)
 	req := &gRPC.AppListRequest{}
 	if len(clusterIds) > 0 {
 		for _, clusterId := range clusterIds {
@@ -66,32 +66,42 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 
 	//fluxAppsClusterCount := make(map[int32]int)
 
-	fluxAppListDto := make([]*bean.FluxApplicationListDto, 0)
-	//applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
-	//if err == nil {
-	//	fluxApplicationList, err1 := applicationStream.Recv()
-	//	if err1 != nil {
-	//		impl.logger.Errorw("error in list Flux applications streams recv", "err", err)
-	//	} else {
-	//		appList := fluxApplicationList.GetFluxApplication()
-	//
-	//		for _, item := range appList {
-	//			fluxAppListDto = append(fluxAppListDto, &bean.FluxApplicationListDto{
-	//				Name:           item.GetName(),
-	//				Namespace:      item.GetNamespace(),
-	//				ClusterId:      int(item.GetClusterId()),
-	//				ClusterName:    item.GetClusterName(),
-	//				HealthStatus:   item.GetHealthStatus(),
-	//				SyncStatus:     item.GetSyncStatus(),
-	//				IsKustomizeApp: item.GetIsKustomizeApp(),
-	//			})
-	//		}
-	//
-	//	}
-	//} else {
-	//	impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
-	//}
-	return fluxAppListDto, nil
+	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
+	if err == nil {
+		fluxApplicationList, err1 := applicationStream.Recv()
+		if err1 != nil {
+			impl.logger.Errorw("error in list Flux applications streams recv", "err", err)
+		} else {
+			appLists := fluxApplicationList.FluxApplicationList
+
+			for _, appList := range appLists {
+
+				fluxAppList := appList.FluxApplicationDetail
+				fluxAppListDto := make([]*bean.FluxApplicationDto, 0)
+				for _, app := range fluxAppList {
+					fluxAppListDto = append(fluxAppListDto, &bean.FluxApplicationDto{
+						Name:         app.Name,
+						SyncStatus:   app.SyncStatus,
+						HealthStatus: app.HealthStatus,
+						EnvironmentDetails: &bean.EnvironmentDetail{
+							Namespace:   app.EnvironmentDetail.Namespace,
+							ClusterId:   int(app.EnvironmentDetail.ClusterId),
+							ClusterName: app.EnvironmentDetail.ClusterName,
+						},
+					})
+				}
+
+				appListCluster = append(appListCluster, &bean.FluxApplicationListDto{
+					ClusterId:  int(appList.ClusterId),
+					FluxAppDto: fluxAppListDto,
+				})
+			}
+
+		}
+	} else {
+		impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
+	}
+	return appListCluster, nil
 }
 
 func (impl *FluxApplicationServiceImpl) ConvertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error) {

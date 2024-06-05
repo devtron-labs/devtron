@@ -33,9 +33,8 @@ const (
 )
 
 type FluxApplicationListDto struct {
-	ClusterId   int    `json:"clusterId"`
-	ClusterName string `json:"clusterName"`
-	FluxAppDto  []*FluxApplicationDto
+	ClusterId  int `json:"clusterId"`
+	FluxAppDto []*FluxApplicationDto
 }
 type FluxApplicationDto struct {
 	Name               string             `json:"appName"`
