@@ -8,6 +8,7 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.30"
@@ -15,31 +16,31 @@ installer:
   image: inception
   tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
-  #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
+  
 # Change the below values for full mode only
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
+
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:
   BLOB_STORAGE_PROVIDER: "" #AZURE|S3|MINIO|GCP
-  ENABLE_LEGACY_API: "false" # Set to true if you are installing Devtron on a kubernetes version < k8s 1.19
-# Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
-#DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://
-#DEFAULT_CACHE_BUCKET_REGION: "us-east-1"
-# Amazon AWS S3 bucket and region for storing Build-logs. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
-#DEFAULT_BUILD_LOGS_BUCKET: "change-me"   #Do not include s3://
-#DEFAULT_CD_LOGS_BUCKET_REGION: "us-east-1"
-# Amazon AWS Secret Region if you will be using AWS Secret manager for storing secrets.
-#EXTERNAL_SECRET_AMAZON_REGION: ""
-# Azure Blob storage Info for storing Build Logs and Build cache for faster build process.
-#AZURE_ACCOUNT_NAME: "test-account"
-#AZURE_BLOB_CONTAINER_CI_LOG: "ci-log-container"
-#AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container"
+  # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
+  #DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://
+  #DEFAULT_CACHE_BUCKET_REGION: "us-east-1"
+  # Amazon AWS S3 bucket and region for storing Build-logs. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
+  #DEFAULT_BUILD_LOGS_BUCKET: "change-me"   #Do not include s3://
+  #DEFAULT_CD_LOGS_BUCKET_REGION: "us-east-1"
+  # Amazon AWS Secret Region if you will be using AWS Secret manager for storing secrets.
+  #EXTERNAL_SECRET_AMAZON_REGION: ""
+  # Azure Blob storage Info for storing Build Logs and Build cache for faster build process.
+  #AZURE_ACCOUNT_NAME: "test-account"
+  #AZURE_BLOB_CONTAINER_CI_LOG: "ci-log-container"
+  #AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container"
 
 # Change the below values for hyperion only mode (Refer https://docs.devtron.ai/#hyperion )
 components:
@@ -65,6 +66,7 @@ components:
     registry: ""
     image: "dashboard:5ad103e8-690-23058"
     imagePullPolicy: IfNotPresent
+    
   devtron:
     registry: ""
     image: "hyperion:4e39be64-280-23052"
@@ -85,22 +87,25 @@ components:
       className: nginx
       labels: {}
       annotations: {}
-      # kubernetes.io/tls-acme: "true"
+        # kubernetes.io/tls-acme: "true"
       pathType: ImplementationSpecific
       host: devtron.example.com
       tls: []
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
+      
   ciRunner:
     registry: ""
     image: "ci-runner:6e721248-138-23081"
+    
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
+      
   kubelink:
     registry: ""
     image: "kubelink:a810dbae-564-23055"
@@ -118,6 +123,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+      
   kubewatch:
     registry: ""
     image: "kubewatch:f8ac0fe6-419-23054"
@@ -128,6 +134,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
+      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -139,6 +146,7 @@ components:
       armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
+      
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -156,7 +164,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-      # Values for lens
+  # Values for lens
   lens:
     registry: ""
     image: "lens:3d3e8f08-333-23057"
@@ -174,7 +182,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-      # Change below values for nats
+  # Change below values for nats
   nats:
     registry: ""
     image: nats:2.9.3-alpine
@@ -190,6 +198,7 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
+      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -204,6 +213,7 @@ components:
         DB_NAME: "git_sensor"
       lens:
         DB_NAME: "lens"
+        
   chartSync:
     registry: ""
     image: chart-sync:b67ab589-150-23082
