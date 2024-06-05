@@ -44,12 +44,26 @@ var TerminalTimelineStatusList = []TimelineStatus{
 	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
 }
 
+var internalTimelineStatusList = []TimelineStatus{
+	TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED,
+	TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED,
+	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED,
+	TIMELINE_STATUS_DEPLOYMENT_TRIGGERED,
+	TIMELINE_STATUS_DEPLOYMENT_COMPLETED,
+}
+
 const (
-	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
-	TIMELINE_STATUS_GIT_COMMIT             TimelineStatus = "GIT_COMMIT"
-	TIMELINE_STATUS_GIT_COMMIT_FAILED      TimelineStatus = "GIT_COMMIT_FAILED"
-	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED  TimelineStatus = "ARGOCD_SYNC_INITIATED"
-	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED  TimelineStatus = "ARGOCD_SYNC_COMPLETED"
+	TIMELINE_STATUS_DEPLOYMENT_INITIATED      TimelineStatus = "DEPLOYMENT_INITIATED"
+	TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED TimelineStatus = "TRIGGER_REQUEST_VALIDATED"
+	TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED   TimelineStatus = "TRIGGER_AUDIT_COMPLETED"
+	TIMELINE_STATUS_GIT_COMMIT                TimelineStatus = "GIT_COMMIT"
+	TIMELINE_STATUS_GIT_COMMIT_FAILED         TimelineStatus = "GIT_COMMIT_FAILED"
+	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED     TimelineStatus = "ARGOCD_SYNC_INITIATED"
+	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED     TimelineStatus = "ARGOCD_SYNC_COMPLETED"
+	TIMELINE_STATUS_DEPLOYMENT_TRIGGERED      TimelineStatus = "DEPLOYMENT_TRIGGERED"
+	// TIMELINE_STATUS_DEPLOYMENT_COMPLETED - is not a terminal status.
+	// It indicates that the deployment request has been served to Kubernetes CD agents (helm/ ArgoCD).
+	TIMELINE_STATUS_DEPLOYMENT_COMPLETED   TimelineStatus = "DEPLOYMENT_COMPLETED"
 	TIMELINE_STATUS_KUBECTL_APPLY_STARTED  TimelineStatus = "KUBECTL_APPLY_STARTED"
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED   TimelineStatus = "KUBECTL_APPLY_SYNCED"
 	TIMELINE_STATUS_APP_HEALTHY            TimelineStatus = "HEALTHY"
@@ -61,8 +75,12 @@ const (
 )
 
 const (
-	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
-	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
+	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED      string = "Deployment initiated successfully."
+	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE          string = "Deployment failed: Vulnerability policy violated."
+	TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED string = "Deployment trigger request has been validated successfully."
+	TIMELINE_DESCRIPTION_TRIGGER_AUDIT_COMPLETED   string = "Deployment trigger history has been audited successfully."
+	TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED      string = "Deployment has been triggered successfully."
+	TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED      string = "Deployment has been performed successfully. Waiting for application to be healthy..."
 )
 
 type PipelineStatusTimelineRepository interface {
@@ -71,6 +89,8 @@ type PipelineStatusTimelineRepository interface {
 	UpdateTimelines(timelines []*PipelineStatusTimeline) error
 	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
+	// FetchTimelinesByWfrId - Gets the exposed timelines for Helm Applications,
+	// ignoring internalTimelineStatusList in sql query as it is not handled at FE
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status TimelineStatus) (*PipelineStatusTimeline, error)
@@ -85,6 +105,8 @@ type PipelineStatusTimelineRepository interface {
 	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
 	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error
 	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error
+	// FetchTimelinesByInstalledAppVersionHistoryId - Gets the exposed timelines for Helm Applications,
+	// ignoring internalTimelineStatusList in sql query as it is not handled at FE
 	FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (*PipelineStatusTimeline, error)
 	GetConnection() *pg.DB
@@ -163,10 +185,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pip
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error) {
-	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("cd_workflow_runner_id = ? and status !='ARGOCD_SYNC_INITIATED' ", wfrId).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status NOT IN (?)", pg.In(internalTimelineStatusList)).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -346,10 +368,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStat
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error) {
-	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("installed_app_version_history_id = ? and status !='ARGOCD_SYNC_INITIATED'", installedAppVersionHistoryId).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Where("status NOT IN (?)", pg.In(internalTimelineStatusList)).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by installAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)

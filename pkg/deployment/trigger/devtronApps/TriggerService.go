@@ -56,7 +56,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
-	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -437,6 +436,13 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
+		// custom GitOps repo url validation --> Start
+		err = impl.handleCustomGitOpsRepoValidation(runner, cdPipeline, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("custom GitOps repository validation error, TriggerStage", "err", err)
+			return 0, err
+		}
+		// custom GitOps repo url validation --> Ends
 		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
 		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
 		if err != nil {
@@ -660,7 +666,7 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 	}
 	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline)
 
-	ctx, err := impl.argoUserService.BuildACDContext()
+	ctx, err := impl.argoUserService.GetACDContext(context.Background())
 	if err != nil {
 		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
@@ -681,7 +687,7 @@ func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int,
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
 	// auditDeploymentTriggerHistory is performed irrespective of GetValuesOverrideForTrigger error - for auditing purposes
-	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, deployedBy)
+	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, deployedBy)
 	if historyErr != nil {
 		impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
 		return releaseNo, err
@@ -708,35 +714,24 @@ func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.Va
 		return impl.triggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
-	releaseNo, err = impl.TriggerRelease(overrideRequest, newCtx, triggeredAt, deployedBy)
-	if err != nil {
-		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
-		if err1 != nil {
-			impl.logger.Errorw("error in updating userDeploymentRequest status",
-				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestFailed,
-				"err", err1)
-		}
-		return releaseNo, err
-	}
-	return releaseNo, nil
+	return impl.TriggerRelease(overrideRequest, newCtx, triggeredAt, deployedBy)
 }
 
-func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
+func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
 	if valuesOverrideResponse.Pipeline == nil || valuesOverrideResponse.EnvOverride == nil {
-		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfId", cdWfId)
+		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
 		return nil
 	}
 	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 	if err1 != nil {
-		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfId", cdWfId)
+		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
 		return nil
 	}
-	dbErr := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(ctx, userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted, cdWfId)
-	if dbErr != nil {
-		impl.logger.Errorw("error in updating userDeploymentRequest status",
-			"cdWfId", cdWfId, "status", userDeploymentReqBean.DeploymentRequestTriggerAuditCompleted,
-			"err", dbErr)
-		return dbErr
+	// creating cd pipeline status timeline for deployment trigger history saved
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfrId, 0, pipelineConfig.TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_AUDIT_COMPLETED, triggeredBy, time.Now())
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	if err != nil {
+		impl.logger.Errorw("error in creating timeline status for deployment trigger history saved", "err", err, "timeline", timeline)
 	}
 	return nil
 }
@@ -750,7 +745,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		overrideRequest.UserId = triggeredBy
 	}
 	triggerEvent := helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
-	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(&triggerEvent, overrideRequest.CdWorkflowId, overrideRequest.WfrId)
+	skipRequest, err := impl.updateTriggerEventForIncompleteRequest(overrideRequest.WfrId, &triggerEvent)
 	if err != nil {
 		return releaseNo, err
 	}
@@ -762,7 +757,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
 	if triggerEvent.SaveTriggerHistory {
 		// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
-		historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.CdWorkflowId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
+		historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
 		if historyErr != nil {
 			impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
 			return releaseNo, err
@@ -773,15 +768,22 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return releaseNo, err
 	}
 	releaseNo, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, newCtx)
-	if err != nil {
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return 0, err
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
+		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(overrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId, time.Now())
+		dbErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+		if dbErr != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
+		}
 		return 0, err
 	}
-	err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestCompleted, overrideRequest.CdWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in updating userDeploymentRequest status",
-			"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestCompleted,
-			"err", err)
-		return releaseNo, err
+	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(overrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId, time.Now())
+	dbErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	if dbErr != nil {
+		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
 	}
 	return releaseNo, nil
 }
@@ -833,62 +835,51 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	return nil
 }
 
-func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(triggerEvent *bean.TriggerEvent, cdWfId, cdWfrId int) (skipRequest bool, err error) {
-	deployRequestStatus, err := impl.userDeploymentRequestService.GetDeployRequestStatusByCdWfId(cdWfId)
+func (impl *TriggerServiceImpl) updateTriggerEventForIncompleteRequest(cdWfrId int, triggerEvent *bean.TriggerEvent) (skipRequest bool, err error) {
+	request := statusBean.NewTimelineGetRequest().
+		WithCdWfrId(cdWfrId).
+		ExcludingStatuses(pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS)
+	latestTimelineStatus, err := impl.pipelineStatusTimelineService.GetLastTimelineStatusFor(request)
 	if err != nil {
-		impl.logger.Errorw("error in getting userDeploymentRequest by cdWfId", "cdWfrId", cdWfId, "err", err)
+		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
 		return skipRequest, err
 	}
-	if util.IsAcdApp(triggerEvent.DeploymentAppType) {
-		request := statusBean.NewTimelineGetRequest().
-			WithCdWfrId(cdWfrId).
-			ExcludingStatuses(pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS)
-		latestTimelineStatus, err := impl.pipelineStatusTimelineService.GetLastTimelineStatusFor(request)
-		if err != nil {
-			impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", cdWfrId, "err", err)
-			return skipRequest, err
-		}
-		if latestTimelineStatus.IsTerminalTimelineStatus() && deployRequestStatus.IsTerminalStatus() {
-			impl.logger.Info("deployment is already terminated", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
-			skipRequest = true
-			return skipRequest, nil
-		}
-		switch latestTimelineStatus {
-		case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
-			if deployRequestStatus.IsTriggerHistorySaved() {
-				// trigger history has already been saved
-				triggerEvent.SaveTriggerHistory = false
-			}
-			return skipRequest, nil
-		case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-			pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
-			// trigger history has already been saved
-			triggerEvent.SaveTriggerHistory = false
-			// git commit has already been performed
-			triggerEvent.PerformChartPush = false
-			if deployRequestStatus.IsTriggered() {
-				// deployment has already been performed
-				triggerEvent.PerformDeploymentOnCluster = false
-			}
-			return skipRequest, nil
-		case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
-			// trigger history has already been saved
-			triggerEvent.SaveTriggerHistory = false
-			// git commit has already been performed
-			triggerEvent.PerformChartPush = false
-			// deployment has already been performed
-			triggerEvent.PerformDeploymentOnCluster = false
-			return skipRequest, nil
-		}
-	} else {
-		if deployRequestStatus.IsTriggerHistorySaved() {
-			// trigger history has already been saved
-			triggerEvent.SaveTriggerHistory = false
-		} else if deployRequestStatus.IsTriggered() {
-			// deployment has already been performed
-			triggerEvent.PerformDeploymentOnCluster = false
-		}
+	if latestTimelineStatus.IsTerminalTimelineStatus() {
+		impl.logger.Info("deployment is already terminated", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
+		skipRequest = true
+		return skipRequest, nil
 	}
+	switch latestTimelineStatus {
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
+		return skipRequest, fmt.Errorf("invalid deployment request recieved")
+	case pipelineConfig.TIMELINE_STATUS_TRIGGER_REQUEST_VALIDATED:
+		// perform all trigger events
+		return skipRequest, nil
+	case pipelineConfig.TIMELINE_STATUS_TRIGGER_AUDIT_COMPLETED:
+		// trigger history has already been saved
+		triggerEvent.SaveTriggerHistory = false
+		return skipRequest, nil
+	case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+		pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
+		// trigger history has already been saved
+		triggerEvent.SaveTriggerHistory = false
+		// git commit has already been performed
+		triggerEvent.PerformChartPush = false
+		return skipRequest, nil
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED:
+		// trigger history has already been saved
+		triggerEvent.SaveTriggerHistory = false
+		// git commit has already been performed
+		triggerEvent.PerformChartPush = false
+		// deployment has already been performed
+		triggerEvent.PerformDeploymentOnCluster = false
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED,
+		pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
+		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", cdWfrId, "latestTimelineStatus", latestTimelineStatus)
+		skipRequest = true
+		return skipRequest, nil
+	}
+
 	return skipRequest, nil
 }
 
@@ -906,13 +897,6 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		err = impl.deployApp(overrideRequest, valuesOverrideResponse, newCtx)
 		if err != nil {
 			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, err
-		}
-		err = impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestTriggered, overrideRequest.CdWorkflowId)
-		if err != nil {
-			impl.logger.Errorw("error in updating userDeploymentRequest status",
-				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestTriggered,
-				"err", err)
 			return releaseNo, err
 		}
 	}
@@ -1009,6 +993,12 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
 		}
+	}
+	// creating cd pipeline status timeline for deployment initialisation
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(overrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED, overrideRequest.UserId, time.Now())
+	err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+	if err != nil {
+		impl.logger.Errorw("error in creating timeline status for deployment triggered", "err", err, "timeline", timeline)
 	}
 	return nil
 }
@@ -1499,16 +1489,8 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 			return err
 		}
 		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-			// if image vulnerable, update timeline status and return
-			runner.Status = pipelineConfig.WorkflowFailed
-			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
-			runner.FinishedOn = time.Now()
-			runner.UpdatedOn = time.Now()
-			runner.UpdatedBy = triggeredBy
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-				return err
+			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}
 			apiErr := &util.ApiError{
 				HttpStatusCode:  http.StatusConflict,

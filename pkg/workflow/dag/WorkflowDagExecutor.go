@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	triggerBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	userDeploymentReqBean "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -359,12 +358,6 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
-		err1 := impl.userDeploymentRequestService.UpdateStatusForCdWfIds(newCtx, userDeploymentReqBean.DeploymentRequestFailed, overrideRequest.CdWorkflowId)
-		if err1 != nil {
-			impl.logger.Errorw("error in updating userDeploymentRequest status",
-				"cdWfId", overrideRequest.CdWorkflowId, "status", userDeploymentReqBean.DeploymentRequestFailed,
-				"err", err1)
-		}
 		return releaseErr
 	} else {
 		impl.logger.Infow("pipeline triggered successfully !!", "cdPipelineId", overrideRequest.PipelineId, "artifactId", overrideRequest.CiArtifactId, "releaseId", releaseId)
