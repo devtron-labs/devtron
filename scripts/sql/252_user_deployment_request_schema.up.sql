@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
     "deployment_type"                        integer,
     "triggered_at"                           timestamptz NOT NULL,
     "triggered_by"                           int4 NOT NULL,
-    "status"                                 varchar(100) NOT NULL,
 
     CONSTRAINT user_deployment_request_pipeline_id_fk
         FOREIGN KEY (pipeline_id)
