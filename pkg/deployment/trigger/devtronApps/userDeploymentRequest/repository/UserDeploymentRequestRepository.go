@@ -132,11 +132,11 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 	defer span.End()
 	var model []UserDeploymentRequestWithAdditionalFields
 	subQuery := impl.dbConnection.Model().
-		Table("pipeline_status_timeline pst2").
+		Table("pipeline_status_timeline").
 		ColumnExpr("1").
-		Where("pst2.cd_workflow_runner_id = cdwfr.id").
-		Where("pst2.status = ?", pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED)
-	query := impl.dbConnection.Model().
+		Where("pipeline_status_timeline.cd_workflow_runner_id = cdwfr.id").
+		Where("pipeline_status_timeline.status = ?", pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED)
+	latestRequestQuery := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		ColumnExpr("MAX(user_deployment_request.id)").
 		Join("INNER JOIN cd_workflow cdwf").
@@ -159,7 +159,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		JoinOn("user_deployment_request.cd_workflow_id = cdwfr.cd_workflow_id").
 		Join("LEFT JOIN pipeline_config_override pco").
 		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
-		Where("user_deployment_request.id IN (?)", query).
+		Where("user_deployment_request.id IN (?)", latestRequestQuery).
 		Select(&model)
 	return model, err
 }
