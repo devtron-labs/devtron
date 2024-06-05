@@ -68,6 +68,14 @@ jobs:
                  get_image_arch "$image"
              fi
          done < <(grep -Eo '"image":\s*"[^"]*"' values.json)
+
+         while read -r line; do
+             cicd_image=$(echo "$line" | cut -d'"' -f4)
+             if [ -n "$cicd_image" ]; then
+                 echo "$cicd_image"
+                 get_image_arch "$cicd_image"
+             fi
+         done < <(grep -Eo '"cicdImage":\s*"[^"]*"' values.json)
          
           
          if [ ${#non_multiarch_images[@]} -ne 0 ]; then
