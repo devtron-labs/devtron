@@ -181,10 +181,12 @@ func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cd
 		}
 		globalUtil.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
 	}
-	err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, nil)
-	if err != nil {
-		impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
-		return err
+	if len(timelines) > 0 {
+		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, nil)
+		if err != nil {
+			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
+			return err
+		}
 	}
 	return nil
 }
