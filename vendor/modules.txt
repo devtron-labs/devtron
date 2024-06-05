@@ -409,7 +409,7 @@ github.com/devtron-labs/authenticator/password
 # github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
 ## explicit; go 1.20
 github.com/devtron-labs/bitbucketdc-gosdk/swagger
-# github.com/devtron-labs/common-lib v0.0.19-0.20240528110708-f6086d04927d
+# github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier
@@ -430,7 +430,7 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.16-0.20240529060937-643c24d33be0
+# github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
