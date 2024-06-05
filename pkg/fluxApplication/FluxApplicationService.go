@@ -4,49 +4,50 @@ import (
 	"context"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"go.uber.org/zap"
 )
 
 type FluxApplicationService interface {
-	ListFluxApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error)
+	ListApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error)
 	ConvertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error)
 }
 
 type FluxApplicationServiceImpl struct {
-	logger         *zap.SugaredLogger
-	helmAppService service.HelmAppService
+	logger *zap.SugaredLogger
+	//helmAppService service.HelmAppService
 	clusterService cluster.ClusterService
 	helmAppClient  gRPC.HelmAppClient
 }
 
 func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
-	helmAppService service.HelmAppService, clusterService cluster.ClusterService, helmAppClient gRPC.HelmAppClient) *FluxApplicationServiceImpl {
+	//helmAppService service.HelmAppService,
+	clusterService cluster.ClusterService,
+	helmAppClient gRPC.HelmAppClient) *FluxApplicationServiceImpl {
 	return &FluxApplicationServiceImpl{
-		logger:         logger,
-		helmAppService: helmAppService,
+		logger: logger,
+		//helmAppService: helmAppService,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 	}
 
 }
 
-func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error) {
+func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error) {
 	var clusters []*cluster.ClusterBean
 	var err error
 	appListCluster := make([]*bean.FluxApplicationListDto, 0)
 	req := &gRPC.AppListRequest{}
 	if len(clusterIds) > 0 {
-		for _, clusterId := range clusterIds {
-			clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
-			if err != nil {
-				impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
-				return nil, err
-			}
-			req.Clusters = append(req.Clusters, clusterConfig)
-		}
+		//for _, clusterId := range clusterIds {
+		//	clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
+		//	if err != nil {
+		//		impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
+		//		return nil, err
+		//	}
+		//	req.Clusters = append(req.Clusters, clusterConfig)
+		//}
 
 	} else {
 		clusters, err = impl.clusterService.FindAll()

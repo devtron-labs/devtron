@@ -12,7 +12,7 @@ import (
 )
 
 type FluxApplicationRestHandler interface {
-	ListApplications(w http.ResponseWriter, r *http.Request)
+	ListFluxApplications(w http.ResponseWriter, r *http.Request)
 	//GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 }
 
@@ -32,7 +32,7 @@ func NewFluxApplicationRestHandlerImpl(fluxApplicationService fluxApplication.Fl
 
 }
 
-func (handler *FluxApplicationRestHandlerImpl) ListApplications(w http.ResponseWriter, r *http.Request) {
+func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.ResponseWriter, r *http.Request) {
 	//handle super-admin RBAC
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
@@ -54,7 +54,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListApplications(w http.ResponseW
 			clusterIds = append(clusterIds, id)
 		}
 	}
-	resp, err := handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds)
+	resp, err := handler.fluxApplicationService.ListApplications(r.Context(), clusterIds)
 	if err != nil {
 		handler.logger.Errorw("error in listing all argo applications", "err", err, "clusterIds", clusterIds)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
