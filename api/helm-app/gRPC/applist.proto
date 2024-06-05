@@ -21,6 +21,7 @@ message AppListRequest {
 
 service ApplicationService {
   rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
+  rpc ListFluxApplications(AppListRequest) returns (stream FluxApplicationList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
   rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
   rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
@@ -57,6 +58,17 @@ message ExternalResourceDetail {
   string namespace = 5;
 }
 
+message FluxApplicationList {
+  int32 clusterId = 1;
+  repeated FluxApplicationDetail FluxApplicationDetail =2;
+}
+message FluxApplicationDetail{
+  string Name=1;
+  string HealthStatus=2;
+  string SyncStatus=3;
+  EnvironmentDetails environmentDetail = 4;
+  bool IsKustomizeApp=5;
+}
 
 message DeployedAppList {
   repeated DeployedAppDetail DeployedAppDetail = 1;
