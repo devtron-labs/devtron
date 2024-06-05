@@ -72,27 +72,23 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 		if err1 != nil {
 			impl.logger.Errorw("error in list Flux applications streams recv", "err", err)
 		} else {
-			appLists := fluxApplicationList.FluxApplicationList
+			appLists := fluxApplicationList.GetFluxApplicationDetail()
 
-			for _, appList := range appLists {
-
-				fluxAppList := appList.FluxApplicationDetail
+			for _, app := range appLists {
 				fluxAppListDto := make([]*bean.FluxApplicationDto, 0)
-				for _, app := range fluxAppList {
-					fluxAppListDto = append(fluxAppListDto, &bean.FluxApplicationDto{
-						Name:         app.Name,
-						SyncStatus:   app.SyncStatus,
-						HealthStatus: app.HealthStatus,
-						EnvironmentDetails: &bean.EnvironmentDetail{
-							Namespace:   app.EnvironmentDetail.Namespace,
-							ClusterId:   int(app.EnvironmentDetail.ClusterId),
-							ClusterName: app.EnvironmentDetail.ClusterName,
-						},
-					})
-				}
+				fluxAppListDto = append(fluxAppListDto, &bean.FluxApplicationDto{
+					Name:         app.Name,
+					SyncStatus:   app.SyncStatus,
+					HealthStatus: app.HealthStatus,
+					EnvironmentDetails: &bean.EnvironmentDetail{
+						Namespace:   app.EnvironmentDetail.Namespace,
+						ClusterId:   int(app.EnvironmentDetail.ClusterId),
+						ClusterName: app.EnvironmentDetail.ClusterName,
+					},
+				})
 
 				appListCluster = append(appListCluster, &bean.FluxApplicationListDto{
-					ClusterId:  int(appList.ClusterId),
+					ClusterId:  int(fluxApplicationList.ClusterId),
 					FluxAppDto: fluxAppListDto,
 				})
 			}

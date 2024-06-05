@@ -129,7 +129,7 @@ func (c *applicationServiceClient) ListFluxApplications(ctx context.Context, in 
 }
 
 type ApplicationService_ListFluxApplicationsClient interface {
-	Recv() (*RepeatedFluxApplicationList, error)
+	Recv() (*FluxApplicationList, error)
 	grpc.ClientStream
 }
 
@@ -137,8 +137,8 @@ type applicationServiceListFluxApplicationsClient struct {
 	grpc.ClientStream
 }
 
-func (x *applicationServiceListFluxApplicationsClient) Recv() (*RepeatedFluxApplicationList, error) {
-	m := new(RepeatedFluxApplicationList)
+func (x *applicationServiceListFluxApplicationsClient) Recv() (*FluxApplicationList, error) {
+	m := new(FluxApplicationList)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func _ApplicationService_ListFluxApplications_Handler(srv interface{}, stream gr
 }
 
 type ApplicationService_ListFluxApplicationsServer interface {
-	Send(*RepeatedFluxApplicationList) error
+	Send(*FluxApplicationList) error
 	grpc.ServerStream
 }
 
@@ -488,7 +488,7 @@ type applicationServiceListFluxApplicationsServer struct {
 	grpc.ServerStream
 }
 
-func (x *applicationServiceListFluxApplicationsServer) Send(m *RepeatedFluxApplicationList) error {
+func (x *applicationServiceListFluxApplicationsServer) Send(m *FluxApplicationList) error {
 	return x.ServerStream.SendMsg(m)
 }
 
