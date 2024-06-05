@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-package app
+package publish
 
 import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
-	status2 "github.com/devtron-labs/devtron/pkg/app/status"
+	"github.com/devtron-labs/devtron/pkg/app/status"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -42,37 +45,43 @@ type GitOpsPushService interface {
 }
 
 type GitOpsManifestPushServiceImpl struct {
-	logger                           *zap.SugaredLogger
-	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
-	acdConfig                        *argocdServer.ACDConfig
-	chartRefService                  chartRef.ChartRefService
-	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOperationService              git.GitOperationService
-	argoClientWrapperService         argocdServer.ArgoClientWrapperService
+	logger                        *zap.SugaredLogger
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	acdConfig                     *argocdServer.ACDConfig
+	chartRefService               chartRef.ChartRefService
+	gitOpsConfigReadService       config.GitOpsConfigReadService
+	chartService                  chartService.ChartService
+	gitOperationService           git.GitOperationService
+	argoClientWrapperService      argocdServer.ArgoClientWrapperService
+	*sql.TransactionUtilImpl
 }
 
 func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
-	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	acdConfig *argocdServer.ACDConfig,
 	chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
+	chartService chartService.ChartService,
 	gitOperationService git.GitOperationService,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService) *GitOpsManifestPushServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	transactionUtilImpl *sql.TransactionUtilImpl) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
-		logger:                           logger,
-		pipelineStatusTimelineService:    pipelineStatusTimelineService,
-		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
-		acdConfig:                        acdConfig,
-		chartRefService:                  chartRefService,
-		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOperationService:              gitOperationService,
-		argoClientWrapperService:         argoClientWrapperService,
+		logger:                        logger,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		acdConfig:                     acdConfig,
+		chartRefService:               chartRefService,
+		gitOpsConfigReadService:       gitOpsConfigReadService,
+		chartService:                  chartService,
+		gitOperationService:           gitOperationService,
+		argoClientWrapperService:      argoClientWrapperService,
+		TransactionUtilImpl:           transactionUtilImpl,
 	}
 }
 
-func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPushTemplate bean.ManifestPushTemplate, ctx context.Context) (string, error) {
+func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPushTemplate bean.ManifestPushTemplate, ctx context.Context) (string, error) {
 	// custom GitOps repo url doesn't support migration
 	if manifestPushTemplate.IsCustomGitRepository {
 		return manifestPushTemplate.RepoUrl, nil
@@ -125,14 +134,23 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 	// 3. Create Git Repo if required
 	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
-		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, newCtx)
+		newGitRepoUrl, errMsg := impl.createRepoForGitOperation(*manifestPushTemplate, newCtx)
 		if errMsg != nil {
 			manifestPushResponse.Error = errMsg
 			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
 			return manifestPushResponse
 		}
-		manifestPushTemplate.RepoUrl = overRiddenGitRepoUrl
-		manifestPushResponse.OverRiddenRepoUrl = overRiddenGitRepoUrl
+		manifestPushTemplate.RepoUrl = newGitRepoUrl
+		manifestPushResponse.NewGitRepoUrl = newGitRepoUrl
+		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+		err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, newGitRepoUrl, manifestPushTemplate.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+			manifestPushResponse.Error = fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", newGitRepoUrl)
+			impl.SaveTimelineForError(manifestPushTemplate, manifestPushResponse.Error)
+			return manifestPushResponse
+		}
+
 	}
 	// 4. Push Chart to Git Repository
 	err = impl.pushChartToGitRepo(newCtx, manifestPushTemplate)
@@ -153,18 +171,22 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	}
 	manifestPushResponse.CommitHash = commitHash
 	manifestPushResponse.CommitTime = commitTime
-
-	// 6. Update Deployment Status Timeline
-	dbConnection := impl.pipelineStatusTimelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
+	// 6. Update commit details in PipelineConfigOverride and Deployment Status Timelines
+	tx, err := impl.TransactionUtilImpl.StartTx()
+	defer impl.TransactionUtilImpl.RollbackTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in transaction begin in saving gitops timeline", "err", err)
 		manifestPushResponse.Error = err
 		return manifestPushResponse
 	}
-
+	err = impl.pipelineOverrideRepository.UpdateCommitDetails(newCtx, tx, manifestPushTemplate.PipelineOverrideId, manifestPushResponse.CommitHash, manifestPushResponse.CommitTime, manifestPushTemplate.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating commit details to PipelineConfigOverride", "pipelineOverrideId", manifestPushTemplate.PipelineOverrideId, "err", err)
+		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
+		return manifestPushResponse
+	}
 	gitCommitTimeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", manifestPushTemplate.UserId, time.Now())
-
 	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
 	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
@@ -175,8 +197,12 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	if timelineErr != nil {
 		impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
 	}
-	tx.Commit()
-
+	err = impl.TransactionUtilImpl.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to save gitops timeline", "err", err)
+		manifestPushResponse.Error = err
+		return manifestPushResponse
+	}
 	return manifestPushResponse
 }
 

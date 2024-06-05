@@ -159,12 +159,16 @@ func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cd
 		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
 		return err
 	}
+	var timelines []*pipelineConfig.PipelineStatusTimeline
 	for _, cdWfr := range cdWfrs {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline, UpdatePreviousQueuedRunnerStatus", "err", err)
-			return err
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: cdWfr.Id,
+			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED,
+			StatusTime:         time.Now(),
 		}
+		timeline.CreateAuditLog(1)
+		timelines = append(timelines, timeline)
 		if cdWfr.CdWorkflow == nil {
 			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 			if err != nil {
@@ -176,6 +180,11 @@ func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cd
 			}
 		}
 		globalUtil.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
+	}
+	err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, nil)
+	if err != nil {
+		impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
+		return err
 	}
 	return nil
 }
@@ -239,8 +248,8 @@ func (impl *WorkflowEventPublishServiceImpl) getAsyncDeploymentTopicAndPayload(u
 			topic = pubsub.DEVTRON_CHART_PRIORITY_INSTALL_TOPIC
 		}
 	}
-	event := &eventProcessorBean.AsyncCdDeployRequest{
-		UserDeploymentRequestId: userDeploymentRequestId,
+	event := &eventProcessorBean.UserDeploymentRequest{
+		Id: userDeploymentRequestId,
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {

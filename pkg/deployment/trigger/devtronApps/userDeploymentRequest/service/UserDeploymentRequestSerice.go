@@ -32,10 +32,10 @@ import (
 )
 
 type UserDeploymentRequestService interface {
-	SaveNewDeployment(ctx context.Context, asyncCdDeployRequest *eventProcessorBean.AsyncCdDeployRequest) (int, error)
-	GetLatestAsyncCdDeployRequestForPipeline(ctx context.Context, deploymentReqId int) (*eventProcessorBean.AsyncCdDeployRequest, error)
+	SaveNewDeployment(ctx context.Context, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (int, error)
+	GetLatestAsyncCdDeployRequestForPipeline(ctx context.Context, deploymentReqId int) (*eventProcessorBean.UserDeploymentRequest, error)
 	IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error)
-	GetAllInCompleteRequests(ctx context.Context) ([]*eventProcessorBean.AsyncCdDeployRequest, error)
+	GetAllInCompleteRequests(ctx context.Context) ([]*eventProcessorBean.UserDeploymentRequest, error)
 }
 
 type UserDeploymentRequestServiceImpl struct {
@@ -56,11 +56,11 @@ func NewUserDeploymentRequestServiceImpl(
 	return userDeploymentRequestService
 }
 
-func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, asyncCdDeployRequest *eventProcessorBean.AsyncCdDeployRequest) (userDeploymentRequestId int, err error) {
+func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (userDeploymentRequestId int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
-	userDeploymentRequest := adapter.NewUserDeploymentRequest(asyncCdDeployRequest)
-	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(asyncCdDeployRequest.ValuesOverrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED, asyncCdDeployRequest.TriggeredBy, time.Now())
+	userDeploymentRequest := adapter.NewUserDeploymentRequest(deploymentRequest)
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(deploymentRequest.ValuesOverrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED, deploymentRequest.TriggeredBy, time.Now())
 	tx, err := impl.userDeploymentRequestRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
@@ -71,7 +71,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, false)
 	err = impl.userDeploymentRequestRepo.Save(newCtx, tx, userDeploymentRequest)
 	if err != nil {
-		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", asyncCdDeployRequest, "err", err)
+		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", deploymentRequest, "err", err)
 		return userDeploymentRequestId, err
 	}
 	err = impl.userDeploymentRequestRepo.CommitTx(tx)
@@ -79,12 +79,12 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 		impl.logger.Errorw("error in committing transaction to update userDeploymentRequest", "error", err)
 		return userDeploymentRequestId, err
 	}
-	asyncCdDeployRequest.UserDeploymentRequestId = userDeploymentRequest.Id
+	deploymentRequest.Id = userDeploymentRequest.Id
 	userDeploymentRequestId = userDeploymentRequest.Id
 	return userDeploymentRequestId, nil
 }
 
-func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteRequests(ctx context.Context) ([]*eventProcessorBean.AsyncCdDeployRequest, error) {
+func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteRequests(ctx context.Context) ([]*eventProcessorBean.UserDeploymentRequest, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.GetAllInCompleteRequests")
 	defer span.End()
 	models, err := impl.userDeploymentRequestRepo.GetAllInCompleteRequests(newCtx)
@@ -92,7 +92,7 @@ func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteRequests(ctx conte
 		impl.logger.Errorw("error in getting all incomplete userDeploymentRequests", "err", err)
 		return nil, err
 	}
-	response := make([]*eventProcessorBean.AsyncCdDeployRequest, 0, len(models))
+	response := make([]*eventProcessorBean.UserDeploymentRequest, 0, len(models))
 	for _, model := range models {
 		response = append(response, adapter.NewAsyncCdDeployRequest(&model.UserDeploymentRequest).
 			WithCdWorkflowRunnerId(model.CdWorkflowRunnerId).
@@ -101,7 +101,7 @@ func (impl *UserDeploymentRequestServiceImpl) GetAllInCompleteRequests(ctx conte
 	return response, nil
 }
 
-func (impl *UserDeploymentRequestServiceImpl) GetLatestAsyncCdDeployRequestForPipeline(ctx context.Context, deploymentReqId int) (*eventProcessorBean.AsyncCdDeployRequest, error) {
+func (impl *UserDeploymentRequestServiceImpl) GetLatestAsyncCdDeployRequestForPipeline(ctx context.Context, deploymentReqId int) (*eventProcessorBean.UserDeploymentRequest, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.GetAllInCompleteRequests")
 	defer span.End()
 	latestDeploymentReqId, err := impl.userDeploymentRequestRepo.GetLatestIdForPipeline(newCtx, deploymentReqId)

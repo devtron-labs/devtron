@@ -82,6 +82,7 @@ const (
 	TIMELINE_DESCRIPTION_TRIGGER_AUDIT_COMPLETED   string = "Deployment trigger history has been audited successfully."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED      string = "Deployment has been triggered successfully."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED      string = "Deployment has been performed successfully. Waiting for application to be healthy..."
+	TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED     string = "This deployment is superseded."
 )
 
 type PipelineStatusTimelineRepository interface {

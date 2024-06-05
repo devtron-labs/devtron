@@ -698,39 +698,39 @@ func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncInstallRequest() er
 
 func getAsyncDeploymentLoggerFunc(topicType string) pubsub.LoggerFunc {
 	return func(msg model.PubSubMsg) (string, []interface{}) {
-		cdAsyncInstallReq := &bean.AsyncCdDeployRequest{}
+		cdAsyncInstallReq := &bean.UserDeploymentRequest{}
 		err := json.Unmarshal([]byte(msg.Data), cdAsyncInstallReq)
 		if err != nil {
 			return fmt.Sprintf("error in unmarshalling CD Pipeline %s install request nats message", topicType), []interface{}{"err", err}
 		}
-		return fmt.Sprintf("got message for devtron chart %s install", topicType), []interface{}{"userDeploymentRequestId", cdAsyncInstallReq.UserDeploymentRequestId}
+		return fmt.Sprintf("got message for devtron chart %s install", topicType), []interface{}{"userDeploymentRequestId", cdAsyncInstallReq.Id}
 	}
 }
 
-func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(ctx context.Context, msg *model.PubSubMsg) (*bean.AsyncCdDeployRequest, error) {
+func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(ctx context.Context, msg *model.PubSubMsg) (*bean.UserDeploymentRequest, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
-	cdAsyncInstallReq := &bean.AsyncCdDeployRequest{}
+	cdAsyncInstallReq := &bean.UserDeploymentRequest{}
 	err := json.Unmarshal([]byte(msg.Data), cdAsyncInstallReq)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
 		return nil, err
 	}
-	if cdAsyncInstallReq.UserDeploymentRequestId == 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
+	if cdAsyncInstallReq.Id == 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
 		impl.logger.Errorw("invalid async cd pipeline deployment request", "msg", msg.Data)
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
 	}
-	if cdAsyncInstallReq.UserDeploymentRequestId != 0 {
-		latestCdAsyncInstallReq, err := impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(newCtx, cdAsyncInstallReq.UserDeploymentRequestId)
+	if cdAsyncInstallReq.Id != 0 {
+		latestCdAsyncInstallReq, err := impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(newCtx, cdAsyncInstallReq.Id)
 		if err != nil {
-			impl.logger.Errorw("error in fetching userDeploymentRequest by id", "userDeploymentRequestId", cdAsyncInstallReq.UserDeploymentRequestId, "err", err)
+			impl.logger.Errorw("error in fetching userDeploymentRequest by id", "userDeploymentRequestId", cdAsyncInstallReq.Id, "err", err)
 			return nil, err
 		}
 		cdAsyncInstallReq = latestCdAsyncInstallReq
 	}
 	err = impl.setAdditionalDataInAsyncInstallReq(newCtx, cdAsyncInstallReq)
 	if err != nil {
-		impl.logger.Errorw("error in setting additional data to AsyncCdDeployRequest", "err", err)
+		impl.logger.Errorw("error in setting additional data to UserDeploymentRequest", "err", err)
 		return nil, err
 	}
 	return cdAsyncInstallReq, nil
@@ -806,7 +806,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq, "request sequence", index+1)
 		err = impl.setAdditionalDataInAsyncInstallReq(context.Background(), cdAsyncInstallReq)
 		if err != nil {
-			impl.logger.Errorw("error in setting additional data to AsyncCdDeployRequest, skipping", "err", err)
+			impl.logger.Errorw("error in setting additional data to UserDeploymentRequest, skipping", "err", err)
 			continue
 		}
 		err = impl.ProcessConcurrentAsyncDeploymentReq(ctx, cdAsyncInstallReq)
@@ -823,7 +823,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 }
 
 func (impl *WorkflowEventProcessorImpl) getDevtronAppReleaseContextWithLock(ctx context.Context,
-	cdAsyncInstallReq *bean.AsyncCdDeployRequest, cdWfr *pipelineConfig.CdWorkflowRunner) (context.Context, bool, error) {
+	cdAsyncInstallReq *bean.UserDeploymentRequest, cdWfr *pipelineConfig.CdWorkflowRunner) (context.Context, bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.getDevtronAppReleaseContextWithLock")
 	defer span.End()
 	cdWfrId := cdAsyncInstallReq.ValuesOverrideRequest.WfrId
@@ -831,7 +831,7 @@ func (impl *WorkflowEventProcessorImpl) getDevtronAppReleaseContextWithLock(ctx 
 	userId := cdAsyncInstallReq.ValuesOverrideRequest.UserId
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
-	isValidRequest, err := impl.validateConcurrentOrInvalidRequest(ctx, cdWfr, cdAsyncInstallReq.UserDeploymentRequestId, pipelineId, userId)
+	isValidRequest, err := impl.validateConcurrentOrInvalidRequest(ctx, cdWfr, cdAsyncInstallReq.Id, pipelineId, userId)
 	if err != nil {
 		impl.logger.Errorw("error, validateConcurrentOrInvalidRequest", "err", err, "cdWfrId", cdWfrId, "cdWfrStatus", cdWfr.Status, "pipelineId", pipelineId)
 		return nil, false, err
@@ -846,7 +846,7 @@ func (impl *WorkflowEventProcessorImpl) getDevtronAppReleaseContextWithLock(ctx 
 	return releaseContext, false, err
 }
 
-func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx context.Context, cdAsyncInstallReq *bean.AsyncCdDeployRequest) error {
+func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx context.Context, cdAsyncInstallReq *bean.UserDeploymentRequest) error {
 	cdWfrId := cdAsyncInstallReq.ValuesOverrideRequest.WfrId
 	pipelineId := cdAsyncInstallReq.ValuesOverrideRequest.PipelineId
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
@@ -1007,7 +1007,7 @@ func (impl *WorkflowEventProcessorImpl) RemoveReleaseContextForPipeline(pipeline
 	return
 }
 
-func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(ctx context.Context, cdAsyncInstallReq *bean.AsyncCdDeployRequest) error {
+func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(ctx context.Context, cdAsyncInstallReq *bean.UserDeploymentRequest) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.setAdditionalDataInAsyncInstallReq")
 	defer span.End()
 	pipelineModel, err := impl.getPipelineModelById(cdAsyncInstallReq.ValuesOverrideRequest.PipelineId)

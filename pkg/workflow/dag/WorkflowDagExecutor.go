@@ -76,7 +76,7 @@ type WorkflowDagExecutor interface {
 	HandleExternalCiWebhook(externalCiId int, request *bean2.CiArtifactWebhookRequest,
 		auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error)
 
-	ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.AsyncCdDeployRequest, ctx context.Context) error
+	ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.UserDeploymentRequest, ctx context.Context) error
 
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *helmBean.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
@@ -338,7 +338,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 	}
 }
 
-func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.AsyncCdDeployRequest, ctx context.Context) error {
+func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq *eventProcessorBean.UserDeploymentRequest, ctx context.Context) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.ProcessDevtronAsyncInstallRequest")
 	defer span.End()
 	overrideRequest := cdAsyncInstallReq.ValuesOverrideRequest
@@ -348,6 +348,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		return err
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
+		// TODO Asutosh: rethink
 		// update workflow runner status, used in app workflow view
 		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
 		if err != nil {

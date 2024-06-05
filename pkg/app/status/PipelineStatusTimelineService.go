@@ -426,6 +426,9 @@ func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatusForAppStore(i
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+	if tx == nil {
+		return impl.pipelineStatusTimelineRepository.SaveTimelines(timeline)
+	}
 	_, err := tx.Model(&timeline).Insert()
 	if err != nil {
 		return err
