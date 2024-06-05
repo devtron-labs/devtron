@@ -153,8 +153,8 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
 
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
-	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
+	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -308,7 +308,7 @@ func GetStreamSubjects(streamName string) []string {
 	return subjArr
 }
 
-func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, streamNames ...string) error {
+func AddStream(isClustered bool, js nats.JetStreamContext, streamConfig *nats.StreamConfig, streamNames ...string) error {
 	var err error
 	for _, streamName := range streamNames {
 		streamInfo, err := js.StreamInfo(streamName)
@@ -316,6 +316,10 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 			log.Print("No stream was created already. Need to create one. ", "Stream name: ", streamName)
 			// Stream doesn't already exist. Create a new stream from jetStreamContext
 			cfgToSet := getNewConfig(streamName, streamConfig)
+			if cfgToSet.Replicas > 1 && !isClustered {
+				cfgToSet.Replicas = 0
+				log.Println("replicas > 1 not possible in non clustered mode")
+			}
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
 				log.Println("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
@@ -327,7 +331,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 		} else {
 			config := streamInfo.Config
 			streamConfig.Name = streamName
-			if checkConfigChangeReqd(&config, streamConfig) {
+			if checkConfigChangeReqd(&config, streamConfig, isClustered) {
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
 					log.Println("error occurred while updating stream config. ", "streamName: ", streamName, "streamConfig: ", config, "error: ", err1)
@@ -338,7 +342,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 	return err
 }
 
-func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
+func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig, isClustered bool) bool {
 	configChanged := false
 	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
 	if ((toUpdateConfig.MaxAge != time.Duration(0)) && (toUpdateConfig.MaxAge != existingConfig.MaxAge)) || (len(newStreamSubjects) != len(existingConfig.Subjects)) {
@@ -346,7 +350,20 @@ func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *na
 		existingConfig.Subjects = newStreamSubjects
 		configChanged = true
 	}
+	if replicas := toUpdateConfig.Replicas; replicas > 0 && existingConfig.Replicas != replicas && replicas < 5 {
+		if replicas > 1 && isClustered {
+			existingConfig.Replicas = replicas
+			configChanged = true
+		} else {
+			if replicas > 1 {
+				log.Println("replicas >1 is not possible in non-clustered mode ")
+			} else {
+				existingConfig.Replicas = replicas
+				configChanged = true
+			}
+		}
 
+	}
 	return configChanged
 }
 
