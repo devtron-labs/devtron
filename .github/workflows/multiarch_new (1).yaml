@@ -39,7 +39,8 @@ jobs:
          get_image_arch() {
              local image="$1"
              local image_ref=$(echo $image | sed 's/:.*//')
-             # ignoring the check for 'inception', 'postgres' , 'postgres_exporter' and 'workflow-controller' images
+             
+             # skipping the check for 'inception', 'postgres' , 'postgres_exporter' and 'workflow-controller' images
              if [[ "$image_ref" == "inception" || "$image_ref" == "postgres" || "$image_ref" == "postgres_exporter" || "$image_ref" == "workflow-controller" ]]; then
                  return
              fi
