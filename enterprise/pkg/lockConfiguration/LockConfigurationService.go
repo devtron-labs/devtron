@@ -170,7 +170,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
 		return nil, err
 	}
-	impl.logger.Infow("env var ARRAY_DIFF_MEMOIZATION=", impl.lockConfigurationServiceConfig.ArrayDiffMemoization)
+	impl.logger.Infow("env var ", "ARRAY_DIFF_MEMOIZATION", impl.lockConfigurationServiceConfig.ArrayDiffMemoization)
 	allChanges, deletedMap, addedMap, modifiedMap, containChangesInArray, deletedPaths := impl.getDiffJson(savedConfigMap, currentConfigMap, "")
 	var isLockConfigError bool
 	if lockConfig.ContainAllowedPaths {
