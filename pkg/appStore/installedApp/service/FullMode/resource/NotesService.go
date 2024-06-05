@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resource
 
 import (
@@ -5,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/util"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"net/http"
 	"regexp"
@@ -44,7 +61,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchChartNotes(installedAppId int,
 	}
 	//if notes is not present in db then below call will happen
 	if installedApp.Notes == "" {
-		notes, _, err := impl.findNotesForArgoApplication(installedAppId, envId)
+		notes, err := impl.findNotesForArgoApplication(installedAppId, envId)
 		if err != nil {
 			impl.logger.Errorw("error fetching notes", "err", err)
 			return "", err
@@ -58,25 +75,24 @@ func (impl *InstalledAppResourceServiceImpl) FetchChartNotes(installedAppId int,
 	return installedApp.Notes, nil
 }
 
-func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
+func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(installedAppId, envId int) (string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
-		return "", "", err
+		return "", err
 	}
 	var notes string
-	appName := installedAppVerison.InstalledApp.App.AppName
 
 	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
 		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
 		if err != nil {
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
-			return notes, appName, err
+			return notes, err
 		}
 		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 		if err != nil {
 			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-			return notes, appName, err
+			return notes, err
 		}
 
 		installReleaseRequest := &gRPC.InstallReleaseRequest{
@@ -100,23 +116,27 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 		config, err := impl.helmAppService.GetClusterConf(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
-			return "", appName, err
+			return "", err
 		}
 		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
-			return notes, appName, err
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
+			return notes, err
 		}
 		_, err = impl.updateNotesForInstalledApp(installedAppId, notes)
 		if err != nil {
 			impl.logger.Errorw("error in updating notes in db ", "err", err)
-			return notes, appName, err
+			return notes, err
 		}
 	}
 
-	return notes, appName, nil
+	return notes, nil
 }
 
 // updateNotesForInstalledApp will update the notes in repository.InstalledApps table

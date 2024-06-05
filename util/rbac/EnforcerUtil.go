@@ -1,24 +1,24 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package rbac
 
 import (
 	"fmt"
+	"golang.org/x/exp/maps"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -75,6 +75,7 @@ type EnforcerUtil interface {
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool
+	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 }
 
 type EnforcerUtilImpl struct {
@@ -86,7 +87,6 @@ type EnforcerUtilImpl struct {
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
 	enforcer              casbin.Enforcer
-	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
@@ -101,11 +101,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		pipelineRepository:    pipelineRepository,
 		ciPipelineRepository:  ciPipelineRepository,
 		clusterRepository:     clusterRepository,
-		EnforcerUtilHelmImpl: &EnforcerUtilHelmImpl{
-			logger:            logger,
-			clusterRepository: clusterRepository,
-		},
-		enforcer: enforcer,
+		enforcer:              enforcer,
 	}
 }
 
@@ -718,4 +714,53 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string,
 	}
 
 	return enforcedMap
+}
+func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string {
+	objects := make(map[int]map[int]string)
+
+	applications, err := impl.appRepo.FindByIds(util.GetReferencedArray(maps.Keys(appIdToEnvIds)))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching apps")
+		return objects
+	}
+	appIdToApp := make(map[int]*app.App)
+	for _, application := range applications {
+		appIdToApp[application.Id] = application
+	}
+	envIds := make([]int, 0)
+	envs := maps.Values(appIdToEnvIds)
+	for _, env := range envs {
+		for _, envId := range env {
+			envIds = append(envIds, envId)
+		}
+	}
+	environments, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	if err != nil {
+		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
+		return objects
+	}
+	envIdIdToEnv := make(map[int]*repository.Environment)
+	for _, env := range environments {
+		envIdIdToEnv[env.Id] = env
+	}
+
+	for appId, envIds := range appIdToEnvIds {
+		var application *app.App
+		var ok bool
+		if application, ok = appIdToApp[appId]; !ok {
+			continue
+		}
+		var appName = application.AppName
+		for _, envId := range envIds {
+
+			var env *repository.Environment
+			var ok bool
+			if env, ok = envIdIdToEnv[envId]; !ok {
+				continue
+			}
+			object := map[int]string{env.Id: fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)}
+			objects[appId] = object
+		}
+	}
+	return objects
 }

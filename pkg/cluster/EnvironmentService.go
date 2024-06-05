@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package cluster
@@ -65,6 +64,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*bean2.ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -742,4 +742,13 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 
 func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Environment, error) {
+	envDetails, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in GetDetailsById", "envId", envId, "err", err)
+		return nil, err
+	}
+	return envDetails, nil
 }
