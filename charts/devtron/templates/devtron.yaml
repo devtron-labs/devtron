@@ -151,6 +151,7 @@ data:
 {{- if .customOverrides }}
 {{ toYaml .customOverrides | indent 2}}
 {{- end }}
+  DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
 apiVersion: v1
 kind: ConfigMap
