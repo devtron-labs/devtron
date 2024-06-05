@@ -203,8 +203,8 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 	}
 	handler.Logger.Infow("request payload, GitListAutocomplete", "appId", appId)
 	//RBAC
-	object, appType := handler.enforcerUtil.GetAppRBACNameAndAppTypeByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet, appType)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
