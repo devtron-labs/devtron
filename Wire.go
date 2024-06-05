@@ -1,3 +1,6 @@
+//go:build wireinject
+// +build wireinject
+
 /*
  * Copyright (c) 2024. Devtron Inc.
  *
@@ -13,9 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-//go:build wireinject
-// +build wireinject
 
 package main
 
@@ -469,6 +469,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
+
+		types.NewSecretMaskingFlagUpdaterImpl,
+		wire.Bind(new(types.SecretMaskingFlagUpdater), new(*types.SecretMaskingFlagUpdaterImpl)),
 
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
