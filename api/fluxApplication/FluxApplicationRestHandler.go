@@ -7,8 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
-	"strings"
 )
 
 type FluxApplicationRestHandler interface {
@@ -39,24 +37,14 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	v := r.URL.Query()
-	clusterIdString := v.Get("clusterIds")
-	var clusterIds []int
-	if clusterIdString != "" {
-		clusterIdSlices := strings.Split(clusterIdString, ",")
-		for _, clusterId := range clusterIdSlices {
-			id, err := strconv.Atoi(clusterId)
-			if err != nil {
-				handler.logger.Errorw("error in converting clusterId", "err", err, "clusterIdString", clusterIdString)
-				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
-				return
-			}
-			clusterIds = append(clusterIds, id)
-		}
+	clusterIds, err := common.ExtractIntArrayQueryParam(w, r, "clusterIds")
+	if err != nil {
+		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
 	}
+
 	resp, err := handler.fluxApplicationService.ListApplications(r.Context(), clusterIds)
 	if err != nil {
-		handler.logger.Errorw("error in listing all argo applications", "err", err, "clusterIds", clusterIds)
+		handler.logger.Errorw("error in listing all flux applications", "err", err, "clusterIds", clusterIds)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"go.uber.org/zap"
@@ -11,23 +12,22 @@ import (
 
 type FluxApplicationService interface {
 	ListApplications(ctx context.Context, clusterIds []int) ([]*bean.FluxApplicationListDto, error)
-	ConvertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error)
 }
 
 type FluxApplicationServiceImpl struct {
-	logger *zap.SugaredLogger
-	//helmAppService service.HelmAppService
+	logger         *zap.SugaredLogger
+	helmAppService service.HelmAppService
 	clusterService cluster.ClusterService
 	helmAppClient  gRPC.HelmAppClient
 }
 
 func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
-	//helmAppService service.HelmAppService,
+	helmAppService service.HelmAppService,
 	clusterService cluster.ClusterService,
 	helmAppClient gRPC.HelmAppClient) *FluxApplicationServiceImpl {
 	return &FluxApplicationServiceImpl{
-		logger: logger,
-		//helmAppService: helmAppService,
+		logger:         logger,
+		helmAppService: helmAppService,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 	}
@@ -40,14 +40,14 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 	appListCluster := make([]*bean.FluxApplicationListDto, 0)
 	req := &gRPC.AppListRequest{}
 	if len(clusterIds) > 0 {
-		//for _, clusterId := range clusterIds {
-		//	clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
-		//	if err != nil {
-		//		impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
-		//		return nil, err
-		//	}
-		//	req.Clusters = append(req.Clusters, clusterConfig)
-		//}
+		for _, clusterId := range clusterIds {
+			clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
+			if err != nil {
+				impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
+				return nil, err
+			}
+			req.Clusters = append(req.Clusters, clusterConfig)
+		}
 
 	} else {
 		clusters, err = impl.clusterService.FindAll()
@@ -56,7 +56,7 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 			return nil, err
 		}
 
-		configs, err1 := impl.ConvertClusterBeanToClusterConfig(clusters)
+		configs, err1 := convertClusterBeanToClusterConfig(clusters)
 		if err1 != nil {
 			impl.logger.Errorw("error in getting all active clusters", "err", err1)
 			return nil, err1
@@ -65,10 +65,11 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 
 	}
 
-	//fluxAppsClusterCount := make(map[int32]int)
-
 	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
-	if err == nil {
+	if err != nil {
+		impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
+
+	} else {
 		fluxApplicationList, err1 := applicationStream.Recv()
 		if err1 != nil {
 			impl.logger.Errorw("error in list Flux applications streams recv", "err", err)
@@ -95,13 +96,11 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 			}
 
 		}
-	} else {
-		impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
 	}
 	return appListCluster, nil
 }
 
-func (impl *FluxApplicationServiceImpl) ConvertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error) {
+func convertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error) {
 	clusterConfigs := make([]*gRPC.ClusterConfig, 0)
 	if len(clusters) > 0 {
 		for _, cluster := range clusters {
