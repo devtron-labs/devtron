@@ -2,12 +2,13 @@ name: Multi-Arch Image Check
 
 on:
   pull_request:
-    types: [closed]
+    types: [opened, edited, synchronize, reopened]
+
 
 jobs:
   check-multiarch:
     name: Check Multi-Arch Images
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'release-bot'
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'release-bot'
     runs-on: ubuntu-latest
     
     steps:
