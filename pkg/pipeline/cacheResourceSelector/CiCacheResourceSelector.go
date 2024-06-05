@@ -113,6 +113,9 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 			}
 
 			// pvc got free
+			if status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed) {
+				impl.cleanupPod(podName, namespace)
+			}
 			impl.resourcesStatus[pvc] = AvailableResourceStatus
 			// TODO KB: run a particular command to make PVC unavailable
 			impl.cleanupResources(pvc)
