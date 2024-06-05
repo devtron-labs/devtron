@@ -188,7 +188,7 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
 	}
-
+	users.EmailId = util.ConvertEmailToLowerCase(email)
 	return users, nil
 }
 
@@ -211,7 +211,7 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 	for _, item := range users {
 		userFinal.Exist = true
 		userFinal.Id = item.Id
-		userFinal.EmailId = item.EmailId
+		userFinal.EmailId = util.ConvertEmailToLowerCase(item.EmailId)
 		role = append(role, item.Role)
 	}
 	userFinal.Roles = role
