@@ -20,12 +20,6 @@ it randomly.
 {{- end }}
 
 {{/*
-Check if the data in secret is present or not
-}}
-{{- define "checkSecretData" }}
-{{- $obj := (lookup "v1" .Kind .Namespace .Name).data -}}
-
-{{/*
 Return full image
 {{ include "common.image" ( dict "component" .Values.path.to.the.component "global" .Values.global .extraImage .extraImageTag .extraImageDigest ) }}
 */}}
