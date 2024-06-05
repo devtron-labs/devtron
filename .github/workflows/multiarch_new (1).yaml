@@ -35,27 +35,31 @@ jobs:
       run: |
          yq '.' charts/devtron/values.yaml > values.json
 
+         #function to check the architecture of image
          get_image_arch() {
              local image="$1"
              local image_ref=$(echo $image | sed 's/:.*//')
+             # ignoring the check for 'inception', 'postgres' , 'postgres_exporter' and 'workflow-controller' images
              if [[ "$image_ref" == "inception" || "$image_ref" == "postgres" || "$image_ref" == "postgres_exporter" || "$image_ref" == "workflow-controller" ]]; then
                  return
              fi
-
+            
              local arch=$(docker manifest inspect "quay.io/devtron/$image" | jq -r '.manifests[].platform.architecture' | sort | uniq)
+
+             # printing the error, if found any
              if [ $? -ne 0 ]; then
                  error_images+=("$image")
                  return
              fi
 
              if ! (echo "$arch" | grep -q "amd64" && (echo "$arch" | grep -q "arm64" || echo "$arch" | grep -q "arm")); then
-                 echo "$image Image does not support multiarchitecture"
                  non_multiarch_images+=("$image")
              else
                  echo "$image supports multi-architecture: $arch"
              fi
          }
 
+         #fetching the image information
          while read -r line; do
              image=$(echo "$line" | cut -d'"' -f4)
              if [ -n "$image" ]; then
@@ -63,11 +67,11 @@ jobs:
                  get_image_arch "$image"
              fi
          done < <(grep -Eo '"image":\s*"[^"]*"' values.json)
-
+         
+          
          if [ ${#non_multiarch_images[@]} -ne 0 ]; then
              echo "The following images do not support multi-architecture:"
              printf '%s\n' "${non_multiarch_images[@]}"
-
              gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
              gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
              exit 1
