@@ -369,7 +369,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.35-0.20240514070555-30767911440b
+# github.com/devtron-labs/authenticator v0.4.35-0.20240605081219-e2a000e7548a
 ## explicit; go 1.18
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
