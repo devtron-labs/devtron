@@ -159,6 +159,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		JoinOn("user_deployment_request.cd_workflow_id = cdwfr.cd_workflow_id").
 		Join("LEFT JOIN pipeline_config_override pco").
 		JoinOn("user_deployment_request.cd_workflow_id = pco.cd_workflow_id").
+		Where("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("user_deployment_request.id IN (?)", latestRequestQuery).
 		Select(&model)
 	return model, err
