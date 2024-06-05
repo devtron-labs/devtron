@@ -62,3 +62,26 @@ func ConvertCdWorkflowDtoToDbObj(dto *bean.CdWorkflowDto) *pipelineConfig.CdWork
 		},
 	}
 }
+
+func ConvertCdWorkflowRunnerDtoToDbObj(dto *bean.CdWorkflowRunnerDto) *pipelineConfig.CdWorkflowRunner {
+	return &pipelineConfig.CdWorkflowRunner{
+		Id:                      dto.Id,
+		Name:                    dto.Name,
+		WorkflowType:            dto.WorkflowType,
+		ExecutorType:            dto.ExecutorType,
+		Status:                  dto.Status,
+		PodStatus:               dto.PodStatus,
+		Message:                 dto.Message,
+		StartedOn:               dto.StartedOn,
+		FinishedOn:              dto.FinishedOn,
+		Namespace:               dto.Namespace,
+		LogLocation:             dto.LogLocation,
+		TriggeredBy:             dto.TriggeredBy,
+		CdWorkflowId:            dto.CdWorkflowId,
+		PodName:                 dto.PodName,
+		BlobStorageEnabled:      dto.BlobStorageEnabled,
+		RefCdWorkflowRunnerId:   dto.RefCdWorkflowRunnerId,
+		ImagePathReservationIds: dto.ImagePathReservationIds,
+		ReferenceId:             dto.ReferenceId,
+	}
+}
