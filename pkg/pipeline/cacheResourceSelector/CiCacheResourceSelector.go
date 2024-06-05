@@ -137,7 +137,10 @@ func (impl *CiCacheResourceSelectorImpl) cleanupPod(podName, namespace string) {
 			ForceDelete: true,
 		},
 	}
-	impl.k8sCommonService.DeleteResource(context.Background(), resourceRequestBean)
+	_, err := impl.k8sCommonService.DeleteResource(context.Background(), resourceRequestBean)
+	if err != nil {
+		impl.logger.Errorw("error in cleaning up pod", "podName", podName, "namespace", namespace, "clusterId", 1, "err", err)
+	}
 }
 
 func (impl *CiCacheResourceSelectorImpl) cleanupResources(pvcName string) {
