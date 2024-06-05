@@ -49,6 +49,7 @@ func NewLockConfigurationServiceImpl(logger *zap.SugaredLogger,
 	if err != nil {
 		logger.Warnw("error in initialising UserTerminalSessionConfig but continuing with rest of initialisation", err)
 	}
+	logger.Infow("env var ", "ARRAY_DIFF_MEMOIZATION", config.ArrayDiffMemoization)
 	return &LockConfigurationServiceImpl{
 		logger:                         logger,
 		lockConfigurationRepository:    lockConfigurationRepository,
@@ -170,7 +171,6 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
 		return nil, err
 	}
-	impl.logger.Infow("env var ", "ARRAY_DIFF_MEMOIZATION", impl.lockConfigurationServiceConfig.ArrayDiffMemoization)
 	allChanges, deletedMap, addedMap, modifiedMap, containChangesInArray, deletedPaths := impl.getDiffJson(savedConfigMap, currentConfigMap, "")
 	var isLockConfigError bool
 	if lockConfig.ContainAllowedPaths {
