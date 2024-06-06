@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package security
@@ -243,8 +242,10 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 			impl.logger.Errorw("error in fetching vulnerability ", "err", err)
 			return nil, err
 		}
+		cveNameToScanResultPackageNameMapping := make(map[string]string)
 		var cveStores []*security.CveStore
 		for _, scanResult := range scanResults {
+			cveNameToScanResultPackageNameMapping[scanResult.CveStoreName] = scanResult.Package
 			cveStores = append(cveStores, &scanResult.CveStore)
 			if _, ok := scanResultsIdMap[scanResult.ImageScanExecutionHistoryId]; !ok {
 				scanResultsIdMap[scanResult.ImageScanExecutionHistoryId] = scanResult.ImageScanExecutionHistoryId
@@ -259,6 +260,13 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				Package:      cve.Package,
 				Version:      cve.Version,
 				FixedVersion: cve.FixedVersion,
+			}
+			if packageName, ok := cveNameToScanResultPackageNameMapping[cve.Name]; ok {
+				if len(packageName) > 0 {
+					// fetch package name from image_scan_execution_result table
+					vr.Package = packageName
+				}
+
 			}
 			imageBlockedCves[image] = append(imageBlockedCves[image], vr)
 		}
