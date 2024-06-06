@@ -30,8 +30,9 @@ func GetValuesFileForEnv(environmentId int) string {
 func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy int32) bean.TriggerEvent {
 	// trigger event will decide whether to perform GitOps or deployment for a particular deployment app type
 	triggerEvent := bean.TriggerEvent{
-		TriggeredBy: deployedBy,
-		TriggeredAt: triggeredAt,
+		TriggeredBy:        deployedBy,
+		TriggeredAt:        triggeredAt,
+		SaveTriggerHistory: true,
 	}
 	switch deploymentAppType {
 	case bean.ArgoCd:
@@ -45,6 +46,5 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
-	triggerEvent.SaveTriggerHistory = true
 	return triggerEvent
 }
