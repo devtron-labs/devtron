@@ -780,8 +780,9 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 					impl.logger.Errorw("error in getting app store by name", "appStoreName", item.Name, "err", err)
 					return false, err
 				}
+				isOCIRepo := len(appStore.DockerArtifactStoreId) > 0
 				var appStoreApplicationVersionId int
-				if len(appStore.DockerArtifactStoreId) > 0 {
+				if isOCIRepo {
 					appStoreApplicationVersionId, err = impl.appStoreApplicationVersionRepository.FindLatestVersionByAppStoreIdForOCIRepo(appStore.Id)
 					if err != nil {
 						impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
