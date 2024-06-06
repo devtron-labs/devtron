@@ -10,6 +10,7 @@ import (
 	"errors"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"net/http"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -515,6 +516,22 @@ func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId in
 	ctx := context.Background()
 	var err error
 	var lockValidateResp *bean3.LockValidateErrorResponse
+	lockDraftValidateReq := ConfigDraftRequest{
+		Action: action,
+		AppId:  appId,
+		EnvId:  envId,
+		Data:   draftData,
+	}
+	//getting lock config keys
+	validateLockResp, err := impl.ValidateLockDraft(lockDraftValidateReq)
+	if err != nil {
+		impl.logger.Errorw("error in getting lock draft validate state", "lockDraftValidateReq", lockDraftValidateReq, "err", err)
+		return nil, err
+	}
+	if validateLockResp != nil && validateLockResp.IsLockConfigError == true {
+		impl.logger.Warnw("skipping deployment template handling for approval, violating lock config", "lockDraftValidateReq", lockDraftValidateReq)
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", "cannot approve, lock config violated", "cannot approve, lock config violated")
+	}
 	if envId == protect.BASE_CONFIG_ENV_ID {
 		lockValidateResp, err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, action, ctx)
 		if err != nil {
