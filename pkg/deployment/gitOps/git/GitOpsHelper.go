@@ -84,13 +84,19 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 	return impl.gitCommandManager.Pull(ctx, repoRoot)
 }
 
+const PushErrorMessage = "failed to push some refs"
+
 func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
 	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
-	return impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	commitHash, err = impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
+		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
+	}
+	return commitHash, nil
 }
 
 func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {

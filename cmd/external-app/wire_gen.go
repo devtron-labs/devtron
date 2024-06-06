@@ -47,7 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	repository7 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -327,7 +327,7 @@ func InitializeApp() (*App, error) {
 	ephemeralContainersRepositoryImpl := repository4.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sUtilExtended, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
-	celServiceImpl := resourceFilter.NewCELServiceImpl(sugaredLogger)
+	celServiceImpl := expressionEvaluators.NewCELServiceImpl(sugaredLogger)
 	portForwardManagerImpl, err := application.NewPortForwardManagerImpl(sugaredLogger, k8sCommonServiceImpl)
 	if err != nil {
 		return nil, err

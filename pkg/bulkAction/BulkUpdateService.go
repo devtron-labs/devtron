@@ -14,8 +14,8 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -1406,8 +1406,8 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0] // fetch latest approved artifact in case of approval node configured
-		if artifact.FilterState != resourceFilter.ALLOW {
-			if artifact.FilterState == resourceFilter.ERROR {
+		if artifact.FilterState != expressionEvaluators.ALLOW {
+			if artifact.FilterState == expressionEvaluators.ERROR {
 				impl.logger.Errorw("service err, GetArtifactsByCDPipeline, error in evaluating filter expression", "cdPipelineId", pipeline.Id)
 			}
 			continue

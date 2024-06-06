@@ -120,7 +120,7 @@ func (impl *GitCliManagerImpl) add(ctx GitContext, rootDir string) (response, er
 
 func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git push ", "location", rootDir)
-	args := []string{"-C", rootDir, "push", "origin", "master", "--force"}
+	args := []string{"-C", rootDir, "push", "origin", "master"}
 	args = impl.appendBearerAuth(ctx, args)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", args...)
 	defer cancel()

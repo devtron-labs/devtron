@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -329,7 +330,7 @@ func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipeline
 		cdWorkflowArtifacts[i].AppliedFilters = appliedFiltersMap[artifactWfrKey]
 		cdWorkflowArtifacts[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[artifactWfrKey]
 		// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
-		cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
+		cdWorkflowArtifact.AppliedFiltersState = expressionEvaluators.ALLOW
 	}
 	return cdWorkflowArtifacts
 }

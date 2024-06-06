@@ -604,11 +604,25 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	return map[string]string{
-		bean3.AppNameDevtronLabel:     appName,
-		bean3.EnvNameDevtronLabel:     envName,
-		bean3.ProjectNameDevtronLabel: appMetaInfo.Team.Name,
-	}, nil
+	regexp := regexp.MustCompile(LabelMatchingRegex)
+	extraAppLabels := make(map[string]string)
+
+	extraAppLabels[bean3.AppNameDevtronLabel] = appName
+	extraAppLabels[bean3.EnvNameDevtronLabel] = envName
+	extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+
+	extraAppLabels = sanitizeLabels(extraAppLabels)
+	for labelKey, labelValue := range extraAppLabels {
+		if regexp.MatchString(labelValue) {
+			extraAppLabels[labelKey] = labelValue
+		} else {
+			// in case extra labels are failing k8s official label matching regex  even after sanitization then
+			//delete the label as this can break deployments.
+			impl.logger.Warnw("extra label failed LabelMatchingRegex validation, regex:- ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$", "labelKey", labelKey, "labelValue", labelValue)
+			delete(extraAppLabels, labelKey)
+		}
+	}
+	return extraAppLabels, nil
 }
 
 func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
