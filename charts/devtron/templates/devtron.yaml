@@ -203,6 +203,10 @@ spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
+      volumes:
+        - configMap:
+            name: devtron-cluster-components
+          name: devtron-cluster-components-vol
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
@@ -251,6 +255,9 @@ spec:
               name: "devtron-custom-cm"
           - secretRef:
               name: "devtron-custom-secret"
+          volumeMounts:
+            - mountPath: /cluster/component
+              name: devtron-cluster-components-vol
           {{- if .resources }}   
           resources:
           {{- toYaml .resources | nindent 12 }}
