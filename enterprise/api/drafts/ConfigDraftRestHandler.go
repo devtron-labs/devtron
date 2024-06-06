@@ -509,7 +509,8 @@ func (impl *ConfigDraftRestHandlerImpl) ValidateLockDraft(w http.ResponseWriter,
 
 	token := r.Header.Get("token")
 	enforced := impl.enforceForAppAndEnv(request.AppId, request.EnvId, token, casbin.ActionCreate)
-	if !enforced {
+	userHasApprovalAccess := impl.configDraftService.CheckIfUserHasApprovalAccess(request.AppId, request.EnvId, token)
+	if !enforced || !userHasApprovalAccess {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

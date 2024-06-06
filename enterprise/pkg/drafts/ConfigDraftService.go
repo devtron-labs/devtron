@@ -33,6 +33,7 @@ import (
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"k8s.io/utils/pointer"
 )
 
@@ -51,6 +52,7 @@ type ConfigDraftService interface {
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
 	ValidateLockDraft(request ConfigDraftRequest) (*bean3.LockValidateErrorResponse, error)
+	CheckIfUserHasApprovalAccess(appId int, envId int, token string) bool
 }
 
 type ConfigDraftServiceImpl struct {
@@ -679,6 +681,18 @@ func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]
 		userIdVsUserInfoMap[userInfo.Id] = userInfo
 	}
 	return userIdVsUserInfoMap, nil
+}
+
+func (impl *ConfigDraftServiceImpl) CheckIfUserHasApprovalAccess(appId int, envId int, token string) bool {
+	email, _, err := impl.userService.GetEmailAndVersionFromToken(token)
+	if err != nil {
+		return false
+	}
+	if slices.Contains(impl.getApproversData(appId, envId, token), email) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int, token string) []string {
