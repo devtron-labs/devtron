@@ -125,6 +125,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:                  gitOperationService,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
+		appStoreRepository:                   appStoreRepository,
 	}
 	return impl, nil
 }
