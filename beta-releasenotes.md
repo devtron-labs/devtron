@@ -49,9 +49,11 @@
 - feat: CD Trigger Plugin (#4810)
 - feat: Introduction to feasibility in Deployment (#4862)
 ## Documentation
+- doc: Added enhancements to security doc (#5203)
 - docs: update readme to include multi arch flag (#4998)
 - docs: config.md updatation for new flag (#5061)
 - doc: Fixes in Documentation for May Month (#5150)
+- doc: Added enhancements to security doc (#5203)
 - docs: update readme to include multi arch flag (#4998)
 - docs: config.md updatation for new flag (#5061)
 - doc: Added kubectl port-fwd section in RB (#5139)
