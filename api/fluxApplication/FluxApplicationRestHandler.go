@@ -37,9 +37,16 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	clusterIds, err := common.ExtractIntArrayQueryParam(w, r, "clusterIds")
-	if err != nil {
-		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
+	v := r.URL.Query()
+	clusterIdString := v.Get("clusterIds")
+	var clusterIds []int
+	var err error
+	if clusterIdString != "" {
+		clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
+		if err != nil {
+			handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
+			return
+		}
 	}
 
 	resp, err := handler.fluxApplicationService.ListApplications(r.Context(), clusterIds)
