@@ -205,6 +205,7 @@
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
  | ORCHESTRATOR_URL | http://localhost:8080 |  | 
+ | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 

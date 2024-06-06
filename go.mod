@@ -27,7 +27,7 @@ require (
 	github.com/devtron-labs/bitbucketdc-gosdk v0.0.0-20240502121246-afcd5df53ff1
 	github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0
 	github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b
-	github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
+	github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
