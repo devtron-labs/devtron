@@ -50,6 +50,7 @@ type ConfigmapAndSecretHistory struct {
 	//getting below data from cd_workflow_runner join
 	DeploymentStatus  string `sql:"-"`
 	DeployedByEmailId string `sql:"-"`
+	CdWfrId           int    `sql:"-"`
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
@@ -101,7 +102,7 @@ func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipeli
 
 func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error) {
 	var histories []*ConfigmapAndSecretHistory
-	query := "SELECT cmh.id, cmh.deployed_on, cmh.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id" +
+	query := "SELECT cmh.id, cmh.deployed_on, cmh.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id, cwr.id as cd_wfr_id" +
 		" FROM config_map_history cmh" +
 		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = cmh.deployed_on" +
 		" INNER JOIN users ON users.id = cmh.deployed_by" +

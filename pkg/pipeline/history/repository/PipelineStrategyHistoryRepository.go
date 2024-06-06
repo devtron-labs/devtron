@@ -46,6 +46,7 @@ type PipelineStrategyHistory struct {
 	//getting below data from cd_workflow_runner and users join
 	DeploymentStatus  string `sql:"-"`
 	DeployedByEmailId string `sql:"-"`
+	CdWfrId           int    `sql:"-"`
 }
 
 func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error) {
@@ -105,7 +106,7 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId
 
 func (impl PipelineStrategyHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error) {
 	var histories []*PipelineStrategyHistory
-	query := "SELECT psh.id, psh.deployed_on, psh.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id" +
+	query := "SELECT psh.id, psh.deployed_on, psh.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id, cwr.id as cd_wfr_id" +
 		" FROM pipeline_strategy_history psh" +
 		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = psh.deployed_on" +
 		" INNER JOIN users ON users.id = psh.deployed_by" +
