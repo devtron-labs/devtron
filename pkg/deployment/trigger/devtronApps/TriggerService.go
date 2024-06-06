@@ -154,9 +154,11 @@ type TriggerServiceImpl struct {
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
 	K8sUtil                       *util5.K8sServiceImpl
+	transactionUtilImpl           *sql.TransactionUtilImpl
 }
 
-func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
+func NewTriggerServiceImpl(logger *zap.SugaredLogger,
+	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	gitOpsManifestPushService publish.GitOpsPushService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	argoK8sClient argocdServer.ArgoK8sClient,
@@ -204,7 +206,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
 	imageScanService security2.ImageScanService,
-	K8sUtil *util5.K8sServiceImpl) (*TriggerServiceImpl, error) {
+	K8sUtil *util5.K8sServiceImpl,
+	transactionUtilImpl *sql.TransactionUtilImpl) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -256,6 +259,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
+		transactionUtilImpl:                 transactionUtilImpl,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -442,7 +446,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(savedWfr.Id, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
 		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
-		_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(savedWfr.Id, timeline, false)
+		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 
 		span.End()
 		if err != nil {
@@ -581,8 +585,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		StatusTime:         time.Now(),
 	}
 	timeline.CreateAuditLog(1)
-	isAppStore := false
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
@@ -693,13 +696,28 @@ func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int,
 func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.handleCDTriggerRelease")
 	defer span.End()
-
+	tx, err := impl.transactionUtilImpl.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
+		return releaseNo, err
+	}
+	defer impl.transactionUtilImpl.RollbackTx(tx)
 	newDeploymentRequest := adapter.NewUserDeploymentRequest(overrideRequest, triggeredAt, overrideRequest.UserId)
-	userDeploymentRequestId, err := impl.userDeploymentRequestService.SaveNewDeployment(newCtx, newDeploymentRequest)
+	// creating new user deployment request
+	userDeploymentRequestId, err := impl.userDeploymentRequestService.SaveNewDeployment(newCtx, tx, newDeploymentRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
 		return releaseNo, err
 	}
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deployedBy)
+	// creating cd pipeline status timeline for deployment trigger request validated
+	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, tx)
+	err = impl.transactionUtilImpl.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update userDeploymentRequest", "error", err)
+		return userDeploymentRequestId, err
+	}
+
 	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSyncDeployment) {
 		return impl.triggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
@@ -719,7 +737,7 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 	}
 	// creating cd pipeline status timeline for deployment trigger history saved
 	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(cdWfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED, triggeredBy)
-	_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline, false)
+	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment trigger history saved", "err", err, "timeline", timeline)
 	}
@@ -762,7 +780,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
 		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
 		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
-		_, dbErr := impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline, false)
+		_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if dbErr != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
 		}
@@ -770,7 +788,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	}
 	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests
 	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
-	_, dbErr := impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline, false)
+	_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if dbErr != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
 	}
@@ -977,7 +995,7 @@ func (impl *TriggerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 	}
 	// creating cd pipeline status timeline for deployment triggered
 	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED, overrideRequest.UserId)
-	_, err := impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline, false)
+	_, err := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment triggered", "err", err, "timeline", timeline)
 	}
@@ -1161,7 +1179,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 		}
 		timeline.CreateAuditLog(overrideRequest.UserId)
-		_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline, false)
+		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 		}

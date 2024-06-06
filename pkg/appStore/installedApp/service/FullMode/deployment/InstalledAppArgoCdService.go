@@ -144,7 +144,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		return err
 	}
 	if impl.acdConfig.IsManualSyncEnabled() {
-		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
+		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, syncTime, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
 			return err

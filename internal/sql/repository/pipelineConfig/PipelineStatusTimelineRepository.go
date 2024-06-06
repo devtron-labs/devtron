@@ -82,7 +82,7 @@ const (
 	TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED   string = "Deployment trigger history has been audited successfully."
 	TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT            string = "Git commit done successfully."
 	TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED        string = "ArgoCD sync initiated."
-	TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED        string = "ArgoCD sync completed"
+	TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED        string = "ArgoCD sync completed."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED         string = "Deployment has been triggered successfully."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED         string = "Deployment has been performed successfully. Waiting for application to be healthy..."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED        string = "This deployment is superseded."

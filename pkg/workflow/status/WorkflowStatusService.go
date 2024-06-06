@@ -251,7 +251,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
 				return err, isTimelineUpdated
@@ -353,7 +353,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
 				return err, isTimelineUpdated
@@ -530,7 +530,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
-			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
+			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil)
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
 			installedAppVersionHistory.UpdatedBy = 1
 			installedAppVersionHistory.UpdatedOn = time.Now()
@@ -545,15 +545,10 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 			InstalledAppVersionHistoryId: installedAppVersionHistoryId,
 			StatusTime:                   syncTime,
 			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:                 "argocd sync completed",
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedBy: 1,
-				UpdatedOn: time.Now(),
-			},
+			StatusDetail:                 pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 		}
-		_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(timeline.CdWorkflowRunnerId, timeline, false)
+		timeline.CreateAuditLog(1)
+		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	}
 	return nil
 }

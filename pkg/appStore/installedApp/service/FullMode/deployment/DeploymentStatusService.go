@@ -52,7 +52,7 @@ func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVer
 			UpdatedOn: time.Now(),
 		},
 	}
-	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx)
 	if timelineErr != nil {
 		impl.Logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 	}
@@ -73,15 +73,9 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 				Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
 				StatusDetail:                 fmt.Sprintf("Deployment failed: %v", err),
 				StatusTime:                   time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: 1,
-					CreatedOn: time.Now(),
-					UpdatedBy: 1,
-					UpdatedOn: time.Now(),
-				},
 			}
-			isAppStore := true
-			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+			timeline.CreateAuditLog(1)
+			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if timelineErr != nil {
 				impl.Logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
 			}

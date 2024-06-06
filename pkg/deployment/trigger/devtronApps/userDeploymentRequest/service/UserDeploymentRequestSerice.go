@@ -20,8 +20,6 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/repository"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
@@ -31,51 +29,33 @@ import (
 )
 
 type UserDeploymentRequestService interface {
-	SaveNewDeployment(ctx context.Context, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (int, error)
+	SaveNewDeployment(ctx context.Context, tx *pg.Tx, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (int, error)
 	GetLatestAsyncCdDeployRequestForPipeline(ctx context.Context, deploymentReqId int) (*eventProcessorBean.UserDeploymentRequest, error)
 	IsLatestForPipelineId(id, pipelineId int) (isLatest bool, err error)
 	GetAllInCompleteRequests(ctx context.Context) ([]*eventProcessorBean.UserDeploymentRequest, error)
 }
 
 type UserDeploymentRequestServiceImpl struct {
-	userDeploymentRequestRepo     repository.UserDeploymentRequestRepository
-	pipelineStatusTimelineService status.PipelineStatusTimelineService
-	logger                        *zap.SugaredLogger
+	userDeploymentRequestRepo repository.UserDeploymentRequestRepository
+	logger                    *zap.SugaredLogger
 }
 
-func NewUserDeploymentRequestServiceImpl(
-	userDeploymentRequestRepo repository.UserDeploymentRequestRepository,
-	pipelineStatusTimelineService status.PipelineStatusTimelineService,
-	logger *zap.SugaredLogger) *UserDeploymentRequestServiceImpl {
+func NewUserDeploymentRequestServiceImpl(logger *zap.SugaredLogger,
+	userDeploymentRequestRepo repository.UserDeploymentRequestRepository) *UserDeploymentRequestServiceImpl {
 	userDeploymentRequestService := &UserDeploymentRequestServiceImpl{
-		userDeploymentRequestRepo:     userDeploymentRequestRepo,
-		pipelineStatusTimelineService: pipelineStatusTimelineService,
-		logger:                        logger,
+		logger:                    logger,
+		userDeploymentRequestRepo: userDeploymentRequestRepo,
 	}
 	return userDeploymentRequestService
 }
 
-func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (userDeploymentRequestId int, err error) {
+func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Context, tx *pg.Tx, deploymentRequest *eventProcessorBean.UserDeploymentRequest) (userDeploymentRequestId int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
 	userDeploymentRequest := adapter.NewUserDeploymentRequest(deploymentRequest)
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(deploymentRequest.ValuesOverrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deploymentRequest.TriggeredBy)
-	tx, err := impl.userDeploymentRequestRepo.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
-		return userDeploymentRequestId, err
-	}
-	defer impl.userDeploymentRequestRepo.RollbackTx(tx)
-	// creating cd pipeline status timeline for deployment trigger request validated
-	_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(deploymentRequest.ValuesOverrideRequest.WfrId, timeline, false)
 	err = impl.userDeploymentRequestRepo.Save(newCtx, tx, userDeploymentRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", deploymentRequest, "err", err)
-		return userDeploymentRequestId, err
-	}
-	err = impl.userDeploymentRequestRepo.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update userDeploymentRequest", "error", err)
 		return userDeploymentRequestId, err
 	}
 	deploymentRequest.Id = userDeploymentRequest.Id
