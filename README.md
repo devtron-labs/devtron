@@ -160,6 +160,10 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 ```
 
+### Install Multi-Architecture Nodes (ARM and AMD)
+
+To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with ```--set installer.arch=multi-arch```
+
 ## :blue_heart: Technology
  
 Devtron is built on some of the most trusted and loved technologies:
