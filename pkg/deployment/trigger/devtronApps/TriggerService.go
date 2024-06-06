@@ -775,7 +775,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return releaseNo, err
 	}
 	releaseNo, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, newCtx)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
 		return 0, err
 	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
 		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
