@@ -55,6 +55,7 @@ type ChartGroupServiceImpl struct {
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreVersionValuesRepository      appStoreValuesRepository.AppStoreVersionValuesRepository
+	appStoreRepository                   appStoreDiscoverRepository.AppStoreRepository
 	userAuthService                      user.UserAuthService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster2.EnvironmentService
@@ -79,6 +80,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository,
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository,
+	appStoreRepository appStoreDiscoverRepository.AppStoreRepository,
 	userAuthService user.UserAuthService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster2.EnvironmentService,
@@ -770,10 +772,24 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *clusterBean
 			chartGroupInstallRequest.UserId = userId
 			var chartGroupInstallChartRequests []*ChartGroupInstallChartRequest
 			for _, item := range charts.ChartComponent {
-				appStoreApplicationVersionId, err := impl.appStoreApplicationVersionRepository.FindLatestAppStoreVersionIdByAppStoreName(item.Name)
+				appStore, err := impl.appStoreRepository.FindAppStoreByName(item.Name)
 				if err != nil {
-					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
+					impl.logger.Errorw("error in getting app store by name", "appStoreName", item.Name, "err", err)
 					return false, err
+				}
+				var appStoreApplicationVersionId int
+				if len(appStore.DockerArtifactStoreId) > 0 {
+					appStoreApplicationVersionId, err = impl.appStoreApplicationVersionRepository.FindLatestVersionByAppStoreIdForOCIRepo(appStore.Id)
+					if err != nil {
+						impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
+						return false, err
+					}
+				} else {
+					appStoreApplicationVersionId, err = impl.appStoreApplicationVersionRepository.FindLatestVersionByAppStoreIdForChartRepo(appStore.Id)
+					if err != nil {
+						impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
+						return false, err
+					}
 				}
 				chartGroupInstallChartRequest := &ChartGroupInstallChartRequest{
 					AppName:            fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),

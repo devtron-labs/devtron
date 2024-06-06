@@ -23,7 +23,8 @@ type AppStoreApplicationVersionRepository interface {
 	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
 	GetChartInfoById(id int) (*AppStoreApplicationVersion, error)
-	FindLatestAppStoreVersionIdByAppStoreName(name string) (int, error)
+	FindLatestVersionByAppStoreIdForChartRepo(id int) (int, error)
+	FindLatestVersionByAppStoreIdForOCIRepo(id int) (int, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
 
@@ -88,32 +89,39 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 		}
 	}
 
-	latestAppStoreVersionQuery := " SELECT MAX(asv.id) as id " +
+	latestAppStoreVersionQueryForChartRepo := " SELECT MAX(created) as created " +
 		" FROM app_store_application_version asv " +
-		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true) " +
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true and aps.chart_repo_id is NOT NULL) " +
 		" GROUP BY asv.app_store_id "
+
+	latestAppStoreVersionQueryForOCIRepo := " SELECT MAX(asv.id) as id " +
+		" FROM app_store_application_version asv " +
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true and aps.docker_artifact_store_id is NOT NULL) " +
+		" GROUP BY asv.app_store_id "
+
+	combinedWhereClause := fmt.Sprintf("( (asv.created IN (%s) and aps.chart_repo_id is not null ) or (asv.id IN (%s) and aps.docker_artifact_store_id is not null) )", latestAppStoreVersionQueryForChartRepo, latestAppStoreVersionQueryForOCIRepo)
 
 	if updateAction == QUERY_JOIN_UPDTAE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				fmt.Sprintf(" WHERE (asv.id IN (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", latestAppStoreVersionQuery) +
+				fmt.Sprintf(" WHERE ( (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", combinedWhereClause) +
 				" AND (ch.id IN (?) OR das.id IN (?))"
 		} else if len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				fmt.Sprintf(" WHERE asv.id IN (%s) AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)", latestAppStoreVersionQuery) +
+				fmt.Sprintf(" WHERE asv.id IN (%s) AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)", latestAppStoreVersionQueryForOCIRepo) +
 				" AND das.id IN (?)"
 		} else if len(filter.ChartRepoId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
-				fmt.Sprintf(" WHERE asv.id IN (%s) AND ch.active IS TRUE", latestAppStoreVersionQuery) +
+				fmt.Sprintf(" WHERE asv.created IN (%s) AND ch.active IS TRUE", latestAppStoreVersionQueryForChartRepo) +
 				" AND ch.id IN (?)"
 		} else {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
-				fmt.Sprintf(" WHERE (asv.id IN (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", latestAppStoreVersionQuery)
+				fmt.Sprintf(" WHERE (%s AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", combinedWhereClause)
 		}
 	}
 	return query
@@ -216,10 +224,17 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id
 	return appStoreApplicationVersions, err
 }
 
-func (impl *AppStoreApplicationVersionRepositoryImpl) FindLatestAppStoreVersionIdByAppStoreName(name string) (int, error) {
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindLatestVersionByAppStoreIdForChartRepo(id int) (int, error) {
 	var appStoreApplicationVersionId int
-	queryTemp := "SELECT MAX(asv.id) AS app_store_application_version_id  FROM app_store_application_version AS asv  JOIN app_store AS ap ON asv.app_store_id = ap.id WHERE ap.name = ?;"
-	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, queryTemp, name)
+	queryTemp := "SELECT asv.id AS app_store_application_version_id  FROM app_store_application_version AS asv  JOIN app_store AS ap ON asv.app_store_id = ap.id WHERE ap.id = ? order by created desc limit 1;"
+	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, queryTemp, id)
+	return appStoreApplicationVersionId, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindLatestVersionByAppStoreIdForOCIRepo(id int) (int, error) {
+	var appStoreApplicationVersionId int
+	queryTemp := "SELECT MAX(asv.id) AS app_store_application_version_id  FROM app_store_application_version AS asv  JOIN app_store AS ap ON asv.app_store_id = ap.id WHERE ap.id = ?;"
+	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, queryTemp, id)
 	return appStoreApplicationVersionId, err
 }
 
