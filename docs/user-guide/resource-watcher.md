@@ -72,7 +72,7 @@ Here, you can select the exact Kubernetes resource(s) you wish to track for chan
 
 {% hint style="info" %}
 * **If Resource Is Created** - Use 'DEVTRON_FINAL_MANIFEST'
-* **If Resource Is Updated** - Both 'DEVTRON_INITIAL_MANIFEST' and 'DEVTRON_FINAL_MANIFEST' manifest exist
+* **If Resource Is Updated** - Both 'DEVTRON_INITIAL_MANIFEST' and 'DEVTRON_FINAL_MANIFEST' can exist
 * **If Resource Is Deleted** - Use 'DEVTRON_FINAL_MANIFEST'
 {% endhint %}
 
