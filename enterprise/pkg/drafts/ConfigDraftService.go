@@ -10,6 +10,7 @@ import (
 	"errors"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"net/http"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -33,6 +34,7 @@ import (
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"k8s.io/utils/pointer"
 )
 
@@ -51,6 +53,7 @@ type ConfigDraftService interface {
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
 	ValidateLockDraft(request ConfigDraftRequest) (*bean3.LockValidateErrorResponse, error)
+	CheckIfUserHasApprovalAccess(appId int, envId int, token string) bool
 }
 
 type ConfigDraftServiceImpl struct {
@@ -423,7 +426,7 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 	if draftResourceType == CMDraftResource || draftResourceType == CSDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
-		lockValidateResponse, err := impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
+		lockValidateResponse, err := impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, userId, draftVersion.Action)
 		if err != nil {
 			return nil, err
 		}
@@ -508,18 +511,35 @@ func (impl *ConfigDraftServiceImpl) EncryptCSData(draftCsData string) string {
 	return string(encryptedCSData)
 }
 
-func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) (*bean3.LockValidateErrorResponse, error) {
+func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, draftUserId, loggedInUserId int32, action ResourceAction) (*bean3.LockValidateErrorResponse, error) {
 
 	ctx := context.Background()
 	var err error
 	var lockValidateResp *bean3.LockValidateErrorResponse
+	lockDraftValidateReq := ConfigDraftRequest{
+		Action: action,
+		AppId:  appId,
+		EnvId:  envId,
+		Data:   draftData,
+		UserId: loggedInUserId,
+	}
+	//getting lock config keys
+	validateLockResp, err := impl.ValidateLockDraft(lockDraftValidateReq)
+	if err != nil {
+		impl.logger.Errorw("error in getting lock draft validate state", "lockDraftValidateReq", lockDraftValidateReq, "err", err)
+		return nil, err
+	}
+	if validateLockResp != nil && validateLockResp.IsLockConfigError == true {
+		impl.logger.Warnw("skipping deployment template handling for approval, violating lock config", "lockDraftValidateReq", lockDraftValidateReq)
+		return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", "cannot approve, lock config violated", "cannot approve, lock config violated")
+	}
 	if envId == protect.BASE_CONFIG_ENV_ID {
-		lockValidateResp, err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, action, ctx)
+		lockValidateResp, err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, draftUserId, action, ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		lockValidateResp, err = impl.handleEnvLevelTemplate(appId, envId, draftData, userId, action, ctx)
+		lockValidateResp, err = impl.handleEnvLevelTemplate(appId, envId, draftData, draftUserId, action, ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -679,6 +699,18 @@ func (impl *ConfigDraftServiceImpl) getUserMetadata(userIds []int32) (map[int32]
 		userIdVsUserInfoMap[userInfo.Id] = userInfo
 	}
 	return userIdVsUserInfoMap, nil
+}
+
+func (impl *ConfigDraftServiceImpl) CheckIfUserHasApprovalAccess(appId int, envId int, token string) bool {
+	email, _, err := impl.userService.GetEmailAndVersionFromToken(token)
+	if err != nil {
+		return false
+	}
+	if slices.Contains(impl.getApproversData(appId, envId, token), email) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (impl *ConfigDraftServiceImpl) getApproversData(appId int, envId int, token string) []string {
