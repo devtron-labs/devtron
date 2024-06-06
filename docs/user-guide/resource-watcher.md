@@ -62,18 +62,18 @@ Here, you can select the exact Kubernetes resource(s) you wish to track for chan
 
 ![Figure 6: Picking Resources to Track](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/resource-watcher/intercept-changes.gif)
 
-* You can choose the resource from the **Resource kind(s) to watch** dropdown. Enter the Group Version Kind (GVK) if it's a custom resource definition (CRD), for e.g., `install.istio.io/v1apha1/IstioOperator`
+* You can choose the resource from the **Resource kind(s) to watch** dropdown. Enter the Group/Version/Kind (GVK) if it's a custom resource definition (CRD), for e.g., `install.istio.io/v1apha1/IstioOperator`
 
 * Choose the event type your watcher should listen to: `Created`, `Updated`, `Deleted`.
 
 * Enter a [CEL expression](https://github.com/google/cel-spec/blob/master/doc/langdef.md) to catch a specific change in the resource's manifest.
 
-**Example**: `final.status.currentReplicas == final.spec.MaxReplicas`
+**Example**: `DEVTRON_FINAL_MANIFEST.status.currentReplicas == DEVTRON_FINAL_MANIFEST.spec.MaxReplicas`
 
 {% hint style="info" %}
-* **If Resource Is Created** - Use 'final'
-* **If Resource Is Updated** - Both 'initial' and 'final' manifest exist
-* **If Resource Is Deleted** - Use 'initial'
+* **If Resource Is Created** - Use 'DEVTRON_FINAL_MANIFEST'
+* **If Resource Is Updated** - Both 'DEVTRON_INITIAL_MANIFEST' and 'DEVTRON_FINAL_MANIFEST' manifest exist
+* **If Resource Is Deleted** - Use 'DEVTRON_FINAL_MANIFEST'
 {% endhint %}
 
 ### Execute Runbook
@@ -165,5 +165,5 @@ A live streaming sports application experiences a surge in viewers during a majo
 A stock trading application constantly updates stock prices for its traders. If the pods become unhealthy, traders might see incorrect stock prices leading to bad investments.
 
 1. Create a watcher named 'Pod Health Monitor'.
-2. Track the pod workload of your application, if `final.status.phase != 'Running'`, trigger a job that sends an Email/Slack alert with pod details.
+2. Track the pod workload of your application, if `DEVTRON_FINAL_MANIFEST.status.phase != 'Running'`, trigger a job that sends an Email/Slack alert with pod details.
 
