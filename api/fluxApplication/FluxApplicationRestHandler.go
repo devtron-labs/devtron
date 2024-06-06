@@ -41,10 +41,12 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 	clusterIdString := v.Get("clusterIds")
 	var clusterIds []int
 	var err error
+	//handling when the clusterIds string is not empty , if it is empty then it will fetch for all the active cluster
 	if clusterIdString != "" {
 		clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
 		if err != nil {
 			handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}

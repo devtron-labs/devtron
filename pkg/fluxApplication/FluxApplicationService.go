@@ -74,7 +74,7 @@ func (impl *FluxApplicationServiceImpl) ListApplications(ctx context.Context, cl
 
 	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
 	if err != nil {
-		impl.logger.Errorw("error while fetching list application from kubelink", "err", err)
+		impl.logger.Errorw("error while fetching flux application list", "err", err)
 
 	} else {
 		var fluxApplicationList *gRPC.FluxApplicationList
