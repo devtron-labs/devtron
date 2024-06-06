@@ -126,7 +126,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetLatestIdForPipeline(ctx cont
 	return latestId, err
 }
 
-// TODO Asutosh: revisit
+// TODO Asutosh: analyse query execution time
 func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx context.Context) ([]UserDeploymentRequestWithAdditionalFields, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.GetAllInCompleteRequests")
 	defer span.End()

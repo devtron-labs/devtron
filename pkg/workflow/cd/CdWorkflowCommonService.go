@@ -148,10 +148,18 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 		impl.logger.Infow("cd wf runner status is already in terminal state", "err", releaseErr, "currentRunner", runner)
 		return nil
 	}
-	err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
-	if err != nil {
-		impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
-		return err
+	if errors.Is(releaseErr, pipelineConfig.ErrorDeploymentSuperseded) {
+		err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
+			return err
+		}
+	} else {
+		err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
+		if err != nil {
+			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
+			return err
+		}
 	}
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)

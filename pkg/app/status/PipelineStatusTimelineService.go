@@ -17,6 +17,7 @@
 package status
 
 import (
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/app/status/bean"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -34,14 +34,16 @@ type PipelineStatusTimelineService interface {
 	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx, isAppStore bool) error
 	FetchTimelines(appId, envId, wfrId int, showTimeline bool) (*PipelineTimelineDetailDto, error)
 	FetchTimelinesForAppStore(installedAppId, envId, installedAppVersionHistoryId int, showTimeline bool) (*PipelineTimelineDetailDto, error)
-	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32, statusTime time.Time) *pipelineConfig.PipelineStatusTimeline
-	SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool)
+	NewDevtronAppPipelineStatusTimelineDbObject(cdWorkflowRunnerId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline
+	NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline
+	SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (isTimelineUpdated bool, err error)
 	GetArgoAppSyncStatus(cdWfrId int) bool
 	GetLastTimelineStatusFor(request *bean.TimelineGetRequest) (pipelineConfig.TimelineStatus, error)
 	GetArgoAppSyncStatusForAppStore(installedAppVersionHistoryId int) bool
-	SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
+	SaveTimelinesIfNotAlreadyPresent(timelines []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
 
 	MarkPipelineStatusTimelineFailed(cdWfrId int, statusDetailMessage string) error
+	MarkPipelineStatusTimelineSuperseded(cdWfrId int) error
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -130,20 +132,26 @@ func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineCo
 	}
 	return nil
 }
-func (impl *PipelineStatusTimelineServiceImpl) GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32, statusTime time.Time) *pipelineConfig.PipelineStatusTimeline {
+
+func (impl *PipelineStatusTimelineServiceImpl) NewDevtronAppPipelineStatusTimelineDbObject(cdWorkflowRunnerId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline {
 	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId:           cdWorkflowRunnerId,
+		CdWorkflowRunnerId: cdWorkflowRunnerId,
+		Status:             timelineStatus,
+		StatusDetail:       timelineDescription,
+		StatusTime:         time.Now(),
+	}
+	timeline.CreateAuditLog(userId)
+	return timeline
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline {
+	timeline := &pipelineConfig.PipelineStatusTimeline{
 		InstalledAppVersionHistoryId: installedAppVersionHistoryId,
 		Status:                       timelineStatus,
 		StatusDetail:                 timelineDescription,
 		StatusTime:                   time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: userId,
-			CreatedOn: time.Now(),
-			UpdatedBy: userId,
-			UpdatedOn: time.Now(),
-		},
 	}
+	timeline.CreateAuditLog(userId)
 	return timeline
 }
 
@@ -356,38 +364,36 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	return timelineDetail, nil
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
+func (impl *PipelineStatusTimelineServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId int, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (isTimelineUpdated bool, err error) {
 	isTimelineUpdated = false
 	if isAppStore {
-		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(runnerHistoryId, timelineStatus)
-		if err != nil && err != pg.ErrNoRows {
+		_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(runnerHistoryId, timeline.Status)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)
-			return nil, err, isTimelineUpdated
-		} else if err == pg.ErrNoRows {
+			return isTimelineUpdated, err
+		} else if errors.Is(err, pg.ErrNoRows) {
 			err = impl.SaveTimeline(timeline, nil, true)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-				return nil, err, isTimelineUpdated
+				return isTimelineUpdated, err
 			}
 			isTimelineUpdated = true
-			latestTimeline = timeline
 		}
 	} else {
-		latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(runnerHistoryId, timelineStatus)
-		if err != nil && err != pg.ErrNoRows {
+		_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(runnerHistoryId, timeline.Status)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)
-			return nil, err, isTimelineUpdated
-		} else if err == pg.ErrNoRows {
+			return isTimelineUpdated, err
+		} else if errors.Is(err, pg.ErrNoRows) {
 			err = impl.SaveTimeline(timeline, nil, false)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-				return nil, err, isTimelineUpdated
+				return isTimelineUpdated, err
 			}
 			isTimelineUpdated = true
-			latestTimeline = timeline
 		}
 	}
-	return latestTimeline, nil, isTimelineUpdated
+	return isTimelineUpdated, nil
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatus(cdWfrId int) bool {
@@ -425,15 +431,34 @@ func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatusForAppStore(i
 	return true
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+func (impl *PipelineStatusTimelineServiceImpl) SaveTimelinesIfNotAlreadyPresent(timelines []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+	var validTimelines []*pipelineConfig.PipelineStatusTimeline
+	for _, timeline := range timelines {
+		if timeline.InstalledAppVersionHistoryId != 0 {
+			_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(timeline.InstalledAppVersionHistoryId, timeline.Status)
+			if err != nil && !errors.Is(err, pg.ErrNoRows) {
+				impl.logger.Errorw("error in getting latest timeline", "err", err)
+				return err
+			} else if errors.Is(err, pg.ErrNoRows) {
+				validTimelines = append(validTimelines, timeline)
+			}
+		} else if timeline.CdWorkflowRunnerId != 0 {
+			_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(timeline.CdWorkflowRunnerId, timeline.Status)
+			if err != nil && !errors.Is(err, pg.ErrNoRows) {
+				impl.logger.Errorw("error in getting latest timeline", "err", err)
+				return err
+			} else if errors.Is(err, pg.ErrNoRows) {
+				validTimelines = append(validTimelines, timeline)
+			}
+		}
+	}
+	if len(validTimelines) == 0 {
+		return nil
+	}
 	if tx == nil {
-		return impl.pipelineStatusTimelineRepository.SaveTimelines(timeline)
+		return impl.pipelineStatusTimelineRepository.SaveTimelines(validTimelines)
 	}
-	_, err := tx.Model(&timeline).Insert()
-	if err != nil {
-		return err
-	}
-	return err
+	return impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn(validTimelines, tx)
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) MarkPipelineStatusTimelineFailed(cdWfrId int, statusDetailMessage string) error {
@@ -449,17 +474,36 @@ func (impl *PipelineStatusTimelineServiceImpl) MarkPipelineStatusTimelineFailed(
 			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
 			StatusDetail:       statusDetailMessage,
 			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedBy: 1,
-				UpdatedOn: time.Now(),
-			},
 		}
+		timeline.CreateAuditLog(1)
 		impl.logger.Infow("marking pipeline deployment failed", "cdWfrId", cdWfrId, "statusDetail", statusDetailMessage)
 		timelineErr = impl.SaveTimeline(timeline, nil, false)
 		if timelineErr != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
+		}
+	}
+	return nil
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) MarkPipelineStatusTimelineSuperseded(cdWfrId int) error {
+	//creating cd pipeline status timeline for deployment failed
+	terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)
+	if timelineErr != nil {
+		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", timelineErr, "wfrId", cdWfrId)
+		return timelineErr
+	}
+	if !terminalStatusExists {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: cdWfrId,
+			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED,
+			StatusTime:         time.Now(),
+		}
+		timeline.CreateAuditLog(1)
+		impl.logger.Infow("marking pipeline deployment superseded", "cdWfrId", cdWfrId)
+		timelineErr = impl.SaveTimeline(timeline, nil, false)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment superseded", "err", timelineErr, "timeline", timeline)
 		}
 	}
 	return nil

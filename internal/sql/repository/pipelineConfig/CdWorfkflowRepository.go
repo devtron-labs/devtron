@@ -151,6 +151,8 @@ type CdWorkflowConfig struct {
 
 type WorkflowExecutorType string
 
+var ErrorDeploymentSuperseded = errors.New(NEW_DEPLOYMENT_INITIATED)
+
 const (
 	WORKFLOW_EXECUTOR_TYPE_AWF    = "AWF"
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"

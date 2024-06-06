@@ -971,15 +971,10 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-			StatusDetail:                 "Git commit done successfully.",
+			StatusDetail:                 pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT,
 			StatusTime:                   time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: installedAppVersion.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: installedAppVersion.UserId,
-				UpdatedOn: time.Now(),
-			},
 		}
+		timeline.CreateAuditLog(installedAppVersion.UserId)
 		_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 		impl.logger.Infow("GIT SUCCESSFUL", "chartGitAttrDB", appStoreGitOpsResponse)
 		_, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
@@ -989,12 +984,12 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		}
 
 		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
+			NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId)
 
 		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
 		if impl.acdConfig.IsManualSyncEnabled() {
 			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
+				NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedAppVersion.UserId)
 
 			timelines = append(timelines, ArgocdSyncInitiatedTimeline)
 		}
@@ -1005,7 +1000,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			impl.logger.Errorw("error in getting db connection for saving timelines", "err", err)
 			return nil, err
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
+		err = impl.pipelineStatusTimelineService.SaveTimelinesIfNotAlreadyPresent(timelines, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersion.InstalledAppVersionHistoryId)
 		}

@@ -27,6 +27,7 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -84,23 +85,24 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                  *zap.SugaredLogger
-	pipelineRepository      pipelineConfig.PipelineRepository
-	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
-	ciArtifactRepository    repository.CiArtifactRepository
-	enforcerUtil            rbac.EnforcerUtil
-	appWorkflowRepository   appWorkflow.AppWorkflowRepository
-	pipelineStageService    pipeline.PipelineStageService
-	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	pipelineStageRepository repository4.PipelineStageRepository
-	globalPluginRepository  repository2.GlobalPluginRepository
-	config                  *types.CdConfig
-	ciConfig                *types.CiConfig
-	appServiceConfig        *app.AppServiceConfig
-	eventClient             client.EventClient
-	eventFactory            client.EventFactory
-	customTagService        pipeline.CustomTagService
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	enforcerUtil                  rbac.EnforcerUtil
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	pipelineStageService          pipeline.PipelineStageService
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	pipelineStageRepository       repository4.PipelineStageRepository
+	globalPluginRepository        repository2.GlobalPluginRepository
+	config                        *types.CdConfig
+	ciConfig                      *types.CiConfig
+	appServiceConfig              *app.AppServiceConfig
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	customTagService              pipeline.CustomTagService
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
 
 	helmAppService client2.HelmAppService
 
@@ -125,6 +127,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	customTagService pipeline.CustomTagService,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
@@ -132,25 +135,26 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:           pipelineRepository,
-		cdWorkflowRepository:         cdWorkflowRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		enforcerUtil:                 enforcerUtil,
-		appWorkflowRepository:        appWorkflowRepository,
-		pipelineStageService:         pipelineStageService,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		ciPipelineRepository:         ciPipelineRepository,
-		pipelineStageRepository:      pipelineStageRepository,
-		globalPluginRepository:       globalPluginRepository,
-		eventClient:                  eventClient,
-		eventFactory:                 eventFactory,
-		customTagService:             customTagService,
-		helmAppService:               helmAppService,
-		cdWorkflowCommonService:      cdWorkflowCommonService,
-		cdTriggerService:             cdTriggerService,
-		userDeploymentRequestService: userDeploymentRequestService,
-		manifestCreationService:      manifestCreationService,
-		commonArtifactService:        commonArtifactService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		enforcerUtil:                  enforcerUtil,
+		appWorkflowRepository:         appWorkflowRepository,
+		pipelineStageService:          pipelineStageService,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		ciPipelineRepository:          ciPipelineRepository,
+		pipelineStageRepository:       pipelineStageRepository,
+		globalPluginRepository:        globalPluginRepository,
+		eventClient:                   eventClient,
+		eventFactory:                  eventFactory,
+		customTagService:              customTagService,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		helmAppService:                helmAppService,
+		cdWorkflowCommonService:       cdWorkflowCommonService,
+		cdTriggerService:              cdTriggerService,
+		userDeploymentRequestService:  userDeploymentRequestService,
+		manifestCreationService:       manifestCreationService,
+		commonArtifactService:         commonArtifactService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -307,6 +311,19 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				impl.logger.Errorw("error on update cd workflow runner", "wfr", cdWfr, "err", err)
 				return
 			}
+			if util4.IsRunnerStatusFailed(cdWfr.Status) {
+				if cdWfr.Message == pipelineConfig.NEW_DEPLOYMENT_INITIATED {
+					dbErr := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(cdWfr.Id)
+					if dbErr != nil {
+						impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", dbErr, "releaseErr", releaseErr)
+					}
+				} else {
+					dbErr := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, cdWfr.Message)
+					if dbErr != nil {
+						impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", dbErr, "releaseErr", releaseErr)
+					}
+				}
+			}
 			cdMetrics := util4.CDMetrics{
 				AppName:         cdWfr.CdWorkflow.Pipeline.DeploymentAppName,
 				Status:          cdWfr.Status,
@@ -348,7 +365,6 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		return err
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
-		// TODO Asutosh: rethink
 		// update workflow runner status, used in app workflow view
 		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
 		if err != nil {

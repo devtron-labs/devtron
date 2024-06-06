@@ -129,6 +129,7 @@ type AppService interface {
 	CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 
+	// TODO: move inside reader service
 	GetActiveCiCdAppsCount() (int, error)
 }
 
@@ -566,7 +567,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
 		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, false)
+		isTimelineUpdated, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline, false)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -629,7 +630,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				// mark as timed out if not already marked
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
-				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, false)
+				isTimelineUpdated, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline, false)
 				if err != nil {
 					impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -678,7 +679,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
 		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, true)
+		isTimelineUpdated, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline, true)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -741,7 +742,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				// mark as timed out if not already marked
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
-				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, true)
+				isTimelineUpdated, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline, true)
 				if err != nil {
 					impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err

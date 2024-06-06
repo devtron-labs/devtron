@@ -161,14 +161,11 @@ func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cd
 	}
 	var timelines []*pipelineConfig.PipelineStatusTimeline
 	for _, cdWfr := range cdWfrs {
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: cdWfr.Id,
-			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
-			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED,
-			StatusTime:         time.Now(),
+		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(cdWfr.Id)
+		if err != nil {
+			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
+			return err
 		}
-		timeline.CreateAuditLog(1)
-		timelines = append(timelines, timeline)
 		if cdWfr.CdWorkflow == nil {
 			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 			if err != nil {
@@ -180,13 +177,6 @@ func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cd
 			}
 		}
 		globalUtil.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
-	}
-	if len(timelines) > 0 {
-		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, nil)
-		if err != nil {
-			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
-			return err
-		}
 	}
 	return nil
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"time"
 )
 
 type UserDeploymentRequestService interface {
@@ -60,7 +59,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestServiceImpl.SaveNewDeployment")
 	defer span.End()
 	userDeploymentRequest := adapter.NewUserDeploymentRequest(deploymentRequest)
-	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(deploymentRequest.ValuesOverrideRequest.WfrId, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_TRIGGER_REQUEST_VALIDATED, deploymentRequest.TriggeredBy, time.Now())
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(deploymentRequest.ValuesOverrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deploymentRequest.TriggeredBy)
 	tx, err := impl.userDeploymentRequestRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
@@ -68,7 +67,7 @@ func (impl *UserDeploymentRequestServiceImpl) SaveNewDeployment(ctx context.Cont
 	}
 	defer impl.userDeploymentRequestRepo.RollbackTx(tx)
 	// creating cd pipeline status timeline for deployment trigger request validated
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, false)
+	_, err = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(deploymentRequest.ValuesOverrideRequest.WfrId, timeline, false)
 	err = impl.userDeploymentRequestRepo.Save(newCtx, tx, userDeploymentRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving userDeploymentRequest", "asyncCdDeployRequest", deploymentRequest, "err", err)

@@ -37,3 +37,11 @@ func IsTerminalRunnerStatus(status string) bool {
 	}
 	return false
 }
+
+func IsRunnerStatusFailed(status string) bool {
+	switch status {
+	case WorkflowFailed:
+		return true
+	}
+	return false
+}

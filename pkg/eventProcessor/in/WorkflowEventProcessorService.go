@@ -721,13 +721,17 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
 	}
 	if cdAsyncInstallReq.Id != 0 {
+		// getting the latest UserDeploymentRequest for the pipeline
 		latestCdAsyncInstallReq, err := impl.userDeploymentRequestService.GetLatestAsyncCdDeployRequestForPipeline(newCtx, cdAsyncInstallReq.Id)
 		if err != nil {
 			impl.logger.Errorw("error in fetching userDeploymentRequest by id", "userDeploymentRequestId", cdAsyncInstallReq.Id, "err", err)
 			return nil, err
 		}
+		// will process the latest UserDeploymentRequest irrespective of the received UserDeploymentRequest.Id
+		// overriding cdAsyncInstallReq with the latest UserDeploymentRequest for the pipeline
 		cdAsyncInstallReq = latestCdAsyncInstallReq
 	}
+	// handling cdAsyncInstallReq.ValuesOverrideRequest for backward compatibility
 	err = impl.setAdditionalDataInAsyncInstallReq(newCtx, cdAsyncInstallReq)
 	if err != nil {
 		impl.logger.Errorw("error in setting additional data to UserDeploymentRequest", "err", err)
@@ -919,7 +923,7 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 			}
 			if !isLatestRequest {
 				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)
-				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), userId)
+				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, userId)
 				if err != nil {
 					impl.logger.Errorw("error while updating current runner status to failed, validateConcurrentOrInvalidRequest", "cdWfr", cdWfr.Id, "err", err)
 					return isValidRequest, err
@@ -938,9 +942,11 @@ func (impl *WorkflowEventProcessorImpl) UpdateReleaseContextForPipeline(ctx cont
 	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.UpdateReleaseContextForPipeline")
 	defer span.End()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
-		// Abort previous running release
 		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
-		releaseContext.CancelContext(errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+		// abort previous running release
+		releaseContext.CancelContext(pipelineConfig.ErrorDeploymentSuperseded)
+		// cancelling parent context
+		releaseContext.CancelParentContext()
 	}
 	impl.devtronAppReleaseContextMap[pipelineId] = bean.DevtronAppReleaseContextType{
 		CancelParentContext: cancelParentCtx,
