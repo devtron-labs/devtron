@@ -5,3 +5,6 @@
 /cmd/external-app/devtron-ea
 devtron
 /vendor/github.com/argoproj/argo-cd/assets
+/process/stage-0
+
+
