@@ -39,6 +39,7 @@
 - fix: image-approval-migartion fix (#4994)
 - fix: ci-cd count per day in telemetry data (#4931)
 ## Enhancements
+- feat: notifier behind nats (#5185)
 - feat: cd pipeline deployment history refactoring (#5200)
 - feat: wire nil test in pre ci pipeline (#4858)
 - feat: added recovery counter metrics (#5124)
