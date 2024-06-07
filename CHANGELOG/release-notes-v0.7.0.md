@@ -1,3 +1,5 @@
+## v0.7.0
+
 ## Bugs
 - fix: extra labels propagation made env driven (#5274)
 - fix: App clone config map fix (#5268)
@@ -82,3 +84,5 @@
 - chore: resource scan migration (#4977)
 - chore: image promotion migration (#4992)
 - misc: uniform GitHub action (#5069)
+
+
