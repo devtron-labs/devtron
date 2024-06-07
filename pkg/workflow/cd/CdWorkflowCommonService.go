@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	util4 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/strings/slices"
@@ -40,6 +40,7 @@ type CdWorkflowCommonService interface {
 	MarkDeploymentFailedForRunnerId(cdWfrId int, releaseErr error, triggeredBy int32) error
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
 	UpdateNonTerminalStatusInRunner(ctx context.Context, wfrId int, userId int32, status string) error
+	UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
@@ -183,7 +184,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 				return err
 			}
 		}
-		util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
 	}
 	return nil
 }
@@ -196,7 +197,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	if isTerminalStatus {
 		return fmt.Errorf("unsupported status %s for update operation", status)
 	}
-	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+	cdWfr, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(wfrId)
 	if err != nil {
 		impl.logger.Errorw("err on fetching cd workflow, UpdateNonTerminalStatusInRunner", "err", err)
 		return err
@@ -212,6 +213,40 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, UpdateNonTerminalStatusInRunner", "cdWfr", cdWfr, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
+	queuedRunners, err := impl.cdWorkflowRepository.GetPreviousQueuedRunners(cdWfrId, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error on getting previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
+		return err
+	}
+	var queuedRunnerIds []int
+	for _, queuedRunner := range queuedRunners {
+		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(queuedRunner.Id)
+		if err != nil {
+			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "cdWfrId", queuedRunner.Id)
+			return err
+		}
+		if queuedRunner.CdWorkflow == nil {
+			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cd pipeline, UpdatePreviousQueuedRunnerStatus", "pipelineId", pipelineId, "err", err)
+				return err
+			}
+			queuedRunner.CdWorkflow = &pipelineConfig.CdWorkflow{
+				Pipeline: pipeline,
+			}
+		}
+		globalUtil.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
+		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
+	}
+	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
+	if err != nil {
+		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
 		return err
 	}
 	return nil

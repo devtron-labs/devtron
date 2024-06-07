@@ -23,7 +23,6 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -33,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -145,46 +143,12 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err
 	}
-	err = impl.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
+	err = impl.cdWorkflowCommonService.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err
 	}
 	return 0, nil
-}
-
-func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
-	queuedRunners, err := impl.cdWorkflowRepository.GetPreviousQueuedRunners(cdWfrId, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error on getting previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
-		return err
-	}
-	var queuedRunnerIds []int
-	for _, queuedRunner := range queuedRunners {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(queuedRunner.Id)
-		if err != nil {
-			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "cdWfrId", queuedRunner.Id)
-			return err
-		}
-		if queuedRunner.CdWorkflow == nil {
-			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching cd pipeline, UpdatePreviousQueuedRunnerStatus", "pipelineId", pipelineId, "err", err)
-				return err
-			}
-			queuedRunner.CdWorkflow = &pipelineConfig.CdWorkflow{
-				Pipeline: pipeline,
-			}
-		}
-		globalUtil.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
-		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
-	}
-	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
-	if err != nil {
-		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
-		return err
-	}
-	return nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error) {
