@@ -10,12 +10,14 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strconv"
 )
 
 type LockConfigRestHandler interface {
@@ -60,14 +62,36 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	isAuthorised := false
+	//checking approval access if appId, envId query params are received, if yes then won't check the lengthier rbac
+	if appIdStr := r.URL.Query().Get("appId"); len(appIdStr) > 0 {
+		if appId, err := strconv.Atoi(appIdStr); err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		} else {
+			envId := protect.BASE_CONFIG_ENV_ID
+			if envIdStr := r.URL.Query().Get("envId"); len(envIdStr) > 0 {
+				if envId, err = strconv.Atoi(envIdStr); err != nil {
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return
+				}
+			}
+			if handler.checkForConfigApproverAccess(envId, appId, token) {
+				isAuthorised = true
+			}
+		}
 	}
 	if !isAuthorised {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
+		isAuthorised, err = handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		//still not authorised, throw error
+		if !isAuthorised {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	resp, err := handler.lockConfigurationService.GetLockConfiguration()
 	if err != nil {
@@ -146,4 +170,14 @@ func (handler LockConfigRestHandlerImpl) CheckAdminAuth(resource, token string, 
 		return false
 	}
 	return true
+}
+
+func (handler LockConfigRestHandlerImpl) checkForConfigApproverAccess(envId int, appId int, token string) bool {
+	var object string
+	if envId > 0 {
+		object = handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, envId)
+	} else {
+		object = handler.enforcerUtil.GetTeamNoEnvRBACNameByAppId(appId)
+	}
+	return handler.enforcer.Enforce(token, casbin.ResourceConfig, casbin.ActionApprove, object)
 }

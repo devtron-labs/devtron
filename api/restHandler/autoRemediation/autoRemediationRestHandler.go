@@ -71,6 +71,14 @@ func (impl WatcherRestHandlerImpl) evaluateEventExpression(expression string) er
 		{
 			ParamName: "initial",
 			Type:      expressionEvaluators.ParamTypeObject,
+		}, // inorder to avoid backward compatibility issue had to give two diff constants which has same functionality
+		{
+			ParamName: types2.DevtronFinalManifest,
+			Type:      expressionEvaluators.ParamTypeObject,
+		},
+		{
+			ParamName: types2.DevtronInitialManifest,
+			Type:      expressionEvaluators.ParamTypeObject,
 		},
 		{
 			ParamName: "action",

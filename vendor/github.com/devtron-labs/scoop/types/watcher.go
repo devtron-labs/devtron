@@ -1,15 +1,26 @@
 package types
 
 import (
+	"github.com/devtron-labs/scoop/pkg/clusterCache/cache"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
+type WatchItem struct {
+	NewRes *cache.Resource
+	OldRes *cache.Resource
+}
+
+func NewWatchItem(newRes *cache.Resource, oldRes *cache.Resource) *WatchItem {
+	return &WatchItem{NewRes: newRes, OldRes: oldRes}
+}
+
 type EnvConfig struct {
 	Token           string `env:"TOKEN"`
 	ClusterId       int    `env:"CLUSTER_ID" envDefault:"1"`
 	OrchestratorUrl string `env:"ORCHESTRATOR_URL" envDefault:"http://localhost:8080"`
+	ApiTimeOutInSec int    `env:"API_TIMEOUT_SECS" envDefault:"5"`
 }
 
 type InterceptedEvent struct {
@@ -85,8 +96,12 @@ func (watcher *Watcher) IntrestedInNamespace(ns string, isProd bool) bool {
 		return true
 	}
 
-	if watcher.Selectors.InterestGroup == AllProd || watcher.Selectors.InterestGroup == AllNonProd {
+	if watcher.Selectors.InterestGroup == AllProd {
 		return isProd
+	}
+
+	if watcher.Selectors.InterestGroup == AllNonProd {
+		return !isProd
 	}
 
 	existsInList := false
@@ -158,9 +173,11 @@ const (
 )
 
 const (
-	NamespaceKey   = "namespace"
-	IsProdKey      = "isProd"
-	ActionKey      = "action"
-	NewResourceKey = "newResource"
-	OldResourceKey = "oldResource"
+	NamespaceKey           = "namespace"
+	IsProdKey              = "isProd"
+	ActionKey              = "action"
+	NewResourceKey         = "newResource"
+	OldResourceKey         = "oldResource"
+	DevtronInitialManifest = "DEVTRON_INITIAL_MANIFEST"
+	DevtronFinalManifest   = "DEVTRON_FINAL_MANIFEST"
 )

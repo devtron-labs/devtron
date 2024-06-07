@@ -6,11 +6,13 @@
  | ACD_NAMESPACE | devtroncd |  | 
  | ACD_PASSWORD |  |  | 
  | ACD_USERNAME | admin |  | 
+ | API_TIMEOUT_SECS | 5 |  | 
  | APP | orchestrator |  | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
+ | ARRAY_DIFF_MEMOIZATION | false |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -204,6 +206,7 @@
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
  | ORCHESTRATOR_URL | http://localhost:8080 |  | 
+ | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 

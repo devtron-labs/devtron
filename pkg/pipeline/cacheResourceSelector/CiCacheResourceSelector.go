@@ -21,7 +21,7 @@ import (
 
 type CiCacheResourceSelector interface {
 	GetAvailResource(scope resourceQualifiers.Scope, appLabels map[string]string, ciWorkflowId int) (*CiCacheResource, error)
-	UpdateResourceStatus(ciWorkflowId int, status string) bool
+	UpdateResourceStatus(ciWorkflowId int, podName string, namespace string, status string) bool
 }
 
 type CiCacheResourceSelectorImpl struct {
@@ -99,7 +99,7 @@ func (impl *CiCacheResourceSelectorImpl) GetAvailResource(scope resourceQualifie
 // status: make pvc unavailable
 // running
 // pending
-func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, status string) bool {
+func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, podName string, namespace string, status string) bool {
 	impl.lock.Lock()
 	defer impl.lock.Unlock()
 
@@ -107,6 +107,11 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 		if status == string(v1alpha1.NodePending) || status == string(v1alpha1.NodeRunning) {
 			// 	pvc is busy, no need to update
 		} else {
+			// do not have to clean-up pod in success/completed state as k8s itself frees the resources that are in hold of this pod.
+			if status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed) {
+				impl.cleanupPod(podName, namespace)
+			}
+
 			// pvc got free
 			impl.resourcesStatus[pvc] = AvailableResourceStatus
 			// TODO KB: run a particular command to make PVC unavailable
@@ -115,6 +120,27 @@ func (impl *CiCacheResourceSelectorImpl) UpdateResourceStatus(ciWorkflowId int, 
 		}
 	}
 	return false
+}
+
+func (impl *CiCacheResourceSelectorImpl) cleanupPod(podName, namespace string) {
+	resourceRequestBean := &k8s.ResourceRequestBean{
+		ClusterId: 1,
+		K8sRequest: &k8s2.K8sRequestBean{
+			ResourceIdentifier: k8s2.ResourceIdentifier{
+				GroupVersionKind: schema.GroupVersionKind{
+					Version: "v1",
+					Kind:    "Pod",
+				},
+				Name:      podName,
+				Namespace: namespace,
+			},
+			ForceDelete: true,
+		},
+	}
+	_, err := impl.k8sCommonService.DeleteResource(context.Background(), resourceRequestBean)
+	if err != nil {
+		impl.logger.Errorw("error in cleaning up pod", "podName", podName, "namespace", namespace, "clusterId", 1, "err", err)
+	}
 }
 
 func (impl *CiCacheResourceSelectorImpl) cleanupResources(pvcName string) {

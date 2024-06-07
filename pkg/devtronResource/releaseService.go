@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/devtronResource/util"
 	pipelineStageBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	bean4 "github.com/devtron-labs/devtron/pkg/policyGovernance/devtronResource/release/bean"
@@ -461,12 +462,12 @@ func (impl *DevtronResourceServiceImpl) getFilteredReleaseObjectsForReleaseTrack
 func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObjects(kind string, subKind string, version string, resourceObjects []*repository.DevtronResourceObject, filterCriteria []string) ([]*repository.DevtronResourceObject, error) {
 	for _, criteria := range filterCriteria {
 		// criteria will be in the form of resourceType|identifierType|commaSeperatedValues, will be invalid filterCriteria and error would be returned if not provided in this format.
-		criteriaDecoder, err := helper.DecodeFilterCriteriaString(criteria)
+		criteriaDecoder, err := util3.DecodeFilterCriteriaString(criteria)
 		if err != nil {
 			impl.logger.Errorw("error encountered in applyFilterCriteriaOnResourceObjects", "filterCriteria", filterCriteria, "err", bean.InvalidFilterCriteria)
 			return nil, err
 		}
-		f1 := getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Resource)
+		f1 := getFuncToExtractConditionsFromFilterCriteria(kind, subKind, version, criteriaDecoder.Kind, criteriaDecoder.SubKind)
 		if f1 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -475,7 +476,7 @@ func (impl *DevtronResourceServiceImpl) applyFilterCriteriaOnReleaseResourceObje
 			impl.logger.Errorw("error in applyFilterCriteriaOnResourceObjects", "criteriaDecoder", criteriaDecoder, "err", err)
 			return nil, err
 		}
-		f2 := getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version, criteriaDecoder.Resource)
+		f2 := getFuncForProcessingFiltersOnResourceObjects(kind, subKind, version, criteriaDecoder.Kind, criteriaDecoder.SubKind)
 		if f2 == nil {
 			return nil, util.GetApiErrorAdapter(http.StatusBadRequest, "400", bean.InvalidResourceKindOrComponent, bean.InvalidResourceKindOrComponent)
 		}
@@ -724,11 +725,11 @@ func (impl *DevtronResourceServiceImpl) getArtifactResponseForDependency(depende
 
 func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQueryParams) (appWorkflowId int, releaseTrackFilter *bean.FilterCriteriaDecoder, err error) {
 	for _, filterCriteria := range query.FilterCriteria {
-		criteriaDecoder, err := helper.DecodeFilterCriteriaString(filterCriteria)
+		criteriaDecoder, err := util3.DecodeFilterCriteriaString(filterCriteria)
 		if err != nil {
 			return appWorkflowId, nil, err
 		}
-		switch criteriaDecoder.Resource {
+		switch criteriaDecoder.Kind {
 		case bean.DevtronResourceAppWorkflow:
 			if criteriaDecoder.Type != bean.IdQueryString {
 				return appWorkflowId, nil, fmt.Errorf("invalid filterCriteria: AppWorkflow")
@@ -754,7 +755,7 @@ func getReleaseConfigOptionsFilterCriteriaData(query *apiBean.GetConfigOptionsQu
 }
 
 func getReleaseConfigOptionsSearchKeyData(query *apiBean.GetConfigOptionsQueryParams) (searchArtifactTag, searchImageTag string, err error) {
-	searchDecoder, err := helper.DecodeSearchKeyString(query.SearchKey)
+	searchDecoder, err := util3.DecodeSearchKeyString(query.SearchKey)
 	if err != nil {
 		return searchArtifactTag, searchImageTag, err
 	}
@@ -1350,9 +1351,9 @@ func (impl *DevtronResourceServiceImpl) getReleaseDeploymentInfoForDependenciesF
 	return pipelinesInfo, nil
 }
 
-func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(childInheritance []*bean.ChildInheritance, appId int) ([]*bean.Environment, error) {
+func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(childInheritance []*bean.ChildInheritance, appId int) ([]*bean.CdPipelineEnvironment, error) {
 	// iterating in every inheritance and getting child inheritances(for eg cd) and getting corresponding details) for now it is ["*"] we will fetch all cd (env) for that dependency
-	envs := make([]*bean.Environment, 0)
+	envs := make([]*bean.CdPipelineEnvironment, 0)
 	findAll := false
 	for _, inheritance := range childInheritance {
 		// collecting selectors here currently only ["all"] is present so will find all env names for an app but can be modified in future
@@ -1365,7 +1366,7 @@ func (impl *DevtronResourceServiceImpl) getEnvironmentsForApplicationDependency(
 			return envs, err
 		}
 		for _, pipeline := range pipelines {
-			env := adapter.BuildEnvironmentBasicData(pipeline.Environment.Name, pipeline.EnvironmentId)
+			env := adapter.BuildCdPipelineEnvironmentBasicData(pipeline.Environment.Name, pipeline.DeploymentAppType, pipeline.EnvironmentId, pipeline.Id)
 			envs = append(envs, env)
 		}
 	} else {
@@ -2035,7 +2036,7 @@ func (impl *DevtronResourceServiceImpl) isAppsDeployedOnAllEnvWithRunnerFromMap(
 // getAppIdsAndEnvIdsFromFilterCriteria decodes filters and return app ids ,envIds, deployment status with stage, rollout Status, gets ids for identifiers if identifiers are given
 func (impl *DevtronResourceServiceImpl) getAppIdsAndEnvIdsFromFilterCriteria(filters []string) ([]int, []int, map[bean3.WorkflowType][]string, []string, bool, error) {
 	// filters decoding
-	appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err := helper.DecodeFiltersForDeployAndRolloutStatus(filters)
+	appIdsFilters, appIdentifierFilters, envIdsFilters, envIdentifierFilters, deploymentStatus, rolloutStatus, err := util3.DecodeFiltersForDeployAndRolloutStatus(filters)
 	if err != nil {
 		impl.logger.Errorw("error encountered in getAppIdsAndEnvIdsFromFilterCriteria", "err", err, "filters", filters)
 		return appIdsFilters, envIdsFilters, deploymentStatus, rolloutStatus, false, err

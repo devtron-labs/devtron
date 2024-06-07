@@ -104,6 +104,7 @@
   * [Overview](user-guide/jobs/overview-job.md) 
 * [Application Groups](user-guide/application-groups.md)
 * [Resource Browser](user-guide/resource-browser.md)   
+* [Resource Watcher](user-guide/resource-watcher.md) 
 * [Charts](user-guide/deploy-chart/README.md)
   * [Charts Overview](user-guide/deploy-chart/overview-of-charts.md)
   * [Deploy & Observe](user-guide/deploy-chart/deployment-of-charts.md)

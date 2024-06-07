@@ -388,8 +388,8 @@ func (impl ServiceImpl) extractRuntimeParams(trigger *types2.Trigger, watchersMa
 	if err != nil {
 		return runtimeParams, err
 	}
-	runtimeParams.EnvVariables["DEVTRON_FINAL_MANIFEST"] = string(finalResource)
-	runtimeParams.EnvVariables["DEVTRON_INITIAL_MANIFEST"] = string(initialResource)
+	runtimeParams.EnvVariables[types.DevtronFinalManifest] = string(finalResource)
+	runtimeParams.EnvVariables[types.DevtronInitialManifest] = string(initialResource)
 	runtimeParams.EnvVariables["NOTIFICATION_DATA"] = string(notificationDataBytes)
 	runtimeParams.EnvVariables["NOTIFICATION_TOKEN"] = token
 	runtimeParams.EnvVariables["NOTIFICATION_URL"] = hostUrl + "/orchestrator/scoop/intercept-event/notify"
