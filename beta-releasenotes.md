@@ -1,4 +1,5 @@
 ## Bugs
+- fix: extra labels propagation made env driven (#5274)
 - fix: App clone config map fix (#5268)
 - fix: latest version in default cluster and on UI (#5259)
 - fix: update CVE's severity and store multiple same CVE's in multiple packages (#5168)
