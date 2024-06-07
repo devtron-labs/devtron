@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE chart_group ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;
 
 ALTER TABLE chart_repo ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;

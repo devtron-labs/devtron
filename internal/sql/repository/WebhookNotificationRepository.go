@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -26,9 +14,10 @@ type WebhookNotificationRepository interface {
 	UpdateWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	SaveWebhookConfig(webhookConfig *WebhookConfig) (*WebhookConfig, error)
 	FindAll() ([]WebhookConfig, error)
-	FindByName(value string) ([]WebhookConfig, error)
+	FindNameByRegex(value string) ([]WebhookConfig, error)
 	FindByIds(ids []*int) ([]*WebhookConfig, error)
 	MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error
+	FindOneByName(name string) (WebhookConfig, error)
 }
 
 type WebhookNotificationRepositoryImpl struct {
@@ -76,7 +65,7 @@ func (impl *WebhookNotificationRepositoryImpl) SaveWebhookConfig(webhookConfig *
 	return webhookConfig, impl.dbConnection.Insert(webhookConfig)
 }
 
-func (impl *WebhookNotificationRepositoryImpl) FindByName(value string) ([]WebhookConfig, error) {
+func (impl *WebhookNotificationRepositoryImpl) FindNameByRegex(value string) ([]WebhookConfig, error) {
 	var webhookConfigs []WebhookConfig
 	err := impl.dbConnection.Model(&webhookConfigs).Where(`config_name like ?`, "%"+value+"%").
 		Where("deleted = ?", false).Select()
@@ -94,4 +83,14 @@ func (repo *WebhookNotificationRepositoryImpl) FindByIds(ids []*int) ([]*Webhook
 func (impl *WebhookNotificationRepositoryImpl) MarkWebhookConfigDeleted(webhookConfig *WebhookConfig) error {
 	webhookConfig.Deleted = true
 	return impl.dbConnection.Update(webhookConfig)
+}
+
+func (impl *WebhookNotificationRepositoryImpl) FindOneByName(name string) (WebhookConfig, error) {
+	var webhookConfig = WebhookConfig{}
+	err := impl.dbConnection.Model(&webhookConfig).
+		Where("deleted = ?", false).
+		Where("config_name = ? ", name).
+		Limit(1).
+		Select()
+	return webhookConfig, err
 }

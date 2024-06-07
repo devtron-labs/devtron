@@ -5,7 +5,7 @@
 package mock_rbac
 
 import (
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	reflect "reflect"
 
 	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package sso
@@ -19,9 +7,10 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"time"
 
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -40,11 +29,12 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	logger              *zap.SugaredLogger
-	ssoLoginRepository  SSOLoginRepository
-	K8sUtil             *k8s.K8sServiceImpl
-	devtronSecretConfig *util2.DevtronSecretConfig
-	userAuthOidcHelper  authentication.UserAuthOidcHelper
+	logger                  *zap.SugaredLogger
+	ssoLoginRepository      SSOLoginRepository
+	K8sUtil                 *k8s.K8sUtilExtended
+	devtronSecretConfig     *util2.DevtronSecretConfig
+	userAuthOidcHelper      authentication.UserAuthOidcHelper
+	globalAuthConfigService auth.GlobalAuthorisationConfigService
 }
 
 type Config struct {
@@ -99,13 +89,15 @@ const (
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sServiceImpl, envVariables *util2.EnvironmentVariables, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sUtilExtended, envVariables *util2.EnvironmentVariables, userAuthOidcHelper authentication.UserAuthOidcHelper,
+	globalAuthConfigService auth.GlobalAuthorisationConfigService) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		logger:              logger,
-		ssoLoginRepository:  ssoLoginRepository,
-		K8sUtil:             K8sUtil,
-		devtronSecretConfig: envVariables.DevtronSecretConfig,
-		userAuthOidcHelper:  userAuthOidcHelper,
+		logger:                  logger,
+		ssoLoginRepository:      ssoLoginRepository,
+		K8sUtil:                 K8sUtil,
+		devtronSecretConfig:     envVariables.DevtronSecretConfig,
+		userAuthOidcHelper:      userAuthOidcHelper,
+		globalAuthConfigService: globalAuthConfigService,
 	}
 	return serviceImpl
 }
@@ -156,6 +148,15 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Id = model.Id
+
+	//  updating/creating globalAuthConfig here, doing this here to improve user experience, but altogeather they are different components
+	if len(request.GlobalAuthConfigType) > 0 {
+		_, err = impl.globalAuthConfigService.CreateOrUpdateGroupClaimsAuthConfig(tx, request.GlobalAuthConfigType, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateGroupClaimsAuthConfig", "err", err)
+			return nil, err
+		}
+	}
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
@@ -169,7 +170,8 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 
 	// update in memory data on sso add-update
 	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
-
+	// Updating cache for globalAuthConfig
+	impl.globalAuthConfigService.ReloadCache()
 	return request, nil
 }
 
@@ -241,6 +243,15 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Config = newConfigString
+
+	//  updating/creating globalAuthConfig here, doing this here to improve user experience, but altogeather they are different components
+	if len(request.GlobalAuthConfigType) > 0 {
+		_, err = impl.globalAuthConfigService.CreateOrUpdateGroupClaimsAuthConfig(tx, request.GlobalAuthConfigType, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateGroupClaimsAuthConfig", "err", err, "globalAuthConfigType", request.GlobalAuthConfigType)
+			return nil, err
+		}
+	}
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
@@ -254,7 +265,8 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 
 	// update in memory data on sso add-update
 	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
-
+	// Updating cache for globalAuthConfig
+	impl.globalAuthConfigService.ReloadCache()
 	return request, nil
 }
 

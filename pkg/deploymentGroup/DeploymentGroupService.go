@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package deploymentGroup
@@ -23,6 +11,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"strings"
 	"time"
 
@@ -67,7 +56,7 @@ type DeploymentGroupTriggerRequest struct {
 type DeploymentGroupHibernateRequest struct {
 	DeploymentGroupId int   `json:"deploymentGroupId"`
 	UserId            int32 `json:"userId"`
-	//CiArtifactId      int   `json:"ciArtifactId"`
+	// CiArtifactId      int   `json:"ciArtifactId"`
 }
 
 type DeploymentGroupService interface {
@@ -84,15 +73,16 @@ type DeploymentGroupService interface {
 }
 
 type DeploymentGroupDTO struct {
-	Id              int             `json:"id"`
-	Name            string          `json:"name"`
-	AppCount        int             `json:"appCount"`
-	NoOfApps        string          `json:"noOfApps"`
-	EnvironmentId   int             `json:"environmentId"`
-	CiPipelineId    int             `json:"ciPipelineId"`
-	CiPipelineName  string          `json:"ciPipelineName"`
-	CiMaterialDTOs  []CiMaterialDTO `json:"ciMaterialDTOs"`
-	EnvironmentName string          `json:"environmentName"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiPipelineName       string          `json:"ciPipelineName"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	EnvironmentName      string          `json:"environmentName"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {
@@ -102,16 +92,17 @@ type CiMaterialDTO struct {
 }
 
 type DeploymentGroupServiceImpl struct {
-	appRepository                app.AppRepository
-	logger                       *zap.SugaredLogger
-	pipelineRepository           pipelineConfig.PipelineRepository
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	deploymentGroupRepository    repository.DeploymentGroupRepository
-	environmentRepository        repository2.EnvironmentRepository
-	deploymentGroupAppRepository repository.DeploymentGroupAppRepository
-	ciArtifactRepository         repository.CiArtifactRepository
-	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	workflowEventPublishService  out.WorkflowEventPublishService
+	appRepository                   app.AppRepository
+	logger                          *zap.SugaredLogger
+	pipelineRepository              pipelineConfig.PipelineRepository
+	ciPipelineRepository            pipelineConfig.CiPipelineRepository
+	deploymentGroupRepository       repository.DeploymentGroupRepository
+	environmentRepository           repository2.EnvironmentRepository
+	deploymentGroupAppRepository    repository.DeploymentGroupAppRepository
+	ciArtifactRepository            repository.CiArtifactRepository
+	appWorkflowRepository           appWorkflow.AppWorkflowRepository
+	workflowEventPublishService     out.WorkflowEventPublishService
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService
 }
 
 func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.SugaredLogger,
@@ -120,18 +111,20 @@ func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	workflowEventPublishService out.WorkflowEventPublishService) *DeploymentGroupServiceImpl {
+	workflowEventPublishService out.WorkflowEventPublishService,
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService) *DeploymentGroupServiceImpl {
 	return &DeploymentGroupServiceImpl{
-		appRepository:                appRepository,
-		logger:                       logger,
-		pipelineRepository:           pipelineRepository,
-		ciPipelineRepository:         ciPipelineRepository,
-		deploymentGroupRepository:    deploymentGroupRepository,
-		environmentRepository:        environmentRepository,
-		deploymentGroupAppRepository: deploymentGroupAppRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		appWorkflowRepository:        appWorkflowRepository,
-		workflowEventPublishService:  workflowEventPublishService,
+		appRepository:                   appRepository,
+		logger:                          logger,
+		pipelineRepository:              pipelineRepository,
+		ciPipelineRepository:            ciPipelineRepository,
+		deploymentGroupRepository:       deploymentGroupRepository,
+		environmentRepository:           environmentRepository,
+		deploymentGroupAppRepository:    deploymentGroupAppRepository,
+		ciArtifactRepository:            ciArtifactRepository,
+		appWorkflowRepository:           appWorkflowRepository,
+		workflowEventPublishService:     workflowEventPublishService,
+		artifactApprovalDataReadService: artifactApprovalDataReadService,
 	}
 }
 
@@ -150,13 +143,14 @@ func (impl *DeploymentGroupServiceImpl) FindById(id int) (*DeploymentGroupDTO, e
 	}
 
 	dgResp := &DeploymentGroupDTO{
-		Id:              dg.Id,
-		Name:            dg.Name,
-		AppCount:        dg.AppCount,
-		NoOfApps:        dg.NoOfApps,
-		EnvironmentId:   dg.EnvironmentId,
-		EnvironmentName: environment.Name,
-		CiPipelineId:    dg.CiPipelineId,
+		Id:                   dg.Id,
+		Name:                 dg.Name,
+		AppCount:             dg.AppCount,
+		NoOfApps:             dg.NoOfApps,
+		EnvironmentId:        dg.EnvironmentId,
+		EnvironmentName:      environment.Name,
+		CiPipelineId:         dg.CiPipelineId,
+		IsVirtualEnvironment: environment.IsVirtualEnvironment,
 	}
 	ciPipeline, err := impl.ciPipelineRepository.FindById(dg.CiPipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -181,7 +175,7 @@ func (impl *DeploymentGroupServiceImpl) FindById(id int) (*DeploymentGroupDTO, e
 
 func (impl *DeploymentGroupServiceImpl) CreateDeploymentGroup(deploymentGroupRequest *DeploymentGroupRequest) (*DeploymentGroupRequest, error) {
 
-	//TODO - WIRING
+	// TODO - WIRING
 	model := &repository.DeploymentGroup{}
 	model.Name = deploymentGroupRequest.Name
 	model.EnvironmentId = deploymentGroupRequest.EnvironmentId
@@ -445,7 +439,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		return nil, err
 	}
 	impl.logger.Debugw("ci pipelines identified", "pipeline", ciPipelines)
-	//get artifact ids
+	// get artifact ids
 	var ciPipelineIds []int
 	for _, ci := range ciPipelines {
 		ciPipelineIds = append(ciPipelineIds, ci.Id)
@@ -459,7 +453,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in getting ci artifacts", "err", err, "parent", triggerRequest.CiArtifactId)
 		return nil, err
 	}
-	//get cd pipeline id
+	// get cd pipeline id
 	appwfMappings, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineIds(ciPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting wf mappings", "err", err, "ciPipelineIds", ciPipelineIds)
@@ -489,9 +483,14 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 	}
 	for _, cdPipeline := range cdPipelines {
 		if val, ok := ciArtefactMapping[cdPipeline.CiPipelineId]; ok {
+			ciArtifactId := val.Id
+			if allowed := impl.checkForApprovalNode(cdPipeline, ciArtifactId); !allowed {
+				impl.logger.Warnw("artifact not allowed for deployment, so ignoring from deployment group", "ciArtifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id)
+				continue
+			}
 			//do something here
 			req := &bean2.BulkTriggerRequest{
-				CiArtifactId: val.Id,
+				CiArtifactId: ciArtifactId,
 				PipelineId:   cdPipeline.Id,
 			}
 			requests = append(requests, req)
@@ -499,7 +498,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 			impl.logger.Warnw("no artifact found", "cdPipeline", cdPipeline)
 		}
 	}
-	//trigger
+	// trigger
 	// apply mapping
 	_, err = impl.workflowEventPublishService.TriggerBulkDeploymentAsync(requests, triggerRequest.UserId)
 	if err != nil {
@@ -541,7 +540,7 @@ func (impl *DeploymentGroupServiceImpl) UpdateDeploymentGroup(deploymentGroupReq
 	}
 
 	existingAppIds := make(map[int]bool)
-	//var existingAppIds []int
+	// var existingAppIds []int
 	for _, item := range dgMapping {
 		existingAppIds[item.AppId] = true
 		if _, ok := appIds[item.AppId]; ok {
@@ -560,7 +559,7 @@ func (impl *DeploymentGroupServiceImpl) UpdateDeploymentGroup(deploymentGroupReq
 		if _, ok := existingAppIds[item]; ok {
 			// DO NOTHING, ALREADY PROCESSED
 		} else {
-			//CREATE NEW MAP
+			// CREATE NEW MAP
 			modelMap := &repository.DeploymentGroupApp{}
 			modelMap.DeploymentGroupId = model.Id
 			modelMap.AppId = item
@@ -685,4 +684,24 @@ func (impl *DeploymentGroupServiceImpl) GetDeploymentGroupById(deploymentGroupId
 	}
 	deploymentGroupRequest.AppIds = appIds
 	return deploymentGroupRequest, err
+}
+
+func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelineConfig.Pipeline, ciArtifactId int) bool {
+	if cdPipeline.ApprovalNodeConfigured() {
+		approvalConfig, err := cdPipeline.GetApprovalConfig()
+		cdPipelineId := cdPipeline.Id
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval config",
+				"config", cdPipeline.UserApprovalConfig, "pipelineId", cdPipelineId, "err", err)
+			return false
+		}
+		artifacts, err := impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts([]int{ciArtifactId}, cdPipelineId, approvalConfig.RequiredCount)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval data for artifact", "ciArtifactId", ciArtifactId, "err", err)
+			return false
+		}
+		approvalMetadata, ok := artifacts[ciArtifactId]
+		return ok && approvalMetadata.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState
+	}
+	return true
 }

@@ -22,8 +22,12 @@ ALTER TABLE webhook_config ALTER payload TYPE JSONB USING payload::JSONB;
 
 -- Migration for creating new column in notification_settings
 ALTER TABLE "public"."notification_settings"
-DROP COLUMN IF EXISTS notification_rule_id,
+    DROP COLUMN IF EXISTS notification_rule_id,
     DROP COLUMN IF EXISTS additional_config_json;
+
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
 
 -- Drop notification_rule table
 DROP TABLE IF EXISTS "public"."notification_rule";
@@ -33,7 +37,7 @@ DROP SEQUENCE IF EXISTS id_seq_notification_rule_sequence;
 
 -- Drop internal column from table notification_settings_view
 ALTER TABLE "public"."notification_settings_view"
-DROP COLUMN IF EXISTS internal;
+    DROP COLUMN IF EXISTS internal;
 
 -- Delete notification_settings
 DELETE FROM "public"."notification_settings" WHERE event_type_id = 8;

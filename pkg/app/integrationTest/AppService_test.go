@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package integrationTest
@@ -34,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
@@ -146,7 +133,7 @@ func InitAppService() *app2.AppServiceImpl {
 	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(dbConnection)
 	moduleActionAuditLogRepository := module.NewModuleActionAuditLogRepositoryImpl(dbConnection)
 	clusterRepository := repository1.NewClusterRepositoryImpl(dbConnection, logger)
-	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil)
+	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	helmClientConfig, err := gRPC.GetConfig()
 	if err != nil {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
@@ -161,9 +148,7 @@ func InitAppService() *app2.AppServiceImpl {
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(dbConnection, logger)
 	userRepository := repository2.NewUserRepositoryImpl(dbConnection, logger)
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
-		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil)
-	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
-	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder, nil)
+		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil, nil, nil, nil, nil, nil, nil)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
 	chartRepository := chartRepoRepository.NewChartRepository(dbConnection)
 	pipelineStatusTimelineResourcesRepository := pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl(dbConnection, logger)
@@ -172,14 +157,13 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineStatusSyncDetailRepository := pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailService := status.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
 	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, nil, nil)
-	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
-		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
-		appListingRepository, appRepository, nil, nil, nil, nil, nil,
-		chartRepository, nil, cdWorkflowRepository, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
-		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	//,
+	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, pipelineRepository,
+		eventClient, eventFactory, nil, appRepository, nil, chartRepository, cdWorkflowRepository,
+		nil, nil, nil, pipelineStatusTimelineRepository, pipelineStatusTimelineResourcesService,
+		pipelineStatusSyncDetailService, pipelineStatusTimelineService, nil, nil, nil,
+		nil, nil, nil, nil,
+		nil, nil, nil,
+		nil, nil)
 	return appService
 }

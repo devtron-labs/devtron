@@ -1,5 +1,9 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_app_group;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Table Definition
 CREATE TABLE "public"."app_group"
 (

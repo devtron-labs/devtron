@@ -3,9 +3,10 @@
 package mocks
 
 import (
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	bean "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 
@@ -358,7 +359,7 @@ func (_m *K8sApplicationService) GetResourceList(ctx context.Context, token stri
 }
 
 // GetRestConfigByClusterId provides a mock function with given fields: ctx, clusterId
-func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
+func (_m *K8sApplicationService) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean3.ClusterBean) {
 	ret := _m.Called(ctx, clusterId)
 
 	var r0 *rest.Config

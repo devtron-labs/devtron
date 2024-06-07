@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package infraConfig
@@ -79,7 +67,7 @@ func (infraProfileConfiguration *InfraProfileConfigurationEntity) ConvertToConfi
 
 type ProfileBean struct {
 	Id             int                 `json:"id"`
-	Name           string              `json:"name" validate:"required,min=1,max=50"`
+	Name           string              `json:"name" validate:"required,min=3,max=50,global-entity-name"`
 	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
 	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
@@ -289,4 +277,38 @@ func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultC
 	}
 	profile.Configurations = append(profile.Configurations, extraConfigurations...)
 	return profile
+}
+
+type IdentifierListFilter struct {
+	IdentifierType     IdentifierType `json:"-"`                              // currently supporting app
+	IdentifierNameLike string         `json:"search"`                         // currently app_name  is supported
+	ProfileName        string         `json:"profileName"`                    // gets  the list for this profile
+	Limit              int            `json:"size" validate:"min=0"`          // limit on the result set , defaults to 20
+	Offset             int            `json:"offset" validate:"min=0"`        // offset on the result set, defaults to 0
+	SortOrder          string         `json:"sort" validate:"oneof=ASC DESC"` // asc or desc, defaults to asc by appName
+}
+
+type Identifier struct {
+	Id      int          `json:"id"`
+	Name    string       `json:"name"`
+	Profile *ProfileBean `json:"profile"`
+
+	// for internal use only, do not propagate these values to api response
+	ProfileId            int `json:"-"`
+	TotalIdentifierCount int `json:"-"`
+}
+
+type IdentifierProfileResponse struct {
+	Identifiers               []*Identifier `json:"identifiers"`
+	TotalIdentifierCount      int           `json:"totalIdentifierCount"`
+	OverriddenIdentifierCount int           `json:"overriddenIdentifierCount"`
+}
+
+type InfraProfileApplyRequest struct {
+	IdentifiersFilter *IdentifierListFilter `json:"identifiersFilter"`
+	Identifiers       []string              `json:"identifiers"`
+	UpdateToProfile   string                `json:"updateToProfile"`
+	// internal use only
+	UpdateToProfileId int   `json:"-"`
+	IdentifierIds     []int `json:"-"`
 }

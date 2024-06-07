@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package security
@@ -93,9 +81,11 @@ type ImageScanHistoryRepository interface {
 	FindAll() ([]*ImageScanExecutionHistory, error)
 	FindOne(id int) (*ImageScanExecutionHistory, error)
 	FindByImageAndDigest(imageDigest string, image string) (*ImageScanExecutionHistory, error)
-	FindByImageDigests(digest []string) ([]*ImageScanExecutionHistory, error)
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
+	FindByImages(images []string) ([]*ImageScanExecutionHistory, error)
+	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
+	FetchWithHistoryIds(historyIds []int) ([]*ExecutionData, error)
 }
 
 type ImageScanHistoryRepositoryImpl struct {
@@ -133,6 +123,7 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigest(imageDigest stri
 	err := impl.dbConnection.Model(&model).
 		Where("image_hash = ?", imageDigest).
 		Where("image = ?", image).
+		Where("source_type is null or source_type = 0").
 		Order("execution_time desc").Limit(1).Select()
 	return &model, err
 }
@@ -140,7 +131,9 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigest(imageDigest stri
 func (impl ImageScanHistoryRepositoryImpl) FindByImageDigests(digest []string) ([]*ImageScanExecutionHistory, error) {
 	var models []*ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&models).
-		Where("image_hash in (?)", pg.In(digest)).Order("execution_time desc").Select()
+		Where("image_hash in (?)", pg.In(digest)).
+		Where("source_type is null or source_type = 0").
+		Order("execution_time desc").Select()
 	return models, err
 }
 
@@ -152,6 +145,45 @@ func (impl ImageScanHistoryRepositoryImpl) Update(team *ImageScanExecutionHistor
 func (impl ImageScanHistoryRepositoryImpl) FindByImage(image string) (*ImageScanExecutionHistory, error) {
 	var model ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&model).
-		Where("image = ?", image).Order("execution_time desc").Limit(1).Select()
+		Where("image = ?", image).
+		Order("execution_time desc").
+		Where("source_type is null or source_type = 0").
+		Limit(1).
+		Select()
 	return &model, err
+}
+
+// TODO need to change the behavior to use image hash instead of image
+func (impl ImageScanHistoryRepositoryImpl) FindByImages(images []string) ([]*ImageScanExecutionHistory, error) {
+	var model []*ImageScanExecutionHistory
+	err := impl.dbConnection.Model(&model).
+		Where("image IN (?)", pg.In(images)).Where("source_type is null or source_type = 0").Select()
+	if err == pg.ErrNoRows {
+		return model, nil
+	}
+	return model, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FindByIds(ids []int) ([]*ImageScanExecutionHistory, error) {
+	var models = make([]*ImageScanExecutionHistory, 0)
+	err := impl.dbConnection.Model(&models).
+		Where("id IN (? )", ids).Select()
+	return models, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FetchWithHistoryIds(historyIds []int) ([]*ExecutionData, error) {
+	var models []*ExecutionData
+	query := " SELECT iseh.image,iseh.execution_time AS started_on,iseh.source_type,iseh.source_sub_type,rser.scan_data_json,stehm.state AS status,stm.name AS scan_tool_name, rser.types AS types" +
+		" FROM image_scan_execution_history iseh " +
+		" INNER JOIN resource_scan_execution_result rser ON iseh.id = rser.image_scan_execution_history_id " +
+		" INNER JOIN scan_tool_execution_history_mapping stehm ON iseh.id = stehm.image_scan_execution_history_id " +
+		" INNER JOIN scan_tool_metadata stm ON stehm.scan_tool_id = stm.id " +
+		" WHERE iseh.id IN (?)" +
+		" AND rser.format = ?" +
+		" ORDER BY iseh.id"
+	// order needed as multiple scans can be performed on a single resource, in runime we will only parse latest entry for each resource
+
+	_, err := impl.dbConnection.Query(&models, query, pg.In(historyIds), Json)
+	return models, err
+
 }

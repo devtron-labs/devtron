@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package restHandler
@@ -20,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -103,7 +91,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, token)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -173,7 +161,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, token)
 		if err != nil {
 			common.WriteJsonResp(w, err, "Failed to get user by id", http.StatusInternalServerError)
 			return
@@ -221,18 +209,18 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		req.Id = ids
 	}
 	var clusterId, environmentId, appId int
-	var policyLevel security2.PolicyLevel
-	if level == security2.Global.String() {
-		policyLevel = security2.Global
-	} else if level == security2.Cluster.String() {
+	var policyLevel securityBean.PolicyLevel
+	if level == securityBean.Global.String() {
+		policyLevel = securityBean.Global
+	} else if level == securityBean.Cluster.String() {
 		clusterId = req.Id
-		policyLevel = security2.Cluster
-	} else if level == security2.Environment.String() {
+		policyLevel = securityBean.Cluster
+	} else if level == securityBean.Environment.String() {
 		environmentId = req.Id
-		policyLevel = security2.Environment
-	} else if level == security2.Application.String() {
+		policyLevel = securityBean.Environment
+	} else if level == securityBean.Application.String() {
 		appId = req.Id
-		policyLevel = security2.Application
+		policyLevel = securityBean.Application
 	}
 
 	token := r.Header.Get("token")

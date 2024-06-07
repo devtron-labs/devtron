@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
@@ -19,8 +7,8 @@ package pipeline
 import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -67,18 +55,18 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	newChartRepository := chartRepoRepository.NewChartRepository(dbConnection)
 	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, nil, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
 	mergeUtil := util.MergeUtil{Logger: logger}
-	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	runTimeConfig, _ := client.GetRuntimeConfig()
-	k8sUtil := k8s.NewK8sUtil(logger, runTimeConfig)
+	k8sUtil := k8s.NewK8sUtilExtended(logger, runTimeConfig, nil)
 	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(dbConnection, logger)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(logger, v, runTimeConfig, k8sUtil)
-	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService, nil)
+	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil, nil, nil)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, nil, nil, clusterService, nil)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
-	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil)
+	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil, nil, nil)
 	return workflowServiceImpl
 }
 func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
@@ -208,7 +196,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -344,7 +332,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -512,7 +500,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -741,7 +729,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object

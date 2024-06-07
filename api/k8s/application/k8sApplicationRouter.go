@@ -1,22 +1,12 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package application
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 )
@@ -84,7 +74,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resources/apply").
 		HandlerFunc(impl.k8sApplicationRestHandler.ApplyResources).Methods("POST")
 
-	//create/delete ephemeral containers API's
+	// create/delete ephemeral containers API's
 	k8sAppRouter.Path("/resources/ephemeralContainers").
 		Queries("identifier", "{identifier}").
 		HandlerFunc(impl.k8sApplicationRestHandler.CreateEphemeralContainer).Methods("POST")
@@ -94,5 +84,21 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/api-resources/gvk/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResourceGVKWithoutAuthorization).Methods("GET")
+
+	k8sAppRouter.Path("/resource/security").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceSecurityInfo).Methods("POST")
+
+	k8sAppRouter.Path("/pod").
+		Queries("clusterId", "{clusterId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.DebugPodInfo).Methods("GET")
+
+	k8sAppRouter.PathPrefix("/port-forward").
+		HandlerFunc(impl.k8sApplicationRestHandler.PortForwarding)
+
+	k8sAppRouter.PathPrefix(fmt.Sprintf("/proxy/%s/{%s}", bean.Cluster, bean.ClusterIdentifier)).
+		HandlerFunc(impl.k8sApplicationRestHandler.HandleK8sProxyRequest)
+
+	k8sAppRouter.PathPrefix(fmt.Sprintf("/proxy/%s/{%s}", bean.Env, bean.EnvIdentifier)).
+		HandlerFunc(impl.k8sApplicationRestHandler.HandleK8sProxyRequest)
 
 }

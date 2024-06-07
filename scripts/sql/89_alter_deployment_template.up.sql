@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE charts ADD COLUMN is_basic_view_locked bool NOT NULL DEFAULT FALSE;
 
 ALTER TABLE charts ADD COLUMN current_view_editor text DEFAULT 'UNDEFINED';

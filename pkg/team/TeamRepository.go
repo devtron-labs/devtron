@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package team
@@ -39,6 +27,8 @@ type TeamRepository interface {
 	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
 	FindAllActiveTeamNames() ([]string, error)
+	FindAllActiveTeamIds() ([]int, error)
+	FindByNames(teams []string) ([]*Team, error)
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -66,6 +56,13 @@ func (impl TeamRepositoryImpl) FindAllActiveTeamNames() ([]string, error) {
 	err := impl.dbConnection.Model((*Team)(nil)).
 		Where("active = ?", true).Select(&teamNames)
 	return teamNames, err
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveTeamIds() ([]int, error) {
+	var teamIds []int
+	err := impl.dbConnection.Model((*Team)(nil)).Column("id").
+		Where("active = ?", true).Select(&teamIds)
+	return teamIds, err
 }
 
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {
@@ -103,6 +100,12 @@ func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 
 func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
+}
+
+func (repo TeamRepositoryImpl) FindByNames(teams []string) ([]*Team, error) {
+	var objects []*Team
+	err := repo.dbConnection.Model(&objects).Where("active = ?", true).Where("name in (?)", pg.In(teams)).Select()
+	return objects, err
 }
 
 type TeamRbacObjects struct {

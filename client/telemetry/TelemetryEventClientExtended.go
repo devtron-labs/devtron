@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package telemetry
@@ -26,16 +14,17 @@ import (
 	"net/http"
 	"time"
 
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -62,13 +51,14 @@ type TelemetryEventClientImplExtended struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
+	devtronResourceService        devtronResource.DevtronResourceService
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	*TelemetryEventClientImpl
 }
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user2.UserService,
+	K8sUtil *util2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig,
+	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,
@@ -76,9 +66,10 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
+	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
+	devtronResourceService devtronResource.DevtronResourceService,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
 	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
@@ -99,6 +90,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
+		devtronResourceService:        devtronResourceService,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:                           cron,
@@ -193,6 +185,7 @@ type TelemetryEventDto struct {
 	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
 	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
+	CountOfApplicationsWithDependenciesMapped int                `json:"countOfApplicationsWithDependenciesMapped,omitempty"`
 	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
 }
 
@@ -293,6 +286,13 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving apps", "err", err)
 		return err
 	}
+
+	countOfApplicationsWithDependenciesMapped, err := impl.devtronResourceService.FindNumberOfApplicationsWithDependenciesMapped()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	payload.CountOfApplicationsWithDependenciesMapped = countOfApplicationsWithDependenciesMapped
 
 	var appIds []int
 	for _, appInfo := range apps {

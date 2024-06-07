@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package cd
@@ -20,13 +8,17 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type CdWorkflowRunnerService interface {
 	FindWorkflowRunnerById(wfrId int) (*bean.CdWorkflowRunnerDto, error)
 	CheckIfWfrLatest(wfrId, pipelineId int) (isLatest bool, err error)
+	CreateBulkCdWorkflowRunners(tx *pg.Tx, cdWorkflowRunnerDtos []*bean.CdWorkflowRunnerDto) (map[int]int, error)
+	UpdateWfrStatus(dto *bean.CdWorkflowRunnerDto, status string, updatedBy int) error
 }
 
 type CdWorkflowRunnerServiceImpl struct {
@@ -59,4 +51,30 @@ func (impl *CdWorkflowRunnerServiceImpl) CheckIfWfrLatest(wfrId, pipelineId int)
 		return false, err
 	}
 	return isLatest, nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) CreateBulkCdWorkflowRunners(tx *pg.Tx, cdWorkflowRunnerDtos []*bean.CdWorkflowRunnerDto) (map[int]int, error) {
+	cdWorkFlowRunners := make([]*pipelineConfig.CdWorkflowRunner, 0, len(cdWorkflowRunnerDtos))
+	for _, dto := range cdWorkflowRunnerDtos {
+		cdWorkFlowRunners = append(cdWorkFlowRunners, adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto))
+	}
+	err := impl.cdWorkflowRepository.BulkSaveWorkflowRunners(tx, cdWorkFlowRunners)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CreateBulkCdWorkflowRunners", "cdWorkFlowRunners", cdWorkFlowRunners, "err", err)
+		return nil, err
+	}
+	return util.GetCdWorkflowIdVsRunnerIdMap(cdWorkFlowRunners), nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) UpdateWfrStatus(dto *bean.CdWorkflowRunnerDto, status string, updatedBy int) error {
+	runnerDbObj := adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto)
+	runnerDbObj.Status = status
+	runnerDbObj.UpdatedBy = int32(updatedBy)
+	runnerDbObj.UpdatedOn = time.Now()
+	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runnerDbObj)
+	if err != nil {
+		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
+		return err
+	}
+	return nil
 }

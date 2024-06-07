@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package generateManifest
@@ -20,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -67,7 +55,7 @@ type DeploymentTemplateServiceImpl struct {
 	deploymentTemplateRepository     repository.DeploymentTemplateRepository
 	helmAppService                   client.HelmAppService
 	chartTemplateServiceImpl         util.ChartTemplateService
-	K8sUtil                          *k8s.K8sServiceImpl
+	K8sUtil                          *k8s.K8sUtilExtended
 	helmAppClient                    gRPC.HelmAppClient
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
@@ -92,7 +80,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	helmAppService client.HelmAppService,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
-	K8sUtil *k8s.K8sServiceImpl,
+	K8sUtil *k8s.K8sUtilExtended,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
@@ -148,43 +136,47 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 		responseList = append(responseList, res)
 	}
 
-	publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting publishedOnEnvs", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+	// when the app id is -1 , then it is only used to get the default versions
+	if appId > 0 {
 
-	for _, env := range publishedOnEnvs {
-		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartRefId:      env.ChartRefId,
-			EnvironmentId:   env.EnvironmentId,
-			EnvironmentName: env.EnvironmentName,
-			Type:            repository.PublishedOnEnvironments,
+		publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting publishedOnEnvs", "err", err, "appId", appId, "envId", envId)
+			return nil, err
 		}
-		responseList = append(responseList, item)
-	}
 
-	deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in getting deployedOnEnv", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+		for _, env := range publishedOnEnvs {
+			item := &repository.DeploymentTemplateComparisonMetadata{
+				ChartRefId:      env.ChartRefId,
+				EnvironmentId:   env.EnvironmentId,
+				EnvironmentName: env.EnvironmentName,
+				Type:            repository.PublishedOnEnvironments,
+			}
+			responseList = append(responseList, item)
+		}
 
-	for _, deployedItem := range deployedOnEnv {
-		deployedItem.Type = repository.DeployedOnSelfEnvironment
-		deployedItem.EnvironmentId = envId
-		responseList = append(responseList, deployedItem)
-	}
+		deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in getting deployedOnEnv", "err", err, "appId", appId, "envId", envId)
+			return nil, err
+		}
 
-	deployedOnOtherEnvs, err := impl.deploymentTemplateRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in getting deployedOnOtherEnvs", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+		for _, deployedItem := range deployedOnEnv {
+			deployedItem.Type = repository.DeployedOnSelfEnvironment
+			deployedItem.EnvironmentId = envId
+			responseList = append(responseList, deployedItem)
+		}
 
-	for _, deployedItem := range deployedOnOtherEnvs {
-		deployedItem.Type = repository.DeployedOnOtherEnvironment
-		responseList = append(responseList, deployedItem)
+		deployedOnOtherEnvs, err := impl.deploymentTemplateRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in getting deployedOnOtherEnvs", "err", err, "appId", appId, "envId", envId)
+			return nil, err
+		}
+
+		for _, deployedItem := range deployedOnOtherEnvs {
+			deployedItem.Type = repository.DeployedOnOtherEnvironment
+			responseList = append(responseList, deployedItem)
+		}
 	}
 
 	return responseList, nil
@@ -260,7 +252,6 @@ func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx contex
 		return "", "", nil, err
 	}
 
-	//todo Subhashish solve variable leak
 	return historyObject.CodeEditorValue.Value, historyObject.CodeEditorValue.ResolvedValue, historyObject.CodeEditorValue.VariableSnapshot, nil
 }
 
@@ -323,21 +314,21 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 			return nil, err
 		}
 	}
-	//load chart from given refChart
+	// load chart from given refChart
 	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
 	if err != nil {
 		impl.Logger.Errorw("error in LoadChartFromDir", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	//create the .tgz file in temp location
+	// create the .tgz file in temp location
 	chartBytes, err := impl.chartTemplateServiceImpl.CreateZipFileForChart(chart, outputChartPathDir)
 	if err != nil {
 		impl.Logger.Errorw("error in CreateZipFileForChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	//deleted the .tgz temp file after reading chart bytes
+	// deleted the .tgz temp file after reading chart bytes
 	defer impl.chartTemplateServiceImpl.CleanDir(outputChartPathDir)
 
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
@@ -410,7 +401,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		impl.Logger.Errorw("error in fetching environment", "envId", envId, "err", err)
 		return nil, err
 	}
-	installReleaseRequests, err := impl.constructInstallReleaseBulkReq(apps, environment)
+	installReleaseRequests, appIdToUserApprovalConfig, err := impl.constructInstallReleaseBulkReq(apps, environment)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching installReleaseRequests", "appIds", appIds, "envId", envId, "err", err)
 		return nil, err
@@ -442,7 +433,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	}
 	impl.Logger.Infow("fetching template chart resp", "templateChartResponse", templateChartResponse, "err", err)
 
-	podResp, err = impl.constructRotatePodResponse(templateChartResponse, appNameToId, environment)
+	podResp, err = impl.constructRotatePodResponse(templateChartResponse, appNameToId, appIdToUserApprovalConfig, environment)
 	if err != nil {
 		impl.Logger.Errorw("error in constructing pod resp", "templateChartResponse", templateChartResponse, "appNameToId", appNameToId, "environment", environment, "err", err)
 		return nil, err

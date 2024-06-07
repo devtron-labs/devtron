@@ -1,23 +1,30 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
+)
+
+const (
+	Authorization     = "Authorization"
+	BaseForK8sProxy   = "/orchestrator/k8s/proxy"
+	Cluster           = "cluster"
+	Empty             = ""
+	Env               = "env"
+	ClusterIdentifier = "clusterIdentifier"
+	EnvIdentifier     = "envIdentifier"
+	RoleView          = "View"
+	RoleAdmin         = "Admin"
+	API               = "api"
+	APIs              = "apis"
+	K8sEmpty          = "k8sempty"
+	V1                = "v1"
+	ALL               = "*"
+	NAMESPACES        = "namespaces"
+	NODES             = "nodes"
 )
 
 const (
@@ -69,4 +76,22 @@ type Response struct {
 type RotatePodResourceResponse struct {
 	k8s.ResourceIdentifier
 	ErrorResponse string `json:"errorResponse"`
+}
+
+type PortForwardRequest struct {
+	ClusterId   int
+	Namespace   string
+	ServiceName string
+	TargetPort  string // []string{"5432:5432"}
+}
+
+type K8sProxyRequest struct {
+	ClusterId   int
+	ClusterName string
+	EnvId       int
+	EnvName     string
+}
+
+type InterClusterCommunicationConfig struct {
+	ProxyUpTime int64 `env:"PROXY_UP_TIME" envDefault:"60"`
 }

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package gitops
@@ -20,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -56,7 +44,7 @@ type GitOpsConfigService interface {
 type GitOpsConfigServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	gitOpsRepository        repository.GitOpsConfigRepository
-	K8sUtil                 *util4.K8sServiceImpl
+	K8sUtil                 *util4.K8sUtilExtended
 	aCDAuthConfig           *util3.ACDAuthConfig
 	clusterService          cluster.ClusterService
 	argoUserService         argo.ArgoUserService
@@ -68,7 +56,7 @@ type GitOpsConfigServiceImpl struct {
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
-	K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
+	K8sUtil *util4.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
 	argoUserService argo.ArgoUserService,
 	clusterServiceCD cluster2.ServiceClient,
@@ -181,11 +169,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
@@ -274,11 +258,15 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
 			return nil, err
 		}
-		for _, cluster := range clusters {
-			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
+		for _, clusterItem := range clusters {
+			//if cluster is configured with proxy or with ssh tunnel then gitOps is not supported so skipping such clusters
+			if cluster.IsProxyOrSSHConfigured(&clusterItem) {
+				continue
+			}
+			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&clusterItem)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
-				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
+				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", clusterItem.ClusterName, "err", err)
 				return nil, err
 			}
 		}
@@ -367,11 +355,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
-
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err

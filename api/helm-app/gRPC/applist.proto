@@ -13,6 +13,7 @@ message ClusterConfig {
   string keyData = 6;
   string certData = 7;
   string caData = 8;
+  RemoteConnectionConfig RemoteConnectionConfig = 9;
 }
 
 message AppListRequest {
@@ -37,9 +38,11 @@ service ApplicationService {
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
   rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
   rpc TemplateChartBulk(BulkInstallReleaseRequest) returns (BulkTemplateChartResponse){}
+  rpc TemplateChartAndRetrieveChart(InstallReleaseRequest) returns (TemplateChartResponseWithChart){}
   rpc InstallReleaseWithCustomChart(HelmInstallCustomRequest) returns (HelmInstallCustomResponse) {}
   rpc GetNotes(InstallReleaseRequest) returns (ChartNotesResponse) {}
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
+  rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
 }
@@ -322,6 +325,12 @@ message BulkTemplateChartResponse {
   repeated TemplateChartResponse BulkTemplateChartResponse=1;
 }
 
+message TemplateChartResponseWithChart {
+  TemplateChartResponse templateChartResponse = 1;
+  ChartContent chartBytes = 2;
+}
+
+
 message HelmInstallCustomRequest {
   string valuesYaml = 1;
   ChartContent chartContent = 2;
@@ -361,6 +370,14 @@ message ChartNotesResponse{
   string notes = 1;
 }
 
+message OCIRegistryRequest {
+  bytes Chart = 1;
+  string ChartName = 2;
+  string ChartVersion = 3;
+  bool IsInsecure = 4;
+  RegistryCredential RegistryCredential = 5;
+}
+
 message RegistryCredential {
   string RegistryUrl = 1;
   string Username = 2;
@@ -371,8 +388,39 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
+  RemoteConnectionConfig RemoteConnectionConfig = 10;
+  string RegistryId = 11;
 }
+
+enum RemoteConnectionMethod {
+  PROXY = 0;
+  SSH = 1;
+}
+
+message ProxyConfig {
+  string ProxyUrl = 1;
+}
+
+message SSHTunnelConfig {
+  string SSHServerAddress = 1;
+  string SSHUsername = 2;
+  string SSHPassword = 3;
+  string SSHAuthKey = 4;
+}
+
+message RemoteConnectionConfig {
+  RemoteConnectionMethod RemoteConnectionMethod = 1;
+  ProxyConfig ProxyConfig = 2;
+  SSHTunnelConfig SSHTunnelConfig = 3;
+}
+
 
 message OCIRegistryResponse {
   bool IsLoggedIn = 1;
+  OCIRegistryPushResponse PushResult = 2;
+}
+
+message OCIRegistryPushResponse {
+  string Digest = 1;
+  string PushedURL = 2;
 }

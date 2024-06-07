@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE "public"."cd_workflow_runner" CASCADE;
 
 DROP TABLE "public"."chart_ref" CASCADE;

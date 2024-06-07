@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -23,6 +11,7 @@ import (
 )
 
 type RbacPolicyDataRepository interface {
+	GetPolicyByRoleDetails(entity, accessType, role string) (*RbacPolicyData, error)
 	GetPolicyDataForAllRoles() ([]*RbacPolicyData, error)
 	CreateNewPolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error)
 	UpdatePolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error)
@@ -53,6 +42,17 @@ type RbacPolicyData struct {
 	sql.AuditLog
 }
 
+func (repo *RbacPolicyDataRepositoryImpl) GetPolicyByRoleDetails(entity, accessType, role string) (*RbacPolicyData, error) {
+	var model RbacPolicyData
+	err := repo.dbConnection.Model(&model).Where("entity = ?", entity).
+		Where("access_type = ?", accessType).Where("role = ?", role).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting default policy by role detail", "err", err, "entity", entity, "accessType", accessType, "role", role)
+		return nil, err
+	}
+	return &model, nil
+}
 func (repo *RbacPolicyDataRepositoryImpl) GetPolicyDataForAllRoles() ([]*RbacPolicyData, error) {
 	var models []*RbacPolicyData
 	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).Select()
@@ -73,7 +73,7 @@ func (repo *RbacPolicyDataRepositoryImpl) CreateNewPolicyDataForRoleWithTxn(mode
 }
 
 func (repo *RbacPolicyDataRepositoryImpl) UpdatePolicyDataForRoleWithTxn(model *RbacPolicyData, tx *pg.Tx) (*RbacPolicyData, error) {
-	_, err := tx.Model(model).UpdateNotNull()
+	_, err := tx.Model(model).WherePK().UpdateNotNull()
 	if err != nil {
 		repo.logger.Errorw("error in updating policy for a role", "err", err)
 		return nil, err

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DELETE FROM plugin_step_variable WHERE plugin_step_id IN (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false);
 
 DELETE FROM plugin_step WHERE plugin_id IN (SELECT id FROM plugin_metadata WHERE name='GCS Create Bucket' AND deleted=false);

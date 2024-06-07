@@ -1,23 +1,12 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package security
 
 import (
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -25,92 +14,29 @@ import (
 )
 
 type CvePolicy struct {
-	tableName     struct{}     `sql:"cve_policy_control" pg:",discard_unknown_columns"`
-	Id            int          `sql:"id,pk"`
-	Global        bool         `sql:"global,notnull"`
-	ClusterId     int          `sql:"cluster_id"`
-	EnvironmentId int          `sql:"env_id"`
-	AppId         int          `sql:"app_id"`
-	CVEStoreId    string       `sql:"cve_store_id"`
-	Action        PolicyAction `sql:"action, notnull"`
-	Severity      *Severity    `sql:"severity, notnull "`
-	Deleted       bool         `sql:"deleted, notnull"`
+	tableName     struct{}                  `sql:"cve_policy_control" pg:",discard_unknown_columns"`
+	Id            int                       `sql:"id,pk"`
+	Global        bool                      `sql:"global,notnull"`
+	ClusterId     int                       `sql:"cluster_id"`
+	EnvironmentId int                       `sql:"env_id"`
+	AppId         int                       `sql:"app_id"`
+	CVEStoreId    string                    `sql:"cve_store_id"`
+	Action        securityBean.PolicyAction `sql:"action, notnull"`
+	Severity      *securityBean.Severity    `sql:"severity, notnull "`
+	Deleted       bool                      `sql:"deleted, notnull"`
 	sql.AuditLog
 	CveStore *CveStore
 }
 
-type PolicyAction int
-
-const (
-	Inherit PolicyAction = iota
-	Allow
-	Block
-	Blockiffixed
-)
-
-func (d PolicyAction) String() string {
-	return [...]string{"inherit", "allow", "block", "blockiffixed"}[d]
-}
-
-// ------------------
-type Severity int
-
-const (
-	Low Severity = iota
-	Medium
-	Critical
-	High
-	Safe
-)
-const (
-	HIGH     string = "high"
-	CRITICAL string = "critical"
-	SAFE     string = "safe"
-	LOW      string = "low"
-	MEDIUM   string = "medium"
-	MODERATE string = "moderate"
-)
-
-// Handling for future use
-func (d Severity) ValuesOf(severity string) Severity {
-	if severity == CRITICAL || severity == HIGH {
-		return Critical
-	} else if severity == MODERATE || severity == MEDIUM {
-		return Medium
-	} else if severity == LOW || severity == SAFE {
-		return Low
-	}
-	return Low
-}
-
-// Updating it for future use(not in use for standard severity)
-func (d Severity) String() string {
-	return [...]string{"low", "moderate", "critical", "high", "safe"}[d]
-}
-
-// ----------------
-type PolicyLevel int
-
-const (
-	Global PolicyLevel = iota
-	Cluster
-	Environment
-	Application
-)
-
-func (d PolicyLevel) String() string {
-	return [...]string{"global", "cluster", "environment", "application"}[d]
-}
-
-func (policy *CvePolicy) PolicyLevel() PolicyLevel {
+func (policy *CvePolicy) PolicyLevel() securityBean.PolicyLevel {
 	if policy.ClusterId != 0 {
-		return Cluster
+		return securityBean.Cluster
 	} else if policy.AppId != 0 {
-		return Application
+		return securityBean.Application
 	} else if policy.EnvironmentId != 0 {
-		return Environment
+		return securityBean.Environment
 	} else {
-		return Global
+		return securityBean.Global
 	}
 }
 
@@ -250,19 +176,19 @@ func (impl *CvePolicyRepositoryImpl) GetBlockedCVEList(cves []*CveStore, cluster
 	return blockedCve, nil
 }
 
-func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[Severity]*CvePolicy) (blockedCVE []*CveStore) {
+func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severityPolicy map[securityBean.Severity]*CvePolicy) (blockedCVE []*CveStore) {
 
 	for _, cve := range cves {
 		if policy, ok := cvePolicy[cve.Name]; ok {
-			if policy.Action == Allow {
+			if policy.Action == securityBean.Allow {
 				continue
-			} else if (policy.Action == Block) || (policy.Action == Blockiffixed && cve.FixedVersion != "") {
+			} else if (policy.Action == securityBean.Block) || (policy.Action == securityBean.Blockiffixed && cve.FixedVersion != "") {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
-			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == Allow {
+			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == securityBean.Allow {
 				continue
-			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == Block || (severityPolicy[cve.Severity].Action == Blockiffixed && cve.FixedVersion != "")) {
+			} else if severityPolicy[cve.Severity] != nil && (severityPolicy[cve.Severity].Action == securityBean.Block || (severityPolicy[cve.Severity].Action == securityBean.Blockiffixed && cve.FixedVersion != "")) {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		}
@@ -270,17 +196,17 @@ func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severit
 	return blockedCVE
 }
 
-func (impl *CvePolicyRepositoryImpl) getApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*CvePolicy, map[Severity]*CvePolicy, error) {
+func (impl *CvePolicyRepositoryImpl) getApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*CvePolicy, map[securityBean.Severity]*CvePolicy, error) {
 
-	var policyLevel PolicyLevel
+	var policyLevel securityBean.PolicyLevel
 	if isAppstore && appId > 0 && envId > 0 && clusterId > 0 {
-		policyLevel = Environment
+		policyLevel = securityBean.Environment
 	} else if appId > 0 && envId > 0 && clusterId > 0 {
-		policyLevel = Application
+		policyLevel = securityBean.Application
 	} else if envId > 0 && clusterId > 0 {
-		policyLevel = Environment
+		policyLevel = securityBean.Environment
 	} else if clusterId > 0 {
-		policyLevel = Cluster
+		policyLevel = securityBean.Cluster
 	} else {
 		//error in case of global or other policy
 		return nil, nil, fmt.Errorf("policy not identified")
@@ -290,16 +216,16 @@ func (impl *CvePolicyRepositoryImpl) getApplicablePolicy(clusterId, envId, appId
 	return cvePolicy, severityPolicy, err
 }
 
-func (impl *CvePolicyRepositoryImpl) getPolicies(policyLevel PolicyLevel, clusterId, environmentId, appId int) (map[string]*CvePolicy, map[Severity]*CvePolicy, error) {
+func (impl *CvePolicyRepositoryImpl) getPolicies(policyLevel securityBean.PolicyLevel, clusterId, environmentId, appId int) (map[string]*CvePolicy, map[securityBean.Severity]*CvePolicy, error) {
 	var policies []*CvePolicy
 	var err error
-	if policyLevel == Global {
+	if policyLevel == securityBean.Global {
 		policies, err = impl.GetGlobalPolicies()
-	} else if policyLevel == Cluster {
+	} else if policyLevel == securityBean.Cluster {
 		policies, err = impl.GetClusterPolicies(clusterId)
-	} else if policyLevel == Environment {
+	} else if policyLevel == securityBean.Environment {
 		policies, err = impl.GetEnvPolicies(clusterId, environmentId)
-	} else if policyLevel == Application {
+	} else if policyLevel == securityBean.Application {
 		policies, err = impl.GetAppEnvPolicies(clusterId, environmentId, appId)
 	} else {
 		return nil, nil, fmt.Errorf("unsupported policy level: %s", policyLevel)
@@ -314,9 +240,9 @@ func (impl *CvePolicyRepositoryImpl) getPolicies(policyLevel PolicyLevel, cluste
 	return cvePolicy, severityPolicy, nil
 }
 
-func (impl *CvePolicyRepositoryImpl) getApplicablePolicies(policies []*CvePolicy) (map[string]*CvePolicy, map[Severity]*CvePolicy) {
+func (impl *CvePolicyRepositoryImpl) getApplicablePolicies(policies []*CvePolicy) (map[string]*CvePolicy, map[securityBean.Severity]*CvePolicy) {
 	cvePolicy := make(map[string][]*CvePolicy)
-	severityPolicy := make(map[Severity][]*CvePolicy)
+	severityPolicy := make(map[securityBean.Severity][]*CvePolicy)
 	for _, policy := range policies {
 		if policy.CVEStoreId != "" {
 			cvePolicy[policy.CveStore.Name] = append(cvePolicy[policy.CveStore.Name], policy)
@@ -347,8 +273,8 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicy(allPolicies map[string][]*
 	return applicablePolicies
 }
 
-func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[Severity][]*CvePolicy) map[Severity]*CvePolicy {
-	applicablePolicies := make(map[Severity]*CvePolicy)
+func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[securityBean.Severity][]*CvePolicy) map[securityBean.Severity]*CvePolicy {
+	applicablePolicies := make(map[securityBean.Severity]*CvePolicy)
 	for key, policies := range allPolicies {
 		var applicablePolicy *CvePolicy
 		for _, policy := range policies {

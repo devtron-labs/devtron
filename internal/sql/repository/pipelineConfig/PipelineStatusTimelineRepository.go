@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipelineConfig
@@ -25,28 +13,29 @@ import (
 
 type TimelineStatus = string
 
-var TimelineStatusDescription string
-
 const (
-	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
-	TIMELINE_STATUS_GIT_COMMIT             TimelineStatus = "GIT_COMMIT"
-	TIMELINE_STATUS_GIT_COMMIT_FAILED      TimelineStatus = "GIT_COMMIT_FAILED"
-	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED  TimelineStatus = "ARGOCD_SYNC_INITIATED"
-	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED  TimelineStatus = "ARGOCD_SYNC_COMPLETED"
-	TIMELINE_STATUS_KUBECTL_APPLY_STARTED  TimelineStatus = "KUBECTL_APPLY_STARTED"
-	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED   TimelineStatus = "KUBECTL_APPLY_SYNCED"
-	TIMELINE_STATUS_APP_HEALTHY            TimelineStatus = "HEALTHY"
-	TIMELINE_STATUS_DEPLOYMENT_FAILED      TimelineStatus = "FAILED"
-	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
-	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
-	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
-	TIMELINE_STATUS_MANIFEST_GENERATED     TimelineStatus = "MANIFEST_GENERATED"
+	TIMELINE_STATUS_DEPLOYMENT_INITIATED                TimelineStatus = "DEPLOYMENT_INITIATED"
+	TIMELINE_STATUS_GIT_COMMIT                          TimelineStatus = "GIT_COMMIT"
+	TIMELINE_STATUS_GIT_COMMIT_FAILED                   TimelineStatus = "GIT_COMMIT_FAILED"
+	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED               TimelineStatus = "ARGOCD_SYNC_INITIATED"
+	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED               TimelineStatus = "ARGOCD_SYNC_COMPLETED"
+	TIMELINE_STATUS_KUBECTL_APPLY_STARTED               TimelineStatus = "KUBECTL_APPLY_STARTED"
+	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED                TimelineStatus = "KUBECTL_APPLY_SYNCED"
+	TIMELINE_STATUS_APP_HEALTHY                         TimelineStatus = "HEALTHY"
+	TIMELINE_STATUS_DEPLOYMENT_FAILED                   TimelineStatus = "FAILED"
+	TIMELINE_STATUS_FETCH_TIMED_OUT                     TimelineStatus = "TIMED_OUT"
+	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS              TimelineStatus = "UNABLE_TO_FETCH_STATUS"
+	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED               TimelineStatus = "DEPLOYMENT_SUPERSEDED"
+	TIMELINE_STATUS_MANIFEST_GENERATED                  TimelineStatus = "MANIFEST_GENERATED"
+	TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO        TimelineStatus = "HELM_MANIFEST_PUSHED_TO_HELM_REPO"
+	TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED TimelineStatus = "HELM_MANIFEST_PUSHED_TO_HELM_REPO_FAILED"
 )
 
 const (
-	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
-	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
-	TIMELINE_DESCRIPTION_MANIFEST_GENERATED   string = "HELM_PACKAGE_GENERATED"
+	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED       string = "Deployment initiated successfully."
+	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE           string = "Deployment failed: Vulnerability policy violated."
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATED         string = "HELM_PACKAGE_GENERATED"
+	TIMELINE_DESCRIPTION_MANIFEST_GENERATION_FAILED string = "HELM_PACKAGE_GENERATION_FAILED"
 )
 
 type PipelineStatusTimelineRepository interface {
@@ -220,7 +209,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfr
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED), string(TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED)}
+	terminalStatus := []string{TIMELINE_STATUS_APP_HEALTHY, TIMELINE_STATUS_DEPLOYMENT_FAILED, TIMELINE_STATUS_GIT_COMMIT_FAILED, TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED, TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
@@ -20,9 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
@@ -40,8 +32,8 @@ import (
 )
 
 type PropertiesConfigService interface {
-	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
+	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentUpdateResponse, error)
+	UpdateEnvironmentProperties(appId int, envId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error)
 	//create environment entry for each new environment
 	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
@@ -55,30 +47,38 @@ type PropertiesConfigService interface {
 	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
 }
 type PropertiesConfigServiceImpl struct {
-	logger                           *zap.SugaredLogger
-	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
-	chartRepo                        chartRepoRepository.ChartRepository
-	environmentRepository            repository2.EnvironmentRepository
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	scopedVariableManager            variables.ScopedVariableManager
-	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
+	logger                              *zap.SugaredLogger
+	envConfigRepo                       chartConfig.EnvConfigOverrideRepository
+	chartRepo                           chartRepoRepository.ChartRepository
+	mergeUtil                           util.MergeUtil
+	environmentRepository               repository2.EnvironmentRepository
+	deploymentTemplateHistoryService    history.DeploymentTemplateHistoryService
+	scopedVariableManager               variables.ScopedVariableManager
+	lockedConfigService                 lockConfiguration.LockConfigurationService
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartRepoRepository.ChartRepository,
+	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PropertiesConfigServiceImpl {
+	lockedConfigService lockConfiguration.LockConfigurationService,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
-		logger:                           logger,
-		envConfigRepo:                    envConfigRepo,
-		chartRepo:                        chartRepo,
-		environmentRepository:            environmentRepository,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		scopedVariableManager:            scopedVariableManager,
-		deployedAppMetricsService:        deployedAppMetricsService,
+		logger:                              logger,
+		envConfigRepo:                       envConfigRepo,
+		chartRepo:                           chartRepo,
+		environmentRepository:               environmentRepository,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		scopedVariableManager:               scopedVariableManager,
+		lockedConfigService:                 lockedConfigService,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
 	}
 
 }
@@ -184,7 +184,7 @@ func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRe
 	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentUpdateResponse, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -193,6 +193,36 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		impl.logger.Errorw("create new chart set latest=false", "a", "b")
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
+	if environmentProperties.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(chart.GlobalOverride), environmentProperties.EnvOverrideValues)
+		if err != nil {
+			return nil, err
+		}
+		environmentProperties.EnvOverrideValues = eligible
+		// validation of deployment template validate
+		chartRefId := environmentProperties.ChartRefId
+		//VARIABLE_RESOLVE
+		scope := resourceQualifiers.Scope{
+			AppId:     appId,
+			EnvId:     environmentProperties.EnvironmentId,
+			ClusterId: environmentProperties.ClusterId,
+		}
+		validate, err2 := impl.deploymentTemplateValidationService.DeploymentTemplateValidate(context.Background(), environmentProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			return nil, err2
+		}
+	}
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if lockConfigErrorResponse != nil {
+		return &bean.EnvironmentUpdateResponse{
+			EnvironmentProperties:     environmentProperties,
+			LockValidateErrorResponse: lockConfigErrorResponse,
+		}, nil
+	}
+
 	chart.GlobalOverride = string(environmentProperties.EnvOverrideValues)
 	appMetrics := false
 	if environmentProperties.AppMetrics != nil {
@@ -230,10 +260,12 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		return nil, err
 	}
 
-	return environmentProperties, nil
+	return &bean.EnvironmentUpdateResponse{
+		EnvironmentProperties: environmentProperties,
+	}, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, envId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
 	//check if exists
 	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
 	if err != nil {
@@ -251,24 +283,67 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if env.Namespace != "" && env.Namespace != propertiesRequest.Namespace {
 		return nil, fmt.Errorf("enviremnt is restricted to namespace: %s only, cant deploy to: %s", env.Namespace, propertiesRequest.Namespace)
 	}
-
+	envOverrideValue := oldEnvOverride.EnvOverrideValues
+	var envOverrideExisting *chartConfig.EnvConfigOverride
 	if !oldEnvOverride.Latest {
-		envOverrideExisting, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
+		envOverrideExisting, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
 		if envOverrideExisting != nil {
-			envOverrideExisting.Latest = false
-			envOverrideExisting.IsOverride = false
-			envOverrideExisting.UpdatedOn = time.Now()
-			envOverrideExisting.UpdatedBy = userId
-			envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
+			envOverrideValue = envOverrideExisting.EnvOverrideValues
+		} else {
+			chart, err := impl.chartRepo.FindLatestChartForAppByAppId(appId)
 			if err != nil {
 				return nil, err
 			}
+			envOverrideValue = chart.GlobalOverride
+		}
+	}
+	// TODO look on this at manager level
+	if propertiesRequest.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(envOverrideValue), overrideByte)
+		if err != nil {
+			return nil, err
+		}
+		overrideByte = eligible
+		propertiesRequest.EnvOverrideValues.UnmarshalJSON(eligible)
+		// validation of deployment template validate
+		chartRefId := propertiesRequest.ChartRefId
+		//VARIABLE_RESOLVE
+		scope := resourceQualifiers.Scope{
+			AppId:     appId,
+			EnvId:     envId,
+			ClusterId: propertiesRequest.ClusterId,
+		}
+		validate, err2 := impl.deploymentTemplateValidationService.DeploymentTemplateValidate(context.Background(), json.RawMessage(overrideByte), chartRefId, scope)
+		if !validate {
+			return nil, err2
 		}
 	}
 
+	// Handle Lock Configuration
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue, int(propertiesRequest.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if lockConfigErrorResponse != nil {
+		return &bean.EnvironmentUpdateResponse{
+			EnvironmentProperties:     propertiesRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
+		}, nil
+	}
+
+	if envOverrideExisting != nil {
+		envOverrideExisting.Latest = false
+		envOverrideExisting.IsOverride = false
+		envOverrideExisting.UpdatedOn = time.Now()
+		envOverrideExisting.UpdatedBy = userId
+		envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
+		if err != nil {
+			return nil, err
+		}
+	}
 	override := &chartConfig.EnvConfigOverride{
 		Active:            propertiesRequest.Active,
 		Id:                propertiesRequest.Id,
@@ -326,7 +401,9 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, err
 	}
 
-	return propertiesRequest, err
+	return &bean.EnvironmentUpdateResponse{
+		EnvironmentProperties: propertiesRequest,
+	}, err
 }
 
 func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error) {

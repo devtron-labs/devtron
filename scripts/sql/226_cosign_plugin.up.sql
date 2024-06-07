@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Cosign v1.0.0','This plugin is used to Cosign to sign docker images.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/cosign-logo.png',false,'now()',1,'now()',1);
 

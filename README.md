@@ -5,7 +5,7 @@
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
 <h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
-</p>
+</p> 
  
 <p align="center">
 <br>
@@ -242,4 +242,4 @@ We at Devtron, take security and our users' trust very seriously. If you believe
  
 ## :bookmark: License
  
-Devtron is licensed under [Apache License, Version 2.0](LICENSE)
+Devtron is licensed under [Apache License, Version 2.0](LICENSE)  

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE IF EXISTS rbac_policy_resource_detail;
 
 DROP SEQUENCE IF EXISTS id_seq_rbac_policy_resource_detail;

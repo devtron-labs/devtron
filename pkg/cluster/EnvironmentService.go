@@ -1,32 +1,24 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package cluster
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	scoopClient "github.com/devtron-labs/scoop/client"
+	"github.com/devtron-labs/scoop/types"
 	"strconv"
 	"strings"
 	"time"
 
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -42,12 +34,14 @@ import (
 type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
+	CreateVirtualEnvironment(mappings *bean2.VirtualEnvironmentBean, userId int32) (*bean2.VirtualEnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
+	UpdateVirtualEnvironment(mappings *bean2.VirtualEnvironmentBean, userId int32) (*bean2.VirtualEnvironmentBean, error)
 	GetAll() ([]bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
 	GetAllActiveEnvironmentCount() (int, error)
 	Delete(deleteReq *bean2.EnvironmentBean, userId int32) error
-	FindClusterByEnvId(id int) (*ClusterBean, error)
+	FindClusterByEnvId(id int) (*clusterBean.ClusterBean, error)
 	// FindById provides an exposed struct of bean.EnvironmentBean;
 	// Usage - can be used for API responses;
 	FindById(id int) (*bean2.EnvironmentBean, error)
@@ -63,24 +57,29 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*bean2.EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*bean2.ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*clusterBean.ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	FindByNames(names []string) ([]*bean2.EnvironmentBean, error)
+	IsVirtualEnvironmentById(id int) (bool, error)
 	GetDetailsById(envId int) (*repository.Environment, error)
+	SetScoopClientGetter(scoopGetter func(clusterId int) (scoopClient.ScoopClient, error))
+	FindIdsByNames(names []string) ([]int, error)
 }
 
 type EnvironmentServiceImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
-	K8sUtil               *util2.K8sServiceImpl
+	K8sUtil               *util2.K8sUtilExtended
 	k8sInformerFactory    informer.K8sInformerFactory
-	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService      user.UserAuthService
-	attributesRepository repository2.AttributesRepository
+	// propertiesConfigService pipeline.PropertiesConfigService
+	userAuthService           user.UserAuthService
+	attributesRepository      repository2.AttributesRepository
+	getScoopClientByCLusterId func(clusterId int) (scoopClient.ScoopClient, error)
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util2.K8sServiceImpl, k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil *util2.K8sUtilExtended, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
@@ -89,7 +88,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		clusterService:        clusterService,
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
-		//propertiesConfigService: propertiesConfigService,
+		// propertiesConfigService: propertiesConfigService,
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
 	}
@@ -142,17 +141,15 @@ func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userI
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		cfg := clusterBean.GetClusterConfig()
 		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 
 	}
 
-	//ignore grafana if no prometheus url found
+	impl.informScoop(model.Namespace, model.Default, types.ADD, model.ClusterId)
+	// ignore grafana if no prometheus url found
 	if len(clusterBean.PrometheusUrl) > 0 {
 		_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
@@ -162,6 +159,42 @@ func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userI
 	mappings.Id = model.Id
 	mappings.ClusterServerUrl = clusterBean.ServerUrl
 	return mappings, nil
+}
+
+func (impl EnvironmentServiceImpl) CreateVirtualEnvironment(mappings *bean2.VirtualEnvironmentBean, userId int32) (*bean2.VirtualEnvironmentBean, error) {
+
+	model, err := impl.environmentRepository.FindByName(mappings.Environment)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return mappings, err
+	}
+	if model.Id > 0 {
+		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
+		return mappings, fmt.Errorf("environment already exists")
+	}
+
+	environmentIdentifier := mappings.Environment
+
+	model = &repository.Environment{
+		Name:                  mappings.Environment,
+		ClusterId:             mappings.ClusterId,
+		Active:                true,
+		Namespace:             mappings.Namespace,
+		Description:           mappings.Description,
+		EnvironmentIdentifier: environmentIdentifier,
+		IsVirtualEnvironment:  true,
+	}
+
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	err = impl.environmentRepository.Create(model)
+	if err != nil {
+		impl.logger.Errorw("error in saving environment", "err", err)
+		return mappings, err
+	}
+	return nil, err
 }
 
 func (impl EnvironmentServiceImpl) FindOne(environment string) (*bean2.EnvironmentBean, error) {
@@ -281,17 +314,14 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 	model.UpdatedOn = time.Now()
 	model.Description = mappings.Description
 
-	//namespace create if not exist
+	// namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		cfg := clusterBean.GetClusterConfig()
 		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 	}
-	//namespace changed, update it on chart env override config as well
+	// namespace changed, update it on chart env override config as well
 	/*if isNamespaceChange == true {
 		impl.logger.Debug("namespace has modified in request, it will update related config")
 		envPropertiesList, err := impl.propertiesConfigService.GetEnvironmentPropertiesById(mappings.Id)
@@ -309,8 +339,10 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 			}
 		}
 	}*/
+
+	impl.informScoop(model.Namespace, model.Default, types.UPDATE, model.ClusterId)
 	grafanaDatasourceId := model.GrafanaDatasourceId
-	//grafana datasource create if not exist
+	// grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {
 		grafanaDatasourceId, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
@@ -318,6 +350,30 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 		}
 	}
 	model.GrafanaDatasourceId = grafanaDatasourceId
+	err = impl.environmentRepository.Update(model)
+	if err != nil {
+		impl.logger.Errorw("error in updating environment", "err", err)
+		return mappings, err
+	}
+
+	mappings.Id = model.Id
+	return mappings, nil
+}
+
+func (impl EnvironmentServiceImpl) UpdateVirtualEnvironment(mappings *bean2.VirtualEnvironmentBean, userId int32) (*bean2.VirtualEnvironmentBean, error) {
+	model, err := impl.environmentRepository.FindById(mappings.Id)
+	if err != nil {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return mappings, err
+	}
+
+	model.Name = mappings.Environment
+	model.Namespace = mappings.Namespace
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	model.Description = mappings.Description
+	model.IsVirtualEnvironment = true
+
 	err = impl.environmentRepository.Update(model)
 	if err != nil {
 		impl.logger.Errorw("error in updating environment", "err", err)
@@ -337,18 +393,19 @@ func (impl EnvironmentServiceImpl) GetExtendedEnvBeanById(id int) (*bean2.Enviro
 	return adapter.NewEnvironmentBean(model), nil
 }
 
-func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, error) {
+func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*clusterBean.ClusterBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
 		impl.logger.Errorw("fetch cluster by environment id", "err", err)
 		return nil, err
 	}
-	clusterBean := &ClusterBean{}
+	clusterBean := &clusterBean.ClusterBean{}
 	clusterBean.Id = model.Cluster.Id
 	clusterBean.ClusterName = model.Cluster.ClusterName
 	clusterBean.Active = model.Cluster.Active
 	clusterBean.ServerUrl = model.Cluster.ServerUrl
 	clusterBean.Config = model.Cluster.Config
+	clusterBean.InsecureSkipTLSVerify = model.Cluster.InsecureSkipTlsVerify
 	return clusterBean, nil
 }
 
@@ -360,7 +417,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
 	var beans []bean2.EnvironmentBean
-	//Fetching deployment app type config values along with autocomplete api while creating CD pipeline
+	// Fetching deployment app type config values along with autocomplete api while creating CD pipeline
 	if isDeploymentTypeParam {
 		for _, model := range models {
 			var (
@@ -369,7 +426,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			deploymentConfig := make(map[string]map[string]bool)
 			deploymentConfigEnvLevel := make(map[string]bool)
 			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(bean3.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
-			//if empty config received(doesn't exist in table) which can't be parsed
+			// if empty config received(doesn't exist in table) which can't be parsed
 			if deploymentConfigValues.Value != "" {
 				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
 					return nil, err
@@ -383,6 +440,11 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			} else {
 				allowedDeploymentConfigString = permittedDeploymentConfigString
 			}
+			IsDigestEnforcedForEnv, err := impl.clusterService.IsPolicyConfiguredForCluster(model.Id, model.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err, "envId", model.Id, "clusterId", model.ClusterId)
+				return nil, err
+			}
 			beans = append(beans, bean2.EnvironmentBean{
 				Id:                     model.Id,
 				Environment:            model.Name,
@@ -394,6 +456,8 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				IsVirtualEnvironment:   model.IsVirtualEnvironment,
 				AllowedDeploymentTypes: allowedDeploymentConfigString,
 				ClusterId:              model.ClusterId,
+				Default:                model.Default,
+				IsDigestEnforcedForEnv: IsDigestEnforcedForEnv,
 			})
 		}
 	} else {
@@ -408,6 +472,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				Description:           model.Description,
 				IsVirtualEnvironment:  model.IsVirtualEnvironment,
 				ClusterId:             model.ClusterId,
+				Default:               model.Default,
 			})
 		}
 	}
@@ -423,7 +488,7 @@ func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfi
 	for key, value := range deploymentConfig {
 		for _, permitted := range permittedDeploymentConfigString {
 			if key == permitted {
-				//filtering only those deployment app types which are in permitted zone and are marked true
+				// filtering only those deployment app types which are in permitted zone and are marked true
 				if value {
 					flag = true
 					filteredDeploymentConfig = append(filteredDeploymentConfig, key)
@@ -495,6 +560,32 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*bean2.EnvironmentBe
 	return beans, nil
 }
 
+func (impl EnvironmentServiceImpl) FindByNames(names []string) ([]*bean2.EnvironmentBean, error) {
+	models, err := impl.environmentRepository.FindByNames(names)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var beans []*bean2.EnvironmentBean
+	for _, model := range models {
+		beans = append(beans, &bean2.EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Active:                model.Active,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterId:             model.ClusterId,
+			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
+		})
+	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) FindIdsByNames(names []string) ([]int, error) {
+	return impl.environmentRepository.FindIdsByNames(names)
+}
+
 func (impl EnvironmentServiceImpl) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error) {
 	env, err := impl.environmentRepository.FindByNamespaceAndClusterName(namespaces, clusterName)
 	return env, err
@@ -534,6 +625,12 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		impl.logger.Errorw("error in fetching clusters", "err", err)
 		return namespaceGroupByClusterResponse, err
 	}
+
+	isVirtualClusterMap := make(map[string]bool)
+	for _, item := range clusterModels {
+		isVirtualClusterMap[item.ClusterName] = item.IsVirtualCluster
+	}
+
 	clusterMap := make(map[string]int)
 	for _, item := range clusterModels {
 		clusterMap[item.ClusterName] = item.Id
@@ -570,12 +667,16 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
 		})
 	}
 
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	rbacObject2 := make([]string, 0)
 	for clusterName, namespaces := range namespaceListGroupByClusters {
+		if isVirtualClusterMap[clusterName] { // skipping if virtual cluster because virtual cluster is only devtron specific concept and virtual cluster exists only in our database
+			continue
+		}
 		for namespace := range namespaces {
 			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 			rbacObject2 = append(rbacObject2, environmentIdentifier)
@@ -585,9 +686,12 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	rbacObjectResult2 := auth(token, rbacObject)
 
 	for clusterName, namespaces := range namespaceListGroupByClusters {
+		if isVirtualClusterMap[clusterName] {
+			continue
+		}
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
-			//deduplication for cluster and namespace combination
+			// deduplication for cluster and namespace combination
 			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[key]; !ok {
@@ -609,7 +713,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		}
 	}
 
-	//final result builds here, namespace group by clusters
+	// final result builds here, namespace group by clusters
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
@@ -617,9 +721,10 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			clusterId = 0
 		}
 		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &bean2.ClusterEnvDto{
-			ClusterName:  clusterInfo[0],
-			ClusterId:    clusterId,
-			Environments: v,
+			ClusterName:      clusterInfo[0],
+			ClusterId:        clusterId,
+			Environments:     v,
+			IsVirtualCluster: isVirtualClusterMap[clusterInfo[0]],
 		})
 	}
 	return namespaceGroupByClusterResponse, nil
@@ -659,6 +764,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			Namespace:             model.Namespace,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 			Description:           model.Description,
+			Default:               model.Default,
 		})
 	}
 
@@ -669,7 +775,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			continue
 		}
 		for namespace := range namespaces {
-			//deduplication for cluster and namespace combination
+			// deduplication for cluster and namespace combination
 			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[key]; !ok {
@@ -689,7 +795,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		}
 	}
 
-	//final result builds here, namespace group by clusters
+	// final result builds here, namespace group by clusters
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
@@ -727,12 +833,14 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
 	}
-	//deleting auth roles entries for this environment
+	// deleting auth roles entries for this environment
 	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
 	}
+
+	impl.informScoop(existingEnv.Namespace, existingEnv.Default, types.DELETE, existingEnv.ClusterId)
 	err = tx.Commit()
 	if err != nil {
 		return err
@@ -740,8 +848,17 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 	return nil
 }
 
-func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*clusterBean.ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl EnvironmentServiceImpl) IsVirtualEnvironmentById(id int) (bool, error) {
+	model, err := impl.environmentRepository.FindById(id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+		return false, err
+	}
+	return model.IsVirtualEnvironment, nil
 }
 
 func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Environment, error) {
@@ -751,4 +868,26 @@ func (impl EnvironmentServiceImpl) GetDetailsById(envId int) (*repository.Enviro
 		return nil, err
 	}
 	return envDetails, nil
+}
+
+func (impl *EnvironmentServiceImpl) SetScoopClientGetter(scoopGetter func(clusterId int) (scoopClient.ScoopClient, error)) {
+	impl.getScoopClientByCLusterId = scoopGetter
+}
+
+func (impl EnvironmentServiceImpl) informScoop(namespace string, isProd bool, action types.Action, clusterId int) error {
+
+	if impl.getScoopClientByCLusterId == nil {
+		return nil
+	}
+
+	client, err := impl.getScoopClientByCLusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting scoop client by cluster id", "clusterId", clusterId, "err", err)
+		return nil
+	}
+	err = client.UpdateNamespaceConfig(context.Background(), action, namespace, isProd)
+	if err != nil {
+		impl.logger.Errorw("error in updating scoop about namespace creation/updation/deletion", "namespace", namespace, "clusterId", clusterId, "err", err)
+	}
+	return err
 }

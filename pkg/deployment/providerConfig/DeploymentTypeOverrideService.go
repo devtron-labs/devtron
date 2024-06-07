@@ -1,24 +1,14 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package providerConfig
 
 import (
+	"fmt"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"net/http"
@@ -30,24 +20,32 @@ type DeploymentTypeOverrideService interface {
 }
 
 type DeploymentTypeOverrideServiceImpl struct {
-	logger            *zap.SugaredLogger
-	deploymentConfig  *util.DeploymentServiceTypeConfig
-	attributesService attributes.AttributesService
+	logger             *zap.SugaredLogger
+	deploymentConfig   *util.DeploymentServiceTypeConfig
+	attributesService  attributes.AttributesService
+	environmentService cluster.EnvironmentService
 }
 
 func NewDeploymentTypeOverrideServiceImpl(logger *zap.SugaredLogger,
 	envVariables *util.EnvironmentVariables,
-	attributesService attributes.AttributesService) *DeploymentTypeOverrideServiceImpl {
+	attributesService attributes.AttributesService,
+	environmentService cluster.EnvironmentService) *DeploymentTypeOverrideServiceImpl {
 	return &DeploymentTypeOverrideServiceImpl{
-		logger:            logger,
-		deploymentConfig:  envVariables.DeploymentServiceTypeConfig,
-		attributesService: attributesService,
+		logger:             logger,
+		deploymentConfig:   envVariables.DeploymentServiceTypeConfig,
+		attributesService:  attributesService,
+		environmentService: environmentService,
 	}
 }
 
 func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppType(deploymentType string, isGitOpsConfigured bool, environmentId int) (overrideDeploymentType string, err error) {
 	// initialise OverrideDeploymentType to the given DeploymentType
 	overrideDeploymentType = deploymentType
+	isVirtualEnvironment, err := impl.environmentService.IsVirtualEnvironmentById(environmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment by id", "envId", environmentId, "err", err)
+		return overrideDeploymentType, err
+	}
 	// if no deployment app type sent from user then we'll not validate
 	deploymentTypeValidationConfig, err := impl.attributesService.GetDeploymentEnforcementConfig(environmentId)
 	if err != nil {
@@ -64,14 +62,27 @@ func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppT
 		AllowedDeploymentAppTypes[k] = v
 	}
 	if !impl.deploymentConfig.ExternallyManagedDeploymentType {
-		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
-			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
-			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+		if isVirtualEnvironment && len(overrideDeploymentType) != 0 && !util2.IsManifestPush(overrideDeploymentType) && !util2.IsManifestDownload(overrideDeploymentType) {
+			impl.logger.Errorw("invalid deployment type for a virtual environment", "deploymentType", overrideDeploymentType)
+			err = &util2.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: fmt.Sprintf("Deployment type '%s' is not supported on virtual cluster", overrideDeploymentType),
+				UserMessage:     fmt.Sprintf("Deployment type '%s' is not supported on virtual cluster", overrideDeploymentType),
+			}
+			return overrideDeploymentType, err
+		}
+		if !isVirtualEnvironment {
+			if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
+				overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
+				overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+			}
 		}
 	}
 	if deploymentType == "" {
-		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
+		if isVirtualEnvironment {
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+		} else if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM

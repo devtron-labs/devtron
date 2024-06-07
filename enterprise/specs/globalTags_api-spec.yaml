@@ -1,0 +1,208 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/global-tag:
+    get:
+      description: Get All active Global tags (all or for given tagId)
+      parameters:
+        - name: id
+          in: query
+          description: tagId
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully fetched active global tags (all or for given tagId)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/GlobalTagDto"
+                  - $ref: "#/components/schemas/GlobalTagDto"
+    post:
+      description: Create global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags creation response
+    put:
+      description: Update global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags update response
+    delete:
+      description: Delete global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags delete response
+  /orchestrator/global-tag/filter:
+    get:
+      description: Get All active Global tags for that projectId
+      parameters:
+        - name: projectId
+          in: query
+          description: projectId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully fetched active global tags for that projectId
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GlobalTagDtoForProject"
+components:
+  schemas:
+    GlobalTagDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of global tag
+          example: 1
+          nullable: false
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tags
+          example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
+        createdOnInMs:
+          type: integer
+          description: Creation time in milliseconds for that global tag
+          example: "12344546"
+          format: int64
+          nullable: false
+        updatedOnInMs:
+          type: integer
+          description: Updation time in milliseconds for that global tag
+          example: "12344546"
+          format: int64
+    GlobalTagDtoForProject:
+      type: object
+      properties:
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        isMandatory:
+          type: boolean
+          description: if the key is mandatory or not
+          example: true
+          nullable: false
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+    CreateGlobalTagsRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateGlobalTagDto"
+    CreateGlobalTagDto:
+      type: object
+      properties:
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tag
+          example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
+    UpdateGlobalTagsRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpdateGlobalTagDto"
+    UpdateGlobalTagDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of global tag
+          example: 1
+          nullable: false
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tag
+          example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
+    DeleteGlobalTagsRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          description: tag Ids
+          items:
+            type: number

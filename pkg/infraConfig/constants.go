@@ -1,30 +1,29 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package infraConfig
 
+import "github.com/pkg/errors"
+
 type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
+type IdentifierType string
+
+const ALL_PROFILES = ""
+const CannotDeleteDefaultProfile = "cannot delete default profile"
+const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
+const APPLICATION IdentifierType = "application"
+const InvalidIdentifierType = "identifier %s is not valid"
+const PROFILE_IDS_REQUIRED = "profile ids cannot be empty"
+const ActiveAppIdsQuery = "SELECT id " +
+	"FROM app WHERE active=true"
 
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
-const NO_PROPERTIES_FOUND = "no properties found"
 const DEFAULT ProfileType = "DEFAULT"
 const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
@@ -45,3 +44,7 @@ const CPU_REQUEST ConfigKeyStr = "cpu_request"
 const MEMORY_LIMIT ConfigKeyStr = "memory_limit"
 const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
+
+const CREATION_BLOCKED_FOR_DEFAULT_PROFILE_CONFIGURATIONS = "cannot create new configuration for default profile"
+
+var NO_PROPERTIES_FOUND_ERROR = errors.New("no properties found")

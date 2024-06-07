@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package security
@@ -42,6 +30,7 @@ type ScanToolMetadataRepository interface {
 	FindActiveToolByScanTarget(scanTarget ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
 	FindActiveById(id int) (*ScanToolMetadata, error)
+	FindById(id int) (string, error)
 	Save(model *ScanToolMetadata) (*ScanToolMetadata, error)
 	Update(model *ScanToolMetadata) (*ScanToolMetadata, error)
 	MarkToolDeletedById(id int) error
@@ -99,7 +88,16 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveById(id int) (*ScanToolMet
 	}
 	return model, nil
 }
-
+func (repo *ScanToolMetadataRepositoryImpl) FindById(id int) (string, error) {
+	model := &ScanToolMetadata{}
+	err := repo.dbConnection.Model(model).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting  by id", "err", err, "id", id)
+		return "", err
+	}
+	return model.Name, nil
+}
 func (repo *ScanToolMetadataRepositoryImpl) Save(model *ScanToolMetadata) (*ScanToolMetadata, error) {
 	err := repo.dbConnection.Insert(model)
 	if err != nil {

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package infraConfig
@@ -40,4 +28,36 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 	configRouter.Path("/profile/{name}").
 		HandlerFunc(impl.infraConfigRestHandler.UpdateInfraProfile).
 		Methods("PUT")
+
+	configRouter.Path("/profile/{name}").
+		HandlerFunc(impl.infraConfigRestHandler.DeleteProfile).
+		Methods("DELETE")
+
+	configRouter.Path("/profile").
+		HandlerFunc(impl.infraConfigRestHandler.CreateProfile).
+		Methods("POST")
+
+	configRouter.Path("/list/profile").
+		// Queries("search", "{profileNameLike}").
+		HandlerFunc(impl.infraConfigRestHandler.GetProfileList).
+		Methods("GET")
+
+	configRouter.Path("/list/min/profile").
+		HandlerFunc(impl.infraConfigRestHandler.GetProfilesMin).
+		Methods("GET")
+
+	configRouter.Path("/list/identifier/{identifierType}").
+		// Queries("search", "{identifierNameLike}",
+		// 	"sort", "{sortOrder}",
+		// 	"profileName", "{profileName}",
+		// 	"size", "{size}",
+		// 	"offset", "{offset}").
+		HandlerFunc(impl.infraConfigRestHandler.GetIdentifierList).
+		Methods("GET")
+
+	configRouter.Path("/identifier/{identifierType}/apply").
+		HandlerFunc(impl.infraConfigRestHandler.ApplyProfileToIdentifiers).
+		Methods("POST")
+
+	// todo: @gireesh create a lite weight api autocomplete api for profile name and id data
 }

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package security
@@ -27,6 +15,7 @@ type ImageScanExecutionResult struct {
 	CveStoreName                string   `sql:"cve_store_name,notnull"`
 	ImageScanExecutionHistoryId int      `sql:"image_scan_execution_history_id"`
 	ScanToolId                  int      `sql:"scan_tool_id"`
+	Package                     string   `sql:"package"`
 	CveStore                    CveStore
 	ImageScanExecutionHistory   ImageScanExecutionHistory
 }
@@ -42,6 +31,7 @@ type ImageScanResultRepository interface {
 	FindByImageDigest(imageDigest string) ([]*ImageScanExecutionResult, error)
 	FindByImageDigests(digest []string) ([]*ImageScanExecutionResult, error)
 	FindByImage(image string) ([]*ImageScanExecutionResult, error)
+	FindByImages(images []string) ([]*ImageScanExecutionResult, error)
 }
 
 type ImageScanResultRepositoryImpl struct {
@@ -101,9 +91,15 @@ func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionId(scanExecutionId
 
 func (impl ImageScanResultRepositoryImpl) FetchByScanExecutionIds(ids []int) ([]*ImageScanExecutionResult, error) {
 	var models []*ImageScanExecutionResult
+	if len(ids) == 0 {
+		return models, nil
+	}
 	err := impl.dbConnection.Model(&models).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_result.image_scan_execution_history_id in(?)", pg.In(ids)).
 		Select()
+	if err == pg.ErrNoRows {
+		return models, nil
+	}
 	return models, err
 }
 
@@ -125,5 +121,12 @@ func (impl ImageScanResultRepositoryImpl) FindByImage(image string) ([]*ImageSca
 	var model []*ImageScanExecutionResult
 	err := impl.dbConnection.Model(&model).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
 		Where("image_scan_execution_history.image = ?", image).Order("image_scan_execution_history.execution_time desc").Select()
+	return model, err
+}
+
+func (impl ImageScanResultRepositoryImpl) FindByImages(images []string) ([]*ImageScanExecutionResult, error) {
+	var model []*ImageScanExecutionResult
+	err := impl.dbConnection.Model(&model).Column("image_scan_execution_result.*", "ImageScanExecutionHistory", "CveStore").
+		Where("image_scan_execution_history.image IN (?)", pg.In(images)).Select()
 	return model, err
 }

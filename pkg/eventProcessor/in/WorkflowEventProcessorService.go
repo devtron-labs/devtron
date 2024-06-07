@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package in
@@ -31,6 +19,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
@@ -40,17 +29,23 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
+	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/security"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/configHistory"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	bean8 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
@@ -82,11 +77,18 @@ type WorkflowEventProcessorImpl struct {
 	devtronAppReleaseContextMap     map[int]bean.DevtronAppReleaseContextType
 	devtronAppReleaseContextMapLock *sync.Mutex
 	appServiceConfig                *app.AppServiceConfig
+	notificationConfigService       notifier.NotificationConfigService
+	imageScanService                security.ImageScanService
+	pcoReadService                  configHistory.PipelineConfigOverrideReadService
 
 	//repositories import to be removed
-	pipelineRepository   pipelineConfig.PipelineRepository
-	ciArtifactRepository repository.CiArtifactRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	ciArtifactRepository    repository.CiArtifactRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	policyService           security.PolicyService
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository
+	imageScanHistoryRepo    security2.ImageScanHistoryRepository
+	ciCacheSelector         cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -106,7 +108,15 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) (*WorkflowEventProcessorImpl, error) {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	imageScanService security.ImageScanService,
+	pcoReadService configHistory.PipelineConfigOverrideReadService,
+	notificationConfigService notifier.NotificationConfigService,
+	policyService security.PolicyService,
+	imageScanDeployInfoRepo security2.ImageScanDeployInfoRepository,
+	imageScanHistoryRepo security2.ImageScanHistoryRepository,
+	ciCacheSelector cacheResourceSelector.CiCacheResourceSelector,
+) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -130,6 +140,13 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		pipelineRepository:              pipelineRepository,
 		ciArtifactRepository:            ciArtifactRepository,
 		cdWorkflowRepository:            cdWorkflowRepository,
+		imageScanService:                imageScanService,
+		pcoReadService:                  pcoReadService,
+		notificationConfigService:       notificationConfigService,
+		policyService:                   policyService,
+		imageScanDeployInfoRepo:         imageScanDeployInfoRepo,
+		imageScanHistoryRepo:            imageScanHistoryRepo,
+		ciCacheSelector:                 ciCacheSelector,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -137,6 +154,291 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	}
 	impl.appServiceConfig = appServiceConfig
 	return impl, nil
+}
+
+// SubscribeDeployStageSuccessEvent is used to subscribe success events of any cd stage[pre, deploy, post].
+// this event is published and subscribed by orchestrator and that's why cd_stage_complete (part of ci runner stream) event was not used.
+func (impl *WorkflowEventProcessorImpl) SubscribeDeployStageSuccessEvent() error {
+	callback := func(msg *model.PubSubMsg) {
+		event := bean7.DeployStageSuccessEventReq{}
+		err := json.Unmarshal([]byte(msg.Data), &event)
+		if err != nil {
+			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", msg.Data)
+			return
+		}
+		triggerContext := bean5.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+		impl.logger.Debugw("received, CD_STAGE_SUCCESS_EVENT", "message", msg.Data)
+		switch event.DeployStageType {
+		case bean2.CD_WORKFLOW_TYPE_PRE:
+			//currently not being used, to implement if needed after refactoring current usages
+		case bean2.CD_WORKFLOW_TYPE_DEPLOY:
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, event.PipelineOverride)
+			if err != nil {
+				impl.logger.Errorw("error in handling deployment success event, SubscribeDeployStageSuccessEvent", "err", err, "event", event)
+				return
+			}
+		case bean2.CD_WORKFLOW_TYPE_POST:
+			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, event.CdWorkflowId, event.PipelineId, 1, event.PluginRegistryImageDetails)
+			if err != nil {
+				impl.logger.Errorw("error in handling post deployment success event, SubscribeDeployStageSuccessEvent", "err", err, "event", event)
+				return
+			}
+		default:
+			impl.logger.Errorw("invalid cd stage type found, SubscribeDeployStageSuccessEvent", "err", err)
+			return
+		}
+	}
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		cdStageCompleteEvent := bean7.DeployStageSuccessEventReq{}
+		err := json.Unmarshal([]byte(msg.Data), &cdStageCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling cdStageCompleteEvent object", []interface{}{"err", err, "msg", msg.Data}
+		}
+		return "got message for cd stage success", []interface{}{"cdStage", cdStageCompleteEvent.DeployStageType, "event", cdStageCompleteEvent}
+	}
+
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
+	err := impl.pubSubClient.Subscribe(pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, callback, loggerFunc, validations...)
+	if err != nil {
+		impl.logger.Error("error", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) getImageScanNotificationPayload(ctx context.Context, imageScanningEvent *bean.ImageScanningEvent, imageScanNotificationConfig *notifier.ImageScanNotificationConfig, ciArtifactId int) ([]byte, error) {
+	newCtx, span := otel.Tracer("WorkflowEventProcessorService").Start(ctx, "getImageScanNotificationPayload")
+	defer span.End()
+	eventData := make(map[int]*securityBean.ImageScanExecutionInfo)
+	for settingsId, filterConditions := range imageScanNotificationConfig.NotificationConfigToRules {
+		if filterConditions == nil {
+			continue
+		}
+		payload, err := impl.getImageScanNotificationInfo(newCtx, imageScanningEvent.PipelineType, imageScanNotificationConfig, ciArtifactId, *filterConditions)
+		if err != nil {
+			impl.logger.Error("error in generating image scan notification payload", "appId", imageScanNotificationConfig.AppId, "ciArtifactId", ciArtifactId, "ciPipelineId", imageScanNotificationConfig.CiPipelineId, "filterConditions", filterConditions, "error", err)
+			return nil, err
+		}
+		if payload == nil {
+			continue
+		}
+		eventData[settingsId] = payload
+	}
+	executionInfoBytes, err := json.Marshal(eventData)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling data", "err", err)
+		return nil, err
+	}
+	return executionInfoBytes, nil
+}
+
+func (impl *WorkflowEventProcessorImpl) SubscribeImageScanningSuccessEvent() error {
+	callback := func(msg *model.PubSubMsg) {
+		ctx, span := otel.Tracer("WorkflowEventProcessorService").Start(context.Background(), "SubscribeImageScanningSuccessEvent")
+		defer span.End()
+		imageScanningEvent := &bean.ImageScanningEvent{}
+		err := json.Unmarshal([]byte(msg.Data), imageScanningEvent)
+		if err != nil {
+			impl.logger.Error("error while unmarshalling json data", "error", err)
+			return
+		}
+		validationErr := impl.validator.Struct(imageScanningEvent)
+		if validationErr != nil {
+			impl.logger.Errorw("validation err, SubscribeImageScanningSuccessEvent", "err", validationErr, "payload", imageScanningEvent)
+			return
+		}
+		impl.logger.Infow("received image scanning completion event", "payload", imageScanningEvent)
+		imageScanNotificationConfig, err := impl.notificationConfigService.GetNotificationConfigForImageScanSuccess(ctx, imageScanningEvent)
+		if err != nil {
+			impl.logger.Errorw("error in getting notification settings and rules", "imageScanningEvent", imageScanningEvent)
+			return
+		}
+		if imageScanNotificationConfig.NotificationConfigToRules == nil {
+			impl.logger.Infow("skipping as no image scan notification has been configured", "payload", imageScanningEvent)
+			return
+		}
+		ciArtifact, err := impl.ciArtifactRepository.GetByImageAndDigestAndPipelineId(ctx, imageScanningEvent.Image, imageScanningEvent.Digest, imageScanNotificationConfig.CiPipelineId)
+		if err != nil {
+			impl.logger.Error("error in getting ci artifact", "image", imageScanningEvent.Image, "digest", imageScanningEvent.Digest, "ciPipelineId", imageScanNotificationConfig.CiPipelineId, "error", err)
+			return
+		}
+		executionInfoBytes, err := impl.getImageScanNotificationPayload(ctx, imageScanningEvent, imageScanNotificationConfig, ciArtifact.Id)
+		if err != nil {
+			impl.logger.Errorw("error in generating image scan payload", "err", err)
+			return
+		}
+		if executionInfoBytes == nil || len(executionInfoBytes) == 0 {
+			impl.logger.Infow("skipping notification as there is no execution info found", "request", imageScanningEvent)
+			return
+		}
+		if imageScanningEvent.PipelineType == util.CI {
+			err = impl.WriteCiImageScanTriggerEvent(ctx, imageScanningEvent.TriggerBy, imageScanningEvent.CiPipelineId, imageScanNotificationConfig.AppId, ciArtifact.Id, executionInfoBytes)
+			if err != nil {
+				impl.logger.Errorw("error in publishing image scan notification for CI stage", "ciPipelineId", imageScanningEvent.CiPipelineId, "err", err)
+				return
+			}
+		} else if imageScanningEvent.PipelineType == util.PRE_CD || imageScanningEvent.PipelineType == util.POST_CD {
+			err = impl.WriteCdStageImageScanTriggerEvent(ctx, imageScanningEvent.PipelineType, imageScanningEvent.TriggerBy, imageScanningEvent.CiPipelineId, imageScanningEvent.CdPipelineId, imageScanNotificationConfig.AppId, imageScanNotificationConfig.EnvId, ciArtifact.Id, executionInfoBytes)
+			if err != nil {
+				impl.logger.Errorw("error in publishing image scan notification for CD stage", "stage", imageScanningEvent.PipelineType, "cdPipelineId", imageScanningEvent.CdPipelineId, "err", err)
+				return
+			}
+		}
+		return
+	}
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		imageScanningEvent := bean.ImageScanningEvent{}
+		err := json.Unmarshal([]byte(msg.Data), &imageScanningEvent)
+		if err != nil {
+			return "error while unmarshalling json data", []interface{}{"error", err}
+		}
+		return "got message for image scanning completion", []interface{}{"pipelineType", imageScanningEvent.PipelineType, "ciPipelineId", imageScanningEvent.CiPipelineId, "cdPipelineId", imageScanningEvent.CdPipelineId}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub.IMAGE_SCANNING_SUCCESS_TOPIC, callback, loggerFunc)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) WriteCiImageScanTriggerEvent(ctx context.Context, userId, ciPipelineId, appId, artifactId int, data json.RawMessage) error {
+	_, span := otel.Tracer("WorkflowEventProcessorService").Start(ctx, "WriteCiImageScanTriggerEvent")
+	defer span.End()
+	event := impl.eventFactory.Build(util.ImageScanning, &ciPipelineId, appId, nil, util.CI)
+	event.UserId = userId
+	event.Payload = &client.Payload{
+		ImageScanExecutionInfo: data,
+	}
+	impl.eventFactory.SetAdditionalImageScanData(&event, ciPipelineId, artifactId)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("error in writing event", "err", evtErr)
+		return evtErr
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) WriteCdStageImageScanTriggerEvent(ctx context.Context, stage util.PipelineType, userId, ciPipelineId, cdPipelineId, appId, envId, artifactId int, data json.RawMessage) error {
+	_, span := otel.Tracer("WorkflowEventProcessorService").Start(ctx, "WriteCdStageImageScanTriggerEvent")
+	defer span.End()
+	event := impl.eventFactory.Build(util.ImageScanning, &cdPipelineId, appId, &envId, stage)
+	event.UserId = userId
+	event.Payload.ImageScanExecutionInfo = data
+	impl.eventFactory.SetAdditionalImageScanData(&event, ciPipelineId, artifactId)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("error in writing event", "err", evtErr)
+		return evtErr
+	}
+	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) getImageScanNotificationInfo(ctx context.Context, pipelineType util.PipelineType, imageScanNotificationConfig *notifier.ImageScanNotificationConfig, artifactId int, filterConditions notifier.CVEFilterConditions) (*securityBean.ImageScanExecutionInfo, error) {
+	newCtx, span := otel.Tracer("WorkflowEventProcessorService").Start(ctx, "getImageScanNotificationInfo")
+	defer span.End()
+	var executionDetailForScanBeforeLatestScan *securityBean.ImageScanExecutionDetail
+	latestReq := &securityBean.ImageScanRequest{
+		AppId:      imageScanNotificationConfig.AppId,
+		EnvId:      imageScanNotificationConfig.EnvId,
+		ArtifactId: artifactId,
+	}
+	executionDetailForLatestScan, err := impl.imageScanService.FetchExecutionDetailResult(newCtx, latestReq)
+	if err != nil {
+		impl.logger.Errorw("service err, FetchExecutionDetail", "artifactId", artifactId, "err", err)
+		return nil, err
+	}
+	if filterConditions.DiffViewEnabled {
+		var previousArtifactId int
+		if pipelineType == util.PRE_CD || pipelineType == util.POST_CD {
+			lastTwoCiArtifacts, err := impl.pcoReadService.GetLastDeployedArtifactsInOrder(imageScanNotificationConfig.AppId, imageScanNotificationConfig.EnvId, 2)
+			if err != nil {
+				impl.logger.Errorw("error in fetching last deployed artifacts", "appId", imageScanNotificationConfig.AppId, "envId", imageScanNotificationConfig.EnvId, "err", err)
+				return nil, err
+			}
+			if pipelineType == util.PRE_CD && len(lastTwoCiArtifacts) > 1 {
+				previousArtifactId = lastTwoCiArtifacts[0] // for PRE CD ->  get the last deployed image
+			} else if pipelineType == util.POST_CD && len(lastTwoCiArtifacts) > 2 {
+				previousArtifactId = lastTwoCiArtifacts[1] // for POST CD ->  get the second last deployed image
+			}
+		} else if pipelineType == util.CI {
+			previousArtifactId, err = impl.ciArtifactRepository.GetPreviousArtifactOfId(newCtx, imageScanNotificationConfig.CiPipelineId, artifactId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching artifact", "ciPipelineId", imageScanNotificationConfig.CiPipelineId, "artifactId", artifactId, "err", err)
+				return nil, err
+			}
+		}
+		// fetch the scan details for previous ArtifactId
+		if previousArtifactId != 0 {
+			previousReq := &securityBean.ImageScanRequest{
+				AppId:      imageScanNotificationConfig.AppId,
+				EnvId:      imageScanNotificationConfig.EnvId,
+				ArtifactId: previousArtifactId,
+			}
+			executionDetailForScanBeforeLatestScan, err = impl.imageScanService.FetchExecutionDetailResult(newCtx, previousReq)
+			if err != nil {
+				impl.logger.Errorw("service err, FetchExecutionDetail", "artifactId", artifactId, "err", err)
+				return nil, err
+			}
+		}
+	}
+	vulnerabilities, err := impl.filterNewVulnerabilities(ctx, executionDetailForScanBeforeLatestScan, executionDetailForLatestScan, filterConditions)
+	if err != nil {
+		impl.logger.Errorw("service err, filterNewVulnerabilities", "artifactId", artifactId, "filterExpression", filterConditions.FilterExpression, "err", err)
+		return nil, err
+	}
+	if vulnerabilities == nil {
+		impl.logger.Infow("skipping notification as there is no payload found", "config", imageScanNotificationConfig)
+		return nil, nil
+	}
+	scanTool, err := impl.imageScanService.FindScanToolById(executionDetailForLatestScan.ScanToolId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching scan tool name ", "err", err)
+	}
+	executionInfo := &securityBean.ImageScanExecutionInfo{
+		ScannedAt:       executionDetailForLatestScan.ExecutionTime,
+		ScannedBy:       scanTool,
+		Vulnerabilities: vulnerabilities,
+		SeverityCount:   impl.imageScanService.CalculateSeverityCountInfo(vulnerabilities),
+	}
+	return executionInfo, nil
+}
+
+func (impl *WorkflowEventProcessorImpl) filterNewVulnerabilities(ctx context.Context, oldDetail, newDetail *securityBean.ImageScanExecutionDetail, filterConditions notifier.CVEFilterConditions) ([]*securityBean.Vulnerabilities, error) {
+	newCtx, span := otel.Tracer("WorkflowEventProcessorService").Start(ctx, "filterNewVulnerabilities")
+	defer span.End()
+	oldVulnerabilityMap := make(map[string]bool)
+	if oldDetail != nil {
+		for _, vulnerability := range oldDetail.Vulnerabilities {
+			if vulnerability == nil {
+				continue
+			}
+			oldVulnerabilityMap[vulnerability.CVEName] = true
+		}
+	}
+	var newVulnerabilities []*securityBean.Vulnerabilities
+	for _, vulnerability := range newDetail.Vulnerabilities {
+		if vulnerability == nil {
+			continue
+		}
+		isValid, err := impl.notificationConfigService.EvaluateNotificationExpression(newCtx, filterConditions.ConditionType, filterConditions.FilterExpression, vulnerability.Severity, vulnerability.Permission)
+		if err != nil {
+			impl.logger.Errorw("error in evaluating CEL expression", "conditionType", filterConditions.ConditionType, "filterExpression", filterConditions.FilterExpression, "severity", vulnerability.Severity, "permission", vulnerability.Permission, "err", err)
+			return nil, err
+		}
+		// Checking  if the vulnerability is of the desired severity and not present in the old vulnerabilities
+		if isValid && !oldVulnerabilityMap[vulnerability.CVEName] {
+			newVulnerabilities = append(newVulnerabilities, vulnerability)
+		}
+	}
+	return newVulnerabilities, nil
 }
 
 func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
@@ -152,6 +454,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
+
+		if wfr.Status != string(v1alpha1.NodeSucceeded) {
+			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
+			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			if err != nil {
+				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		}
+
 		triggerContext := bean5.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}
@@ -465,6 +777,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		if err != nil {
 			return
 		}
+		impl.ciCacheSelector.UpdateResourceStatus(*ciCompleteEvent.WorkflowId, "complete")
 
 		triggerContext := bean5.TriggerContext{
 			Context:     context.Background(),
@@ -512,6 +825,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 			impl.logger.Debug(resp)
 		}
+
+		impl.sendForScanV2(ciCompleteEvent)
 	}
 
 	// add required logging here
@@ -531,6 +846,31 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		return err
 	}
 	return nil
+}
+
+func (impl *WorkflowEventProcessorImpl) sendForScanV2(ciCompleteEvent bean.CiCompleteEvent) {
+	if !impl.appServiceConfig.ScanV2Enabled {
+		return
+	}
+	scanRequestCode := &security.ScanEvent{
+		Image:            ciCompleteEvent.DockerImage,
+		ImageDigest:      ciCompleteEvent.Digest,
+		CiProjectDetails: ciCompleteEvent.CiProjectDetails,
+		SourceType:       security2.SourceTypeCode,
+		SourceSubType:    security2.SourceSubTypeCi,
+		CiWorkflowId:     *ciCompleteEvent.WorkflowId,
+		DockerRegistryId: ciCompleteEvent.DockerRegistryId,
+	}
+
+	scanRequestImage := &security.ScanEvent{
+		Image:         ciCompleteEvent.DockerImage,
+		ImageDigest:   ciCompleteEvent.Digest,
+		SourceType:    security2.SourceTypeImage,
+		SourceSubType: security2.SourceSubTypeCi,
+		CiWorkflowId:  *ciCompleteEvent.WorkflowId,
+	}
+	impl.policyService.SendScanEventAsync(scanRequestCode)
+	impl.policyService.SendScanEventAsync(scanRequestImage)
 }
 
 func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext bean5.TriggerContext, ciPipelineId int, request *bean8.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
@@ -642,6 +982,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(ima
 
 func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
 	callback := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("received, DEVTRON_CHART_INSTALL_TOPIC", "message", msg)
 		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
 		if err != nil {
 			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)

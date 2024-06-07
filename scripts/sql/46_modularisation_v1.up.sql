@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- Sequence and defined type
 CREATE SEQUENCE id_seq_module;
 

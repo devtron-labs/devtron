@@ -69,19 +69,19 @@ func (_m *ChartService) CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 }
 
 // Create provides a mock function with given fields: templateRequest, ctx
-func (_m *ChartService) Create(templateRequest chart.TemplateRequest, ctx context.Context) (*chart.TemplateRequest, error) {
+func (_m *ChartService) Create(templateRequest chart.TemplateRequest, ctx context.Context) (*chart.TemplateResponse, error) {
 	ret := _m.Called(templateRequest, ctx)
 
-	var r0 *chart.TemplateRequest
+	var r0 *chart.TemplateResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) (*chart.TemplateResponse, error)); ok {
 		return rf(templateRequest, ctx)
 	}
-	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(chart.TemplateRequest, context.Context) *chart.TemplateResponse); ok {
 		r0 = rf(templateRequest, ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*chart.TemplateResponse)
 		}
 	}
 
@@ -297,19 +297,19 @@ func (_m *ChartService) PatchEnvOverrides(values json.RawMessage, oldChartType s
 }
 
 // UpdateAppOverride provides a mock function with given fields: ctx, templateRequest
-func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *chart.TemplateRequest) (*chart.TemplateRequest, error) {
+func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *chart.TemplateRequest) (*chart.TemplateResponse, error) {
 	ret := _m.Called(ctx, templateRequest)
 
-	var r0 *chart.TemplateRequest
+	var r0 *chart.TemplateResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) (*chart.TemplateRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) (*chart.TemplateResponse, error)); ok {
 		return rf(ctx, templateRequest)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) *chart.TemplateRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *chart.TemplateRequest) *chart.TemplateResponse); ok {
 		r0 = rf(ctx, templateRequest)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*chart.TemplateRequest)
+			r0 = ret.Get(0).(*chart.TemplateResponse)
 		}
 	}
 
@@ -353,6 +353,32 @@ func (_m *ChartService) UpgradeForApp(appId int, chartRefId int, newAppOverride 
 
 	if rf, ok := ret.Get(1).(func(int, int, map[string]interface{}, int32, context.Context) error); ok {
 		r1 = rf(appId, chartRefId, newAppOverride, userId, ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ValidateAppOverride provides a mock function with given fields: templateRequest
+func (_m *ChartService) ValidateAppOverride(templateRequest *chart.TemplateRequest) (*chart.TemplateResponse, error) {
+	ret := _m.Called(templateRequest)
+
+	var r0 *chart.TemplateResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*chart.TemplateRequest) (*chart.TemplateResponse, error)); ok {
+		return rf(templateRequest)
+	}
+	if rf, ok := ret.Get(0).(func(*chart.TemplateRequest) *chart.TemplateResponse); ok {
+		r0 = rf(templateRequest)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*chart.TemplateResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*chart.TemplateRequest) error); ok {
+		r1 = rf(templateRequest)
 	} else {
 		r1 = ret.Error(1)
 	}

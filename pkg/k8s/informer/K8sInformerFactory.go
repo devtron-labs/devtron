@@ -1,23 +1,14 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package informer
 
 import (
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	bean3 "github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"sync"
 	"time"
 
@@ -40,7 +31,7 @@ type K8sInformerFactoryImpl struct {
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
 	runtimeConfig             *client.RuntimeConfig
-	k8sUtil                   *k8s.K8sServiceImpl
+	k8sUtil                   *k8s.K8sUtilExtended
 }
 
 type K8sInformerFactory interface {
@@ -49,7 +40,7 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sUtilExtended) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
@@ -80,7 +71,8 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
-		clusterConfig := &k8s.ClusterConfig{
+		clusterConfig := &k8s2.ClusterConfig{
+			ClusterId:             info.ClusterId,
 			ClusterName:           info.ClusterName,
 			BearerToken:           info.BearerToken,
 			Host:                  info.ServerUrl,
@@ -89,12 +81,33 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CertData:              info.CertData,
 			CAData:                info.CAData,
 		}
+
+		if info.RemoteConnectionConfig != nil && info.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+			connectionConfig := &bean3.RemoteConnectionConfigBean{
+				RemoteConnectionConfigId: info.RemoteConnectionConfig.RemoteConnectionConfigId,
+				ConnectionMethod:         bean3.RemoteConnectionMethod(info.RemoteConnectionConfig.ConnectionMethod),
+			}
+			if info.RemoteConnectionConfig.ProxyConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodProxy) {
+				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
+					ProxyUrl: info.RemoteConnectionConfig.ProxyConfig.ProxyUrl,
+				}
+			}
+			if info.RemoteConnectionConfig.SSHTunnelConfig != nil && string(info.RemoteConnectionConfig.ConnectionMethod) == string(bean3.RemoteConnectionMethodSSH) {
+				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
+					SSHServerAddress: info.RemoteConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+					SSHUsername:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHUsername,
+					SSHPassword:      info.RemoteConnectionConfig.SSHTunnelConfig.SSHPassword,
+					SSHAuthKey:       info.RemoteConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+				}
+			}
+			clusterConfig.RemoteConnectionConfig = connectionConfig
+		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}
 	return
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterConfig *k8s.ClusterConfig, mutex *sync.Mutex) map[string]map[string]bool {
+func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterConfig *k8s2.ClusterConfig, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	_, _, clusterClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)

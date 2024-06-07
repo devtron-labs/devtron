@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package argoApplication
@@ -20,13 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/service"
-
+	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
@@ -48,14 +36,14 @@ type ArgoApplicationService interface {
 type ArgoApplicationServiceImpl struct {
 	logger            *zap.SugaredLogger
 	clusterRepository clusterRepository.ClusterRepository
-	k8sUtil           *k8s.K8sServiceImpl
+	k8sUtil           *k8s2.K8sUtilExtended
 	argoUserService   argo.ArgoUserService
 	helmAppService    service.HelmAppService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
-	k8sUtil *k8s.K8sServiceImpl,
+	k8sUtil *k8s2.K8sUtilExtended,
 	argoUserService argo.ArgoUserService,
 	helmAppService service.HelmAppService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
@@ -93,8 +81,8 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(clusterObj)
-		clusterConfig, err := clusterBean.GetClusterConfig()
+		clusterBean := adapter.GetClusterBean(clusterObj)
+		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
@@ -147,8 +135,8 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 	} else if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig, err := clusterBean.GetClusterConfig()
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterWithApplicationObject.Id)
@@ -422,8 +410,8 @@ func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterI
 	if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig, err := clusterBean.GetClusterConfig()
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
+	clusterConfig := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }
 

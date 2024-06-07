@@ -1,22 +1,11 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package commonService
 
 import (
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -35,6 +24,7 @@ import (
 type CommonService interface {
 	FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error)
 	GlobalChecklist() (*GlobalChecklist, error)
+	EnvironmentVariableList() (*EnvironmentVariableList, error)
 }
 
 type CommonServiceImpl struct {
@@ -99,6 +89,10 @@ type AppChecklist struct {
 	Docker      int `json:"docker"`
 	HostUrl     int `json:"hostUrl"`
 	//ChartChecklist *ChartChecklist `json:",inline"`
+}
+
+type EnvironmentVariableList struct {
+	IsAirGapEnvironment bool `json:"isAirGapEnvironment" env:"IS_AIR_GAP_ENVIRONMENT" envDefault:"false"`
 }
 
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
@@ -206,4 +200,14 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		config.IsAppCreated = true
 	}
 	return config, err
+}
+
+func (impl *CommonServiceImpl) EnvironmentVariableList() (*EnvironmentVariableList, error) {
+	environmentVariableList := &EnvironmentVariableList{}
+	err := env.Parse(environmentVariableList)
+	if err != nil {
+		impl.logger.Errorw("failed to parse server app status config: " + err.Error())
+		return nil, err
+	}
+	return environmentVariableList, nil
 }

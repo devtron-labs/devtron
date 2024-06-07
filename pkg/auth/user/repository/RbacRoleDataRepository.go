@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -23,6 +11,8 @@ import (
 )
 
 type RbacRoleDataRepository interface {
+	GetById(id int) (*RbacRoleData, error)
+	GetRoleDataByEntityAccessType(entity, accessType string) ([]*RbacRoleData, error)
 	GetRoleDataForAllRoles() ([]*RbacRoleData, error)
 	CreateNewRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error)
 	UpdateRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error)
@@ -55,6 +45,29 @@ type RbacRoleData struct {
 	sql.AuditLog
 }
 
+func (repo *RbacRoleDataRepositoryImpl) GetById(id int) (*RbacRoleData, error) {
+	var model RbacRoleData
+	err := repo.dbConnection.Model(&model).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting role data by id", "id", id, "err", err)
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (repo *RbacRoleDataRepositoryImpl) GetRoleDataByEntityAccessType(entity, accessType string) ([]*RbacRoleData, error) {
+	var models []*RbacRoleData
+	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).
+		Where("entity = ?", entity).Where("access_type = ?", accessType).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting role data for all roles", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
 func (repo *RbacRoleDataRepositoryImpl) GetRoleDataForAllRoles() ([]*RbacRoleData, error) {
 	var models []*RbacRoleData
 	err := repo.dbConnection.Model(&models).Where("deleted = ?", false).Select()
@@ -75,7 +88,7 @@ func (repo *RbacRoleDataRepositoryImpl) CreateNewRoleDataForRoleWithTxn(model *R
 }
 
 func (repo *RbacRoleDataRepositoryImpl) UpdateRoleDataForRoleWithTxn(model *RbacRoleData, tx *pg.Tx) (*RbacRoleData, error) {
-	_, err := tx.Model(model).UpdateNotNull()
+	_, err := tx.Model(model).WherePK().UpdateNotNull()
 	if err != nil {
 		repo.logger.Errorw("error in updating role data for a role", "err", err)
 		return nil, err

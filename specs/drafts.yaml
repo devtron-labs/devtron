@@ -1,0 +1,452 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/drafts:
+    post:
+      description: create drafts
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDraftRequest'
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDraftResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/{draftId}:
+    get:
+      description: fetch draft metadata for draftId
+      parameters:
+        - name: draftId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigDraftResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/version:
+    put:
+      description: add drafts version to a draft
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigDraftVersionRequest'
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                properties:
+                  draftVersionId:
+                    type: integer
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/version/comments:
+    delete:
+      description: delete comment of a user
+      parameters:
+        - name: draftId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: draftCommentId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/version/comments/{draftId}:
+    get:
+      description: get draft comments
+      parameters:
+        - name: draftId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftVersionMetadataResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/drafts/version/{draftId}:
+    get:
+      description: get drafts version metadata
+      parameters:
+        - name: draftId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftVersionMetadataResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/draft/app:
+    get:
+      description: get drafts for particular app and env
+      parameters:
+        - name: appId
+          required: true
+          in: query
+          schema:
+            type: integer
+        - name: envId
+          required: true
+          in: query
+          schema:
+            type: integer
+        - name: resourceType
+          required: true
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DraftVersionMetadataResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/draft/approve:
+    post:
+      parameters:
+        - name: draftId
+          required: true
+          in: query
+          schema:
+            type: integer
+        - name: draftVersionId
+          required: true
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successfully return config draft response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DraftVersionMetadataResponse'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    AppConfigDraft:
+      type: object
+      properties:
+        draftId:
+          type: integer
+        resourceType:
+          $ref: '#/components/schemas/DraftResourceType'
+        resourceName:
+          type: string
+        draftState:
+          $ref: '#/components/schemas/DraftState'
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    DraftVersionCommentResponse:
+      type: object
+      properties:
+        draftId:
+          type: integer
+        versionComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DraftVersionComment'
+    DraftVersionComment:
+      type: object
+      properties:
+        draftVersionId:
+          type: integer
+        userComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserCommentMetadata'
+    UserCommentMetadata:
+      type: object
+      properties:
+        userId:
+          type: integer
+        userEmail:
+          type: string
+        commentedAt:
+          type: object
+          description: date time value
+    DraftVersionMetadataResponse:
+      type: object
+      properties:
+        draftId:
+          type: integer
+        versionMetadata:
+          type: array
+          items:
+            $ref: '#/components/schemas/DraftVersionMetadata'
+    DraftVersionMetadata:
+      type: object
+      properties:
+        draftVersionId:
+          type: integer
+        userId:
+          type: integer
+        userEmail:
+          type: string
+        activityTime:
+          type: object
+          description: data time value when this activity happened
+    ConfigDraftVersionRequest:
+      type: object
+      properties:
+        draftId:
+          type: integer
+        lastDraftVersionId:
+          type: integer
+        action:
+          $ref: '#/components/schemas/ResourceAction'
+        data:
+          type: string
+          description: draft data to add as new version
+        userComment:
+          type: string
+          description: add user comments to a particular version
+    ResourceAction:
+      type: integer
+      description: action to perform, 0 for ADD, 1 for Update and 2 for Delete
+    DraftState:
+      type: integer
+      description: 0 for Init, 1 for Discarded, 2 for Published, 3 for AwaitApproval
+    DraftResourceType:
+      type: integer
+      description: 0 for Config Map, 1 for Secret and 2 for Deployment Template
+    ConfigDraftRequest:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        envId:
+          type: integer
+          description: env id
+        resource:
+          $ref: '#/components/schemas/DraftResourceType'
+        resourceName:
+          type: string
+          description: name of resource, would be needed in identifcation
+        action:
+          $ref: '#/components/schemas/ResourceAction'
+        data:
+          type: string
+          description: data contains json structure of CM, CS, Deployment template
+        userComment:
+          type: string
+          description: comment on a particular version user wanted to put
+    ConfigDraftResponse:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        envId:
+          type: integer
+          description: env id
+        resource:
+          $ref: '#/components/schemas/DraftResourceType'
+        resourceName:
+          type: string
+          description: name of resource, would be needed in identifcation
+        action:
+          $ref: '#/components/schemas/ResourceAction'
+        data:
+          type: string
+          description: data contains json structure of CM, CS, Deployment template
+        userComment:
+          type: string
+          description: comment on a particular version user wanted to put
+        draftId:
+          type: integer
+        draftVersionId:
+          type: integer
+        draftState:
+          $ref: '#/components/schemas/DraftState'
+        approvers:
+          description: email ids of config approvers
+          type: array
+          items:
+            type: string

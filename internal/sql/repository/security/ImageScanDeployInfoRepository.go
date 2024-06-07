@@ -1,23 +1,12 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package security
 
 import (
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
@@ -32,6 +21,7 @@ import (
 this table contains scanned images registry for deployed object and apps,
 images which are deployed on cluster by anyway and has scanned result
 */
+//TODO refactor name and column names Subhashish
 type ImageScanDeployInfo struct {
 	tableName                   struct{} `sql:"image_scan_deploy_info" pg:",discard_unknown_columns"`
 	Id                          int      `sql:"id,pk"`
@@ -44,9 +34,12 @@ type ImageScanDeployInfo struct {
 }
 
 const (
-	ScanObjectType_APP   string = "app"
-	ScanObjectType_CHART string = "chart"
-	ScanObjectType_POD   string = "pod"
+	ScanObjectType_APP           string = "app"
+	ScanObjectType_CHART         string = "chart"
+	ScanObjectType_POD           string = "pod"
+	ScanObjectType_CHART_HISTORY string = "chart-history"
+	ScanObjectType_CI_Workflow   string = "ci-workflow"
+	ScanObjectType_CD_Workflow   string = "cd-workflow"
 )
 
 type SortBy string
@@ -56,17 +49,6 @@ const (
 	Asc  SortOrder = "ASC"
 	Desc SortOrder = "DESC"
 )
-
-type ImageScanFilter struct {
-	Offset         int    `json:"offset"`
-	Size           int    `json:"size"`
-	CVEName        string `json:"cveName"`
-	AppName        string `json:"appName"`
-	ObjectName     string `json:"objectName"`
-	EnvironmentIds []int  `json:"envIds"`
-	ClusterIds     []int  `json:"clusterIds"`
-	Severity       []int  `json:"severity"`
-}
 
 type ImageScanListingResponse struct {
 	Id               int       `json:"id"`
@@ -87,7 +69,7 @@ type ImageScanDeployInfoRepository interface {
 	FetchListingGroupByObject(size int, offset int) ([]*ImageScanDeployInfo, error)
 	FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error)
 	FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error)
-	ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
+	ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -162,7 +144,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 	return &model, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
+func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
 	query := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
 	_, err := impl.dbConnection.Query(&models, query, size, offset)
@@ -173,7 +155,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *Ima
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	query = query + "select info.scan_object_meta_id, info.object_type, env.environment_name, max(info.id) as id"
 	query = query + " from image_scan_deploy_info info"
@@ -214,7 +196,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	if len(request.AppName) > 0 {
 		query = query + " select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id"
@@ -268,7 +250,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	if request.AppName == "" && request.CVEName == "" && request.ObjectName == "" {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)

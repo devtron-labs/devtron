@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package commandManager
@@ -44,11 +32,21 @@ func (impl *GitManagerBaseImpl) Fetch(ctx GitContext, rootDir string) (response,
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
+	args := []string{"-C", rootDir, "fetch", "origin", "--tags", "--force"}
+	args = impl.appendBearerAuth(ctx, args)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", args...)
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
+}
+
+func (impl *GitManagerBaseImpl) appendBearerAuth(ctx GitContext, args []string) []string {
+	if ctx.auth.BearerAuth != "" {
+		// http.extraHeader='Authorization: Bearer BBDC-MDgwNjQyOTY5MTM4OiPgTrwii04uCofF0fa3j42FyaLX'
+		args = append([]string{"-c", "http.extraHeader=Authorization:" + ctx.auth.BearerAuth}, args...)
+	}
+	return args
 }
 
 func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (response, errMsg string, err error) {
@@ -70,7 +68,9 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
+	args := []string{"-C", rootDir, "pull", "origin", branch, "--force"}
+	args = impl.appendBearerAuth(ctx, args)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", args...)
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
@@ -92,7 +92,7 @@ func (impl *GitManagerBaseImpl) runCommand(cmd *exec.Cmd) (response, errMsg stri
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
 		if !ok {
-			return "", "", err
+			return "", "", fmt.Errorf("%s %v", outBytes, err)
 		}
 		errOutput := string(exErr.Stderr)
 		return "", errOutput, err

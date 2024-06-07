@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package out
@@ -38,6 +26,7 @@ import (
 )
 
 type WorkflowEventPublishService interface {
+	PublishDeployStageSuccessEvent(request bean.DeployStageSuccessEventReq) error
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
 	TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
 		triggeredBy int32) (releaseNo int, manifest []byte, err error)
@@ -86,6 +75,20 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 		groupRepository:      groupRepository,
 	}
 	return impl, nil
+}
+
+func (impl *WorkflowEventPublishServiceImpl) PublishDeployStageSuccessEvent(request bean.DeployStageSuccessEventReq) error {
+	reqInBytes, err := json.Marshal(request)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling  HandleDeployStageSuccessEvent request", "err", err, "request", request)
+		return err
+	}
+	err = impl.pubSubClient.Publish(pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, string(reqInBytes))
+	if err != nil {
+		impl.logger.Errorw("Error while publishing request", "topic", pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error) {
@@ -149,7 +152,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideReq
 	err = impl.pubSubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
 	if err != nil {
 		impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
-		//update workflow runner status, used in app workflow view
+		// update workflow runner status, used in app workflow view
 		err1 = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowFailed, err.Error())
 		if err1 != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err1)
@@ -157,7 +160,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideReq
 		return 0, manifest, err
 	}
 
-	//update workflow runner status, used in app workflow view
+	// update workflow runner status, used in app workflow view
 	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err)

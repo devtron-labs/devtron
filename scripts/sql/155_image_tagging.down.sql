@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- DROP TABLE
 DROP TABLE IF EXISTS public.release_tags;
 DROP TABLE IF EXISTS public.image_comments;

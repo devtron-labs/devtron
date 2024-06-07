@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
@@ -47,16 +35,21 @@ type WorkflowTemplate struct {
 	RefPlugins             []*RefPluginObject
 	TerminationGracePeriod int
 	WorkflowType           string
+	CiCacheResourceName    string
 }
 
 const (
-	CI_WORKFLOW_NAME        = "ci"
-	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
-	CiStage                 = "CI"
-	JobStage                = "JOB"
-	CdStage                 = "CD"
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+	CI_WORKFLOW_NAME           = "ci"
+	CI_WORKFLOW_WITH_STAGES    = "ci-stages-with-env"
+	CiStage                    = "CI"
+	JobStage                   = "JOB"
+	CdStage                    = "CD"
+	CD_WORKFLOW_NAME           = "cd"
+	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
+	HELM_JOB_REF_TEMPLATE_NAME = "helm-job-template"
+	JOB_CHART_API_VERSION      = "v2"
+	JOB_CHART_NAME             = "helm-job"
+	JOB_CHART_VERSION          = "0.1.0"
 )
 
 func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
@@ -87,4 +80,17 @@ func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta
 	default:
 		return nil
 	}
+}
+
+type JobManifestTemplate struct {
+	NameSpace               string                 `json:"Namespace"`
+	Container               v1.Container           `json:"Container"`
+	ConfigMaps              []bean.ConfigSecretMap `json:"ConfigMaps"`
+	ConfigSecrets           []bean.ConfigSecretMap `json:"ConfigSecrets"`
+	Volumes                 []v1.Volume            `json:"Volumes"`
+	Toleration              []v1.Toleration        `json:"Toleration"`
+	Affinity                v1.Affinity            `json:"Affinity"`
+	NodeSelector            map[string]string      `json:"NodeSelector"`
+	ActiveDeadlineSeconds   *int64                 `json:"ActiveDeadlineSeconds"`
+	TTLSecondsAfterFinished *int32                 `json:"TTLSecondsAfterFinished"`
 }

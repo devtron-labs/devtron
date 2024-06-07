@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package trigger
@@ -67,6 +55,8 @@ func (router PipelineTriggerRouterImpl) InitPipelineTriggerRouter(pipelineTrigge
 		Queries("name", "{name}")
 
 	pipelineTriggerRouter.Path("/deployment-configuration/latest/saved/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetAllLatestDeploymentConfiguration).Methods("GET")
+	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}").Queries("runner", "{runner}").HandlerFunc(router.restHandler.DownloadManifest).Methods("GET")
+	pipelineTriggerRouter.Path("/manifest/download/{appId}/{envId}/{cd_workflow_id}").HandlerFunc(router.restHandler.DownloadManifestForSpecificTrigger).Methods("GET")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {

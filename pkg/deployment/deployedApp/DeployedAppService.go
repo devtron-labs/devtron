@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package deployedApp
@@ -19,9 +7,12 @@ package deployedApp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -30,6 +21,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DeployedAppService interface {
@@ -38,12 +30,13 @@ type DeployedAppService interface {
 }
 
 type DeployedAppServiceImpl struct {
-	logger               *zap.SugaredLogger
-	k8sCommonService     k8s.K8sCommonService
-	cdTriggerService     devtronApps.TriggerService
-	envRepository        repository.EnvironmentRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	logger                  *zap.SugaredLogger
+	k8sCommonService        k8s.K8sCommonService
+	cdTriggerService        devtronApps.TriggerService
+	envRepository           repository.EnvironmentRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	deploymentWindowService deploymentWindow.DeploymentWindowService
 }
 
 func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
@@ -51,14 +44,17 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	cdTriggerService devtronApps.TriggerService,
 	envRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedAppServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	deploymentWindowService deploymentWindow.DeploymentWindowService,
+) *DeployedAppServiceImpl {
 	return &DeployedAppServiceImpl{
-		logger:               logger,
-		k8sCommonService:     k8sCommonService,
-		cdTriggerService:     cdTriggerService,
-		envRepository:        envRepository,
-		pipelineRepository:   pipelineRepository,
-		cdWorkflowRepository: cdWorkflowRepository,
+		logger:                  logger,
+		k8sCommonService:        k8sCommonService,
+		cdTriggerService:        cdTriggerService,
+		envRepository:           envRepository,
+		pipelineRepository:      pipelineRepository,
+		cdWorkflowRepository:    cdWorkflowRepository,
+		deploymentWindowService: deploymentWindowService,
 	}
 }
 
@@ -73,12 +69,12 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 	}
 	pipeline := pipelines[0]
 
-	//find pipeline with default
+	// find pipeline with default
 	var pipelineIds []int
 	for _, p := range pipelines {
 		impl.logger.Debugw("adding pipelineId", "pipelineId", p.Id)
 		pipelineIds = append(pipelineIds, p.Id)
-		//FIXME
+		// FIXME
 	}
 	wf, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineId(pipelineIds)
 	if err != nil {
@@ -86,10 +82,15 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		return 0, err
 	}
 	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
+	latestArtifactId := wf.CiArtifactId
+	cdPipelineId := pipeline.Id
+	if pipeline.ApprovalNodeConfigured() {
+		return 0, errors.New("application deployment requiring approval cannot be hibernated")
+	}
 	overrideRequest := &bean2.ValuesOverrideRequest{
-		PipelineId:     pipeline.Id,
+		PipelineId:     cdPipelineId,
 		AppId:          stopRequest.AppId,
-		CiArtifactId:   wf.CiArtifactId,
+		CiArtifactId:   latestArtifactId,
 		UserId:         stopRequest.UserId,
 		CdWorkflowType: bean2.CD_WORKFLOW_TYPE_DEPLOY,
 	}
@@ -102,10 +103,9 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
 	}
 	triggerContext := bean3.TriggerContext{
-		Context:     ctx,
-		ReferenceId: stopRequest.ReferenceId,
+		Context: ctx,
 	}
-	id, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
+	id, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -113,8 +113,25 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 	return id, err
 }
 
+func (impl *DeployedAppServiceImpl) checkForDeploymentWindow(podRotateRequest *bean.PodRotateRequest) (*bean.PodRotateRequest, error) {
+	actionState, envState, err := impl.deploymentWindowService.GetStateForAppEnv(time.Now(), podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
+	if err != nil {
+		return podRotateRequest, fmt.Errorf("error in getting deployment window state %v", err)
+	}
+	if !actionState.IsActionAllowedWithBypass() {
+		return podRotateRequest, deploymentWindow.GetActionBlockedError(actionState.GetErrorMessageForProfileAndState(envState), constants.HttpStatusUnprocessableEntity)
+	}
+	return podRotateRequest, nil
+}
+
 func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*k8s.RotatePodResponse, error) {
+
 	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
+	podRotateRequest, err := impl.checkForDeploymentWindow(podRotateRequest)
+	if err != nil {
+		return nil, err
+	}
+
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
 	environment, err := impl.envRepository.FindById(environmentId)

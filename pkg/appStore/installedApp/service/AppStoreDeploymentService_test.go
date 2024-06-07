@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package service
@@ -25,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/devtron-labs/authenticator/client"
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -152,7 +140,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	discoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
-	k8sUtil := util2.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
+	k8sUtil := util2.NewK8sUtilExtended(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true}, nil)
 
 	clusterRepository := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
 	defaultAuthPolicyRepositoryImpl := repository5.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
@@ -166,7 +154,9 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		nil,
 		userAuthRepositoryImpl,
 		userRepositoryImpl,
-		roleGroupRepositoryImpl)
+		roleGroupRepositoryImpl,
+		nil,
+		nil)
 
 	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
 	envVariables := &util3.EnvironmentVariables{
@@ -178,7 +168,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	InstalledAppRepository := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	InstalledAppVersionHistoryRepository := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	attributeService := attributes.NewAttributesServiceImpl(sugaredLogger, attributeRepo)
-	deploymentOverrideService := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, envVariables, attributeService)
+	deploymentOverrideService := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, envVariables, attributeService, environmentService)
 	appStoreDeploymentDBServiceImpl := NewAppStoreDeploymentDBServiceImpl(
 		sugaredLogger,
 		InstalledAppRepository,

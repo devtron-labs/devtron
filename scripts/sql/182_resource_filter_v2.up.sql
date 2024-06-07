@@ -1,4 +1,8 @@
 BEGIN;
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 -- create resource filter audit table
 CREATE SEQUENCE IF NOT EXISTS resource_filter_audit_seq;
 CREATE TABLE IF NOT EXISTS "public"."resource_filter_audit"
@@ -14,7 +18,7 @@ CREATE TABLE IF NOT EXISTS "public"."resource_filter_audit"
     "updated_by"        integer,
     CONSTRAINT "resource_filter_audit_filter_id_fkey" FOREIGN KEY ("filter_id") REFERENCES "public"."resource_filter" ("id"),
     PRIMARY KEY ("id")
-    );
+);
 
 -- create resource filter evaluation audit table
 CREATE SEQUENCE IF NOT EXISTS resource_filter_evaluation_audit_seq;
@@ -31,5 +35,5 @@ CREATE TABLE IF NOT EXISTS "public"."resource_filter_evaluation_audit"
     "updated_on"               timestamptz,
     "updated_by"               integer,
     PRIMARY KEY ("id")
-    );
+);
 COMMIT;

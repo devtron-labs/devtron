@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package restHandler
@@ -21,19 +9,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"strings"
-
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -41,6 +30,10 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -61,29 +54,35 @@ type NotificationRestHandler interface {
 	GetWebhookVariables(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfig(w http.ResponseWriter, r *http.Request)
 	GetAllNotificationSettings(w http.ResponseWriter, r *http.Request)
+	IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationSettings(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
+	ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request)
+	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
+	ApproveArtifactPromotion(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
-	dockerRegistryConfig pipeline.DockerRegistryConfig
-	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	notificationService  notifier.NotificationConfigService
-	slackService         notifier.SlackNotificationService
-	webhookService       notifier.WebhookNotificationService
-	sesService           notifier.SESNotificationService
-	smtpService          notifier.SMTPNotificationService
-	enforcer             casbin.Enforcer
-	teamService          team.TeamService
-	environmentService   cluster.EnvironmentService
-	pipelineBuilder      pipeline.PipelineBuilder
-	enforcerUtil         rbac.EnforcerUtil
+	dockerRegistryConfig       pipeline.DockerRegistryConfig
+	logger                     *zap.SugaredLogger
+	gitRegistryConfig          pipeline.GitRegistryConfig
+	userAuthService            user.UserService
+	validator                  *validator.Validate
+	notificationService        notifier.NotificationConfigService
+	slackService               notifier.SlackNotificationService
+	webhookService             notifier.WebhookNotificationService
+	sesService                 notifier.SESNotificationService
+	smtpService                notifier.SMTPNotificationService
+	enforcer                   casbin.Enforcer
+	teamService                team.TeamService
+	environmentService         cluster.EnvironmentService
+	pipelineBuilder            pipeline.PipelineBuilder
+	enforcerUtil               rbac.EnforcerUtil
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
+	approvalRequestService     artifactPromotion.ApprovalRequestService
 }
 
 type ChannelDto struct {
@@ -96,23 +95,28 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil,
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl,
+	approvalRequestService artifactPromotion.ApprovalRequestService,
+) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
-		dockerRegistryConfig: dockerRegistryConfig,
-		logger:               logger,
-		gitRegistryConfig:    gitRegistryConfig,
-		userAuthService:      userAuthService,
-		validator:            validator,
-		notificationService:  notificationService,
-		slackService:         slackService,
-		webhookService:       webhookService,
-		sesService:           sesService,
-		smtpService:          smtpService,
-		enforcer:             enforcer,
-		teamService:          teamService,
-		environmentService:   environmentService,
-		pipelineBuilder:      pipelineBuilder,
-		enforcerUtil:         enforcerUtil,
+		dockerRegistryConfig:       dockerRegistryConfig,
+		logger:                     logger,
+		gitRegistryConfig:          gitRegistryConfig,
+		userAuthService:            userAuthService,
+		validator:                  validator,
+		notificationService:        notificationService,
+		slackService:               slackService,
+		webhookService:             webhookService,
+		sesService:                 sesService,
+		smtpService:                smtpService,
+		enforcer:                   enforcer,
+		teamService:                teamService,
+		environmentService:         environmentService,
+		pipelineBuilder:            pipelineBuilder,
+		enforcerUtil:               enforcerUtil,
+		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
+		approvalRequestService:     approvalRequestService,
 	}
 }
 
@@ -373,8 +377,19 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		return
 	}
 
+	internalOnly := false
+	internalOnlyString := r.URL.Query().Get("internalOnly")
+	if len(internalOnlyString) != 0 {
+		internalOnly, err = strconv.ParseBool(internalOnlyString)
+		if err != nil {
+			impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", offset)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	token := r.Header.Get("token")
-	notificationSettingsViews, totalCount, err := impl.notificationService.FindAll(offset, size)
+	notificationSettingsViews, totalCount, err := impl.notificationService.FindAll(offset, size, internalOnly)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -427,6 +442,22 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 	}
 
 	common.WriteJsonResp(w, err, nsvResponse, http.StatusOK)
+}
+func (impl NotificationRestHandlerImpl) IsSesOrSmtpConfigured(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	sesConfig, fErr := impl.notificationService.IsSesOrSmtpConfigured()
+	if fErr != nil && fErr != pg.ErrNoRows {
+		impl.logger.Errorw("service err, sesConfig", sesConfig, "err", fErr)
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	common.WriteJsonResp(w, nil, sesConfig, http.StatusOK)
 }
 
 func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
@@ -1123,4 +1154,99 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	} else {
 		common.WriteJsonResp(w, fmt.Errorf(" The channel you requested is not supported"), nil, http.StatusBadRequest)
 	}
+}
+
+func (impl NotificationRestHandlerImpl) ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	//verification is done internally
+	draftRequest, err := impl.createDraftRequest(token)
+	if err != nil || draftRequest == nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	_, draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, *draftRequest)
+	if err != nil {
+		if draftState == 0 {
+			return
+		}
+		if draftState == drafts2.AwaitApprovalDraftState {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	resp, err := impl.notificationService.GetMetaDataForDraftNotification(draftRequest)
+	resp.DraftState = uint8(draftState)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
+}
+
+func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	//verification is done internally
+	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(token)
+	if err != nil || deploymentApprovalRequest == nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	approvalActionRequest := deploymentApprovalRequest.CreateApprovalActionRequest()
+	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(deploymentApprovalRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", deploymentApprovalRequest.PipelineId, "err", err)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, errors.New("pipeline not found"), nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, token, deploymentApprovalRequest.UserId)
+	if !allowed {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	resp, err := impl.notificationService.PerformApprovalActionAndGetMetadata(*deploymentApprovalRequest, approvalActionRequest, pipelineInfo)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (impl NotificationRestHandlerImpl) ApproveArtifactPromotion(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
+	if err != nil {
+		return
+	}
+	requestClaims := &apiToken.ArtifactPromotionApprovalNotificationClaims{}
+	err = json.Unmarshal(claimBytes, requestClaims)
+	if err != nil {
+		impl.logger.Errorw("unable to unmarshal request claims", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	teamEnvRbacObj := impl.enforcerUtil.GetTeamEnvAppRbacObjectByAppIdEnv(requestClaims.AppId, 0, requestClaims.EnvName)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceArtifact, casbin.ActionArtifactPromote, teamEnvRbacObj); !ok {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+	authorizedEnvironments := make(map[string]bool)
+	authorizedEnvironments[requestClaims.EnvName] = true
+
+	ctx := util2.NewRequestCtx(r.Context())
+	res, err := impl.notificationService.ApprovePromotionRequestAndGetMetadata(ctx, requestClaims, authorizedEnvironments)
+	if err != nil {
+		impl.logger.Errorw("error in handling promotion artifact request", "appId", requestClaims.AppId, "envId", requestClaims.EnvId, "artifactId", requestClaims.ArtifactId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+	return
 }

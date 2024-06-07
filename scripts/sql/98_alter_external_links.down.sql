@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE "public"."external_link" DROP COLUMN is_editable;
 ALTER TABLE "public"."external_link" DROP COLUMN description;
 

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package configure
@@ -21,6 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"io"
 	"net/http"
 	"strconv"
@@ -41,9 +32,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
@@ -51,14 +41,6 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
-
-type BuildHistoryResponse struct {
-	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool                     `json:"tagsEditable"`
-	AppReleaseTagNames         []string                 `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	CiWorkflows                []types.WorkflowResponse `json:"ciWorkflows"`
-}
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -88,6 +70,8 @@ type DevtronAppBuildRestHandler interface {
 	GetSourceCiDownStreamFilters(w http.ResponseWriter, r *http.Request)
 	// GetSourceCiDownStreamInfo will fetch the deployment information of all the linked CIs for the given ciPipelineId
 	GetSourceCiDownStreamInfo(w http.ResponseWriter, r *http.Request)
+
+	GetCIRuntimeParams(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -111,6 +95,7 @@ type DevtronAppBuildHistoryRestHandler interface {
 type ImageTaggingRestHandler interface {
 	CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request)
 	GetImageTaggingData(w http.ResponseWriter, r *http.Request)
+	GetImageTagList(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWriter, r *http.Request) {
@@ -252,7 +237,7 @@ func (handler *PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+	// if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id, false)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
@@ -376,6 +361,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAnd
 }
 
 func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -416,14 +402,37 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
-	var ok bool
-	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-	if !ok {
+	ok := true
+	if app.AppType == helper.Job {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	} else {
+		haveAppLevelAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+
+		if patchRequest.IsLinkedCdRequest() || patchRequest.IsSwitchCiPipelineRequest() {
+			ok = haveAppLevelAccess
+		} else if !haveAppLevelAccess {
+			// user doesn't have app level access, then checking for branch change
+			hasBranchChangeAccess := handler.checkIfHasBranchChangeAccess(token, app.AppName, patchRequest.CiPipeline.Id)
+			// user does not have app create permission but has branch change permission and request.action is update_pipeline
+			// downgrading the request to update source only
+			if patchRequest.Action == bean.UPDATE_PIPELINE && hasBranchChangeAccess {
+				patchRequest.Action = bean.UPDATE_SOURCE
+			} else {
+				ok = false
+			}
+		}
 	}
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
+	}
+
+	var cdPipeline *bean.CDPipelineConfigObject
+	if patchRequest.IsLinkedCdRequest() {
+		cdPipeline, err = handler.validateAndEnrichForLinkedCDRequest(w, &patchRequest, app, token)
+		if err != nil {
+			return
+		}
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
@@ -467,9 +476,142 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	if createResp != nil && app != nil {
 		createResp.AppName = app.AppName
 	}
+
+	if patchRequest.DeployEnvId > 0 {
+		err := handler.createCDPipeline(w, app, createResp, patchRequest, cdPipeline, ctx)
+		if err != nil {
+			return
+		}
+	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func (handler *PipelineConfigRestHandlerImpl) createCDPipeline(w http.ResponseWriter, app *bean.CreateAppDTO, createResp *bean.CiConfigRequest, patchRequest bean.CiPatchRequest, cdPipeline *bean.CDPipelineConfigObject, ctx context.Context) error {
+
+	env, err := handler.envService.FindById(patchRequest.DeployEnvId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting env", "err", err, "envId", patchRequest.DeployEnvId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	triggerType := pipelineConfig.TRIGGER_TYPE_AUTOMATIC
+	if env.IsVirtualEnvironment {
+		triggerType = pipelineConfig.TRIGGER_TYPE_MANUAL
+	}
+	// RBAC
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	suggestedName := fmt.Sprintf("%s-%d-%s", "cd", app.Id, util2.Generate(4))
+	newCdPipeline := &bean.CdPipelines{
+		Pipelines: []*bean.CDPipelineConfigObject{{
+			Name:               suggestedName,
+			AppWorkflowId:      createResp.AppWorkflowId,
+			CiPipelineId:       createResp.CiPipelines[0].Id,
+			ParentPipelineType: "CI_PIPELINE",
+			ParentPipelineId:   createResp.CiPipelines[0].Id,
+			TriggerType:        triggerType,
+			EnvironmentId:      patchRequest.DeployEnvId,
+			Strategies:         cdPipeline.Strategies,
+		}},
+		AppId:  createResp.AppId,
+		UserId: createResp.UserId,
+	}
+
+	_, err = handler.pipelineBuilder.CreateCdPipelines(newCdPipeline, ctx)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateCdPipelines", "err", err, "CreateCdPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest(w http.ResponseWriter, patchRequest *bean.CiPatchRequest, app *bean.CreateAppDTO, token string) (*bean.CDPipelineConfigObject, error) {
+	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(patchRequest.ParentCDPipeline)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, err
+	}
+
+	var parentCi *bean.CiPipeline
+	if cdPipeline.CiPipelineId != 0 {
+		parentCi, err = handler.pipelineBuilder.GetCiPipelineById(cdPipeline.CiPipelineId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, err
+		}
+
+		if parentCi.PipelineType == constants.LINKED_CD {
+			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
+			return nil, fmt.Errorf("invalid operation")
+		}
+	}
+
+	object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, cdPipeline.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return nil, fmt.Errorf("unauthorized user")
+	}
+
+	if patchRequest.DeployEnvId > 0 {
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, patchRequest.DeployEnvId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return nil, fmt.Errorf("unauthorized user")
+		}
+	}
+
+	suggestedName := fmt.Sprintf("%s-%d-%d-%s", "linked-cd", app.Id, patchRequest.ParentCDPipeline, util2.Generate(4))
+
+	var ciMaterial []*bean.CiMaterial
+	if parentCi != nil {
+		ciMaterial = parentCi.CiMaterial
+	}
+	patchRequest.CiPipeline = &bean.CiPipeline{
+		ParentCiPipeline: cdPipeline.Id,
+		PipelineType:     constants.LINKED_CD,
+		Name:             suggestedName,
+		CiMaterial:       ciMaterial,
+		DockerArgs:       make(map[string]string),
+	}
+	return cdPipeline, nil
+}
+
+func (handler *PipelineConfigRestHandlerImpl) checkIfHasBranchChangeAccess(token, appName string, ciPipelineId int) bool {
+	hasBranchChangeLevelAccess := true
+	// checking if user has branch change access by checking on cd pipelines
+	// checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", ciPipelineId, "err", err)
+		return hasBranchChangeLevelAccess
+	}
+	if len(cdPipelines) != 0 {
+		rbacObjects := make([]string, len(cdPipelines))
+		for i, cdPipeline := range cdPipelines {
+			envObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(cdPipeline.AppId, cdPipeline.EnvironmentId)
+			rbacObjects[i] = envObject
+		}
+		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, rbacObjects)
+		i := 0
+		for _, rbacResultOk := range envRbacResultMap {
+			if !rbacResultOk {
+				hasBranchChangeLevelAccess = false
+				break
+			}
+			i++
+		}
+	} else {
+		noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(appName)
+		hasBranchChangeLevelAccess = handler.enforcer.Enforce(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+	}
+	return hasBranchChangeLevelAccess
+}
 func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -566,6 +708,48 @@ func (handler *PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseW
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
+func (handler *PipelineConfigRestHandlerImpl) GetCIRuntimeParams(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var ciPipelineId int
+	v := r.URL.Query()
+	pipelineId := v.Get("pipelineId")
+	if len(pipelineId) != 0 {
+		ciPipelineId, err = strconv.Atoi(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetCIRuntimeParams", "err", err, "pipelineIdParam", pipelineId)
+			response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+			return
+		}
+	} else {
+		response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+		return
+	}
+	handler.Logger.Infow("request payload, GetCIRuntimeParams", "pipelineId", pipelineId)
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(ciPipelineId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIRuntimeParams", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	runtimeParams, err := handler.pipelineBuilder.GetCIRuntimeParams(ciPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting ci runtime params", "err", err, "ciPipelineId", ciPipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	common.WriteJsonResp(w, nil, runtimeParams, http.StatusOK)
+}
+
 func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -585,13 +769,18 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
 			nil, http.StatusBadRequest)
 	}
+	if err := handler.validateCIRuntimeParams(ciTriggerRequest); err != nil {
+		handler.Logger.Errorw("invalid ci trigger req, reserved env vars present in request", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	ciTriggerRequest.TriggeredBy = userId
 	token := r.Header.Get("token")
 
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
-	//RBAC STARTS
-	//checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
+	// RBAC STARTS
+	// checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
 	ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
 	if err != nil {
 		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
@@ -626,7 +815,7 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//checking rbac for cd cdPipelines
+	// checking rbac for cd cdPipelines
 	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	if err != nil {
 		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
@@ -645,10 +834,10 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 			return
 		}
 	}
-	//RBAC ENDS
+	// RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
-	if errors.Is(err, bean1.ErrImagePathInUse) {
+	if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, err, http.StatusConflict)
 		return
@@ -682,7 +871,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 		if err != nil {
 			showAll = true
 			err = nil
-			//ignore error, apply rbac by default
+			// ignore error, apply rbac by default
 		}
 	}
 	handler.Logger.Infow("request payload, FetchMaterials", "pipelineId", pipelineId)
@@ -692,7 +881,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
@@ -700,7 +889,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrit
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId, showAll)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", pipelineId)
@@ -735,7 +924,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.
 		if err != nil {
 			showAll = true
 			err = nil
-			//ignore error, apply rbac by default
+			// ignore error, apply rbac by default
 		}
 	}
 	handler.Logger.Infow("request payload, FetchMaterials", "pipelineId", pipelineId)
@@ -745,7 +934,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
@@ -753,7 +942,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	resp, err := handler.ciHandler.FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId, gitMaterialId, showAll)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", pipelineId)
@@ -783,7 +972,7 @@ func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(material.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
@@ -791,7 +980,7 @@ func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	resp, err := handler.ciHandler.RefreshMaterialByCiPipelineMaterialId(material.Id)
 	if err != nil {
@@ -824,7 +1013,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWr
 			return
 		}
 	}
-	//RBAC
+	// RBAC
 	handler.Logger.Infow("request payload, GetCiPipelineMin", "appId", appId)
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -833,7 +1022,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	ciPipelines, err := handler.pipelineBuilder.GetCiPipelineMin(appId, envIds)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipelineMin", "err", err, "appId", appId)
@@ -872,14 +1061,14 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	file, err := handler.ciHandler.DownloadCiWorkflowArtifacts(pipelineId, buildId)
 	defer file.Close()
@@ -928,14 +1117,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	resp, err := handler.ciHandler.GetHistoricBuildLogs(pipelineId, workflowId, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetHistoricBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId)
@@ -982,7 +1171,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC for build history
+	// RBAC for build history
 	token := r.Header.Get("token")
 	isAuthorised := false
 	workflowName := ""
@@ -1001,11 +1190,11 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
-	//RBAC for edit tag access , user should have build permission in current ci-pipeline
+	// RBAC
+	// RBAC for edit tag access , user should have build permission in current ci-pipeline
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object) || handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, object)
-	//RBAC
-	resp := BuildHistoryResponse{}
+	// RBAC
+	resp := apiBean.BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
 	resp.CiWorkflows = workflowsResp
 	if err != nil {
@@ -1056,7 +1245,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
@@ -1064,7 +1253,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	lastSeenMsgId := -1
 	lastEventId := r.Header.Get("Last-Event-ID")
 	if len(lastEventId) > 0 {
@@ -1126,14 +1315,14 @@ func (handler *PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseW
 		}
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(resp.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
@@ -1385,21 +1574,22 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//rbac starts
+	// rbac starts
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
 	token := r.Header.Get("token")
 	if ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionCreate); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rbac ends
+
+	// rbac ends
 	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
+	common.WriteJsonResp(w, err, apiBean.GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
@@ -1432,7 +1622,26 @@ func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerReq
 	return true
 }
 
-func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
+func (handler *PipelineConfigRestHandlerImpl) validateCIRuntimeParams(request bean.CiTriggerRequest) error {
+	runtimeParams := request.RuntimeParams
+	if runtimeParams != nil {
+		invalidVars := make([]string, 0, len(runtimeParams.EnvVariables))
+		for key := range runtimeParams.EnvVariables {
+			if _, ok := bean.ReservedCIEnvVariables[key]; ok {
+				invalidVars = append(invalidVars, key)
+			}
+		}
+		if len(invalidVars) > 0 {
+			return &util.ApiError{
+				HttpStatusCode: http.StatusBadRequest,
+				UserMessage:    fmt.Sprintf("found reserved vars in env variables : %v", invalidVars),
+			}
+		}
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
 	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
@@ -1480,7 +1689,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionTrigger)
@@ -1509,7 +1718,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 		}
 	}
 
-	//RBAC
+	// RBAC
 
 	resp, err := handler.ciHandler.CancelBuild(workflowId, forceAbort)
 	if err != nil {
@@ -1551,7 +1760,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter
 		if err != nil {
 			showAll = true
 			err = nil
-			//ignore error, apply rbac by default
+			// ignore error, apply rbac by default
 		}
 	}
 	handler.Logger.Infow("request payload, FetchChanges", "ciMaterialId", ciMaterialId, "pipelineId", pipelineId)
@@ -1561,14 +1770,14 @@ func (handler *PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	changeRequest := &gitSensor.FetchScmChangesRequest{
 		PipelineMaterialId: ciMaterialId,
@@ -1607,14 +1816,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMateri
 		return
 	}
 
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
 		PipelineMaterialId: ciPipelineMaterialId,
@@ -1657,7 +1866,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
@@ -1665,7 +1874,7 @@ func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	resp, err := handler.ciHandler.FetchWorkflowDetails(appId, pipelineId, buildId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchWorkflowDetails", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
@@ -1703,14 +1912,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.Respon
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 	resp, err := handler.ciHandler.FetchArtifactsForCiJob(buildId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchArtifactsForCiJob", "err", err, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
@@ -1929,7 +2138,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		return
 	}
 
-	//RBAC
+	// RBAC
 	if !isSuperAdmin {
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
@@ -1937,8 +2146,8 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 			return
 		}
 	}
-	//RBAC
-	//check prod env exists
+	// RBAC
+	// check prod env exists
 	prodEnvExists := false
 	if externalCi {
 		prodEnvExists, err = handler.imageTaggingService.FindProdEnvExists(true, []int{ciPipelineId})
@@ -1950,7 +2159,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//not allowed to perform edit/save if no cd exists in prod env in the app_workflow
+	// not allowed to perform edit/save if no cd exists in prod env in the app_workflow
 	if !prodEnvExists {
 		handler.Logger.Errorw("save or edit operation not possible for this artifact", "err", nil, "artifactId", artifactId, "ciPipelineId", ciPipelineId)
 		common.WriteJsonResp(w, errors.New("save or edit operation not possible for this artifact"), nil, http.StatusBadRequest)
@@ -1963,7 +2172,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		common.WriteJsonResp(w, errMsg, nil, http.StatusBadRequest)
 		return
 	}
-	//validate request
+	// validate request
 	isValidRequest, err := handler.imageTaggingService.ValidateImageTaggingRequest(req, appId, artifactId)
 	if err != nil || !isValidRequest {
 		handler.Logger.Errorw("request validation failed", "error", err)
@@ -1971,7 +2180,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		return
 	}
 	req.ExternalCi = externalCi
-	//pass it to service layer
+	// pass it to service layer
 	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(userId), req)
 	if err != nil {
 		if err.Error() == pipeline.DuplicateTagsInAppError {
@@ -2003,11 +2212,6 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	pipelineId, err := strconv.Atoi(vars["ciPipelineId"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 
 	externalCi, ciPipelineId, appId, err := handler.extractCipipelineMetaForImageTags(artifactId)
 	if err != nil {
@@ -2015,17 +2219,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
-	if !externalCi && (ciPipelineId != pipelineId) {
-		common.WriteJsonResp(w, errors.New("ciPipelineId and artifactId sent in the request are not related"), nil, http.StatusBadRequest)
-		return
-	}
-	//RBAC
+
+	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	resp, err := handler.imageTaggingService.GetTagsData(ciPipelineId, appId, artifactId, externalCi)
 	if err != nil {
@@ -2034,6 +2235,55 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 		return
 	}
 
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetImageTagList(w http.ResponseWriter, r *http.Request) {
+	ctx := util2.NewRequestCtx(r.Context())
+	queryParams := apiBean.ImageTagsQuery{}
+	v := r.URL.Query()
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIds, err := handler.appService.FindDevtronAppIdsByNames(queryParams.AppNames)
+	if err != nil {
+		handler.Logger.Errorw("error in fetching apps using appNames", "appNames", queryParams.AppNames, "error", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resp := make([]string, 0)
+	imageTags, err := handler.imageTaggingService.GetUniqueTagsByAppIds(ctx, appIds)
+	if err != nil {
+		handler.Logger.Errorw("error occurred in fetching GetTagsData for App Ids ", "err", err, "appIds", appIds)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if len(imageTags) == 0 {
+		common.WriteJsonResp(w, err, resp, http.StatusOK)
+		return
+	}
+	// get rbac objects for the appIds
+	rbacObjectsWithAppId := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	rbacObjects := make([]string, len(rbacObjectsWithAppId))
+	i := 0
+	for _, value := range rbacObjectsWithAppId { //iterating map
+		rbacObjects[i] = value
+		i++
+	}
+	// enforce rbac in batch
+	token := r.Header.Get("token")
+	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	// filter out rbac passed apps
+	for _, imageTag := range imageTags {
+		rbacObject := rbacObjectsWithAppId[imageTag.AppId]
+		if rbacResult[rbacObject] {
+			resp = append(resp, imageTag.TagName)
+		}
+	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
@@ -2116,7 +2366,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamFilters(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
 	if util.IsErrNoRows(err) {
 		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
 		return
@@ -2171,7 +2421,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		req.SortOrder = pagination.Asc
 	}
 	token := r.Header.Get("token")
-	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
 	if util.IsErrNoRows(err) {
 		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
 		return

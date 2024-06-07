@@ -1,47 +1,57 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package notifier
 
 import (
+	"context"
 	"encoding/json"
-	"time"
-
+	"github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	notifierBean "github.com/devtron-labs/devtron/pkg/notifier/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	util3 "github.com/devtron-labs/devtron/util"
+	util "github.com/devtron-labs/devtron/util/event"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/exp/slices"
+	"net/http"
+	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	util2 "github.com/devtron-labs/devtron/internal/util"
-	util "github.com/devtron-labs/devtron/util/event"
+	interalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type NotificationConfigService interface {
 	CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error)
-	FindAll(offset int, size int) ([]*repository.NotificationSettingsViewWithAppEnv, int, error)
+	FindAll(offset int, size int, internalOnly bool) ([]*repository.NotificationSettingsViewWithAppEnv, int, error)
 	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error)
 	DeleteNotificationSettings(request NSDeleteRequest) error
 	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*SearchFilterResponse, error)
-
+	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
+	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
+	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
+	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
+	GetNotificationConfigForImageScanSuccess(ctx context.Context, imageScanningEvent *eventProcessorBean.ImageScanningEvent) (*ImageScanNotificationConfig, error)
+	EvaluateNotificationExpression(ctx context.Context, conditionType notifierBean.ConditionType, expression, severity, policyPermission string) (bool, error)
+	ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -59,6 +69,12 @@ type NotificationConfigServiceImpl struct {
 	appRepository                  app.AppRepository
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	configDraftRepository          drafts.ConfigDraftRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	imageTaggingService            pipeline.ImageTaggingService
+	artifactApprovalActionService  action.ArtifactApprovalActionService
+	celService                     expressionEvaluators.CELEvaluatorService
+	promotionRequestService        artifactPromotion.ApprovalRequestService
 }
 
 type NotificationSettingRequest struct {
@@ -66,21 +82,14 @@ type NotificationSettingRequest struct {
 	TeamId int  `json:"teamId"`
 	AppId  *int `json:"appId"`
 	EnvId  *int `json:"envId"`
-	//Pipelines    []int             `json:"pipelineIds"`
+	// Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
-}
-
-type Provider struct {
-	Destination util.Channel `json:"dest"`
-	Rule        string       `json:"rule"`
-	ConfigId    int          `json:"configId"`
-	Recipient   string       `json:"recipient"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 type Providers struct {
-	Providers []Provider `json:"providers"`
+	Providers []client.Provider `json:"providers"`
 }
 
 type NSDeleteRequest struct {
@@ -90,27 +99,37 @@ type NSDeleteRequest struct {
 type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	SesConfigId               int                          `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                  `json:"providers"`
-	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
+	Providers                 []*client.Provider           `json:"providers"`
+	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required,dive"`
 }
+
 type NotificationUpdateRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
+
 type NotificationConfigRequest struct {
-	Id           int               `json:"id"`
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers"`
+	Id                   int                `json:"id"`
+	TeamId               []*int             `json:"teamId"`
+	AppId                []*int             `json:"appId"`
+	EnvId                []*int             `json:"envId"`
+	PipelineId           *int               `json:"pipelineId"`
+	PipelineType         util.PipelineType  `json:"pipelineType" validate:"oneof=CI CD PRE-CD POST-CD"`
+	EventTypeIds         []int              `json:"eventTypeIds" validate:"required"`
+	Providers            []*client.Provider `json:"providers"`
+	IsInternal           bool               `json:"isInternal"`
+	FilterCondition      map[int]string     `json:"filterCondition,omitempty"`      // eventId -> json string
+	AdditionalConfigJson map[int]string     `json:"additionalConfigJson,omitempty"` // eventId -> json string
 }
 
 type NSViewResponse struct {
 	Total                        int                             `json:"total"`
 	NotificationSettingsResponse []*NotificationSettingsResponse `json:"settings"`
+}
+
+type ConfigCheck struct {
+	IsConfigured        bool `json:"isConfigured"`
+	IsDefaultConfigured bool `json:"is_default_configured"`
 }
 
 type NotificationSettingsResponse struct {
@@ -144,16 +163,18 @@ type AppResponse struct {
 }
 
 type EnvResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
+	Id                   *int   `json:"id"`
+	Name                 string `json:"name"`
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
 }
 
 type PipelineResponse struct {
-	Id              *int     `json:"id"`
-	Name            string   `json:"name"`
-	EnvironmentName string   `json:"environmentName,omitempty"`
-	AppName         string   `json:"appName,omitempty"`
-	Branches        []string `json:"branches,omitempty"`
+	Id                   *int     `json:"id"`
+	Name                 string   `json:"name"`
+	EnvironmentName      string   `json:"environmentName,omitempty"`
+	AppName              string   `json:"appName,omitempty"`
+	Branches             []string `json:"branches,omitempty"`
+	IsVirtualEnvironment bool     `json:"isVirtualEnvironment"`
 }
 
 type ProvidersConfig struct {
@@ -168,7 +189,14 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
-	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
+	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	configDraftRepository drafts.ConfigDraftRepository,
+	ciArtifactRepository repository.CiArtifactRepository,
+	imageTaggingService pipeline.ImageTaggingService,
+	artifactApprovalActionService action.ArtifactApprovalActionService,
+	celService expressionEvaluators.CELEvaluatorService,
+	promotionRequestService artifactPromotion.ApprovalRequestService,
+) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -184,13 +212,19 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		configDraftRepository:          configDraftRepository,
+		ciArtifactRepository:           ciArtifactRepository,
+		imageTaggingService:            imageTaggingService,
+		artifactApprovalActionService:  artifactApprovalActionService,
+		celService:                     celService,
+		promotionRequestService:        promotionRequestService,
 	}
 }
 
-func (impl *NotificationConfigServiceImpl) FindAll(offset int, size int) ([]*repository.NotificationSettingsViewWithAppEnv, int, error) {
+func (impl *NotificationConfigServiceImpl) FindAll(offset int, size int, internalOnly bool) ([]*repository.NotificationSettingsViewWithAppEnv, int, error) {
 	var notificationSettingsViews []*repository.NotificationSettingsViewWithAppEnv
-	models, err := impl.notificationSettingsRepository.FindAll(offset, size)
-	if err != nil && !util2.IsErrNoRows(err) {
+	models, err := impl.notificationSettingsRepository.FindAll(offset, size, internalOnly)
+	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetch notifications", "err", err)
 		return notificationSettingsViews, 0, err
 	}
@@ -203,11 +237,29 @@ func (impl *NotificationConfigServiceImpl) FindAll(offset int, size int) ([]*rep
 	}
 
 	count, err := impl.notificationSettingsRepository.FindNSViewCount()
-	if err != nil && !util2.IsErrNoRows(err) {
+	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetch notifications", "err", err)
 		return notificationSettingsViews, 0, err
 	}
 	return notificationSettingsViews, count, nil
+}
+
+func (impl *NotificationConfigServiceImpl) deleteNotificationSettingsAndRules(viewId int, tx *pg.Tx) (int, error) {
+	notificationRuleIds, err := impl.notificationSettingsRepository.FindAllNotificationRuleIds(viewId)
+	if err != nil && !interalUtil.IsErrNoRows(err) {
+		return 0, err
+	}
+	// Delete notification settings
+	rowsDeleted, err := impl.notificationSettingsRepository.DeleteNotificationSettingsByConfigId(viewId, tx)
+	if err != nil {
+		return 0, err
+	}
+	// Delete notification rules associated to the notification settings
+	_, err = impl.notificationSettingsRepository.DeleteNotificationRulesByViewId(notificationRuleIds, tx)
+	if err != nil && !interalUtil.IsErrNoRows(err) {
+		return 0, err
+	}
+	return rowsDeleted, nil
 }
 
 func (impl *NotificationConfigServiceImpl) DeleteNotificationSettings(request NSDeleteRequest) error {
@@ -220,15 +272,15 @@ func (impl *NotificationConfigServiceImpl) DeleteNotificationSettings(request NS
 	defer tx.Rollback()
 
 	for _, id := range request.Id {
-		rowsDeleted, err := impl.notificationSettingsRepository.DeleteNotificationSettingsByConfigId(*id, tx)
-		if err != nil && !util2.IsErrNoRows(err) {
+		rowsDeleted, err := impl.deleteNotificationSettingsAndRules(*id, tx)
+		if err != nil && !interalUtil.IsErrNoRows(err) {
 			impl.logger.Errorw("error while delete notifications", "err", err)
 			return err
 		}
 		impl.logger.Debugw("deleted notificationSetting", "rows", rowsDeleted)
 
 		rowsDeleted, err = impl.notificationSettingsRepository.DeleteNotificationSettingsViewById(*id, tx)
-		if err != nil && !util2.IsErrNoRows(err) {
+		if err != nil && !interalUtil.IsErrNoRows(err) {
 			impl.logger.Errorw("err", err)
 			return err
 		}
@@ -247,7 +299,7 @@ type config struct {
 	Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error) {
@@ -263,13 +315,18 @@ func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(no
 
 	for _, request := range notificationSettingsRequest.NotificationConfigRequest {
 		if request.Id != 0 {
-			_, err := impl.notificationSettingsRepository.DeleteNotificationSettingsByConfigId(request.Id, tx)
+			_, err := impl.deleteNotificationSettingsAndRules(request.Id, tx)
 			if err != nil {
 				impl.logger.Errorw("error while create notifications settings", "err", err)
 				return 0, err
 			}
 		}
 		request.Providers = notificationSettingsRequest.Providers
+		err = impl.validateSaveNotificationRequest(request)
+		if err != nil {
+			impl.logger.Errorw("validation error for the update request", "request", request, "err", err)
+			return 0, err
+		}
 		configId, err = impl.saveNotificationSetting(request, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("failed to save notification settings", "err", err)
@@ -298,7 +355,7 @@ func (impl *NotificationConfigServiceImpl) UpdateNotificationSettings(notificati
 	for _, item := range notificationSettingsRequest.NotificationConfigRequest {
 		configId, err = impl.updateNotificationSetting(item, notificationSettingsRequest.UpdateType, userId, tx)
 		if err != nil {
-			impl.logger.Errorw("failed to save notification settings", "err", err)
+			impl.logger.Errorw("failed to update notification settings", "err", err)
 			return 0, err
 		}
 	}
@@ -347,7 +404,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			}
 			var envResponse []*EnvResponse
 			for _, item := range environments {
-				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name, IsVirtualEnvironment: item.IsVirtualEnvironment})
 			}
 			notificationSettingsResponse.EnvResponse = envResponse
 		}
@@ -449,6 +506,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				if pipeline.App.Id > 0 {
 					pipelineResponse.AppName = pipeline.App.AppName
 				}
+				pipelineResponse.IsVirtualEnvironment = pipeline.Environment.IsVirtualEnvironment
 			} else if config.PipelineType == util.CI {
 				pipeline, err := impl.ciPipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {
@@ -613,6 +671,69 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 	return pipelineType, pipelineResponses, nil
 }
 
+func (impl *NotificationConfigServiceImpl) saveNotificationRules(filterCondition map[int]string, userId int32, tx *pg.Tx) (map[int]int, error) {
+	notificationRulesMap, err := impl.notificationConfigBuilder.BuildNotificationRules(filterCondition, userId)
+	if err != nil {
+		impl.logger.Errorw("failed to build notification rules", "filterCondition", filterCondition, "err", err)
+		return nil, err
+	}
+	eventIdRuleIdMapping := make(map[int]int)
+	for eventId, notificationRule := range notificationRulesMap {
+		err = impl.validateNotificationRule(notificationRule)
+		if err != nil {
+			impl.logger.Errorw("validation failed for notification rule expression", "notificationRule", notificationRule, "err", err)
+			return nil, err
+		}
+		_, sErr := impl.notificationSettingsRepository.SaveNotificationRule(notificationRule, tx)
+		if sErr != nil {
+			impl.logger.Errorw("failed to save notification rule", "err", sErr)
+			return nil, sErr
+		}
+		eventIdRuleIdMapping[eventId] = notificationRule.Id
+	}
+	return eventIdRuleIdMapping, err
+}
+
+func (impl *NotificationConfigServiceImpl) validateSaveNotificationRequest(request *NotificationConfigRequest) error {
+	if len(request.EventTypeIds) == 0 {
+		return &interalUtil.ApiError{
+			Code:            "400",
+			HttpStatusCode:  400,
+			UserMessage:     "Invalid payload for notification create request",
+			InternalMessage: "eventTypeIds cannot be empty",
+		}
+	} else if slices.Contains(request.EventTypeIds, int(util.ImageScanning)) {
+		if len(request.EventTypeIds) != 1 {
+			return &interalUtil.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "Invalid payload for notification create request",
+				InternalMessage: "Image scan notification is an internal event! It can't be combined with other events",
+			}
+		}
+	} else if request.FilterCondition != nil || request.AdditionalConfigJson != nil {
+		return &interalUtil.ApiError{
+			Code:            "400",
+			HttpStatusCode:  400,
+			UserMessage:     "Invalid payload for notification create request",
+			InternalMessage: "filterCondition and additionalConfigJson are not supported for the given notification events",
+		}
+	}
+
+	if (request.TeamId == nil || len(request.TeamId) == 0) &&
+		(request.AppId == nil || len(request.AppId) == 0) &&
+		(request.EnvId == nil || len(request.EnvId) == 0) &&
+		(request.PipelineId == nil || *request.PipelineId == 0) {
+		return &interalUtil.ApiError{
+			Code:            "400",
+			HttpStatusCode:  400,
+			UserMessage:     "Invalid payload for notification create request",
+			InternalMessage: "all fields: teamId, appId, envId and pipelineId cannot be empty",
+		}
+	}
+	return nil
+}
+
 func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationSettingsRequest *NotificationConfigRequest, userId int32, tx *pg.Tx) (int, error) {
 	var existingNotificationSettingsConfig *repository.NotificationSettingsView
 	var err error
@@ -637,14 +758,19 @@ func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationS
 		impl.logger.Errorw("failed to save notification settings view", "err", err)
 		return 0, err
 	}
-	notificationSettings, nErr := impl.notificationConfigBuilder.BuildNewNotificationSettings(notificationSettingsRequest, notificationSettingsConfig)
+	eventIdRuleIdMapping, err := impl.saveNotificationRules(notificationSettingsRequest.FilterCondition, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in configuring notification rule", "filterCondition", notificationSettingsRequest.FilterCondition, "err", err)
+		return 0, err
+	}
+	notificationSettings, nErr := impl.notificationConfigBuilder.BuildNewNotificationSettings(notificationSettingsRequest, notificationSettingsConfig, eventIdRuleIdMapping)
 	if nErr != nil {
-		impl.logger.Errorw("failed to build notification settings", "err", err)
+		impl.logger.Errorw("failed to build notification settings", "err", nErr)
 		return 0, nErr
 	}
 	_, sErr := impl.notificationSettingsRepository.SaveAllNotificationSettings(notificationSettings, tx)
 	if sErr != nil {
-		impl.logger.Errorw("failed to save notification settings", "err", err)
+		impl.logger.Errorw("failed to save notification settings", "err", sErr)
 		_, err = impl.notificationSettingsRepository.DeleteNotificationSettingsViewById(notificationSettingsConfig.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("failed to rollback notification settings view", "err", err)
@@ -656,6 +782,35 @@ func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationS
 	return notificationSettingsConfig.Id, nil
 }
 
+func (impl *NotificationConfigServiceImpl) validateUpdateNotificationRequest(existingNotificationSetting *repository.NotificationSettingsView, request *NotificationConfigRequest, updateType util.UpdateType) error {
+	if updateType == util.UpdateEvents {
+		if existingNotificationSetting.Internal {
+			return &interalUtil.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "Invalid payload for notification update request",
+				InternalMessage: "Unsupported updateType for this notification config",
+			}
+		} else if slices.Contains(request.EventTypeIds, int(util.ImageScanning)) &&
+			len(request.EventTypeIds) != 1 {
+			return &interalUtil.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "Invalid payload for notification update request",
+				InternalMessage: "Image scan notification is an internal event! It can't be combined with other events",
+			}
+		}
+	} else if updateType == util.UpdateRules && !existingNotificationSetting.Internal {
+		return &interalUtil.ApiError{
+			Code:            "400",
+			HttpStatusCode:  400,
+			UserMessage:     "Invalid payload for notification update request",
+			InternalMessage: "Unsupported updateType for this notification config",
+		}
+	}
+	return nil
+}
+
 func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificationSettingsRequest *NotificationConfigRequest, updateType util.UpdateType, userId int32, tx *pg.Tx) (int, error) {
 	var err error
 	existingNotificationSettingsConfig, err := impl.notificationSettingsRepository.FindNotificationSettingsViewById(notificationSettingsRequest.Id)
@@ -663,11 +818,18 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 		impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 		return 0, err
 	}
-
+	err = impl.validateUpdateNotificationRequest(existingNotificationSettingsConfig, notificationSettingsRequest, updateType)
+	if err != nil {
+		impl.logger.Errorw("validation error for the update request", "notificationSettingsRequest", notificationSettingsRequest, "updateType", updateType, "err", err)
+		return 0, err
+	}
 	nsConfig := &NSConfig{}
 	err = json.Unmarshal([]byte(existingNotificationSettingsConfig.Config), nsConfig)
 	if updateType == util.UpdateEvents {
 		nsConfig.EventTypeIds = notificationSettingsRequest.EventTypeIds
+		if slices.Contains(nsConfig.EventTypeIds, int(util.ImageScanning)) {
+			existingNotificationSettingsConfig.Internal = true
+		}
 	} else if updateType == util.UpdateRecipients {
 		nsConfig.Providers = notificationSettingsRequest.Providers
 	}
@@ -699,13 +861,23 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 			impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 			return 0, err
 		}
+		eventIdRuleIdMapping, err := impl.saveNotificationRules(notificationSettingsRequest.FilterCondition, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in configuring notification rule", "filterCondition", notificationSettingsRequest.FilterCondition, "err", err)
+			return 0, err
+		}
 		if len(nsOptions) == 0 {
-			notificationSettings, err = impl.notificationConfigBuilder.BuildNewNotificationSettings(notificationSettingsRequest, existingNotificationSettingsConfig)
+			notificationSettings, err = impl.notificationConfigBuilder.BuildNewNotificationSettings(notificationSettingsRequest, existingNotificationSettingsConfig, eventIdRuleIdMapping)
 			if err != nil {
 				impl.logger.Error(err)
 				return 0, err
 			}
 		} else {
+			eventIdToAdditionalConfig, err := impl.notificationConfigBuilder.GenerateAdditionalConfigByEventIds(notificationSettingsRequest.AdditionalConfigJson)
+			if err != nil {
+				impl.logger.Error("error in unmarshalling additional config", "additionalConfig", notificationSettingsRequest.AdditionalConfigJson, "err", err)
+				return 0, err
+			}
 			for _, item := range nsOptions {
 				for _, e := range notificationSettingsRequest.EventTypeIds {
 					notificationSetting, err := impl.notificationConfigBuilder.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, util.PipelineType(item.PipelineType), e, notificationSettingsRequest.Id, nsConfig.Providers)
@@ -713,12 +885,18 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 						impl.logger.Error(err)
 						return 0, err
 					}
+					if eventIdRuleIdMapping != nil && eventIdRuleIdMapping[notificationSetting.EventTypeId] != 0 {
+						notificationSetting.NotificationRuleId = eventIdRuleIdMapping[notificationSetting.EventTypeId]
+					}
+					if eventIdToAdditionalConfig != nil && len(eventIdToAdditionalConfig[notificationSetting.EventTypeId]) != 0 {
+						notificationSetting.AdditionalConfigJson = eventIdToAdditionalConfig[notificationSetting.EventTypeId]
+					}
 					notificationSettings = append(notificationSettings, notificationSetting)
 				}
 			}
 		}
-		//deleting old items
-		_, err = impl.notificationSettingsRepository.DeleteNotificationSettingsByConfigId(notificationSettingsRequest.Id, tx)
+		// deleting old items
+		_, err = impl.deleteNotificationSettingsAndRules(notificationSettingsRequest.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("error on delete ns", "err", err)
 			return 0, err
@@ -743,7 +921,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 			return 0, err
 		}
 
-		//UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
+		// UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
 
 		for _, ns := range nsOptions {
 			config, err := json.Marshal(nsConfig.Providers)
@@ -758,6 +936,61 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 				return 0, err
 			}
 		}
+	} else if updateType == util.UpdateRules {
+		notificationSettings, err := impl.notificationSettingsRepository.FetchNotificationSettingByViewId(notificationSettingsRequest.Id)
+		if err != nil {
+			impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
+			return 0, err
+		}
+		eventIdToAdditionalConfig, err := impl.notificationConfigBuilder.GenerateAdditionalConfigByEventIds(notificationSettingsRequest.AdditionalConfigJson)
+		if err != nil {
+			impl.logger.Error("error in unmarshalling additional config", "additionalConfig", notificationSettingsRequest.AdditionalConfigJson, "err", err)
+			return 0, err
+		}
+		var notificationRuleIds []int
+		filterConditionsToBeSaved := make(map[int]string)
+		eventIdToNotificationRule := make(map[int]*repository.NotificationRule)
+		for _, ns := range notificationSettings {
+			notificationRuleIds = append(notificationRuleIds, ns.NotificationRuleId)
+			if ns.NotificationRule != nil {
+				eventIdToNotificationRule[ns.EventTypeId] = ns.NotificationRule
+			} else if len(notificationSettingsRequest.FilterCondition[ns.EventTypeId]) != 0 {
+				filterConditionsToBeSaved[ns.EventTypeId] = notificationSettingsRequest.FilterCondition[ns.EventTypeId]
+			}
+		}
+		updatedNotificationRules, err := impl.notificationConfigBuilder.UpdateExpressionInNotificationRules(eventIdToNotificationRule, notificationSettingsRequest.FilterCondition, userId)
+		if err != nil {
+			impl.logger.Errorw("failed to generate notification rule expression", "err", err)
+			return 0, err
+		}
+		err = impl.validateNotificationRule(updatedNotificationRules...)
+		if err != nil {
+			impl.logger.Errorw("validation failed for notification rule expression", "notificationRules", updatedNotificationRules, "err", err)
+			return 0, err
+		}
+		_, err = impl.notificationSettingsRepository.UpdateNotificationRules(updatedNotificationRules, tx)
+		if err != nil {
+			impl.logger.Errorw("failed to update notification rule", "err", err)
+			return 0, err
+		}
+		eventIdRuleIdMapping, err := impl.saveNotificationRules(filterConditionsToBeSaved, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in configuring notification rule", "filterCondition", filterConditionsToBeSaved, "err", err)
+			return 0, err
+		}
+		for _, ns := range notificationSettings {
+			if eventIdRuleIdMapping != nil && eventIdRuleIdMapping[ns.EventTypeId] != 0 {
+				ns.NotificationRuleId = eventIdRuleIdMapping[ns.EventTypeId]
+			}
+			if eventIdToAdditionalConfig != nil && len(eventIdToAdditionalConfig[ns.EventTypeId]) != 0 {
+				ns.AdditionalConfigJson = eventIdToAdditionalConfig[ns.EventTypeId]
+			}
+			_, err = impl.notificationSettingsRepository.UpdateNotificationSettings(&ns, tx)
+			if err != nil {
+				impl.logger.Errorw("failed to update notification additional config settings", "err", err)
+				return 0, err
+			}
+		}
 	}
 	return existingNotificationSettingsConfig.Id, nil
 }
@@ -766,7 +999,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	var searchFilterResponse []*SearchFilterResponse
 
 	settingOptionResponseDeployment, err := impl.notificationSettingsRepository.FindNotificationSettingDeploymentOptions(settingRequest)
-	if err != nil && !util2.IsErrNoRows(err) {
+	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetching notification deployment option", "err", err)
 		return searchFilterResponse, err
 	}
@@ -780,7 +1013,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 
 	settingOptionResponseBuild, err := impl.notificationSettingsRepository.FindNotificationSettingBuildOptions(settingRequest)
-	if err != nil && !util2.IsErrNoRows(err) {
+	if err != nil && !interalUtil.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetching notification deployment option", "err", err)
 		return searchFilterResponse, err
 	}
@@ -788,7 +1021,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		item.PipelineType = string(util.CI)
 
 		pipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(item.PipelineId)
-		if err != nil && !util2.IsErrNoRows(err) {
+		if err != nil && !interalUtil.IsErrNoRows(err) {
 			impl.logger.Errorw("error while fetching material", "err", err)
 			return searchFilterResponse, err
 		}
@@ -877,4 +1110,349 @@ func (impl *NotificationConfigServiceImpl) FetchNSViewByIds(ids []*int) ([]*NSCo
 	}
 
 	return configs, nil
+}
+
+func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck, error) {
+	var configCheck ConfigCheck
+	sesConfig, err := impl.sesRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching sesConfig", "sesConfig", sesConfig, "err", err)
+		return nil, err
+	}
+	if len(sesConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSesConfig, err := impl.sesRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return nil, err
+	}
+	if defaultSesConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+	smtpConfig, err := impl.smtpRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching smtpConfig", "smtpConfig", smtpConfig, "err", err)
+		return nil, err
+	}
+	if len(smtpConfig) > 0 {
+		configCheck.IsConfigured = true
+	}
+	defaultSmtpConfig, err := impl.smtpRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+		return nil, err
+	}
+	if defaultSmtpConfig.Id > 0 {
+		configCheck.IsDefaultConfigured = true
+	}
+
+	return &configCheck, nil
+}
+
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
+
+	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	draftApprovalResp := &client.DraftApprovalResponse{
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: draftRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}
+	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
+	if err != nil {
+		return draftApprovalResp, err
+	}
+	draftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
+	if draft.Draft.Resource == drafts.DeploymentTemplateResource {
+		draftApprovalResp.ProtectConfigFileName = string(client.DeploymentTemplate)
+	} else {
+		draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	}
+	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
+	if err != nil && err != pg.ErrNoRows {
+		return draftApprovalResp, err
+	}
+	draftApprovalResp.ProtectConfigComment = draftComment.Comment
+
+	return draftApprovalResp, nil
+}
+
+func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int) (string, string, error) {
+	var envName, appName string
+
+	if envId > 0 {
+		env, err := impl.environmentRepository.FindById(envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching  env", "envId", env.Id)
+
+			return envName, appName, err
+		}
+		envName = env.Name
+	}
+	application, err := impl.appRepository.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching application", "appId", application.Id)
+
+		return envName, appName, err
+	}
+	appName = application.AppName
+	return envName, appName, err
+}
+func (impl *NotificationConfigServiceImpl) PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error) {
+	var approvalState bean.ApprovalState
+	var resp *client.DeploymentApprovalResponse
+	err := impl.artifactApprovalActionService.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
+	if err != nil {
+		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
+		if ok {
+			approvalState = validationErr.ApprovalState
+		} else {
+			return resp, err
+		}
+	}
+	resp, err = impl.GetMetaDataForDeploymentNotification(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
+	if err != nil {
+		impl.logger.Errorw("error in getting response", "err", err)
+		return resp, err
+	}
+	resp.Status = approvalState
+	return resp, nil
+}
+
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error) {
+	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
+		return nil, err
+	}
+	imageComment, imageTagNames, err := impl.imageTaggingService.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
+		return nil, err
+	}
+
+	return &client.DeploymentApprovalResponse{
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames:  imageTagNames,
+			ImageComment:   imageComment.Comment,
+			DockerImageUrl: ciArtifact.Image,
+		},
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: deploymentApprovalRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}, nil
+}
+
+type CVEFilterConditions struct {
+	FilterExpression string
+	DiffViewEnabled  bool
+	ConditionType    notifierBean.ConditionType
+}
+
+type ImageScanNotificationConfig struct {
+	AppId                     int
+	TeamId                    int
+	CiPipelineId              int
+	EnvId                     int
+	NotificationConfigToRules map[int]*CVEFilterConditions
+}
+
+func (impl *NotificationConfigServiceImpl) GetNotificationConfigForImageScanSuccess(ctx context.Context, imageScanningEvent *eventProcessorBean.ImageScanningEvent) (*ImageScanNotificationConfig, error) {
+	newCtx, span := otel.Tracer("NotificationConfigService").Start(ctx, "GetNotificationConfigForImageScanSuccess")
+	defer span.End()
+	notificationConfigToRules := make(map[int]*CVEFilterConditions)
+	req := repository.GetRulesRequest{}
+	if imageScanningEvent.PipelineType == util.CI {
+		impl.logger.Debugw("fetching notification settings for", "ciPipelineId", imageScanningEvent.CiPipelineId)
+		ciPipeline, err := impl.ciPipelineRepository.FindOneWithMinData(imageScanningEvent.CiPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting ciPipeline by id", "ciPipelineId", imageScanningEvent.CiPipelineId, "err", err)
+			return nil, err
+		}
+		req = repository.GetRulesRequest{
+			AppId:        ciPipeline.AppId,
+			TeamId:       ciPipeline.App.TeamId,
+			PipelineId:   ciPipeline.Id,
+			PipelineType: string(util.CI),
+		}
+	} else if imageScanningEvent.PipelineType == util.PRE_CD {
+		impl.logger.Debugw("image scanning completion event for", "cdPipelineId", imageScanningEvent.CdPipelineId)
+		cdPipeline, err := impl.pipelineRepository.FindById(imageScanningEvent.CdPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting cdPipeline by id", "cdPipelineId", imageScanningEvent.CdPipelineId, "err", err)
+			return nil, err
+		}
+		req = repository.GetRulesRequest{
+			AppId:        cdPipeline.AppId,
+			TeamId:       cdPipeline.App.TeamId,
+			EnvId:        cdPipeline.EnvironmentId,
+			PipelineType: string(util.PRE_CD),
+		}
+		imageScanningEvent.CiPipelineId = cdPipeline.CiPipelineId
+	} else if imageScanningEvent.PipelineType == util.POST_CD {
+		impl.logger.Debugw("image scanning completion event for", "cdPipelineId", imageScanningEvent.CdPipelineId)
+		cdPipeline, err := impl.pipelineRepository.FindById(imageScanningEvent.CdPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting cdPipeline by id", "cdPipelineId", imageScanningEvent.CdPipelineId, "err", err)
+			return nil, err
+		}
+		req = repository.GetRulesRequest{
+			AppId:        cdPipeline.AppId,
+			TeamId:       cdPipeline.App.TeamId,
+			EnvId:        cdPipeline.EnvironmentId,
+			PipelineType: string(util.PRE_CD),
+		}
+		imageScanningEvent.CiPipelineId = cdPipeline.CiPipelineId
+	}
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsWithRules(newCtx, 8, req)
+	if err != nil {
+		impl.logger.Errorw("error in getting notifications config with rules", "req", req, "err", err)
+		return nil, err
+	}
+	for _, notification := range notifications {
+		imageScanFilterFlags := repository.ImageScanFilterFlags{}
+		err = json.Unmarshal([]byte(notification.AdditionalConfigJson), &imageScanFilterFlags)
+		if err != nil {
+			impl.logger.Errorw("error in json unmarshalling", "additionalConfigJson", notification.AdditionalConfigJson, "err", err)
+			return nil, err
+		}
+		notificationConfigToRules[notification.Id] = &CVEFilterConditions{
+			DiffViewEnabled: imageScanFilterFlags.DiffViewEnabled,
+		}
+		if notification.NotificationRule != nil {
+			notificationConfigToRules[notification.Id].FilterExpression = notification.NotificationRule.Expression
+			notificationConfigToRules[notification.Id].ConditionType = notification.NotificationRule.ConditionType
+		}
+	}
+	return &ImageScanNotificationConfig{
+		AppId:                     req.AppId,
+		TeamId:                    req.TeamId,
+		CiPipelineId:              imageScanningEvent.CiPipelineId,
+		EnvId:                     req.EnvId,
+		NotificationConfigToRules: notificationConfigToRules,
+	}, err
+}
+
+func getParamsForImageScanning(severity string, policyPermission string) []expressionEvaluators.ExpressionParam {
+	params := []expressionEvaluators.ExpressionParam{
+		{
+			ParamName: expressionEvaluators.Severity,
+			Value:     severity,
+			Type:      expressionEvaluators.ParamTypeString,
+		},
+		{
+			ParamName: expressionEvaluators.PolicyPermission,
+			Value:     policyPermission,
+			Type:      expressionEvaluators.ParamTypeString,
+		},
+	}
+
+	return params
+}
+
+func (impl *NotificationConfigServiceImpl) EvaluateNotificationExpression(ctx context.Context, conditionType notifierBean.ConditionType, expression, severity, policyPermission string) (bool, error) {
+	_, span := otel.Tracer("NotificationConfigService").Start(ctx, "EvaluateNotificationExpression")
+	defer span.End()
+	if len(expression) == 0 {
+		return conditionType.IsConditionSatisfied(true), nil
+	}
+	params := getParamsForImageScanning(severity, policyPermission)
+	evalReq := expressionEvaluators.CELRequest{
+		Expression: expression,
+		ExpressionMetadata: expressionEvaluators.ExpressionMetadata{
+			Params: params,
+		},
+	}
+	response, err := impl.celService.EvaluateCELForBool(evalReq)
+	if err != nil {
+		impl.logger.Errorw("error while CEL expression evaluation", "err", err)
+		return false, err
+	}
+	return conditionType.IsConditionSatisfied(response), nil
+}
+
+func (impl *NotificationConfigServiceImpl) validateNotificationRule(notificationRulesMap ...*repository.NotificationRule) error {
+	params := []expressionEvaluators.ExpressionParam{
+		{
+			ParamName: expressionEvaluators.Severity,
+			Type:      expressionEvaluators.ParamTypeString,
+		},
+		{
+			ParamName: expressionEvaluators.PolicyPermission,
+			Type:      expressionEvaluators.ParamTypeString,
+		},
+	}
+	for _, notificationRule := range notificationRulesMap {
+		validateExpression := expressionEvaluators.CELRequest{
+			Expression:         notificationRule.Expression,
+			ExpressionMetadata: expressionEvaluators.ExpressionMetadata{Params: params},
+		}
+		_, _, err := impl.celService.Validate(validateExpression)
+		if err != nil {
+			impl.logger.Errorw("CEL expression validation failed", "expression", notificationRule.Expression, "err", err)
+			return &interalUtil.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "Invalid filter condition for the notification config",
+				InternalMessage: err.Error(),
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *NotificationConfigServiceImpl) ApprovePromotionRequestAndGetMetadata(ctx *util3.RequestCtx, request *apiToken.ArtifactPromotionApprovalNotificationClaims, authorizedEnvs map[string]bool) (*client.PromotionApprovalResponse, error) {
+
+	artifactPromotionApprovalRequest := &bean2.ArtifactPromotionRequest{
+		Action:           constants.ACTION_APPROVE,
+		ArtifactId:       request.ArtifactId,
+		AppId:            request.AppId,
+		EnvironmentNames: []string{request.EnvName},
+		WorkflowId:       request.WorkflowId,
+	}
+	approvalResponse, err := impl.promotionRequestService.HandleArtifactPromotionRequest(ctx, artifactPromotionApprovalRequest, authorizedEnvs)
+	if err != nil {
+		impl.logger.Errorw("error in handling promotion artifact request", "promotionRequest", artifactPromotionApprovalRequest, "err", err)
+		return nil, err
+	}
+
+	var status bean.ApprovalState
+	switch approvalResponse[0].PromotionValidationMessage {
+	case constants.APPROVED:
+		status = bean.Approved
+	case constants.ALREADY_APPROVED, constants.ARTIFACT_ALREADY_PROMOTED:
+		status = bean.AlreadyApproved
+	case constants.PromotionRequestStale, constants.ArtifactPromotionRequestNotFoundErr:
+		status = bean.RequestCancelled
+	default:
+		return nil, interalUtil.NewApiError().WithUserMessage(approvalResponse[0].PromotionValidationMessage).WithHttpStatusCode(http.StatusForbidden)
+	}
+
+	return &client.PromotionApprovalResponse{
+		SourceInfo: request.PromotionSource,
+		Status:     status,
+		ImageMetadata: client.ImageMetadata{
+			ImageTagNames: request.ImageTags,
+			ImageComment:  request.ImageComment,
+
+			DockerImageUrl: request.Image,
+		},
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    request.AppName,
+			EnvName:    request.EnvName,
+			ApprovedBy: request.ApiTokenCustomClaims.Email,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}, nil
+
 }

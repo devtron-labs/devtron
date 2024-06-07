@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package util
@@ -64,7 +52,7 @@ type ChartTemplateService interface {
 	GetDir() string
 	CleanDir(dir string)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
-	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error)
 	LoadChartFromDir(dir string) (*chart.Chart, error)
 	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error)
@@ -155,7 +143,9 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 
 // TODO: convert BuildChart and BuildChartProxyForHelmApps into one function
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
-	chartMetaData.ApiVersion = "v1" // ensure always v1
+	if chartMetaData.ApiVersion == "" {
+		chartMetaData.ApiVersion = "v1" // ensure always v1
+	}
 	dir := impl.GetDir()
 	tempReferenceTemplateDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
@@ -198,12 +188,25 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return chartCreateResponse, err
 	}
-	_, valuesYaml, err := impl.PackageChart(chartDir, chartMetaData)
-	if err != nil {
-		impl.logger.Errorw("error in creating archive", "err", err)
-		return chartCreateResponse, err
+	if chartCreateRequest.IncludePackageChart {
+		_, valuesYaml, err := impl.PackageChart(chartDir, chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in creating archive", "err", err)
+			return chartCreateResponse, err
+		}
+		chartCreateResponse.valuesYaml = valuesYaml
+	} else {
+		b, err := yaml.Marshal(chartMetaData)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
+			return chartCreateResponse, err
+		}
+		err = ioutil.WriteFile(filepath.Join(chartDir, "Chart.yaml"), b, 0600)
+		if err != nil {
+			impl.logger.Errorw("err in writing Chart.yaml", "err", err)
+			return chartCreateResponse, err
+		}
 	}
-	chartCreateResponse.valuesYaml = valuesYaml
 	chartCreateResponse.BuiltChartPath = chartDir
 	return chartCreateResponse, nil
 }
@@ -374,8 +377,7 @@ func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.M
 	return bs, nil
 }
 
-func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error) {
-
+func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteChart bool, chartName string, chartVersion string) ([]byte, error) {
 	var chartBytesArr []byte
 	//this function is removed in latest helm release and is replaced by Loader in loader package
 	chart, err := chartutil.LoadDir(ChartPath)
@@ -383,6 +385,12 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
 		return chartBytesArr, err
 	}
+
+	if len(chartName) > 0 && len(chartVersion) > 0 {
+		chart.Metadata.Name = chartName
+		chart.Metadata.Version = chartVersion
+	}
+
 	chartBytesArr, err = impl.CreateZipFileForChart(chart, ChartPath)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir")

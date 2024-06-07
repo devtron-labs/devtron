@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package router
@@ -42,6 +30,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Queries("size", "{size}").
 		Queries("offset", "{offset}").
 		HandlerFunc(impl.notificationRestHandler.GetAllNotificationSettings).
+		Methods("GET")
+	configRouter.Path("/channel/config").
+		HandlerFunc(impl.notificationRestHandler.IsSesOrSmtpConfigured).
 		Methods("GET")
 	configRouter.Path("").
 		HandlerFunc(impl.notificationRestHandler.DeleteNotificationSettings).
@@ -82,6 +73,16 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Methods("GET")
 	configRouter.Path("/search").
 		HandlerFunc(impl.notificationRestHandler.GetOptionsForNotificationSettings).
+		Methods("POST")
+	configRouter.Path("/channel/config/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveConfigDraftForNotification).
+		Methods("POST")
+	configRouter.Path("/channel/deployment/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveDeploymentConfigForNotification).
+		Methods("POST")
+
+	configRouter.Path("/channel/image-promotion/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveArtifactPromotion).
 		Methods("POST")
 
 }

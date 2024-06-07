@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: Orchestrator/K8s/Watcher/Events API
+  version: 1.0.0
+paths:
+  /orchestrator/scoop/k8s/watcher:
+    post:
+      summary: Create a new watcher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatcherData'
+      responses:
+        '200':
+          description: Successful response
+    get:
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          required: false
+          description: search string for watcher name
+        - in: query
+          name: orderBy
+          schema:
+            type: string
+            enum:
+              - 'name'
+              - 'triggerTime'
+          required: false
+          description: order by field
+        - in: query
+          name: order
+          schema:
+                type: string
+                enum:
+                - 'asc'
+                - 'desc'
+          required: false
+          description: order of the result
+        - in: query
+          name: offset
+          schema:
+              type: integer
+          required: false
+          description: offset
+        - in: query
+          name: size
+          schema:
+              type: integer
+          required: false
+          description: size of the result list
+
+      summary: Retrieve watchers
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                  result:
+                    type: object
+                    properties:
+                      size:
+                        description: size of the list
+                        type: integer
+                      offset:
+                        type: integer
+                      total:
+                        description: total count of list items that are filtered
+                        type: integer
+                      list:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WatcherMetaData'
+  /orchestrator/scoop/k8s/watcher/{identifier}:
+    parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          anyOf:
+            - type: integer
+              # integer for id
+            - type: string
+              # string for name
+        description: Watcher identifier. either watcher id or watcher name
+    get:
+      summary: Retrieve a watcher
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatcherData'
+  /orchestrator/scoop/intercept-event/{identifier}:
+    parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          anyOf:
+            - type: integer
+                # integer for id
+        description: Intercepted event identifier.
+    get:
+      summary: Retrieve a intercepted event
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterceptEvent'
+    put:
+      summary: Update an existing watcher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatcherData'
+      responses:
+        '200':
+          description: Successful response
+    delete:
+      summary: Delete a watcher
+      responses:
+        '204':
+          description: Successful response
+  /orchestrator/scoop/k8s/intercept-events:
+    get:
+      parameters:
+        - name: watchers
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Watcher names
+        - name: selectedActions
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - 'CREATED'
+                - 'UPDATED'
+                - 'DELETED'
+          description: kind of action
+        - name: namespaces
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: "1_ns-1,1_ns-2,2_ns-3,3,4,5"
+          description: comma separated list of clusterId_namepsace
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum:
+              - 'asc'
+              - 'desc'
+          required: false
+          description: order result by intercepted_at
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End time
+        - name: offset
+          in: query
+          schema:
+            type: integer
+          description: offset
+        - name: size
+          in: query
+          schema:
+            type: integer
+          description: size of the result list
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: search string
+      summary: Retrieve intercepted events
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  size:
+                    description: size of the list
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    description: total count of list items that are filtered
+                    type: integer
+                  list:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterceptEvent'
+components:
+  schemas:
+
+    DevtronJobData:
+      type: object
+      properties:
+        runtimeParameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunTimeParameter'
+        jobId:
+          readOnly: true
+          type: integer
+        jobName:
+          type: string
+        pipelineId:
+          readOnly: true
+          type: integer
+        pipelineName:
+          type: string
+        executionEnvironment:
+          type: string
+        executionEnvironmentId:
+          readOnly: true
+          type: integer
+
+    WatcherMetaData:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        description:
+          type: string
+        # for now sending the job information in top level, this will be generalised later
+        jobPipelineName:
+          type: string
+        jobPipelineId:
+          type: integer
+        workflowId:
+          readOnly: true
+          type: integer
+    Selectors:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - 'environment'
+        subGroup:
+          type: string
+          enum:
+            - 'ALL'
+            - 'ALL_NON_PROD'
+            - 'ALL_PROD'
+            - 'INCLUDED'
+            - 'EXCLUDED'
+        names:
+          type: array
+          description: 'list of names. (example: list of env names)'
+          items:
+            type: string
+        groupName:
+          description: 'group name. (example: for envs , the groupName is cluster name, for all clusters case this should be set to ALL)'
+          type: string
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+    EventConfiguration:
+      type: object
+      properties:
+        selectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Selectors'
+        k8sResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupVersionKind'
+        eventExpression:
+          type: string
+    RunTimeParameter:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+    Trigger:
+      type: object
+      properties:
+        id:
+          type: integer
+        identifierType:
+          type: string
+          enum:
+            - 'DEVTRON-JOB'
+        data:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/DevtronJobData'
+    WatcherData:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        eventConfiguration:
+          $ref: '#/components/schemas/EventConfiguration'
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trigger'
+    InterceptEvent:
+      type: object
+      properties:
+        interceptedEventId:
+          type: integer
+        action:
+          type: string
+          enum:
+            - 'CREATED'
+            - 'UPDATED'
+            - 'DELETED'
+          description: kind of action
+        metadata:
+          description: json string of the gvk,name and namespace
+          type: string
+        involvedObjects:
+          description: json string of the involved objects with newResource and oldResource keys
+          type: string
+        environmet:
+          type: string
+        clusterId:
+          type: integer
+        clusterName:
+          type: string
+        namespace:
+          type: string
+        watcherName:
+          type: string
+        interceptedTime:
+          type: string
+        triggerExecutionId:
+          type: int
+        executionStatus:
+          type: string
+          enum:
+            - 'Succeeded'
+            - 'Failed'
+            - 'Progressing'
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+  

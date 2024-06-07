@@ -1,24 +1,12 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package module
 
 import (
 	"context"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -43,7 +31,7 @@ type ModuleCacheService interface {
 type ModuleCacheServiceImpl struct {
 	logger           *zap.SugaredLogger
 	mutex            sync.Mutex
-	K8sUtil          *k8s.K8sServiceImpl
+	K8sUtil          *k8s.K8sUtilExtended
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
@@ -51,7 +39,7 @@ type ModuleCacheServiceImpl struct {
 	teamService      team.TeamService
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sUtilExtended, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) (*ModuleCacheServiceImpl, error) {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,

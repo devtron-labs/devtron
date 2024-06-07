@@ -4,6 +4,10 @@ DROP TABLE "public"."module_action_audit_log" CASCADE;
 
 DROP TABLE "public"."module" CASCADE;
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- DROP sequence
 DROP SEQUENCE IF EXISTS public.id_seq_module;
 

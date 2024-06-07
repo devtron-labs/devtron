@@ -1,22 +1,11 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package util
 
 import (
+	"golang.org/x/exp/maps"
 	"math"
 	"strconv"
 	"strings"
@@ -51,6 +40,10 @@ func SplitCommaSeparatedIntValues(input string) ([]int, error) {
 	return items, nil
 }
 
+func XORBool(a, b bool) bool {
+	return (a || b) && !(a && b)
+}
+
 func GetBeansPtr[T any](beans ...*T) []*T {
 
 	finalBeans := make([]*T, 0)
@@ -74,7 +67,7 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 	return values
 }
 
-func Transform[T any, K any](input []T, transform func(inp T) K) []K {
+func Map[T any, K any](input []T, transform func(inp T) K) []K {
 
 	res := make([]K, len(input))
 	for i, _ := range input {
@@ -93,8 +86,26 @@ func Contains[T any](input []T, check func(inp T) bool) bool {
 	return false
 }
 
+// ContainsStringAlias reports whether v is present in s.
+func ContainsStringAlias[S ~[]E, E ~string](s S, v E) bool {
+	for i := range s {
+		if v == s[i] {
+			return true
+		}
+	}
+	return false
+}
+
 // TruncateFloat truncates a float64 value to n decimal points using the math package.
 func TruncateFloat(value float64, decimals int) float64 {
 	pow10 := math.Pow10(decimals)
 	return math.Trunc(value*pow10) / pow10
+}
+
+func GetUniqueKeys[T string | int](keys []T) []T {
+	set := make(map[T]bool)
+	for _, key := range keys {
+		set[key] = true
+	}
+	return maps.Keys(set)
 }

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package appList
@@ -23,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
@@ -78,7 +67,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	clusterMapping := make(map[string]cluster.ClusterBean)
+	clusterMapping := make(map[string]clusterBean.ClusterBean)
 	start := time.Now()
 	clusterList, err := handler.clusterService.FindAllForAutoComplete()
 	dbOperationTime := time.Since(start)
@@ -87,7 +76,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	var granterClusters []cluster.ClusterBean
+	var granterClusters []clusterBean.ClusterBean
 	v := r.URL.Query()
 	authEnabled := true
 	auth := v.Get("auth")
@@ -117,7 +106,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	//RBAC enforcer Ends
 
 	if len(granterClusters) == 0 {
-		granterClusters = make([]cluster.ClusterBean, 0)
+		granterClusters = make([]clusterBean.ClusterBean, 0)
 	}
 
 	//getting environment for autocomplete
@@ -150,7 +139,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 
 			var hasAccess bool
 			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
-			if item.EnvironmentIdentifier != EnvironmentIdentifier {
+			if item.EnvironmentIdentifier != EnvironmentIdentifier && !item.IsVirtualEnvironment {
 				// fix for futuristic case
 				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
 			} else {

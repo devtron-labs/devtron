@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package apiToken
@@ -19,6 +7,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strconv"
@@ -28,7 +17,7 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/golang-jwt/jwt/v4"
@@ -41,25 +30,50 @@ type ApiTokenService interface {
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
+	CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error)
+	CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
 	logger                *zap.SugaredLogger
 	apiTokenSecretService ApiTokenSecretService
-	userService           user2.UserService
-	userAuditService      user2.UserAuditService
+	userService           user.UserService
+	userAuditService      user.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	TokenVariableConfig   *TokenVariableConfig
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user2.UserService, userAuditService user2.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
-	return &ApiTokenServiceImpl{
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, userAuditService user.UserAuditService,
+	apiTokenRepository ApiTokenRepository,
+) (*ApiTokenServiceImpl, error) {
+	apiTokenService := &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
+
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		return nil, err
+	}
+	apiTokenService.TokenVariableConfig = cfg
+
+	return apiTokenService, err
+}
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+type TokenVariableConfig struct {
+	ExpireAtInHours int64 `env:"NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` // 30*24
+}
+
+func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
+	return time.Now().Add(time.Duration(config.ExpireAtInHours) * time.Hour).UnixMilli()
 }
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
@@ -69,6 +83,15 @@ const (
 	UniqueKeyViolationPgErrorCode = 23505
 	TokenVersionMismatch          = "token version mismatch"
 )
+
+func (tokenCustomClaimsForNotification TokenCustomClaimsForNotification) generateToken(secretByteArr []byte) (string, error) {
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenCustomClaimsForNotification)
+	token, err := unsignedToken.SignedString(secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
 
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting active api tokens")
@@ -82,7 +105,7 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 	for _, apiTokenFromDb := range apiTokensFromDb {
 		authPassed := true
 		userId := apiTokenFromDb.User.Id
-		//checking permission on each of the roles associated with this API Token
+		// checking permission on each of the roles associated with this API Token
 		environmentNames := strings.Split(environmentName, ",")
 		for _, environment := range environmentNames {
 			projectObject := fmt.Sprintf("%s/%s", projectName, appName)
@@ -194,7 +217,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 
 	// step-3 - Build token
-	token, err := impl.createApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
+	token, err := impl.CreateApiJwtToken(email, tokenVersion, *request.ExpireAtInMs)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +308,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		token, err := impl.createApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
+		token, err := impl.CreateApiJwtToken(apiToken.User.EmailId, tokenVersion, *request.ExpireAtInMs)
 		if err != nil {
 			return nil, err
 		}
@@ -352,8 +375,23 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}, nil
 
 }
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		impl.logger.Errorw("error in setting registered claims", "err", err)
+		return "", err
+	}
+	claims.setRegisteredClaims(registeredClaims)
+	token, err := claims.generateToken(secretByteArr)
+	if err != nil {
+		impl.logger.Errorw("error in generating token", "err", err)
+		return token, err
+	}
 
-func (impl ApiTokenServiceImpl) createApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
+	return token, nil
+
+}
+func (impl ApiTokenServiceImpl) CreateApiJwtToken(email string, tokenVersion int, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {
 		return "", err
@@ -364,6 +402,21 @@ func (impl ApiTokenServiceImpl) createApiJwtToken(email string, tokenVersion int
 		registeredClaims,
 	}
 	token, err := impl.generateToken(claims, secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForArtifactPromotion(claims *ArtifactPromotionApprovalNotificationClaims, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		impl.logger.Errorw("error in setting registered claims", "err", err)
+		return "", err
+	}
+	claims.RegisteredClaims = registeredClaims
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := unsignedToken.SignedString(secretByteArr)
 	if err != nil {
 		return "", err
 	}

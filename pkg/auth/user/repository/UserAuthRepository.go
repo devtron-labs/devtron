@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 /*
@@ -21,7 +9,7 @@ package repository
 
 import (
 	"encoding/json"
-	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"strings"
 	"time"
 
@@ -44,7 +32,7 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
+	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	GetUserRoleMappingIdsByUserId(userId int32) ([]int, error)
@@ -53,10 +41,9 @@ type UserAuthRepository interface {
 	DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy)
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []bean3.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
-	UpdateTriggerPolicyForTerminalAccess() error
 	GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error)
 	GetRolesForProject(teamName string) ([]*RoleModel, error)
 	GetRolesForApp(appName string) ([]*RoleModel, error)
@@ -66,11 +53,17 @@ type UserAuthRepository interface {
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
+	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
+	GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error)
+	GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error)
 	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
-	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues bool) (RoleModel, error)
+	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
+	GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
+	GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
+	GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, []string, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -101,6 +94,7 @@ type RoleModel struct {
 	Environment string   `sql:"environment"`
 	Action      string   `sql:"action"`
 	AccessType  string   `sql:"access_type"`
+	Approver    bool     `sql:"approver"`
 	Cluster     string   `sql:"cluster"`
 	Namespace   string   `sql:"namespace"`
 	Group       string   `sql:"group"`
@@ -256,7 +250,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
 	switch entity {
 	case bean2.CLUSTER:
 		{
@@ -272,7 +266,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 		}
 	default:
 		{
-			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues)
+			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues, approver)
 		}
 	}
 	return RoleModel{}, nil
@@ -289,9 +283,11 @@ func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRole
 }
 func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error) {
 	var userRoleModels []*UserRoleModel
-	err := impl.dbConnection.Model(&userRoleModels).Where("user_id = ?", userId).Select()
+	err := impl.dbConnection.Model(&userRoleModels).
+		Column("user_role_model.*", "TimeoutWindowConfiguration").
+		Where("user_id = ?", userId).Select()
 	if err != nil {
-		impl.Logger.Error(err)
+		impl.Logger.Errorw("error in GetUserRoleMappingByUserId", "err", err, "userId", userId)
 		return userRoleModels, err
 	}
 	return userRoleModels, nil
@@ -363,11 +359,11 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleIds(roleIds []int, tx *pg
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32) (bool, error, []casbin2.Policy) {
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []bean3.Policy) {
 	//not using txn from parent caller because of conflicts in fetching of transactional save
 	dbConnection := impl.dbConnection
 	tx, err := dbConnection.Begin()
-	var policiesToBeAdded []casbin2.Policy
+	var policiesToBeAdded []bean3.Policy
 	if err != nil {
 		return false, err, policiesToBeAdded
 	}
@@ -418,6 +414,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 		AppObj:       appObj,
 		Entity:       entity,
 		EntityName:   entityName,
+		Approver:     approver,
 		Cluster:      cluster,
 		Namespace:    namespace,
 		Group:        group,
@@ -478,6 +475,61 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	}
 	return true, nil, policiesToBeAdded
 }
+
+func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error) {
+	var roleGroups []string
+	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
+		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and (r.environment=? OR r.environment is null) and (r.entity_name=? OR r.entity_name is null) or r.role = ?;"
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return roleGroups, err
+	}
+
+	return roleGroups, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
+		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&userRoles, query, envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	return userRoles, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error) {
+	var roleGroups []string
+	roleGroupQuery := "SELECT rg.casbin_name " +
+		"FROM role_group rg " +
+		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
+		"INNER JOIN roles r ON rgrm.role_id = r.id " +
+		"WHERE (r.action = 'configApprover') " +
+		"AND (r.environment IS NULL OR r.environment = ?) " +
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? or r.role = ?;"
+
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return roleGroups, err
+	}
+
+	return roleGroups, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&userRoles, query, "configApprover", envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	return userRoles, nil
+}
+
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {
 	roleData := bean.RoleData{
 		Role:        role,
@@ -507,7 +559,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false, "")
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
@@ -541,6 +593,7 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, UserId in
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
 		AccessType:  roleData.AccessType,
+		Approver:    roleData.Approver,
 		Cluster:     roleData.Cluster,
 		Namespace:   roleData.Namespace,
 		Group:       roleData.Group,
@@ -610,7 +663,7 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 
 	//for START in Casbin Object Ends Here
-	var policies []casbin2.Policy
+	var policies []bean3.Policy
 	var policiesTrigger bean.PolicyRequest
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
@@ -627,70 +680,12 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	}
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
 	policies = append(policies, policiesView.Data...)
-	casbin2.AddPolicy(policies)
-	return true, nil
-}
-
-func (impl UserAuthRepositoryImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
-	newTriggerPolicy := `{
-    "data": [
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "applications",
-            "act": "get",
-            "obj": "{{.TeamObj}}/{{.AppObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "applications",
-            "act": "trigger",
-            "obj": "{{.TeamObj}}/{{.AppObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "environment",
-            "act": "trigger",
-            "obj": "{{.EnvObj}}/{{.AppObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "environment",
-            "act": "get",
-            "obj": "{{.EnvObj}}/{{.AppObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "global-environment",
-            "act": "get",
-            "obj": "{{.EnvObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "team",
-            "act": "get",
-            "obj": "{{.TeamObj}}"
-        },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "terminal",
-            "act": "exec",
-            "obj": "{{.TeamObj}}/{{.EnvObj}}/{{.AppObj}}"
-        }
-    ]
-}`
-	err = impl.UpdateDefaultPolicyByRoleType(newTriggerPolicy, bean2.TRIGGER_TYPE)
+	err = casbin2.AddPolicy(policies)
 	if err != nil {
-		impl.Logger.Errorw("error in updating default policy for trigger role", "err", err)
-		return err
+		impl.Logger.Errorw("casbin policy addition failed", "err", err)
+		return false, err
 	}
-	return nil
+	return true, nil
 }
 
 func (impl UserAuthRepositoryImpl) GetDefaultPolicyByRoleType(roleType bean2.RoleType) (policy string, err error) {
@@ -699,158 +694,6 @@ func (impl UserAuthRepositoryImpl) GetDefaultPolicyByRoleType(roleType bean2.Rol
 		return "", err
 	}
 	return policy, nil
-}
-
-func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy string, roleType bean2.RoleType) (err error) {
-	//getting all roles by role type
-	roles, err := impl.GetRolesByActionAndAccessType(string(roleType), "")
-	if err != nil {
-		impl.Logger.Errorw("error in getting roles for trigger action", "err", err)
-		return err
-	}
-	oldPolicy, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleTypeAndEntity(roleType, bean2.DEVTRON_APP, bean2.ENTITY_APPS)
-	if err != nil {
-		return err
-	}
-
-	//updating new policy in db
-	_, err = impl.defaultAuthPolicyRepository.UpdatePolicyByRoleType(newPolicy, roleType)
-	if err != nil {
-		return err
-	}
-
-	//getting diff between new and old policy(policies deleted/added)
-	addedPolicies, deletedPolicies, err := impl.GetDiffBetweenPolicies(oldPolicy, newPolicy)
-	if err != nil {
-		impl.Logger.Errorw("error in getting diff between old and new policy", "err", err)
-		return err
-	}
-	var addedPolicyFinal bean.PolicyRequest
-	var deletedPolicyFinal bean.PolicyRequest
-	for _, role := range roles {
-		teamObj := role.Team
-		envObj := role.Environment
-		appObj := role.EntityName
-		if teamObj == "" {
-			teamObj = "*"
-		}
-		if envObj == "" {
-			envObj = "*"
-		}
-		if appObj == "" {
-			appObj = "*"
-		}
-
-		rolePolicyDetails := RolePolicyDetails{
-			Team:    role.Team,
-			Env:     role.Environment,
-			App:     role.EntityName,
-			TeamObj: teamObj,
-			EnvObj:  envObj,
-			AppObj:  appObj,
-		}
-		if len(addedPolicies) > 0 {
-			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPolicies, rolePolicyDetails)
-			if err != nil {
-				impl.Logger.Errorw("error in getting updated added policies", "err", err)
-				return err
-			}
-			addedPolicyFinal.Data = append(addedPolicyFinal.Data, addedPolicyReq.Data...)
-		}
-		if len(deletedPolicies) > 0 {
-			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPolicies, rolePolicyDetails)
-			if err != nil {
-				impl.Logger.Errorw("error in getting updated deleted policies", "err", err)
-				return err
-			}
-			deletedPolicyFinal.Data = append(deletedPolicyFinal.Data, deletedPolicyReq.Data...)
-		}
-	}
-	//loading policy for safety
-	casbin2.LoadPolicy()
-	//updating all policies(for all roles) in casbin
-	if len(addedPolicyFinal.Data) > 0 {
-		casbin2.AddPolicy(addedPolicyFinal.Data)
-	}
-	if len(deletedPolicyFinal.Data) > 0 {
-		casbin2.RemovePolicy(deletedPolicyFinal.Data)
-	}
-	//loading policy for syncing orchestrator to casbin with newly added policies
-	casbin2.LoadPolicy()
-	return nil
-}
-
-func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []casbin2.Policy, deletedPolicies []casbin2.Policy, err error) {
-	var oldPolicyObj bean.PolicyRequest
-	err = json.Unmarshal([]byte(oldPolicy), &oldPolicyObj)
-	if err != nil {
-		impl.Logger.Errorw("error in un-marshaling old policy", "err", err)
-		return addedPolicies, deletedPolicies, err
-	}
-
-	var newPolicyObj bean.PolicyRequest
-	err = json.Unmarshal([]byte(newPolicy), &newPolicyObj)
-	if err != nil {
-		impl.Logger.Errorw("error in un-marshaling new policy", "err", err)
-		return addedPolicies, deletedPolicies, err
-	}
-
-	oldPolicyMap := make(map[string]bool)
-	for _, oldPolicyData := range oldPolicyObj.Data {
-		//converting all fields of data to a string
-		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", oldPolicyData.Type, oldPolicyData.Sub, oldPolicyData.Res, oldPolicyData.Act, oldPolicyData.Obj)
-		//creating entry for data, keeping false because if present in new policy
-		//then will be set to true and will not be included in deletedPolicies
-		oldPolicyMap[data] = false
-	}
-
-	for _, newPolicyData := range newPolicyObj.Data {
-		//converting all fields of data to a string
-		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", newPolicyData.Type, newPolicyData.Sub, newPolicyData.Res, newPolicyData.Act, newPolicyData.Obj)
-
-		if _, ok := oldPolicyMap[data]; !ok {
-			//data not present in old policy, to be included in addedPolicies
-			addedPolicies = append(addedPolicies, newPolicyData)
-		} else {
-			//data present in old policy; set old policy to true, so it does not get included in deletedPolicies
-			oldPolicyMap[data] = true
-		}
-	}
-
-	//check oldPolicies for updating deletedPolicies
-	for _, oldPolicyData := range oldPolicyObj.Data {
-		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", oldPolicyData.Type, oldPolicyData.Sub, oldPolicyData.Res, oldPolicyData.Act, oldPolicyData.Obj)
-		if presentInNew := oldPolicyMap[data]; !presentInNew {
-			//data not present in old policy, to be included in addedPolicies
-			deletedPolicies = append(deletedPolicies, oldPolicyData)
-		}
-	}
-
-	return addedPolicies, deletedPolicies, nil
-}
-
-func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin2.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
-	var policyResp bean.PolicyRequest
-	var policyReq bean.PolicyRequest
-	policyReq.Data = policies
-	policy, err := json.Marshal(policyReq)
-	if err != nil {
-		impl.Logger.Errorw("error in marshaling policy", "err", err)
-		return policyResp, err
-	}
-	//getting updated policy
-	updatedPolicy, err := util.Tprintf(string(policy), rolePolicyDetails)
-	if err != nil {
-		impl.Logger.Errorw("error in getting updated policy", "err", err)
-		return policyResp, err
-	}
-
-	err = json.Unmarshal([]byte(updatedPolicy), &policyResp)
-	if err != nil {
-		impl.Logger.Errorw("error in un-marshaling policy", "err", err)
-		return policyResp, err
-	}
-	return policyResp, nil
 }
 
 func (impl UserAuthRepositoryImpl) GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error) {
@@ -931,6 +774,25 @@ func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, e
 	return models, nil
 }
 
+func (impl UserAuthRepositoryImpl) GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error) {
+	var models []*RoleModel
+	var err error
+	if accessType == "" {
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("entity = ?", entity).Where("access_type is NULL").
+			Select()
+	} else {
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("entity = ?", entity).Where("access_type = ?", accessType).
+			Select()
+	}
+	if err != nil {
+		impl.Logger.Error("err, GetRolesByEntityAccessTypeAndAction", "err", err, "entity", entity, "accessType", accessType, "action", action)
+		return models, err
+	}
+	return models, nil
+}
+
 func (impl UserAuthRepositoryImpl) GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
 	err := impl.dbConnection.Model(&roles).Where("workflow = ?", workflow).
@@ -984,7 +846,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, g
 			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
-	return model, err
+	return model, nil
 
 }
 func (impl UserAuthRepositoryImpl) GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error) {
@@ -1010,9 +872,6 @@ func (impl UserAuthRepositoryImpl) GetRoleForJobsEntity(entity, team, app, env, 
 		_, err = impl.dbConnection.Query(&model, query, team, act, entity)
 	} else {
 		return model, nil
-	}
-	if err != nil {
-		impl.Logger.Errorw("error in getting role for jobs entity", "err", err, "entity", entity, "app", app, "act", act, "team", team, "workflow", workflow)
 	}
 	return model, err
 }
@@ -1043,7 +902,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForChartGroupEntity(entity, app, act, 
 	return model, err
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues bool) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error) {
 	var model RoleModel
 	var err error
 	if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
@@ -1052,6 +911,11 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			query = query + " and role.access_type is NULL"
 		} else {
 			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
 		}
 
 		_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
@@ -1063,6 +927,11 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		} else {
 			query += " and role.access_type='" + accessType + "'"
 		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
 		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
 	} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 		//this is applicable for all environment of a team
@@ -1071,6 +940,11 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			query = query + " and role.access_type is NULL"
 		} else {
 			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
 		}
 
 		_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
@@ -1082,6 +956,11 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		} else {
 			query += " and role.access_type='" + accessType + "'"
 		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
 
 		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
@@ -1092,14 +971,44 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		} else {
 			query += " and role.access_type='" + accessType + "'"
 		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
 		_, err = impl.dbConnection.Query(&model, query, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 	} else if team == "" && app == "" && env == "" && act == "" {
 		return model, nil
 	} else {
 		return model, nil
 	}
-	if err != nil {
-		impl.Logger.Errorw("error in getting role for other entity", "err", err, "app", app, "act", act, "accessType", accessType, "team", team)
-	}
 	return model, err
+}
+
+func (impl UserAuthRepositoryImpl) GetUsersByEnvAndAction(appName, envName, team, action string) ([]string, []string, error) {
+	var emailIds []string
+	var roleGroups []string
+
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&emailIds, query, action, envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	roleGroupQuery := "SELECT rg.casbin_name " +
+		"FROM role_group rg " +
+		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
+		"INNER JOIN roles r ON rgrm.role_id = r.id " +
+		"WHERE (r.action = ? ) " +
+		"AND (r.environment IS NULL OR r.environment = ?) " +
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? OR r.role = ?;"
+
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, action, envName, appName, team, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	return emailIds, roleGroups, nil
 }

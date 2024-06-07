@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package batch
@@ -22,6 +10,7 @@ import (
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -91,7 +80,7 @@ func executeWorkflowCreate(impl WorkflowActionImpl, workflow *v1.Workflow, ctx c
 		return fmt.Errorf("error '%s' workflow `%s` exists for app with name `%s` in workflow creation", err.Error(), *workflow.Destination.Workflow, *workflow.Destination.App)
 	}
 	//TODO: update userId
-	workflowReq := appWorkflow.AppWorkflowDto{
+	workflowReq := bean.AppWorkflowDto{
 		Name:   *workflow.Destination.Workflow,
 		AppId:  app.Id,
 		UserId: 1,

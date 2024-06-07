@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package app
@@ -21,16 +9,18 @@ import (
 	"encoding/json"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"io/ioutil"
+	"github.com/pkg/errors"
+	"net/http"
 	"net/url"
-	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -45,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	. "github.com/devtron-labs/devtron/internal/util"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
@@ -76,7 +67,10 @@ type AppServiceConfig struct {
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
+	ScanV2Enabled                              bool   `env:"SCAN_V2_ENABLED" envDefault:"false"`
 }
+
+const AppNotFound = "app not found"
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
 	cfg := &AppServiceConfig{}
@@ -112,6 +106,8 @@ type AppServiceImpl struct {
 	appStatusService                       appStatus.AppStatusService
 	installedAppRepository                 repository4.InstalledAppRepository
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
+	helmRepoPushService                    HelmRepoPushService
+	DockerArtifactStoreRepository          dockerRegistryRepository.DockerArtifactStoreRepository
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	acdConfig                              *argocdServer.ACDConfig
 	gitOpsConfigReadService                config.GitOpsConfigReadService
@@ -124,21 +120,29 @@ type AppService interface {
 	// TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
-	// TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
+	// TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) (*[]byte, error)
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	// MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
-	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
-	//GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
-	//GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
-	//GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
-	//GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
+	WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride)
+	// GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
+	// GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
+	// GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
+	// GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
-	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
-	//SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-	GetActiveCiCdAppsCount() (int, error)
+	GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error)
+	GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error)
+	// SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	// PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error
+
+	FindAppByNames(names []string) ([]*app.App, error)
+	FindDevtronAppIdsByNames(names []string) ([]int, error)
+	FindDevtronAppIdByName(name string) (int, error)
+	FindAppById(appId int) (*app.App, error)
+	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
+	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error)
 }
 
 func NewAppService(
@@ -160,8 +164,12 @@ func NewAppService(
 	appStatusConfig *AppServiceConfig, appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
+	helmRepoPushService HelmRepoPushService,
+	DockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
+	acdConfig *argocdServer.ACDConfig,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -187,6 +195,8 @@ func NewAppService(
 		appStatusService:                       appStatusService,
 		installedAppRepository:                 installedAppRepository,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
+		helmRepoPushService:                    helmRepoPushService,
+		DockerArtifactStoreRepository:          DockerArtifactStoreRepository,
 		scopedVariableManager:                  scopedVariableManager,
 		acdConfig:                              acdConfig,
 		gitOpsConfigReadService:                gitOpsConfigReadService,
@@ -333,7 +343,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 				}
 				if isSucceeded {
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
+					go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, &cdWfr, pipelineOverride)
 				}
 			} else {
 				impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
@@ -552,6 +562,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", pipelineId)
 		}
+
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: pipelineId,
@@ -748,10 +759,13 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
+func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, wfr *pipelineConfig.CdWorkflowRunner, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if wfr != nil && wfr.CdWorkflow != nil {
+		wfr.CdWorkflow.CiArtifactId = override.CiArtifactId
+	}
+	event = impl.eventFactory.BuildExtraCDData(event, wfr, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
@@ -788,48 +802,45 @@ func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err e
 	return ctx, nil
 }
 
-func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
+func (impl *AppServiceImpl) GetLatestDeployedManifestByPipelineId(appId int, envId int, runner string, ctx context.Context) ([]byte, error) {
 
 	manifestByteArray := make([]byte, 0)
 
 	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err != nil {
+	if err != nil || pipeline == nil {
 		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return manifestByteArray, err
 	}
 
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
+	if runner == "CD" {
+		runner = "DEPLOY"
+	} else if runner == "PRECD" {
+		runner = "PRE"
+	} else if runner == "POSTCD" {
+		runner = "POST"
+	}
+
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline[0].Id, bean.WorkflowType(runner))
 	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in fetching cd_workflow runner by pipeline id and runner type", "err", err)
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.Get(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-	}
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.deploymentTemplateService.BuildChartAndGetPath(appName, envConfigOverride, ctx)
+}
+
+func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(cdWorkflowRunnerId int, ctx context.Context) ([]byte, error) {
+
+	manifestByteArray := make([]byte, 0)
+
+	cdWorkflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWorkflowRunnerId)
 	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
+		impl.logger.Errorw("error in getting runners by cdWorkflowId", "err", err)
 		return manifestByteArray, err
 	}
 
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
+	return cdWorkflowRunner.HelmReferenceChart, nil
 
 }
 
@@ -846,6 +857,19 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 	}
 	chartGitAttr.ChartLocation = filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
 	return gitOpsRepoName, chartGitAttr, nil
+}
+
+func GetRepoPathAndChartNameFromRepoName(repoName string) (repoPath, chartName string) {
+	// for helm repo push base path of repo name is assumed to be chart name
+	repositoryNameSplit := strings.Split(repoName, "/")
+	if len(repositoryNameSplit) == 1 {
+		chartName = repositoryNameSplit[0]
+		repoPath = ""
+	} else {
+		chartName = repositoryNameSplit[len(repositoryNameSplit)-1]
+		repoPath = strings.TrimSuffix(repoName, chartName)
+	}
+	return repoPath, chartName
 }
 
 func (impl *AppServiceImpl) saveTimeline(overrideRequest *bean.ValuesOverrideRequest, status string, statusDetail string, ctx context.Context) {
@@ -1124,6 +1148,30 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-func (impl *AppServiceImpl) GetActiveCiCdAppsCount() (int, error) {
-	return impl.appRepository.GetActiveCiCdAppsCount()
+func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
+	return impl.appRepository.FindByNames(names)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdsByNames(names []string) ([]int, error) {
+	return impl.appRepository.FindIdsByNamesAndAppType(names, helper2.CustomApp)
+}
+
+func (impl *AppServiceImpl) FindDevtronAppIdByName(name string) (int, error) {
+	return impl.appRepository.FindIdByNameAndAppType(name, helper2.CustomApp)
+}
+
+func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {
+	return impl.appRepository.GetActiveCiCdAppsCount(excludeAppIds)
+}
+
+func (impl *AppServiceImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error) {
+	return impl.appRepository.FindAppsWithFilter(appNameLike, sortOrder, limit, offset, excludeAppIds)
+}
+
+func (impl *AppServiceImpl) FindAppById(appId int) (*app.App, error) {
+	app, err := impl.appRepository.FindById(appId)
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(AppNotFound)
+	}
+	return app, nil
 }

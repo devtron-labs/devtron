@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE ci_template ADD COLUMN build_context_git_material_id INT;
 UPDATE ci_template SET build_context_git_material_id = git_material_id;
 ALTER TABLE ci_template_override ADD COLUMN build_context_git_material_id INT;

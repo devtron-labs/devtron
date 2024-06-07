@@ -1,20 +1,10 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
+
+import "github.com/devtron-labs/devtron/pkg/cluster/repository"
 
 type EnvironmentBean struct {
 	Id                     int      `json:"id,omitempty" validate:"number"`
@@ -31,8 +21,34 @@ type EnvironmentBean struct {
 	AppCount               int      `json:"appCount"`
 	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
 	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
+	IsDigestEnforcedForEnv bool     `json:"isDigestEnforcedForEnv"`
 	ClusterServerUrl       string   `json:"-"`
 	ErrorInConnecting      string   `json:"-"`
+}
+
+func (environmentBean *EnvironmentBean) AdaptFromEnvironment(model *repository.Environment) {
+
+	environmentBean.Id = model.Id
+	environmentBean.Environment = model.Name
+	environmentBean.ClusterId = model.Cluster.Id
+	environmentBean.Active = model.Active
+	environmentBean.PrometheusEndpoint = model.Cluster.PrometheusEndpoint
+	environmentBean.Namespace = model.Namespace
+	environmentBean.Default = model.Default
+	environmentBean.EnvironmentIdentifier = model.EnvironmentIdentifier
+	environmentBean.Description = model.Description
+
+}
+
+type VirtualEnvironmentBean struct {
+	Id                   int    `json:"id,omitempty" validate:"number"`
+	Environment          string `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId            int    `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName          string `json:"cluster_name,omitempty"`
+	Active               bool   `json:"active"`
+	Namespace            string `json:"namespace,omitempty"`
+	Description          string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment bool   `json:"isVirtualEnvironment"`
 }
 
 type EnvDto struct {
@@ -42,6 +58,7 @@ type EnvDto struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 	Description           string `json:"description" validate:"max=40"`
 	IsVirtualEnvironment  bool   `json:"isVirtualEnvironment"`
+	Default               bool   `json:"default"`
 }
 
 type ClusterEnvDto struct {

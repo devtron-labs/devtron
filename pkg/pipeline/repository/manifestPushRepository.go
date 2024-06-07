@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -38,6 +26,9 @@ type ManifestPushConfig struct {
 type ManifestPushConfigRepository interface {
 	SaveConfig(manifestPushConfig *ManifestPushConfig) (*ManifestPushConfig, error)
 	GetManifestPushConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error)
+	UpdateConfig(manifestPushConfig *ManifestPushConfig) error
+	GetManifestPushConfigByStoreId(storeId string) (*ManifestPushConfig, error)
+	GetOneManifestPushConfig(manifestConfig string) (*ManifestPushConfig, error)
 }
 
 type ManifestPushConfigRepositoryImpl struct {
@@ -63,10 +54,42 @@ func (impl ManifestPushConfigRepositoryImpl) SaveConfig(manifestPushConfig *Mani
 }
 
 func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByAppIdAndEnvId(appId, envId int) (*ManifestPushConfig, error) {
-	var manifestPushConfig *ManifestPushConfig
+	manifestPushConfig := &ManifestPushConfig{}
 	err := impl.dbConnection.Model(manifestPushConfig).
 		Where("app_id = ? ", appId).
 		Where("env_id = ? ", envId).
+		Where("deleted = ? ", false).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		return manifestPushConfig, err
+	}
+	return manifestPushConfig, nil
+}
+
+func (impl ManifestPushConfigRepositoryImpl) UpdateConfig(manifestPushConfig *ManifestPushConfig) error {
+	_, err := impl.dbConnection.Model(manifestPushConfig).WherePK().Update()
+	return err
+}
+
+func (impl ManifestPushConfigRepositoryImpl) GetManifestPushConfigByStoreId(storeId string) (*ManifestPushConfig, error) {
+	manifestPushConfig := &ManifestPushConfig{}
+	err := impl.dbConnection.Model(manifestPushConfig).
+		Where("credentials_config LIKE ? ", "%\"ContainerRegistryName\":\""+storeId+"\"}").
+		Where("deleted = ? ", false).
+		Limit(1).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		return manifestPushConfig, err
+	}
+	return manifestPushConfig, nil
+}
+
+func (impl ManifestPushConfigRepositoryImpl) GetOneManifestPushConfig(manifestConfig string) (*ManifestPushConfig, error) {
+	manifestPushConfig := &ManifestPushConfig{}
+	err := impl.dbConnection.Model(manifestPushConfig).
+		Where("credentials_config = ? ", manifestConfig).
+		Where("deleted = ? ", false).
+		Limit(1).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		return manifestPushConfig, err

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
@@ -23,20 +11,28 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/cacheResourceSelector"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/remoteConnection"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -46,7 +42,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"net/http"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -58,9 +53,16 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	MandatoryPluginCiTriggerBlockError = "ci trigger request blocked, mandatory plugins not configured"
+
+	CloningModeFull = "FULL"
+)
+
 type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
+	WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow, ciImage string)
 }
 
 type CiServiceImpl struct {
@@ -75,6 +77,7 @@ type CiServiceImpl struct {
 	userService                  user.UserService
 	ciTemplateService            CiTemplateService
 	appCrudOperationService      app.AppCrudOperationService
+	globalPolicyService          globalPolicy.GlobalPolicyService
 	envRepository                repository1.EnvironmentRepository
 	appRepository                appRepository.AppRepository
 	customTagService             CustomTagService
@@ -83,6 +86,9 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	remoteConnectionService      remoteConnection.RemoteConnectionService
+	dockerRegistryConfig         *DockerRegistryConfigImpl
+	ciCacheResourceSelector      cacheResourceSelector.CiCacheResourceSelector
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -92,12 +98,19 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
+	ciTemplateService CiTemplateService,
+	appCrudOperationService app.AppCrudOperationService,
+	globalPolicyService globalPolicy.GlobalPolicyService,
+	envRepository repository1.EnvironmentRepository,
+	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	remoteConnectionService remoteConnection.RemoteConnectionService,
+	dockerRegistryConfig *DockerRegistryConfigImpl,
+	ciCacheResourceSelector cacheResourceSelector.CiCacheResourceSelector,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -111,6 +124,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		userService:                  userService,
 		ciTemplateService:            ciTemplateService,
 		appCrudOperationService:      appCrudOperationService,
+		globalPolicyService:          globalPolicyService,
 		envRepository:                envRepository,
 		appRepository:                appRepository,
 		scopedVariableManager:        scopedVariableManager,
@@ -118,6 +132,9 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		remoteConnectionService:      remoteConnectionService,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		ciCacheResourceSelector:      ciCacheResourceSelector,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -142,12 +159,13 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 }
 
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
-	impl.Logger.Debug("ci pipeline manual trigger")
+
+	impl.Logger.Debug("ci pipeline manual trigger", "request", trigger)
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 {
+	if trigger.PipelineType == string(constants.CI_JOB) && len(ciMaterials) != 0 {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
@@ -177,6 +195,13 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 	if isJob && env != nil {
+
+		// todo: confirm this from aditya @komal
+		if env.Cluster.CdArgoSetup {
+			err = errors.New("inactive cluster cd the cluster")
+			return 0, err
+		}
+
 		ciWorkflowConfig.Namespace = env.Namespace
 
 		// This will be populated for jobs running in selected environment
@@ -207,7 +232,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
 	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+	savedCiWf, err := impl.saveNewWorkflowForCITrigger(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, ciMaterials, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
@@ -243,6 +269,15 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
 	} else {
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
+	}
+
+	ciCacheResource, err := impl.ciCacheResourceSelector.GetAvailResource(workflowRequest.Scope, workflowRequest.AppLabels, workflowRequest.WorkflowId)
+	if err != nil {
+		// some error occurred skip the ciCacheResource and continue
+		impl.Logger.Errorw("error in getting ci cache resource", "err", err)
+	}
+	if ciCacheResource != nil {
+		workflowRequest.CiCacheResourceMap = ciCacheResource.GetMap()
 	}
 
 	err = impl.executeCiPipeline(workflowRequest)
@@ -331,9 +366,32 @@ func (impl *CiServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelin
 	return payload
 }
 
-func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
+func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
+	commitHashes map[int]pipelineConfig.GitCommit, userId int32, ciMaterials []*pipelineConfig.CiPipelineMaterial, EnvironmentId int, isJobType bool, refCiWorkflowId int) (*pipelineConfig.CiWorkflow, error) {
 
+	branchesForCheckingBlockageState := make([]string, 0, len(ciMaterials))
+	for _, ciMaterial := range ciMaterials {
+		// ignore those materials which have inactive git material
+		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
+			continue
+		}
+		branchesForCheckingBlockageState = append(branchesForCheckingBlockageState, ciMaterial.Value)
+	}
+	var err error
+	var appDetails *app2.App
+	if pipeline != nil {
+		appDetails = pipeline.App
+	}
+	isJob := appDetails != nil && appDetails.AppType == helper.Job
+	isCiTriggerBlocked := false
+	if !isJob {
+		_, isCiTriggerBlocked, _, err = impl.globalPolicyService.GetBlockageStateForACIPipelineTrigger(pipeline.Id, pipeline.ParentCiPipeline, branchesForCheckingBlockageState, true)
+		if err != nil {
+			impl.Logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", pipeline.Id)
+			return &pipelineConfig.CiWorkflow{}, err
+		}
+
+	}
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
 		Status:                pipelineConfig.WorkflowStarting, // starting CIStage
@@ -348,11 +406,22 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		ReferenceCiWorkflowId: refCiWorkflowId,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 	}
-	if isJob {
+	if isJobType {
 		ciWorkflow.Namespace = wfConfig.Namespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
-	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
+	if isCiTriggerBlocked {
+		impl.Logger.Errorw("cannot trigger pipeline, blocked by mandatory plugin policy", "ciPipelineId", pipeline.Id)
+		ciWorkflow.Status = pipelineConfig.WorkflowFailed
+		ciWorkflow.Message = MandatoryPluginCiTriggerBlockError
+		err = impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
+		if err != nil {
+			impl.Logger.Errorw("saving workflow error", "err", err)
+			return &pipelineConfig.CiWorkflow{}, err
+		}
+		return &pipelineConfig.CiWorkflow{}, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: MandatoryPluginCiTriggerBlockError}
+	}
+	err = impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err
@@ -362,7 +431,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 }
 
 func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *types.WorkflowRequest) error {
-	_, err := impl.workflowService.SubmitWorkflow(workflowRequest)
+	_, _, err := impl.workflowService.SubmitWorkflow(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return err
@@ -418,6 +487,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
 				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
+		}
+		if executors.IsShallowClonePossible(ciMaterial, impl.config.GitProviders, impl.config.CloningMode) {
+			ciProjectDetail.CloningMode = executors.CloningModeShallow
 		}
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
@@ -689,11 +761,18 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	if dockerRegistry != nil {
+		var registryConnectionConfig *remoteConnectionBean.RemoteConnectionConfigBean
+		registryConnectionConfig, err = impl.dockerRegistryConfig.GetRemoteConnectionConfigByDockerId(dockerRegistry.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
+			return nil, err
+		}
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
 		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRegistryConnectionConfig = registryConnectionConfig
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username
@@ -938,5 +1017,19 @@ func _getTruncatedImageTag(imageTag string) string {
 		return imageTag
 	} else {
 		return imageTag[:_truncatedLength]
+	}
+}
+
+func (impl *CiServiceImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow, ciImage string) {
+	event := impl.eventFactory.Build(util2.Fail, &ciWorkflow.CiPipelineId, ciWorkflow.CiPipeline.AppId, nil, util2.CI)
+	material := &client.MaterialTriggerInfo{}
+	material.GitTriggers = ciWorkflow.GitTriggers
+	event.CiWorkflowRunnerId = ciWorkflow.Id
+	event.UserId = int(ciWorkflow.TriggeredBy)
+	event = impl.eventFactory.BuildExtraCIData(event, material, ciImage)
+	event.CiArtifactId = 0
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.Logger.Errorw("error in writing event", "err", evtErr)
 	}
 }

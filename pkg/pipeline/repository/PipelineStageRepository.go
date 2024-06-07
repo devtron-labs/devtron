@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -79,6 +67,7 @@ type PipelineStageStep struct {
 	DependentOnStep          string           `sql:"dependent_on_step"`
 	Deleted                  bool             `sql:"deleted,notnull"`
 	TriggerIfParentStageFail bool             `sql:"trigger_if_parent_stage_fail"`
+	PipelineStage            *PipelineStage
 	sql.AuditLog
 }
 
@@ -160,6 +149,7 @@ type PipelineStageRepository interface {
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
 	GetAllCdStagesByCdPipelineId(cdPipelineId int) ([]*PipelineStage, error)
 	GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error)
+	GetExistingCdStageTypesForCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error)
 
 	GetCiStageByCiPipelineIdAndStageType(ciPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
 	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType PipelineStageType) (*PipelineStage, error)
@@ -211,6 +201,8 @@ type PipelineStageRepository interface {
 	GetConditionIdsByStepId(stepId int) ([]int, error)
 	MarkConditionsDeletedByStepId(stepId int, tx *pg.Tx) error
 	MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq []int, stepId int, tx *pg.Tx) error
+
+	GetConfiguredPluginsForCIPipelines(ciPipelineIds []int) ([]*PipelineStageStep, error)
 }
 
 func NewPipelineStageRepository(logger *zap.SugaredLogger,
@@ -257,6 +249,21 @@ func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineId(cdPipeline
 func (impl *PipelineStageRepositoryImpl) GetAllCdStagesByCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error) {
 	var pipelineStages []*PipelineStage
 	err := impl.dbConnection.Model(&pipelineStages).
+		Where("cd_pipeline_id in (?)", pg.In(cdPipelineIds)).
+		Where("deleted = ?", false).
+		Select()
+
+	if err != nil {
+		impl.logger.Errorw("err in getting all cd stages by cdPipelineIds", "err", err, "cdPipelineIds", cdPipelineIds)
+		return nil, err
+	}
+	return pipelineStages, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetExistingCdStageTypesForCdPipelineIds(cdPipelineIds []int) ([]*PipelineStage, error) {
+	var pipelineStages []*PipelineStage
+	err := impl.dbConnection.Model(&pipelineStages).
+		Column("pipeline_stage.type", "pipeline_stage.cd_pipeline_id").
 		Where("cd_pipeline_id in (?)", pg.In(cdPipelineIds)).
 		Where("deleted = ?", false).
 		Select()
@@ -862,4 +869,19 @@ func (impl *PipelineStageRepositoryImpl) MarkConditionsDeletedExcludingActiveVar
 		return err
 	}
 	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetConfiguredPluginsForCIPipelines(ciPipelineIds []int) ([]*PipelineStageStep, error) {
+	var models []*PipelineStageStep
+	err := impl.dbConnection.Model(&models).Column("pipeline_stage_step.ref_plugin_id", "PipelineStage").
+		Join("inner join pipeline_stage ps on ps.id=pipeline_stage_step.pipeline_stage_id").
+		Where("pipeline_stage_step.step_type = ?", PIPELINE_STEP_TYPE_REF_PLUGIN).
+		Where("ps.ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
+		Where("pipeline_stage_step.deleted = ?", false).
+		Where("ps.deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting configured pipelines for a ci pipeline", "err", err, "ciPipelineIds", ciPipelineIds)
+		return nil, err
+	}
+	return models, nil
 }

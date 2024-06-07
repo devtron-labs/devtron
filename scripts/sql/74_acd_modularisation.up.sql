@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 INSERT INTO module(name, version, status, updated_on)
 SELECT 'argo-cd', version, status, now()
 FROM module

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package app
@@ -21,6 +9,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,11 +42,12 @@ import (
 type AppListingService interface {
 	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
 
-	//------------------
+	// ------------------
 
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
@@ -70,7 +60,7 @@ type AppListingService interface {
 	GetReleaseCount(appId, envId int) (int, error)
 
 	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) (*OverviewAppsByEnvironmentBean, error)
 }
 
 const (
@@ -98,9 +88,13 @@ type AppNameTypeIdContainer struct {
 	Type    string `json:"type"`
 	AppId   int    `json:"appId"`
 }
+type CiArtifactWithParentArtifact struct {
+	ParentCiArtifact int
+	CiArtifactId     int
+}
 
-func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
-	for _, ns := range req.Namespaces {
+func GetNamespaceClusterMapping(underscoreSeperatedClusterIdNamespaces []string) (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
+	for _, ns := range underscoreSeperatedClusterIdNamespaces {
 		items := strings.Split(ns, "_")
 		// TODO refactoring: invalid condition; always false
 		if len(items) < 1 && len(items) > 2 {
@@ -199,7 +193,7 @@ const (
 	NonProduction = "Non-Production"
 )
 
-func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error) {
+func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) (*OverviewAppsByEnvironmentBean, error) {
 	resp := &OverviewAppsByEnvironmentBean{}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
@@ -230,7 +224,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			resp.CreatedBy = fmt.Sprintf("%s (inactive)", createdBy.EmailId)
 		}
 	}
-	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
+	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset, ctx)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
 		return resp, err
@@ -243,6 +237,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 			impl.Logger.Errorw("failed to fetch last deployed image", "err", err, "appId", envContainer.AppId, "envId", envId)
 			return resp, err
 		}
+
 		if lastDeployed != nil {
 			envContainer.LastDeployedImage = lastDeployed.LastDeployedImage
 			envContainer.LastDeployedBy = lastDeployed.LastDeployedBy
@@ -353,6 +348,15 @@ func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.J
 	return jobCiContainers, nil
 }
 
+func (impl AppListingServiceImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	jobCiContainers, err := impl.appListingRepository.FetchJobCiPipelines()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching job ci pipelines", "error", err)
+		return jobCiContainers, err
+	}
+	return jobCiContainers, nil
+}
+
 func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
@@ -405,6 +409,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 			container.Namespace = info.Namespace
 			container.ClusterName = info.ClusterName
 			container.EnvironmentName = info.Name
+			container.IsVirtualEnvironment = info.IsVirtualEnvironment
 		}
 	}
 	return envContainers, appSize, nil
@@ -750,6 +755,10 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	}
 	appDetailContainer.AppId = appId
 
+	if len(appDetailContainer.DeploymentDetailContainer.Image) > 0 {
+		imageTag := strings.Split(appDetailContainer.DeploymentDetailContainer.Image, ":")[1]
+		appDetailContainer.DeploymentDetailContainer.ImageTag = imageTag
+	}
 	// set ifIpsAccess provided and relevant data
 	appDetailContainer.IsExternalCi = true
 	environment, err := impl.environmentRepository.FindById(envId)
@@ -779,7 +788,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
@@ -856,7 +865,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
@@ -906,7 +915,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		} else {
 			env.Commits = make([]string, 0)
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }
@@ -917,7 +926,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelInfraMetrics := true // default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
 	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
@@ -951,7 +960,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
+		env.InfraMetrics = &appLevelInfraMetrics // using default value, discarding value got from query
 	}
 	return envs, nil
 }

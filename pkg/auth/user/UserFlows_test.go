@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package user
@@ -58,7 +46,7 @@ func BenchmarkCreateDefaultPoliciesForAllTypesV2(b *testing.B) {
 	action := fmt.Sprintf("manager")
 	b.Run(fmt.Sprintf("BenchmarkCreateDefaultPoliciesForAllTypesV2"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, "")
+			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false, "")
 		}
 	})
 }
@@ -89,7 +77,7 @@ func BenchmarkCreateDefaultPoliciesForAllTypes(b *testing.B) {
 	action := fmt.Sprintf("manager")
 	b.Run(fmt.Sprintf("BenchmarkCreateDefaultPoliciesForAllTypes"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userAuthRepository.CreateDefaultPoliciesForAllTypes(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, 1)
+			userAuthRepository.CreateDefaultPoliciesForAllTypes(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false, 1)
 		}
 	})
 

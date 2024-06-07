@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 
 CREATE SEQUENCE IF NOT EXISTS public.resource_scan_execution_result_id_seq;
 

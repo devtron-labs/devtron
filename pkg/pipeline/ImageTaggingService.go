@@ -1,31 +1,23 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/caarlos0/env"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"k8s.io/utils/strings/slices"
 	"strings"
 	"time"
 )
@@ -40,9 +32,9 @@ type ImageTaggingServiceConfig struct {
 
 type ImageTaggingService interface {
 	// GetTagsData returns the following fields in reponse Object
-	//ImageReleaseTags -> this will get the tags of the artifact,
-	//AppReleaseTags -> all the tags of the given appId,
-	//imageComment -> comment of the given artifactId,
+	// ImageReleaseTags -> this will get the tags of the artifact,
+	// AppReleaseTags -> all the tags of the given appId,
+	// imageComment -> comment of the given artifactId,
 	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
 	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error)
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) (*types.ImageTaggingResponseDTO, error)
@@ -51,14 +43,17 @@ type ImageTaggingService interface {
 	// ValidateImageTaggingRequest validates the requested payload
 	ValidateImageTaggingRequest(imageTaggingRequest *types.ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
 	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
-	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
+	GetTagNamesByArtifactId(artifactId int) ([]string, error)
+	// GetTagsDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error)
-	// GetTaggingDataMapByAppId this will fetch a map of artifact vs imageComment for given artifactIds
+	// GetImageCommentsDataMapByArtifactIds this will fetch a map of artifact vs imageComment for given artifactIds
 	GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error)
 	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
 	GetUniqueTagsByAppId(appId int) ([]string, error)
+	GetUniqueTagsByAppIds(ctx context.Context, appIds []int) ([]*repository.ImageTag, error)
 	GetImageTaggingServiceConfig() ImageTaggingServiceConfig
 	FindProdEnvExists(externalCi bool, pipelineIds []int) (bool, error)
+	GetImageTagsAndComment(artifactId int) (repository.ImageComment, []string, error)
 }
 
 type ImageTaggingServiceImpl struct {
@@ -144,7 +139,20 @@ func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]*repo
 	return imageReleaseTags, nil
 }
 
-// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
+func (impl ImageTaggingServiceImpl) GetTagNamesByArtifactId(artifactId int) ([]string, error) {
+	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
+		return nil, err
+	}
+	releaseTags := make([]string, 0, len(imageReleaseTags))
+	for _, imageTag := range imageReleaseTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	return releaseTags, nil
+}
+
+// GetTagsDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 func (impl ImageTaggingServiceImpl) GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error) {
 	tags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
 	if err != nil {
@@ -161,7 +169,6 @@ func (impl ImageTaggingServiceImpl) GetTagsDataMapByAppId(appId int) (map[int][]
 	}
 
 	return result, nil
-
 }
 
 func (impl ImageTaggingServiceImpl) GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error) {
@@ -530,4 +537,47 @@ func (impl ImageTaggingServiceImpl) GetUniqueTagsByAppId(appId int) ([]string, e
 		uniqueTags[i] = tag.TagName
 	}
 	return uniqueTags, nil
+}
+
+func (impl ImageTaggingServiceImpl) GetUniqueTagsByAppIds(ctx context.Context, appIds []int) ([]*repository.ImageTag, error) {
+	newCtx, span := otel.Tracer("ImageTaggingService").Start(ctx, "GetUniqueTagsByAppIds")
+	defer span.End()
+	imageTags, err := impl.imageTaggingRepo.GetTagsForAppIds(newCtx, appIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appIds", appIds)
+		return nil, err
+	} else if util.IsErrNoRows(err) {
+		return []*repository.ImageTag{}, nil
+	}
+	uniqueTags := make([]*repository.ImageTag, 0, len(imageTags))
+	tagNamesMap := make([]string, 0, len(imageTags))
+	for i, _ := range imageTags {
+		// this condition is to handle the chain CI issue
+		if slices.Contains(tagNamesMap, imageTags[i].TagName) {
+			continue
+		}
+		tagNamesMap = append(tagNamesMap, imageTags[i].TagName)
+		uniqueTags = append(uniqueTags, imageTags[i])
+	}
+	return uniqueTags, nil
+}
+
+func (impl ImageTaggingServiceImpl) GetImageTagsAndComment(artifactId int) (repository.ImageComment, []string, error) {
+	var imageTagNames []string
+	imageComment, err := impl.imageTaggingRepo.GetImageComment(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	imageTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	if imageTags != nil && len(imageTags) != 0 {
+		for _, tag := range imageTags {
+			imageTagNames = append(imageTagNames, tag.TagName)
+		}
+	}
+	return imageComment, imageTagNames, nil
 }

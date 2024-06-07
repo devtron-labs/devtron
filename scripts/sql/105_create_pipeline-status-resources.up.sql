@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_status_timeline_resources;
 
 CREATE TABLE public.pipeline_status_timeline_resources (

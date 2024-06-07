@@ -1,24 +1,14 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"time"
 )
 
@@ -71,6 +61,7 @@ type ImageTaggingRepository interface {
 	SaveReleaseTagsInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	SaveImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	GetTagsByAppId(appId int) ([]*ImageTag, error)
+	GetTagsForAppIds(ctx context.Context, appIds []int) ([]*ImageTag, error)
 	GetTagsByArtifactId(artifactId int) ([]*ImageTag, error)
 	GetImageComment(artifactId int) (ImageComment, error)
 	GetImageCommentsByArtifactIds(artifactIds []int) ([]*ImageComment, error)
@@ -109,6 +100,17 @@ func (impl *ImageTaggingRepositoryImpl) GetTagsByAppId(appId int) ([]*ImageTag, 
 	res := make([]*ImageTag, 0)
 	err := impl.dbConnection.Model(&res).
 		Where("app_id=?", appId).
+		Select()
+	return res, err
+}
+
+func (impl *ImageTaggingRepositoryImpl) GetTagsForAppIds(ctx context.Context, appIds []int) ([]*ImageTag, error) {
+	_, span := otel.Tracer("ImageTaggingRepository").Start(ctx, "GetTagsForAppIds")
+	defer span.End()
+	res := make([]*ImageTag, 0)
+	err := impl.dbConnection.Model(&res).
+		Where("app_id in (?)", pg.In(appIds)).
+		Order("id DESC").
 		Select()
 	return res, err
 }

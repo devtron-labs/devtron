@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipeline
@@ -22,11 +10,14 @@ import (
 	"errors"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -34,16 +25,20 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
+	"io/ioutil"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
+	"k8s.io/helm/pkg/proto/hapi/chart"
+	"path"
+	"sigs.k8s.io/yaml"
 	"strings"
 )
 
 // TODO: move isCi/isJob to workflowRequest
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
+	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error)
 	// DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
@@ -61,8 +56,10 @@ type WorkflowServiceImpl struct {
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sServiceImpl
+	k8sUtil                *k8s.K8sUtilExtended
 	k8sCommonService       k8s2.K8sCommonService
+	chartTemplateService   util2.ChartTemplateService
+	mergeUtil              *util2.MergeUtil
 	infraProvider          infraProviders.InfraProvider
 }
 
@@ -70,8 +67,9 @@ type WorkflowServiceImpl struct {
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
-	k8sUtil *k8s.K8sServiceImpl,
-	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
+	k8sUtil *k8s.K8sUtilExtended,
+	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, chartTemplateService util2.ChartTemplateService,
+	mergeUtil *util2.MergeUtil,
 	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
@@ -83,6 +81,8 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		k8sUtil:                k8sUtil,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
+		chartTemplateService:   chartTemplateService,
+		mergeUtil:              mergeUtil,
 		infraProvider:          infraProvider,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
@@ -101,17 +101,33 @@ const (
 	postCdStage = "postCD"
 )
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
 	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
-	if workflowExecutor == nil {
-		return nil, errors.New("workflow executor not found")
+	jobHelmChartPath := ""
+	var createdWf *unstructured.UnstructuredList
+	if workflowRequest.IsDryRun {
+		jobManifestTemplate := &bean3.JobManifestTemplate{
+			NameSpace:               workflowRequest.Namespace,
+			Container:               workflowTemplate.Containers[0],
+			ConfigSecrets:           workflowTemplate.ConfigMaps,
+			ConfigMaps:              workflowTemplate.Secrets,
+			NodeSelector:            workflowTemplate.NodeSelector,
+			Toleration:              workflowTemplate.Tolerations,
+			TTLSecondsAfterFinished: workflowTemplate.TTLValue,
+			ActiveDeadlineSeconds:   workflowTemplate.ActiveDeadlineSeconds,
+		}
+		jobHelmChartPath, err = impl.TriggerDryRun(jobManifestTemplate, workflowRequest.StageType)
+	} else {
+		workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
+		if workflowExecutor == nil {
+			return nil, "", errors.New("workflow executor not found")
+		}
+		createdWf, err = workflowExecutor.ExecuteWorkflow(workflowTemplate)
 	}
-	createdWf, err := workflowExecutor.ExecuteWorkflow(workflowTemplate)
-	return createdWf, err
+	return createdWf, jobHelmChartPath, err
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
@@ -180,8 +196,8 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
 		configMap := env.Cluster.Config
-		bearerToken := configMap[k8s.BearerToken]
-		clusterConfig := &k8s.ClusterConfig{
+		bearerToken := configMap[k8s3.BearerToken]
+		clusterConfig := &k8s3.ClusterConfig{
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,
 			Host:                  env.Cluster.ServerUrl,
@@ -390,4 +406,40 @@ func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment
 		}
 	}
 	return wfClient, nil
+}
+
+func (impl *WorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobManifestTemplate, stageType string) (builtChartPath string, err error) {
+
+	jobManifestJson, err := json.Marshal(jobManifestTemplate)
+	if err != nil {
+		impl.Logger.Errorw("error in converting to json", "err", err)
+		return builtChartPath, err
+	}
+	jobHelmChartPath := path.Join(bean2.RefChartDirPath, bean3.HELM_JOB_REF_TEMPLATE_NAME)
+	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
+		&chart.Metadata{ApiVersion: bean3.JOB_CHART_API_VERSION, Name: bean3.JOB_CHART_NAME, Version: bean3.JOB_CHART_VERSION},
+		jobHelmChartPath)
+
+	valuesFilePath := path.Join(builtChartPath, "values.yaml") // default values of helm chart
+	defaultValues, err := ioutil.ReadFile(valuesFilePath)
+	if err != nil {
+		return builtChartPath, err
+	}
+	defaultValuesJson, err := yaml.YAMLToJSON(defaultValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValues, err := impl.mergeUtil.JsonPatch(defaultValuesJson, jobManifestJson)
+	if err != nil {
+		return builtChartPath, err
+	}
+	mergedValuesYaml, err := yaml.JSONToYAML(mergedValues)
+	if err != nil {
+		return builtChartPath, err
+	}
+	err = ioutil.WriteFile(valuesFilePath, mergedValuesYaml, 0600)
+	if err != nil {
+		return builtChartPath, nil
+	}
+	return builtChartPath, nil
 }

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package generateManifest
@@ -25,7 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 )
 
-func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateChartResponse []*gRPC.TemplateChartResponse, appNameToId map[string]int, environment *repository.Environment) (*RestartPodResponse, error) {
+func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateChartResponse []*gRPC.TemplateChartResponse, appNameToId map[string]int, appIdToUserApprovalConfig map[int]string, environment *repository.Environment) (*RestartPodResponse, error) {
 	appIdToResourceIdentifier := make(map[int]*ResourceIdentifierResponse)
 	for _, tcResp := range templateChartResponse {
 		manifests, err := yamlUtil.SplitYAMLs([]byte(tcResp.GeneratedManifest))
@@ -59,53 +47,61 @@ func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateCha
 			AppName:          appName,
 		}
 	}
-	podResp := &RestartPodResponse{
-		EnvironmentId: environment.Id,
-		Namespace:     environment.Namespace,
-		RestartPodMap: appIdToResourceIdentifier,
+	appIdToName := make(map[int]string)
+
+	for name, id := range appNameToId {
+		appIdToName[id] = name
+	}
+	for id, approvalConfig := range appIdToUserApprovalConfig {
+		appIdToResourceIdentifier[id] = &ResourceIdentifierResponse{AppName: appIdToName[id], ErrorResponse: approvalConfig}
 	}
 	for name, id := range appNameToId {
 		if _, ok := appIdToResourceIdentifier[id]; !ok {
 			appIdToResourceIdentifier[id] = &ResourceIdentifierResponse{AppName: name}
 		}
 	}
+
+	podResp := &RestartPodResponse{
+		EnvironmentId: environment.Id,
+		Namespace:     environment.Namespace,
+		RestartPodMap: appIdToResourceIdentifier,
+	}
 	return podResp, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []*app.App, environment *repository.Environment) ([]*gRPC.InstallReleaseRequest, error) {
+func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []*app.App, environment *repository.Environment) ([]*gRPC.InstallReleaseRequest, map[int]string, error) {
 	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
 	installReleaseRequests := make([]*gRPC.InstallReleaseRequest, 0)
 	var applicationIds []int
 	for _, application := range apps {
 		applicationIds = append(applicationIds, application.Id)
 	}
-	err := impl.setValuesYaml(applicationIds, environment.Id, appIdToInstallReleaseRequest)
+	appIdToUserApprovalConfig, err := impl.setValuesYaml(applicationIds, environment.Id, appIdToInstallReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in setting values yaml", "appIds", applicationIds, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 	applicationIds = []int{}
 	for appId, _ := range appIdToInstallReleaseRequest {
 		applicationIds = append(applicationIds, appId)
 	}
 	if appIdToInstallReleaseRequest == nil || len(appIdToInstallReleaseRequest) == 0 {
-		return nil, err
+		return nil, appIdToUserApprovalConfig, err
 	}
 	err = impl.setChartContent(applicationIds, appIdToInstallReleaseRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in setting chart content", "appIds", applicationIds, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
-
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 	if err != nil {
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 	for _, app := range apps {
 		if _, ok := appIdToInstallReleaseRequest[app.Id]; ok {
@@ -119,7 +115,7 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 	for _, req := range appIdToInstallReleaseRequest {
 		installReleaseRequests = append(installReleaseRequests, req)
 	}
-	return installReleaseRequests, nil
+	return installReleaseRequests, appIdToUserApprovalConfig, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) setChartContent(appIds []int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
@@ -157,14 +153,19 @@ func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.Clus
 	}
 }
 
-func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
+func (impl DeploymentTemplateServiceImpl) setValuesYaml(appIds []int, envId int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) (map[int]string, error) {
+	appIdToUserApprovalConfig := make(map[int]string)
 	pipelineOverrides, err := impl.pipelineOverrideRepository.GetLatestReleaseForAppIds(appIds, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching pipelineOverrides for appIds", "appIds", appIds, "err", err)
-		return err
+		return nil, err
 	}
 	for _, pco := range pipelineOverrides {
-		appIdToInstallReleaseRequest[pco.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.MergedValuesYaml}
+		if len(pco.UserApprovalConfig) > 0 {
+			appIdToUserApprovalConfig[pco.AppId] = pco.UserApprovalConfig
+		} else {
+			appIdToInstallReleaseRequest[pco.AppId] = &gRPC.InstallReleaseRequest{ValuesYaml: pco.MergedValuesYaml}
+		}
 	}
-	return err
+	return appIdToUserApprovalConfig, err
 }

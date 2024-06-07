@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package repository
@@ -27,10 +15,11 @@ import (
 )
 
 type EnvCluserInfo struct {
-	Id          int    `sql:"id"`
-	ClusterName string `sql:"cluster_name"`
-	Namespace   string `sql:"namespace"`
-	Name        string `sql:"name"`
+	Id                   int    `sql:"id"`
+	ClusterName          string `sql:"cluster_name"`
+	Namespace            string `sql:"namespace"`
+	Name                 string `sql:"name"`
+	IsVirtualEnvironment bool   `sql:"is_virtual_environment"`
 }
 type Environment struct {
 	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
@@ -79,6 +68,10 @@ type EnvironmentRepository interface {
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
+	FindByIdsOrderByCluster(ids []int) ([]*Environment, error)
+
+	GetWithClusterByNames(envNames []string) ([]*Environment, error)
+	FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -110,7 +103,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
-	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
+	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace, env.is_virtual_environment" +
 		" FROM environment env INNER JOIN  cluster ON env.cluster_id = cluster.id "
 	if len(envIds) > 0 {
 		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))
@@ -152,8 +145,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByName(name string) (*Enviro
 	environment := &Environment{}
 	err := repositoryImpl.dbConnection.
 		Model(environment).
+		Column("environment.*", "Cluster").
 		Where("environment_name = ?", name).
-		Where("active = ?", true).
+		Where("environment.active = ?", true).
 		Limit(1).
 		Select()
 	return environment, err
@@ -304,8 +298,23 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 	return apps, err
 }
 
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIdsOrderByCluster(ids []int) ([]*Environment, error) {
+	var envs []*Environment
+	if len(ids) == 0 {
+		return envs, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&envs).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Where("environment.id in (?)", pg.In(ids)).
+		Order("environment.cluster_id").
+		Select()
+	return envs, err
+}
+
 func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {
-	//TODO : delete entries in app_status repo
+	// TODO : delete entries in app_status repo
 	err := repo.appStatusRepository.DeleteWithEnvId(tx, deleteReq.Id)
 	if err != nil {
 		repo.logger.Errorw("error in deleting from app_status table with appId", "appId", deleteReq.Id, "err", err)
@@ -331,6 +340,20 @@ func (repo EnvironmentRepositoryImpl) FindByNames(envNames []string) ([]*Environ
 		Model(&environment).
 		Where("active = ?", true).
 		Where("environment_name in (?)", pg.In(envNames)).
+		Select()
+	return environment, err
+}
+
+func (repo EnvironmentRepositoryImpl) GetWithClusterByNames(envNames []string) ([]*Environment, error) {
+	var environment []*Environment
+	if len(envNames) == 0 {
+		return nil, nil
+	}
+	err := repo.dbConnection.
+		Model(&environment).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Where("environment.environment_name in (?)", pg.In(envNames)).
 		Select()
 	return environment, err
 }
@@ -393,10 +416,23 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvLinkedWithCiPipelines(ext
 	return mappings, err
 }
 
-//query := "SELECT env.* " +
-//" FROM environment env " +
-//" INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
-//" INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
-//" INNER JOIN " +
-//" (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
-//" ON apf.app_workflow_id = sqt.app_workflow_id;"
+// query := "SELECT env.* " +
+// " FROM environment env " +
+// " INNER JOIN pipeline ON pipeline.environment_id=env.id and env.active = true " +
+// " INNER JOIN app_workflow_mapping apf ON component_id=pipeline.id AND type='CD_PIPELINE' AND apf.active=true " +
+// " INNER JOIN " +
+// " (SELECT apf2.app_workflow_id FROM app_workflow_mapping apf2 WHERE component_id IN (?) AND type='CI_PIPELINE') sqt " +
+// " ON apf.app_workflow_id = sqt.app_workflow_id;"
+
+func (repo EnvironmentRepositoryImpl) FindEnvByIdsAndClusterId(envIds []int, clusterId int) ([]*Environment, error) {
+	var mappings []*Environment
+	if len(envIds) == 0 {
+		return nil, nil
+	}
+	err := repo.dbConnection.Model(&mappings).
+		Where("environment.active = true").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.id IN (?)", pg.In(envIds)).
+		Select()
+	return mappings, err
+}

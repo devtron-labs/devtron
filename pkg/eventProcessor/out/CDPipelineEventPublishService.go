@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package out
@@ -25,8 +13,7 @@ import (
 )
 
 type CDPipelineEventPublishService interface {
-	PublishBulkTriggerTopicEvent(pipelineId, appId,
-		artifactId int, userId int32) error
+	PublishBulkTriggerTopicEvent(pipelineId, appId, artifactId int, userId int32, cdWorkflowType bean2.WorkflowType, cdWorkflowId, cdWorkflowRunnerId int) error
 
 	PublishArgoTypePipelineSyncEvent(pipelineId, installedAppVersionId int,
 		userId int32, isAppStoreApplication bool) error
@@ -45,15 +32,16 @@ func NewCDPipelineEventPublishServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CDPipelineEventPublishServiceImpl) PublishBulkTriggerTopicEvent(pipelineId, appId,
-	artifactId int, userId int32) error {
+func (impl *CDPipelineEventPublishServiceImpl) PublishBulkTriggerTopicEvent(pipelineId, appId, artifactId int, userId int32, cdWorkflowType bean2.WorkflowType, cdWorkflowId, cdWorkflowRunnerId int) error {
 	event := &bean.BulkCDDeployEvent{
 		ValuesOverrideRequest: &bean2.ValuesOverrideRequest{
-			PipelineId:     pipelineId,
-			AppId:          appId,
-			CiArtifactId:   artifactId,
-			UserId:         userId,
-			CdWorkflowType: bean2.CD_WORKFLOW_TYPE_DEPLOY,
+			PipelineId:         pipelineId,
+			AppId:              appId,
+			CiArtifactId:       artifactId,
+			UserId:             userId,
+			CdWorkflowType:     cdWorkflowType,
+			CdWorkflowId:       cdWorkflowId,
+			CdWorkflowRunnerId: cdWorkflowRunnerId,
 		},
 		UserId: userId,
 	}

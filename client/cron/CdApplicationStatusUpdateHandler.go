@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package cron
@@ -19,18 +7,13 @@ package cron
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
 	"github.com/devtron-labs/devtron/util"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -52,30 +35,19 @@ type CdApplicationStatusUpdateHandler interface {
 type CdApplicationStatusUpdateHandlerImpl struct {
 	logger                               *zap.SugaredLogger
 	cron                                 *cron.Cron
-	appService                           app.AppService
-	workflowDagExecutor                  dag.WorkflowDagExecutor
-	installedAppService                  EAMode.InstalledAppDBService
 	AppStatusConfig                      *app.AppServiceConfig
-	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
-	eventClient                          client2.EventClient
-	appListingRepository                 repository.AppListingRepository
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository
 	installedAppVersionRepository        repository2.InstalledAppRepository
-	cdWorkflowCommonService              cd.CdWorkflowCommonService
 	workflowStatusService                status.WorkflowStatusService
 }
 
-func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
-	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService EAMode.InstalledAppDBService,
+func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger,
 	AppStatusConfig *app.AppServiceConfig,
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository,
 	installedAppVersionRepository repository2.InstalledAppRepository, cronLogger *cron2.CronLoggerImpl,
-	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService) *CdApplicationStatusUpdateHandlerImpl {
 
 	cron := cron.New(
@@ -84,18 +56,11 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	impl := &CdApplicationStatusUpdateHandlerImpl{
 		logger:                               logger,
 		cron:                                 cron,
-		appService:                           appService,
-		workflowDagExecutor:                  workflowDagExecutor,
-		installedAppService:                  installedAppService,
 		AppStatusConfig:                      AppStatusConfig,
-		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
-		eventClient:                          eventClient,
-		appListingRepository:                 appListingRepository,
 		cdWorkflowRepository:                 cdWorkflowRepository,
 		pipelineRepository:                   pipelineRepository,
 		installedAppVersionHistoryRepository: installedAppVersionHistoryRepository,
 		installedAppVersionRepository:        installedAppVersionRepository,
-		cdWorkflowCommonService:              cdWorkflowCommonService,
 		workflowStatusService:                workflowStatusService,
 	}
 	_, err := cron.AddFunc(AppStatusConfig.CdHelmPipelineStatusCronTime, impl.HelmApplicationStatusUpdate)

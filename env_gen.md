@@ -31,8 +31,14 @@
  | BUILDX_K8S_DRIVER_OPTIONS |  |  | 
  | BUILDX_PROVENANCE_MODE |  |  | 
  | BUILD_LOG_TTL_VALUE_IN_SECS | 3600 |  | 
+ | CACHED_GVKs | [] |  | 
+ | CACHED_NAMESPACES |  |  | 
  | CACHE_LIMIT | 5000000000 |  | 
+ | CACHE_PVCs | java-cache-pvc-2,node-cache-pvc-1,node-cache-pvc-2 |  | 
+ | CAN_APPROVER_DEPLOY | false |  | 
+ | CASBIN_CLIENT_URL | 127.0.0.1:9000 |  | 
  | CASBIN_DATABASE | casbin |  | 
+ | CASBIN_GRPC_DATA_TRANSFER_MAX_SIZE | 30 |  | 
  | CD_ARTIFACT_LOCATION_FORMAT | %d/%d.zip |  | 
  | CD_DEFAULT_ADDRESS_POOL_BASE_CIDR |  |  | 
  | CD_DEFAULT_ADDRESS_POOL_SIZE |  |  | 
@@ -66,9 +72,22 @@
  | CI_VOLUME_MOUNTS_JSON |  |  | 
  | CI_WORKFLOW_EXECUTOR_TYPE | AWF |  | 
  | CI_WORKFLOW_STATUS_UPDATE_CRON | */5 * * * * |  | 
+ | CLEAN_UP_RBAC_POLICIES | false |  | 
+ | CLEAN_UP_RBAC_POLICIES_CRON_TIME | 0 0 * * * |  | 
  | CLI_CMD_TIMEOUT_GLOBAL_SECONDS | 0 |  | 
+ | CLONING_MODE | SHALLOW |  | 
+ | CLUSTER_CACHE_ATTEMPT_LIMIT | 1 |  | 
+ | CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | 10 |  | 
+ | CLUSTER_CACHE_LIST_PAGE_SIZE | 500 |  | 
+ | CLUSTER_CACHE_LIST_SEMAPHORE_SIZE | 5 |  | 
+ | CLUSTER_CACHE_RESYNC_DURATION | 12h |  | 
+ | CLUSTER_CACHE_RETRY_USE_BACKOFF |  |  | 
+ | CLUSTER_CACHE_WATCH_RESYNC_DURATION | 10m |  | 
+ | CLUSTER_ID | 1 |  | 
  | CLUSTER_STATUS_CRON_TIME | 15 |  | 
+ | CLUSTER_SYNC_RETRY_TIMEOUT_DURATION | 10s |  | 
  | CONSUMER_CONFIG_JSON |  |  | 
+ | CUSTOM_ROLE_CACHE_ALLOWED | false |  | 
  | DASHBOARD_HOST | localhost |  | 
  | DASHBOARD_NAMESPACE | devtroncd |  | 
  | DASHBOARD_PORT | 3000 |  | 
@@ -86,6 +105,8 @@
  | DEFAULT_NAMESPACE | devtron-ci |  | 
  | DEFAULT_TARGET_PLATFORM |  |  | 
  | DEFAULT_TIMEOUT | 3600 |  | 
+ | DEPLOYMENT_WINDOW_FETCH_DAYS_BLACKOUT | 90 |  | 
+ | DEPLOYMENT_WINDOW_FETCH_DAYS_MAINTENANCE | 90 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
@@ -116,6 +137,7 @@
  | ENFORCER_CACHE | false |  | 
  | ENFORCER_CACHE_EXPIRATION_IN_SEC | 86400 |  | 
  | ENFORCER_MAX_BATCH_SIZE | 1 |  | 
+ | ENTERPRISE_ENFORCER_ENABLED | true |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
  | EXECUTE_WIRE_NIL_CHECKER | false |  | 
@@ -134,6 +156,8 @@
  | FORCE_SECURITY_SCANNING | false |  | 
  | GITOPS_REPO_PREFIX |  |  | 
  | GITOPS_SECRET_NAME | devtron-gitops-secret |  | 
+ | GIT_PROVIDERS | github,gitlab |  | 
+ | GIT_SENSOR_GRPC_DATA_TRANSFER_MAX_SIZE | 4 |  | 
  | GIT_SENSOR_PROTOCOL | REST |  | 
  | GIT_SENSOR_TIMEOUT | 0 |  | 
  | GIT_SENSOR_URL | 127.0.0.1:7070 |  | 
@@ -158,6 +182,7 @@
  | INSTALLER_CRD_OBJECT_RESOURCE | installers |  | 
  | INSTALLER_CRD_OBJECT_VERSION | v1alpha1 |  | 
  | IN_APP_LOGGING_ENABLED | false |  | 
+ | IS_AIR_GAP_ENVIRONMENT | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
  | LENS_TIMEOUT | 0 |  | 
@@ -177,6 +202,8 @@
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
+ | NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS | 720 |  | 
+ | ORCHESTRATOR_URL | http://localhost:8080 |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -195,6 +222,9 @@
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | PROXY_UP_TIME | 60 |  | 
+ | PVC_MOUNT_PATH_EXPRESSION | appLabels['devtron.ai/language'] == 'java' ? '/devtroncd/.m2' : '/devtroncd/node_modules' |  | 
+ | PVC_NAME_EXPRESSION | appLabels['devtron.ai/language'] == 'java' ? 'java-cache' : 'node-cache' |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -204,6 +234,8 @@
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
  | RUNTIME_CONFIG_LOCAL_DEV | false |  | 
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
+ | SCAN_V2_ENABLED | false |  | 
+ | SCOOP_CLUSTER_CONFIG | {} |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 
@@ -227,16 +259,20 @@
  | TEST_PG_USER | postgres |  | 
  | TIMEOUT_FOR_FAILED_CI_BUILD | 15 |  | 
  | TIMEOUT_IN_SECONDS | 5 |  | 
+ | TOKEN |  |  | 
  | USER_SESSION_DURATION_SECONDS | 86400 |  | 
  | USE_ARTIFACT_LISTING_API_V2 | true |  | 
  | USE_ARTIFACT_LISTING_QUERY_V2 | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CASBIN_V2 | false |  | 
+ | USE_CUSTOM_ENFORCER | true |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
  | USE_RBAC_CREATION_V2 | true |  | 
+ | USE_RESOURCE_LIST_V2 |  |  | 
  | VARIABLE_CACHE_ENABLED | true |  | 
  | VARIABLE_EXPRESSION_REGEX | @{{([^}]+)}} |  | 
  | WEBHOOK_TOKEN |  |  | 

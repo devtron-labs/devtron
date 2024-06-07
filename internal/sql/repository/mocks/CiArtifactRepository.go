@@ -106,8 +106,8 @@ func (_m *CiArtifactRepository) GetArtifactByCdWorkflowId(cdWorkflowId int) (*re
 	return r0, r1
 }
 
-// GetArtifactParentCiAndWorkflowDetailsByIds provides a mock function with given fields: ids
-func (_m *CiArtifactRepository) GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*repository.CiArtifact, error) {
+// GetArtifactParentCiAndWorkflowDetailsByIdsInDesc provides a mock function with given fields: ids
+func (_m *CiArtifactRepository) GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*repository.CiArtifact, error) {
 	ret := _m.Called(ids)
 
 	var r0 []*repository.CiArtifact
@@ -132,25 +132,25 @@ func (_m *CiArtifactRepository) GetArtifactParentCiAndWorkflowDetailsByIds(ids [
 	return r0, r1
 }
 
-// GetArtifactsByCDPipeline provides a mock function with given fields: cdPipelineId, limit, parentId, parentType
-func (_m *CiArtifactRepository) GetArtifactsByCDPipeline(cdPipelineId int, limit int, parentId int, parentType bean.WorkflowType) ([]repository.CiArtifact, error) {
-	ret := _m.Called(cdPipelineId, limit, parentId, parentType)
+// GetArtifactsByCDPipeline provides a mock function with given fields: cdPipelineId, limit, parentId, searchString, parentType
+func (_m *CiArtifactRepository) GetArtifactsByCDPipeline(cdPipelineId int, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*repository.CiArtifact, error) {
+	ret := _m.Called(cdPipelineId, limit, parentId, searchString, parentType)
 
-	var r0 []repository.CiArtifact
+	var r0 []*repository.CiArtifact
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int, int, int, bean.WorkflowType) ([]repository.CiArtifact, error)); ok {
-		return rf(cdPipelineId, limit, parentId, parentType)
+	if rf, ok := ret.Get(0).(func(int, int, int, string, bean.WorkflowType) ([]*repository.CiArtifact, error)); ok {
+		return rf(cdPipelineId, limit, parentId, searchString, parentType)
 	}
-	if rf, ok := ret.Get(0).(func(int, int, int, bean.WorkflowType) []repository.CiArtifact); ok {
-		r0 = rf(cdPipelineId, limit, parentId, parentType)
+	if rf, ok := ret.Get(0).(func(int, int, int, string, bean.WorkflowType) []*repository.CiArtifact); ok {
+		r0 = rf(cdPipelineId, limit, parentId, searchString, parentType)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.CiArtifact)
+			r0 = ret.Get(0).([]*repository.CiArtifact)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int, int, int, bean.WorkflowType) error); ok {
-		r1 = rf(cdPipelineId, limit, parentId, parentType)
+	if rf, ok := ret.Get(1).(func(int, int, int, string, bean.WorkflowType) error); ok {
+		r1 = rf(cdPipelineId, limit, parentId, searchString, parentType)
 	} else {
 		r1 = ret.Error(1)
 	}

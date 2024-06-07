@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package service
@@ -20,12 +8,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	remoteConnectionBean "github.com/devtron-labs/devtron/pkg/remoteConnection/bean"
 	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
@@ -105,7 +96,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sServiceImpl
+	K8sUtil                              *k8s.K8sUtilExtended
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -115,7 +106,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtilExtended,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -148,6 +139,48 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
+func ConvertClusterBeanToClusterConfig(clusterBean *clusterBean.ClusterBean) *gRPC.ClusterConfig {
+	config := &gRPC.ClusterConfig{
+		ApiServerUrl:          clusterBean.ServerUrl,
+		Token:                 clusterBean.Config[k8s2.BearerToken],
+		ClusterId:             int32(clusterBean.Id),
+		ClusterName:           clusterBean.ClusterName,
+		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
+	}
+
+	if clusterBean.RemoteConnectionConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod != remoteConnectionBean.RemoteConnectionMethodDirect {
+		connectionMethod := 0
+		if clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			connectionMethod = 1
+		}
+		clusterConnectionConfig := &gRPC.RemoteConnectionConfig{
+			RemoteConnectionMethod: gRPC.RemoteConnectionMethod(connectionMethod),
+		}
+		if clusterBean.RemoteConnectionConfig.ProxyConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodProxy {
+			proxyConfig := clusterBean.RemoteConnectionConfig.ProxyConfig
+			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
+				ProxyUrl: proxyConfig.ProxyUrl,
+			}
+		}
+		if clusterBean.RemoteConnectionConfig.SSHTunnelConfig != nil && clusterBean.RemoteConnectionConfig.ConnectionMethod == remoteConnectionBean.RemoteConnectionMethodSSH {
+			sshTunnelConfig := clusterBean.RemoteConnectionConfig.SSHTunnelConfig
+			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
+				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
+				SSHUsername:      sshTunnelConfig.SSHUsername,
+				SSHPassword:      sshTunnelConfig.SSHPassword,
+				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
+			}
+		}
+		config.RemoteConnectionConfig = clusterConnectionConfig
+	}
+	if clusterBean.InsecureSkipTLSVerify == false {
+		config.KeyData = clusterBean.Config[k8s2.TlsKey]
+		config.CertData = clusterBean.Config[k8s2.CertData]
+		config.CaData = clusterBean.Config[k8s2.CertificateAuthorityData]
+	}
+	return config
+}
+
 func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
@@ -161,18 +194,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	}
 	req := &gRPC.AppListRequest{}
 	for _, clusterDetail := range clusters {
-		config := &gRPC.ClusterConfig{
-			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
-			ClusterId:             int32(clusterDetail.Id),
-			ClusterName:           clusterDetail.ClusterName,
-			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
-		}
-		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
-		}
+		config := ConvertClusterBeanToClusterConfig(&clusterDetail)
 		req.Clusters = append(req.Clusters, config)
 	}
 	applicatonStream, err := impl.helmAppClient.ListApplication(ctx, req)
@@ -287,24 +309,24 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 }
 
 func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConfig, error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
+	clusterObj, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	config := &gRPC.ClusterConfig{
-		ApiServerUrl:          cluster.ServerUrl,
-		Token:                 cluster.Config[k8s.BearerToken],
-		ClusterId:             int32(cluster.Id),
-		ClusterName:           cluster.ClusterName,
-		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+
+	var config gRPC.ClusterConfig
+	// if virtual cluster run helm template command in default cluster as no real cluster is available in this case
+	if clusterObj.IsVirtualCluster {
+		config = gRPC.ClusterConfig{
+			ClusterName: cluster.DEFAULT_CLUSTER,
+			Token:       "",
+		}
+	} else {
+		config = *ConvertClusterBeanToClusterConfig(clusterObj)
 	}
-	if cluster.InsecureSkipTLSVerify == false {
-		config.KeyData = cluster.Config[k8s.TlsKey]
-		config.CertData = cluster.Config[k8s.CertData]
-		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
-	}
-	return config, nil
+
+	return &config, nil
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*gRPC.AppDetail, error) {
@@ -635,6 +657,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	if err != nil {
 		return nil, err
 	}
+
 	req := &gRPC.ReleaseIdentifier{
 		ClusterConfig:    config,
 		ReleaseName:      app.ReleaseName,
@@ -647,7 +670,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
 				Code:           strconv.Itoa(http.StatusNotFound),
-				HttpStatusCode: 200, //need to revisit the status code
+				HttpStatusCode: 200, // need to revisit the status code
 				UserMessage:    message,
 			}
 		}
@@ -661,13 +684,8 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
-
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", clusterBean.Id)
-		return false, err
-	}
+func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *clusterBean.ClusterBean) (bool, error) {
+	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
@@ -967,12 +985,10 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	clusterId := int(*templateChartRequest.ClusterId)
-	clusterDetail, err := impl.clusterRepository.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
-		return nil, err
-	}
-	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
+
+	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
+
+	if !clusterDetail.IsVirtualCluster && (len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false) {
 		clusterNotFoundErr := &util.ApiError{
 			HttpStatusCode:    http.StatusInternalServerError,
 			Code:              "",
@@ -1046,7 +1062,19 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
-	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	var templateChartResponse *gRPC.TemplateChartResponse
+	var templateChartResponseWithChart *gRPC.TemplateChartResponseWithChart
+	var chart []byte
+	if templateChartRequest.ReturnChartBytes {
+		templateChartResponseWithChart, err = impl.helmAppClient.TemplateChartAndRetrieveChart(ctx, installReleaseRequest)
+		if err == nil {
+			templateChartResponse = templateChartResponseWithChart.GetTemplateChartResponse()
+			chart = templateChartResponseWithChart.ChartBytes.Content
+		}
+	} else {
+		templateChartResponse, err = impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error in templating chart", "err", err)
 		clientErrCode, errMsg := util.GetClientDetailedError(err)
@@ -1059,7 +1087,8 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	response := &openapi2.TemplateChartResponse{
-		Manifest: &templateChartResponse.GeneratedManifest,
+		Manifest:   &templateChartResponse.GeneratedManifest,
+		ChartBytes: chart,
 	}
 
 	return response, nil
@@ -1130,7 +1159,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		//projectId := int32(0) //TODO pick from db
+		// projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)

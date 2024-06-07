@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 /*
@@ -49,13 +37,16 @@ type AppListingRepository interface {
 	// Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
+	FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
-	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
+	FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error)
 	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
+
+	FetchJobCiPipelines() ([]*bean.JobListingContainer, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -136,7 +127,17 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 	return jobContainers, nil
 }
 
-func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error) {
+func (impl AppListingRepositoryImpl) FetchJobCiPipelines() ([]*bean.JobListingContainer, error) {
+	var jobContainers []*bean.JobListingContainer
+	query := "SELECT cip.id AS ci_pipeline_id, cip.name AS ci_pipeline_name, a.id as job_id, a.display_name as job_name" +
+		" FROM app a " +
+		" LEFT JOIN ci_pipeline cip ON a.id = cip.app_id AND cip.active=true" +
+		" WHERE a.active = true AND a.app_type = ?"
+	_, err := impl.dbConnection.Query(&jobContainers, query, helper.Job)
+	return jobContainers, err
+}
+
+func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit, offset int, ctx context.Context) ([]*bean.AppEnvironmentContainer, error) {
 	query := " SELECT a.id as app_id,a.app_name,aps.status as app_status, ld.last_deployed_time " +
 		" FROM app a " +
 		" INNER JOIN pipeline p ON p.app_id = a.id and p.deleted = false and p.environment_id = ? " +
@@ -350,6 +351,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.deployment_app_type," +
 		" p.ci_pipeline_id," +
 		" p.deployment_app_delete_request," +
+		" p.user_approval_config," +
 		" cia.data_source," +
 		" cia.id as ci_artifact_id," +
 		" cia.parent_ci_artifact as parent_artifact_id," +
@@ -357,6 +359,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
 		" cl.cluster_name," +
+		" cia.image," +
 		" p.id as cd_pipeline_id," +
 		" p.ci_pipeline_id," +
 		" p.trigger_type" +
@@ -624,10 +627,37 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 	}
 }
 
+func (impl AppListingRepositoryImpl) FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error) {
+	// other environment tab
+	var otherEnvironments []*bean.EnvironmentForDependency
+	query := `select pcwr.pipeline_id, pcwr.pipeline_name, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
+      			u.email_id as last_deployed_by, ap.status as app_status, a.id as app_id, a.app_name 
+    			from (select * 
+      				from (select p.id as pipeline_id, p.pipeline_name, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
+                  	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
+                  		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
+            			from (select * from pipeline where id in (?) and deleted=?) as p 
+                     	left join cd_workflow cw on cw.pipeline_id = p.id 
+                     	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id and (cwr.workflow_type = ? or cwr.workflow_type is null)) pcwrraw  
+      				where max_started_on_rank = 1) pcwr 
+    			INNER JOIN app a on a.id=pcwr.app_id 
+         		INNER JOIN environment e on e.id = pcwr.environment_id 
+         		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
+         		LEFT JOIN users u on u.id = pcwr.triggered_by 
+        		LEFT JOIN app_status ap ON pcwr.environment_id = ap.env_id and pcwr.app_id=ap.app_id;`
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, pg.In(pipelineIds), false, "DEPLOY")
+	if err != nil {
+		impl.Logger.Error("error, FetchDependencyMetadataByPipelineIds", "error", err, "pipelineIds", pipelineIds)
+		return nil, err
+	}
+	return otherEnvironments, nil
+}
+
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	// other environment tab
 	var otherEnvironments []*bean.Environment
-	//TODO: remove infra metrics from query as it is not being used from here
+	// TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
        			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image,
       			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status,ca.id as ci_artifact_id
@@ -656,7 +686,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	impl.Logger.Debug("reached at FetchMinDetailOtherEnvironment:")
 	var otherEnvironments []*bean.Environment
-	//TODO: remove infra metrics from query as it is not being used from here
+	// TODO: remove infra metrics from query as it is not being used from here
 	query := `SELECT p.environment_id,env.environment_name,env.description,env.is_virtual_environment, env.cluster_id, env.default as prod, p.deployment_app_delete_request,
        			env_app_m.app_metrics,env_app_m.infra_metrics from 
  				(SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request from pipeline pl 

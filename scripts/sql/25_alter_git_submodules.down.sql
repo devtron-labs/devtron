@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ---- ALTER TABLE git_provider - modify type
 ALTER TABLE git_provider
 ALTER COLUMN ssh_private_key TYPE varchar(250);

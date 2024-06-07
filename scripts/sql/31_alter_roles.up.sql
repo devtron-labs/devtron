@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE "public"."roles"
     ADD COLUMN IF NOT EXISTS "access_type" character varying(100);
 

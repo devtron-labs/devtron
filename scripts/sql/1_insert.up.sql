@@ -5985,6 +5985,10 @@ INSERT INTO "public"."environment" ("id", "environment_name", "cluster_id", "act
 
 ('1', 'devtron-demo', '1', 't', 'now()', '1', 'now()', '1', 'f', 'devtron-demo', '1');
 
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 --
 -- PostgreSQL database dump complete
 --

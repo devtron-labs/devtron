@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package user
@@ -59,7 +47,7 @@ type UserAuthService interface {
 
 type UserAuthServiceImpl struct {
 	userAuthRepository repository.UserAuthRepository
-	//sessionClient is being used for argocd username-password login proxy
+	// sessionClient is being used for argocd username-password login proxy
 	sessionClient       session2.ServiceClient
 	logger              *zap.SugaredLogger
 	userRepository      repository.UserRepository
@@ -71,7 +59,7 @@ type UserAuthServiceImpl struct {
 var (
 	cStore         *sessions.CookieStore
 	dexOauthConfig *oauth2.Config
-	//googleOauthConfig *oauth2.Config
+	// googleOauthConfig *oauth2.Config
 	oauthStateString     = randToken()
 	idTokenVerifier      *oidc.IDTokenVerifier
 	jwtKey               = randKey()
@@ -257,11 +245,12 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 }
 
 func (impl UserAuthServiceImpl) HandleLoginWithClientIp(ctx context.Context, username, password, clientIp string) (string, error) {
+	impl.logger.Info("login with client ip")
 	token, err := impl.HandleLogin(username, password)
 	if err == nil {
 		id, _, err := impl.userService.GetUserByToken(ctx, token)
 		if err != nil {
-			impl.logger.Infow("error occured while getting user by token", "err", err)
+			impl.logger.Errorw("error occurred while getting user by token", "err", err)
 		} else {
 			impl.userService.SaveLoginAudit("", clientIp, id)
 		}
@@ -315,7 +304,7 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 	if dbUser.Id > 0 {
 		// Do nothing, User already exist in our db. (unique check by email id)
 	} else {
-		//create new user in our db on d basis of info got from google api or hex. assign a basic role
+		// create new user in our db on d basis of info got from google api or hex. assign a basic role
 		model := &repository.UserModel{
 			EmailId:     Claims.Email,
 			AccessToken: rawIDToken,
@@ -374,6 +363,7 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/api/v1/session",
 		"/orchestrator/app/ci-pipeline/github-webhook/trigger",
 		"/orchestrator/webhook/msg/nats",
+		"/orchestrator/scoop/intercept-event/notify",
 		"/orchestrator/devtron/auth/verify",
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
@@ -383,6 +373,8 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/self-register/check",
 		"/orchestrator/self-register",
 		"/orchestrator/telemetry/summary",
+		"/orchestrator/scoop/namespace/sync",
+		"/orchestrator/scoop/watchers/sync",
 	}
 	for _, a := range urls {
 		if a == url {
@@ -397,6 +389,8 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/auth/login",
 		"/dashboard",
 		"/orchestrator/webhook/git",
+		"/orchestrator/k8s/proxy",
+		"/orchestrator/scoop/intercept-event",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {
@@ -472,33 +466,25 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
-	emailId, version, err := impl.userService.GetEmailAndVersionFromToken(token)
+
+	isInactive, _, err := impl.userService.CheckUserStatusAndUpdateLoginAudit(token)
 	if err != nil {
-		impl.logger.Errorw("AuthVerification failed ", "error", err)
-		return false, err
-	}
-	exists := impl.userService.UserExists(emailId)
-	if !exists {
-		err = &util.ApiError{
+		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			Code:            constants.UserNotFoundForToken,
-			InternalMessage: "user does not exist",
-			UserMessage:     "active user does not exist",
+			InternalMessage: userBean.InvalidUserError,
+			UserMessage:     userBean.InvalidUserError,
 		}
 		return false, err
-	}
-	// checking length of version, to ensure backward compatibility as earlier we did not
-	// have version for api-tokens
-	// therefore, for tokens without version we will skip the below part
-	if strings.HasPrefix(emailId, userBean.API_TOKEN_USER_EMAIL_PREFIX) && len(version) > 0 {
-		err := impl.userService.CheckIfTokenIsValid(emailId, version)
-		if err != nil {
-			impl.logger.Errorw("token is not valid", "error", err, "token", token)
-			return false, err
+	} else if isInactive {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			InternalMessage: userBean.InactiveUserError,
+			UserMessage:     userBean.InactiveUserError,
 		}
+		return false, err
 	}
 
-	//TODO - extends for other purpose
+	// TODO - extends for other purpose
 	return true, nil
 }
 
@@ -535,24 +521,25 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		}
 
 		// removing all policies for the role
-		success := casbin2.RemovePoliciesByAllRoles(roles)
-		if !success {
-			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles)
+		success, err := casbin2.RemovePoliciesByRoles(roles)
+		if !success || err != nil {
+			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles, "err", err)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
-		//deleting user_roles for this role_id (foreign key constraint)
+
+		// deleting user_roles for this role_id (foreign key constraint)
 		err = impl.userAuthRepository.DeleteUserRoleByRoleIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting user_roles by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
-		//deleting role_group_role_mapping for this role_id (foreign key constraint)
+		// deleting role_group_role_mapping for this role_id (foreign key constraint)
 		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting role_group_role_mapping by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
-		//deleting roles
+		// deleting roles
 		err = impl.userAuthRepository.DeleteRolesByIds(roleIds, tx)
 		if err != nil {
 			impl.logger.Errorw(fmt.Sprintf("error in deleting roles "), "err", err, "role", roleModels)
@@ -568,13 +555,13 @@ func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roles []strin
 	var casbinDeleteFailed []bool
 	// deleting all user_role mapping from casbin by getting all users mapped to the role
 	for _, role := range roles {
-		allUsersMappedToRoles, err := casbin2.GetUserByRole(role)
+		allUsersMappedToRolesPolicies, err := casbin2.GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role)
 		if err != nil {
 			impl.logger.Errorw("error in getting all users by roles", "err", err, "role", role)
 			continue
 		}
-		for _, rl := range allUsersMappedToRoles {
-			success := casbin2.DeleteRoleForUser(rl, role)
+		for _, rl := range allUsersMappedToRolesPolicies {
+			success := casbin2.DeleteRoleForUser(rl.User, role, rl.TimeoutWindowExpression, rl.ExpressionFormat)
 			if !success {
 				impl.logger.Warnw("error in deleting casbin policy for role", "role", role)
 				casbinDeleteFailed = append(casbinDeleteFailed, success)

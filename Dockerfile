@@ -22,6 +22,8 @@ COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-r
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.tmpl scripts/argo-assets/APPLICATION_TEMPLATE.tmpl
+COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
+COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
 
 COPY ./git-ask-pass.sh /git-ask-pass.sh
 RUN chmod +x /git-ask-pass.sh

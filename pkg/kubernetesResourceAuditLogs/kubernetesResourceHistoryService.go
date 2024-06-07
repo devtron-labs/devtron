@@ -1,24 +1,12 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package kubernetesResourceAuditLogs
 
 import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -36,7 +24,7 @@ const (
 
 type K8sResourceHistoryService interface {
 	SaveArgoCdAppsResourceDeleteHistory(query *application.ApplicationResourceDeleteRequest, appId int, envId int, userId int32) error
-	SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *k8s.K8sRequestBean, userId int32, actionType string) error
+	SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *k8s2.K8sRequestBean, userId int32, actionType string) error
 }
 
 type K8sResourceHistoryServiceImpl struct {
@@ -85,7 +73,7 @@ func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(qu
 
 }
 
-func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *k8s.K8sRequestBean, userId int32, actionType string) error {
+func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *k8s2.K8sRequestBean, userId int32, actionType string) error {
 
 	app, err := impl.appRepository.FindActiveByName(appIdentifier.ReleaseName)
 

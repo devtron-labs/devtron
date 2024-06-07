@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 UPDATE devtron_resource_schema set schema = '{
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Release Schema",

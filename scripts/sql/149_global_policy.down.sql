@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 DROP TABLE IF EXISTS devtron_resource_searchable_key CASCADE;
 DROP SEQUENCE IF EXISTS id_seq_devtron_resource_searchable_key CASCADE;
 

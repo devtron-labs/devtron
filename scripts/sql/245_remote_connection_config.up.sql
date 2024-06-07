@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE cluster ADD COLUMN remote_connection_config_id INT;
 ALTER TABLE docker_artifact_store ADD COLUMN remote_connection_config_id INT;
 

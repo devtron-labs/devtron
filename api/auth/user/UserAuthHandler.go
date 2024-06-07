@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package user
@@ -19,6 +7,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"net/http"
 	"strings"
 
@@ -146,7 +135,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	//for START in Casbin Object Ends Here
 	//loading policy for safety
 	casbin.LoadPolicy()
-	var policies []casbin.Policy
+	var policies []bean2.Policy
 	var policiesAdmin bean.PolicyRequest
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
@@ -174,7 +163,12 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
 	policies = append(policies, policiesView.Data...)
-	casbin.AddPolicy(policies)
+	err = casbin.AddPolicy(policies)
+	if err != nil {
+		handler.logger.Errorw("casbin policy addition failed", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin.LoadPolicy()
 	//Creating ROLES

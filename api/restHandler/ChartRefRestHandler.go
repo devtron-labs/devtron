@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package restHandler
@@ -30,6 +18,7 @@ type ChartRefRestHandler interface {
 	ChartRefAutocomplete(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request)
+	ChartRefAutocompleteByChartId(w http.ResponseWriter, r *http.Request)
 }
 
 type ChartRefRestHandlerImpl struct {
@@ -90,6 +79,24 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.Respons
 	result, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, environmentId)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteForEnv", "err", err, "appId", appId, "environmentId", environmentId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteByChartId(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		handler.logger.Errorw("request err, ChartRefAutocompleteByChartId", "err", err, "appId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	result, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.logger.Errorw("service err, ChartRefAutocompleteByChartId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

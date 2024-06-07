@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package adapter
@@ -23,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -104,7 +93,7 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*C
 		}
 	}
 	useRootBuildContext := false
-	//dbBuildConfig.UseRootContext will be nil if the entry in db never updated before
+	// dbBuildConfig.UseRootContext will be nil if the entry in db never updated before
 	if dbBuildConfig.UseRootContext == nil || *(dbBuildConfig.UseRootContext) {
 		useRootBuildContext = true
 	}
@@ -149,7 +138,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			return nil, err
 		}
 	}
-	//no entry found in ci_build_config table, construct with requested data
+	// no entry found in ci_build_config table, construct with requested data
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiPipeline.CiBuildConfigBean{
@@ -161,13 +150,13 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 				DockerBuildOptions: dockerBuildOptionsMap,
 				BuildContext:       "",
 			},
-			//setting true as default
+			// setting true as default
 			UseRootBuildContext: true,
 		}
 	} else if ciBuildConfigBean.CiBuildType == CiPipeline.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerArgs := mergeMap(dockerBuildConfig.Args, ciLevelDockerArgs)
-		//dockerBuildConfig.DockerfilePath = dockerfilePath
+		// dockerBuildConfig.DockerfilePath = dockerfilePath
 		dockerBuildConfig.Args = dockerArgs
 	}
 	return ciBuildConfigBean, nil
@@ -185,19 +174,28 @@ func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]stri
 }
 
 // IsLinkedCD will return if the pipelineConfig.CiPipeline is a Linked CD
-func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(CiPipeline.LINKED_CD)
+func IsLinkedCD(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
+	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(constants.LINKED_CD)
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
+func IsLinkedCI(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
 	return ci.ParentCiPipeline != 0 &&
-		ci.PipelineType == string(CiPipeline.LINKED)
+		ci.PipelineType == string(constants.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
-func IsCIJob(ci pipelineConfig.CiPipeline) bool {
-	return ci.PipelineType == string(CiPipeline.CI_JOB)
+func IsCIJob(ci *pipelineConfig.CiPipeline) bool {
+	if ci == nil {
+		return false
+	}
+	return ci.PipelineType == string(constants.CI_JOB)
 }
 
 // GetSourceCiDownStreamResponse will take the models []bean.LinkedCIDetails and []pipelineConfig.CdWorkflowRunner (for last deployment status) and generate the []CiPipeline.SourceCiDownStreamResponse

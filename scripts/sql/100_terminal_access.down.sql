@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
 ALTER TABLE public.terminal_access_templates DROP constraint terminal_access_template_name_unique;
 
 DROP TABLE IF EXISTS "public"."terminal_access_templates";

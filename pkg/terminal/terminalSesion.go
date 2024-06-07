@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 package terminal
 
@@ -24,10 +12,12 @@ import (
 	errors2 "errors"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -94,7 +84,7 @@ func (t TerminalSession) Next() *remotecommand.TerminalSize {
 	select {
 	case size := <-t.sizeChan:
 		return &size
-	case <-t.doneChan:
+	case <-t.doneChan: // TODO KB: need to set this while closing session
 		return nil
 	}
 }
@@ -347,7 +337,6 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		Stderr:    true,
 		TTY:       tty,
 	}, scheme.ParameterCodec)
-
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	return exec, err
 }
@@ -448,13 +437,13 @@ type TerminalSessionHandlerImpl struct {
 	environmentService        cluster.EnvironmentService
 	clusterService            cluster.ClusterService
 	logger                    *zap.SugaredLogger
-	k8sUtil                   *k8s.K8sServiceImpl
+	k8sUtil                   *k8s.K8sUtilExtended
 	ephemeralContainerService cluster.EphemeralContainerService
 	argoApplicationService    argoApplication.ArgoApplicationService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended, ephemeralContainerService cluster.EphemeralContainerService,
 	argoApplicationService argoApplication.ArgoApplicationService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:        environmentService,
@@ -524,8 +513,8 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 }
 
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	var clusterBean *cluster.ClusterBean
-	var clusterConfig *k8s.ClusterConfig
+	var clusterBean *clusterBean.ClusterBean
+	var clusterConfig *k8s2.ClusterConfig
 	var restConfig *rest.Config
 	var err error
 	if len(req.ExternalArgoApplicationName) > 0 {
@@ -550,8 +539,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 		} else {
 			return nil, nil, fmt.Errorf("not able to find cluster-config")
 		}
-
-		clusterConfig, err = clusterBean.GetClusterConfig()
+		clusterConfig = clusterBean.GetClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
@@ -650,7 +638,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
 		}
-		clusterConfig, err := clusterBean.GetClusterConfig()
+		clusterConfig := clusterBean.GetClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 			return err

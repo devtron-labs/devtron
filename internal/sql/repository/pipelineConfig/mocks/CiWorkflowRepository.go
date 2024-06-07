@@ -36,6 +36,58 @@ func (_m *CiWorkflowRepository) ExistsByStatus(status string) (bool, error) {
 	return r0, r1
 }
 
+// FIndCiWorkflowStatusesByAppId provides a mock function with given fields: appId
+func (_m *CiWorkflowRepository) FIndCiWorkflowStatusesByAppId(appId int) ([]*pipelineConfig.CiWorkflowStatus, error) {
+	ret := _m.Called(appId)
+
+	var r0 []*pipelineConfig.CiWorkflowStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.CiWorkflowStatus, error)); ok {
+		return rf(appId)
+	}
+	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.CiWorkflowStatus); ok {
+		r0 = rf(appId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiWorkflowStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(appId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAllLastTriggeredWorkflowByArtifactId provides a mock function with given fields: ciArtifactId
+func (_m *CiWorkflowRepository) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) ([]*pipelineConfig.CiWorkflow, error) {
+	ret := _m.Called(ciArtifactId)
+
+	var r0 []*pipelineConfig.CiWorkflow
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.CiWorkflow, error)); ok {
+		return rf(ciArtifactId)
+	}
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.CiWorkflow); ok {
+		r0 = rf(ciArtifactId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.CiWorkflow)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]int) error); ok {
+		r1 = rf(ciArtifactId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindBuildTypeAndStatusDataOfLast1Day provides a mock function with given fields:
 func (_m *CiWorkflowRepository) FindBuildTypeAndStatusDataOfLast1Day() []*pipelineConfig.BuildTypeCount {
 	ret := _m.Called()

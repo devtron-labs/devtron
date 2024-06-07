@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package dag
@@ -22,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -33,7 +22,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -80,26 +69,29 @@ type WorkflowDagExecutor interface {
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
+	HandleArtifactPromotionEvent(request bean5.TriggerRequest) error
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                  *zap.SugaredLogger
-	pipelineRepository      pipelineConfig.PipelineRepository
-	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
-	ciArtifactRepository    repository.CiArtifactRepository
-	enforcerUtil            rbac.EnforcerUtil
-	appWorkflowRepository   appWorkflow.AppWorkflowRepository
-	pipelineStageService    pipeline.PipelineStageService
-	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	pipelineStageRepository repository4.PipelineStageRepository
-	globalPluginRepository  repository2.GlobalPluginRepository
-	config                  *types.CdConfig
-	ciConfig                *types.CiConfig
-	appServiceConfig        *app.AppServiceConfig
-	eventClient             client.EventClient
-	eventFactory            client.EventFactory
-	customTagService        pipeline.CustomTagService
+	logger                       *zap.SugaredLogger
+	pipelineRepository           pipelineConfig.PipelineRepository
+	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
+	pubSubClient                 *pubsub.PubSubClientServiceImpl
+	ciArtifactRepository         repository.CiArtifactRepository
+	enforcerUtil                 rbac.EnforcerUtil
+	appWorkflowRepository        appWorkflow.AppWorkflowRepository
+	pipelineStageService         pipeline.PipelineStageService
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	pipelineStageRepository      repository4.PipelineStageRepository
+	globalPluginRepository       repository2.GlobalPluginRepository
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
+	config                       *types.CdConfig
+	ciConfig                     *types.CiConfig
+	appServiceConfig             *app.AppServiceConfig
+	eventClient                  client.EventClient
+	eventFactory                 client.EventFactory
+	customTagService             pipeline.CustomTagService
 
 	helmAppService client2.HelmAppService
 
@@ -112,6 +104,7 @@ type WorkflowDagExecutorImpl struct {
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	pubSubClient *pubsub.PubSubClientServiceImpl,
 	ciArtifactRepository repository.CiArtifactRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -120,6 +113,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineStageRepository repository4.PipelineStageRepository,
 	globalPluginRepository repository2.GlobalPluginRepository,
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	customTagService pipeline.CustomTagService,
@@ -129,24 +123,26 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:      pipelineRepository,
-		cdWorkflowRepository:    cdWorkflowRepository,
-		ciArtifactRepository:    ciArtifactRepository,
-		enforcerUtil:            enforcerUtil,
-		appWorkflowRepository:   appWorkflowRepository,
-		pipelineStageService:    pipelineStageService,
-		ciWorkflowRepository:    ciWorkflowRepository,
-		ciPipelineRepository:    ciPipelineRepository,
-		pipelineStageRepository: pipelineStageRepository,
-		globalPluginRepository:  globalPluginRepository,
-		eventClient:             eventClient,
-		eventFactory:            eventFactory,
-		customTagService:        customTagService,
-		helmAppService:          helmAppService,
-		cdWorkflowCommonService: cdWorkflowCommonService,
-		cdTriggerService:        cdTriggerService,
-		manifestCreationService: manifestCreationService,
-		commonArtifactService:   commonArtifactService,
+		pipelineRepository:           pipelineRepository,
+		cdWorkflowRepository:         cdWorkflowRepository,
+		pubSubClient:                 pubSubClient,
+		ciArtifactRepository:         ciArtifactRepository,
+		enforcerUtil:                 enforcerUtil,
+		appWorkflowRepository:        appWorkflowRepository,
+		pipelineStageService:         pipelineStageService,
+		ciWorkflowRepository:         ciWorkflowRepository,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineStageRepository:      pipelineStageRepository,
+		globalPluginRepository:       globalPluginRepository,
+		deploymentApprovalRepository: deploymentApprovalRepository,
+		eventClient:                  eventClient,
+		eventFactory:                 eventFactory,
+		customTagService:             customTagService,
+		helmAppService:               helmAppService,
+		cdWorkflowCommonService:      cdWorkflowCommonService,
+		cdTriggerService:             cdTriggerService,
+		manifestCreationService:      manifestCreationService,
+		commonArtifactService:        commonArtifactService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -202,7 +198,8 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
 		TriggerContext: bean5.TriggerContext{
-			Context: context.Background(),
+			Context:     context.Background(),
+			TriggerType: bean5.Automatic,
 		},
 	}
 
@@ -280,7 +277,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 		wfr.FinishedOn = time.Now()
 		return true
 	case serverBean.HelmReleaseStatusDeployed:
-		//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
+		// skip if there is no deployment after wfr.StartedOn and continue for next workflow status
 		if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
 			impl.logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
@@ -372,7 +369,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsy
 		return err
 	}
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.TriggerRelease")
 	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
 	span.End()
 	if releaseErr != nil {
@@ -392,9 +389,9 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsy
 }
 
 func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext bean5.TriggerContext, artifact *repository.CiArtifact, async bool, triggeredBy int32) error {
-	//1. get cd pipelines
-	//2. get config
-	//3. trigger wf/ deployment
+	// 1. get cd pipelines
+	// 2. get config
+	// 3. trigger wf/ deployment
 	var pipelineID int
 	if artifact.DataSource == repository.POST_CI {
 		pipelineID = artifact.ComponentId
@@ -444,7 +441,11 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			return hasAnyTriggered, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		if pipeline.ApprovalNodeConfigured() {
+			impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", pipeline)
+			continue
+		}
+		if pipeline.IsManualTrigger() {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
@@ -452,7 +453,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 	}
 
 	for _, pipeline := range pipelines {
-		//applyAuth=false, already auth applied for this flow
+		// applyAuth=false, already auth applied for this flow
 		triggerRequest := bean5.TriggerRequest{
 			CdWf:        nil,
 			Pipeline:    pipeline,
@@ -496,7 +497,7 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.
 		return err
 	}
 
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(preStage, request.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", request.Pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", request.TriggeredBy)
@@ -508,11 +509,16 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
+			request.TriggerContext.TriggerType = bean5.Automatic
 			err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
 	} else if request.Pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
+		if request.Pipeline.ApprovalNodeConfigured() {
+			impl.logger.Warnw("approval node configured, so skipping pipeline for approval", "pipeline", request.Pipeline)
+			return nil
+		}
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
 		err = impl.cdTriggerService.TriggerAutomaticDeployment(request)
 		return err
@@ -520,6 +526,9 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.
 	return nil
 }
 
+// this function is for internal use only, this doesn't always guarantee pipeline stage even if pre/post-cd stage is configured
+// because for old pipelines their pre-cd and post-cd data is stored in pipeline table in yaml format.
+// TODO: remove
 func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType repository4.PipelineStageType) (*repository4.PipelineStage, error) {
 	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
 	if err != nil && err != pg.ErrNoRows {
@@ -535,10 +544,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext b
 		return err
 	}
 	if wfRunner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
-		if err != nil {
-			return err
-		}
 		ciArtifact, err := impl.ciArtifactRepository.Get(cdStageCompleteEvent.CiArtifactDTO.Id)
 		if err != nil {
 			return err
@@ -550,37 +555,21 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext b
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
 			}
 		}
-		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
+		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, cdStageCompleteEvent.CdPipelineId, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
-			if len(PreCDArtifacts) > 0 {
-				ciArtifact = PreCDArtifacts[0] // deployment will be trigger with artifact copied by plugin
-			}
-			cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdStageCompleteEvent.WorkflowId)
-			if err != nil {
-				return err
-			}
-			//passing applyAuth as false since this event is for auto trigger and user who already has access to this cd can trigger pre cd also
-			applyAuth := false
-			if cdStageCompleteEvent.TriggeredBy != 1 {
-				applyAuth = true
-			}
-			triggerRequest := bean5.TriggerRequest{
-				CdWf:           cdWorkflow,
-				Pipeline:       pipeline,
-				Artifact:       ciArtifact,
-				ApplyAuth:      applyAuth,
-				TriggeredBy:    cdStageCompleteEvent.TriggeredBy,
-				TriggerContext: triggerContext,
-			}
-			triggerRequest.TriggerContext.Context = context.Background()
-			err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
-			if err != nil {
-				return err
-			}
+		ciArtifactId := 0
+		if len(PreCDArtifacts) > 0 {
+			ciArtifactId = PreCDArtifacts[0].Id // deployment will be trigger with artifact copied by plugin
+		} else {
+			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
+		}
+		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
+			return err
 		}
 	}
 	return nil
@@ -602,7 +591,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	}
 
 	var triggeredByUser int32 = 1
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
@@ -622,6 +611,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 				RefCdWorkflowRunnerId: 0,
 			}
 			triggerRequest.TriggerContext.Context = context.Background()
+			triggerRequest.TriggerType = bean5.Automatic
 			err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
@@ -652,6 +642,14 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
 	}
+
+	linkedMappings, linkedArtifactsMap, err := impl.processLinkedCDPipelines(cdPipelineId, ciArtifact, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error in processing linked cd pipelines", "err", err, "cdPipelineId", cdPipelineId)
+		return err
+	}
+	cdPipelinesMapping = append(cdPipelinesMapping, linkedMappings...)
+
 	if len(pluginRegistryImageDetails) > 0 {
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
@@ -663,19 +661,24 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		}
 	}
 	for _, cdPipelineMapping := range cdPipelinesMapping {
-		//find pipeline by cdPipeline ID
+		// find pipeline by cdPipeline ID
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
 		if err != nil {
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "pipelineId", cdPipelineMapping.ComponentId)
 			return err
 		}
-		//finding ci artifact by ciPipelineID and pipelineId
-		//TODO : confirm values for applyAuth, async & triggeredBy
+		// finding ci artifact by ciPipelineID and pipelineId
+		// TODO : confirm values for applyAuth, async & triggeredBy
+
+		triggerArtifact := ciArtifact
+		if artifact, ok := linkedArtifactsMap[cdPipelineMapping.ParentId]; ok {
+			triggerArtifact = artifact
+		}
 
 		triggerRequest := bean5.TriggerRequest{
 			CdWf:           nil,
 			Pipeline:       pipeline,
-			Artifact:       ciArtifact,
+			Artifact:       triggerArtifact,
 			TriggeredBy:    triggeredBy,
 			TriggerContext: triggerContext,
 		}
@@ -683,7 +686,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
-			return err
 		}
 	}
 	return nil
@@ -768,7 +770,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipeline.PipelineType == string(CiPipeline.CI_JOB) && image == "" {
+			if pipeline.PipelineType == string(constants.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{
@@ -871,7 +873,32 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 		i += batchSize
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
+	if pipeline.ScanEnabled {
+		event := GetImageScanningEvent(request.UserId, pipeline.Id, request.Image, request.ImageDigest)
+		payload, err := json.Marshal(event)
+		if err != nil {
+			impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
+			return 0, err
+		}
+		// publish nats event for async installation
+		err = impl.pubSubClient.Publish(pubsub.IMAGE_SCANNING_SUCCESS_TOPIC, string(payload))
+		if err != nil {
+			impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.IMAGE_SCANNING_SUCCESS_TOPIC, "payload", payload, "err", err)
+			return 0, err
+		}
+	}
+
 	return buildArtifact.Id, err
+}
+
+func GetImageScanningEvent(triggeredBy int32, ciPipelineId int, image, imageDigest string) bean7.ImageScanningEvent {
+	return bean7.ImageScanningEvent{
+		CiPipelineId: ciPipelineId,
+		TriggerBy:    int(triggeredBy),
+		Image:        image,
+		Digest:       imageDigest,
+		PipelineType: util2.CI,
+	}
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCISuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
@@ -986,6 +1013,97 @@ func (impl *WorkflowDagExecutorImpl) HandleExternalCiWebhook(externalCiId int, r
 	return artifact.Id, err
 }
 
+func (impl *WorkflowDagExecutorImpl) processLinkedCDPipelines(cdPipelineId int, ciArtifact *repository.CiArtifact, triggeredBy int32) ([]*appWorkflow.AppWorkflowMapping, map[int]*repository.CiArtifact, error) {
+	linkedArtifactsMap := make(map[int]*repository.CiArtifact)
+	linkedMappings, linkedCIPipelineIds, err := impl.getLinkedCDPipelines(cdPipelineId)
+	if err != nil || len(linkedMappings) == 0 {
+		return linkedMappings, linkedArtifactsMap, err
+	}
+	linkedArtifactsMap, err = impl.saveArtifactsForLinkedCDPipelines(linkedCIPipelineIds, ciArtifact, triggeredBy)
+	return linkedMappings, linkedArtifactsMap, err
+}
+
+func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiPipelineIds []int, ciArtifact *repository.CiArtifact,
+	triggeredBy int32) (map[int]*repository.CiArtifact, error) {
+
+	ciPipelineIdToArtifacts := make(map[int]*repository.CiArtifact)
+	// existingArtifacts are for rollback/redeployment cases, where artifacts already exits
+	existingArtifacts, err := impl.ciArtifactRepository.GetArtifactsByCiPipelineIds(linkedCiPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching ci artifacts for linked CD pipelines", "err", err, "ciPipelineIds", linkedCiPipelineIds)
+		return ciPipelineIdToArtifacts, err
+	}
+
+	ciIdToExistingArtifact := make(map[int]repository.CiArtifact)
+	for _, artifact := range existingArtifacts {
+		// need to compare image for idempotency
+		// Skopeo images will have same digest but different images
+		if ciArtifact.Image == artifact.Image {
+			ciIdToExistingArtifact[artifact.PipelineId] = artifact
+		}
+	}
+
+	var newCiArtifactArr []*repository.CiArtifact
+	var existingCiArtifactArr []*repository.CiArtifact
+	var existingArtifactsIds []int
+	for _, pipelineId := range linkedCiPipelineIds {
+
+		if existingArtifact, ok := ciIdToExistingArtifact[pipelineId]; !ok {
+			artifact := ciArtifact.CopyArtifactMetadata(pipelineId, triggeredBy)
+			newCiArtifactArr = append(newCiArtifactArr, artifact)
+		} else {
+			existingCiArtifactArr = append(existingCiArtifactArr, &existingArtifact)
+			existingArtifactsIds = append(existingArtifactsIds, existingArtifact.Id)
+		}
+	}
+
+	savedCIArtifacts, err := impl.ciArtifactRepository.SaveAll(newCiArtifactArr)
+	if err != nil {
+		impl.logger.Errorw("error while saving ci artifacts for linked CD pipelines", "err", err, "linkedCiPipelineIds", linkedCiPipelineIds)
+		return ciPipelineIdToArtifacts, err
+	}
+
+	// not needed for now, need to uncomment in order to show tag for image running on parent
+	// err = impl.ciArtifactRepository.UpdateLatestTimestamp(existingArtifactsIds)
+	// if err != nil {
+	//	impl.logger.Errorw("error while updating ci artifacts for linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
+	//	return nil, nil, err
+	// }
+
+	allArtifacts := append(savedCIArtifacts, existingCiArtifactArr...)
+	for _, artifact := range allArtifacts {
+		ciPipelineIdToArtifacts[artifact.PipelineId] = artifact
+	}
+	return ciPipelineIdToArtifacts, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) getLinkedCDPipelines(cdPipelineId int) ([]*appWorkflow.AppWorkflowMapping, []int, error) {
+	linkedCiPipelineIds := make([]int, 0)
+	linkedPipelines, err := impl.ciPipelineRepository.FindByParentIdAndType(cdPipelineId, string(constants.LINKED_CD))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in finding linked CD pipelines", "err", err, "cdPipelineId", cdPipelineId)
+		return nil, linkedCiPipelineIds, err
+	}
+	linkedCDMappings := make([]*appWorkflow.AppWorkflowMapping, 0)
+	if len(linkedPipelines) == 0 {
+		return linkedCDMappings, linkedCiPipelineIds, nil
+	}
+
+	for _, pipeline := range linkedPipelines {
+		linkedCiPipelineIds = append(linkedCiPipelineIds, pipeline.Id)
+	}
+
+	mappings, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineIds(linkedCiPipelineIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching linked CD pipelines for parent CI", "err", err, "ciPipelineIds", linkedCiPipelineIds)
+		return nil, linkedCiPipelineIds, err
+	}
+
+	// will return empty if mappings is nil
+	linkedCDMappings = append(linkedCDMappings, mappings...)
+	return linkedCDMappings, linkedCiPipelineIds, nil
+}
+
 // TODO: move in adapter
 func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error) {
 	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
@@ -1059,4 +1177,14 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) HandleArtifactPromotionEvent(request bean5.TriggerRequest) error {
+
+	err := impl.triggerIfAutoStageCdPipeline(request)
+	if err != nil {
+		impl.logger.Errorw("error in auto trigger on artifact promotion event", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id, "err", err)
+	}
+	return err
+
 }

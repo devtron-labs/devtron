@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package eventProcessor
@@ -28,6 +16,7 @@ type CentralEventProcessor struct {
 	cdPipelineEventProcessor              *in.CDPipelineEventProcessorImpl
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl
 	appStoreAppsEventProcessorImpl        *in.AppStoreAppsEventProcessorImpl
+	chartScanEventProcessorImpl           *in.ChartScanEventProcessorImpl
 }
 
 func NewCentralEventProcessor(logger *zap.SugaredLogger,
@@ -35,7 +24,9 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl,
 	cdPipelineEventProcessor *in.CDPipelineEventProcessorImpl,
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl,
-	appStoreAppsEventProcessorImpl *in.AppStoreAppsEventProcessorImpl) (*CentralEventProcessor, error) {
+	appStoreAppsEventProcessorImpl *in.AppStoreAppsEventProcessorImpl,
+	chartScanEventProcessorImpl *in.ChartScanEventProcessorImpl,
+) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
 		logger:                                logger,
 		workflowEventProcessor:                workflowEventProcessor,
@@ -43,6 +34,7 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 		cdPipelineEventProcessor:              cdPipelineEventProcessor,
 		deployedApplicationEventProcessorImpl: deployedApplicationEventProcessorImpl,
 		appStoreAppsEventProcessorImpl:        appStoreAppsEventProcessorImpl,
+		chartScanEventProcessorImpl:           chartScanEventProcessorImpl,
 	}
 	err := cep.SubscribeAll()
 	if err != nil {
@@ -54,15 +46,15 @@ func NewCentralEventProcessor(logger *zap.SugaredLogger,
 func (impl *CentralEventProcessor) SubscribeAll() error {
 	var err error
 
-	//CI pipeline event starts
+	// CI pipeline event starts
 	err = impl.ciPipelineEventProcessor.SubscribeNewCIMaterialEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeNewCIMaterialEvent", "err", err)
 		return err
 	}
-	//CI pipeline event ends
+	// CI pipeline event ends
 
-	//CD pipeline event starts
+	// CD pipeline event starts
 
 	err = impl.cdPipelineEventProcessor.SubscribeCDBulkTriggerTopic()
 	if err != nil {
@@ -76,13 +68,23 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//CD pipeline event ends
+	// CD pipeline event ends
 
-	//Workflow event starts
+	// Workflow event starts
 
+	err = impl.workflowEventProcessor.SubscribeDeployStageSuccessEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeDeployStageSuccessEvent", "err", err)
+		return err
+	}
 	err = impl.workflowEventProcessor.SubscribeCDStageCompleteEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeCDStageCompleteEvent", "err", err)
+		return err
+	}
+	err = impl.workflowEventProcessor.SubscribeImageScanningSuccessEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeImageScanningSuccessEvent", "err", err)
 		return err
 	}
 	err = impl.workflowEventProcessor.SubscribeTriggerBulkAction()
@@ -121,9 +123,9 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//Workflow event ends
+	// Workflow event ends
 
-	//Deployed application status event starts (currently only argo)
+	// Deployed application status event starts (currently only argo)
 
 	err = impl.deployedApplicationEventProcessorImpl.SubscribeArgoAppUpdate()
 	if err != nil {
@@ -136,9 +138,9 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//Deployed application status event ends (currently only argo)
+	// Deployed application status event ends (currently only argo)
 
-	//AppStore apps event starts
+	// AppStore apps event starts
 
 	err = impl.appStoreAppsEventProcessorImpl.SubscribeAppStoreAppsBulkDeployEvent()
 	if err != nil {
@@ -152,7 +154,13 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
-	//AppStore apps event ends
+	err = impl.chartScanEventProcessorImpl.SubscribeChartScanEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeChartScanEvent", "err", err)
+		return err
+	}
+
+	// AppStore apps event ends
 
 	return nil
 }

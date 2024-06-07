@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package cluster
@@ -55,7 +43,7 @@ func NewClusterRbacServiceImpl(environmentService EnvironmentService,
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (authenticated bool, err error) {
 	if rbacForClusterMappingsAlso {
-		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId)
+		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId, token)
 
 		if err != nil {
 			impl.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", clusterName)
@@ -99,9 +87,9 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 
 	return false, nil
 }
-func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[string]bool, error) {
+func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32, token string) (map[string]bool, error) {
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	roles, err := impl.clusterService.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err

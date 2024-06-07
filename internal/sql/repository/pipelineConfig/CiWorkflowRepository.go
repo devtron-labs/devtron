@@ -1,25 +1,15 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package pipelineConfig
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
@@ -48,6 +38,8 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+	FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error)
+	FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -118,6 +110,12 @@ type WorkflowWithArtifact struct {
 	ExecutorType            WorkflowExecutorType `json:"executor_type"` //awf, system
 	ImagePathReservationId  int                  `json:"image_path_reservation_id"`
 	ImagePathReservationIds []int                `json:"image_path_reservation_ids" pg:",array"`
+}
+
+type ArtifactAndGitCommitMapping struct {
+	//Id          int               `sql:"id,pk"`
+	GitTriggers map[int]GitCommit `sql:"git_triggers"`
+	ArtifactId  int               `sql:"artifact_id"`
 }
 
 type GitCommit struct {
@@ -228,10 +226,12 @@ func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id i
 func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Where("ci_workflow.id = ? ", id).
 		Select()
-
+	if err == pg.ErrNoRows {
+		return workflow, nil
+	}
 	return workflow, err
 }
 
@@ -241,7 +241,6 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 		return workflows, nil
 	}
 	err := impl.dbConnection.Model(&workflows).
-		Column("ci_workflow.git_triggers").
 		Where("ci_workflow.id IN (?)", pg.In(ids)).
 		Select()
 
@@ -276,7 +275,25 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 		Select()
 	return ciWorkflow, err
 }
+func (impl *CiWorkflowRepositoryImpl) FindLastOneTriggeredWorkflowByCiIds(pipelineId []int) ([]*CiWorkflow, error) {
+	var ciWorkflow []*CiWorkflow
+	if len(pipelineId) == 0 {
+		return nil, nil
+	}
+	query := "SELECT MAX(id) as id " +
+		" FROM ci_workflow ciw" +
+		" WHERE ciw.ci_pipeline_id in(?)" +
+		" GROUP by ciw.ci_pipeline_id"
 
+	query = fmt.Sprintf(" SELECT * "+
+		" FROM ci_workflow WHERE id IN (%s)", query)
+
+	_, err := impl.dbConnection.Query(&ciWorkflow, query, pg.In(pipelineId))
+	if err != nil {
+		return ciWorkflow, err
+	}
+	return ciWorkflow, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
@@ -286,6 +303,26 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Select()
 	return workflow, err
 }
+
+func (impl *CiWorkflowRepositoryImpl) FindGitTriggersByArtifactIds(ciArtifactIds []int, ctx context.Context) (ciWorkflows []ArtifactAndGitCommitMapping, err error) {
+	_, span := otel.Tracer("envOverrideRepository").Start(ctx, "fetchCiArtifactAndGitTriggersMapping")
+	defer span.End()
+	if ciArtifactIds == nil {
+		// If ciArtifactIds is nil or empty, return an empty slice and nil error
+		return []ArtifactAndGitCommitMapping{}, err
+	}
+	var workflows []ArtifactAndGitCommitMapping
+	err = impl.dbConnection.Model().
+		Table("ci_workflow").
+		Column("ci_workflow.git_triggers").
+		ColumnExpr("cia.id as artifact_id").
+		Join("INNER JOIN ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
+		Where("cia.id in (?) ", pg.In(ciArtifactIds)).
+		Select(&workflows)
+
+	return workflows, nil
+}
+
 func (impl *CiWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error) {
 	cnt, err := impl.dbConnection.Model(&CiWorkflow{}).
 		ColumnExpr("DISTINCT ci_pipeline_id").
@@ -308,7 +345,7 @@ func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(c
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
 		Where("cia.id = ? ", ciArtifactId).
 		Select()

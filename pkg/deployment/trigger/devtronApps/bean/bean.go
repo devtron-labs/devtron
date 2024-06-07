@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
@@ -19,8 +7,13 @@ package bean
 import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/enterprise/pkg/expressionEvaluators"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"time"
 )
 
@@ -47,6 +40,9 @@ type TriggerRequest struct {
 	RefCdWorkflowRunnerId  int
 	RunStageInEnvNamespace string
 	WorkflowType           bean.WorkflowType
+	TriggerMessage         string
+	DeploymentWindowState  *deploymentWindow.EnvironmentState
+	CdWorkflowRunnerId     int // current used for release if runner id comes we dont create runner
 	TriggerContext
 }
 
@@ -57,6 +53,27 @@ type TriggerContext struct {
 	// ReferenceId is a unique identifier for the workflow runner
 	// refer pipelineConfig.CdWorkflowRunner
 	ReferenceId *string
+
+	// manual or automatic
+	TriggerType TriggerType
+}
+
+type TriggerType int
+
+const (
+	Automatic TriggerType = 1
+	Manual    TriggerType = 2
+)
+
+func (context TriggerContext) IsAutoTrigger() bool {
+	return context.TriggerType == Automatic
+}
+
+func (context TriggerContext) ToTriggerTypeString() string {
+	if context.IsAutoTrigger() {
+		return "AUTO"
+	}
+	return "MANUAL"
 }
 
 type DeploymentType = string
@@ -66,15 +83,37 @@ const (
 	ArgoCd                  DeploymentType = "argo_cd"
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+	ManifestPush            DeploymentType = "manifest_push"
 )
 
+const ImagePromotionPolicyValidationErr = "error in cd trigger, user who has approved the image for promotion cannot deploy"
+
 type TriggerRequirementRequestDto struct {
+	Scope          resourceQualifiers.Scope
 	TriggerRequest TriggerRequest
+	Stage          resourceFilter.ReferenceType
+	DeploymentType models.DeploymentType
+}
+
+type TriggerFeasibilityResponse struct {
+	ApprovalRequestId int
+	TriggerRequest    TriggerRequest
+	FilterIdVsState   map[int]expressionEvaluators.FilterState
+	Filters           []*resourceFilter.FilterMetaDataBean
 }
 
 type VulnerabilityCheckRequest struct {
 	ImageDigest string
 	CdPipeline  *pipelineConfig.Pipeline
+}
+
+type TriggerOperationDto struct {
+	TriggerRequest  TriggerRequest
+	ExecutorType    pipelineConfig.WorkflowExecutorType
+	PipelineId      int
+	Scope           resourceQualifiers.Scope
+	TriggeredAt     time.Time
+	OverrideCdWrfId int
 }
 
 const (

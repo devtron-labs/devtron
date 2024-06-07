@@ -42,7 +42,11 @@ if ! [[ "$StatusTimeOutSeconds" =~ ^[0-9]+$ ]]; then
     StatusTimeOutSeconds=0
 fi
 
-DevtronEndpoint=$(echo "$DevtronEndpoint" | sed \'s:/*$::\')
+DevtronEndpoint=$(echo "$DevtronEndpoint" | sed \'s:/*
+ * Copyright (c) 2024. Devtron Inc.
+ */
+
+/*$::\')
 
 # Determine sleep interval based on StatusTimeOutSeconds
 if [ "$StatusTimeOutSeconds" -lt "60" ]; then

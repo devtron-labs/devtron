@@ -1,34 +1,42 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package resourceQualifiers
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 type ResourceType int
 
 const (
 	Variable              ResourceType = 0
-	Filter                             = 1
-	ImageDigest                        = 2
+	Filter                ResourceType = 1
+	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
-	InfraProfile                       = 3
-	ImagePromotionPolicy  ResourceType = 4
-	DeploymentWindow      ResourceType = 5
+	InfraProfile          ResourceType = 3
+	DeploymentWindow      ResourceType = 4
+	ImagePromotionPolicy  ResourceType = 5
 )
+
+const (
+	AllProjectsValue                     = "-1"
+	AllProjectsInt                       = -1
+	AllExistingAndFutureProdEnvsValue    = "-2"
+	AllExistingAndFutureProdEnvsInt      = -2
+	AllExistingAndFutureNonProdEnvsValue = "-1"
+	AllExistingAndFutureNonProdEnvsInt   = -1
+	AllExistingAndFutureEnvsString       = "-3"
+	AllExistingAndFutureEnvsInt          = -3
+)
+
+func GetEnvIdentifierValue(scope Scope) int {
+	if scope.IsProdEnv {
+		return AllExistingAndFutureProdEnvsInt
+	}
+	return AllExistingAndFutureNonProdEnvsInt
+}
 
 type ResourceQualifierMappings struct {
 	ResourceId          int
@@ -48,9 +56,12 @@ type QualifierMapping struct {
 	IdentifierValueString string       `sql:"identifier_value_string"`
 	ParentIdentifier      int          `sql:"parent_identifier"`
 	CompositeKey          string       `sql:"-"`
-	// Data                  string   `sql:"-"`
-	// VariableData          *VariableData
 	sql.AuditLog
+}
+
+type QualifierMappingWithExtraColumns struct {
+	QualifierMapping
+	TotalCount int
 }
 
 type ResourceMappingSelection struct {

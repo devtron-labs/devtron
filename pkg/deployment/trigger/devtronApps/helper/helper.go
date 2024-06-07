@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package helper
@@ -21,7 +9,6 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	errors2 "github.com/juju/errors"
 	"time"
 )
 
@@ -47,6 +34,17 @@ func GetTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.GetManifestInResponse = false
 		triggerEvent.DeploymentAppType = bean.Helm
+	case bean.ManifestDownload:
+		triggerEvent.PerformChartPush = false
+		triggerEvent.PerformDeploymentOnCluster = false
+		triggerEvent.GetManifestInResponse = true
+		triggerEvent.DeploymentAppType = bean.ManifestDownload
+	case bean.ManifestPush:
+		triggerEvent.PerformChartPush = true
+		triggerEvent.PerformDeploymentOnCluster = false
+		triggerEvent.GetManifestInResponse = true
+		triggerEvent.DeploymentAppType = bean.ManifestPush
+		triggerEvent.ManifestStorageType = bean2.ManifestStorageOCIHelmRepo
 	}
 	return triggerEvent
 }
@@ -55,13 +53,13 @@ func ValidateTriggerEvent(triggerEvent bean.TriggerEvent) (bool, error) {
 	switch triggerEvent.DeploymentAppType {
 	case bean.ArgoCd:
 		if !triggerEvent.PerformChartPush {
-			return false, errors2.New("For deployment type ArgoCd, PerformChartPush flag expected value = true, got false")
+			return false, errors3.New("For deployment type ArgoCd, PerformChartPush flag expected value = true, got false")
 		}
 	case bean.Helm:
 		return true, nil
-	case bean.GitOpsWithoutDeployment:
+	case bean.ManifestPush:
 		if triggerEvent.PerformDeploymentOnCluster {
-			return false, errors2.New("For deployment type GitOpsWithoutDeployment, PerformDeploymentOnCluster flag expected value = false, got value = true")
+			return false, errors3.New("For deployment type GitOpsWithoutDeployment, PerformDeploymentOnCluster flag expected value = false, got value = true")
 		}
 	case bean.ManifestDownload:
 		if triggerEvent.PerformChartPush {
@@ -72,4 +70,5 @@ func ValidateTriggerEvent(triggerEvent bean.TriggerEvent) (bool, error) {
 		}
 	}
 	return true, nil
+
 }

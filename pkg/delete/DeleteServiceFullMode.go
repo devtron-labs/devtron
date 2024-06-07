@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package delete
@@ -21,6 +9,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -30,15 +19,17 @@ type DeleteServiceFullMode interface {
 	DeleteGitProvider(deleteRequest *types.GitRegistry) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
+	CanDeleteChartRegistryPushConfig(storeId string) bool
 }
 
 type DeleteServiceFullModeImpl struct {
-	logger                   *zap.SugaredLogger
-	gitMaterialRepository    pipelineConfig.MaterialRepository
-	gitRegistryConfig        pipeline.GitRegistryConfig
-	ciTemplateRepository     pipelineConfig.CiTemplateRepository
-	dockerRegistryConfig     pipeline.DockerRegistryConfig
-	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	logger                       *zap.SugaredLogger
+	gitMaterialRepository        pipelineConfig.MaterialRepository
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	ciTemplateRepository         pipelineConfig.CiTemplateRepository
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	dockerRegistryRepository     dockerRegistryRepository.DockerArtifactStoreRepository
+	manifestPushConfigRepository repository.ManifestPushConfigRepository
 }
 
 func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
@@ -47,14 +38,16 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	manifestPushConfigRepository repository.ManifestPushConfigRepository,
 ) *DeleteServiceFullModeImpl {
 	return &DeleteServiceFullModeImpl{
-		logger:                   logger,
-		gitMaterialRepository:    gitMaterialRepository,
-		gitRegistryConfig:        gitRegistryConfig,
-		ciTemplateRepository:     ciTemplateRepository,
-		dockerRegistryConfig:     dockerRegistryConfig,
-		dockerRegistryRepository: dockerRegistryRepository,
+		logger:                       logger,
+		gitMaterialRepository:        gitMaterialRepository,
+		gitRegistryConfig:            gitRegistryConfig,
+		ciTemplateRepository:         ciTemplateRepository,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		dockerRegistryRepository:     dockerRegistryRepository,
+		manifestPushConfigRepository: manifestPushConfigRepository,
 	}
 }
 func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *types.GitRegistry) error {
@@ -84,8 +77,19 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 		return err
 	}
 	if len(ciTemplates) > 0 {
+		err = fmt.Errorf(" Please update all related docker config before deleting this registry")
 		impl.logger.Errorw("err in deleting docker registry, found docker build config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return err
+	}
+	manifestConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(deleteRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		return err
+	}
+	if manifestConfig.Id != 0 {
+		err = fmt.Errorf(" Please update all related docker config before deleting this registry")
+		impl.logger.Errorw("err in deleting docker registry, found virtual deployment config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
+		return err
 	}
 
 	//finding if docker reg chart is used in any deployment, if yes then will not delete
@@ -114,6 +118,19 @@ func (impl DeleteServiceFullModeImpl) CanDeleteContainerRegistryConfig(storeId s
 		return false
 	}
 	if len(ciTemplates) > 0 {
+		return false
+	}
+	return true
+}
+
+func (impl DeleteServiceFullModeImpl) CanDeleteChartRegistryPushConfig(storeId string) bool {
+	//finding if docker reg is used in any virtual CD pipeline, if yes then will not delete
+	manifestConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByStoreId(storeId)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", storeId, "err", err)
+		return false
+	}
+	if manifestConfig.Id != 0 {
 		return false
 	}
 	return true

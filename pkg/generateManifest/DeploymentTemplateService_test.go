@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package generateManifest
@@ -20,7 +8,7 @@ import (
 	"context"
 	"errors"
 	client2 "github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
@@ -38,7 +26,7 @@ import (
 	"testing"
 )
 
-var K8sUtilObj *k8s.K8sServiceImpl
+var K8sUtilObj *k8s.K8sUtilExtended
 
 func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.T) {
 	defaultVersions := &chart.ChartRefResponse{
@@ -536,7 +524,7 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 	chartRepository := mocks5.NewChartRepository(t)
 	chartTemplateServiceImpl := mocks6.NewChartTemplateService(t)
 	helmAppClient := mocks4.NewHelmAppClient(t)
-	var k8sUtil *k8s.K8sServiceImpl
+	var k8sUtil *k8s.K8sUtilExtended
 	if K8sUtilObj != nil {
 		k8sUtil = K8sUtilObj
 	} else {

@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package configure
@@ -21,11 +9,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
+	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"io"
 	"net/http"
 	"strconv"
@@ -35,6 +26,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -102,7 +94,6 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
@@ -114,20 +105,25 @@ type PipelineConfigRestHandlerImpl struct {
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	appWorkflowService                  appWorkflow.AppWorkflowService
 	enforcerUtil                        rbac.EnforcerUtil
+	envService                          request.EnvironmentService
 	dockerRegistryConfig                pipeline.DockerRegistryConfig
 	cdHandler                           pipeline.CdHandler
 	appCloneService                     appClone.AppCloneService
+	appService                          app2.AppService
 	materialRepository                  pipelineConfig.MaterialRepository
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
 	gitProviderRepo                     repository.GitProviderRepository
 	argoUserService                     argo.ArgoUserService
 	imageTaggingService                 pipeline.ImageTaggingService
+	resourceProtectionService           protect.ResourceProtectionService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
 	ciArtifactRepository                repository.CiArtifactRepository
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
+	artifactApprovalActionService       action.ArtifactApprovalActionService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 }
 
@@ -144,18 +140,21 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
+	envService request.EnvironmentService,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
+	appService app2.AppService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService,
+	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
+	artifactApprovalActionService action.ArtifactApprovalActionService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
@@ -163,10 +162,10 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
 	}
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:                     pipelineBuilder,
-		Logger:                              Logger,
-		deploymentTemplateValidationService: deploymentTemplateValidationService,
-		chartService:                        chartService,
+		pipelineBuilder: pipelineBuilder,
+		Logger:          Logger,
+		chartService:    chartService,
+		//TODO Asutosh:
 		devtronAppGitOpConfigService:        devtronAppGitOpConfigService,
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
@@ -178,9 +177,11 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		ciPipelineRepository:                ciPipelineRepository,
 		pipelineRepository:                  pipelineRepository,
 		enforcerUtil:                        enforcerUtil,
+		envService:                          envService,
 		dockerRegistryConfig:                dockerRegistryConfig,
 		cdHandler:                           cdHandler,
 		appCloneService:                     appCloneService,
+		appService:                          appService,
 		appWorkflowService:                  appWorkflowService,
 		materialRepository:                  materialRepository,
 		policyService:                       policyService,
@@ -189,11 +190,14 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageTaggingService:                 imageTaggingService,
+		resourceProtectionService:           resourceProtectionService,
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,
 		ciArtifactRepository:                ciArtifactRepository,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
+		artifactApprovalActionService:       artifactApprovalActionService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 	}
 }

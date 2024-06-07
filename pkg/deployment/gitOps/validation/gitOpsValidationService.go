@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2020-2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package validation
@@ -185,7 +173,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 		}
 		repoUrl := git.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL)
 		orgRepoUrl := strings.TrimSuffix(chartGitAttribute.RepoUrl, ".git")
-		if !strings.Contains(repoUrl, orgRepoUrl) {
+		if !strings.Contains(strings.ToLower(repoUrl), strings.ToLower(orgRepoUrl)) {
 			impl.logger.Errorw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
 			nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
 			if nonOrgErr != nil {
@@ -225,7 +213,7 @@ func (impl *GitOpsValidationServiceImpl) extractErrorMessageByProvider(err error
 			return errorMessage
 		}
 		return fmt.Errorf("azure devops client error: %s", err.Error())
-	case git.BITBUCKET_PROVIDER:
+	case git.BITBUCKET_PROVIDER, git.BITBUCKET_DC_PROVIDER:
 		return fmt.Errorf("bitbucket client error: %s", err.Error())
 	case git.GITHUB_PROVIDER:
 		return fmt.Errorf("github client error: %s", err.Error())
@@ -255,7 +243,7 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 		errorMessageKey = "The repository must belong to gitLab Group ID"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
 
-	case git.BITBUCKET_PROVIDER:
+	case git.BITBUCKET_PROVIDER, git.BITBUCKET_DC_PROVIDER:
 		errorMessageKey = "The repository must belong to BitBucket Workspace"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.BitBucketWorkspaceId)
 
