@@ -19,6 +19,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
@@ -46,6 +47,10 @@ const (
 	ZERO_ENVIRONMENT_ID   = 0
 )
 
+type CrudOperationServiceConfig struct {
+	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false"`
+}
+
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
@@ -60,15 +65,26 @@ type AppCrudOperationService interface {
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
 
+func GetCrudOperationServiceConfig() (*CrudOperationServiceConfig, error) {
+	cfg := &CrudOperationServiceConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		fmt.Println("failed to parse server CrudOperationServiceConfig,: " + err.Error())
+		return nil, err
+	}
+	return cfg, nil
+}
+
 type AppCrudOperationServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	appLabelRepository     pipelineConfig.AppLabelRepository
-	appRepository          appRepository.AppRepository
-	userRepository         repository.UserRepository
-	installedAppRepository repository2.InstalledAppRepository
-	genericNoteService     genericNotes.GenericNoteService
-	gitMaterialRepository  pipelineConfig.MaterialRepository
-	installedAppDbService  EAMode.InstalledAppDBService
+	logger                     *zap.SugaredLogger
+	appLabelRepository         pipelineConfig.AppLabelRepository
+	appRepository              appRepository.AppRepository
+	userRepository             repository.UserRepository
+	installedAppRepository     repository2.InstalledAppRepository
+	genericNoteService         genericNotes.GenericNoteService
+	gitMaterialRepository      pipelineConfig.MaterialRepository
+	installedAppDbService      EAMode.InstalledAppDBService
+	crudOperationServiceConfig *CrudOperationServiceConfig
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
@@ -76,8 +92,9 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository,
-	installedAppDbService EAMode.InstalledAppDBService) *AppCrudOperationServiceImpl {
-	return &AppCrudOperationServiceImpl{
+	installedAppDbService EAMode.InstalledAppDBService,
+	crudOperationServiceConfig *CrudOperationServiceConfig) *AppCrudOperationServiceImpl {
+	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
@@ -87,6 +104,12 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		gitMaterialRepository:  gitMaterialRepository,
 		installedAppDbService:  installedAppDbService,
 	}
+	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
+	if err != nil {
+		return nil
+	}
+	impl.crudOperationServiceConfig = crudOperationServiceConfig
+	return impl
 }
 
 type AppBean struct {
@@ -641,14 +664,18 @@ func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, app
 		impl.logger.Errorw("error in getting app labels from db using appId", "appId", appId, "err", err)
 		return nil, err
 	}
-	extraAppLabelsToPropagate, err := impl.getExtraAppLabelsToPropagate(appId, appName, envName)
-	if err != nil {
-		impl.logger.Errorw("error in getting extra app labels to propagate", "appName", appName, "envName", envName, "err", err)
-		return nil, err
+	mergedAppLabels := appLabelsMapFromDb
+
+	if impl.crudOperationServiceConfig.PropagateExtraLabels {
+		extraAppLabelsToPropagate, err := impl.getExtraAppLabelsToPropagate(appId, appName, envName)
+		if err != nil {
+			impl.logger.Errorw("error in getting extra app labels to propagate", "appName", appName, "envName", envName, "err", err)
+			return nil, err
+		}
+		//when app labels are provided by the user and share the same label key names as those in the extraAppLabelsToPropagate map,
+		//priority will be given to the user-provided label keys.
+		mergedAppLabels = MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
 	}
-	//when app labels are provided by the user and share the same label key names as those in the extraAppLabelsToPropagate map,
-	//priority will be given to the user-provided label keys.
-	mergedAppLabels := MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
 
 	appLabelJson.Labels = mergedAppLabels
 	appLabelByte, err := json.Marshal(appLabelJson)
