@@ -544,7 +544,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateRunnerStatusToFailedForIds(errMsg st
 	if len(cdWfrIds) == 0 {
 		return nil
 	}
-	_, err := impl.dbConnection.Model().
+	_, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
 		Set("status = ?", WorkflowFailed).
 		Set("finished_on = ?", time.Now()).
 		Set("updated_on = ?", time.Now()).
