@@ -80,7 +80,6 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 						writeResponse(http.StatusUnauthorized, "Inactive User", w, fmt.Errorf("inactive User"))
 						return
 					}
-
 					// setting user id in context
 					ctx := context.WithValue(r.Context(), "userId", userId)
 					ctx = context.WithValue(ctx, "token", token)
