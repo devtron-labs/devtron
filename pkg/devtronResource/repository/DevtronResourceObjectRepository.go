@@ -24,6 +24,7 @@ type DevtronResourceObjectRepository interface {
 	//
 	// DevtronResourceObject.Id is unique and incremental for all kinds of resource (Applications/Job/Release/ReleaseTrack)
 	FindByIdAndSchemaId(id, devtronResourceSchemaId int) (*DevtronResourceObject, error)
+	FindByIds(ids []int) ([]*DevtronResourceObject, error)
 	// GetAllWithSchemaId will list out all the objects specific to a resource schema
 	GetAllWithSchemaId(devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
 	// GetIdsByIdentifiers returns all the ids of the devtron resource object for provided identifiers
@@ -158,6 +159,18 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByIdAndSchemaId(id, devtron
 		return nil, err
 	}
 	return &devtronResourceObject, nil
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) FindByIds(ids []int) ([]*DevtronResourceObject, error) {
+	var devtronResourceObjects []*DevtronResourceObject
+	err := repo.dbConnection.Model(&devtronResourceObjects).Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting devtronResourceObject by ids", "err", err,
+			"ids", ids)
+		return nil, err
+	}
+	return devtronResourceObjects, nil
 }
 
 func (repo *DevtronResourceObjectRepositoryImpl) GetIdsByIdentifiers(identifiers []string) ([]int, error) {

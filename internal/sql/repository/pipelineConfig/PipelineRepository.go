@@ -144,6 +144,7 @@ type PipelineRepository interface {
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
+	FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error)
 	SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error
 	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error
 	UpdateCdPipelineAfterDeployment(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, delete bool) error
@@ -384,7 +385,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pi
 
 func (impl PipelineRepositoryImpl) FindEnvNameAndIdByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.environment_id", "Environment.environment_name").
+		Column("pipeline.id", "pipeline.deployment_app_type", "pipeline.environment_id", "Environment.environment_name").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()
@@ -714,6 +715,16 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 		Where("deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
+	var pipeline Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Where("app_id = ?", appId).
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Select()
+	return &pipeline, err
 }
 
 func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {

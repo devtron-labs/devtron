@@ -32,6 +32,7 @@ type CdWorkflowRepository interface {
 	FindById(wfId int) (*CdWorkflow, error)
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
+	FindCdWorkflowMetaByWfrIds(wfrIds []int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, searchString string, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
 	BulkSaveWorkflowRunners(tx *pg.Tx, runners []*CdWorkflowRunner) error
@@ -442,6 +443,20 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 		Offset(offset).Limit(limit).
 		Select()
 
+	if err != nil {
+		return nil, err
+	}
+	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByWfrIds(wfrIds []int) ([]CdWorkflowRunner, error) {
+	var wfrList []CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).
+		Order("cd_workflow_runner.id DESC").
+		Select()
 	if err != nil {
 		return nil, err
 	}

@@ -123,13 +123,6 @@ const (
 
 type FilterKeyObject = string
 
-type SearchPropertyBy string
-
-const (
-	ArtifactTag SearchPropertyBy = "artifactTag"
-	ImageTag    SearchPropertyBy = "imageTag"
-)
-
 type DtReleaseTaskRunInfo struct {
 	Level          int                      `json:"level,omitempty"`
 	TaskRunAllowed *bool                    `json:"taskRunAllowed,omitempty"`

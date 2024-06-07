@@ -7,6 +7,7 @@ package devtronResource
 import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/audit"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -48,6 +49,16 @@ var DevtronResourceWireSet = wire.NewSet(
 	wire.Bind(new(repository.DevtronResourceObjectAuditRepository), new(*repository.DevtronResourceObjectAuditRepositoryImpl)),
 	repository.NewDevtronResourceTaskRunRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceTaskRunRepository), new(*repository.DevtronResourceTaskRunRepositoryImpl)),
+
+	NewHistoryRouterImpl,
+	wire.Bind(new(HistoryRouter), new(*HistoryRouterImpl)),
+	NewHistoryRestHandlerImpl,
+	wire.Bind(new(HistoryRestHandler), new(*HistoryRestHandlerImpl)),
+	cdPipeline.NewDeploymentHistoryServiceImpl,
+	wire.Bind(new(cdPipeline.DeploymentHistoryService), new(*cdPipeline.DeploymentHistoryServiceImpl)),
+
+	devtronResource.NewAPIReqDecoderServiceImpl,
+	wire.Bind(new(devtronResource.APIReqDecoderService), new(*devtronResource.APIReqDecoderServiceImpl)),
 )
 
 var DevtronResourceWireSetEA = wire.NewSet(

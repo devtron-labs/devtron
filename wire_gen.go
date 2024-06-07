@@ -177,6 +177,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/audit"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/in"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	repository7 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -762,7 +763,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	artifactApprovalActionServiceImpl := action.NewArtifactApprovalActionServiceImpl(sugaredLogger, artifactApprovalDataReadServiceImpl, triggerServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, imageTaggingServiceImpl, deploymentApprovalRepositoryImpl, requestApprovalUserDataRepositoryImpl, ciArtifactRepositoryImpl, pipelineRepositoryImpl)
-	pipelineConfigRestHandlerImpl := configure.NewPipelineRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, deploymentTemplateValidationServiceImpl, chartServiceImpl, devtronAppGitOpConfigServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enterpriseEnforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appServiceImpl, generateManifestDeploymentTemplateServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, policyServiceImpl, imageScanResultRepositoryImpl, gitProviderRepositoryImpl, argoUserServiceImpl, ciPipelineMaterialRepositoryImpl, imageTaggingServiceImpl, resourceProtectionServiceImpl, ciArtifactRepositoryImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, artifactApprovalActionServiceImpl, ciCdPipelineOrchestratorEnterpriseImpl)
+	devtronResourceTaskRunRepositoryImpl := repository7.NewDevtronResourceTaskRunRepositoryImpl(db, sugaredLogger)
+	deploymentHistoryServiceImpl := cdPipeline.NewDeploymentHistoryServiceImpl(sugaredLogger, cdHandlerImpl, imageTaggingServiceImpl, pipelineRepositoryImpl, devtronResourceTaskRunRepositoryImpl, devtronResourceSchemaRepositoryImpl, readServiceImpl, deployedConfigurationHistoryServiceImpl)
+	pipelineConfigRestHandlerImpl := configure.NewPipelineRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, deploymentTemplateValidationServiceImpl, chartServiceImpl, devtronAppGitOpConfigServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enterpriseEnforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appServiceImpl, generateManifestDeploymentTemplateServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, policyServiceImpl, imageScanResultRepositoryImpl, gitProviderRepositoryImpl, argoUserServiceImpl, ciPipelineMaterialRepositoryImpl, imageTaggingServiceImpl, resourceProtectionServiceImpl, ciArtifactRepositoryImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, artifactApprovalActionServiceImpl, ciCdPipelineOrchestratorEnterpriseImpl, deploymentHistoryServiceImpl)
 	commonArtifactServiceImpl := artifacts.NewCommonArtifactServiceImpl(sugaredLogger, ciArtifactRepositoryImpl)
 	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, cdWorkflowRepositoryImpl, pubSubClientServiceImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, deploymentApprovalRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, customTagServiceImpl, helmAppServiceImpl, cdWorkflowCommonServiceImpl, triggerServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl)
 	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, validate, userServiceImpl, enterpriseEnforcerImpl, workflowDagExecutorImpl)
@@ -920,7 +923,6 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	devtronResourceRepositoryImpl := repository7.NewDevtronResourceRepositoryImpl(db, sugaredLogger)
-	devtronResourceTaskRunRepositoryImpl := repository7.NewDevtronResourceTaskRunRepositoryImpl(db, sugaredLogger)
 	readReadServiceImpl := read5.NewReadServiceImpl(sugaredLogger, globalPolicyRepositoryImpl)
 	policyEvaluationServiceImpl := release.NewPolicyEvaluationServiceImpl(sugaredLogger, readReadServiceImpl)
 	cdWorkflowRunnerServiceImpl := cd.NewCdWorkflowRunnerServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
@@ -1059,7 +1061,10 @@ func InitializeApp() (*App, error) {
 	devtronResourceSchemaAuditRepositoryImpl := repository7.NewDevtronResourceSchemaAuditRepositoryImpl(sugaredLogger, db)
 	devtronResourceSchemaServiceImpl := devtronResource.NewDevtronResourceSchemaServiceImpl(sugaredLogger, devtronResourceRepositoryImpl, devtronResourceSchemaRepositoryImpl, devtronResourceSchemaAuditRepositoryImpl, devtronResourceObjectRepositoryImpl, devtronResourceServiceImpl)
 	devtronResourceRestHandlerImpl := devtronResource2.NewDevtronResourceRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, validate, devtronResourceServiceImpl, devtronResourceSchemaServiceImpl)
-	devtronResourceRouterImpl := devtronResource2.NewDevtronResourceRouterImpl(devtronResourceRestHandlerImpl)
+	apiReqDecoderServiceImpl := devtronResource.NewAPIReqDecoderServiceImpl(sugaredLogger, pipelineRepositoryImpl)
+	historyRestHandlerImpl := devtronResource2.NewHistoryRestHandlerImpl(sugaredLogger, enterpriseEnforcerImpl, deploymentHistoryServiceImpl, apiReqDecoderServiceImpl, enforcerUtilImpl)
+	historyRouterImpl := devtronResource2.NewHistoryRouterImpl(historyRestHandlerImpl)
+	devtronResourceRouterImpl := devtronResource2.NewDevtronResourceRouterImpl(devtronResourceRestHandlerImpl, historyRouterImpl)
 	authorisationConfigRestHandlerImpl := globalConfig.NewGlobalAuthorisationConfigRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, globalAuthorisationConfigServiceImpl, userCommonServiceImpl)
 	authorisationConfigRouterImpl := globalConfig.NewGlobalConfigAuthorisationConfigRouterImpl(authorisationConfigRestHandlerImpl)
 	lockConfigRestHandlerImpl := lockConfiguation.NewLockConfigRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, validate, lockConfigurationServiceImpl, userCommonServiceImpl, enforcerUtilImpl)

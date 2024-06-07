@@ -56,18 +56,32 @@ type GetResourceListQueryParams struct {
 	FilterCriteria []string `schema:"filterCriteria"`
 }
 
+type GetHistoryQueryParams struct {
+	FilterCriteria []string `schema:"filterCriteria"`
+	OffSet         int      `schema:"offSet"`
+	Limit          int      `schema:"limit"`
+}
+
+type GetHistoryConfigQueryParams struct {
+	BaseConfigurationId  int      `schema:"baseConfigurationId"`
+	HistoryComponent     string   `schema:"historyComponent"`
+	HistoryComponentName string   `schema:"historyComponentName"`
+	FilterCriteria       []string `schema:"filterCriteria"`
+}
+
 const (
-	PathParamKind                    = "kind"
-	PathParamVersion                 = "version"
-	QueryParamIsExposed              = "onlyIsExposed"
-	QueryParamLite                   = "lite"
-	QueryParamIdentifier             = "identifier"
-	QueryParamFetchChild             = "fetchChild"
-	QueryParamId                     = "id"
-	QueryParamName                   = "name"
-	QueryParamComponent              = "component"
-	ResourceUpdateSuccessMessage     = "Resource object updated successfully."
-	ResourceCreateSuccessMessage     = "Resource object created successfully."
-	ResourceCloneSuccessMessage      = "Resource object cloned successfully."
-	DependenciesUpdateSuccessMessage = "Resource dependencies updated successfully."
+	RequestInvalidKindVersionErrMessage = "Invalid kind and version! Implementation not supported."
+	PathParamKind                       = "kind"
+	PathParamVersion                    = "version"
+	QueryParamIsExposed                 = "onlyIsExposed"
+	QueryParamLite                      = "lite"
+	QueryParamIdentifier                = "identifier"
+	QueryParamFetchChild                = "fetchChild"
+	QueryParamId                        = "id"
+	QueryParamName                      = "name"
+	QueryParamComponent                 = "component"
+	ResourceUpdateSuccessMessage        = "Resource object updated successfully."
+	ResourceCreateSuccessMessage        = "Resource object created successfully."
+	ResourceCloneSuccessMessage         = "Resource object cloned successfully."
+	DependenciesUpdateSuccessMessage    = "Resource dependencies updated successfully."
 )

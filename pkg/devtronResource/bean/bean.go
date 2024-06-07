@@ -310,9 +310,11 @@ type ChildInheritance struct {
 	Selector   []string `json:"selector"`   // ["*"] means all
 }
 
-type Environment struct {
-	Id   int    `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+type CdPipelineEnvironment struct {
+	Id                int    `json:"id,omitempty"`
+	Name              string `json:"name,omitempty"`
+	PipelineId        int    `json:"pipelineId,omitempty"`
+	DeploymentAppType string `json:"deploymentAppType,omitempty"`
 }
 
 type ArtifactConfig struct {
@@ -405,37 +407,6 @@ type TaskExecutionResponseBean struct {
 	TriggerStatus error  `json:"triggerStatus"`
 }
 
-type TaskType string
-
-const (
-	TaskTypePreDeployment  TaskType = "pre-deployment"
-	TaskTypePostDeployment TaskType = "post-deployment"
-	TaskTypeDeployment     TaskType = "deployment"
-)
-
-type FilterCriteriaDecoder struct {
-	Resource DevtronResourceKind
-	Type     FilterCriteriaIdentifier
-	Value    string
-	ValueInt int
-}
-
-type SearchCriteriaDecoder struct {
-	SearchBy SearchPropertyBy
-	Value    string
-}
-
-type FilterCriteriaIdentifier string
-
-const (
-	Identifier FilterCriteriaIdentifier = "identifier"
-	Id         FilterCriteriaIdentifier = "id"
-)
-
-func (i FilterCriteriaIdentifier) ToString() string {
-	return string(i)
-}
-
 // IdType is used for identifying nature of id stored in object json or to implement logics. As we are using devtron_resource_object for storing all resource types across
 // devtron we also faced a problem where id of resource object will be unique across all resource types, but old resources are stored in different tables and their id value
 // can be same leading to conflict. To avoid this we are using idType where oldObjectId denotes ids of old resources(of their diff tables) and resourceObjectId is the unique
@@ -513,6 +484,7 @@ const (
 	DevtronResourceRelease            DevtronResourceKind = "release"
 	DevtronResourceTaskRun            DevtronResourceKind = "task-run"
 
+	DevtronResourceEnvironment DevtronResourceKind = "environment" // DevtronResourceEnvironment is an internal only resource kind used for filtering
 	DevtronResourceAppWorkflow DevtronResourceKind = "appWorkflow" // DevtronResourceAppWorkflow is an internal only resource kind used for filtering
 )
 

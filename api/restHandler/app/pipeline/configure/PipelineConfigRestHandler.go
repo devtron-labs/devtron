@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/history/deployment/cdPipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"io"
@@ -125,6 +126,7 @@ type PipelineConfigRestHandlerImpl struct {
 	chartRefService                     chartRef.ChartRefService
 	artifactApprovalActionService       action.ArtifactApprovalActionService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	cdPipelineDeploymentHistoryService  cdPipeline.DeploymentHistoryService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -155,7 +157,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	artifactApprovalActionService action.ArtifactApprovalActionService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	cdPipelineDeploymentHistoryService cdPipeline.DeploymentHistoryService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -199,6 +202,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		chartRefService:                     chartRefService,
 		artifactApprovalActionService:       artifactApprovalActionService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		cdPipelineDeploymentHistoryService:  cdPipelineDeploymentHistoryService,
 	}
 }
 
