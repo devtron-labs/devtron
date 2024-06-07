@@ -845,7 +845,8 @@ func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequ
 	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED:
 		// perform all trigger events
 		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED:
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED,
+		pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED:
 		// trigger history has already been saved
 		triggerEvent.SaveTriggerHistory = false
 		return triggerEvent, skipRequest, nil
@@ -874,7 +875,9 @@ func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequ
 		// deployment has already been performed
 		triggerEvent.PerformDeploymentOnCluster = false
 		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED:
+	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED,
+		pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED,
+		pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED:
 		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
 		skipRequest = true
 		return triggerEvent, skipRequest, nil

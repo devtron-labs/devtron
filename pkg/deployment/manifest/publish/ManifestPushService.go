@@ -177,6 +177,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 	if err != nil {
 		impl.logger.Errorw("error in transaction begin in saving gitops timeline", "err", err)
 		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
 	}
 	err = impl.pipelineOverrideRepository.UpdateCommitDetails(newCtx, tx, manifestPushTemplate.PipelineOverrideId, manifestPushResponse.CommitHash, manifestPushResponse.CommitTime, manifestPushTemplate.UserId)
