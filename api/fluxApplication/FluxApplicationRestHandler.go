@@ -31,6 +31,7 @@ func NewFluxApplicationRestHandlerImpl(fluxApplicationService fluxApplication.Fl
 }
 
 func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.ResponseWriter, r *http.Request) {
+
 	//handle super-admin RBAC
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
@@ -46,16 +47,8 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
 		if err != nil {
 			handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
-
-	resp, err := handler.fluxApplicationService.ListApplications(r.Context(), clusterIds)
-	if err != nil {
-		handler.logger.Errorw("error in listing all flux applications", "err", err, "clusterIds", clusterIds)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, w)
 }
