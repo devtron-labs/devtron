@@ -1,9 +1,5 @@
 ## v0.7.0
 
-
-
-## v0.7.0
-
 ## Bugs
 - fix: extra labels propagation made env driven (#5274)
 - fix: App clone config map fix (#5268)
