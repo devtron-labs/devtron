@@ -1,3 +1,19 @@
+<!--upgrade-prerequisites-required-->
+> **= = = = = IMPORTANT = = = = =**
+
+RUN THE FOLLOWING COMMANDS AS A PRE-REQUISITE BEFORE UPGRADE:
+```
+export RELEASE_NAME=devtron
+kubectl -n devtron-ci label sa --all "app.kubernetes.io/managed-by=Helm" --overwrite
+kubectl -n devtron-ci annotate sa --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+kubectl -n devtron-cd label sa --all "app.kubernetes.io/managed-by=Helm" --overwrite
+kubectl -n devtron-cd annotate sa --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+```
+> Ignore the message above if you are not using devtron with cicd mode
+
+> Contact Devtron team on [DISCORD](https://discord.devtron.ai) if you have any concerns.
+<!--upgrade-prerequisites-required-->
+
 ## v0.7.0
 
 ## Bugs
