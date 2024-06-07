@@ -8,7 +8,6 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
-  
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.30"
@@ -19,12 +18,10 @@ installer:
   modules: [] # Available options are cicd
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
-  
 # Change the below values for full mode only
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
-
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:
@@ -41,7 +38,6 @@ configs:
   #AZURE_ACCOUNT_NAME: "test-account"
   #AZURE_BLOB_CONTAINER_CI_LOG: "ci-log-container"
   #AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container"
-
 # Change the below values for hyperion only mode (Refer https://docs.devtron.ai/#hyperion )
 components:
   dashboard:
@@ -66,11 +62,10 @@ components:
     registry: ""
     image: "dashboard:55c28714-690-23093"
     imagePullPolicy: IfNotPresent
-    
   devtron:
     registry: ""
     image: "hyperion:4e39be64-280-23052"
-    cicdImage: "devtron:4e39be64-434-23061"
+    cicdImage: "devtron:b331bc91-434-23136"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -87,25 +82,22 @@ components:
       className: nginx
       labels: {}
       annotations: {}
-        # kubernetes.io/tls-acme: "true"
+      # kubernetes.io/tls-acme: "true"
       pathType: ImplementationSpecific
       host: devtron.example.com
       tls: []
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
-      
   ciRunner:
     registry: ""
     image: "ci-runner:6e721248-138-23081"
-    
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
-      
   kubelink:
     registry: ""
     image: "kubelink:a810dbae-564-23055"
@@ -123,7 +115,6 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-      
   kubewatch:
     registry: ""
     image: "kubewatch:f8ac0fe6-419-23054"
@@ -134,7 +125,6 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -146,7 +136,6 @@ components:
       armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
-      
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -198,7 +187,6 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
-      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -213,7 +201,6 @@ components:
         DB_NAME: "git_sensor"
       lens:
         DB_NAME: "lens"
-        
   chartSync:
     registry: ""
     image: chart-sync:b67ab589-150-23082
