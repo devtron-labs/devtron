@@ -289,13 +289,10 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowDagExecutorImpl.handleAsyncTriggerReleaseError")
 	defer span.End()
 	// for context cancellation due to error.ServerShutDown, the new instance should pick the unfinished process and execute further.
-	if errors.Is(context.Cause(newCtx), error2.ServerShutDown) {
+	if releaseErr == nil || errors.Is(context.Cause(newCtx), error2.ServerShutDown) {
 		// skipping
 		return
-	}
-	releaseErrString := util.GetClientErrorDetailedMessage(releaseErr)
-	switch releaseErrString {
-	case context.DeadlineExceeded.Error():
+	} else if errors.Is(releaseErr, context.DeadlineExceeded) {
 		appIdentifier := triggerAdapter.NewAppIdentifierFromOverrideRequest(overrideRequest)
 		if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 			// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
@@ -325,7 +322,9 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 					}
 				}
 			}
-			util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
+			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
+				util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
+			}
 			impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		} else {
 			// updating cdWfr to failed
@@ -334,14 +333,12 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			}
 		}
 		return
-	case context.Canceled.Error():
+	} else if errors.Is(releaseErr, context.Canceled) {
 		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
 		return
-	case "":
-		return
-	default:
+	} else {
 		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, releaseErr, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
