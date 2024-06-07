@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	fluxApplication2 "github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -116,6 +117,7 @@ type MuxRouter struct {
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
+	devtronResourceRouter              devtronResource.DevtronResourceRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -145,7 +147,10 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	ciTriggerCron cron.CiTriggerCron,
 	proxyRouter proxy.ProxyRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
-	argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication2.FluxApplicationRouter) *MuxRouter {
+	argoApplicationRouter argoApplication.ArgoApplicationRouter,
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
+	) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -207,6 +212,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		ciTriggerCron:                      ciTriggerCron,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
+		devtronResourceRouter:              devtronResourceRouter,
 		fluxApplicationRouter:              fluxApplicationRouter,
 	}
 	return r
@@ -406,6 +412,9 @@ func (r MuxRouter) Init() {
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
+	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
 
 	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
 	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
