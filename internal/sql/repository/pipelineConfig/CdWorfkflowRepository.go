@@ -550,7 +550,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateRunnerStatusToFailedForIds(errMsg st
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", triggeredBy).
 		Set("message = ?", errMsg).
-		Where("id IN (?)", cdWfrIds).
+		Where("id IN (?)", pg.In(cdWfrIds)).
 		Update()
 	return err
 }
