@@ -534,8 +534,8 @@ func (impl *CdWorkflowRepositoryImpl) GetPreviousQueuedRunners(cdWfrId, pipeline
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
 		Where("workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
-		Where("id < ?", cdWfrId).
-		Where("status = ?", WorkflowInQueue).
+		Where("cd_workflow_runner.id < ?", cdWfrId).
+		Where("cd_workflow_runner.status = ?", WorkflowInQueue).
 		Select()
 	return cdWfrs, err
 }
