@@ -66,15 +66,21 @@ Here, you can select the exact Kubernetes resource(s) you wish to track for chan
 
 * Choose the event type your watcher should listen to: `Created`, `Updated`, `Deleted`.
 
+    | Event Type | Description                                                             |
+    | ---------- | ----------------------------------------------------------------------- |
+    | Created    | Triggers the watcher when your Kubernetes resource is created           |
+    | Updated    | Triggers the watcher when your existing Kubernetes resource is modified |
+    | Deleted    | Triggers the watcher when your existing Kubernetes resource is deleted  |
+
 * Enter a [CEL expression](https://github.com/google/cel-spec/blob/master/doc/langdef.md) to catch a specific change in the resource's manifest.
 
-**Example**: `DEVTRON_FINAL_MANIFEST.status.currentReplicas == DEVTRON_FINAL_MANIFEST.spec.MaxReplicas`
-
 {% hint style="info" %}
-* **If Resource Is Created** - Use 'DEVTRON_FINAL_MANIFEST'
-* **If Resource Is Updated** - Both 'DEVTRON_INITIAL_MANIFEST' and 'DEVTRON_FINAL_MANIFEST' can exist
-* **If Resource Is Deleted** - Use 'DEVTRON_FINAL_MANIFEST'
+* **If resource is created** - Use 'DEVTRON_FINAL_MANIFEST'
+* **If resource is updated** - Both 'DEVTRON_INITIAL_MANIFEST' and 'DEVTRON_FINAL_MANIFEST' can exist
+* **If resource is deleted** - Use 'DEVTRON_INITIAL_MANIFEST'
 {% endhint %}
+
+**Example**: `DEVTRON_FINAL_MANIFEST.status.currentReplicas == DEVTRON_FINAL_MANIFEST.spec.maxReplicas`
 
 ### Execute Runbook
 
@@ -82,7 +88,7 @@ Here, you can choose a job that should trigger if your watcher intercepts any ch
 
 ![Figure 7: Choosing a Job to Trigger](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/resource-watcher/execute-runbook.gif)
 
-* Choose a job pipeline from the **Run Devtron Job pipeline** dropdown.
+* Choose a job pipeline from the **Run Devtron Job pipeline** dropdown. If a pipeline is not selected, the watcher won't intercept matching resource changes even if your defined conditions are met.
 
 * Select the environment in which the job should run. It can either be `devtron-ci` or the source environment (the intercepted namespace where the event has occurred).
 
@@ -158,7 +164,7 @@ A live streaming sports application experiences a surge in viewers during a majo
 
 1. Create a watcher named 'Live Stream Scaling Alert'.
 2. Monitor updates to HPA resource in the application's namespace.
-3. When `currentReplicas` count reaches `MaxReplicas`, trigger a job that contains the script to increase the replica count.
+3. When `currentReplicas` count reaches `maxReplicas`, trigger a job that contains the script to increase the replica count.
 
 ### Pod Health Monitoring
 
