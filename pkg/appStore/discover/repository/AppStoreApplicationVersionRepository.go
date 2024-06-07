@@ -88,7 +88,7 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 			query = " ch.name as chart_name, das.id as docker_artifact_store_id"
 		}
 	}
-
+	//for chart repos, created (derived through index.yaml) column of app_store_application_version is used for finding latest version and for oci repo id is used (because created is null)
 	latestAppStoreVersionQueryForChartRepo := " SELECT MAX(created) as created " +
 		" FROM app_store_application_version asv " +
 		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true and aps.chart_repo_id is NOT NULL) " +
@@ -240,13 +240,20 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindLatestVersionByAppStor
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error) {
 	var chartRepos []*appStoreBean.ChartRepoSearch
+	//for chart repos, created (derived through index.yaml) column of app_store_application_version is used for finding latest version and for oci repo id is used (because created is null)
 	queryTemp := "select asv.id as app_store_application_version_id, asv.version, asv.deprecated, aps.id as chart_id," +
 		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
 		" from app_store_application_version asv" +
 		" inner join app_store aps on asv.app_store_id = aps.id" +
 		" left join chart_repo chr on aps.chart_repo_id = chr.id" +
 		" left join docker_artifact_store das on aps.docker_artifact_store_id = das.id" +
-		" where aps.name like '%" + chartName + "%' and asv.id = (SELECT MAX(id) FROM app_store_application_version WHERE app_store_id = asv.app_store_id) and aps.active=true order by aps.name asc;"
+		" where aps.name like '%" + chartName + "%' and" +
+		"( " +
+		"( aps.docker_artifact_store_id is NOT NULL and asv.id = (SELECT MAX(id) FROM app_store_application_version WHERE app_store_id = asv.app_store_id))" +
+		" or " +
+		"(aps.chart_repo_id is NOT NULL and  asv.created = (SELECT MAX(created) FROM app_store_application_version WHERE app_store_id = asv.app_store_id)) " +
+		") " +
+		"and aps.active=true order by aps.name asc;"
 	_, err := impl.dbConnection.Query(&chartRepos, queryTemp)
 	if err != nil {
 		return nil, err
