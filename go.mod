@@ -18,7 +18,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240607135426-c86e868ecee1
-	github.com/devtron-labs/common-lib v0.0.18-0.20240524141543-f4ed1281e694
+	github.com/devtron-labs/common-lib v0.0.19-0.20240607054959-82c79c23b046
 	github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
