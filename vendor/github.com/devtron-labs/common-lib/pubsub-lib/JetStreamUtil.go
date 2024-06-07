@@ -1,17 +1,18 @@
 /*
- * Copyright (c) 2020-2024. Devtron Inc.
+ * Copyright (c) 2020 Devtron Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package pubsub_lib
@@ -24,6 +25,7 @@ import (
 	"time"
 )
 
+const TESTER = "yashashvi"
 const (
 	CI_RUNNER_STREAM                    string = "CI-RUNNER"
 	ORCHESTRATOR_STREAM                 string = "ORCHESTRATOR"
@@ -103,9 +105,6 @@ const (
 	CHART_SCAN_TOPIC                    string = "CHART-SCAN-TOPIC"
 	CHART_SCAN_GROUP                    string = "CHART-SCAN-GROUP"
 	CHART_SCAN_DURABLE                  string = "CHART-SCAN-DURABLE"
-	NOTIFICATION_EVENT_TOPIC            string = "NOTIFICATION_EVENT_TOPIC"
-	NOTIFICATION_EVENT_GROUP            string = "NOTIFICATION_EVENT_GROUP"
-	NOTIFICATION_EVENT_DURABLE          string = "NOTIFICATION_EVENT_DURABLE"
 )
 
 type NatsTopic struct {
@@ -152,7 +151,6 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_STAGE_SUCCESS_EVENT_TOPIC:      {topicName: CD_STAGE_SUCCESS_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_STAGE_SUCCESS_EVENT_GROUP, consumerName: CD_STAGE_SUCCESS_EVENT_DURABLE},
 
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
-	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
 }
 
@@ -189,7 +187,6 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	DEVTRON_TEST_CONSUMER:               {},
 	CD_STAGE_SUCCESS_EVENT_DURABLE:      {},
 	CD_PIPELINE_DELETE_EVENT_DURABLE:    {},
-	NOTIFICATION_EVENT_DURABLE:          {},
 }
 
 // getConsumerConfigMap will fetch the consumer wise config from the json string
@@ -266,13 +263,13 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() error {
 }
 
 func updateNatsConsumerConfigMapping(defaultConsumerConfigVal NatsConsumerConfig, consumerConfigMap map[string]NatsConsumerConfig) {
-	//iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
+	// iterating through all nats topic mappings (assuming source of truth) to update any consumers if not present in consumer mapping
 	for _, natsTopic := range natsTopicMapping {
 		if _, ok := NatsConsumerWiseConfigMapping[natsTopic.consumerName]; !ok {
 			NatsConsumerWiseConfigMapping[natsTopic.consumerName] = NatsConsumerConfig{}
 		}
 	}
-	//initialise all the consumer wise config with default values or user defined values
+	// initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsConsumerWiseConfigMapping {
 		consumerConfig := defaultConsumerConfigVal
 		if _, ok := consumerConfigMap[key]; ok {
