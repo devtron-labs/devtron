@@ -131,7 +131,7 @@ func (impl *ScoopClientImpl) UpdateWatcherConfig(ctx context.Context, action typ
 
 	resp := &utils.Response[interface{}]{}
 
-	err := utils.CallPostApi(impl.serverUrlWithPort+types2.WATCHER_CUD_URL, nil, headers, payload, resp)
+	err := utils.CallPostApi(ctx, impl.serverUrlWithPort+types2.WATCHER_CUD_URL, nil, headers, payload, resp)
 	return err
 }
 
@@ -154,6 +154,6 @@ func (impl *ScoopClientImpl) UpdateNamespaceConfig(ctx context.Context, action t
 	}
 
 	resp := &utils.Response[interface{}]{}
-	err := utils.CallPostApi(impl.serverUrlWithPort+types2.NAMESPACE_CUD_URL, queryParams, headers, map[string]string{}, resp)
+	err := utils.CallPostApi(ctx, impl.serverUrlWithPort+types2.NAMESPACE_CUD_URL, queryParams, headers, map[string]string{}, resp)
 	return err
 }

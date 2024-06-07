@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 )
@@ -24,9 +25,10 @@ func CallGetApi[T any](api string, query, headers map[string]string, result *T) 
 	return err
 }
 
-func CallPostApi[T, R any](api string, query, headers map[string]string, request R, response *T) error {
+func CallPostApi[T, R any](context context.Context, api string, query, headers map[string]string, request R, response *T) error {
 
 	resp, err := client.R().
+		SetContext(context).
 		SetBody(request).
 		SetResult(response).
 		SetQueryParams(query).

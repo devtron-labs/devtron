@@ -440,9 +440,14 @@ github.com/devtron-labs/common-lib-private/utils/ssh
 # github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
-# github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
+# github.com/devtron-labs/scoop v0.0.0-20240607073914-296d351d1053
 ## explicit; go 1.20
 github.com/devtron-labs/scoop/client
+github.com/devtron-labs/scoop/pkg/clusterCache/cache
+github.com/devtron-labs/scoop/pkg/clusterCache/health
+github.com/devtron-labs/scoop/pkg/clusterCache/utils/kube
+github.com/devtron-labs/scoop/pkg/clusterCache/utils/kube/scheme
+github.com/devtron-labs/scoop/pkg/clusterCache/utils/tracing
 github.com/devtron-labs/scoop/types
 github.com/devtron-labs/scoop/utils
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f

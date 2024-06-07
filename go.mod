@@ -28,7 +28,7 @@ require (
 	github.com/devtron-labs/common-lib v0.0.19-0.20240607054959-82c79c23b046
 	github.com/devtron-labs/common-lib-private v0.0.16-0.20240607055608-076ac365b11c
 	github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
-	github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
+	github.com/devtron-labs/scoop v0.0.0-20240607073914-296d351d1053
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gertd/go-pluralize v0.2.1
