@@ -8,6 +8,7 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.6.30"
@@ -62,6 +63,7 @@ components:
     registry: ""
     image: "dashboard:55c28714-690-23093"
     imagePullPolicy: IfNotPresent
+    
   devtron:
     registry: ""
     image: "hyperion:4e39be64-280-23052"
@@ -89,15 +91,18 @@ components:
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
+      
   ciRunner:
     registry: ""
     image: "ci-runner:6e721248-138-23081"
+    
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
+      
   kubelink:
     registry: ""
     image: "kubelink:a810dbae-564-23055"
@@ -115,6 +120,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+      
   kubewatch:
     registry: ""
     image: "kubewatch:f8ac0fe6-419-23054"
@@ -125,6 +131,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
+      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -136,6 +143,7 @@ components:
       armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
+      
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -187,6 +195,7 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
+      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -201,6 +210,7 @@ components:
         DB_NAME: "git_sensor"
       lens:
         DB_NAME: "lens"
+        
   chartSync:
     registry: ""
     image: chart-sync:b67ab589-150-23082
