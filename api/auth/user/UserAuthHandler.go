@@ -237,16 +237,13 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 
 }
 func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
-	verified, emailId, err := handler.userAuthService.AuthVerification(r)
+	verified, _, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	response := make(map[string]interface{})
-	response["emailId"] = emailId
-	response["isVerified"] = verified
-	common.WriteJsonResp(w, nil, response, http.StatusOK)
+	common.WriteJsonResp(w, nil, verified, http.StatusOK)
 }
 
 func (handler UserAuthHandlerImpl) AuthVerificationV2(w http.ResponseWriter, r *http.Request) {
