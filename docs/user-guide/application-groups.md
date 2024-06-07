@@ -182,7 +182,7 @@ Your applications would be up and running in some time.
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to restart workloads in bulk.
+Users need to have [Build & deploy permission](./global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to restart workloads in bulk.
 {% endhint %}
 
 Restarting workloads might be necessary if you want your new code or configuration to come into effect, or you are experiencing issues like crashing of pods.  

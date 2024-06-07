@@ -18,6 +18,7 @@ package resourceGroup
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"strings"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -52,13 +52,13 @@ type ResourceGroupServiceImpl struct {
 	resourceGroupRepository             resourceGroup.ResourceGroupRepository
 	resourceGroupMappingRepository      resourceGroup.ResourceGroupMappingRepository
 	enforcerUtil                        rbac.EnforcerUtil
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService
 	appStatusRepository                 appStatusRepo.AppStatusRepository
 }
 
 func NewResourceGroupServiceImpl(logger *zap.SugaredLogger, resourceGroupRepository resourceGroup.ResourceGroupRepository,
 	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository, enforcerUtil rbac.EnforcerUtil,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService,
 	appStatusRepository appStatusRepo.AppStatusRepository) *ResourceGroupServiceImpl {
 	return &ResourceGroupServiceImpl{
 		logger:                              logger,
