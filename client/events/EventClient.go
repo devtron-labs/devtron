@@ -25,8 +25,12 @@ import (
 )
 
 type EventClientConfig struct {
-	DestinationURL string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
+	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
+	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest"`
 }
+type NotificationMedium string
+
+const PUB_SUB NotificationMedium = "nats"
 
 func GetEventClientConfig() (*EventClientConfig, error) {
 	cfg := &EventClientConfig{}
@@ -243,6 +247,16 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 	}
 	return true, err
 }
+func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
+
+	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_TOPIC, string(body))
+	if err != nil {
+		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
+		return err
+	}
+	return nil
+
+}
 
 // do not call this method if notification module is not installed
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
@@ -251,6 +265,14 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	if err != nil {
 		impl.logger.Errorw("error while marshaling event request ", "err", err)
 		return false, err
+	}
+	if impl.config.NotificationMedium == PUB_SUB {
+		err = impl.sendEventsOnNats(body)
+		if err != nil {
+			impl.logger.Errorw("error while publishing event  ", "err", err)
+			return false, err
+		}
+		return true, nil
 	}
 	var reqBody = []byte(body)
 	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
@@ -285,6 +307,14 @@ func (impl *EventRESTClientImpl) SendAnyEvent(event map[string]interface{}) (boo
 	if err != nil {
 		impl.logger.Errorw("error while marshaling event request ", "err", err)
 		return false, err
+	}
+	if impl.config.NotificationMedium == PUB_SUB {
+		err = impl.sendEventsOnNats(body)
+		if err != nil {
+			impl.logger.Errorw("error while publishing event  ", "err", err)
+			return false, err
+		}
+		return true, nil
 	}
 	var reqBody = []byte(body)
 	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
