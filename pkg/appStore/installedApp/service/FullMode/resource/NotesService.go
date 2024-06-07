@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resource
 
 import (
@@ -5,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/util"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"net/http"
 	"regexp"
@@ -106,6 +123,10 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return notes, err
 		}
 		_, err = impl.updateNotesForInstalledApp(installedAppId, notes)
