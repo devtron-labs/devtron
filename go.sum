@@ -226,8 +226,8 @@ github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0 h1:ARbx
 github.com/devtron-labs/common-lib v0.0.19-0.20240605073511-1448aa5b15d0/go.mod h1:deAcJ5IjUjM6ozZQLJEgPWDUA0mKa632LBsKx8uM9TE=
 github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b h1:krozNubZxE5zNItynXLUV/vyRj9GgUOeRrJk/h7otl4=
 github.com/devtron-labs/common-lib-private v0.0.16-0.20240605075212-dd77322b395b/go.mod h1:gO+kxaGctrafbb6tfy+qHA6DMTxwhrq2Qm928bxZ8n8=
-github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
-github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb/go.mod h1:pjLjgoa1GzbkOkvbMyP4SAKsaiK7eG6GoQCNauG03JA=
+github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534 h1:TElPRU69QedW7DIQiiQxtjwSQ6cK0fCTAMGvSLhP0ac=
+github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534/go.mod h1:ypUknVph8Ph4dxSlrFoouf7wLedQxHku2LQwgRrdgS4=
 github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150 h1:xA8pfM1IrLf7tC7sWKhX/aHHfEh68cg2pSDLe0ocwCg=
 github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150/go.mod h1:BfqaigdElUvK0NPzLx9Xz3o9w+Pa90l5Z2VkTPqD2Ik=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=

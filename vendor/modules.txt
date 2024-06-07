@@ -437,7 +437,7 @@ github.com/devtron-labs/common-lib-private/sshTunnel/bean
 github.com/devtron-labs/common-lib-private/utils
 github.com/devtron-labs/common-lib-private/utils/k8s
 github.com/devtron-labs/common-lib-private/utils/ssh
-# github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
+# github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/devtron-labs/scoop v0.0.0-20240512195503-ce12ab231150
