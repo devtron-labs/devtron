@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -1098,14 +1099,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	cdMetrics := util2.CDMetrics{
-		AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
-		Status:          wfr.Status,
-		DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
-		EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
-		Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
-	}
-	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
+	util2.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(wfr), impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

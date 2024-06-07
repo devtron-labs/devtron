@@ -208,11 +208,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(
 		Where("cd_workflow_runner_id = ?", wfrId).
 		Where("status = ?", status).
 		Limit(1).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and status", "err", err, "wfrId", wfrId, "status", status)
-		return nil, err
-	}
-	return timeline, nil
+	return timeline, err
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status TimelineStatus) (*PipelineStatusTimeline, error) {

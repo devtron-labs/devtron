@@ -27,6 +27,7 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -254,7 +255,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	case serverBean.HelmReleaseStatusSuperseded:
 		// If release status is superseded, mark the deployment as failure
 		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = pipelineConfig.NEW_DEPLOYMENT_INITIATED
+		wfr.Message = pipelineConfig.ErrorDeploymentSuperseded.Error()
 		wfr.FinishedOn = time.Now()
 		return true
 	case serverBean.HelmReleaseStatusFailed:
@@ -312,7 +313,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				return
 			}
 			if util4.IsRunnerStatusFailed(cdWfr.Status) {
-				if cdWfr.Message == pipelineConfig.NEW_DEPLOYMENT_INITIATED {
+				if cdWfr.Message == pipelineConfig.ErrorDeploymentSuperseded.Error() {
 					dbErr := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(cdWfr.Id)
 					if dbErr != nil {
 						impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", dbErr, "releaseErr", releaseErr)
@@ -324,14 +325,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 					}
 				}
 			}
-			cdMetrics := util4.CDMetrics{
-				AppName:         cdWfr.CdWorkflow.Pipeline.DeploymentAppName,
-				Status:          cdWfr.Status,
-				DeploymentType:  cdWfr.CdWorkflow.Pipeline.DeploymentAppType,
-				EnvironmentName: cdWfr.CdWorkflow.Pipeline.Environment.Name,
-				Time:            time.Since(cdWfr.StartedOn).Seconds() - time.Since(cdWfr.FinishedOn).Seconds(),
-			}
-			util4.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+			util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
 			impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		} else {
 			// updating cdWfr to failed
@@ -341,7 +335,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 		}
 		return
 	case context.Canceled.Error():
-		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED), overrideRequest.UserId); err != nil {
+		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
 		return
@@ -366,7 +360,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
+		err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
 			return err

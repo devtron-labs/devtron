@@ -37,8 +37,9 @@ import (
 
 type CdWorkflowCommonService interface {
 	SupersedePreviousDeployments(ctx context.Context, cdWfrId int, pipelineId int, triggeredAt time.Time, triggeredBy int32) error
+	MarkDeploymentFailedForRunnerId(cdWfrId int, releaseErr error, triggeredBy int32) error
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
-	UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error
+	UpdateNonTerminalStatusInRunner(ctx context.Context, wfrId int, userId int32, status string) error
 
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
@@ -109,7 +110,7 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 		}
 		impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 		previousRunner.FinishedOn = triggeredAt
-		previousRunner.Message = pipelineConfig.NEW_DEPLOYMENT_INITIATED
+		previousRunner.Message = pipelineConfig.ErrorDeploymentSuperseded.Error()
 		previousRunner.Status = pipelineConfig.WorkflowFailed
 		previousRunner.UpdatedOn = time.Now()
 		previousRunner.UpdatedBy = triggeredBy
@@ -143,78 +144,75 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 
 }
 
+func (impl *CdWorkflowCommonServiceImpl) MarkDeploymentFailedForRunnerId(cdWfrId int, releaseErr error, triggeredBy int32) error {
+	runner, err := impl.cdWorkflowRepository.FindBasicWorkflowRunnerById(cdWfrId)
+	if err != nil {
+		impl.logger.Errorw("err in FindWorkflowRunnerById", "cdWfrId", cdWfrId, "err", err)
+		return err
+	}
+	return impl.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
+}
+
 func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error {
 	if slices.Contains(pipelineConfig.WfrTerminalStatusList, runner.Status) {
 		impl.logger.Infow("cd wf runner status is already in terminal state", "err", releaseErr, "currentRunner", runner)
 		return nil
-	}
-	if errors.Is(releaseErr, pipelineConfig.ErrorDeploymentSuperseded) {
-		err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(runner.Id)
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
-			return err
-		}
-	} else {
-		err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
-			return err
-		}
 	}
 	//update current WF with error status
 	impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", runner.Id, "err", releaseErr)
 	runner.Status = pipelineConfig.WorkflowFailed
 	runner.Message = util.GetClientErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
-	runner.UpdatedOn = time.Now()
-	runner.UpdatedBy = triggeredBy
+	runner.UpdateAuditLog(triggeredBy)
 	err1 := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 	if err1 != nil {
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
 	}
-	util4.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+	if runner.WorkflowType.IsStageTypeDeploy() {
+		if errors.Is(releaseErr, pipelineConfig.ErrorDeploymentSuperseded) {
+			err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(runner.Id)
+			if err != nil {
+				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
+				return err
+			}
+		} else {
+			err := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(runner.Id, extractTimelineFailedStatusDetails(releaseErr))
+			if err != nil {
+				impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err, "releaseErr", releaseErr)
+				return err
+			}
+		}
+		util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+	}
 	return nil
 }
 
-func (impl *CdWorkflowCommonServiceImpl) UpdateCDWorkflowRunnerStatus(ctx context.Context, wfrId int, userId int32, status string, options ...adapter.UpdateOptions) error {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CdWorkflowCommonServiceImpl.UpdateCDWorkflowRunnerStatus")
+func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx context.Context, wfrId int, userId int32, status string) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "CdWorkflowCommonServiceImpl.UpdateNonTerminalStatusInRunner")
 	defer span.End()
 	// In case of terminal status update finished on time
 	isTerminalStatus := slices.Contains(pipelineConfig.WfrTerminalStatusList, status)
+	if isTerminalStatus {
+		return fmt.Errorf("unsupported status %s for update operation", status)
+	}
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
 	if err != nil {
-		impl.logger.Errorw("err on fetching cd workflow, UpdateCDWorkflowRunnerStatus", "err", err)
+		impl.logger.Errorw("err on fetching cd workflow, UpdateNonTerminalStatusInRunner", "err", err)
 		return err
 	}
 	// if the current cdWfr status is already a terminal status and then don't update the status
 	// e.g: Status : Failed --> Progressing (not allowed)
 	if slices.Contains(pipelineConfig.WfrTerminalStatusList, cdWfr.Status) {
-		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateCDWorkflowRunnerStatus", "workflowRunnerId", cdWfr.Id, "err", err)
+		impl.logger.Warnw("deployment has already been terminated for workflow runner, UpdateNonTerminalStatusInRunner", "workflowRunnerId", cdWfr.Id, "err", err)
 		return nil
 	}
-	for _, option := range options {
-		option(cdWfr)
-	}
-	if status == pipelineConfig.WorkflowFailed {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, cdWfr.Message)
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
-			return err
-		}
-	}
 	cdWfr.Status = status
-	if isTerminalStatus {
-		cdWfr.FinishedOn = time.Now()
-	}
 	cdWfr.UpdateAuditLog(userId)
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
 	if err != nil {
-		impl.logger.Errorw("error on update cd workflow runner, UpdateCDWorkflowRunnerStatus", "cdWfr", cdWfr, "err", err)
+		impl.logger.Errorw("error on update cd workflow runner, UpdateNonTerminalStatusInRunner", "cdWfr", cdWfr, "err", err)
 		return err
-	}
-	if isTerminalStatus {
-		util4.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
 	}
 	return nil
 }

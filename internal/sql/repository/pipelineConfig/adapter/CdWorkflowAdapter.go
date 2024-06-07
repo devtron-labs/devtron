@@ -1,17 +1,19 @@
 package adapter
 
-import "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/util"
+	"time"
+)
 
 type UpdateOptions = func(cdWfr *pipelineConfig.CdWorkflowRunner)
 
-func WithMessage(msg string) UpdateOptions {
-	return func(cdWfr *pipelineConfig.CdWorkflowRunner) {
-		cdWfr.Message = msg
-	}
-}
-
-func WithStatus(status string) UpdateOptions {
-	return func(cdWfr *pipelineConfig.CdWorkflowRunner) {
-		cdWfr.Status = status
+func GetTriggerMetricsFromRunnerObj(runner *pipelineConfig.CdWorkflowRunner) util.CDMetrics {
+	return util.CDMetrics{
+		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          runner.Status,
+		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
 	}
 }
