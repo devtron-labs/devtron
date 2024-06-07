@@ -541,6 +541,9 @@ func (impl *CdWorkflowRepositoryImpl) GetPreviousQueuedRunners(cdWfrId, pipeline
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateRunnerStatusToFailedForIds(errMsg string, triggeredBy int32, cdWfrIds ...int) error {
+	if len(cdWfrIds) == 0 {
+		return nil
+	}
 	_, err := impl.dbConnection.Model().
 		Set("status = ?", WorkflowFailed).
 		Set("finished_on = ?", time.Now()).
