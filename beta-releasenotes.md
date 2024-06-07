@@ -1,4 +1,5 @@
 ## Bugs
+- fix: latest version in default cluster and on UI (#5259)
 - fix: update CVE's severity and store multiple same CVE's in multiple packages (#5168)
 - fix: fixing force push for gitops (#5152)
 - fix: extra labels propagation based on k8s label regex matching (#5216)
