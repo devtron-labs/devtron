@@ -1,4 +1,0 @@
-## Bugs
-## Enhancements
-## Documentation
-## Others
