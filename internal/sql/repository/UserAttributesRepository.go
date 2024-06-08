@@ -88,7 +88,7 @@ func (repo UserAttributesRepositoryImpl) UpdateDataValByKey(attrDto *UserAttribu
 	if err != nil {
 		return err
 	}
-	query := "update user_attributes SET user_data = user_data::jsonb - ? || ? where email_id = ?"
+	query := "update user_attributes SET user_data = user_data::jsonb - ? || ? where email_id ilike ?"
 
 	_, err = repo.dbConnection.
 		Query(userAttr, query, attrDto.Key, string(updatedValJson), attrDto.EmailId)
@@ -97,7 +97,8 @@ func (repo UserAttributesRepositoryImpl) UpdateDataValByKey(attrDto *UserAttribu
 
 func (repo UserAttributesRepositoryImpl) GetDataValueByKey(attrDto *UserAttributesDao) (string, error) {
 	model := &UserAttributes{}
-	err := repo.dbConnection.Model(model).Where("email_id = ?", attrDto.EmailId).
+	err := repo.dbConnection.Model(model).Where("email_id ilike ?", attrDto.EmailId).
+		Limit(1).
 		Select()
 	if err != nil {
 		return "", err
@@ -118,7 +119,8 @@ func (repo UserAttributesRepositoryImpl) GetDataValueByKey(attrDto *UserAttribut
 
 func (repo UserAttributesRepositoryImpl) GetUserDataByEmailId(emailId string) (string, error) {
 	model := &UserAttributes{}
-	err := repo.dbConnection.Model(model).Where("email_id = ?", emailId).
+	err := repo.dbConnection.Model(model).Where("email_id ilike ?", emailId).
+		Limit(1).
 		Select()
 	if err != nil {
 		return "", err
