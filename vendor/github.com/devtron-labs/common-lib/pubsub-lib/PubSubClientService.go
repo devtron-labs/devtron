@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pubsub_lib
 
 import (
@@ -99,6 +115,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 // invokes callback(+required) func for each message received.
 // loggerFunc(+optional) is invoked before passing the message to the callback function.
 // validations(+optional) methods were called before passing the message to the callback func.
+
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
@@ -136,6 +153,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
+
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
@@ -148,6 +166,7 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 		go impl.processMessages(wg, channel, callback, loggerFunc, validations...)
 	}
 	wg.Wait()
+
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
