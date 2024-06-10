@@ -202,7 +202,6 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesForWfrIdExcludin
 		query = query.Where("status NOT in (?)", pg.In(statuses))
 	}
 	err := query.Order("status_time DESC").
-		Limit(1).
 		Select()
 	return timelines, err
 }
