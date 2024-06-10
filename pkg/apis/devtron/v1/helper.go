@@ -267,7 +267,7 @@ func compareTask(resource *ResourcePath, with *ResourcePath) error {
 	return nil
 }
 
-//from cannot be null
+// from cannot be null
 func updatePath(to *ResourcePath, from *ResourcePath) {
 	if to == nil {
 		to = from

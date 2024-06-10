@@ -168,7 +168,7 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 }
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
-	
+
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)
