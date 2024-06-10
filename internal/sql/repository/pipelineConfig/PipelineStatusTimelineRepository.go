@@ -37,7 +37,7 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status timelineStatus.TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
 	FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
-	FetchLastStatusTimeForWfrId(wfrId int) (time.Time, error)
+	GetLastStatusPublishedTimeForWfrId(wfrId int) (time.Time, error)
 	FetchTimelinesForWfrIdExcludingStatuses(wfrId int, statuses ...timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 	CheckIfTimelineStatusPresentByWfrId(wfrId int, status timelineStatus.TimelineStatus) (bool, error)
@@ -183,11 +183,12 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVer
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchLastStatusTimeForWfrId(wfrId int) (time.Time, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) GetLastStatusPublishedTimeForWfrId(wfrId int) (time.Time, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
 		Column("status_time").
 		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status NOT IN (?)", pg.In(timelineStatus.InternalTimelineStatusList)).
 		Order("status_time DESC").
 		Limit(1).Select()
 	return timeline.StatusTime, err

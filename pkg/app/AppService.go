@@ -286,7 +286,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			impl.logger.Errorw("error in converting string to int", "err", err)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
-		lastStatusTime, err := impl.pipelineStatusTimelineRepository.FetchLastStatusTimeForWfrId(cdWfr.Id)
+		lastStatusTime, err := impl.pipelineStatusTimelineRepository.GetLastStatusPublishedTimeForWfrId(cdWfr.Id)
 		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
