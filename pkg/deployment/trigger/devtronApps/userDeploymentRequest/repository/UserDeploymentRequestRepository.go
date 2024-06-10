@@ -135,7 +135,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		Table("pipeline_status_timeline").
 		ColumnExpr("1").
 		Where("pipeline_status_timeline.cd_workflow_runner_id = cdwfr.id").
-		Where("pipeline_status_timeline.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED)
+		Where("pipeline_status_timeline.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED)
 	latestRequestQuery := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		ColumnExpr("MAX(user_deployment_request.id)").

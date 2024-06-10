@@ -737,12 +737,6 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
 		return nil
 	}
-	// creating cd pipeline status timeline for deployment trigger history saved
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(cdWfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED, triggeredBy)
-	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline status for deployment trigger history saved", "err", err, "timeline", timeline)
-	}
 	return nil
 }
 
@@ -764,13 +758,11 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	}
 	// build merged values and save PCO history for the release
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
-	if triggerEvent.SaveTriggerHistory {
-		// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
-		historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
-		if historyErr != nil {
-			impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
-			return releaseNo, err
-		}
+	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
+	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
+	if historyErr != nil {
+		impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return releaseNo, err
 	}
 	if err != nil {
 		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
@@ -781,7 +773,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return 0, err
 	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
 		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
+		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
 		_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if dbErr != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
@@ -789,7 +781,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return 0, err
 	}
 	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
 	_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if dbErr != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
@@ -837,22 +829,17 @@ func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequ
 	if err != nil {
 		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
 		return triggerEvent, skipRequest, err
+	} else if !slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED) {
+		impl.logger.Errorw("pre-condition missing: timeline for deployment request validation", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
+		return triggerEvent, skipRequest, fmt.Errorf("pre-condition missing: timeline for deployment request validation")
 	} else if timelineStatus.ContainsTerminalTimelineStatus(timelineStatuses) {
 		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
 		skipRequest = true
 		return triggerEvent, skipRequest, nil
-	} else if !slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED) {
-		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
-		return triggerEvent, skipRequest, nil
-	} else if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED) {
+	} else if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED) {
 		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
 		skipRequest = true
 		return triggerEvent, skipRequest, nil
-	}
-
-	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED) {
-		// trigger history has already been saved
-		triggerEvent.SaveTriggerHistory = false
 	}
 	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_GIT_COMMIT) ||
 		slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED) {
@@ -1064,12 +1051,14 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(newCtx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
+				if errors.Is(err, context.Canceled) {
+					return false, pipelineConfig.ErrorDeploymentSuperseded
+				} else if errors.Is(err, context.DeadlineExceeded) {
+					return false, err
+				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
 					return false, apiError
-				}
-				if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
-					err = pipelineConfig.ErrorDeploymentSuperseded
 				}
 				return false, err
 			} else {
@@ -1086,9 +1075,6 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err
 			}
-			if util.GetClientErrorDetailedMessage(err) == context.Canceled.Error() {
-				err = pipelineConfig.ErrorDeploymentSuperseded
-			}
 
 			// IMP: update cd pipelineModel to mark deployment app created, even if helm install fails
 			// If the helm install fails, it still creates the app in failed state, so trying to
@@ -1099,6 +1085,11 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				if pgErr != nil {
 					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
+				}
+				if errors.Is(err, context.Canceled) {
+					return false, pipelineConfig.ErrorDeploymentSuperseded
+				} else if errors.Is(err, context.DeadlineExceeded) {
+					return false, context.DeadlineExceeded
 				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
@@ -1146,7 +1137,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(newCtx, valuesOverrideResponse.Pipeline.DeploymentAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
-		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, err.Error())
+		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, util.GetClientErrorDetailedMessage(err))
 	}
 	if impl.ACDConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
