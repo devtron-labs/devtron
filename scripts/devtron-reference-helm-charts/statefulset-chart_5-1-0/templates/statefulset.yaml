@@ -45,15 +45,19 @@ metadata:
     {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels  | indent 4}}
     {{- end }}
-  {{- if .Values.statefulSetConfig.annotations }}
+{{- if .Values.statefulSetConfig.annotations }}
   annotations:
 {{ toYaml .Values.statefulSetConfig.annotations | indent 4 }}
 {{- end }}
 spec:
   selector:
     matchLabels:
+      {{- if .Values.statefulSetConfig.matchLabels }}
+{{ toYaml .Values.statefulSetConfig.matchLabels | indent 6 }}
+      {{- else }}
       app: {{ template ".Chart.Name .name" $ }}
       release: {{ $.Release.Name }}
+      {{- end }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   {{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}

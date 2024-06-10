@@ -6,10 +6,8 @@ kedaAutoscaling:
 ambassadorMapping:
   enabled: true
 istio:
-  enable: true
+  enabled: true
   gateway:
-    enabled: true
-  virtualService:
     enabled: true
 appLabels: 
       test: thyjhgfv
@@ -138,6 +136,9 @@ EnvVariablesFromCongigMapKeys:
 nodeName: "testiing"
 
 statefulSetConfig:
+  matchLabels:
+     app: devtron
+
   serviceheadless: 
     enabled: false
     name: test-service_headless
@@ -265,7 +266,6 @@ servicemonitor:
 
 
 prometheusRule:
-  name: ""
   enabled: true
   additionalLabels: {}
   namespace: ""
@@ -473,7 +473,6 @@ ConfigMaps:
 #    external: true
 #    mountPath: /etc/config/4
 #    data: []
-
 
 ConfigSecrets:
   enabled: true

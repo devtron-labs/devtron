@@ -26,7 +26,7 @@ spec:
     {{- if $.Values.prometheusRule.name }}
     - name: {{ $.Values.prometheusRule.name }}
     {{- else }}
-    - name: {{ template ".Chart.Name .fullname" . }}
+    - name: {{ template ".Chart.Name .fullname" $ }}
     {{- end }}
       rules: {{- toYaml . | nindent 6 }}
   {{- end }}
