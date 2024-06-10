@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartRepo
@@ -27,6 +26,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -671,8 +671,8 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 
 	// Trigger chart sync job, ignore error
 	chartProviderConfig := &ChartProviderConfig{
-		ChartProviderId: "*",
-		IsOCIRegistry:   true,
+		ChartProviderId: strconv.Itoa(chartRepo.Id),
+		IsOCIRegistry:   false,
 	}
 	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {
@@ -694,8 +694,8 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 
 	// Trigger chart sync job, ignore error
 	chartProviderConfig := &ChartProviderConfig{
-		ChartProviderId: "*",
-		IsOCIRegistry:   true,
+		ChartProviderId: strconv.Itoa(chartRepo.Id),
+		IsOCIRegistry:   false,
 	}
 	err = impl.TriggerChartSyncManual(chartProviderConfig)
 	if err != nil {

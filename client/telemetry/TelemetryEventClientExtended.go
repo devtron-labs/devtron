@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package telemetry
 
 import (
@@ -131,8 +147,12 @@ type TelemetryEventDto struct {
 	UserCount                            int                `json:"userCount,omitempty"`
 	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
 	ClusterCount                         int                `json:"clusterCount,omitempty"`
-	CiCountPerDay                        int                `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay                        int                `json:"cdCountPerDay,omitempty"`
+	CiCreatedPerDay                      int                `json:"ciCreatedPerDay"`
+	CdCreatedPerDay                      int                `json:"cdCreatedPerDay"`
+	CiDeletedPerDay                      int                `json:"ciDeletedPerDay"`
+	CdDeletedPerDay                      int                `json:"cdDeletedPerDay"`
+	CiTriggeredPerDay                    int                `json:"ciTriggeredPerDay"`
+	CdTriggeredPerDay                    int                `json:"cdTriggeredPerDay"`
 	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
 	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
 	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
@@ -187,7 +207,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving ucid", "err", err)
 		return err
 	}
 
@@ -200,58 +220,77 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
-	environments, err := impl.environmentService.GetAllActive()
+	environmentCount, err := impl.environmentService.GetAllActiveEnvironmentCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving environmentCount, setting its value to -1", "err", err)
+		environmentCount = -1
 	}
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving prodApps, setting its value to -1", "err", err)
+		prodApps = -1
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving nonProdApps, setting its value to -1", "err", err)
+		nonProdApps = -1
 	}
 
-	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
+	ciPipelineCount, err := impl.ciPipelineRepository.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineCount, setting its value to -1", "err", err)
+		ciPipelineCount = -1
+	}
+	ciPipelineDeletedCount, err := impl.ciPipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineDeletedCount, setting its value to -1", "err", err)
+		ciPipelineDeletedCount = -1
+	}
+	ciPipelineTriggeredCount, err := impl.ciWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineTriggeredCount, setting its value to -1", "err", err)
+		ciPipelineTriggeredCount = -1
 	}
 
-	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
+	cdPipelineCount, err := impl.pipelineRepository.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineCount, setting its value to -1", "err", err)
+		cdPipelineCount = -1
 	}
-
-	gitAccounts, err := impl.gitProviderRepository.FindAll()
+	cdPipelineDeletedCount, err := impl.pipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineDeletedCount, setting its value to -1", "err", err)
+		cdPipelineDeletedCount = -1
+	}
+	cdPipelineTriggeredCount, err := impl.cdWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineTriggeredCount, setting its value to -1", "err", err)
+		cdPipelineTriggeredCount = -1
+	}
+	gitAccounts, err := impl.gitProviderRepository.FindAllGitProviderCount()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving gitAccounts, setting its value to -1", "err", err)
+		gitAccounts = -1
 	}
 
 	gitOpsCount, err := impl.gitOpsConfigReadService.GetConfiguredGitOpsCount()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving gitOpsCount, setting its value to -1", "err", err)
+		gitOpsCount = -1
 	}
 
-	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
+	containerRegistryCount, err := impl.dockerArtifactStoreRepository.FindAllDockerArtifactCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving containerRegistryCount, setting its value to -1", "err", err)
+		containerRegistryCount = -1
 	}
 
 	//appSetup := false
 	apps, err := impl.appRepository.FindAll()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving apps", "err", err)
 		return err
 	}
 
@@ -264,24 +303,24 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	if len(appIds) < AppsCount {
 		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithGitRepoConfigured", "err", err)
 		}
 		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindNumberOfAppsWithDockerConfigured(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDockerConfigured", "err", err)
 		}
 		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindNumberOfAppsWithDeploymentTemplate(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDeploymentTemplateConfigured", "err", err)
 		}
 		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCiPipelineConfigured", "err", err)
 		}
 
 		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCdPipelineConfigured", "err", err)
 		}
 	}
 
@@ -302,15 +341,18 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
-	payload.RegistryCount = len(containerRegistry)
+	payload.RegistryCount = containerRegistryCount
 	payload.SSOLogin = ssoSetup
 	payload.UserCount = len(users)
-	payload.EnvironmentCount = len(environments)
+	payload.EnvironmentCount = environmentCount
 	payload.ClusterCount = len(clusters)
-	payload.CiCountPerDay = len(ciPipeline)
-
-	payload.CdCountPerDay = len(cdPipeline)
-	payload.GitAccountsCount = len(gitAccounts)
+	payload.CiCreatedPerDay = ciPipelineCount
+	payload.CiDeletedPerDay = ciPipelineDeletedCount
+	payload.CiTriggeredPerDay = ciPipelineTriggeredCount
+	payload.CdCreatedPerDay = cdPipelineCount
+	payload.CdDeletedPerDay = cdPipelineDeletedCount
+	payload.CdTriggeredPerDay = cdPipelineTriggeredCount
+	payload.GitAccountsCount = gitAccounts
 	payload.GitOpsCount = gitOpsCount
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit

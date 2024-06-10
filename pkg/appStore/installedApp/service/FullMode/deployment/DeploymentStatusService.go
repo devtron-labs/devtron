@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deployment
 
 import (
@@ -77,10 +93,9 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
 		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowFailed)
 		installedAppVersionHistory.FinishedOn = triggeredAt
-		installedAppVersionHistory.UpdatedOn = time.Now()
-		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersionHistory.UpdateAuditLog(installAppVersionRequest.UserId)
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
 			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)

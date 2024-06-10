@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package util
@@ -42,12 +41,14 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
+	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH     = "manifest_push"
 	CHART_WORKING_DIR_PATH                     = "/tmp/charts/"
 )
 
 type ChartCreateRequest struct {
-	ChartMetaData *chart.Metadata
-	ChartPath     string
+	ChartMetaData       *chart.Metadata
+	ChartPath           string
+	IncludePackageChart bool
 }
 
 type ChartCreateResponse struct {
@@ -432,6 +433,10 @@ func IsAcdApp(deploymentAppType string) bool {
 // TODO refactoring: This feature belongs to enterprise only
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}
+
+func IsManifestPush(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH
 }
 
 func IsOCIRegistryChartProvider(ociRegistry dockerRegistryRepository.DockerArtifactStore) bool {

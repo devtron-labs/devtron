@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package webhookHelm
@@ -25,8 +24,10 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -153,6 +154,10 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		res, err := impl.helmAppService.InstallRelease(ctx, clusterId, installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in installing helm release", "appIdentifier", appIdentifier, "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError
 		}
 		if !res.GetSuccess() {
@@ -161,7 +166,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-7 build app detail url (if error, then return success as operations has been completed already, just result is sent to be nil)
-	hostUrlAttribute, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrlAttribute, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil || hostUrlAttribute == nil {
 		impl.logger.Errorw("error while getting host url attribute from DB", "error", err)
 		return nil, "", "", http.StatusOK

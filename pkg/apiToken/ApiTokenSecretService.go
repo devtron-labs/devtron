@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package apiToken
@@ -21,6 +20,7 @@ import (
 	"errors"
 	apiTokenAuth "github.com/devtron-labs/authenticator/apiToken"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"go.uber.org/zap"
 )
 
@@ -36,9 +36,9 @@ type ApiTokenSecretServiceImpl struct {
 
 func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, attributesService attributes.AttributesService, apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore) (*ApiTokenSecretServiceImpl, error) {
 	impl := &ApiTokenSecretServiceImpl{
-		logger:                   logger,
-		attributesService: attributesService,
-		apiTokenSecretStore:      apiTokenSecretStore,
+		logger:              logger,
+		attributesService:   attributesService,
+		apiTokenSecretStore: apiTokenSecretStore,
 	}
 
 	// get secret from db and store
@@ -67,7 +67,7 @@ func (impl ApiTokenSecretServiceImpl) GetApiTokenSecretByteArr() ([]byte, error)
 
 func (impl ApiTokenSecretServiceImpl) getApiSecretFromDb() (string, error) {
 	// get from db
-	apiTokenSecret, err := impl.attributesService.GetByKey(attributes.API_SECRET_KEY)
+	apiTokenSecret, err := impl.attributesService.GetByKey(bean.API_SECRET_KEY)
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret from DB", "error", err)
 		return "", err

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -57,7 +56,7 @@ type CdWorkflowRepository interface {
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
 	IsLatestCDWfr(pipelineId, wfrId int) (bool, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
-
+	FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error)
 	GetConnection() *pg.DB
 
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
@@ -357,7 +356,19 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	// TODO - Group By Environment And Pipeline will get latest pipeline from top
 	return cdWorkflow, err
 }
-
+func (impl *CdWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error) {
+	cnt, err := impl.dbConnection.
+		Model(&CdWorkflow{}).
+		ColumnExpr("DISTINCT pipeline_id").
+		Join("JOIN cd_workflow_runner ON cd_workflow.id = cd_workflow_runner.cd_workflow_id").
+		Where("cd_workflow_runner.workflow_type = ? AND cd_workflow_runner.started_on > ?", bean.CD_WORKFLOW_TYPE_DEPLOY, time.Now().AddDate(0, 0, -1)).
+		Group("cd_workflow.pipeline_id").
+		Count()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching cd workflow", "err", err)
+	}
+	return cnt, err
+}
 func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.

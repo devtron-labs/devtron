@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -430,7 +429,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
 		if apiErr != nil {
 			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
-			return []pipelineConfig.CiPipelineMaterialResponse{}, apiErr
+			return nil, apiErr
 		}
 		ciMaterialHistoryMap[m] = changesResp
 	}
@@ -459,7 +458,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
-		return []pipelineConfig.CiPipelineMaterialResponse{}, err
+		return nil, err
 	}
 	for _, k := range regexMaterials {
 		r := pipelineConfig.CiPipelineMaterialResponse{

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package bean
@@ -144,6 +143,9 @@ type AppEnvironmentContainer struct {
 type DeploymentDetailContainer struct {
 	InstalledAppId                int             `json:"installedAppId,omitempty"`
 	AppId                         int             `json:"appId,omitempty"`
+	CdPipelineId                  int             `json:"cdPipelineId,omitempty"`
+	TriggerType                   string          `json:"triggerType,omitempty"`
+	ParentEnvironmentName         string          `json:"parentEnvironmentName"`
 	AppStoreInstalledAppVersionId int             `json:"appStoreInstalledAppVersionId,omitempty"`
 	AppStoreChartName             string          `json:"appStoreChartName,omitempty"`
 	AppStoreChartId               int             `json:"appStoreChartId,omitempty"`
@@ -169,7 +171,7 @@ type DeploymentDetailContainer struct {
 	ParentArtifactId              int             `json:"parentArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
-	CiPipelineId                  int             `json:"-"`
+	CiPipelineId                  int             `json:"ciPipelineId,omitempty"`
 	IsExternalCi                  bool            `json:"externalCi"`
 	ClusterName                   string          `json:"clusterName,omitempty"`
 	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
@@ -177,6 +179,7 @@ type DeploymentDetailContainer struct {
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	HelmPackageName               string          `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string          `json:"-"`
 }
 

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package in
 
 import (
@@ -85,7 +101,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	deployedAppService deployedApp.DeployedAppService,
 	webhookService pipeline.WebhookService,
 	validator *validator.Validate,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdPipelineConfigService pipeline.CdPipelineConfigService,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -106,7 +122,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		deployedAppService:              deployedAppService,
 		webhookService:                  webhookService,
 		validator:                       validator,
-		globalEnvVariables:              globalEnvVariables,
+		globalEnvVariables:              envVariables.GlobalEnvVariables,
 		cdWorkflowCommonService:         cdWorkflowCommonService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		devtronAppReleaseContextMap:     make(map[int]bean.DevtronAppReleaseContextType),
@@ -136,6 +152,16 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
+
+		if wfr.Status != string(v1alpha1.NodeSucceeded) {
+			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
+			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			if err != nil {
+				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		}
+
 		triggerContext := bean5.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 		}
@@ -451,6 +477,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 		}
 
 		triggerContext := bean5.TriggerContext{
+			Context:     context.Background(),
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
@@ -471,6 +498,9 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					return
 				}
 				for _, detail := range imageDetails {
+					if detail.ImageTags == nil {
+						continue
+					}
 					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
@@ -795,12 +825,14 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
 			return
 		}
-		impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
-		//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
-		//trying to delete deployment app once
-		err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
-		if err != nil {
-			impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+		if pipeline.DeploymentAppType == bean5.Helm {
+			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent)
+			//there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
+			//trying to delete deployment app once
+			err = impl.cdPipelineConfigService.DeleteHelmTypePipelineDeploymentApp(context.Background(), true, pipeline)
+			if err != nil {
+				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "pipelineId", pipeline.Id)
+			}
 		}
 	}
 	// add required logging here

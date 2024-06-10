@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package FullMode
@@ -25,11 +24,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"go.uber.org/zap"
 )
 
 type InstalledAppDBExtendedService interface {
@@ -44,23 +39,14 @@ type InstalledAppDBExtendedServiceImpl struct {
 	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
-func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
-	installedAppRepository repository2.InstalledAppRepository,
-	appRepository app.AppRepository,
-	userService user.UserService,
-	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
+func NewInstalledAppDBExtendedServiceImpl(
+	installedAppDBServiceImpl *EAMode.InstalledAppDBServiceImpl,
 	appStatusService appStatus.AppStatusService,
 	gitOpsConfigReadService config.GitOpsConfigReadService) *InstalledAppDBExtendedServiceImpl {
 	return &InstalledAppDBExtendedServiceImpl{
-		InstalledAppDBServiceImpl: &EAMode.InstalledAppDBServiceImpl{
-			Logger:                        logger,
-			InstalledAppRepository:        installedAppRepository,
-			AppRepository:                 appRepository,
-			UserService:                   userService,
-			InstalledAppRepositoryHistory: installedAppRepositoryHistory,
-		},
-		appStatusService:        appStatusService,
-		gitOpsConfigReadService: gitOpsConfigReadService,
+		InstalledAppDBServiceImpl: installedAppDBServiceImpl,
+		appStatusService:          appStatusService,
+		gitOpsConfigReadService:   gitOpsConfigReadService,
 	}
 }
 

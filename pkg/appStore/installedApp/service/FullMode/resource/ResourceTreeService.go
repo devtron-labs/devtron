@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resource
 
 import (
@@ -5,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -50,9 +66,9 @@ type InstalledAppResourceServiceImpl struct {
 	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sServiceImpl
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	K8sUtil                              k8s2.K8sService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -62,8 +78,8 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
-	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) *InstalledAppResourceServiceImpl {
+	appStatusService appStatus.AppStatusService,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -75,9 +91,9 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		appStatusService:                     appStatusService,
-		K8sUtil:                              K8sUtil,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		K8sUtil:                              K8sUtil,
 	}
 }
 

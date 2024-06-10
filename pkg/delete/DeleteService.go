@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package delete
 
 import (
@@ -6,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -15,7 +32,7 @@ import (
 
 type DeleteService interface {
 	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
-	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
+	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
@@ -63,7 +80,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, 
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error {
 	err := impl.environmentService.Delete(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "err", err, "deleteRequest", deleteRequest)

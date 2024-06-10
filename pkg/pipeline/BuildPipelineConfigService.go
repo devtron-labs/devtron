@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -29,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -279,7 +279,11 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
 	}
-
+	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
+		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
+		errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
 		if material.ScmId != "" {
@@ -496,7 +500,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -659,7 +663,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 	}
 
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
 			return nil, err
@@ -888,7 +892,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCi(appId int) (ciConfig []*b
 		return nil, err
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1020,7 +1024,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiById(appId int, externalCi
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
@@ -1454,7 +1458,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := CiPipeline.NORMAL
+		pipelineType := CiPipeline.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
@@ -1585,7 +1589,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 		return nil, err
 	}
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 		if err != nil {
 			return nil, err
 		}
@@ -1871,7 +1875,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err
 	}
-	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrl, err := impl.attributesService.GetByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "request", request, "err", err)
 		return nil, err

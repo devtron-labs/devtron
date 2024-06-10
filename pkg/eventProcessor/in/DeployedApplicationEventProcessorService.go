@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package in
 
 import (
@@ -42,7 +58,9 @@ type DeployedApplicationEventProcessorImpl struct {
 	installedAppRepository repository.InstalledAppRepository
 }
 
-func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger, pubSubClient *pubsub.PubSubClientServiceImpl,
+func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
+	pubSubClient *pubsub.PubSubClientServiceImpl,
+	appService app.AppService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
@@ -54,6 +72,7 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger, pubSubC
 	deployedApplicationEventProcessorImpl := &DeployedApplicationEventProcessorImpl{
 		logger:                    logger,
 		pubSubClient:              pubSubClient,
+		appService:                appService,
 		gitOpsConfigReadService:   gitOpsConfigReadService,
 		installedAppService:       installedAppService,
 		workflowDagExecutor:       workflowDagExecutor,
@@ -86,10 +105,10 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			//if not found in pipeline table then search in installed_apps table
+			// if not found in pipeline table then search in installed_apps table
 			installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
 			if err == pg.ErrNoRows {
-				//no installed_apps found
+				// no installed_apps found
 				impl.logger.Errorw("no installed apps found", "err", err)
 				return
 			}
@@ -98,7 +117,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 				return
 			}
 			if installedAppModel.Id > 0 {
-				//app found in installed_apps table hence setting flag to true
+				// app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {
 				// app neither found in installed_apps nor in pipeline table hence returning
@@ -214,7 +233,7 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 		}
 
 		// Check to ensure that delete request for app was received
-		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
+		installedApp, err := impl.installedAppService.GetInstalledAppById(model.InstalledAppId)
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
 			return fmt.Errorf("app not found in database %s", err)

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 /*
@@ -21,7 +20,11 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -46,6 +49,7 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
+	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
 type UserRepositoryImpl struct {
@@ -58,13 +62,14 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{}   `sql:"users" pg:",discard_unknown_columns"`
-	Id          int32      `sql:"id,pk"`
-	EmailId     string     `sql:"email_id,notnull"`
-	AccessToken string     `sql:"access_token"`
-	Active      bool       `sql:"active,notnull"`
-	UserType    string     `sql:"user_type"`
-	UserAudit   *UserAudit `sql:"-"`
+	TableName      struct{}   `sql:"users" pg:",discard_unknown_columns"`
+	Id             int32      `sql:"id,pk"`
+	EmailId        string     `sql:"email_id,notnull"`
+	RequestEmailId string     `sql:"request_email_id"`
+	AccessToken    string     `sql:"access_token"`
+	Active         bool       `sql:"active,notnull"`
+	UserType       string     `sql:"user_type"`
+	UserAudit      *UserAudit `sql:"-"`
 	sql.AuditLog
 }
 
@@ -78,6 +83,8 @@ type UserRoleModel struct {
 }
 
 func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {
+	userModel.RequestEmailId = userModel.EmailId
+	userModel.EmailId = util.ConvertEmailToLowerCase(userModel.EmailId)
 	err := tx.Insert(userModel)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -87,6 +94,7 @@ func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*Use
 	return userModel, nil
 }
 func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {
+	userModel.EmailId = util.ConvertEmailToLowerCase(userModel.EmailId)
 	err := tx.Update(userModel)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -116,6 +124,7 @@ func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, log
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	model.EmailId = util.ConvertEmailToLowerCase(model.EmailId)
 	return &model, err
 }
 
@@ -133,13 +142,14 @@ func (impl UserRepositoryImpl) GetEmailByIds(ids []int32) ([]string, error) {
 	for _, model := range models {
 		userEmails = append(userEmails, model.EmailId)
 	}
-	return userEmails, err
+	return util.ConvertEmailsToLowerCase(userEmails), err
 
 }
 
 func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
+	model.EmailId = util.ConvertEmailToLowerCase(model.EmailId)
 	return &model, err
 }
 
@@ -149,6 +159,9 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 		Where("active = ?", true).
 		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
+	for i, user := range userModel {
+		userModel[i].EmailId = util.ConvertEmailToLowerCase(user.EmailId)
+	}
 	return userModel, err
 }
 
@@ -159,20 +172,23 @@ func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, 
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
 		return nil, err
 	}
+	for i, user := range userModel {
+		userModel[i].EmailId = util.ConvertEmailToLowerCase(user.EmailId)
+	}
 	return userModel, err
 }
 
 func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
 	var users bean.UserInfo
 
-	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u " +
-		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
+	query := fmt.Sprintf("SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u"+
+		" WHERE u.active = true and %s order by u.updated_on desc", helper.GetEmailSearchQuery("u", email))
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
-		impl.Logger.Error("Exception caught:", err)
+		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
 	}
-
+	users.EmailId = util.ConvertEmailToLowerCase(email)
 	return users, nil
 }
 
@@ -181,11 +197,11 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 	var users []bean.UserRole
 	var userFinal bean.UserInfo
 
-	query := "SELECT u.id, u.email_id, u.user_type, r.role FROM users u" +
-		" INNER JOIN user_roles ur ON ur.user_id=u.id" +
-		" INNER JOIN roles r ON r.id=ur.role_id" +
-		" WHERE u.email_id= ? and u.active = true" +
-		" ORDER BY u.updated_on desc;"
+	query := fmt.Sprintf("SELECT u.id, u.email_id, u.user_type, r.role FROM users u"+
+		" INNER JOIN user_roles ur ON ur.user_id=u.id"+
+		" INNER JOIN roles r ON r.id=ur.role_id"+
+		" WHERE %s and u.active = true"+
+		" ORDER BY u.updated_on desc;", helper.GetEmailSearchQuery("u", email))
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
 		return userFinal, err
@@ -195,7 +211,7 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 	for _, item := range users {
 		userFinal.Exist = true
 		userFinal.Id = item.Id
-		userFinal.EmailId = item.EmailId
+		userFinal.EmailId = util.ConvertEmailToLowerCase(item.EmailId)
 		role = append(role, item.Role)
 	}
 	userFinal.Roles = role
@@ -204,6 +220,9 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 func (impl UserRepositoryImpl) GetByIds(ids []int32) ([]UserModel, error) {
 	var model []UserModel
 	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
+	for i, m := range model {
+		model[i].EmailId = util.ConvertEmailToLowerCase(m.EmailId)
+	}
 	return model, err
 }
 
@@ -214,15 +233,19 @@ func (impl *UserRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 func (impl UserRepositoryImpl) FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error) {
 	var model []UserModel
 	err := impl.dbConnection.Model(&model).
-		Where("email_id like (?)", "%"+email+"%").
+		Where("email_id ilike (?)", "%"+email+"%").
 		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Where("active = ?", true).Select()
+	for i, m := range model {
+		model[i].EmailId = util.ConvertEmailToLowerCase(m.EmailId)
+	}
 	return model, err
 }
 
 func (impl UserRepositoryImpl) FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("email_id ILIKE (?)", email).Limit(1).Select()
+	model.EmailId = util.ConvertEmailToLowerCase(email)
 	return &model, err
 }
 
@@ -241,4 +264,16 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 		return totalCount, err
 	}
 	return totalCount, err
+}
+
+// below method does operation on api_token table,
+// we are writing this method here instead of ApiTokenRepository to avoid cyclic import
+func (impl UserRepositoryImpl) CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error) {
+	query := impl.dbConnection.Model().
+		Table(userBean.ApiTokenTableName).
+		Where("name = ?", tokenName).
+		Where("version = ?", tokenVersion)
+
+	exists, err := query.Exists()
+	return exists, err
 }

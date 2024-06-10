@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package batch
@@ -27,6 +26,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
@@ -157,24 +157,24 @@ func (impl ConfigMapServiceMock) CSEnvironmentFetchForEdit(name string, id int, 
 
 type EnvironmentServiceMock struct{}
 
-func (impl EnvironmentServiceMock) Create(mappings *cluster.EnvironmentBean, userId int32) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) Create(mappings *bean3.EnvironmentBean, userId int32) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) FindOne(environment string) (*cluster.EnvironmentBean, error) {
-	return &cluster.EnvironmentBean{Id: 1}, nil
+func (impl EnvironmentServiceMock) FindOne(environment string) (*bean3.EnvironmentBean, error) {
+	return &bean3.EnvironmentBean{Id: 1}, nil
 	//panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetAll() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetAll() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetAllActive() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetAllActive() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) FindById(id int) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) FindById(id int) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
@@ -182,7 +182,7 @@ func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) Update(mappings *cluster.EnvironmentBean, userId int32) (*cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) Update(mappings *bean3.EnvironmentBean, userId int32) (*bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 
@@ -190,7 +190,7 @@ func (impl EnvironmentServiceMock) FindClusterByEnvId(id int) (*cluster.ClusterB
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) GetEnvironmentListForAutocomplete() ([]cluster.EnvironmentBean, error) {
+func (impl EnvironmentServiceMock) GetEnvironmentListForAutocomplete() ([]bean3.EnvironmentBean, error) {
 	panic("implement me")
 }
 

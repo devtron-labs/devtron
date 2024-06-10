@@ -21,6 +21,16 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: devtron-demo
+  labels:
+    name: devtron
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/resource-policy": keep
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: devtron-cd
   labels:
     name: devtron
@@ -919,6 +929,22 @@ metadata:
   name: argo
   namespace: argo
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cd-runner
+  namespace: devtron-cd
+  labels:
+    release: devtron
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-runner
+  namespace: devtron-ci
+  labels:
+    release: devtron
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -1123,6 +1149,58 @@ rules:
   - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workflow-cluster-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: workflow-cluster-role
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workflow-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: ci-runner
+  namespace: devtron-ci
+- kind: ServiceAccount
+  name: cd-runner
+  namespace: devtron-cd
+- kind: ServiceAccount
+  name: devtron
+  namespace: devtroncd
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: argo-binding
@@ -1184,9 +1262,9 @@ spec:
         - workflow-controller-configmap
         - --executor-image
         {{- if $.Values.workflowController.IMDSv2Enforced }}
-        - {{ $.Values.workflowController.executorImage }}
+        - {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.executorImage  ) }}
         {{- else }}
-        - quay.io/argoproj/argoexec:v3.0.7
+        - {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1ExecutorImage  ) }}
         {{- end }}
         command:
         - workflow-controller
@@ -1201,9 +1279,9 @@ spec:
           value: v1
         {{- end }}
         {{- if $.Values.workflowController.IMDSv2Enforced }}
-        image: {{ $.Values.workflowController.image }}
+        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global  ) }}
         {{- else }}
-        image: quay.io/argoproj/workflow-controller:v3.0.7
+        image: {{ include "common.image" (dict "component" $.Values.workflowController "global" $.Values.global "extraImage" $.Values.workflowController.IMDSv1Image ) }}
         {{- end }}
         name: workflow-controller
         {{- if $.Values.workflowController.resources }}        
