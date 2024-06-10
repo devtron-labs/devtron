@@ -35,7 +35,6 @@ var InternalTimelineStatusList = []TimelineStatus{
 const (
 	TIMELINE_STATUS_DEPLOYMENT_INITIATED         TimelineStatus = "DEPLOYMENT_INITIATED"
 	TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED TimelineStatus = "DEPLOYMENT_REQUEST_VALIDATED"
-	TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED   TimelineStatus = "DEPLOYMENT_AUDIT_COMPLETED"
 	TIMELINE_STATUS_GIT_COMMIT                   TimelineStatus = "GIT_COMMIT"
 	TIMELINE_STATUS_GIT_COMMIT_FAILED            TimelineStatus = "GIT_COMMIT_FAILED"
 	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED        TimelineStatus = "ARGOCD_SYNC_INITIATED"
@@ -58,11 +57,9 @@ const (
 	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED         string = "Deployment initiated successfully."
 	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE             string = "Deployment failed: Vulnerability policy violated."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED string = "Deployment trigger request has been validated successfully."
-	TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED   string = "Deployment trigger history has been audited successfully."
 	TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT            string = "Git commit done successfully."
 	TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED        string = "ArgoCD sync initiated."
 	TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED        string = "ArgoCD sync completed."
-	TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED         string = "Deployment has been triggered successfully."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED         string = "Deployment has been performed successfully. Waiting for application to be healthy..."
 	TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED        string = "This deployment is superseded."
 )
