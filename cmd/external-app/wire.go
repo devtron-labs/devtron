@@ -1,3 +1,6 @@
+//go:build wireinject
+// +build wireinject
+
 /*
  * Copyright (c) 2024. Devtron Inc.
  *
@@ -13,9 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-//go:build wireinject
-// +build wireinject
 
 package main
 
@@ -147,6 +147,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+		app.GetCrudOperationServiceConfig,
 		// acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
