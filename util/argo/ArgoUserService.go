@@ -57,7 +57,7 @@ type ArgoUserService interface {
 	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
 	GetOrUpdateArgoCdUserDetail() string
 
-	BuildACDContext() (acdContext context.Context, err error)
+	GetACDContext(ctx context.Context) (acdContext context.Context, err error)
 	SetAcdTokenInContext(ctx context.Context) (context.Context, error)
 }
 
@@ -92,16 +92,15 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 	return argoUserServiceImpl, nil
 }
 
-func (impl *ArgoUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+func (impl *ArgoUserServiceImpl) GetACDContext(ctx context.Context) (acdContext context.Context, err error) {
 	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
 	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err
 	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	return ctx, nil
+	acdCtx := context.WithValue(ctx, "token", acdToken)
+	return acdCtx, nil
 }
 
 func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {

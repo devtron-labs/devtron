@@ -22,16 +22,16 @@ func NewValuesOverrideRequest(userDeploymentRequest *repository.UserDeploymentRe
 	}
 }
 
-func NewAsyncCdDeployRequest(userDeploymentRequest *repository.UserDeploymentRequest) *bean.AsyncCdDeployRequest {
-	return &bean.AsyncCdDeployRequest{
-		UserDeploymentRequestId: userDeploymentRequest.Id,
-		ValuesOverrideRequest:   NewValuesOverrideRequest(userDeploymentRequest),
-		TriggeredAt:             userDeploymentRequest.TriggeredAt,
-		TriggeredBy:             userDeploymentRequest.TriggeredBy,
+func NewAsyncCdDeployRequest(userDeploymentRequest *repository.UserDeploymentRequest) *bean.UserDeploymentRequest {
+	return &bean.UserDeploymentRequest{
+		Id:                    userDeploymentRequest.Id,
+		ValuesOverrideRequest: NewValuesOverrideRequest(userDeploymentRequest),
+		TriggeredAt:           userDeploymentRequest.TriggeredAt,
+		TriggeredBy:           userDeploymentRequest.TriggeredBy,
 	}
 }
 
-func NewUserDeploymentRequest(asyncCdDeployRequest *bean.AsyncCdDeployRequest) *repository.UserDeploymentRequest {
+func NewUserDeploymentRequest(asyncCdDeployRequest *bean.UserDeploymentRequest) *repository.UserDeploymentRequest {
 	valuesOverrideRequest := asyncCdDeployRequest.ValuesOverrideRequest
 	return &repository.UserDeploymentRequest{
 		PipelineId:           valuesOverrideRequest.PipelineId,

@@ -1,3 +1,6 @@
+//go:build wireinject
+// +build wireinject
+
 /*
  * Copyright (c) 2024. Devtron Inc.
  *
@@ -13,9 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-//go:build wireinject
-// +build wireinject
 
 package main
 
@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/infraConfig"
@@ -121,9 +122,8 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -196,6 +196,9 @@ func InitializeApp() (*App, error) {
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
+
+		devtronResource.DevtronResourceWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -924,8 +927,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(executors.SystemWorkflowExecutor), new(*executors.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
-		app.NewGitOpsManifestPushServiceImpl,
-		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
+		publish.NewGitOpsManifestPushServiceImpl,
+		wire.Bind(new(publish.GitOpsPushService), new(*publish.GitOpsManifestPushServiceImpl)),
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,
@@ -950,12 +953,6 @@ func InitializeApp() (*App, error) {
 
 		resourceQualifiers.NewQualifierMappingServiceImpl,
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
-
-		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
-
-		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),

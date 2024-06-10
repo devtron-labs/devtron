@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -149,11 +150,11 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installAppVersionRequest.DeploymentAppType)
 
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 	}
 
 	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 
 	var gitOpsResponse *bean2.AppStoreGitOpsResponse
@@ -167,14 +168,14 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
 			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
+				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 			}
 			return nil, err
 		}
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 			if impl.aCDConfig.IsManualSyncEnabled() {
-				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", time.Now(), tx)
+				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 			}
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
@@ -694,10 +695,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 	upgradeAppRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
-	_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
+	_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 
 	if util.IsManifestDownload(upgradeAppRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 	// gitOps operation
 	monoRepoMigrationRequired := false
@@ -722,14 +723,14 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		gitOpsResponse, gitOpsErr = impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, upgradeAppRequest, monoRepoMigrationRequired, isChartChanged || isVersionChanged)
 		if gitOpsErr != nil {
 			impl.logger.Errorw("error in performing GitOps operation", "err", gitOpsErr)
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)
 			return nil, gitOpsErr
 		}
 
 		upgradeAppRequest.GitHash = gitOpsResponse.GitHash
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 		if impl.aCDConfig.IsManualSyncEnabled() {
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "Argocd sync initiated", time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 		}
 		installedAppVersionHistory.GitHash = gitOpsResponse.GitHash
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)

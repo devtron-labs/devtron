@@ -49,6 +49,14 @@ func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineSt
 	}
 }
 
+func (workflowType WorkflowType) IsStageTypeDeploy() bool {
+	switch workflowType {
+	case CD_WORKFLOW_TYPE_DEPLOY:
+		return true
+	}
+	return false
+}
+
 type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`

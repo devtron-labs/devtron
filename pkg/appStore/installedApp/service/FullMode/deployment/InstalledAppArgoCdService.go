@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -144,7 +144,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		return err
 	}
 	if impl.acdConfig.IsManualSyncEnabled() {
-		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
+		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, syncTime, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
 			return err

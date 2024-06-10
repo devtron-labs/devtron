@@ -50,13 +50,13 @@ var errorHttpStatusCodeMap = map[string]int{
 func ConvertToApiError(err error) *util2.ApiError {
 	var apiError *util2.ApiError
 	if _, ok := status.FromError(err); ok {
-		clientCode, _ := util2.GetClientDetailedError(err)
+		clientCode, errMsg := util2.GetClientDetailedError(err)
 		httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
 		apiError = &util2.ApiError{
 			HttpStatusCode:  httpStatusCode,
 			Code:            strconv.Itoa(httpStatusCode),
-			InternalMessage: err.Error(),
-			UserMessage:     err.Error(),
+			InternalMessage: errMsg,
+			UserMessage:     errMsg,
 		}
 	} else {
 		for errMsg, statusCode := range errorHttpStatusCodeMap {

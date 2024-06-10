@@ -23,7 +23,6 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -33,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -132,7 +130,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	if err != nil {
 		impl.logger.Errorw("failed to publish trigger request event", "topic", topic, "msg", msg, "err", err)
 		//update workflow runner status, used in app workflow view
-		err1 := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowFailed, adapter.WithMessage(err.Error()))
+		err1 := impl.cdWorkflowCommonService.MarkDeploymentFailedForRunnerId(overrideRequest.WfrId, err, overrideRequest.UserId)
 		if err1 != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
@@ -140,44 +138,17 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
+	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err
 	}
-	err = impl.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
+	err = impl.cdWorkflowCommonService.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err
 	}
 	return 0, nil
-}
-
-func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
-	cdWfrs, err := impl.cdWorkflowRepository.UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId, triggeredBy)
-	if err != nil {
-		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
-		return err
-	}
-	for _, cdWfr := range cdWfrs {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline, UpdatePreviousQueuedRunnerStatus", "err", err)
-			return err
-		}
-		if cdWfr.CdWorkflow == nil {
-			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching cd pipeline, UpdatePreviousQueuedRunnerStatus", "pipelineId", pipelineId, "err", err)
-				return err
-			}
-			cdWfr.CdWorkflow = &pipelineConfig.CdWorkflow{
-				Pipeline: pipeline,
-			}
-		}
-		globalUtil.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
-	}
-	return nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error) {
@@ -239,8 +210,8 @@ func (impl *WorkflowEventPublishServiceImpl) getAsyncDeploymentTopicAndPayload(u
 			topic = pubsub.DEVTRON_CHART_PRIORITY_INSTALL_TOPIC
 		}
 	}
-	event := &eventProcessorBean.AsyncCdDeployRequest{
-		UserDeploymentRequestId: userDeploymentRequestId,
+	event := &eventProcessorBean.UserDeploymentRequest{
+		Id: userDeploymentRequestId,
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {

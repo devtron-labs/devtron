@@ -74,7 +74,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	}
 	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		impl.logger.Debugw("git fetch completed, pulling master branch data from remote origin")
 		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)

@@ -45,8 +45,8 @@ func GetVulnerabilityCheckRequest(cdPipeline *pipelineConfig.Pipeline, imageDige
 	}
 }
 
-func NewAsyncCdDeployRequest(overrideRequest *apiBean.ValuesOverrideRequest, triggeredAt time.Time, triggeredBy int32) *eventProcessorBean.AsyncCdDeployRequest {
-	return &eventProcessorBean.AsyncCdDeployRequest{
+func NewUserDeploymentRequest(overrideRequest *apiBean.ValuesOverrideRequest, triggeredAt time.Time, triggeredBy int32) *eventProcessorBean.UserDeploymentRequest {
+	return &eventProcessorBean.UserDeploymentRequest{
 		ValuesOverrideRequest: overrideRequest,
 		TriggeredAt:           triggeredAt,
 		TriggeredBy:           triggeredBy,

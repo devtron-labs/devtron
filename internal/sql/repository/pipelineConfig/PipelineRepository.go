@@ -18,11 +18,11 @@ package pipelineConfig
 
 import (
 	"context"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -105,6 +105,7 @@ type PipelineRepository interface {
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
+	FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error)
 	SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error
 	UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, delete bool) error
 	UpdateCdPipelineAfterDeployment(deploymentAppType string, cdPipelineIdIncludes []int, userId int32, delete bool) error
@@ -531,6 +532,16 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 	return pipelines, err
 }
 
+func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvId(appId int, envId int) (*Pipeline, error) {
+	var pipeline Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Where("app_id = ?", appId).
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Select()
+	return &pipeline, err
+}
+
 func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentAppCreated bool, pipelineId int, userId int32) error {
 	query := "update pipeline set deployment_app_created=?, updated_on=?, updated_by=? where id=?;"
 	var pipeline *Pipeline
@@ -599,8 +610,8 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
     and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
-		pg.In([]TimelineStatus{TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
-			TIMELINE_STATUS_FETCH_TIMED_OUT, TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
 		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
@@ -619,7 +630,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
-		pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
+		pg.In(append(WfrTerminalStatusList, WorkflowInitiated, WorkflowInQueue)),
 		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)

@@ -19,8 +19,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -129,6 +132,7 @@ type AppService interface {
 	CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 
+	// TODO: move inside reader service
 	GetActiveCiCdAppsCount() (int, error)
 }
 
@@ -282,8 +286,8 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			impl.logger.Errorw("error in converting string to int", "err", err)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
-		latestTimelineBeforeThisEvent, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
-		if err != nil && err != pg.ErrNoRows {
+		lastStatusTime, err := impl.pipelineStatusTimelineRepository.GetLastStatusPublishedTimeForWfrId(cdWfr.Id)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
@@ -297,7 +301,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 		}
 		var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
 		// updating cd pipeline status timeline
-		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, false)
+		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, lastStatusTime, reconciledAt, false)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 		}
@@ -348,7 +352,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
 		latestTimelineBeforeThisEvent, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistory.Id)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "installedAppVersionHistoryId", installedAppVersionHistory.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
@@ -364,7 +368,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 		}
 		var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
 		// updating versionHistory pipeline status timeline
-		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, installedAppVersionHistory.Id, statusTime, installedAppVersionHistory.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, true)
+		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, installedAppVersionHistory.Id, statusTime, installedAppVersionHistory.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent.StatusTime, reconciledAt, true)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 		}
@@ -520,9 +524,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForAppStore(app *v1alpha1.Appl
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, runnerHistoryId int, statusTime time.Time,
-	triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time,
-	isAppStore bool) (isTimelineUpdated bool, isTimelineTimedOut bool, kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, runnerHistoryId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, lastStatusTime time.Time, reconciledAt *metav1.Time, isAppStore bool) (isTimelineUpdated bool, isTimelineTimedOut bool, kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
 	// runnerHistoryId can be wfrId or installedAppVersionHistoryId
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", runnerHistoryId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated = false
@@ -537,7 +539,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 		}
-		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByWfrId(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT)
+		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByWfrId(runnerHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT)
 		if err != nil {
 			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -561,12 +563,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				UpdatedOn: time.Now(),
 			},
 		}
-		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+		timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 		if app != nil && app.Status.OperationState != nil {
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
 		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, false)
+		isTimelineUpdated, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -577,17 +579,17 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", runnerHistoryId)
 		}
 		var kubectlSyncTimelineFetchErr error
-		kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
-		if kubectlSyncTimelineFetchErr != nil && kubectlSyncTimelineFetchErr != pg.ErrNoRows {
+		kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(runnerHistoryId, timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+		if kubectlSyncTimelineFetchErr != nil && !errors.Is(kubectlSyncTimelineFetchErr, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "cdWfrId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
 		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8sCommonBean.OperationSucceeded) {
 			timeline.Id = 0
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -602,12 +604,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+				timeline.Status = timelineStatus.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
 			}
 			if haveNewTimeline {
 				// not checking if this status is already present or not because already checked for terminal status existence earlier
-				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -620,16 +622,16 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if !isTimelineUpdated {
 			// no timeline updated since before, in this case we will check for timeout cases
 			var lastTimeToCheckForTimeout time.Time
-			if latestTimelineBeforeUpdate == nil {
+			if lastStatusTime.IsZero() {
 				lastTimeToCheckForTimeout = triggeredAt
 			} else {
-				lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
+				lastTimeToCheckForTimeout = lastStatusTime
 			}
 			if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
 				// mark as timed out if not already marked
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
+				timeline.Status = timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
-				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, false)
+				isTimelineUpdated, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 				if err != nil {
 					impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -649,7 +651,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Infow("terminal status timeline exists for installed App, skipping more timeline changes", "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, nil
 		}
-		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT)
+		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(runnerHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT)
 		if err != nil {
 			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -673,12 +675,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				UpdatedOn: time.Now(),
 			},
 		}
-		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+		timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 		if app != nil && app.Status.OperationState != nil {
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
 		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, true)
+		isTimelineUpdated, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -689,17 +691,17 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "installedAppVersionId", runnerHistoryId)
 		}
 		var kubectlSyncTimelineFetchErr error
-		kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(runnerHistoryId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+		kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr = impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(runnerHistoryId, timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if kubectlSyncTimelineFetchErr != nil && kubectlSyncTimelineFetchErr != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", kubectlSyncTimelineFetchErr, "installedAppVersionHistoryId", runnerHistoryId)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, kubectlSyncTimelineFetchErr
 		}
 		if (kubectlApplySyncedTimeline == nil || kubectlApplySyncedTimeline.Id == 0) && app != nil && app.Status.OperationState != nil && string(app.Status.OperationState.Phase) == string(k8sCommonBean.OperationSucceeded) {
 			timeline.Id = 0
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -714,12 +716,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
 				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
 				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+				timeline.Status = timelineStatus.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
 			}
 			if haveNewTimeline {
 				// not checking if this status is already present or not because already checked for terminal status existence earlier
-				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -732,16 +734,16 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if !isTimelineUpdated {
 			// no timeline updated since before, in this case we will check for timeout cases
 			var lastTimeToCheckForTimeout time.Time
-			if latestTimelineBeforeUpdate == nil {
+			if lastStatusTime.IsZero() {
 				lastTimeToCheckForTimeout = triggeredAt
 			} else {
-				lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
+				lastTimeToCheckForTimeout = lastStatusTime
 			}
 			if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
 				// mark as timed out if not already marked
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
+				timeline.Status = timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
-				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(runnerHistoryId, timeline.Status, timeline, true)
+				isTimelineUpdated, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 				if err != nil {
 					impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 					return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
@@ -1097,14 +1099,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	cdMetrics := util2.CDMetrics{
-		AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
-		Status:          wfr.Status,
-		DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
-		EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
-		Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
-	}
-	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
+	util2.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr), impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

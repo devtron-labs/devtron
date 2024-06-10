@@ -237,7 +237,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		return valuesOverrideResponse, err
 	}
 	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride.PipelineReleaseCounter, strategy, &appMetrics)
 	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
 	if err != nil {
 		return valuesOverrideResponse, err
@@ -269,12 +269,12 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			return valuesOverrideResponse, err
 		}
 
-		pipelineOverride.PipelineMergedValues = string(mergedValues)
 		valuesOverrideResponse.MergedValues = string(mergedValues)
-		err = impl.pipelineOverrideRepository.Update(newCtx, pipelineOverride)
+		err = impl.pipelineOverrideRepository.UpdatePipelineMergedValues(newCtx, nil, pipelineOverride.Id, string(mergedValues), overrideRequest.UserId)
 		if err != nil {
 			return valuesOverrideResponse, err
 		}
+		pipelineOverride.PipelineMergedValues = string(mergedValues)
 		valuesOverrideResponse.PipelineOverride = pipelineOverride
 	} else {
 		valuesOverrideResponse.MergedValues = pipelineOverride.PipelineMergedValues
@@ -660,7 +660,7 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 }
 
 func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
-	artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
+	artifact *repository.CiArtifact, pipelineReleaseCounter int, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
@@ -699,7 +699,7 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
 		PipelineName:   overrideRequest.PipelineName,
-		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
+		ReleaseVersion: strconv.Itoa(pipelineReleaseCounter),
 		DeploymentType: deploymentStrategy,
 		App:            appId,
 		Env:            envId,
@@ -854,7 +854,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 			}
 		}
 	} else {
-		impl.logger.Infow("autoscaling is not enabled", "pipelineId", pipelineId)
+		impl.logger.Debugw("autoscaling is not enabled", "pipelineId", pipelineId)
 	}
 
 	//check for custom chart support

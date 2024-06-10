@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
     "deployment_type"                        integer,
     "triggered_at"                           timestamptz NOT NULL,
     "triggered_by"                           int4 NOT NULL,
-    "status"                                 varchar(100) NOT NULL,
 
     CONSTRAINT user_deployment_request_pipeline_id_fk
         FOREIGN KEY (pipeline_id)
@@ -32,6 +31,9 @@ CREATE TABLE IF NOT EXISTS "public"."user_deployment_request"
     UNIQUE ("cd_workflow_id"),
     PRIMARY KEY ("id")
 );
+
+-- Delete priority deployment condition key from attributes table if already exits
+DELETE FROM "public"."attributes" WHERE key = 'priorityDeploymentCondition';
 
 -- insert priority deployment condition into attributes table
 INSERT INTO "public"."attributes"(key, value, active, created_on, created_by, updated_on, updated_by)

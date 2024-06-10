@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bean
+package ciPipeline
 
 type LinkedCIDetails struct {
 	AppName         string `sql:"app_name"`

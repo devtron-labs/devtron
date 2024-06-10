@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
@@ -375,7 +375,7 @@ func (impl CiPipelineRepositoryMock) FindByParentCiPipelineId(parentCiPipelineId
 	panic("implement me")
 }
 
-func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*bean3.CiPipelinesMap, error) {
+func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*ciPipeline.CiPipelinesMap, error) {
 	panic("implement me")
 }
 func (impl CiPipelineRepositoryMock) FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*pipelineConfig.CiPipeline, int, error) {

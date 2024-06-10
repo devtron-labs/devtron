@@ -37,6 +37,7 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 	case bean.ArgoCd:
 		triggerEvent.PerformChartPush = true
 		triggerEvent.PerformDeploymentOnCluster = true
+		triggerEvent.DeployArgoCdApp = true
 		triggerEvent.DeploymentAppType = bean.ArgoCd
 		triggerEvent.ManifestStorageType = bean2.ManifestStorageGit
 	case bean.Helm:
@@ -44,6 +45,5 @@ func NewTriggerEvent(deploymentAppType string, triggeredAt time.Time, deployedBy
 		triggerEvent.PerformDeploymentOnCluster = true
 		triggerEvent.DeploymentAppType = bean.Helm
 	}
-	triggerEvent.SaveTriggerHistory = true
 	return triggerEvent
 }

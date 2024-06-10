@@ -39,14 +39,14 @@ type CdStageCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 }
 
-type AsyncCdDeployRequest struct {
-	UserDeploymentRequestId int                         `json:"userDeploymentRequestId"`
-	ValuesOverrideRequest   *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
-	TriggeredAt             time.Time                   `json:"triggeredAt"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
-	TriggeredBy             int32                       `json:"triggeredBy"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+type UserDeploymentRequest struct {
+	Id                    int                         `json:"id"`
+	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredAt           time.Time                   `json:"triggeredAt"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredBy           int32                       `json:"triggeredBy"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
 }
 
-func (r *AsyncCdDeployRequest) WithCdWorkflowRunnerId(id int) *AsyncCdDeployRequest {
+func (r *UserDeploymentRequest) WithCdWorkflowRunnerId(id int) *UserDeploymentRequest {
 	if r.ValuesOverrideRequest == nil {
 		return r
 	}
@@ -54,7 +54,7 @@ func (r *AsyncCdDeployRequest) WithCdWorkflowRunnerId(id int) *AsyncCdDeployRequ
 	return r
 }
 
-func (r *AsyncCdDeployRequest) WithPipelineOverrideId(id int) *AsyncCdDeployRequest {
+func (r *UserDeploymentRequest) WithPipelineOverrideId(id int) *UserDeploymentRequest {
 	if r.ValuesOverrideRequest == nil {
 		return r
 	}

@@ -32,6 +32,7 @@ type TriggerEvent struct {
 	SaveTriggerHistory         bool
 	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
+	DeployArgoCdApp            bool
 	DeploymentAppType          string
 	ManifestStorageType        string
 	TriggeredBy                int32

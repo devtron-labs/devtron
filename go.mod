@@ -8,7 +8,6 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.8.17
 	github.com/argoproj/argo-workflows/v3 v3.4.3
 	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
-	github.com/ash-exp/go-bitbucket v0.9.60-beta3
 	github.com/aws/aws-sdk-go v1.44.290
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
 	github.com/caarlos0/env v3.5.0+incompatible
@@ -20,6 +19,7 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470
 	github.com/devtron-labs/common-lib v0.0.17-beta2
+	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
