@@ -65,11 +65,11 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 			impl.logger.Errorw("error in getting all active clusters", "err", err)
 			return nil, err
 		}
-
-		configs, err1 := convertClusterBeanToClusterConfig(clusters)
-		if err1 != nil {
-			impl.logger.Errorw("error in getting all active clusters", "err", err1)
-			return nil, err1
+		var configs []*gRPC.ClusterConfig
+		configs, err = convertClusterBeanToClusterConfig(clusters)
+		if err != nil {
+			impl.logger.Errorw("error in getting all active clusters", "err", err)
+			return nil, err
 		}
 		req.Clusters = configs
 
